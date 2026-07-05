@@ -46,6 +46,7 @@ Frontend:
 Product/enterprise:
 
 - no real authentication/authorization yet
+- no Airbyte staging integration yet
 - no source ingestion tables yet
 - no Knowledge Asset table/page yet
 - no permission-aware retrieval yet

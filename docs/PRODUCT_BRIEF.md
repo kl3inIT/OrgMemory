@@ -45,6 +45,17 @@ The near-term target is a scoped on-prem design-partner pilot where real
 enterprise data is handled only after identity, permissions, audit, data
 classification, and operational controls are in place.
 
+Because real enterprise design-partner opportunity exists, the immediate startup
+risk is not generic demand discovery. The immediate risk is delivery and trust:
+can OrgMemory safely handle real workflows, real permissions, real data, and
+real operational expectations inside an enterprise environment?
+
+Airbyte should be used for enterprise data movement when connectors fit, but it
+is not the product moat. OrgMemory's moat is the memory lifecycle after data
+lands in staging: ACL snapshot, normalization, Knowledge Asset curation,
+Capability Candidate detection, human review, approval, audit, permission-aware
+retrieval, reuse, and handover.
+
 ## AI Capability Asset
 
 An AI Capability Asset is a reusable unit of organizational AI capability. It is
@@ -153,6 +164,8 @@ Future enterprise pilot surfaces should add:
 - raw sources
 - knowledge assets
 - capability candidates
+- source connector/staging health
+- import scope and retention controls
 
 ## Target Users
 
@@ -215,6 +228,8 @@ Enterprise risk:
 - Permissions, privacy, connectors, and trust are harder than UI.
 - On-prem customers will require backup/restore, auditability, logs,
   monitoring, incident response, and a clear data-retention story.
+- A permission leak through Ask Memory, graph, citations, exports, or MCP tools
+  would damage enterprise trust immediately.
 
 Feature risk:
 
@@ -233,3 +248,5 @@ Feature risk:
 - Usage tracking is product evidence, not vanity analytics.
 - Missing backup owners are first-class risk.
 - Permission filtering must happen before retrieval in production.
+- Airbyte output must land in staging first; it must not bypass OrgMemory
+  validation and become trusted memory directly.

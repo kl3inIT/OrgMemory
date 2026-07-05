@@ -37,6 +37,10 @@ product that may handle real customer data. Do not claim production readiness
 until identity, permission-aware retrieval, source ACLs, audit logging, data
 retention, backup/restore, monitoring, and security review are implemented.
 
+Business context: the project has real enterprise design-partner opportunity.
+The primary risk is no longer generic demand discovery; it is delivery, trust,
+permission safety, and pilot execution.
+
 ## Stack
 
 Spring Boot 4.1, Java 25, Gradle Kotlin DSL, Spring Modulith 2.1, Spring Data
@@ -91,6 +95,12 @@ One domain, three deployables:
 - `apps/worker/`: scheduled/background ETL, embeddings, enrichment, handover jobs
 - `web/`: Vite SPA with small local API client helpers
 
+For enterprise pilots, use Airbyte as the preferred data movement layer when a
+source connector exists. Airbyte writes only to staging or object storage.
+OrgMemory owns ACL snapshots, normalization, Knowledge Assets, Capability
+Candidates, approval, audit, citations, and permission-aware retrieval. Do not
+write Airbyte output directly into the domain memory tables.
+
 Build features in `core` first, then expose them through `api`, `mcp`, or
 `worker`. Do not duplicate business logic in delivery apps.
 
@@ -114,7 +124,10 @@ normal runtime config.
 ## Do Not Build Yet
 
 - Browser extension capture
-- Slack/Notion/Google Drive ingestion
+- hand-built broad Slack/Notion/Google Drive connector catalog; prefer Airbyte
+  where connectors fit, then build OrgMemory staging importers
+- full Airflow orchestration; add it only if Airbyte plus the worker cannot
+  handle pipeline dependencies, backfills, data quality gates, or SLA monitoring
 - Neo4j or a full graph database. A relational graph visualization for asset
   relationships already exists and is acceptable for the prototype.
 - Multi-agent orchestration

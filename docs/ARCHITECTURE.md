@@ -33,6 +33,10 @@ apps/mcp
 apps/worker
   future scheduled ingestion/enrichment jobs
   shares core model, Flyway disabled
+
+Airbyte, external to OrgMemory
+  enterprise source connectors
+  writes to staging/object storage only
 ```
 
 ## Backend Modules
@@ -183,32 +187,67 @@ graph database. It derives nodes and edges from:
 Use PostgreSQL relations first. A dedicated graph database is a later phase only
 if the relational model no longer supports required traversal/search behavior.
 
-## Airbyte Position
+## Ingestion Architecture
 
-Airbyte is not the OrgMemory product layer. If introduced, it should feed a
-staging schema:
+Airbyte should be the preferred enterprise data-movement layer for pilot
+ingestion when a maintained connector exists. Ingestion is painful because of
+OAuth, pagination, rate limits, incremental sync, schema drift, retries, and
+connector monitoring. OrgMemory should not rebuild a broad connector catalog.
+
+Airbyte is still not the OrgMemory product layer. It should feed a staging
+schema or object storage:
 
 ```text
-Slack / Drive / GitHub / CRM / n8n / Dify
+Slack / Teams / Drive / SharePoint / GitHub / CRM / n8n / Dify
         |
         v
-Airbyte or custom connector
+Airbyte
         |
         v
-PostgreSQL staging
+PostgreSQL staging + object storage
         |
         v
-OrgMemory importer
+OrgMemory ingestion worker
         |
         v
 RawSourceObject -> NormalizedRecord -> KnowledgeAsset -> CapabilityCandidate -> Review -> CapabilityAsset
 ```
 
-Airbyte solves source access and data movement. OrgMemory solves capability
-meaning, ownership, review, reuse, and transfer.
+Airbyte solves source access and data movement. OrgMemory solves:
+
+- source scope approval
+- ACL snapshot and identity mapping
+- PII/sensitive-data detection
+- parsing, chunking, cleaning, and deduplication
+- Knowledge Asset quality
+- Capability Candidate detection
+- human review and approval
+- audit events
+- citations
+- permission-aware retrieval
+- capability ownership, reuse, and transfer
 
 Not every raw source becomes a Knowledge Asset. Not every Knowledge Asset becomes
 a Capability Asset.
+
+Do not write Airbyte output directly into the main memory/vector tables. Keep a
+staging boundary so OrgMemory can validate permissions, quality, provenance, and
+retention before data becomes trusted memory.
+
+## Airflow Position
+
+Airflow is not the default first pilot dependency. Add it only when the ingestion
+pipeline needs DAG-level orchestration that Airbyte plus `apps/worker` cannot
+reasonably handle:
+
+- complex multi-step dependencies
+- large backfills/reprocessing
+- data quality gates across many stages
+- SLA monitoring per pipeline
+- scheduled ML/embedding workflows with many dependent tasks
+
+Until that point, use Airbyte for connector sync and OrgMemory Worker for domain
+normalization, enrichment, embeddings, and governance jobs.
 
 ## Configuration
 

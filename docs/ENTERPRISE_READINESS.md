@@ -15,12 +15,17 @@ Current state:
 - good enough to present the product thesis
 - good enough to run a controlled walkthrough with seeded data
 - good enough to start design-partner discovery
+- promising because real enterprise design partners are already available
 - not ready to ingest sensitive enterprise data at scale
 - not ready for a 50,000-person rollout
 
 The first real deployment should be a scoped pilot: one tenant, one to three
 departments, limited sources, limited users, explicit data scope, and a written
 rollback plan.
+
+The main startup risk is not generic demand validation anymore. It is whether
+OrgMemory can deliver safely enough that enterprise stakeholders trust it with
+real workflows, real permissions, and real data.
 
 ## Non-Negotiable Gates Before Real Data
 
@@ -46,6 +51,7 @@ Data governance:
 - PII and sensitive-data detection/redaction
 - retention and deletion policy
 - import scope approval before each connector is enabled
+- Airbyte or any connector platform must land data in staging first
 - clear distinction between Raw Source, Knowledge Asset, Capability Candidate,
   and Capability Asset
 
@@ -95,8 +101,10 @@ Month 1 should build the enterprise foundation:
 Month 2 should ingest controlled sources:
 
 - manual/file upload
-- one document source such as SharePoint, OneDrive, or Google Drive
+- one document source such as SharePoint, OneDrive, or Google Drive, preferably
+  through Airbyte if the connector fits
 - one workflow source such as n8n JSON export
+- PostgreSQL staging or object storage boundary before OrgMemory domain import
 - source ACL snapshot
 - Knowledge Asset creation and review
 

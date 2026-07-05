@@ -33,6 +33,7 @@ employee submits AI workflow
 - Spring Data JPA
 - PostgreSQL 18 + pgvector
 - Flyway
+- Airbyte planned as the enterprise data-movement layer for pilot ingestion
 - Gradle Kotlin DSL
 - Vite 8 + React 19 + TypeScript 6
 - Tailwind CSS v4
@@ -54,6 +55,11 @@ docs/                 product, architecture, roadmap, readiness, and status docs
 
 Business logic belongs in `core/` first. Delivery apps expose it through REST,
 MCP, worker jobs, or the web UI.
+
+For enterprise pilots, Airbyte should move approved source data into staging.
+OrgMemory should then transform staged data into Raw Source Objects, Knowledge
+Assets, Capability Candidates, and approved Capability Assets. Airbyte is not
+the domain memory layer.
 
 ## Local Quickstart
 
@@ -118,6 +124,7 @@ pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwri
 ## Documentation
 
 - [Product Brief](docs/PRODUCT_BRIEF.md)
+- [Startup Strategy](docs/STARTUP_STRATEGY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Enterprise Readiness](docs/ENTERPRISE_READINESS.md)
@@ -128,6 +135,7 @@ pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwri
 ## Not Production-Ready Yet
 
 - Full Knowledge Asset ingestion and source management
+- Airbyte staging integration
 - Full enterprise SSO/SCIM
 - Permission-aware retrieval over real enterprise ACLs
 - Security review against OWASP ASVS and OWASP LLM Top 10

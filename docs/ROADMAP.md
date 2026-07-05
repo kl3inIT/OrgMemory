@@ -48,7 +48,7 @@ The first enterprise pilot should be narrow:
 - 1 enterprise tenant
 - 1-3 departments
 - 20-100 active pilot users, even if the enterprise has 50,000 employees
-- 2-3 source connectors/importers
+- 2-3 source connectors through Airbyte or tightly scoped custom importers
 - permission-aware retrieval
 - Knowledge Assets and Capability Assets
 - AI Capability Asset registry
@@ -74,6 +74,10 @@ Also keep manual submit and file/Markdown upload. User-controlled capture from
 ChatGPT, Claude, Codex, Cursor, and other AI workspaces can come before passive
 capture.
 
+Use Airbyte as the default data movement layer when a connector exists. Use
+custom importers only for sources that are not worth running through Airbyte or
+where the customer provides clean exports.
+
 ## Ingestion Operating Model
 
 Use the hybrid rule:
@@ -87,13 +91,15 @@ Human-approved publishing for organizational assets.
 Scheduled ingestion:
 
 - admin configures source, scope, schedule, and retention
-- system parses, cleans, and detects candidates
+- Airbyte syncs approved sources into staging
+- OrgMemory parses, cleans, snapshots ACLs, and detects candidates
 
 Event-driven ingestion:
 
 - webhook for updated docs/workflows
 - marked Slack/Teams messages
 - updated n8n/Dify workflow files
+- Airbyte or a narrow custom importer lands the raw payload in staging first
 
 User-controlled capture:
 
@@ -109,6 +115,7 @@ Auto-detect may create candidates. It must not auto-publish official assets.
 - stabilize auth/user/department model
 - add enterprise identity integration path: OIDC first, SAML/SCIM later
 - add tenant/org isolation assumptions explicitly
+- define the Airbyte staging boundary and connection ownership model
 - harden asset CRUD and detail
 - complete versioning behavior
 - improve review workflow
@@ -122,9 +129,12 @@ broad enterprise data.
 
 ### Month 2: Ingestion And Candidates
 
+- deploy self-managed Airbyte in the pilot environment if approved by the
+  enterprise infrastructure team
+- configure one document source through Airbyte when a connector exists
 - implement raw source object table
 - implement Knowledge Asset table and detail surface
-- implement one document import path
+- implement OrgMemory staging importer from Airbyte output
 - implement one conversation import path
 - implement n8n workflow JSON import
 - implement AI candidate extraction
@@ -169,7 +179,7 @@ Exit: deployable design-partner pilot.
 
 Cut until the core loop is proven:
 
-- full Airbyte connector catalog
+- full Airbyte connector catalog; use only the 2-3 approved pilot connectors
 - full Airflow pipeline
 - Neo4j or dedicated graph database
 - full SCIM
@@ -182,12 +192,12 @@ Cut until the core loop is proven:
 
 ## Airbyte Deployment Note
 
-Use Airbyte only when connector breadth becomes worth the operational cost.
-For an early pilot with 2-3 sources, custom importers may be faster and easier to
-control.
+Use Airbyte for enterprise source data movement when a maintained connector
+exists and the pilot infrastructure can run it. For clean exports or very narrow
+one-off sources, a custom importer may still be faster.
 
-If Airbyte is used, keep it separate from the OrgMemory core and write to
-PostgreSQL staging. Do not write directly to the main memory/vector layer.
+Keep Airbyte separate from the OrgMemory core and write to PostgreSQL staging or
+object storage. Do not write directly to the main memory/vector layer.
 
 Current official Airbyte deployment notes verified on 2026-07-05:
 
@@ -199,3 +209,10 @@ Current official Airbyte deployment notes verified on 2026-07-05:
 - Docker Compose deployments are no longer supported.
 - Public access should be behind firewall/private networking and reverse proxy
   SSL.
+
+## Airflow Note
+
+Do not add Airflow just because ingestion exists. Airflow becomes useful when
+the product needs complex DAG orchestration, backfills, SLA monitoring, or
+cross-pipeline data quality gates. The first pilot should try to stay with
+Airbyte plus OrgMemory Worker.
