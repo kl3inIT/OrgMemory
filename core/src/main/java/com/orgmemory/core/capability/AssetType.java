@@ -1,0 +1,16 @@
+package com.orgmemory.core.capability;
+
+public enum AssetType {
+    PROMPT_TEMPLATE,
+    WORKFLOW_AUTOMATION,
+    AI_AGENT,
+    KNOWLEDGE_BOT,
+    ANALYTICS_BRIEF,
+    CONTENT_GENERATOR,
+    DATA_EXTRACTION,
+    EVALUATION_CHECKLIST,
+    PLAYBOOK,
+    HANDOVER_PACK,
+    GOVERNANCE_GUARDRAIL,
+    COPILOT
+}

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: orgmemory
+      POSTGRES_USER: orgmemory
+      POSTGRES_PASSWORD: orgmemory
+    ports:
+      - "55432:5432"
+    volumes:
+      - orgmemory_pg:/var/lib/postgresql
+    labels:
+      org.springframework.boot.service-connection: postgres
+
+volumes:
+  orgmemory_pg:

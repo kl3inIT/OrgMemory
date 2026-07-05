@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: orgmemory-worker
+  main:
+    web-application-type: none
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:55432/orgmemory}
+    username: ${ORGMEMORY_DB_USER:orgmemory}
+    password: ${ORGMEMORY_DB_PASSWORD:orgmemory}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: false
