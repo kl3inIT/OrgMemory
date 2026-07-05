@@ -75,7 +75,7 @@ apps/worker
 
 ## Data Model
 
-Current persisted MVP tables:
+Current persisted prototype tables:
 
 - `organizations`
 - `departments`
@@ -88,8 +88,9 @@ Current persisted MVP tables:
 - `asset_tags`
 - `asset_embeddings`
 
-The MVP already has the core Capability Asset registry lifecycle. The next
-production phase should add source and knowledge records:
+The prototype already has the core Capability Asset registry lifecycle. The next
+enterprise pilot phase should add source, knowledge, identity, and governance
+records:
 
 - `raw_source_object`
 - `normalized_record`
@@ -97,6 +98,7 @@ production phase should add source and knowledge records:
 - `capability_candidate`
 - `source_acl_snapshot`
 - richer `audit_event`
+- auth/session or external identity mapping tables as needed
 
 The important distinction is:
 
@@ -161,8 +163,9 @@ Spring AI streams answer if enabled
 SSE frames compatible with AI Elements UI message stream
 ```
 
-The local fallback is intentional: the demo can continue even when the external
-model call fails.
+The local fallback is intentional: a product walkthrough can continue even when
+the external model call fails. Production behavior must still report provider
+failures clearly and avoid silently masking critical workflow failures.
 
 ## Knowledge Graph
 
@@ -237,3 +240,5 @@ disabled.
 - Do not expose draft/private assets through agent surfaces without permission
   controls.
 - Use shadcn primitives and maintained libraries before custom UI components.
+- Permission checks must run before retrieval, vector search, AI answer
+  generation, MCP tool responses, and export.

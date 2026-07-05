@@ -40,6 +40,11 @@ If OrgMemory only ingests enterprise data and lets an AI search it, it competes
 directly with Glean, Microsoft, Airbyte Agents, Workato, Zapier, Notion, and
 internal data platforms. The stronger wedge is governed AI capability transfer.
 
+OrgMemory should be built as an enterprise product, not a classroom artifact.
+The near-term target is a scoped on-prem design-partner pilot where real
+enterprise data is handled only after identity, permissions, audit, data
+classification, and operational controls are in place.
+
 ## AI Capability Asset
 
 An AI Capability Asset is a reusable unit of organizational AI capability. It is
@@ -119,9 +124,9 @@ Capability Asset:
 This lets OrgMemory have a broader **Memory Registry** without weakening the
 meaning of **Capability Asset**.
 
-## MVP Scope
+## Prototype Scope
 
-The MVP proves a narrow behavior loop:
+The current prototype proves a narrow behavior loop:
 
 1. A user submits an AI prompt/workflow/agent idea.
 2. OrgMemory normalizes it into structured metadata.
@@ -131,7 +136,7 @@ The MVP proves a narrow behavior loop:
 6. Users click Use Asset and usage is tracked.
 7. Onboarding/offboarding surfaces reuse the same registry data.
 
-Current MVP surfaces:
+Current prototype surfaces:
 
 - dashboard
 - capability registry
@@ -143,7 +148,7 @@ Current MVP surfaces:
 - knowledge graph visualization
 - analytics/settings
 
-Future production surfaces should add:
+Future enterprise pilot surfaces should add:
 
 - raw sources
 - knowledge assets
@@ -208,6 +213,8 @@ Quality risk:
 Enterprise risk:
 
 - Permissions, privacy, connectors, and trust are harder than UI.
+- On-prem customers will require backup/restore, auditability, logs,
+  monitoring, incident response, and a clear data-retention story.
 
 Feature risk:
 
@@ -221,7 +228,7 @@ Feature risk:
 - Raw source data is not automatically knowledge.
 - Cleaned knowledge can be a Knowledge Asset, but it is not automatically a
   Capability Asset.
-- Do not passively capture all employee AI usage in the MVP.
+- Do not passively capture all employee AI usage in the current prototype.
 - Approved assets must be reusable by someone other than the creator.
 - Usage tracking is product evidence, not vanity analytics.
 - Missing backup owners are first-class risk.

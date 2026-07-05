@@ -1,8 +1,8 @@
 # OrgMemory Asset Catalog
 
-The demo catalog shows that OrgMemory is broader than a prompt library. The MVP
-catalog currently stores reusable AI Capability Assets. Production v1 should add
-Knowledge Assets as a separate asset kind.
+The sample catalog shows that OrgMemory is broader than a prompt library. The
+current catalog stores reusable AI Capability Assets. Enterprise pilot work
+should add Knowledge Assets as a separate asset kind.
 
 ## Knowledge Assets Vs Capability Assets
 
@@ -23,14 +23,14 @@ input/output expectations, owner, versioning, and usage workflow.
 
 These are Capability Asset types, not raw knowledge types.
 
-| Asset type | Meaning | Demo examples |
+| Asset type | Meaning | Example assets |
 | --- | --- | --- |
 | `PROMPT_TEMPLATE` | Reusable prompt structure for repeatable tasks | Executive Decision Memo Prompt |
 | `WORKFLOW_AUTOMATION` | Multi-step AI workflow with clear inputs/outputs | Customer Feedback Analysis Workflow, n8n Lead Enrichment Automation |
 | `AI_AGENT` | Agent behavior/config for triage, coding, or decision support | Renewal Risk Triage Agent, Codex Repo Review Agent |
 | `KNOWLEDGE_BOT` | Q&A or RAG-style assistant over approved knowledge | Internal Policy Q&A Bot |
 | `ANALYTICS_BRIEF` | Converts data/notes into management-ready brief | Weekly Revenue Forecast Brief |
-| `CONTENT_GENERATOR` | Generates reviewed content, slides, images, or video scripts | Campaign Variant Generator, Slide Deck Generator, Product Image Brief |
+| `CONTENT_GENERATOR` | Generates reviewed content, slides, images, or video scripts | Campaign Variant Generator, Slide Deck Generator, Product Image Brief, Video Storyboard Workflow |
 | `DATA_EXTRACTION` | Extracts structured fields from documents/data | Invoice Exception Extractor |
 | `EVALUATION_CHECKLIST` | Rubric/checklist for evaluating outputs | AI Output Quality Rubric |
 | `PLAYBOOK` | Versioned operational procedure or talk track | Incident Communication Playbook |
@@ -38,7 +38,7 @@ These are Capability Asset types, not raw knowledge types.
 | `GOVERNANCE_GUARDRAIL` | Privacy, PII, compliance, or quality guardrail | PII Redaction Guardrail |
 | `COPILOT` | Human-in-the-loop assistant embedded in a role workflow | Support Reply Copilot |
 
-## Realistic Demo Use Cases
+## Realistic Walkthrough Use Cases
 
 Sales:
 

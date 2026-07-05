@@ -52,6 +52,8 @@ Product/enterprise:
 - no production-grade audit table yet
 - no real connector implementation yet
 - no deployed pilot hardening yet
+- no on-prem backup/restore runbook yet
+- no enterprise security review yet
 
 Backend:
 
@@ -64,12 +66,12 @@ Backend:
 Frontend:
 
 - analytics is still lighter than dashboard
-- some workflows are demo-oriented rather than production-complete
+- some workflows are prototype-oriented rather than production-complete
 - chunk-size warnings may appear because AI/chat/diagram packages are large
 
-## Demo-Ready Points
+## Prototype-Ready Points
 
-- real backend and database, not frontend-only mock data
+- real backend and database for the current registry prototype
 - meaningful asset taxonomy
 - create -> enrich -> submit -> review -> approve/reuse flow
 - Ask Memory can rank live registry assets
@@ -88,14 +90,17 @@ pnpm -C web build
 pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwright.config.ts --reporter=line
 ```
 
-## Honest Demo Framing
+## Enterprise Readiness Framing
 
 Say:
 
-- This is an MVP proving the AI Capability Asset workflow.
-- Spring AI is integrated, with local fallback for demo resilience.
-- Enterprise auth, permission-aware retrieval, ingestion, and MCP tools are next
-  production steps.
+- This is a product prototype proving the AI Capability Asset workflow.
+- Spring AI is integrated, with local fallback for presentation resilience.
+- Enterprise auth, source ingestion, Knowledge Assets, permission-aware
+  retrieval, audit, MCP tools, and on-prem operations are the next production
+  steps.
+- It is suitable for thesis/product validation and scoped design-partner review,
+  not yet for broad ingestion of real company data.
 
 Do not say:
 
@@ -104,3 +109,4 @@ Do not say:
 - Knowledge Asset ingestion is implemented.
 - The knowledge graph is a dedicated graph database.
 - Ask Memory is fully permission-aware.
+- It is ready for a 50,000-person rollout.

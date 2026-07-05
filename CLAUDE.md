@@ -18,7 +18,7 @@ just a wiki page. It should have owner, backup owner, department, prompt/workflo
 content, input/output expectations, status, visibility, version history, usage
 events, approval events, and handover metadata.
 
-The MVP is an **AI Capability Registry**:
+The current product prototype is an **AI Capability Registry**:
 
 ```text
 employee submits prompt/workflow
@@ -29,19 +29,25 @@ employee submits prompt/workflow
 ```
 
 The source brief explicitly says Phase 1 should build the registry, not the
-passive capture system. Browser extensions, ChatGPT/Claude capture, knowledge
-graph, and HRIS integrations are later phases.
+passive capture system. Browser extensions, ChatGPT/Claude capture, broad source
+ingestion, and HRIS integrations are later phases.
+
+Enterprise context: OrgMemory is intended to become an on-prem enterprise
+product that may handle real customer data. Do not claim production readiness
+until identity, permission-aware retrieval, source ACLs, audit logging, data
+retention, backup/restore, monitoring, and security review are implemented.
 
 ## Stack
 
 Spring Boot 4.1, Java 25, Gradle Kotlin DSL, Spring Modulith 2.1, Spring Data
 JPA, PostgreSQL + pgvector, Flyway. Frontend: Vite, React 19, TypeScript,
 Tailwind v4, TanStack Query/Router-ready. OpenAPI may be exposed by the API for
-inspection, but this MVP has only one web client and no separate contract folder.
+inspection, but the current product has only one web client and no separate
+contract folder.
 
-Spring AI is part of the intended stack, but the first scaffold does not require
-an LLM key to boot. Add model-specific starters only when implementing AI
-enrichment or embeddings.
+Spring AI is part of the intended stack, but the app must still boot without an
+LLM key. Add model-specific starters only when implementing AI enrichment or
+embeddings.
 
 ## Frontend Component Rules
 
@@ -109,8 +115,8 @@ normal runtime config.
 
 - Browser extension capture
 - Slack/Notion/Google Drive ingestion
-- Neo4j or a full graph database. A relational graph visualization for demo
-  asset relationships already exists and is acceptable.
+- Neo4j or a full graph database. A relational graph visualization for asset
+  relationships already exists and is acceptable for the prototype.
 - Multi-agent orchestration
 - Marketplace
 - Full SSO and billing

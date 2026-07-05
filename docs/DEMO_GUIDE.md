@@ -1,6 +1,10 @@
-# OrgMemory Demo Guide
+# OrgMemory Walkthrough Guide
 
-Audience: teacher, project reviewer, or design-partner walkthrough.
+Audience: thesis advisor, investor, enterprise design partner, or internal pilot
+stakeholder.
+
+This walkthrough demonstrates the product thesis. It does not claim that the
+system is ready to ingest real company-wide data.
 
 ## Core One-Liner
 
@@ -37,7 +41,7 @@ Open:
 
 Do not show `.env` or the API key during the presentation.
 
-## 7-Minute Demo Flow
+## 7-Minute Walkthrough Flow
 
 1. Dashboard
    - Show total assets, approved assets, usage, and missing backup-owner risk.
@@ -95,15 +99,16 @@ live in private histories, personal notes, or isolated tools.
 
 OrgMemory stores them as structured AI Capability Assets. Each asset has a type,
 owner, backup owner, status, risk level, versioned prompt/workflow,
-input/output schema, and usage tracking. The MVP proves the loop: capture a raw
-AI workflow, enrich it with AI, submit it for review, approve and reuse it, then
-use the same registry for onboarding and offboarding.
+input/output schema, and usage tracking. The current prototype proves the loop:
+capture a raw AI workflow, enrich it with AI, submit it for review, approve and
+reuse it, then use the same registry for onboarding and offboarding.
 
-For production, OrgMemory should also store cleaned enterprise knowledge as
-Knowledge Assets. Raw source data is not automatically knowledge; it must be
-parsed, cleaned, permissioned, and trusted first.
+For enterprise deployment, OrgMemory should also store cleaned enterprise
+knowledge as Knowledge Assets. Raw source data is not automatically knowledge;
+it must be parsed, cleaned, permissioned, and trusted first. Permission filtering
+must happen before retrieval and before AI answers are generated.
 
-## Demo Asset Types To Mention
+## Walkthrough Asset Types To Mention
 
 - Prompt Template: Executive Decision Memo Prompt
 - Workflow Automation: Customer Feedback Analysis Workflow
@@ -139,7 +144,7 @@ If AI enrichment/chat falls back:
 
 - Confirm `ORGMEMORY_AI_MODEL_CHAT=openai`.
 - Confirm `OPENAI_API_KEY` or `ORGMEMORY_OPENAI_API_KEY` exists.
-- The app has fallback normalization, so the demo can continue.
+- The app has fallback normalization, so the walkthrough can continue.
 
 ## Verification Commands
 

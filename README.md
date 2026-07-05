@@ -9,10 +9,12 @@ different asset kinds:
   generators, guardrails, and handover packs that can create an output or run a
   repeatable workflow.
 
-The current MVP implements the Capability Asset registry first. Production v1
-should add Knowledge Assets and source ingestion.
+The current product prototype implements the Capability Asset registry first.
+Enterprise pilot work must add Knowledge Assets, source ingestion, identity,
+permissions, audit, and on-prem operations before real company-wide data is
+loaded.
 
-The MVP proves this loop:
+The current prototype proves this loop:
 
 ```text
 employee submits AI workflow
@@ -47,7 +49,7 @@ apps/api/             REST API, Spring AI endpoints, OpenAPI, health
 apps/mcp/             Spring AI MCP server scaffold for future agent access
 apps/worker/          worker scaffold for future ingestion/enrichment jobs
 web/                  Vite React web app
-docs/                 product, architecture, roadmap, demo, and status docs
+docs/                 product, architecture, roadmap, readiness, and status docs
 ```
 
 Business logic belongs in `core/` first. Delivery apps expose it through REST,
@@ -98,7 +100,7 @@ Do not commit `.env`.
 
 ## Verification
 
-Use these before demo or after code changes:
+Use these before presenting, piloting, or after code changes:
 
 ```powershell
 .\gradlew.bat --no-daemon compileJava
@@ -118,17 +120,20 @@ pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwri
 - [Product Brief](docs/PRODUCT_BRIEF.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Enterprise Readiness](docs/ENTERPRISE_READINESS.md)
 - [Status](docs/STATUS.md)
 - [Asset Catalog](docs/ASSET_CATALOG.md)
-- [Demo Guide](docs/DEMO_GUIDE.md)
+- [Walkthrough Guide](docs/DEMO_GUIDE.md)
 
-## Non-Goals For Current MVP
+## Not Production-Ready Yet
 
 - Full Knowledge Asset ingestion and source management
-- Passive surveillance of employee ChatGPT/Claude usage
 - Full enterprise SSO/SCIM
+- Permission-aware retrieval over real enterprise ACLs
+- Security review against OWASP ASVS and OWASP LLM Top 10
+- On-prem backup, monitoring, incident response, and admin runbook
+- Passive surveillance of employee ChatGPT/Claude usage
 - Broad connector catalog
 - Dedicated graph database
 - Marketplace
 - Billing
-- Full production permission system
