@@ -1,77 +1,134 @@
 # OrgMemory
 
-OrgMemory is an AI Capability Registry: a system of record for an organization's
-AI prompts, workflows, agent configurations, and operational know-how.
+OrgMemory is an organizational AI memory system. It manages two related but
+different asset kinds:
 
-The MVP goal is to turn individual AI know-how into reusable, governed, and
-transferable AI Capability Assets.
+- **Knowledge Assets**: cleaned, trusted enterprise knowledge such as policies,
+  SOPs, product docs, decision records, meeting summaries, and domain notes.
+- **Capability Assets**: reusable AI prompts, workflows, agents, copilots,
+  generators, guardrails, and handover packs that can create an output or run a
+  repeatable workflow.
 
-## Architecture
+The current MVP implements the Capability Asset registry first. Production v1
+should add Knowledge Assets and source ingestion.
+
+The MVP proves this loop:
 
 ```text
-core/                 domain + Spring Modulith modules
-apps/
-  api/                REST API, Flyway migrations, OpenAPI
-  mcp/                MCP server surface for future agent access
-  worker/             scheduled/background AI and ETL jobs
-web/                  Vite + React + TypeScript + Tailwind
+employee submits AI workflow
+-> OrgMemory normalizes it into a Capability Asset
+-> reviewer approves it
+-> other users search, understand, and reuse it
+-> usage and ownership signals support onboarding/offboarding
 ```
 
-Stack:
+## Current Stack
 
-- Spring Boot 4.1
 - Java 25
-- Gradle Kotlin DSL
+- Spring Boot 4.1
 - Spring Modulith 2.1
-- PostgreSQL + pgvector
+- Spring AI 2.0
+- Spring Data JPA
+- PostgreSQL 18 + pgvector
 - Flyway
-- Vite + React 19 + TypeScript + Tailwind v4
+- Gradle Kotlin DSL
+- Vite 8 + React 19 + TypeScript 6
+- Tailwind CSS v4
+- shadcn/ui local primitives
+- TanStack Router and Query
+- AI Elements-compatible chat stream
+- React Flow and Cytoscape for workflow/graph visualization
 
-OpenAPI can still be exposed by the API for inspection, but this MVP has only
-one web client and does not keep a separate `contracts/` folder.
+## Repository Layout
 
-## Quickstart
+```text
+core/                 domain model, services, repositories, Flyway migrations
+apps/api/             REST API, Spring AI endpoints, OpenAPI, health
+apps/mcp/             Spring AI MCP server scaffold for future agent access
+apps/worker/          worker scaffold for future ingestion/enrichment jobs
+web/                  Vite React web app
+docs/                 product, architecture, roadmap, demo, and status docs
+```
+
+Business logic belongs in `core/` first. Delivery apps expose it through REST,
+MCP, worker jobs, or the web UI.
+
+## Local Quickstart
+
+Start PostgreSQL:
 
 ```powershell
 docker compose up -d
-.\gradlew.bat build
+```
+
+Run backend:
+
+```powershell
 .\gradlew.bat :apps:api:bootRun
 ```
 
-In another terminal:
+Run frontend:
 
 ```powershell
 pnpm -C web install
-pnpm -C web dev
+pnpm -C web dev --host 127.0.0.1 --port 5173
 ```
 
-URLs:
+Open:
 
-- API health: http://localhost:8080/api/health
 - Web: http://localhost:5173
-- MCP later: http://localhost:8081/mcp
+- API health: http://localhost:8080/api/health
+- API docs: http://localhost:8080/swagger-ui.html
+- MCP app, optional scaffold: http://localhost:8081
 
-## MVP Scope
+## AI Configuration
 
-Build first:
+The app boots without an OpenAI key. AI enrichment/chat falls back to local
+normalization when Spring AI is disabled or the model call fails.
 
-- Capability Asset Registry
-- Asset creation form
-- Search and discovery
-- Usage tracking
-- Version history
-- Basic review workflow for demo governance
-- Lightweight onboarding/offboarding panels for the demo story
+Use `.env` or environment variables:
 
-Do not build yet:
+```properties
+OPENAI_API_KEY=...
+ORGMEMORY_AI_MODEL_CHAT=openai
+ORGMEMORY_OPENAI_MODEL=gpt-5.5
+```
 
-- Browser extension
-- Passive capture from ChatGPT/Claude
-- Slack/Notion/Drive integrations
-- Knowledge graph database
-- Full enterprise SSO
+Do not commit `.env`.
+
+## Verification
+
+Use these before demo or after code changes:
+
+```powershell
+.\gradlew.bat --no-daemon compileJava
+.\gradlew.bat --no-daemon test
+pnpm -C web typecheck
+pnpm -C web build
+```
+
+Optional browser smoke:
+
+```powershell
+pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwright.config.ts --reporter=line
+```
+
+## Documentation
+
+- [Product Brief](docs/PRODUCT_BRIEF.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Status](docs/STATUS.md)
+- [Asset Catalog](docs/ASSET_CATALOG.md)
+- [Demo Guide](docs/DEMO_GUIDE.md)
+
+## Non-Goals For Current MVP
+
+- Full Knowledge Asset ingestion and source management
+- Passive surveillance of employee ChatGPT/Claude usage
+- Full enterprise SSO/SCIM
+- Broad connector catalog
+- Dedicated graph database
 - Marketplace
-
-The source brief says Phase 1 should prove the registry, not passive capture.
-The target demo metric is 20 prompts or workflows submitted and reused by at
-least 5 people in the demo environment.
+- Billing
+- Full production permission system

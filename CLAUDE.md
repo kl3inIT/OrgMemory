@@ -80,7 +80,8 @@ One domain, three deployables:
 
 - `core/`: business logic and Spring Modulith modules under `com.orgmemory.core.*`
 - `apps/api/`: REST controllers, OpenAPI, Flyway migration owner
-- `apps/mcp/`: future MCP tools for agents such as `search_capability_assets`
+- `apps/mcp/`: Spring AI MCP server scaffold; implement small permission-aware
+  tools here when the API/domain surface is ready, such as `search_capability_assets`
 - `apps/worker/`: scheduled/background ETL, embeddings, enrichment, handover jobs
 - `web/`: Vite SPA with small local API client helpers
 
@@ -108,7 +109,8 @@ normal runtime config.
 
 - Browser extension capture
 - Slack/Notion/Google Drive ingestion
-- Neo4j or a full knowledge graph
+- Neo4j or a full graph database. A relational graph visualization for demo
+  asset relationships already exists and is acceptable.
 - Multi-agent orchestration
 - Marketplace
 - Full SSO and billing

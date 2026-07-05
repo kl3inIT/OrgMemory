@@ -1,10 +1,11 @@
 # OrgMemory Demo Guide
 
-Audience: teacher / MVP presentation.
+Audience: teacher, project reviewer, or design-partner walkthrough.
 
-Core one-liner:
+## Core One-Liner
 
-OrgMemory turns individual AI prompts, workflows, agents, and operating know-how into reusable, governed organizational capability assets.
+OrgMemory turns individual AI prompts, workflows, agents, and operating know-how
+into reusable, governed organizational capability assets.
 
 ## Run Locally
 
@@ -16,14 +17,9 @@ Start database:
 docker compose up -d
 ```
 
-Start API with environment from `.env`:
+Start API:
 
 ```powershell
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
-  $parts = $_ -split '=', 2
-  [Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1].Trim(), 'Process')
-}
 .\gradlew.bat :apps:api:bootRun
 ```
 
@@ -37,66 +33,90 @@ Open:
 
 - Web: http://localhost:5173
 - API health: http://localhost:8080/api/health
+- API docs: http://localhost:8080/swagger-ui.html
 
-Do not show the API key in the presentation.
+Do not show `.env` or the API key during the presentation.
 
-## 7 Minute Demo Flow
+## 7-Minute Demo Flow
 
 1. Dashboard
-   - Show the organization has many AI capability assets.
-   - Point out approved assets, missing backup owners, usage trend, risk alerts.
+   - Show total assets, approved assets, usage, and missing backup-owner risk.
+   - Explain that this is a capability dashboard, not a generic wiki.
 
 2. Registry
-   - Search or filter by Type.
-   - Example filter: `AI Agent` -> `Renewal Risk Triage Agent`.
-   - Explain that OrgMemory stores prompt/workflow metadata, ownership, risk, status, and usage.
+   - Search or filter by asset type.
+   - Example: search `image`, `proposal`, `support`, or `codex`.
+   - Open an asset detail page.
+   - Point out owner, backup owner, type, risk, status, versioned workflow, and usage.
 
-3. Create New Asset
-   - Paste or use the seeded raw workflow text.
-   - Click `Generate` to show Spring AI enrichment.
-   - Mention AI suggests title, summary, asset type, tags, risk level, prompt, workflow, schemas.
-   - Click `Submit for Review`.
+3. Create Asset
+   - Paste a raw AI workflow.
+   - Click AI enrichment/Generate.
+   - Explain that Spring AI suggests title, summary, type, tags, risk, prompt,
+     workflow, input schema, output schema, and examples.
+   - Submit for review.
 
 4. Review Queue
-   - Show the submitted asset appears in the review workflow.
-   - Show React Flow workflow visualization.
-   - Explain human approval is required before broad reuse.
+   - Show the asset in review workflow.
+   - Show workflow visualization.
+   - Explain that AI-generated metadata is not automatically trusted; humans
+     approve before broad reuse.
 
 5. Ask Memory
-   - Ask: `What approved support or customer workflows do we have?`
-   - Explain the chat UI is AI Elements streaming from Spring AI.
-   - Use matched assets on the right as the product behavior: find, understand, then reuse.
+   - Ask: `Are there any workflows related to image generation?`
+   - Ask: `What approved support workflows can I use?`
+   - Explain that Ask Memory ranks live registry assets and can stream through
+     Spring AI when enabled.
 
-6. Knowledge Transfer
-   - Show onboarding and offboarding.
-   - Explain that the same registry helps new employees ramp and helps the company keep capability when employees leave.
+6. Knowledge Graph
+   - Show `/graph`.
+   - Explain that the graph is derived from assets, owners, departments, types,
+     tags, and processes. It is not a separate graph database yet.
 
-7. Close
+7. Knowledge Transfer
+   - Show onboarding/offboarding.
+   - Explain that the same registry helps new employees ramp and helps the
+     company preserve capability when people leave.
+
+8. Close
    - This is not just a prompt library.
-   - It is a capability layer: reusable assets, owners, backup owners, review, versioning, usage, and handover.
-
-## Asset Types To Mention
-
-Use these examples if asked why the catalog is realistic:
-
-- Prompt Template: Executive Decision Memo Prompt.
-- Workflow Automation: Customer Feedback Analysis Workflow.
-- AI Agent: Renewal Risk Triage Agent.
-- Knowledge Bot: Internal Policy Q&A Bot.
-- Analytics Brief: Weekly Revenue Forecast Brief.
-- Content Generator: Campaign Variant Generator.
-- Data Extraction: Invoice Exception Extractor.
-- Evaluation Checklist: AI Output Quality Rubric.
-- Playbook: Incident Communication Playbook.
-- Handover Pack: Departing Employee Handover Pack.
-- Governance Guardrail: PII Redaction Guardrail.
-- Copilot: Support Reply Copilot.
+   - It is a memory layer with a sharp distinction: raw sources become cleaned
+     Knowledge Assets, and reusable AI work becomes Capability Assets with
+     owners, backup owners, status, versioning, risk, review, usage, and
+     transfer value.
 
 ## Suggested Presentation Script
 
-"Many employees now use ChatGPT or Claude to build small but valuable workflows: sales follow-up prompts, renewal triage agents, support copilots, policy bots, and finance extraction workflows. The problem is that those workflows live in private chat histories or personal notes. When someone moves teams or leaves, the company loses the capability.
+Many employees now use ChatGPT, Claude, Codex, Cursor, n8n, Dify, and other AI
+tools to build small but valuable workflows: sales follow-up prompts, proposal
+generators, image-generation briefs, renewal triage agents, support copilots,
+policy bots, and code review agents. The problem is that these workflows often
+live in private histories, personal notes, or isolated tools.
 
-OrgMemory stores those workflows as structured AI capability assets. Each asset has a type, owner, backup owner, approval status, risk level, versioned prompt/workflow, input/output schema, and usage tracking. The MVP proves the loop: capture an AI workflow, enrich it with AI, submit for review, approve and reuse it, then use the same asset graph for onboarding and offboarding."
+OrgMemory stores them as structured AI Capability Assets. Each asset has a type,
+owner, backup owner, status, risk level, versioned prompt/workflow,
+input/output schema, and usage tracking. The MVP proves the loop: capture a raw
+AI workflow, enrich it with AI, submit it for review, approve and reuse it, then
+use the same registry for onboarding and offboarding.
+
+For production, OrgMemory should also store cleaned enterprise knowledge as
+Knowledge Assets. Raw source data is not automatically knowledge; it must be
+parsed, cleaned, permissioned, and trusted first.
+
+## Demo Asset Types To Mention
+
+- Prompt Template: Executive Decision Memo Prompt
+- Workflow Automation: Customer Feedback Analysis Workflow
+- AI Agent: Renewal Risk Triage Agent
+- Knowledge Bot: Internal Policy Q&A Bot
+- Analytics Brief: Weekly Revenue Forecast Brief
+- Content Generator: Campaign Variant Generator, Slide Deck Generator
+- Data Extraction: Invoice Exception Extractor
+- Evaluation Checklist: AI Output Quality Rubric
+- Playbook: Incident Communication Playbook
+- Handover Pack: Departing Employee Handover Pack
+- Governance Guardrail: PII Redaction Guardrail
+- Copilot: Support Reply Copilot
 
 ## Troubleshooting
 
@@ -115,10 +135,11 @@ Get-NetTCPConnection -LocalPort 5173 -State Listen
 pnpm -C web dev --host 127.0.0.1 --port 5173
 ```
 
-If AI enrichment fails:
+If AI enrichment/chat falls back:
 
-- Check `.env` contains `OPENAI_API_KEY` and `ORGMEMORY_AI_MODEL_CHAT=openai`.
-- The app has local fallback normalization, so the demo can continue, but say real AI is disabled if fallback appears.
+- Confirm `ORGMEMORY_AI_MODEL_CHAT=openai`.
+- Confirm `OPENAI_API_KEY` or `ORGMEMORY_OPENAI_API_KEY` exists.
+- The app has fallback normalization, so the demo can continue.
 
 ## Verification Commands
 
@@ -127,5 +148,6 @@ Run before presenting if there is time:
 ```powershell
 .\gradlew.bat --no-daemon test
 pnpm -C web typecheck
+pnpm -C web build
 pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwright.config.ts --reporter=line
 ```
