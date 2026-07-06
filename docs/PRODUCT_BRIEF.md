@@ -117,6 +117,10 @@ Knowledge Asset:
 - cleaned, normalized, trusted enterprise knowledge
 - examples: policy, SOP, product documentation, decision record, meeting
   summary, customer/process domain note
+- this is also where NON-AI work processes live: tool workflows (how a team
+  runs a process in SAP/Jira/CRM), operating SOPs, and role process
+  documentation enter as Knowledge Assets through ingestion or upload — they
+  are searchable, citable, and permissioned, but they are not Capability Assets
 - used for search, citations, grounding, Ask Memory, and candidate generation
 - can be an organizational asset, but it is not automatically a Capability Asset
 
@@ -134,6 +138,37 @@ Capability Asset:
 
 This lets OrgMemory have a broader **Memory Registry** without weakening the
 meaning of **Capability Asset**.
+
+### Workflow Scoping Rule
+
+Three kinds of "workflow" reach the product, and each has a fixed home:
+
+```text
+AI workflow (prompt, agent, n8n/Dify with AI steps)
+  -> Capability Asset (owner, version, schema, review, usage)
+
+Non-AI tool workflow / SOP (SAP process, Jira flow, operating procedure)
+  -> Knowledge Asset (ingested, cleaned, searchable, cited, permissioned)
+
+Role-based workflow ("how someone in this role works")
+  -> not a new object: an AGGREGATION of the Capability Assets and Knowledge
+     Assets that a role owns, uses, and must hand over (Handover Pack,
+     onboarding/offboarding views)
+```
+
+Boundary rules:
+
+- Do not expand Capability Asset into a general BPM/SOP manager. That competes
+  with Confluence/Notion/BPM/process-mining and dilutes the moat. Non-AI
+  process content is welcome, but as Knowledge Assets feeding search,
+  citations, and candidate detection.
+- Only work that is reusable as a capability (produces an output or runs a
+  repeatable workflow) gets promoted Knowledge -> Candidate -> Capability.
+- Role views aggregate by role/process for onboarding and handover. They must
+  never become per-employee activity or performance profiles ("employee 360"
+  monitoring is an anti-feature: it kills voluntary contribution, violates
+  purpose limitation expected by enterprise buyers, and conflicts with the
+  privacy stance in this brief).
 
 ## Prototype Scope
 
