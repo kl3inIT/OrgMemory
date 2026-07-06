@@ -139,7 +139,9 @@ normal runtime config.
 Both `.claude/skills` and `.codex/skills` contain the same project-local skills:
 
 - `orgmemory-verify-api-symbol`: use before adding unfamiliar framework/library symbols.
-- `orgmemory-static-analysis`: use before claiming backend/web/config/database work is done.
+- `orgmemory-static-analysis`: use before claiming backend/web/config/database
+  work is done. If JetBrains MCP/IDE inspection is connected, run it per edited
+  file with `projectPath=D:\OrgMemory` before falling back to Gradle/pnpm checks.
 - `orgmemory-create-test`: use when adding or changing behavior that should be protected.
 
 Keep the Claude and Codex copies in sync when editing these skills.

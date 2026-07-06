@@ -131,6 +131,7 @@ pnpm dlx @playwright/test@latest test tmp/orgmemory.spec.ts --config=tmp/playwri
 - [Status](docs/STATUS.md)
 - [Asset Catalog](docs/ASSET_CATALOG.md)
 - [Walkthrough Guide](docs/DEMO_GUIDE.md)
+- [Initial Research Summary DOCX](docs/research/OrgMemory_Research_Summary_2026-07-06.docx)
 
 ## Not Production-Ready Yet
 
