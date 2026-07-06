@@ -157,19 +157,36 @@ export type AiDraftResponse = {
   exampleOutput: string
 }
 
+import { authHeaders } from './auth'
+
 const jsonHeaders = {
   'Content-Type': 'application/json',
 }
 
 export const DEFAULT_ORGANIZATION_ID = '11111111-1111-1111-1111-111111111111'
 
+export type Me = {
+  authenticated: boolean
+  subject: string | null
+  email: string | null
+  name: string | null
+  roles: string[]
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
+  const response = await fetch(path, {
+    ...init,
+    headers: { ...authHeaders(), ...init?.headers },
+  })
   if (!response.ok) {
     const body = await response.text()
     throw new Error(body || `Request failed with ${response.status}`)
   }
   return response.json() as Promise<T>
+}
+
+export function getMe() {
+  return request<Me>('/api/me')
 }
 
 export function listAssets(status?: AssetStatus, query?: string, assetType?: AssetType) {

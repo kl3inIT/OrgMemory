@@ -267,6 +267,23 @@ OPENAI_API_KEY=
 ORGMEMORY_OPENAI_MODEL=gpt-5.5
 ```
 
+Auth defaults:
+
+```properties
+ORGMEMORY_OIDC_ISSUER_URI=http://localhost:8180/realms/orgmemory
+```
+
+The API is a Spring Security 7 OAuth2 resource server. The app never talks to a
+specific IdP product; it validates generic OIDC JWTs from the issuer. Keycloak
+(compose service, realm `orgmemory`, dev users `linh`/`minh`/`orgadmin`,
+password `orgmemory`) is the dev IdP and later the broker for customer IdPs.
+Realm roles map to `ROLE_ADMIN`/`ROLE_REVIEWER`/`ROLE_CONTRIBUTOR`/`ROLE_VIEWER`
+authorities. `/api/health`, health actuator, and Swagger stay public; everything
+else requires a bearer token. Running the API with the `local` profile disables
+auth entirely for offline development. The web SPA signs in with
+`react-oidc-context` (PKCE) against the same realm; set
+`VITE_AUTH_ENABLED=false` to skip login when the API runs with `local`.
+
 API runs Flyway. MCP and worker apps use `ddl-auto=validate` and keep Flyway
 disabled.
 

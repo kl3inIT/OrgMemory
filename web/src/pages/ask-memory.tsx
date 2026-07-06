@@ -26,6 +26,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { formatAssetType } from "@/features/assets/asset-type"
 import { StatusBadge } from "@/features/assets/status-badge"
 import { useAssets, useRecordUsage } from "@/features/assets/use-assets"
+import { authHeaders } from "@/lib/auth"
 import { useOrganizationLookups, userName } from "@/features/organization/use-organization-context"
 
 export function AskMemoryPage() {
@@ -44,7 +45,7 @@ export function AskMemoryPage() {
           .filter((part) => part.type === "text")
           .map((part) => (part as { text: string }).text)
           .join("")
-        return { body: { message: text, conversationId } }
+        return { body: { message: text, conversationId }, headers: authHeaders() }
       },
     }),
   })

@@ -1,16 +1,30 @@
 import { useNavigate } from "@tanstack/react-router"
-import { Bell, ChevronDown, HelpCircle, Search } from "lucide-react"
+import { Bell, ChevronDown, HelpCircle, LogOut, Search } from "lucide-react"
+import { useAuth } from "react-oidc-context"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useOrganizationLookups, userInitials } from "@/features/organization/use-organization-context"
+import { AUTH_ENABLED } from "@/lib/auth"
 
 export function Topbar({ query, onQueryChange }: { query: string; onQueryChange: (value: string) => void }) {
   const navigate = useNavigate()
+  const auth = useAuth()
   const { users } = useOrganizationLookups()
-  const currentUser = users.find((user) => user.role === "ADMIN") ?? users[0]
+  const fallbackUser = users.find((user) => user.role === "ADMIN") ?? users[0]
+  const profile = AUTH_ENABLED ? auth.user?.profile : undefined
+  const displayName = profile?.name ?? fallbackUser?.name ?? "OrgMemory Admin"
+  const displayDetail = profile?.email ?? fallbackUser?.role.replace("_", " ") ?? "Platform Admin"
 
   function submitSearch() {
     const trimmed = query.trim()
@@ -58,16 +72,41 @@ export function Topbar({ query, onQueryChange }: { query: string; onQueryChange:
           <HelpCircle className="size-4" />
         </Button>
         <Separator orientation="vertical" className="hidden h-8 md:block" />
-        <div className="flex items-center gap-2">
-          <Avatar>
-            <AvatarFallback>{userInitials(currentUser)}</AvatarFallback>
-          </Avatar>
-          <div className="hidden leading-tight md:block">
-            <div className="font-semibold">{currentUser?.name ?? "OrgMemory Admin"}</div>
-            <div className="text-xs text-muted-foreground">{currentUser?.role.replace("_", " ") ?? "Platform Admin"}</div>
-          </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-accent">
+              <Avatar>
+                <AvatarFallback>
+                  {profile?.name
+                    ? profile.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    : userInitials(fallbackUser)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="hidden text-left leading-tight md:block">
+                <div className="font-semibold">{displayName}</div>
+                <div className="text-xs text-muted-foreground">{displayDetail}</div>
+              </div>
+              <ChevronDown className="size-4 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="max-w-56 truncate">{displayDetail}</DropdownMenuLabel>
+            {AUTH_ENABLED ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void auth.signoutRedirect()}>
+                  <LogOut className="size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

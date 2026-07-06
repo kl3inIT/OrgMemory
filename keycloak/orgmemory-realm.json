@@ -1,0 +1,69 @@
+{
+  "realm": "orgmemory",
+  "enabled": true,
+  "displayName": "OrgMemory",
+  "registrationAllowed": false,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Manages organization, sources, users, and settings" },
+      { "name": "reviewer", "description": "Approves, rejects, and deprecates capability assets" },
+      { "name": "contributor", "description": "Creates and submits capability assets" },
+      { "name": "viewer", "description": "Searches and uses approved assets" }
+    ]
+  },
+  "users": [
+    {
+      "username": "linh",
+      "email": "linh@example.com",
+      "firstName": "Linh",
+      "lastName": "Nguyen",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }],
+      "realmRoles": ["contributor", "viewer"]
+    },
+    {
+      "username": "minh",
+      "email": "minh@example.com",
+      "firstName": "Minh",
+      "lastName": "Tran",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }],
+      "realmRoles": ["reviewer", "contributor", "viewer"]
+    },
+    {
+      "username": "orgadmin",
+      "email": "orgadmin@example.com",
+      "firstName": "Org",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }],
+      "realmRoles": ["admin", "reviewer", "contributor", "viewer"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "orgmemory-web",
+      "name": "OrgMemory Web",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "http://localhost:5173",
+      "redirectUris": ["http://localhost:5173/*", "http://127.0.0.1:5173/*"],
+      "webOrigins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://127.0.0.1:5173/*"
+      }
+    }
+  ]
+}

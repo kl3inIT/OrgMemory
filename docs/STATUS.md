@@ -21,6 +21,9 @@ Backend:
 - Spring AI enrichment endpoint with fallback
 - Spring AI/AI Elements-compatible chat stream
 - relational knowledge graph endpoint
+- OIDC authentication: Keycloak 26.6.4 dev IdP in compose, Spring Security 7
+  resource server, realm-role -> ROLE_* mapping, `/api/me`, `local` profile
+  bypass for no-IdP development
 - MCP app scaffold
 - worker app scaffold
 
@@ -45,7 +48,10 @@ Frontend:
 
 Product/enterprise:
 
-- no real authentication/authorization yet
+- authentication is OIDC-backed, but authorization is coarse: realm roles are
+  mapped, yet endpoints do not enforce per-role or per-resource (ACL) rules yet
+- app_users are not linked to OIDC identities yet (identity mapping design is a
+  pre-ingestion task)
 - no Airbyte staging integration yet
 - no source ingestion tables yet
 - no Knowledge Asset table/page yet
@@ -61,7 +67,7 @@ Backend:
 - search is mostly structured/keyword/ranker based, not full pgvector semantic
   retrieval
 - chat conversations are not persisted
-- approval permissions are not enforced through real auth
+- approval actions require a valid token but not yet the reviewer/admin role
 - MCP app exists as scaffold, but domain MCP tools still need implementation
 
 Frontend:
