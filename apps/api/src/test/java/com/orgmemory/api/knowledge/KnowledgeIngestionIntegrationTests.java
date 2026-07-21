@@ -38,12 +38,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest
 @Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class KnowledgeIngestionIntegrationTests {
 
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -370,13 +372,11 @@ class KnowledgeIngestionIntegrationTests {
                         String.class,
                         raw.rawSourceObjectId()));
 
-        RegisterRawSourceCommand unsafeScheme = withSourceUri(
-                completeCommand(
-                        "unsafe-source-uri-doc",
-                        "Source body with an unsafe citation scheme.",
-                        KnowledgeClassification.PUBLIC,
-                        DeclaredAccessScope.ALL),
-                "javascript:alert('unsafe')");
+        RegisterRawSourceCommand unsafeScheme = withUnsafeSourceUri(completeCommand(
+                "unsafe-source-uri-doc",
+                "Source body with an unsafe citation scheme.",
+                KnowledgeClassification.PUBLIC,
+                DeclaredAccessScope.ALL));
         assertThrows(IllegalArgumentException.class, () -> ingestion.registerRawSource(unsafeScheme));
     }
 
@@ -495,9 +495,8 @@ class KnowledgeIngestionIntegrationTests {
     }
 
     private static <T> List<T> runConcurrently(Callable<T> action) throws Exception {
-        var executor = Executors.newFixedThreadPool(2);
         var barrier = new CyclicBarrier(2);
-        try {
+        try (var executor = Executors.newFixedThreadPool(2)) {
             Callable<T> synchronizedAction = () -> {
                 assertTrue(barrier.await(10, TimeUnit.SECONDS) >= 0);
                 return action.call();
@@ -505,12 +504,10 @@ class KnowledgeIngestionIntegrationTests {
             var first = executor.submit(synchronizedAction);
             var second = executor.submit(synchronizedAction);
             return List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
-        } finally {
-            executor.shutdownNow();
         }
     }
 
-    private static RegisterRawSourceCommand withSourceUri(RegisterRawSourceCommand base, String sourceUri) {
+    private static RegisterRawSourceCommand withUnsafeSourceUri(RegisterRawSourceCommand base) {
         return new RegisterRawSourceCommand(
                 base.organizationId(),
                 base.departmentId(),
@@ -521,7 +518,7 @@ class KnowledgeIngestionIntegrationTests {
                 base.objectType(),
                 base.title(),
                 base.rawContent(),
-                sourceUri,
+                "javascript:alert('unsafe')",
                 base.sourceModifiedAt(),
                 base.classification(),
                 base.declaredAccess(),

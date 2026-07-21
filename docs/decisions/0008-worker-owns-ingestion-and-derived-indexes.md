@@ -17,6 +17,12 @@ and atomic head publication. Airbyte or custom connectors write versioned stagin
 contracts only. Search, graph, and OpenFGA updates are rebuildable projections
 published from canonical ledger/outbox state.
 
+Embedding configuration is not a mutable global string. An immutable,
+organization-scoped embedding profile identifies provider, model, dimensions,
+and distance metric. A revision and every derived vector pin the profile used to
+produce them. PostgreSQL can store mixed vector dimensions, while physical
+indexes and search requests are routed to exactly one profile and dimension.
+
 ## Consequences
 
 Pipeline states and failures are visible. API and worker are separate processes,
@@ -27,3 +33,6 @@ checkpoint/tombstone, reconciliation, quarantine, and retry semantics are part
 of the contract from the first production slice.
 Independent source revisions may execute in parallel, while publication for one
 source/revision key is serialized by claim/version semantics.
+Supporting a new vector dimension requires an explicit partial expression index
+and a profile-scoped rebuild. Embeddings from different profiles are never
+compared in one ranking operation.

@@ -27,3 +27,13 @@ to authorized contributions.
 Pinned upstream LightRAG is a reference/conformance oracle, not production code.
 Neo4j may later become a rebuildable projection after benchmarks; it is not a V1
 dependency or source of truth.
+
+The Sources workspace reserves a top-level Knowledge graph navigation tab beside
+Documents. The graph content starts only after the entity, relationship,
+evidence-provenance, permission, and graph-query contracts exist. TanStack Query
+remains the owner of server state. A small Zustand store is justified only for
+high-frequency interactive graph state such as selection, focus, viewport,
+layout, and panels.
+The LightRAG WebUI at reference commit `c5bf73d` validates Sigma.js plus
+Graphology as candidates for large interactive graphs; those dependencies are
+not added until the first graph vertical slice needs them.

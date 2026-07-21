@@ -13,20 +13,21 @@
 
 ## 2 — Source Revision And Blob
 
-- [ ] Add `SourceObject`, `SourceRevision`, and `EvidenceBlob` schema/model
+- [x] Add `SourceObject`, `SourceRevision`, and `EvidenceBlob` schema/model
   alongside current tables; migrate without changing evidence identity.
-- [ ] Add `BlobStorePort` plus local adapter and integrity metadata.
-- [ ] Add direct-upload session, private default ACL, quarantine, and size/type
+- [x] Add provider-neutral object storage plus MinIO adapter and integrity metadata.
+- [x] Add authenticated direct upload, private default ACL, quarantine, and size/type
   checks. Keep malware/DLP as an explicit required gate interface.
 - [ ] Define versioned Edge/upload/staging schemas under root `contracts/`; do not
   make contracts a Gradle module.
 
 ## 3 — Durable Worker Pipeline
 
-- [ ] Define stage state, idempotency key, retry, tombstone, and failure contract.
-- [ ] Move parse/normalize/chunk/embed work to worker; API only accepts commands
+- [x] Define stage state, durable claims, retries, terminal failures, and visible status.
+- [x] Move parse/normalize/chunk/embed work to worker; API only accepts commands
   and exposes state.
-- [ ] Publish the Knowledge Asset head atomically after all required stages.
+- [x] Publish the Knowledge Asset head after all required stages and persist the
+  embedding profile and projection provenance.
 
 ## 4 — OpenFGA And Source Principals
 
@@ -45,7 +46,8 @@
 
 ## 5 — Hybrid Secure Retrieval
 
-- [ ] Add PostgreSQL FTS + pgvector projection with ACL/model/version metadata.
+- [ ] Complete hybrid retrieval over the existing pgvector chunk projection and
+  add PostgreSQL FTS with ACL/model/version metadata.
 - [ ] Implement `SecureKnowledgeRetrieval`: prefilter, OpenFGA check, rank,
   bounded context, citation recheck, and audit.
 - [ ] Add revocation/stale/projection-mismatch negative tests.
@@ -68,7 +70,8 @@
   exclusions.
 - [ ] Add Vitest and one critical Playwright project before expanding UI.
 - [ ] Build Ask with visible waiting/tool/evidence/citation/error states.
-- [ ] Build Sources upload/status/privacy view and Review publication view.
+- [x] Build Sources upload/status/privacy view.
+- [ ] Build Review publication view.
 - [ ] Run real-browser two-user upload, answer, deny, and revoke flow.
 
 ## Completion
