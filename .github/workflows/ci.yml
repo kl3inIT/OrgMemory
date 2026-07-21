@@ -67,11 +67,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check generated API client
+        run: pnpm check:api
+
       - name: Type-check
         run: pnpm typecheck
 
       - name: Build production bundle
         run: pnpm build
+
+      - name: Check generated route tree
+        run: git diff --exit-code -- src/routeTree.gen.ts
 
   openfga:
     name: OpenFGA model

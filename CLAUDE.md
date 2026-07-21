@@ -36,3 +36,6 @@ tokens, or customer data. Keep `ddl-auto=validate`; pair JPA changes with Flyway
 
 Run the relevant gates in [testing harness](docs/guidelines/testing-harness.md).
 Use a terminating clean test as the context gate; `bootRun` is not verification.
+JetBrains IDE inspection is a Java-backend gate only. For frontend files, use
+Oxlint, TypeScript typecheck, the production build, and browser tests when the UI
+flow matters; do not run IDE inspection on TypeScript, TSX, or web configuration.
