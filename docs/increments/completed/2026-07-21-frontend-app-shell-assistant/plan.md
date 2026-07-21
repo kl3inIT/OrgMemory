@@ -21,5 +21,6 @@
 - [x] Pin Hey API generation independently from TypeScript 7.
 - [x] Add CI drift checks for generated API and route artifacts.
 - [x] Run final lint, typecheck, build, backend, and browser gates.
-- [ ] Publish the branch, open the pull request, and resolve CodeRabbit feedback.
-- [ ] Move this increment to completed after the review loop is green.
+- [x] Publish the branch and open the pull request; CodeRabbit review was
+  attempted but rate-limited, with no code feedback produced.
+- [x] Move this increment to completed after local and GitHub CI gates pass.
