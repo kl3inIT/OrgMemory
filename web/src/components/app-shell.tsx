@@ -16,7 +16,8 @@ import { submitBrowserLogout } from "@/features/session/logout"
 import { useBrowserSession } from "@/features/session/use-browser-session"
 
 function initials(name?: string, email?: string) {
-  const source = name?.trim() || email?.trim() || "OrgMemory"
+  const source = name?.trim() || email?.trim()
+  if (!source) return "OM"
   return source
     .split(/\s+/)
     .slice(0, 2)

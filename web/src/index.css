@@ -129,6 +129,6 @@
     color: var(--color-foreground);
     font-family: system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    text-rendering: optimizelegibility;
   }
 }
