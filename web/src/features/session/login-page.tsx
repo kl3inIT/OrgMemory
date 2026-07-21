@@ -1,10 +1,10 @@
 import { Navigate, useSearch } from "@tanstack/react-router"
 
-import { LoginForm } from "@/components/login-form"
 import { ModeToggle } from "@/components/mode-toggle"
 import { ApplicationError } from "@/components/states/application-error"
 import { PageLoading } from "@/components/states/page-loading"
 import { beginBrowserLogin } from "@/features/session/browser-login"
+import { LoginForm } from "@/features/session/components/login-form"
 import { useBrowserSession } from "@/features/session/use-browser-session"
 
 export function LoginPage() {

@@ -4,11 +4,15 @@ export function currentReturnPath() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`
 }
 
-export function beginBrowserLogin(returnTo?: string) {
+export function browserLoginUrl(returnTo?: string) {
   const origin = apiOrigin || window.location.origin
   const loginUrl = new URL("/api/session/login", origin)
   if (returnTo) {
     loginUrl.searchParams.set("returnTo", returnTo)
   }
-  window.location.replace(loginUrl)
+  return loginUrl.toString()
+}
+
+export function beginBrowserLogin(returnTo?: string) {
+  window.location.replace(browserLoginUrl(returnTo))
 }

@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "gen:api": "corepack pnpm dlx --package @hey-api/openapi-ts@0.99.0 --package typescript@6.0.1-rc openapi-ts -i ../contracts/openapi.json -o src/lib/hey-api -c @hey-api/client-fetch -p @hey-api/typescript @hey-api/sdk @tanstack/react-query zod",
-    "build": "corepack pnpm gen:api && corepack pnpm lint && tsc -b && vite build",
+    "gen:api": "corepack pnpm dlx --package @hey-api/openapi-ts@0.99.0 --package typescript@6.0.1-rc openapi-ts",
+    "check:api": "corepack pnpm gen:api && git diff --exit-code -- src/lib/hey-api",
+    "build": "corepack pnpm lint && tsc -b && vite build",
     "lint": "oxlint",
-    "typecheck": "corepack pnpm gen:api && tsc -b",
+    "typecheck": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.101.2",
+    "@tanstack/router-plugin": "1.168.23",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

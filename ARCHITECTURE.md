@@ -38,8 +38,11 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `apps/worker`: external permission-workbook validation and a scaffold for
   background ingestion/enrichment.
 - `apps/mcp`: a Spring AI MCP server scaffold sharing the core model.
-- `web`: the current registry-oriented prototype UI with dashboard, registry,
-  review, transfer, ask, graph, analytics, and settings routes.
+- `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
+  sidebar shell, generated Hey API clients for ordinary REST contracts, and an
+  AI Elements assistant workspace. The protected route layout owns session
+  restoration and passes the verified identity into the shell; feature code
+  does not repeat authentication gates.
 
 `core` uses Spring Modulith package boundaries and a verification test. It still
 depends on the Modulith JPA event starter even though no cross-process event flow

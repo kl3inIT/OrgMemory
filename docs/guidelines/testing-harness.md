@@ -2,8 +2,8 @@
 
 Use a layered gate:
 
-1. Static: IDE inspection when available, Gradle compile, web typecheck, migration
-   naming, and zero-byte/package checks.
+1. Static: IDE inspection for changed backend Java when available, Gradle
+   compile, web lint/typecheck, migration naming, and zero-byte/package checks.
 2. Domain: unit tests and Spring Modulith boundary verification.
 3. Integration: PostgreSQL/Testcontainers for schema, ACL, outbox, idempotency,
    retrieval order, and fail-closed behavior.
@@ -23,7 +23,13 @@ A successful model answer is not evidence of correct authorization. Verify the
 selected evidence set and audit decision independently.
 
 GitHub CI mirrors the repository gates with three independent jobs: Gradle
-`clean build`, pnpm typecheck/build, and the pinned OpenFGA model test. A stable
-`CI Gate` aggregates those jobs for branch protection. Workflow permissions
-remain read-only, action dependencies are pinned to full commit SHAs, and
-superseded runs on the same pull request are cancelled.
+`clean build`; pnpm generated-API drift, typecheck, and build checks; and the
+pinned OpenFGA model test. The web build also verifies that TanStack Router's
+committed `routeTree.gen.ts` is current. A stable `CI Gate` aggregates those
+jobs for branch protection. Workflow permissions remain read-only, action
+dependencies are pinned to full commit SHAs, and superseded runs on the same
+pull request are cancelled.
+
+JetBrains inspection is intentionally limited to backend `.java` files. Web
+code uses Oxlint and TypeScript as its static-analysis authority; production
+build and real-browser checks cover bundling and UI behavior.

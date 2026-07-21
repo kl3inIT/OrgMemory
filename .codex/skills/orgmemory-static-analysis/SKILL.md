@@ -1,30 +1,29 @@
 ---
 name: orgmemory-static-analysis
-description: Gate-1 static checks for OrgMemory after changing backend, database, config, or web code. PRIMARY when a JetBrains IDE MCP inspection such as get_file_problems is connected: run it per edited file with the absolute projectPath so Spring/JPA/Modulith/YAML/TypeScript warnings are caught before compile or runtime. Fall back to Gradle, pnpm, and mechanical checks when IDE inspection is unavailable.
+description: Gate-1 static checks for OrgMemory. Use JetBrains IDE inspection only for edited backend Java files. Use Gradle for backend verification and Oxlint, TypeScript, build, and browser tests for frontend verification.
 ---
 
 # OrgMemory Static Analysis
 
-Gate 1 means every file you created or edited gets a static check before you
-claim the task is done. For this repo, the strongest static gate is JetBrains IDE
-inspection when the MCP is connected. It catches Spring, JPA, YAML, Flyway, and
-TypeScript defects that plain compilation can miss.
+Gate 1 means every file you created or edited gets the appropriate static check
+before you claim the task is done. JetBrains IDE inspection is reserved for
+backend Java. Frontend files use the frontend-native toolchain.
 
-## 1. JetBrains IDE Inspection, Primary When Connected
+## 1. JetBrains IDE Inspection For Backend Java
 
-If a JetBrains MCP inspection is available, run it per edited file before the
-fallback commands.
+If a JetBrains MCP inspection is available, run it on each edited backend
+`.java` file before the Gradle commands.
 
 Rules:
 
 - Always pass `projectPath` as the absolute repo root: `D:\OrgMemory`.
-- Run it on every touched `.java`, `.yml`, `.yaml`, Flyway `.sql`, `.ts`, and
-  `.tsx` file, not just a sample.
+- Run it on every touched backend `.java` file, not just a sample.
+- Do not run JetBrains inspection on `.ts`, `.tsx`, JavaScript, CSS, Vite,
+  OpenAPI generator config, workflow YAML, or other frontend files.
 - Include warnings, not only errors. Spring/JPA unresolved references often
   appear as warnings.
-- Treat unresolved imports, unresolved Spring properties, missing beans, invalid
-  JPQL, invalid JPA mapping hints, duplicate YAML keys, and TypeScript unresolved
-  symbols as blockers.
+- Treat unresolved imports, missing beans, invalid JPQL, and invalid JPA mapping
+  hints as blockers.
 - Never trust an empty result unless the call clearly inspected the intended
   file in the OrgMemory project. If the IDE targets the wrong project or reports
   generic "URI is not registered" noise, treat JetBrains inspection as
@@ -52,15 +51,17 @@ For completion-grade backend verification:
 Use `:core:test` whenever you touch `core/src/main/java/com/orgmemory/core`
 because the Modulith verification test protects module boundaries.
 
-## 3. Web Fallback
+## 3. Web Static Analysis And Build
 
 ```powershell
+pnpm -C web lint
 pnpm -C web typecheck
 pnpm -C web build
 ```
 
+Oxlint and TypeScript are the static-analysis authority for web code.
 `pnpm -C web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
-type-check the app.
+type-check the app. Use a real browser flow when behavior or layout changes.
 
 ## 4. Migration And Persistence Checks
 
@@ -106,7 +107,8 @@ but every changed mapping must be reconciled with Flyway.
 In the final answer, state:
 
 - files changed,
-- whether JetBrains MCP inspection was used or unavailable,
+- whether JetBrains MCP inspection was used for changed backend Java or was not
+  applicable,
 - which Gradle/pnpm/mechanical checks passed,
 - which checks were not run and why,
 - remaining risk.
