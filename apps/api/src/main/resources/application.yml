@@ -9,7 +9,7 @@ spring:
       chat:
         model: ${ORGMEMORY_OPENAI_MODEL:gpt-5.5}
   config:
-    import: optional:file:.env[.properties],optional:file:../../.env[.properties]
+    import: optional:file:.env[.properties],optional:file:../../.env[.properties],optional:file:.openfga.local.properties,optional:file:../../.openfga.local.properties
   threads:
     virtual:
       enabled: true
@@ -29,9 +29,33 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
+  session:
+    timeout: ${ORGMEMORY_WEB_SESSION_TIMEOUT:8h}
+    jdbc:
+      initialize-schema: never
+
+orgmemory:
+  security:
+    oidc:
+      issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
+      client-id: ${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}
+      client-secret: ${ORGMEMORY_OIDC_CLIENT_SECRET:orgmemory-local-dev-only}
+      web-base-url: ${ORGMEMORY_WEB_BASE_URL:http://localhost:5173}
 
 server:
   port: ${ORGMEMORY_API_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        name: ORGMEMORY_SESSION
+        http-only: true
+        secure: ${ORGMEMORY_SESSION_COOKIE_SECURE:false}
+        same-site: lax
 
 management:
   endpoints:

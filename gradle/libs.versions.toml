@@ -5,6 +5,8 @@ springDependencyManagement = "1.1.7"
 springModulith = "2.1.0"
 springdoc = "3.0.3"
 springAi = "2.0.0"
+apachePoi = "5.5.1"
+openfgaSdk = "0.9.9"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -14,6 +16,8 @@ springdoc-webmvc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ap
 spring-ai-client-chat = { module = "org.springframework.ai:spring-ai-client-chat" }
 spring-ai-starter-openai = { module = "org.springframework.ai:spring-ai-starter-model-openai" }
 spring-ai-starter-mcp-server-webmvc = { module = "org.springframework.ai:spring-ai-starter-mcp-server-webmvc" }
+apache-poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "apachePoi" }
+openfga-sdk = { module = "dev.openfga:openfga-sdk", version.ref = "openfgaSdk" }
 plugin-spring-boot = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
 plugin-spring-dependency-management = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "springDependencyManagement" }
 

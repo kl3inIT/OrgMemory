@@ -1,81 +1,101 @@
-import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link } from "@tanstack/react-router"
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet } from "@tanstack/react-router"
 import { AlertTriangle, Loader2 } from "lucide-react"
 import { AppShell } from "@/components/app-shell"
+import { AuthGate } from "@/components/auth-gate"
 import { Button } from "@/components/ui/button"
 
-const rootRoute = createRootRoute({ component: AppShell })
+const rootRoute = createRootRoute({ component: Outlet })
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "login",
+  component: lazyRouteComponent(() => import("@/pages/login"), "LoginPage"),
+})
+
+const authenticatedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "authenticated",
+  component: () => (
+    <AuthGate>
+      <AppShell />
+    </AuthGate>
+  ),
+})
 
 const dashboardRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "/",
   component: lazyRouteComponent(() => import("@/pages/dashboard"), "DashboardPage"),
 })
 
 const registryRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "registry",
   component: lazyRouteComponent(() => import("@/pages/registry"), "RegistryPage"),
 })
 
 const assetDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "assets/$assetId",
   component: lazyRouteComponent(() => import("@/pages/asset-detail"), "AssetDetailPage"),
 })
 
 const createRoutePage = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "create",
   component: lazyRouteComponent(() => import("@/pages/create-asset"), "CreateAssetPage"),
 })
 
 const reviewRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "review",
   component: lazyRouteComponent(() => import("@/pages/review-queue"), "ReviewQueuePage"),
 })
 
 const transferRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "transfer",
   component: lazyRouteComponent(() => import("@/pages/knowledge-transfer"), "KnowledgeTransferPage"),
 })
 
 const askRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "ask",
   component: lazyRouteComponent(() => import("@/pages/ask-memory"), "AskMemoryPage"),
 })
 
 const graphRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "graph",
   component: lazyRouteComponent(() => import("@/pages/knowledge-graph"), "KnowledgeGraphPage"),
 })
 
 const analyticsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "analytics",
   component: lazyRouteComponent(() => import("@/pages/analytics"), "AnalyticsPage"),
 })
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: "settings",
   component: lazyRouteComponent(() => import("@/pages/settings"), "SettingsPage"),
 })
 
 const routeTree = rootRoute.addChildren([
-  dashboardRoute,
-  registryRoute,
-  assetDetailRoute,
-  createRoutePage,
-  reviewRoute,
-  transferRoute,
-  askRoute,
-  graphRoute,
-  analyticsRoute,
-  settingsRoute,
+  loginRoute,
+  authenticatedRoute.addChildren([
+    dashboardRoute,
+    registryRoute,
+    assetDetailRoute,
+    createRoutePage,
+    reviewRoute,
+    transferRoute,
+    askRoute,
+    graphRoute,
+    analyticsRoute,
+    settingsRoute,
+  ]),
 ])
 
 function RouteError({ error }: { error: Error }) {

@@ -1,0 +1,211 @@
+name: OrgMemory authorization model
+
+model_file: ../../main/openfga/model.fga
+
+tuples:
+  - user: user:laura
+    relation: member
+    object: organization:acme
+  - user: user:minh
+    relation: member
+    object: organization:acme
+  - user: user:evelyn
+    relation: member
+    object: organization:acme
+
+  - user: user:laura
+    relation: assignee
+    object: role:finance-manager
+  - user: user:evelyn
+    relation: assignee
+    object: role:executive-reader
+  - user: role:executive-reader#assignee
+    relation: knowledge_reader
+    object: organization:acme
+  - user: user:laura
+    relation: capability_contributor
+    object: organization:acme
+  - user: user:evelyn
+    relation: capability_reviewer
+    object: organization:acme
+
+  - user: organization:acme
+    relation: organization
+    object: organizational_unit:finance
+  - user: organization:acme
+    relation: organization
+    object: organizational_unit:engineering
+  - user: user:laura
+    relation: member
+    object: organizational_unit:finance
+  - user: user:minh
+    relation: member
+    object: organizational_unit:engineering
+  - user: role:finance-manager#assignee
+    relation: manager
+    object: organizational_unit:finance
+
+  - user: organization:acme
+    relation: organization
+    object: knowledge_space:company
+  - user: organization:acme#member
+    relation: viewer
+    object: knowledge_space:company
+  - user: organization:acme
+    relation: organization
+    object: knowledge_space:finance
+  - user: organizational_unit:finance
+    relation: organizational_unit
+    object: knowledge_space:finance
+  - user: organizational_unit:finance#member
+    relation: viewer
+    object: knowledge_space:finance
+  - user: organization:acme#knowledge_reader
+    relation: viewer
+    object: knowledge_space:finance
+  - user: organization:acme
+    relation: organization
+    object: knowledge_space:executive
+  - user: role:executive-reader#assignee
+    relation: viewer
+    object: knowledge_space:executive
+
+  - user: knowledge_space:company
+    relation: space
+    object: knowledge_asset:employee-handbook
+  - user: knowledge_space:finance
+    relation: space
+    object: knowledge_asset:expense-policy
+  - user: knowledge_space:executive
+    relation: space
+    object: knowledge_asset:financial-forecast
+  - user: user:laura
+    relation: owner
+    object: knowledge_asset:finance-private-draft
+  - user: knowledge_space:finance
+    relation: space
+    object: knowledge_asset:finance-private-draft
+
+  - user: organization:acme
+    relation: organization
+    object: capability_asset:approved-org-playbook
+  - user: organization:acme#member
+    relation: viewer
+    object: capability_asset:approved-org-playbook
+  - user: organization:acme
+    relation: organization
+    object: capability_asset:finance-draft
+  - user: user:laura
+    relation: owner
+    object: capability_asset:finance-draft
+
+tests:
+  - name: Company department and executive access are isolated
+    check:
+      - user: user:laura
+        object: knowledge_asset:employee-handbook
+        assertions:
+          can_view: true
+      - user: user:laura
+        object: knowledge_asset:expense-policy
+        assertions:
+          can_view: true
+      - user: user:laura
+        object: knowledge_asset:financial-forecast
+        assertions:
+          can_view: false
+      - user: user:minh
+        object: knowledge_asset:expense-policy
+        assertions:
+          can_view: false
+      - user: user:evelyn
+        object: knowledge_asset:expense-policy
+        assertions:
+          can_view: true
+      - user: user:evelyn
+        object: knowledge_asset:financial-forecast
+        assertions:
+          can_view: true
+      - user: user:unknown
+        object: knowledge_asset:employee-handbook
+        assertions:
+          can_view: false
+
+  - name: Custom roles are tuple data rather than model relations
+    check:
+      - user: user:laura
+        object: organizational_unit:finance
+        assertions:
+          can_manage: true
+      - user: user:minh
+        object: organizational_unit:finance
+        assertions:
+          can_manage: false
+
+  - name: Owners can view private drafts without broadening the space
+    check:
+      - user: user:laura
+        object: knowledge_asset:finance-private-draft
+        assertions:
+          can_edit: true
+          can_view: true
+      - user: user:minh
+        object: knowledge_asset:finance-private-draft
+        assertions:
+          can_edit: false
+          can_view: false
+
+  - name: List only knowledge assets visible to each user
+    list_objects:
+      - user: user:laura
+        type: knowledge_asset
+        assertions:
+          can_view:
+            - knowledge_asset:employee-handbook
+            - knowledge_asset:expense-policy
+            - knowledge_asset:finance-private-draft
+      - user: user:minh
+        type: knowledge_asset
+        assertions:
+          can_view:
+            - knowledge_asset:employee-handbook
+      - user: user:evelyn
+        type: knowledge_asset
+        assertions:
+          can_view:
+            - knowledge_asset:employee-handbook
+            - knowledge_asset:expense-policy
+            - knowledge_asset:finance-private-draft
+            - knowledge_asset:financial-forecast
+
+  - name: Capability registry separates create review and per-asset access
+    check:
+      - user: user:laura
+        object: organization:acme
+        assertions:
+          can_view_capability_registry: true
+          can_create_capability_asset: true
+      - user: user:minh
+        object: organization:acme
+        assertions:
+          can_view_capability_registry: true
+          can_create_capability_asset: false
+      - user: user:evelyn
+        object: capability_asset:finance-draft
+        assertions:
+          can_review: true
+          can_view: true
+      - user: user:laura
+        object: capability_asset:finance-draft
+        assertions:
+          can_edit: true
+          can_view: true
+      - user: user:minh
+        object: capability_asset:finance-draft
+        assertions:
+          can_edit: false
+          can_view: false
+      - user: user:minh
+        object: capability_asset:approved-org-playbook
+        assertions:
+          can_view: true

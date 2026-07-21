@@ -1,6 +1,8 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.capability.CapabilityAssetNotFoundException;
+import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -26,9 +28,14 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler(CapabilityAssetNotFoundException.class)
+    @ExceptionHandler({CapabilityAssetNotFoundException.class, KnowledgeAssetNotFoundException.class})
     ProblemDetail notFound(RuntimeException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(OrgMemoryAccessDeniedException.class)
+    ProblemDetail accessDenied(OrgMemoryAccessDeniedException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

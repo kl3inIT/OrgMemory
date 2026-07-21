@@ -6,9 +6,9 @@ import { RouterProvider } from '@tanstack/react-router'
 import { ThemeProvider } from 'next-themes'
 import { Toaster, toast } from 'sonner'
 
+import './lib/api-client'
 import { router } from './router'
 import './index.css'
-import '@xyflow/react/dist/style.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,9 +1,11 @@
 package com.orgmemory.api.ai;
 
+import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.capability.AssetType;
 import com.orgmemory.core.capability.CapabilityAsset;
 import com.orgmemory.core.capability.CapabilityAssetService;
 import com.orgmemory.core.capability.RiskLevel;
+import com.orgmemory.core.organization.CurrentActor;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.text.Normalizer;
@@ -22,6 +24,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -52,30 +55,35 @@ class AssetAssistantController {
     private final ObjectProvider<ChatClient.Builder> chatBuilders;
     private final ObjectMapper objectMapper;
     private final CapabilityAssetService assets;
+    private final CurrentActorProvider actors;
 
     AssetAssistantController(ObjectProvider<ChatClient.Builder> chatBuilders, ObjectMapper objectMapper,
-            CapabilityAssetService assets) {
+            CapabilityAssetService assets, CurrentActorProvider actors) {
         this.chatBuilders = chatBuilders;
         this.objectMapper = objectMapper;
         this.assets = assets;
+        this.actors = actors;
     }
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    SseEmitter chat(@RequestBody ChatRequest request, HttpServletResponse response) {
+    SseEmitter chat(@RequestBody ChatRequest request, HttpServletResponse response, Authentication authentication) {
         if (request == null || !StringUtils.hasText(request.message())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "message must not be blank");
         }
-
+        CurrentActor actor = actors.current(authentication);
+        assets.requireRegistryPermission(actor);
         response.setHeader(UI_MESSAGE_STREAM_HEADER, "v1");
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache, no-transform");
 
         SseEmitter emitter = new SseEmitter(120_000L);
-        UiMessageStream.pipe(streamAssistantTurn(request.message()), emitter, objectMapper);
+        UiMessageStream.pipe(streamAssistantTurn(actor, request.message()), emitter, objectMapper);
         return emitter;
     }
 
     @PostMapping("/assets/normalize")
-    AiDraftResponse normalize(@Valid @RequestBody AiDraftRequest request) {
+    AiDraftResponse normalize(@Valid @RequestBody AiDraftRequest request, Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        assets.requireCreatePermission(actor);
         AiDraftResponse fallback = fallbackDraft(request, "local-fallback",
                 "Spring AI is disabled or unavailable, so OrgMemory used local normalization.");
 
@@ -114,8 +122,8 @@ class AssetAssistantController {
         }
     }
 
-    private Flux<Part> streamAssistantTurn(String userMessage) {
-        String registryAnswer = registryAnswer(userMessage);
+    private Flux<Part> streamAssistantTurn(CurrentActor actor, String userMessage) {
+        String registryAnswer = registryAnswer(actor, userMessage);
         if (StringUtils.hasText(registryAnswer) && isRegistryQuestion(userMessage)) {
             return fallbackStream(registryAnswer);
         }
@@ -152,9 +160,9 @@ class AssetAssistantController {
         return Flux.concat(Flux.just(new Part.TextStart(TEXT_PART_ID)), deltas, Flux.just(new Part.TextEnd(TEXT_PART_ID)));
     }
 
-    private String registryAnswer(String userMessage) {
+    private String registryAnswer(CurrentActor actor, String userMessage) {
         try {
-            List<CapabilityAsset> ranked = rankedAssets(userMessage);
+            List<CapabilityAsset> ranked = rankedAssets(actor, userMessage);
             if (ranked.isEmpty()) {
                 return "";
             }
@@ -181,7 +189,7 @@ class AssetAssistantController {
                         .append(", ")
                         .append(asset.getAssetType())
                         .append(", ")
-                        .append(assets.usageCount(asset.getId()))
+                        .append(assets.usageCount(actor, asset.getId()))
                         .append(" uses. ")
                         .append(asset.getSummary())
                         .append("\n");
@@ -193,7 +201,7 @@ class AssetAssistantController {
             if (recommended.getStatus().name().equals("APPROVED")) {
                 answer.append(", is approved");
             }
-            if (assets.usageCount(recommended.getId()) > 0) {
+            if (assets.usageCount(actor, recommended.getId()) > 0) {
                 answer.append(", and already has reuse history");
             }
             answer.append(". Open the asset detail, review its workflow, then click Use Asset to record reuse.");
@@ -207,15 +215,15 @@ class AssetAssistantController {
         }
     }
 
-    private List<CapabilityAsset> rankedAssets(String userMessage) {
+    private List<CapabilityAsset> rankedAssets(CurrentActor actor, String userMessage) {
         QueryTerms query = queryTerms(userMessage);
         boolean genericQuestion = query.tokens().isEmpty() && query.phrases().isEmpty() && query.typeIntents().isEmpty();
 
-        return assets.search(null, null, null).stream()
+        return assets.search(actor, null, null, null).stream()
                 .map(asset -> new RankedAsset(asset, score(asset, query)))
                 .filter(match -> genericQuestion || match.score() > 0)
                 .sorted(Comparator.comparingInt(RankedAsset::score).reversed()
-                        .thenComparing(match -> assets.usageCount(match.asset().getId()), Comparator.reverseOrder()))
+                        .thenComparing(match -> assets.usageCount(actor, match.asset().getId()), Comparator.reverseOrder()))
                 .map(RankedAsset::asset)
                 .toList();
     }

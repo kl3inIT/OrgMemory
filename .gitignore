@@ -22,10 +22,12 @@ HELP.md
 node_modules/
 web/dist/
 web/.vite/
+web/src/lib/hey-api/
 *.local
 .env
 .env.*
 !.env.example
+.openfga.local.properties
 
 # --- Tooling scratch / MCP output ---
 .playwright-mcp/
@@ -33,6 +35,7 @@ web/.vite/
 tmp/
 output/
 test-results/
+.tools/
 
 # --- OS ---
 .DS_Store

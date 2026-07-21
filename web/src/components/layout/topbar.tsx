@@ -1,16 +1,29 @@
 import { useNavigate } from "@tanstack/react-router"
-import { Bell, ChevronDown, HelpCircle, Search } from "lucide-react"
+import { Bell, ChevronDown, HelpCircle, LogOut, Search } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useOrganizationLookups, userInitials } from "@/features/organization/use-organization-context"
+import { submitBrowserLogout } from "@/features/session/logout"
+import { useBrowserSession } from "@/features/session/use-browser-session"
 
 export function Topbar({ query, onQueryChange }: { query: string; onQueryChange: (value: string) => void }) {
   const navigate = useNavigate()
+  const { data: session } = useBrowserSession()
   const { users } = useOrganizationLookups()
-  const currentUser = users.find((user) => user.role === "ADMIN") ?? users[0]
+  const fallbackUser = users.find((user) => user.role === "ADMIN") ?? users[0]
+  const displayName = session?.name ?? fallbackUser?.name ?? "OrgMemory User"
+  const displayDetail = session?.email ?? fallbackUser?.role.replace("_", " ") ?? "Authenticated user"
 
   function submitSearch() {
     const trimmed = query.trim()
@@ -53,21 +66,44 @@ export function Topbar({ query, onQueryChange }: { query: string; onQueryChange:
           size="icon"
           type="button"
           aria-label="Help"
-          onClick={() => toast.info("Demo guide: docs/DEMO_GUIDE.md")}
+          onClick={() => toast.info("Repository guide: README.md")}
         >
           <HelpCircle className="size-4" />
         </Button>
         <Separator orientation="vertical" className="hidden h-8 md:block" />
-        <div className="flex items-center gap-2">
-          <Avatar>
-            <AvatarFallback>{userInitials(currentUser)}</AvatarFallback>
-          </Avatar>
-          <div className="hidden leading-tight md:block">
-            <div className="font-semibold">{currentUser?.name ?? "OrgMemory Admin"}</div>
-            <div className="text-xs text-muted-foreground">{currentUser?.role.replace("_", " ") ?? "Platform Admin"}</div>
-          </div>
-          <ChevronDown className="size-4 text-muted-foreground" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-accent">
+              <Avatar>
+                <AvatarFallback>
+                  {session?.name
+                    ? session.name
+                        .split(" ")
+                        .map((part) => part[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    : userInitials(fallbackUser)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="hidden text-left leading-tight md:block">
+                <div className="font-semibold">{displayName}</div>
+                <div className="text-xs text-muted-foreground">{displayDetail}</div>
+              </div>
+              <ChevronDown className="size-4 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="max-w-56 truncate">{displayDetail}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => void submitBrowserLogout().catch(() => toast.error("Could not start sign out."))}
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

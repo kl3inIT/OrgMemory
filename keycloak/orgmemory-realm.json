@@ -1,0 +1,65 @@
+{
+  "realm": "orgmemory",
+  "enabled": true,
+  "displayName": "OrgMemory",
+  "registrationAllowed": false,
+  "sslRequired": "external",
+  "users": [
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "username": "linh",
+      "email": "linh@example.com",
+      "firstName": "Linh",
+      "lastName": "Nguyen",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+    },
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "username": "minh",
+      "email": "minh@example.com",
+      "firstName": "Minh",
+      "lastName": "Tran",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+    },
+    {
+      "id": "13000000-0000-4000-8000-000000000001",
+      "username": "orgadmin",
+      "email": "orgadmin@example.com",
+      "firstName": "Org",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "orgmemory-web",
+      "name": "OrgMemory Web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${ORGMEMORY_OIDC_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "rootUrl": "http://localhost:8080",
+      "baseUrl": "http://localhost:5173",
+      "redirectUris": [
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://127.0.0.1:8080/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/login##http://127.0.0.1:5173/login"
+      }
+    }
+  ]
+}

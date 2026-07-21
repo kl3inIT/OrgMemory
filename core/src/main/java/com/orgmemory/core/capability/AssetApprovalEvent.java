@@ -40,6 +40,10 @@ public class AssetApprovalEvent extends BaseEntity {
         return assetId;
     }
 
+    public UUID getReviewerUserId() {
+        return reviewerUserId;
+    }
+
     public ApprovalAction getAction() {
         return action;
     }
