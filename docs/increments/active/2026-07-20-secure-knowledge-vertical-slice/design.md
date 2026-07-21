@@ -45,12 +45,10 @@ Each external adapter module is added only with its first real contract,
 implementation, and contract test. No empty future modules are created.
 
 The first embedding projection uses OpenAI `text-embedding-3-large` at 1536
-dimensions. Each organization-scoped, immutable `EmbeddingProfile` pins the
-provider, model, dimensions, and distance metric; revisions and chunks reference
-that profile. Pipeline and projection generations remain separate provenance.
-Reducing the model output from its maximum dimensionality keeps the first
-PostgreSQL HNSW projection indexable while preserving a versioned re-embedding
-path.
+dimensions so its PostgreSQL HNSW index remains within pgvector's index limits.
+The canonical profile, generation, query-pinning, and migration rules live in
+[ADR 0008](../../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
+and the [knowledge-ingestion specification](../../../specs/domains/knowledge-ingestion.md).
 
 Canonical evidence and rebuildable retrieval projections are separate:
 
@@ -60,12 +58,6 @@ Canonical evidence and rebuildable retrieval projections are separate:
   projections now.
 - Entity vectors, relationship vectors, and the permission-scoped graph are
   later projections of the same revisions, not new sources of truth.
-
-The pgvector column accepts mixed dimensions, but every query and projection is
-pinned to one embedding profile. A physical partial expression index is created
-per supported dimension (1536 first). Adding a dimension therefore requires a
-migration for its index plus profile-scoped re-projection; vectors from different
-profiles are never ranked together.
 
 ## Exit Criteria
 

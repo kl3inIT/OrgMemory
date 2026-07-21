@@ -49,9 +49,16 @@ public class EmbeddingProfileRegistry {
                 .param("distanceMetric", spec.distanceMetric().name())
                 .param("createdAt", OffsetDateTime.now(ZoneOffset.UTC))
                 .update();
-        return profiles.findByOrganizationIdAndProfileKey(organizationId, profileKey)
+        EmbeddingProfileRef resolved = profiles.findByOrganizationIdAndProfileKey(organizationId, profileKey)
                 .orElseThrow(() -> new IllegalStateException("embedding profile registration failed"))
                 .toRef();
+        if (!resolved.provider().equals(spec.provider())
+                || !resolved.model().equals(spec.model())
+                || resolved.dimensions() != spec.dimensions()
+                || resolved.distanceMetric() != spec.distanceMetric()) {
+            throw new IllegalStateException("embedding profile key is already bound to different settings");
+        }
+        return resolved;
     }
 
     @Transactional(readOnly = true)

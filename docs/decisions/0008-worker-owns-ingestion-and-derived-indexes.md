@@ -22,6 +22,9 @@ organization-scoped embedding profile identifies provider, model, dimensions,
 and distance metric. A revision and every derived vector pin the profile used to
 produce them. PostgreSQL can store mixed vector dimensions, while physical
 indexes and search requests are routed to exactly one profile and dimension.
+Profile-key components are encoded before serialization. Resolution verifies
+that an existing row still matches all requested settings and fails
+deterministically on mismatch; changed settings require a new profile key.
 
 ## Consequences
 

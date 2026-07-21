@@ -2,11 +2,15 @@ import { getBrowserCsrfToken } from "@/lib/hey-api"
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"])
 const CSRF_COOKIE_NAME = "XSRF-TOKEN"
+let cachedHeaderName: string | undefined
 
 export async function getBrowserCsrfHeader(): Promise<[string, string]> {
-  const { data } = await getBrowserCsrfToken({ throwOnError: true })
-  if (!data?.headerName) {
-    throw new Error("The server did not issue a CSRF header name.")
+  if (!cachedHeaderName) {
+    const { data } = await getBrowserCsrfToken({ throwOnError: true })
+    if (!data?.headerName) {
+      throw new Error("The server did not issue a CSRF header name.")
+    }
+    cachedHeaderName = data.headerName
   }
 
   const token = document.cookie
@@ -18,7 +22,7 @@ export async function getBrowserCsrfHeader(): Promise<[string, string]> {
   if (!token) {
     throw new Error("The server did not issue a CSRF cookie.")
   }
-  return [data.headerName, decodeURIComponent(token)]
+  return [cachedHeaderName, decodeURIComponent(token)]
 }
 
 export const csrfFetch: typeof fetch = async (input, init) => {

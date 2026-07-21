@@ -39,7 +39,7 @@ class SourceDocumentReader {
         List<Document> documents;
         if ("application/pdf".equals(detectedMediaType)) {
             documents = new PagePdfDocumentReader(resource).get();
-        } else if (isPlainText(detectedMediaType, fileName)) {
+        } else if (isPlainText(detectedMediaType)) {
             documents = List.of(new Document(Files.readString(file, StandardCharsets.UTF_8)));
         } else {
             documents = new TikaDocumentReader(resource).get();
@@ -68,9 +68,8 @@ class SourceDocumentReader {
         return mediaType.startsWith("text/") && (lower.endsWith(".txt") || lower.endsWith(".md"));
     }
 
-    private static boolean isPlainText(String mediaType, String fileName) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        return mediaType.startsWith("text/") || lower.endsWith(".txt") || lower.endsWith(".md");
+    private static boolean isPlainText(String mediaType) {
+        return mediaType.startsWith("text/");
     }
 
     private static String normalize(String text) {

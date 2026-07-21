@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 public record EmbeddingProfileSpec(
         String provider,
         String model,
@@ -18,8 +21,12 @@ public record EmbeddingProfileSpec(
     }
 
     public String profileKey() {
-        return provider + "/" + model + "/" + dimensions + "/"
+        return encode(provider) + "/" + encode(model) + "/" + dimensions + "/"
                 + distanceMetric.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     private static String required(String value, String field) {

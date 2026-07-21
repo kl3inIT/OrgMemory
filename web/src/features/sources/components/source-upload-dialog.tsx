@@ -74,6 +74,7 @@ export function SourceUploadDialog({
               type="file"
               accept=".pdf,.docx,.pptx,.txt,.md"
               required
+              disabled={pending}
               onChange={(event) => {
                 setFile(event.target.files?.[0])
                 setError(undefined)
@@ -85,6 +86,7 @@ export function SourceUploadDialog({
             <Label htmlFor="source-classification">Classification</Label>
             <Select
               value={classification}
+              disabled={pending}
               onValueChange={(value: string) => setClassification(value as UploadSourceInput["classification"])}
             >
               <SelectTrigger id="source-classification" className="w-full">

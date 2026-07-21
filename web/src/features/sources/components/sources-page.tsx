@@ -55,7 +55,7 @@ export function SourcesPage() {
           <TabsList aria-label="Knowledge workspace" className="h-10 gap-1">
             <TabsTrigger
               value="documents"
-              className="min-w-28 px-4 data-[state=active]:bg-emerald-500 data-[state=active]:text-white dark:data-[state=active]:bg-emerald-500 dark:data-[state=active]:text-white"
+              className="min-w-28 px-4 data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
             >
               Documents
             </TabsTrigger>

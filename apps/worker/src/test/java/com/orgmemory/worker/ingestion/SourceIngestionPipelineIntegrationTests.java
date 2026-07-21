@@ -2,12 +2,16 @@ package com.orgmemory.worker.ingestion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
+import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -18,6 +22,7 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
@@ -34,6 +39,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -47,6 +53,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 @Import(SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class)
 @Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SourceIngestionPipelineIntegrationTests {
 
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -66,7 +73,6 @@ class SourceIngestionPipelineIntegrationTests {
     EmbeddingModel embeddingModel;
 
     @Autowired
-    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     SourceUploadService uploads;
 
     @Autowired
@@ -74,6 +80,9 @@ class SourceIngestionPipelineIntegrationTests {
 
     @Autowired
     JdbcTemplate jdbc;
+
+    @Autowired
+    EmbeddingProfileRegistry embeddingProfiles;
 
     @Test
     @SuppressWarnings("SqlResolve")
@@ -153,6 +162,35 @@ class SourceIngestionPipelineIntegrationTests {
                         "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT current_revision_id FROM source_objects WHERE id = ?)",
                         String.class,
                         source.id()));
+    }
+
+    @Test
+    @SuppressWarnings("SqlResolve")
+    void rejectsAnExistingProfileKeyBoundToDifferentSettings() {
+        var requested = new EmbeddingProfileSpec(
+                "fixture-provider",
+                "fixture-model",
+                3,
+                EmbeddingDistanceMetric.COSINE);
+        jdbc.update(
+                """
+                INSERT INTO embedding_profiles (
+                    id, organization_id, profile_key, provider, model,
+                    dimensions, distance_metric, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                UUID.randomUUID(),
+                ORGANIZATION_ID,
+                requested.profileKey(),
+                "different-provider",
+                requested.model(),
+                requested.dimensions(),
+                requested.distanceMetric().name(),
+                OffsetDateTime.now());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> embeddingProfiles.resolve(ORGANIZATION_ID, requested));
     }
 
     private static float[] embedding() {

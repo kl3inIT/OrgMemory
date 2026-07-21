@@ -1,18 +1,14 @@
 package com.orgmemory.worker;
 
+import com.orgmemory.core.knowledge.KnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
-import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
-import com.orgmemory.core.knowledge.KnowledgeChunkProjectionStore;
-import com.orgmemory.core.knowledge.KnowledgeIngestionService;
-import com.orgmemory.core.knowledge.SourceIngestionCoordinator;
-import com.orgmemory.core.permission.KnowledgePermissionPolicy;
-import com.orgmemory.core.shared.JpaAuditingConfig;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
-import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -21,14 +17,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EntityScan("com.orgmemory.core")
 @EnableJpaRepositories("com.orgmemory.core")
 @EnableConfigurationProperties({SourceIngestionProperties.class, SourceProcessingProperties.class})
-@Import({
-        EmbeddingProfileRegistry.class,
-        KnowledgeChunkProjectionStore.class,
-        KnowledgeIngestionService.class,
-        KnowledgePermissionPolicy.class,
-        JpaAuditingConfig.class,
-        SourceIngestionCoordinator.class
-})
+@ComponentScan(
+        basePackages = {
+                "com.orgmemory.worker",
+                "com.orgmemory.core.knowledge",
+                "com.orgmemory.core.permission",
+                "com.orgmemory.core.shared"
+        },
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = KnowledgeRetrievalService.class))
 public class OrgMemoryWorkerApplication {
 
     static void main(String[] args) {

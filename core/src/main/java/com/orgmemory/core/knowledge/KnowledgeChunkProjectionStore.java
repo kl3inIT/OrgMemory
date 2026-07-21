@@ -6,16 +6,35 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class KnowledgeChunkProjectionStore {
 
-    private final JdbcClient jdbc;
+    private static final String INSERT_CHUNK_SQL = """
+            INSERT INTO knowledge_chunks (
+                id, organization_id, source_object_id, source_revision_id,
+                knowledge_asset_id, chunk_index, content, content_sha256,
+                token_count, start_page, end_page, heading, embedding,
+                embedding_profile_id, embedding_dimensions, pipeline_version,
+                projection_generation, active, created_at
+            ) VALUES (
+                :id, :organizationId, :sourceObjectId, :sourceRevisionId,
+                :knowledgeAssetId, :chunkIndex, :content, :contentSha256,
+                :tokenCount, :startPage, :endPage, :heading,
+                CAST(:embedding AS vector), :embeddingProfileId,
+                :embeddingDimensions, :pipelineVersion,
+                :projectionGeneration, true, :createdAt
+            )
+            """;
 
-    public KnowledgeChunkProjectionStore(JdbcClient jdbc) {
+    private final NamedParameterJdbcTemplate jdbc;
+
+    public KnowledgeChunkProjectionStore(NamedParameterJdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
@@ -32,54 +51,47 @@ public class KnowledgeChunkProjectionStore {
         if (embeddingProfile == null || !organizationId.equals(embeddingProfile.organizationId())) {
             throw new IllegalArgumentException("embedding profile must belong to the projection organization");
         }
-        jdbc.sql("DELETE FROM knowledge_chunks WHERE source_revision_id = :revisionId")
-                .param("revisionId", sourceRevisionId)
-                .update();
+        jdbc.update(
+                """
+                DELETE FROM knowledge_chunks
+                WHERE organization_id = :organizationId
+                  AND source_revision_id = :revisionId
+                """,
+                new MapSqlParameterSource()
+                        .addValue("organizationId", organizationId)
+                        .addValue("revisionId", sourceRevisionId));
         Instant now = Instant.now();
+        SqlParameterSource[] batch = new SqlParameterSource[chunks.size()];
+        int batchIndex = 0;
         for (KnowledgeChunkDraft chunk : chunks) {
             float[] embedding = chunk.embedding();
             if (embedding == null || embedding.length != embeddingProfile.dimensions()) {
                 throw new IllegalArgumentException("chunk embedding dimensions do not match the projection");
             }
-            jdbc.sql("""
-                            INSERT INTO knowledge_chunks (
-                                id, organization_id, source_object_id, source_revision_id,
-                                knowledge_asset_id, chunk_index, content, content_sha256,
-                                token_count, start_page, end_page, heading, embedding,
-                                embedding_profile_id, embedding_dimensions, pipeline_version,
-                                projection_generation, active, created_at
-                            ) VALUES (
-                                :id, :organizationId, :sourceObjectId, :sourceRevisionId,
-                                :knowledgeAssetId, :chunkIndex, :content, :contentSha256,
-                                :tokenCount, :startPage, :endPage, :heading,
-                                CAST(:embedding AS vector), :embeddingProfileId,
-                                :embeddingDimensions, :pipelineVersion,
-                                :projectionGeneration, true, :createdAt
-                            )
-                            """)
-                    .param("id", UUID.randomUUID())
-                    .param("organizationId", organizationId)
-                    .param("sourceObjectId", sourceObjectId)
-                    .param("sourceRevisionId", sourceRevisionId)
-                    .param("knowledgeAssetId", knowledgeAssetId)
-                    .param("chunkIndex", chunk.index())
-                    .param("content", chunk.content())
-                    .param("contentSha256", chunk.contentSha256())
-                    .param("tokenCount", chunk.tokenCount(), Types.INTEGER)
-                    .param("startPage", chunk.startPage(), Types.INTEGER)
-                    .param("endPage", chunk.endPage(), Types.INTEGER)
-                    .param("heading", chunk.heading(), Types.VARCHAR)
-                    .param("embedding", vectorLiteral(embedding))
-                    .param("embeddingProfileId", embeddingProfile.id())
-                    .param("embeddingDimensions", embeddingProfile.dimensions())
-                    .param("pipelineVersion", pipelineVersion)
-                    .param("projectionGeneration", projectionGeneration)
-                    .param(
+            batch[batchIndex++] = new MapSqlParameterSource()
+                    .addValue("id", UUID.randomUUID())
+                    .addValue("organizationId", organizationId)
+                    .addValue("sourceObjectId", sourceObjectId)
+                    .addValue("sourceRevisionId", sourceRevisionId)
+                    .addValue("knowledgeAssetId", knowledgeAssetId)
+                    .addValue("chunkIndex", chunk.index())
+                    .addValue("content", chunk.content())
+                    .addValue("contentSha256", chunk.contentSha256())
+                    .addValue("tokenCount", chunk.tokenCount(), Types.INTEGER)
+                    .addValue("startPage", chunk.startPage(), Types.INTEGER)
+                    .addValue("endPage", chunk.endPage(), Types.INTEGER)
+                    .addValue("heading", chunk.heading(), Types.VARCHAR)
+                    .addValue("embedding", vectorLiteral(embedding))
+                    .addValue("embeddingProfileId", embeddingProfile.id())
+                    .addValue("embeddingDimensions", embeddingProfile.dimensions())
+                    .addValue("pipelineVersion", pipelineVersion)
+                    .addValue("projectionGeneration", projectionGeneration)
+                    .addValue(
                             "createdAt",
                             OffsetDateTime.ofInstant(now, ZoneOffset.UTC),
-                            Types.TIMESTAMP_WITH_TIMEZONE)
-                    .update();
+                            Types.TIMESTAMP_WITH_TIMEZONE);
         }
+        jdbc.batchUpdate(INSERT_CHUNK_SQL, batch);
     }
 
     private static String vectorLiteral(float[] vector) {

@@ -123,19 +123,19 @@ class SourceRevision extends BaseEntity {
     void quarantine(String code, String message) {
         this.status = SourceRevisionStatus.QUARANTINED;
         this.failureCode = code;
-        this.failureMessage = truncate(message);
+        this.failureMessage = SourceFailureMessage.truncate(message);
     }
 
     void fail(String code, String message) {
         this.status = SourceRevisionStatus.FAILED;
         this.failureCode = code;
-        this.failureMessage = truncate(message);
+        this.failureMessage = SourceFailureMessage.truncate(message);
     }
 
     void waitForRetry(String code, String message) {
         this.status = SourceRevisionStatus.RECEIVED;
         this.failureCode = code;
-        this.failureMessage = truncate(message);
+        this.failureMessage = SourceFailureMessage.truncate(message);
     }
 
     void ready(
@@ -159,14 +159,6 @@ class SourceRevision extends BaseEntity {
         this.normalizedRecordId = normalized.normalizedRecordId();
         this.knowledgeAssetId = asset.knowledgeAssetId();
         this.processedAt = processedAt;
-    }
-
-    private static String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        String clean = value.strip();
-        return clean.length() <= 512 ? clean : clean.substring(0, 512);
     }
 
     UUID getOrganizationId() {

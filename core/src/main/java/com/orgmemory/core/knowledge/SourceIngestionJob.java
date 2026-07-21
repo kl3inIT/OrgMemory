@@ -93,7 +93,7 @@ class SourceIngestionJob extends BaseEntity {
         this.leaseOwner = null;
         this.leaseUntil = null;
         this.lastErrorCode = code;
-        this.lastErrorMessage = truncate(message);
+        this.lastErrorMessage = SourceFailureMessage.truncate(message);
         if (attemptCount >= maxAttempts) {
             this.status = SourceIngestionJobStatus.FAILED;
             return false;
@@ -108,15 +108,7 @@ class SourceIngestionJob extends BaseEntity {
         this.leaseOwner = null;
         this.leaseUntil = null;
         this.lastErrorCode = code;
-        this.lastErrorMessage = truncate(message);
-    }
-
-    private static String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        String clean = value.strip();
-        return clean.length() <= 512 ? clean : clean.substring(0, 512);
+        this.lastErrorMessage = SourceFailureMessage.truncate(message);
     }
 
     UUID getOrganizationId() {

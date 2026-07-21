@@ -103,7 +103,8 @@ class SourceIngestionProcessor {
                 return;
             }
 
-            temporaryFile = copyAndVerify(claim);
+            temporaryFile = Files.createTempFile("orgmemory-ingestion-", fileSuffix(claim.fileName()));
+            copyAndVerify(claim, temporaryFile);
             coordinator.markEvidenceValidated(claim.jobId(), properties.workerId());
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.PARSING, properties.leaseDuration());
@@ -218,9 +219,7 @@ class SourceIngestionProcessor {
         }
     }
 
-    private Path copyAndVerify(ClaimedSourceRevision claim) throws IOException {
-        String suffix = fileSuffix(claim.fileName());
-        Path temporaryFile = Files.createTempFile("orgmemory-ingestion-", suffix);
+    private void copyAndVerify(ClaimedSourceRevision claim, Path temporaryFile) throws IOException {
         MessageDigest digest = sha256Digest();
         long copied;
         try (var object = objects.open(new ObjectKey(claim.objectKey()));
@@ -234,7 +233,6 @@ class SourceIngestionProcessor {
         if (!actualSha.equals(claim.contentSha256())) {
             throw new RejectedSourceException("CONTENT_HASH_MISMATCH", "Stored object integrity check failed");
         }
-        return temporaryFile;
     }
 
     private RawSourceRef registerRawSource(ClaimedSourceRevision claim, ParsedSource parsed) {

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -37,5 +38,21 @@ class SourceDocumentReaderTests {
                 () -> reader.read(file, file.getFileName().toString()));
 
         assertEquals("UNSUPPORTED_MEDIA_TYPE", failure.code());
+    }
+
+    @Test
+    void routesDetectedOoxmlThroughTheDocumentReaderEvenWithATextExtension() throws Exception {
+        Path file = temporaryDirectory.resolve("renamed.txt");
+        try (var document = new XWPFDocument(); var output = Files.newOutputStream(file)) {
+            document.createParagraph().createRun().setText("Review the request before approval.");
+            document.write(output);
+        }
+
+        ParsedSource parsed = reader.read(file, file.getFileName().toString());
+
+        assertEquals(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                parsed.detectedMediaType());
+        assertEquals("Review the request before approval.", parsed.normalizedText());
     }
 }
