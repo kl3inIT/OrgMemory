@@ -1,0 +1,97 @@
+model
+  schema 1.1
+
+type user
+
+type service_account
+
+type group
+  relations
+    define member: [user, service_account]
+
+type role
+  relations
+    define assignee: [user, service_account, group#member]
+
+type organization
+  relations
+    define member: [user, service_account, group#member, role#assignee]
+    define administrator: [user, group#member, role#assignee]
+    define knowledge_reader: [user, group#member, role#assignee]
+    define knowledge_contributor: [user, group#member, role#assignee]
+    define knowledge_reviewer: [user, group#member, role#assignee]
+    define source_manager: [user, group#member, role#assignee]
+    define capability_contributor: [user, group#member, role#assignee]
+    define capability_reviewer: [user, group#member, role#assignee]
+
+    define can_manage_members: administrator
+    define can_manage_sources: source_manager or administrator
+    define can_create_knowledge_space: administrator
+    define can_search_knowledge: knowledge_reader or member or administrator
+    define can_create_capability_asset: capability_contributor or capability_reviewer or administrator
+    define can_view_capability_registry: member
+    define can_view_directory: member
+    define can_view_audit: administrator
+
+type organizational_unit
+  relations
+    define organization: [organization]
+    define member: [user, service_account, group#member, role#assignee]
+    define manager: [user, group#member, role#assignee]
+    define org_admin: administrator from organization
+
+    define can_manage: manager or org_admin
+
+type knowledge_space
+  relations
+    define organization: [organization]
+    define organizational_unit: [organizational_unit]
+    define viewer: [user, group#member, role#assignee, organization#member, organization#knowledge_reader, organizational_unit#member]
+    define contributor: [user, group#member, role#assignee, organization#knowledge_contributor, organizational_unit#member]
+    define reviewer: [user, group#member, role#assignee, organization#knowledge_reviewer, organizational_unit#manager]
+    define administrator: [user, group#member, role#assignee]
+    define org_admin: administrator from organization
+
+    define can_manage_acl: administrator or org_admin
+    define can_publish: reviewer or can_manage_acl
+    define can_create_asset: contributor or can_publish
+    define can_view: viewer or can_create_asset
+
+type knowledge_asset
+  relations
+    define space: [knowledge_space]
+    define owner: [user]
+    define viewer: [user, group#member, role#assignee]
+    define editor: [user, group#member, role#assignee]
+    define reviewer: [user, group#member, role#assignee]
+    define administrator: [user, group#member, role#assignee]
+
+    define can_manage_acl: administrator or can_manage_acl from space
+    define can_publish: reviewer or can_publish from space or can_manage_acl
+    define can_edit: editor or owner or can_manage_acl
+    define can_view: viewer or can_edit or can_publish or can_view from space
+
+type capability_asset
+  relations
+    define organization: [organization]
+    define owner: [user]
+    define viewer: [user, group#member, role#assignee, organization#member, organizational_unit#member]
+    define editor: [user, group#member, role#assignee]
+    define reviewer: [user, group#member, role#assignee]
+    define administrator: [user, group#member, role#assignee]
+    define org_admin: administrator from organization
+    define org_reviewer: capability_reviewer from organization
+    define can_manage_acl: administrator or org_admin
+    define can_review: reviewer or org_reviewer or can_manage_acl
+    define can_edit: editor or owner or can_manage_acl
+    define can_view: viewer or can_edit or can_review
+
+type source_connection
+  relations
+    define organization: [organization]
+    define manager: [user, group#member, role#assignee, organization#source_manager]
+    define ingestor: [service_account, role#assignee]
+    define org_admin: administrator from organization
+
+    define can_manage: manager or org_admin
+    define can_ingest: ingestor or can_manage

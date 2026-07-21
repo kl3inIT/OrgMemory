@@ -4,9 +4,12 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":integrations:authorization-openfga"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
@@ -18,6 +21,7 @@ dependencies {
     runtimeOnly("org.springframework.modulith:spring-modulith-runtime")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")

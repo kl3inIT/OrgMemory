@@ -55,7 +55,7 @@ export function ReviewQueuePage() {
         <Card>
           <Tabs
             value={activeTab}
-            onValueChange={(value) => {
+            onValueChange={(value: string) => {
               setActiveTab(value as "queue" | "drafts" | "approved")
               setSelectedId(null)
             }}

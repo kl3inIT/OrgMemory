@@ -5,7 +5,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication(scanBasePackages = {"com.orgmemory.api", "com.orgmemory.core"})
+@SpringBootApplication(scanBasePackages = {
+        "com.orgmemory.api",
+        "com.orgmemory.core",
+        "com.orgmemory.integrations.authorization.openfga"
+})
 @EntityScan("com.orgmemory.core")
 @EnableJpaRepositories("com.orgmemory.core")
 public class OrgMemoryApiApplication {

@@ -15,7 +15,7 @@ import { useAssetStatusAction, useCreateAsset, useNormalizeAsset } from "@/featu
 import { assetTypes, formatAssetType } from "@/features/assets/asset-type"
 import { assetTypeSummary, getAssetTypeSpec } from "@/features/assets/asset-type-specs"
 import { useOrganizationContext } from "@/features/organization/use-organization-context"
-import { DEFAULT_ORGANIZATION_ID, type AssetType, type RiskLevel } from "@/lib/api"
+import { type AssetType, type RiskLevel } from "@/lib/api"
 
 const aiToolOptions = [
   "ChatGPT",
@@ -123,7 +123,6 @@ export function CreateAssetPage() {
         ? undefined
         : backupOwnerUserId || organization.data?.users.find((user) => user.id !== ownerId)?.id
     return {
-      organizationId: organization.data?.organizationId ?? DEFAULT_ORGANIZATION_ID,
       departmentId: departmentId || organization.data?.departments[0]?.id,
       title: form.title,
       summary: form.summary,
@@ -134,7 +133,6 @@ export function CreateAssetPage() {
       tagNames: form.tagNames,
       ownerUserId: ownerId,
       backupOwnerUserId: backupOwnerId,
-      createdByUserId: ownerId,
       visibility: "TEAM" as const,
       riskLevel: form.riskLevel,
       promptTemplate: form.promptTemplate,
@@ -190,7 +188,7 @@ export function CreateAssetPage() {
               <Field label="Department" required>
                 <Select
                   value={departmentId || "LOADING"}
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setDepartmentId(value)
                     const department = organization.data?.departments.find((item) => item.id === value)
                     if (department && !form.businessProcess.trim()) {
@@ -210,7 +208,7 @@ export function CreateAssetPage() {
                 <Input value={form.useCase} onChange={(event) => setForm({ ...form, useCase: event.target.value })} />
               </Field>
               <Field label="Asset Type" required>
-                <Select value={form.assetType} onValueChange={(value) => applyAssetType(value as AssetType)}>
+                <Select value={form.assetType} onValueChange={(value: string) => applyAssetType(value as AssetType)}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {assetTypes.map((assetType) => (
@@ -220,7 +218,7 @@ export function CreateAssetPage() {
                 </Select>
               </Field>
               <Field label="Tool Used" required>
-                <Select value={form.aiTool} onValueChange={(value) => setForm({ ...form, aiTool: value })}>
+                <Select value={form.aiTool} onValueChange={(value: string) => setForm({ ...form, aiTool: value })}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {aiToolOptions.map((tool) => <SelectItem key={tool} value={tool}>{tool}</SelectItem>)}
@@ -252,7 +250,7 @@ export function CreateAssetPage() {
                 </Select>
               </Field>
               <Field label="Risk Level" required>
-                <Select value={form.riskLevel} onValueChange={(value) => setForm({ ...form, riskLevel: value as RiskLevel })}>
+                <Select value={form.riskLevel} onValueChange={(value: string) => setForm({ ...form, riskLevel: value as RiskLevel })}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="LOW">Low</SelectItem>

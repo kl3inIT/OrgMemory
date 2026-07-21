@@ -26,7 +26,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { formatAssetType } from "@/features/assets/asset-type"
 import { StatusBadge } from "@/features/assets/status-badge"
 import { useAssets, useRecordUsage } from "@/features/assets/use-assets"
-import { authHeaders } from "@/lib/auth"
+import { getBrowserCsrfToken } from "@/lib/hey-api"
 import { useOrganizationLookups, userName } from "@/features/organization/use-organization-context"
 
 export function AskMemoryPage() {
@@ -39,13 +39,15 @@ export function AskMemoryPage() {
   const { messages, sendMessage, status, stop } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/ai/chat",
-      prepareSendMessagesRequest: ({ messages }) => {
+      prepareSendMessagesRequest: async ({ messages }) => {
         const last = messages.at(-1)
         const text = (last?.parts ?? [])
           .filter((part) => part.type === "text")
           .map((part) => (part as { text: string }).text)
           .join("")
-        return { body: { message: text, conversationId }, headers: authHeaders() }
+        const { data: csrf } = await getBrowserCsrfToken({ throwOnError: true })
+        const headers = csrf?.headerName && csrf.token ? { [csrf.headerName]: csrf.token } : undefined
+        return { body: { message: text, conversationId }, headers }
       },
     }),
   })

@@ -1,9 +1,11 @@
 package com.orgmemory.api.graph;
 
+import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.capability.CapabilityAsset;
 import com.orgmemory.core.capability.CapabilityAssetService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
+import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.Department;
 import com.orgmemory.core.organization.DepartmentRepository;
 import java.util.ArrayDeque;
@@ -16,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,27 +28,30 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/graph")
 class KnowledgeGraphController {
 
-    private static final UUID DEFAULT_ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
-
     private final CapabilityAssetService assets;
     private final DepartmentRepository departments;
     private final AppUserRepository users;
+    private final CurrentActorProvider actors;
 
-    KnowledgeGraphController(CapabilityAssetService assets, DepartmentRepository departments, AppUserRepository users) {
+    KnowledgeGraphController(CapabilityAssetService assets, DepartmentRepository departments, AppUserRepository users,
+            CurrentActorProvider actors) {
         this.assets = assets;
         this.departments = departments;
         this.users = users;
+        this.actors = actors;
     }
 
     @GetMapping
     KnowledgeGraphResponse graph(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) UUID focusAssetId,
-            @RequestParam(defaultValue = "2") int depth
+            @RequestParam(defaultValue = "2") int depth,
+            Authentication authentication
     ) {
-        List<CapabilityAsset> selectedAssets = assets.search(null, null, q);
-        Map<UUID, Department> departmentById = indexDepartments();
-        Map<UUID, AppUser> userById = indexUsers();
+        CurrentActor actor = actors.current(authentication);
+        List<CapabilityAsset> selectedAssets = assets.search(actor, null, null, q);
+        Map<UUID, Department> departmentById = indexDepartments(actor.organizationId());
+        Map<UUID, AppUser> userById = indexUsers(actor.organizationId());
 
         Map<String, KnowledgeGraphNodeResponse> nodes = new LinkedHashMap<>();
         Map<String, KnowledgeGraphEdgeResponse> edges = new LinkedHashMap<>();
@@ -55,7 +61,7 @@ class KnowledgeGraphController {
 
         for (CapabilityAsset asset : selectedAssets) {
             String assetNodeId = assetNodeId(asset.getId());
-            int usageCount = Math.toIntExact(Math.min(Integer.MAX_VALUE, assets.usageCount(asset.getId())));
+            int usageCount = Math.toIntExact(Math.min(Integer.MAX_VALUE, assets.usageCount(actor, asset.getId())));
             nodes.put(assetNodeId, new KnowledgeGraphNodeResponse(
                     assetNodeId,
                     asset.getTitle(),
@@ -142,13 +148,13 @@ class KnowledgeGraphController {
         return new KnowledgeGraphResponse(List.copyOf(nodes.values()), List.copyOf(edges.values()), focusNodeId, 0);
     }
 
-    private Map<UUID, Department> indexDepartments() {
-        return departments.findByOrganizationIdOrderByName(DEFAULT_ORGANIZATION_ID).stream()
+    private Map<UUID, Department> indexDepartments(UUID organizationId) {
+        return departments.findByOrganizationIdOrderByName(organizationId).stream()
                 .collect(LinkedHashMap::new, (map, department) -> map.put(department.getId(), department), Map::putAll);
     }
 
-    private Map<UUID, AppUser> indexUsers() {
-        return users.findByOrganizationIdOrderByName(DEFAULT_ORGANIZATION_ID).stream()
+    private Map<UUID, AppUser> indexUsers(UUID organizationId) {
+        return users.findByOrganizationIdOrderByName(organizationId).stream()
                 .collect(LinkedHashMap::new, (map, user) -> map.put(user.getId(), user), Map::putAll);
     }
 

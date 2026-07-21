@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router"
 import { Bell, ChevronDown, HelpCircle, LogOut, Search } from "lucide-react"
-import { useAuth } from "react-oidc-context"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -15,16 +14,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { useOrganizationLookups, userInitials } from "@/features/organization/use-organization-context"
-import { AUTH_ENABLED } from "@/lib/auth"
+import { submitBrowserLogout } from "@/features/session/logout"
+import { useBrowserSession } from "@/features/session/use-browser-session"
 
 export function Topbar({ query, onQueryChange }: { query: string; onQueryChange: (value: string) => void }) {
   const navigate = useNavigate()
-  const auth = useAuth()
+  const { data: session } = useBrowserSession()
   const { users } = useOrganizationLookups()
   const fallbackUser = users.find((user) => user.role === "ADMIN") ?? users[0]
-  const profile = AUTH_ENABLED ? auth.user?.profile : undefined
-  const displayName = profile?.name ?? fallbackUser?.name ?? "OrgMemory Admin"
-  const displayDetail = profile?.email ?? fallbackUser?.role.replace("_", " ") ?? "Platform Admin"
+  const displayName = session?.name ?? fallbackUser?.name ?? "OrgMemory User"
+  const displayDetail = session?.email ?? fallbackUser?.role.replace("_", " ") ?? "Authenticated user"
 
   function submitSearch() {
     const trimmed = query.trim()
@@ -67,7 +66,7 @@ export function Topbar({ query, onQueryChange }: { query: string; onQueryChange:
           size="icon"
           type="button"
           aria-label="Help"
-          onClick={() => toast.info("Demo guide: docs/DEMO_GUIDE.md")}
+          onClick={() => toast.info("Repository guide: README.md")}
         >
           <HelpCircle className="size-4" />
         </Button>
@@ -77,8 +76,8 @@ export function Topbar({ query, onQueryChange }: { query: string; onQueryChange:
             <button type="button" className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-accent">
               <Avatar>
                 <AvatarFallback>
-                  {profile?.name
-                    ? profile.name
+                  {session?.name
+                    ? session.name
                         .split(" ")
                         .map((part) => part[0])
                         .slice(0, 2)
@@ -96,15 +95,13 @@ export function Topbar({ query, onQueryChange }: { query: string; onQueryChange:
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel className="max-w-56 truncate">{displayDetail}</DropdownMenuLabel>
-            {AUTH_ENABLED ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => void auth.signoutRedirect()}>
-                  <LogOut className="size-4" />
-                  Sign out
-                </DropdownMenuItem>
-              </>
-            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => void submitBrowserLogout().catch(() => toast.error("Could not start sign out."))}
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

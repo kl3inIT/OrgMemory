@@ -4,14 +4,11 @@ import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-qu
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from '@tanstack/react-router'
 import { ThemeProvider } from 'next-themes'
-import { AuthProvider } from 'react-oidc-context'
 import { Toaster, toast } from 'sonner'
 
-import { AuthGate } from './components/auth-gate'
-import { oidcConfig } from './lib/auth'
+import './lib/api-client'
 import { router } from './router'
 import './index.css'
-import '@xyflow/react/dist/style.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,16 +27,12 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider {...oidcConfig}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <QueryClientProvider client={queryClient}>
-          <AuthGate>
-            <RouterProvider router={router} />
-          </AuthGate>
-          <Toaster position="bottom-right" richColors />
-          <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster position="bottom-right" richColors />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

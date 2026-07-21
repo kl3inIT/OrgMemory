@@ -28,16 +28,30 @@ public class AppUser extends BaseEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    @Column(nullable = false)
+    private boolean active;
+
     protected AppUser() {
     }
 
     public AppUser(UUID organizationId, UUID departmentId, String name, String email, UserRole role) {
+        this(organizationId, departmentId, name, email, role, true);
+    }
+
+    public AppUser(
+            UUID organizationId,
+            UUID departmentId,
+            String name,
+            String email,
+            UserRole role,
+            boolean active) {
         super(UUID.randomUUID());
         this.organizationId = organizationId;
         this.departmentId = departmentId;
         this.name = name;
         this.email = email;
         this.role = role;
+        this.active = active;
     }
 
     public UUID getOrganizationId() {
@@ -58,5 +72,9 @@ public class AppUser extends BaseEntity {
 
     public UserRole getRole() {
         return role;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

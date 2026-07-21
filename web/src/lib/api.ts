@@ -115,7 +115,6 @@ export type KnowledgeGraph = {
 }
 
 export type CreateAssetPayload = {
-  organizationId: string
   departmentId?: string
   title: string
   summary: string
@@ -126,7 +125,6 @@ export type CreateAssetPayload = {
   tagNames?: string
   ownerUserId?: string
   backupOwnerUserId?: string
-  createdByUserId?: string
   visibility: AssetVisibility
   riskLevel: RiskLevel
   promptTemplate?: string
@@ -157,7 +155,7 @@ export type AiDraftResponse = {
   exampleOutput: string
 }
 
-import { authHeaders } from './auth'
+import { getBrowserCsrfToken } from './hey-api'
 
 const jsonHeaders = {
   'Content-Type': 'application/json',
@@ -170,13 +168,27 @@ export type Me = {
   subject: string | null
   email: string | null
   name: string | null
-  roles: string[]
+  authorizationProvider: 'openfga'
+  userId: string
+  organizationId: string
+  departmentId: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers)
+  const method = init?.method?.toUpperCase() ?? 'GET'
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const { data } = await getBrowserCsrfToken({ throwOnError: true })
+    if (!data?.headerName || !data.token) {
+      throw new Error('The server did not issue a CSRF token.')
+    }
+    headers.set(data.headerName, data.token)
+  }
+
   const response = await fetch(path, {
     ...init,
-    headers: { ...authHeaders(), ...init?.headers },
+    credentials: 'same-origin',
+    headers,
   })
   if (!response.ok) {
     const body = await response.text()

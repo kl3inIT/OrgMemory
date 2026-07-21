@@ -112,7 +112,7 @@ export function KnowledgeGraphPage() {
                 <Label>Local graph focus</Label>
                 <Select
                   value={focusAssetId || "GLOBAL"}
-                  onValueChange={(value) => {
+                  onValueChange={(value: string) => {
                     setFocusAssetId(value === "GLOBAL" ? "" : value)
                     setSelectedNodeId(value === "GLOBAL" ? null : `asset:${value}`)
                   }}

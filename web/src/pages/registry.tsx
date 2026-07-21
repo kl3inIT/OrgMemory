@@ -81,7 +81,7 @@ export function RegistryPage() {
               </div>
               <div className="grid gap-2 lg:w-52">
                 <Label>Type</Label>
-                <Select value={assetType || "ALL"} onValueChange={(value) => setAssetType(value === "ALL" ? "" : (value as AssetType))}>
+                <Select value={assetType || "ALL"} onValueChange={(value: string) => setAssetType(value === "ALL" ? "" : (value as AssetType))}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Types</SelectItem>
@@ -91,7 +91,7 @@ export function RegistryPage() {
               </div>
               <div className="grid gap-2 lg:w-44">
                 <Label>Status</Label>
-                <Select value={status || "ALL"} onValueChange={(value) => setStatus(value === "ALL" ? "" : (value as AssetStatus))}>
+                <Select value={status || "ALL"} onValueChange={(value: string) => setStatus(value === "ALL" ? "" : (value as AssetStatus))}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All Statuses</SelectItem>
