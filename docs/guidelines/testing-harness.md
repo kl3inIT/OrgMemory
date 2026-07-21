@@ -21,3 +21,9 @@ tests do not replace model tests.
 
 A successful model answer is not evidence of correct authorization. Verify the
 selected evidence set and audit decision independently.
+
+GitHub CI mirrors the repository gates with three independent jobs: Gradle
+`clean build`, pnpm typecheck/build, and the pinned OpenFGA model test. A stable
+`CI Gate` aggregates those jobs for branch protection. Workflow permissions
+remain read-only, action dependencies are pinned to full commit SHAs, and
+superseded runs on the same pull request are cancelled.

@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: true
+  commit_status: true
+  fail_commit_status: false
+  collapse_walkthrough: true
+  sequence_diagrams: true
+  poem: false
+
+  auto_review:
+    enabled: true
+    drafts: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 5
+    ignore_title_keywords:
+      - "WIP"
+      - "DO NOT MERGE"
+      - "[skip review]"
+    labels:
+      - "!skip-review"
+    ignore_usernames:
+      - "dependabot[bot]"
+
+  path_filters:
+    - "!**/build/**"
+    - "!**/dist/**"
+    - "!**/node_modules/**"
+    - "!**/pnpm-lock.yaml"
+    - "!contracts/openapi.json"
+    - "!ai_workspace_dataset_vietnamese_participants.xlsx"
+    - "!.codex/skills/openfga/**"
+
+  path_instructions:
+    - path: "apps/api/src/main/java/**/*.java"
+      instructions: |
+        Enforce the browser-BFF and resource-server boundaries. Authentication
+        must resolve an active internal actor through the explicit issuer and
+        subject binding. Reject identity, tenant, roles, or permissions supplied
+        by request payloads, JWT email, or untrusted JWT role claims.
+
+    - path: "core/src/main/java/com/orgmemory/core/{authorization,knowledge,permission}/**/*.java"
+      instructions: |
+        Treat PostgreSQL ACL evidence as canonical and OpenFGA as the relationship
+        authorization decision point. Authorization must fail closed. Filtering
+        must happen before ranking, LIMIT, graph traversal, answer generation,
+        export, and citation rendering. Flag metadata or timing leak paths.
+
+    - path: "core/src/main/resources/db/migration/*.sql"
+      instructions: |
+        Flyway migrations are immutable after release. Check tenant isolation,
+        foreign keys, uniqueness, indexes, append-only evidence semantics, safe
+        defaults, and compatibility with PostgreSQL 18 plus pgvector.
+
+    - path: "integrations/authorization-openfga/**/*"
+      instructions: |
+        Source-native ACL is a hard ceiling. Flag any parent, organization, role,
+        or wildcard relation that can broaden source access. Require negative
+        Check and ListObjects coverage for every new permission path.
+
+    - path: "web/src/**/*.{ts,tsx}"
+      instructions: |
+        OAuth access and refresh tokens must never enter browser JavaScript or
+        browser storage. Use the HttpOnly BFF session, CSRF-protected mutations,
+        generated Hey API data clients, accessible states, and both light and
+        dark themes. Handwritten transport is reserved for documented protocol
+        flows such as navigation redirects and streaming.
+
+    - path: ".github/**/*.{yml,yaml}"
+      instructions: |
+        Require least-privilege permissions, immutable action SHAs, bounded job
+        timeouts, concurrency cancellation, frozen lockfiles, and no secrets in
+        pull-request workflows. Keep Dependabot comments beside pinned action
+        SHAs so action updates remain discoverable.
+
+    - path: "docs/**/*.md"
+      instructions: |
+        Preserve the thin-map documentation harness. Current facts belong in
+        architecture, specs, and tests only after implementation; future intent
+        belongs in vision, roadmap, or one active increment. Flag duplicated or
+        contradictory sources of truth.
+
+  tools:
+    github-checks:
+      enabled: true
+      timeout_ms: 900000
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    gitleaks:
+      enabled: true
+    squawk:
+      enabled: true
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "docs/conventions.md"
+      - "docs/guidelines/agent-safety.md"
+      - "docs/guidelines/frontend-design-system.md"
+      - "docs/guidelines/testing-harness.md"
+
+chat:
+  auto_reply: true
