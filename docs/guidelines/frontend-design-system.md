@@ -16,3 +16,24 @@ Required qualities:
 
 Do not copy old page layouts merely to preserve route parity. Reuse old code only
 when it is generic, tested, and compatible with the new information architecture.
+
+## Foundation Boundary
+
+- `main.tsx` owns process-level providers and the final React crash boundary.
+- TanStack Router owns route pending, route error, not-found, typed search, and
+  route-level code splitting.
+- TanStack Query owns server state. Initial failures render in context; only
+  failed background refreshes produce a global toast.
+- The browser session is the authenticated-shell gate. Product routes must not
+  render before the session is verified.
+- Ordinary REST clients are generated from root `contracts/openapi.json` with
+  Hey API. AI streaming remains a separate transport boundary.
+- Raw exception text is development-only. Production states use safe messages
+  and an explicit retry path.
+
+## Retained Building Blocks
+
+Keep shadcn/ui registry primitives and the AI Elements foundation even while a
+screen is not implemented. They are local product building blocks, not evidence
+that the corresponding product feature already exists. Add product routes one
+vertical slice at a time; do not restore the deleted prototype pages.

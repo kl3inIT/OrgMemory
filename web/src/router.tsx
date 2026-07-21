@@ -1,142 +1,95 @@
-import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Link, Outlet } from "@tanstack/react-router"
-import { AlertTriangle, Loader2 } from "lucide-react"
-import { AppShell } from "@/components/app-shell"
-import { AuthGate } from "@/components/auth-gate"
+import { useQueryErrorResetBoundary, type QueryClient } from "@tanstack/react-query"
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+  type ErrorComponentProps,
+  lazyRouteComponent,
+  Link,
+  useRouter,
+} from "@tanstack/react-router"
+
+import { ApplicationError } from "@/components/states/application-error"
+import { PageLoading } from "@/components/states/page-loading"
 import { Button } from "@/components/ui/button"
 
-const rootRoute = createRootRoute({ component: Outlet })
+type RouterContext = {
+  queryClient: QueryClient
+}
+
+type LoginSearch = {
+  error?: string
+  loggedOut?: boolean
+}
+
+const rootRoute = createRootRouteWithContext<RouterContext>()()
 
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "login",
+  path: "/login",
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    error: typeof search.error === "string" ? search.error : undefined,
+    loggedOut: search.loggedOut === true || search.loggedOut === "true" || undefined,
+  }),
   component: lazyRouteComponent(() => import("@/pages/login"), "LoginPage"),
 })
 
-const authenticatedRoute = createRoute({
+const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: "authenticated",
-  component: () => (
-    <AuthGate>
-      <AppShell />
-    </AuthGate>
-  ),
-})
-
-const dashboardRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
   path: "/",
-  component: lazyRouteComponent(() => import("@/pages/dashboard"), "DashboardPage"),
+  component: lazyRouteComponent(() => import("@/pages/workspace"), "WorkspacePage"),
 })
 
-const registryRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "registry",
-  component: lazyRouteComponent(() => import("@/pages/registry"), "RegistryPage"),
-})
+const routeTree = rootRoute.addChildren([loginRoute, workspaceRoute])
 
-const assetDetailRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "assets/$assetId",
-  component: lazyRouteComponent(() => import("@/pages/asset-detail"), "AssetDetailPage"),
-})
+function RouteError({ error, reset }: ErrorComponentProps) {
+  const router = useRouter()
+  const queryErrorResetBoundary = useQueryErrorResetBoundary()
 
-const createRoutePage = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "create",
-  component: lazyRouteComponent(() => import("@/pages/create-asset"), "CreateAssetPage"),
-})
+  function retry() {
+    queryErrorResetBoundary.reset()
+    reset()
+    void router.invalidate()
+  }
 
-const reviewRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "review",
-  component: lazyRouteComponent(() => import("@/pages/review-queue"), "ReviewQueuePage"),
-})
-
-const transferRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "transfer",
-  component: lazyRouteComponent(() => import("@/pages/knowledge-transfer"), "KnowledgeTransferPage"),
-})
-
-const askRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "ask",
-  component: lazyRouteComponent(() => import("@/pages/ask-memory"), "AskMemoryPage"),
-})
-
-const graphRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "graph",
-  component: lazyRouteComponent(() => import("@/pages/knowledge-graph"), "KnowledgeGraphPage"),
-})
-
-const analyticsRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "analytics",
-  component: lazyRouteComponent(() => import("@/pages/analytics"), "AnalyticsPage"),
-})
-
-const settingsRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "settings",
-  component: lazyRouteComponent(() => import("@/pages/settings"), "SettingsPage"),
-})
-
-const routeTree = rootRoute.addChildren([
-  loginRoute,
-  authenticatedRoute.addChildren([
-    dashboardRoute,
-    registryRoute,
-    assetDetailRoute,
-    createRoutePage,
-    reviewRoute,
-    transferRoute,
-    askRoute,
-    graphRoute,
-    analyticsRoute,
-    settingsRoute,
-  ]),
-])
-
-function RouteError({ error }: { error: Error }) {
   return (
-    <div className="flex w-full flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-      <AlertTriangle className="size-8 text-destructive" />
-      <p className="text-sm font-medium">This page failed to render.</p>
-      <p className="max-w-md truncate text-xs text-muted-foreground">{error.message}</p>
-      <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
-        Reload
-      </Button>
-    </div>
+    <ApplicationError
+      title="This page could not be loaded"
+      description="The route or its data failed to load. Try the request again."
+      error={error}
+      onRetry={retry}
+    />
   )
 }
 
 function RouteNotFound() {
   return (
-    <div className="flex w-full flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-      <p className="text-3xl font-bold">404</p>
-      <p className="text-sm text-muted-foreground">Page not found.</p>
-      <Button asChild size="sm" variant="outline">
-        <Link to="/">Back to dashboard</Link>
-      </Button>
-    </div>
-  )
-}
-
-function RoutePending() {
-  return (
-    <div className="flex w-full flex-1 items-center justify-center p-10">
-      <Loader2 className="size-5 animate-spin text-muted-foreground" />
-    </div>
+    <main className="grid min-h-dvh place-items-center p-6">
+      <section className="space-y-4 text-center" aria-labelledby="not-found-title">
+        <p className="text-sm font-medium text-muted-foreground">404</p>
+        <div className="space-y-2">
+          <h1 id="not-found-title" className="text-xl font-semibold tracking-tight">
+            Page not found
+          </h1>
+          <p className="text-sm text-muted-foreground">This address is not part of the current OrgMemory workspace.</p>
+        </div>
+        <Button asChild>
+          <Link to="/">Return to workspace</Link>
+        </Button>
+      </section>
+    </main>
   )
 }
 
 export const router = createRouter({
   routeTree,
+  context: { queryClient: undefined! },
   defaultPreload: "intent",
+  defaultPendingMs: 200,
+  defaultPendingMinMs: 300,
+  defaultPendingComponent: PageLoading,
   defaultErrorComponent: RouteError,
   defaultNotFoundComponent: RouteNotFound,
-  defaultPendingComponent: RoutePending,
 })
 
 declare module "@tanstack/react-router" {
