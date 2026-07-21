@@ -4,8 +4,12 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":integrations:object-storage-minio"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation(libs.apache.poi.ooxml)
+    implementation(libs.spring.ai.starter.openai)
+    implementation("org.springframework.ai:spring-ai-tika-document-reader")
+    implementation("org.springframework.ai:spring-ai-pdf-document-reader")
 
     runtimeOnly("org.postgresql:postgresql")
 

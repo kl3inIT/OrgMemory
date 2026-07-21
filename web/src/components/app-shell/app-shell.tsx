@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
 import { AppSidebar } from "@/components/app-shell/app-sidebar"
@@ -7,6 +8,9 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import type { SessionResponse } from "@/lib/hey-api"
 
 export function AppShell({ identity, children }: { identity: SessionResponse; children: ReactNode }) {
+  const pathname = useLocation({ select: (location) => location.pathname })
+  const pageTitle = pathname === "/sources" ? "Documents" : "Ask"
+
   return (
     <SidebarProvider>
       <a
@@ -20,7 +24,7 @@ export function AppShell({ identity, children }: { identity: SessionResponse; ch
         <header className="flex h-14 shrink-0 items-center justify-between border-b px-3 md:px-4">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger />
-            <span className="truncate text-sm font-medium">Ask</span>
+            <span className="truncate text-sm font-medium">{pageTitle}</span>
           </div>
           <div className="flex items-center gap-1">
             <ModeToggle />

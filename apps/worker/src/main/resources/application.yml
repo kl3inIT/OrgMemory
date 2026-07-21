@@ -16,3 +16,37 @@ spring:
     open-in-view: false
   flyway:
     enabled: false
+  ai:
+    model:
+      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
+    openai:
+      api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
+      embedding:
+        model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
+        dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
+  config:
+    import: optional:file:.env[.properties],optional:file:../../.env[.properties]
+
+orgmemory:
+  ingestion:
+    maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+    maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
+    processing:
+      poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
+      lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
+      pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
+      parser-version: ${ORGMEMORY_INGESTION_PARSER_VERSION:spring-ai-etl-v1}
+      chunker-version: ${ORGMEMORY_INGESTION_CHUNKER_VERSION:token-800-v1}
+      normalizer-version: ${ORGMEMORY_INGESTION_NORMALIZER_VERSION:source-normalizer-v1}
+      embedding-provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
+      embedding-model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
+      embedding-dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
+      chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
+      maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
+  storage:
+    object:
+      endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}
+      access-key: ${ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY:orgmemory-local}
+      secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY:orgmemory-local-secret}
+      bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET:orgmemory-evidence}
+      maximum-object-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}

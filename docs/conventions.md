@@ -40,7 +40,14 @@ Do not create status-summary documents that duplicate those sources.
 
 ## Web
 
+- Do not use the generic `frontend-design` skill for OrgMemory. Extend the
+  established product shell and tokens, inspect the named upstream reference,
+  and make small repo-native changes instead of introducing a new aesthetic.
 - Prefer shadcn/ui local primitives and maintained domain libraries.
+- Before composing a control by hand, check the installed shadcn/Radix
+  primitives and registry. The Sources workspace owns top-level app tabs such as
+  Documents and Knowledge graph. Document-status switching is a separate nested
+  Tabs control and must not reuse the app-navigation treatment.
 - Generate ordinary REST clients, Zod schemas, and TanStack Query options from
   the committed OpenAPI contract with Hey API. Do not duplicate generated DTOs
   or endpoint calls by hand.
@@ -50,6 +57,9 @@ Do not create status-summary documents that duplicate those sources.
   streaming, upload progress, and browser-navigation logout; keep them thin and
   document why generation is not sufficient.
 - Product-specific composition belongs in features; generic primitives do not.
+- TanStack Query owns server state and TanStack Router owns the current route.
+  Zustand is for durable UI preferences and high-frequency local interaction
+  state; never mirror query data or the active URL in a second store.
 - Use one primary heading per view. Add subtitles or helper text only when they
   change a decision, prevent an error, or explain an unfamiliar action; never
   repeat the heading, button label, or nearby copy in different words.
@@ -67,7 +77,9 @@ Run the narrowest tests while iterating and completion gates before handoff:
 .\gradlew.bat --no-daemon clean test
 corepack pnpm -C web typecheck
 corepack pnpm -C web build
-.\.tools\openfga\fga.exe model test --tests store.fga.yaml
+Push-Location integrations\authorization-openfga\src\test\openfga
+& '..\..\..\..\..\.tools\openfga\fga.exe' model test --tests store.fga.yaml
+Pop-Location
 ```
 
 Use a real browser flow when UI behavior changes. Do not claim runtime behavior

@@ -12,6 +12,7 @@ import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.junit.jupiter.Container;
@@ -27,6 +29,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest
 @Testcontainers
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PermissionAuditIntegrationTests {
 
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -89,7 +92,8 @@ class PermissionAuditIntegrationTests {
     @Test
     void databaseRejectsUpdateDeleteAndTruncate() {
         UUID eventId = audit.record(command("DOC032", null));
-        long countBefore = jdbc.queryForObject("SELECT count(*) FROM permission_audit_events", Long.class);
+        long countBefore = Objects.requireNonNull(
+                jdbc.queryForObject("SELECT count(*) FROM permission_audit_events", Long.class));
 
         assertThrows(
                 DataAccessException.class,

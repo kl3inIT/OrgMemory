@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     id("orgmemory.spring-boot-app-conventions")
 }
@@ -5,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(project(":integrations:authorization-openfga"))
+    implementation(project(":integrations:object-storage-minio"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
@@ -26,4 +29,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("spring.session.jdbc.cleanup-cron", "-")
 }

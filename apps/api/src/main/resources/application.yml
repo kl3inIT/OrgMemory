@@ -38,8 +38,22 @@ spring:
     timeout: ${ORGMEMORY_WEB_SESSION_TIMEOUT:8h}
     jdbc:
       initialize-schema: never
+  servlet:
+    multipart:
+      max-file-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+      max-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
 
 orgmemory:
+  ingestion:
+    maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+    maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
+  storage:
+    object:
+      endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}
+      access-key: ${ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY:orgmemory-local}
+      secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY:orgmemory-local-secret}
+      bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET:orgmemory-evidence}
+      maximum-object-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
   security:
     oidc:
       issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}

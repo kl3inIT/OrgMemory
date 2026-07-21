@@ -1,4 +1,4 @@
-import { Building2, MessageSquareText } from "lucide-react"
+import { Building2, Files, MessageSquareText } from "lucide-react"
 import { Link, useLocation } from "@tanstack/react-router"
 
 import {
@@ -14,7 +14,10 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-const NAVIGATION = [{ label: "Ask", to: "/" as const, icon: MessageSquareText }]
+const NAVIGATION = [
+  { label: "Ask", to: "/" as const, icon: MessageSquareText },
+  { label: "Documents", to: "/sources" as const, icon: Files },
+]
 
 export function AppSidebar() {
   const pathname = useLocation({ select: (location) => location.pathname })
@@ -29,10 +32,7 @@ export function AppSidebar() {
                 <span className="grid size-8 shrink-0 place-items-center rounded-md border bg-background">
                   <Building2 className="size-4" aria-hidden="true" />
                 </span>
-                <span className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">OrgMemory</span>
-                  <span className="truncate text-xs text-muted-foreground">Enterprise memory</span>
-                </span>
+                <span className="truncate font-semibold">OrgMemory</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
