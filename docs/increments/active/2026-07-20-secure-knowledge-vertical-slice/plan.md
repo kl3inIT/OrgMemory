@@ -61,10 +61,12 @@
 
 ## 7 — Minimal New Web Flow
 
-- [ ] Add new shell and semantic light/dark tokens.
-- [ ] Export OpenAPI and generate typed fetch/Zod/TanStack clients; keep the AI
+- [x] Add new shell and semantic light/dark tokens.
+- [x] Export OpenAPI and generate typed fetch/Zod/TanStack clients; keep the AI
   streaming transport separate from ordinary REST contracts.
-- [ ] Add oxlint, Vitest, and one critical Playwright project before expanding UI.
+- [x] Add oxlint with React/TypeScript correctness rules and generated/registry
+  exclusions.
+- [ ] Add Vitest and one critical Playwright project before expanding UI.
 - [ ] Build Ask with visible waiting/tool/evidence/citation/error states.
 - [ ] Build Sources upload/status/privacy view and Review publication view.
 - [ ] Run real-browser two-user upload, answer, deny, and revoke flow.

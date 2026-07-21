@@ -1,120 +1,86 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router"
-import {
-  BarChart3,
-  BookOpen,
-  Home,
-  Inbox,
-  Layers,
-  Network,
-  Settings,
-  Sparkles,
-  UserPlus,
-  type LucideIcon,
-} from "lucide-react"
-import { useState } from "react"
+import { LogOut } from "lucide-react"
+import { toast } from "sonner"
+
 import { ModeToggle } from "@/components/mode-toggle"
-import { Topbar } from "@/components/layout/topbar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { useAssets } from "@/features/assets/use-assets"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { submitBrowserLogout } from "@/features/session/logout"
+import { useBrowserSession } from "@/features/session/use-browser-session"
 
-type RoutePath = "/" | "/registry" | "/create" | "/review" | "/transfer" | "/ask" | "/graph" | "/analytics" | "/settings"
-
-const NAV: Array<{ label: string; icon: LucideIcon; to: RoutePath; exact?: boolean }> = [
-  { label: "Dashboard", icon: Home, to: "/", exact: true },
-  { label: "Capability Registry", icon: BookOpen, to: "/registry" },
-  { label: "Review Queue", icon: Inbox, to: "/review" },
-  { label: "Onboarding", icon: UserPlus, to: "/transfer" },
-  { label: "Analytics", icon: BarChart3, to: "/analytics" },
-  { label: "Ask Memory", icon: Sparkles, to: "/ask" },
-  { label: "Knowledge Graph", icon: Network, to: "/graph" },
-  { label: "Settings", icon: Settings, to: "/settings" },
-]
+function initials(name?: string, email?: string) {
+  const source = name?.trim() || email?.trim()
+  if (!source) return "OM"
+  return source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+}
 
 export function AppShell() {
-  const pathname = useLocation({ select: (location) => location.pathname })
-  const [query, setQuery] = useState("")
-  const { data } = useAssets()
-  const reviewCount = (data ?? []).filter((asset) => asset.status === "IN_REVIEW" || asset.status === "DRAFT").length
+  const session = useBrowserSession()
+  const identity = session.data
+
+  async function signOut() {
+    try {
+      await submitBrowserLogout()
+    } catch {
+      toast.error("Could not sign out. Try again.")
+    }
+  }
 
   return (
-    <SidebarProvider>
-      <Sidebar collapsible="icon">
-        <SidebarHeader>
-          <Link
-            to="/"
-            className="flex items-center gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
-          >
-            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
-              <Layers className="size-4" />
-            </span>
-            <span className="truncate group-data-[collapsible=icon]:hidden">OrgMemory</span>
-          </Link>
-        </SidebarHeader>
-
-        <SidebarContent>
-          <SidebarMenu className="px-2">
-            {NAV.map((item) => {
-              const isActive = item.exact ? pathname === item.to : pathname.startsWith(item.to)
-              return (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton asChild tooltip={item.label} isActive={isActive}>
-                    <Link to={item.to}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                  {item.to === "/review" && reviewCount ? (
-                    <SidebarMenuBadge className="rounded-full bg-primary text-primary-foreground">
-                      {reviewCount}
-                    </SidebarMenuBadge>
+    <div className="min-h-dvh bg-background text-foreground">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Skip to content
+      </a>
+      <header className="border-b">
+        <div className="mx-auto flex h-14 max-w-screen-2xl items-center justify-between px-4 md:px-6">
+          <span className="font-semibold tracking-tight">OrgMemory</span>
+          <div className="flex items-center gap-1">
+            <ModeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Open account menu">
+                  <Avatar size="sm">
+                    <AvatarFallback>{initials(identity?.name, identity?.email)}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="space-y-1">
+                  <p className="truncate text-sm font-medium">{identity?.name || "Company account"}</p>
+                  {identity?.email ? (
+                    <p className="truncate text-xs font-normal text-muted-foreground">{identity.email}</p>
                   ) : null}
-                </SidebarMenuItem>
-              )
-            })}
-          </SidebarMenu>
-        </SidebarContent>
-
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="New Asset">
-                <Link to="/create">
-                  <Sparkles />
-                  <span>New Asset</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <ModeToggle />
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-        <SidebarRail />
-      </Sidebar>
-
-      <SidebarInset className="h-screen overflow-hidden">
-        <SidebarTrigger className="absolute left-2 top-2 z-20 md:hidden" />
-        <Topbar query={query} onQueryChange={setQuery} />
-        <main
-          data-testid="app-content"
-          className="h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto p-4 md:p-6 [&>*]:min-w-0"
-        >
-          <Outlet />
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void signOut()}>
+                  <LogOut aria-hidden="true" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+      <main
+        id="main-content"
+        className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-screen-2xl px-4 py-6 md:px-6"
+        tabIndex={-1}
+      ></main>
+    </div>
   )
 }
