@@ -51,6 +51,7 @@ class KnowledgeIngestionIntegrationTests {
 
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID SALES_DEPARTMENT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID SALES_SPACE_ID = UUID.fromString("88888888-8888-4888-8888-888888888802");
 
     @Container
     @ServiceConnection
@@ -87,9 +88,9 @@ class KnowledgeIngestionIntegrationTests {
                 "Normalized content for the integration document.",
                 "en"));
         KnowledgeAssetRef firstAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                ORGANIZATION_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
+                ORGANIZATION_ID, SALES_SPACE_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
         KnowledgeAssetRef repeatedAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                ORGANIZATION_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
+                ORGANIZATION_ID, SALES_SPACE_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
 
         assertEquals(firstRaw.rawSourceObjectId(), repeatedRaw.rawSourceObjectId());
         assertEquals(firstRaw.sourceAclSnapshotId(), repeatedRaw.sourceAclSnapshotId());
@@ -192,7 +193,10 @@ class KnowledgeIngestionIntegrationTests {
         assertThrows(
                 IllegalStateException.class,
                 () -> ingestion.promote(new PromoteNormalizedRecordCommand(
-                        ORGANIZATION_ID, unknownNormalized.normalizedRecordId(), AccessGate.ALLOW)));
+                        ORGANIZATION_ID,
+                        SALES_SPACE_ID,
+                        unknownNormalized.normalizedRecordId(),
+                        AccessGate.ALLOW)));
     }
 
     @Test
@@ -474,6 +478,7 @@ class KnowledgeIngestionIntegrationTests {
 
         PromoteNormalizedRecordCommand promote = new PromoteNormalizedRecordCommand(
                 ORGANIZATION_ID,
+                SALES_SPACE_ID,
                 normalizedRefs.getFirst().normalizedRecordId(),
                 AccessGate.ALLOW);
         List<KnowledgeAssetRef> assetRefs = runConcurrently(() -> ingestion.promote(promote));

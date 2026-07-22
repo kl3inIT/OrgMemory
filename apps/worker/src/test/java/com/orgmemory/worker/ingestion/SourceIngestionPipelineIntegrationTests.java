@@ -86,6 +86,7 @@ class SourceIngestionPipelineIntegrationTests {
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID DEPARTMENT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID USER_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID SALES_SPACE_ID = UUID.fromString("88888888-8888-4888-8888-888888888802");
     private static final CurrentActor ACTOR = new CurrentActor(
             USER_ID, ORGANIZATION_ID, DEPARTMENT_ID, "Linh Nguyen", "linh@example.com");
 
@@ -150,6 +151,7 @@ class SourceIngestionPipelineIntegrationTests {
                 });
         when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
                 .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow("model-1"));
 
         var source = uploads.upload(
                 new CreateUploadSourceCommand(
@@ -157,7 +159,8 @@ class SourceIngestionPipelineIntegrationTests {
                         "support-resolution.txt",
                         "text/plain",
                         content.length,
-                        KnowledgeClassification.CONFIDENTIAL),
+                        KnowledgeClassification.CONFIDENTIAL,
+                        SALES_SPACE_ID),
                 new ByteArrayInputStream(content));
 
         processor.processNext();
@@ -231,15 +234,22 @@ class SourceIngestionPipelineIntegrationTests {
 
         var writeRequest = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
         verify(relationshipTuples).write(writeRequest.capture());
-        assertEquals("user:" + USER_ID, writeRequest.getValue().tuples().getFirst().user());
-        assertEquals("owner", writeRequest.getValue().tuples().getFirst().relation());
+        assertEquals(2, writeRequest.getValue().tuples().size());
+        assertEquals(
+                "knowledge_space:" + SALES_SPACE_ID,
+                writeRequest.getValue().tuples().getFirst().user());
+        assertEquals("space", writeRequest.getValue().tuples().getFirst().relation());
         assertEquals(
                 "knowledge_asset:" + revision.get("knowledge_asset_id"),
                 writeRequest.getValue().tuples().getFirst().object());
+        assertEquals("user:" + USER_ID, writeRequest.getValue().tuples().get(1).user());
+        assertEquals("owner", writeRequest.getValue().tuples().get(1).relation());
+        assertEquals(
+                "knowledge_asset:" + revision.get("knowledge_asset_id"),
+                writeRequest.getValue().tuples().get(1).object());
 
         UUID assetId = (UUID) revision.get("knowledge_asset_id");
         ResourceRef resource = ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", assetId);
-        when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow("model-1"));
         when(setAuthorization.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.resolved(List.of(resource), "model-1"));
         when(setAuthorization.batchCheck(any())).thenReturn(BatchAuthorizationResult.resolved(
@@ -363,6 +373,7 @@ class SourceIngestionPipelineIntegrationTests {
         when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
                 .thenReturn(RelationshipTupleWriteResult.indeterminate(
                         "OPENFGA_WRITE_UNAVAILABLE", "model-1"));
+        when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow("model-1"));
 
         var source = uploads.upload(
                 new CreateUploadSourceCommand(
@@ -370,7 +381,8 @@ class SourceIngestionPipelineIntegrationTests {
                         "authorization-pending.txt",
                         "text/plain",
                         content.length,
-                        KnowledgeClassification.CONFIDENTIAL),
+                        KnowledgeClassification.CONFIDENTIAL,
+                        SALES_SPACE_ID),
                 new ByteArrayInputStream(content));
 
         processor.processNext();

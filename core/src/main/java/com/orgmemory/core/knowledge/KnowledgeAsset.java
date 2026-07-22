@@ -21,6 +21,9 @@ public class KnowledgeAsset extends BaseEntity {
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
+    @Column(name = "knowledge_space_id", nullable = false, updatable = false)
+    private UUID knowledgeSpaceId;
+
     @Column(name = "raw_source_object_id", nullable = false, updatable = false)
     private UUID rawSourceObjectId;
 
@@ -70,9 +73,10 @@ public class KnowledgeAsset extends BaseEntity {
     protected KnowledgeAsset() {
     }
 
-    KnowledgeAsset(NormalizedRecord normalized, AccessGate orgMemoryGate) {
+    KnowledgeAsset(NormalizedRecord normalized, UUID knowledgeSpaceId, AccessGate orgMemoryGate) {
         super(UUID.randomUUID());
         this.organizationId = normalized.getOrganizationId();
+        this.knowledgeSpaceId = Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         this.rawSourceObjectId = normalized.getRawSourceObjectId();
         this.normalizedRecordId = normalized.getId();
         this.sourceAclSnapshotId = normalized.getSourceAclSnapshotId();
@@ -118,6 +122,10 @@ public class KnowledgeAsset extends BaseEntity {
 
     public UUID getOrganizationId() {
         return organizationId;
+    }
+
+    public UUID getKnowledgeSpaceId() {
+        return knowledgeSpaceId;
     }
 
     public UUID getRawSourceObjectId() {

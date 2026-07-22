@@ -9,6 +9,7 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -37,10 +38,10 @@ class SourceController {
     }
 
     @GetMapping
-    @Operation(operationId = "listSources", summary = "List sources uploaded by the current user")
+    @Operation(operationId = "listSources", summary = "List sources visible to the current user")
     List<SourceResponse> list(Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
-        return sources.listOwn(actor).stream().map(SourceResponse::from).toList();
+        return sources.listVisible(actor).stream().map(SourceResponse::from).toList();
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -49,6 +50,7 @@ class SourceController {
     SourceResponse upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(defaultValue = "CONFIDENTIAL") KnowledgeClassification classification,
+            @RequestParam UUID knowledgeSpaceId,
             Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
         try (var content = file.getInputStream()) {
@@ -58,7 +60,8 @@ class SourceController {
                             file.getOriginalFilename(),
                             file.getContentType(),
                             file.getSize(),
-                            classification),
+                            classification,
+                            knowledgeSpaceId),
                     content));
         } catch (IOException exception) {
             throw new ResponseStatusException(

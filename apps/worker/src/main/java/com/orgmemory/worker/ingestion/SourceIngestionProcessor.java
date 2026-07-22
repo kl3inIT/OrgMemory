@@ -176,6 +176,7 @@ class SourceIngestionProcessor {
             failureStage = "PUBLISHING";
             KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
                     claim.organizationId(),
+                    claim.knowledgeSpaceId(),
                     claim.sourceObjectId(),
                     claim.sourceRevisionId(),
                     normalized.normalizedRecordId(),
@@ -262,10 +263,26 @@ class SourceIngestionProcessor {
                 AclCaptureStatus.COMPLETE,
                 AccessGate.DENY,
                 claim.createdAt().plus(Duration.ofHours(23)),
-                List.of(new SourceAclEntryCommand(
-                        SourcePrincipalType.ORGMEMORY_USER,
-                        claim.createdByUserId().toString(),
-                        AccessGate.ALLOW))));
+                sourceAcl(claim)));
+    }
+
+    private static List<SourceAclEntryCommand> sourceAcl(ClaimedSourceRevision claim) {
+        return switch (claim.declaredAccess()) {
+            case ALL, ALL_EMPLOYEES, EXECUTIVE_ONLY -> List.of(new SourceAclEntryCommand(
+                    SourcePrincipalType.ORGMEMORY_ORGANIZATION,
+                    claim.organizationId().toString(),
+                    AccessGate.ALLOW));
+            case OWN_DEPARTMENT -> {
+                if (claim.departmentId() == null) {
+                    throw new IllegalStateException(
+                            "Department-scoped knowledge requires a department Knowledge Space");
+                }
+                yield List.of(new SourceAclEntryCommand(
+                        SourcePrincipalType.ORGMEMORY_DEPARTMENT,
+                        claim.departmentId().toString(),
+                        AccessGate.ALLOW));
+            }
+        };
     }
 
     private List<ChunkCandidate> split(List<Document> documents) {

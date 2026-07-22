@@ -17,6 +17,9 @@ class SourceObject extends BaseEntity {
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
+    @Column(name = "knowledge_space_id", nullable = false, updatable = false)
+    private UUID knowledgeSpaceId;
+
     @Column(name = "department_id", updatable = false)
     private UUID departmentId;
 
@@ -57,6 +60,7 @@ class SourceObject extends BaseEntity {
     SourceObject(
             UUID id,
             UUID organizationId,
+            UUID knowledgeSpaceId,
             UUID departmentId,
             UUID createdByUserId,
             String title,
@@ -64,6 +68,7 @@ class SourceObject extends BaseEntity {
             DeclaredAccessScope declaredAccess) {
         super(id);
         this.organizationId = organizationId;
+        this.knowledgeSpaceId = knowledgeSpaceId;
         this.departmentId = departmentId;
         this.createdByUserId = createdByUserId;
         this.sourceType = SourceType.UPLOAD;
@@ -81,6 +86,10 @@ class SourceObject extends BaseEntity {
 
     UUID getOrganizationId() {
         return organizationId;
+    }
+
+    UUID getKnowledgeSpaceId() {
+        return knowledgeSpaceId;
     }
 
     UUID getDepartmentId() {

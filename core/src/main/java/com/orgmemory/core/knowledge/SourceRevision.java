@@ -18,6 +18,9 @@ class SourceRevision extends BaseEntity {
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
+    @Column(name = "knowledge_space_id", nullable = false, updatable = false)
+    private UUID knowledgeSpaceId;
+
     @Column(name = "source_object_id", nullable = false, updatable = false)
     private UUID sourceObjectId;
 
@@ -100,6 +103,7 @@ class SourceRevision extends BaseEntity {
             String fileName) {
         super(id);
         this.organizationId = source.getOrganizationId();
+        this.knowledgeSpaceId = source.getKnowledgeSpaceId();
         this.sourceObjectId = source.getId();
         this.evidenceBlobId = blob.getId();
         this.revisionNumber = 1;
@@ -163,6 +167,10 @@ class SourceRevision extends BaseEntity {
 
     UUID getOrganizationId() {
         return organizationId;
+    }
+
+    UUID getKnowledgeSpaceId() {
+        return knowledgeSpaceId;
     }
 
     UUID getSourceObjectId() {

@@ -14,6 +14,7 @@ import dev.openfga.sdk.api.client.model.ClientListObjectsRequest;
 import dev.openfga.sdk.errors.FgaInvalidParameterException;
 import dev.openfga.sdk.errors.FgaValidationError;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,8 +22,12 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class OpenFgaRelationshipAuthorizationSetAdapter implements RelationshipAuthorizationSetPort {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenFgaRelationshipAuthorizationSetAdapter.class);
 
     private final OpenFgaClient client;
     private final String authorizationModelId;
@@ -56,6 +61,12 @@ public final class OpenFgaRelationshipAuthorizationSetAdapter implements Relatio
         } catch (TimeoutException exception) {
             return AuthorizedResourceSetResult.indeterminate("OPENFGA_TIMEOUT", authorizationModelId);
         } catch (FgaInvalidParameterException | ExecutionException | RuntimeException exception) {
+            LOGGER.warn(
+                    "OpenFGA ListObjects failed for resource type {} and relation {} using model {}",
+                    query.resourceType(),
+                    query.permission().value(),
+                    authorizationModelId,
+                    exception);
             return AuthorizedResourceSetResult.indeterminate("OPENFGA_UNAVAILABLE", authorizationModelId);
         }
     }
@@ -63,17 +74,21 @@ public final class OpenFgaRelationshipAuthorizationSetAdapter implements Relatio
     @Override
     public BatchAuthorizationResult batchCheck(BatchAuthorizationQuery query) {
         Objects.requireNonNull(query, "query");
-        var request = ClientBatchCheckRequest.ofChecks(query.resources().stream()
-                .map(resource -> new ClientBatchCheckItem()
-                        .user(query.principal().openFgaUser())
-                        .relation(query.permission().value())
-                        ._object(resource.openFgaObject())
-                        .correlationId(resource.openFgaObject()))
-                .toList());
+        Map<String, ResourceRef> requested = new LinkedHashMap<>();
+        var checks = new ArrayList<ClientBatchCheckItem>(query.resources().size());
+        for (int index = 0; index < query.resources().size(); index++) {
+            ResourceRef resource = query.resources().get(index);
+            String correlationId = Integer.toString(index);
+            requested.put(correlationId, resource);
+            checks.add(new ClientBatchCheckItem()
+                    .user(query.principal().openFgaUser())
+                    .relation(query.permission().value())
+                    ._object(resource.openFgaObject())
+                    .correlationId(correlationId));
+        }
+        var request = ClientBatchCheckRequest.ofChecks(checks);
         try {
             var response = client.batchCheck(request).get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
-            Map<String, ResourceRef> requested = new LinkedHashMap<>();
-            query.resources().forEach(resource -> requested.put(resource.openFgaObject(), resource));
             Map<ResourceRef, AuthorizationDecision> decisions = new LinkedHashMap<>();
             for (var item : response.getResult()) {
                 ResourceRef resource = requested.remove(item.getCorrelationId());
@@ -98,6 +113,11 @@ public final class OpenFgaRelationshipAuthorizationSetAdapter implements Relatio
         } catch (TimeoutException exception) {
             return BatchAuthorizationResult.indeterminate("OPENFGA_TIMEOUT", authorizationModelId);
         } catch (FgaInvalidParameterException | FgaValidationError | ExecutionException | RuntimeException exception) {
+            LOGGER.warn(
+                    "OpenFGA BatchCheck failed for {} resources using model {}",
+                    query.resources().size(),
+                    authorizationModelId,
+                    exception);
             return BatchAuthorizationResult.indeterminate("OPENFGA_UNAVAILABLE", authorizationModelId);
         }
     }

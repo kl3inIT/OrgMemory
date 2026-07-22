@@ -134,6 +134,7 @@ public class SourceIngestionCoordinator {
         return new ClaimedSourceRevision(
                 job.getId(),
                 revision.getOrganizationId(),
+                revision.getKnowledgeSpaceId(),
                 source.getId(),
                 revision.getId(),
                 blob.getId(),

@@ -37,6 +37,7 @@ class SourceUploadRegistrationService {
             UUID revisionId,
             UUID blobId,
             CurrentActor actor,
+            KnowledgeSpaceTarget targetSpace,
             String fileName,
             KnowledgeClassification classification,
             DeclaredAccessScope declaredAccess,
@@ -44,7 +45,8 @@ class SourceUploadRegistrationService {
         SourceObject source = sources.saveAndFlush(new SourceObject(
                 sourceId,
                 actor.organizationId(),
-                actor.departmentId(),
+                targetSpace.id(),
+                targetSpace.departmentId(),
                 actor.userId(),
                 fileName,
                 classification,

@@ -41,6 +41,10 @@ public class KnowledgeAssetPublicationService {
             result = Objects.requireNonNull(
                     relationshipTuples.write(new RelationshipTupleWriteRequest(List.of(
                             RelationshipTuple.of(
+                                    "knowledge_space:" + attempt.knowledgeSpaceId(),
+                                    "space",
+                                    "knowledge_asset:" + attempt.knowledgeAssetId()),
+                            RelationshipTuple.of(
                                     "user:" + attempt.ownerUserId(),
                                     "owner",
                                     "knowledge_asset:" + attempt.knowledgeAssetId())))),

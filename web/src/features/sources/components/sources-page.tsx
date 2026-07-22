@@ -17,7 +17,11 @@ import {
   type SourceStatusFilter,
 } from "@/features/sources/source-status"
 import { useDocumentManagerStore } from "@/features/sources/store/document-manager-store"
-import { listSourcesOptions, listSourcesQueryKey } from "@/lib/hey-api/@tanstack/react-query.gen"
+import {
+  listKnowledgeSpaceUploadTargetsOptions,
+  listSourcesOptions,
+  listSourcesQueryKey,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 
 export function SourcesPage() {
   const queryClient = useQueryClient()
@@ -30,6 +34,7 @@ export function SourcesPage() {
     refetchInterval: (query) =>
       query.state.data?.some((source) => ACTIVE_SOURCE_STATUSES.has(source.status ?? "")) ? 2000 : false,
   })
+  const uploadTargets = useQuery(listKnowledgeSpaceUploadTargetsOptions())
   const upload = useMutation({
     mutationFn: uploadSourceWithCsrf,
     onSuccess: async () => {
@@ -69,6 +74,10 @@ export function SourcesPage() {
               <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
               <SourceUploadDialog
                 pending={upload.isPending}
+                spaces={uploadTargets.data ?? []}
+                spacesPending={uploadTargets.isPending}
+                spacesError={uploadTargets.isError}
+                onRetrySpaces={() => uploadTargets.refetch()}
                 onUpload={async (input) => upload.mutateAsync(input).then(() => undefined)}
               />
             </header>

@@ -10,6 +10,8 @@ belongs in one active increment.
 - Service/test-backed one-leaf knowledge ingestion persistence.
 - Sealed ACL evidence, rotating current head, fail-closed SQL prefilter, Java
   recheck, generic denied resource `404`, and append-only retrieval audit.
+- Knowledge Space-targeted upload with OpenFGA `can_create_asset` pre-write
+  authorization and atomic Space/owner publication tuples.
 - API, worker, and MCP deployable scaffolds.
 - Northstar-style repository harness and current dependency baseline.
 
@@ -25,8 +27,6 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 - Converge persistent Capability Asset tuples and remove its list-path N+1 with
   ListObjects/BatchCheck, pagination, and aggregate usage counts.
-- Authorize direct upload at a target Knowledge Space with `can_create_asset`;
-  keep organization `can_manage_sources` for administrative operations.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Add graph core/testkit and PostgreSQL/Spring AI adapters with evidence-level
   contributions and permission-scoped local/global/mix retrieval.

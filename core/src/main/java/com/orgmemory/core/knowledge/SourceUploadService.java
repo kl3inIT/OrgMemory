@@ -26,27 +26,37 @@ public class SourceUploadService {
     private final SourceUploadRegistrationService registrations;
     private final KnowledgePermissionPolicy permissionPolicy;
     private final SourceIngestionProperties properties;
+    private final KnowledgeSpaceService knowledgeSpaces;
 
     SourceUploadService(
             ObjectStoragePort objects,
             SourceUploadRegistrationService registrations,
             KnowledgePermissionPolicy permissionPolicy,
-            SourceIngestionProperties properties) {
+            SourceIngestionProperties properties,
+            KnowledgeSpaceService knowledgeSpaces) {
         this.objects = objects;
         this.registrations = registrations;
         this.permissionPolicy = permissionPolicy;
         this.properties = properties;
+        this.knowledgeSpaces = knowledgeSpaces;
     }
 
     public SourceSummary upload(CreateUploadSourceCommand command, InputStream content) {
         validate(command, content);
         CurrentActor actor = command.actor();
+        KnowledgeSpaceTarget targetSpace = knowledgeSpaces.requireUploadTarget(
+                actor, command.knowledgeSpaceId());
         String fileName = safeFileName(command.fileName());
         String mediaType = normalizedMediaType(command.mediaType(), fileName);
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
         DeclaredAccessScope declaredAccess = permissionPolicy.requiredScope(classification);
+        if (classification == KnowledgeClassification.CONFIDENTIAL
+                && targetSpace.departmentId() == null) {
+            throw new IllegalArgumentException(
+                    "confidential upload requires a department Knowledge Space");
+        }
         UUID sourceId = UUID.randomUUID();
         UUID revisionId = UUID.randomUUID();
         UUID blobId = UUID.randomUUID();
@@ -70,6 +80,7 @@ public class SourceUploadService {
                     revisionId,
                     blobId,
                     actor,
+                    targetSpace,
                     fileName,
                     classification,
                     declaredAccess,
@@ -100,12 +111,8 @@ public class SourceUploadService {
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
-        if (classification != KnowledgeClassification.INTERNAL
-                && classification != KnowledgeClassification.CONFIDENTIAL) {
-            throw new IllegalArgumentException("manual upload currently supports internal or confidential knowledge");
-        }
-        if (classification == KnowledgeClassification.CONFIDENTIAL && command.actor().departmentId() == null) {
-            throw new IllegalArgumentException("confidential upload requires a department-bound user");
+        if (command.knowledgeSpaceId() == null) {
+            throw new IllegalArgumentException("Knowledge Space is required");
         }
     }
 

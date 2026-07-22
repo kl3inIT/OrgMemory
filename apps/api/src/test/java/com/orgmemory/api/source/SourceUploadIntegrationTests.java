@@ -3,9 +3,12 @@ package com.orgmemory.api.source;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.KnowledgeSpaceService;
+import com.orgmemory.core.knowledge.KnowledgeSpaceTarget;
 import com.orgmemory.core.knowledge.SourceIngestionCoordinator;
 import com.orgmemory.core.knowledge.SourceQueryService;
 import com.orgmemory.core.knowledge.SourceRevisionStatus;
@@ -39,6 +42,7 @@ class SourceUploadIntegrationTests {
     private static final UUID DEPARTMENT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID USER_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final UUID OTHER_USER_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    private static final UUID SALES_SPACE_ID = UUID.fromString("88888888-8888-4888-8888-888888888802");
     private static final CurrentActor ACTOR = new CurrentActor(
             USER_ID, ORGANIZATION_ID, DEPARTMENT_ID, "Linh Nguyen", "linh@example.com");
 
@@ -48,6 +52,9 @@ class SourceUploadIntegrationTests {
 
     @MockitoBean
     ObjectStoragePort objects;
+
+    @MockitoBean
+    KnowledgeSpaceService knowledgeSpaces;
 
     @Autowired
     SourceUploadService uploads;
@@ -71,6 +78,8 @@ class SourceUploadIntegrationTests {
             return new StoredObject(
                     request.key(), content.length, "text/plain", sha, "etag-1", null);
         });
+        when(knowledgeSpaces.requireUploadTarget(eq(ACTOR), eq(SALES_SPACE_ID))).thenReturn(
+                new KnowledgeSpaceTarget(SALES_SPACE_ID, "sales", "Sales Knowledge", DEPARTMENT_ID));
 
         var uploaded = uploads.upload(
                 new CreateUploadSourceCommand(
@@ -78,7 +87,8 @@ class SourceUploadIntegrationTests {
                         "onboarding.txt",
                         "text/plain",
                         content.length,
-                        KnowledgeClassification.CONFIDENTIAL),
+                        KnowledgeClassification.CONFIDENTIAL,
+                        SALES_SPACE_ID),
                 new ByteArrayInputStream(content));
 
         assertEquals(SourceRevisionStatus.RECEIVED, uploaded.status());
@@ -94,6 +104,12 @@ class SourceUploadIntegrationTests {
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM source_revisions", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM evidence_blobs", Integer.class));
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM source_ingestion_jobs", Integer.class));
+        assertEquals(
+                SALES_SPACE_ID,
+                jdbc.queryForObject("SELECT knowledge_space_id FROM source_objects", UUID.class));
+        assertEquals(
+                DEPARTMENT_ID,
+                jdbc.queryForObject("SELECT department_id FROM source_objects", UUID.class));
 
         var claim = coordinator.claimNext("test-worker", Duration.ofMinutes(1)).orElseThrow();
         assertEquals(uploaded.id(), claim.sourceObjectId());

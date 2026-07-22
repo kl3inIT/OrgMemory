@@ -17,6 +17,10 @@ Do not create status-summary documents that duplicate those sources.
 - Use ports at external/provider boundaries; avoid generic interfaces around
   every class.
 - Keep `ddl-auto=validate`; pair every persisted model change with Flyway.
+- For populated tables, use expand/bounded-backfill/validate migrations. Do not
+  run `CREATE INDEX CONCURRENTLY` inside application-owned Flyway because its
+  schema-history connection can block the concurrent build; pre-stage those
+  indexes through the deployment pipeline for large-table upgrades.
 - API runs migrations. Worker and MCP do not own schema evolution.
 - Use durable idempotency, outbox, and compare-and-set at retried ingestion and
   projection boundaries.
