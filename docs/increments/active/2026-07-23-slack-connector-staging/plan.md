@@ -13,20 +13,28 @@
 
 ## 2 — Connector Ingestion Use Case (core)
 
-- [ ] `ConnectorIngestionService.ingest(batch)`: validate tenant/space/versions;
+- [x] `ConnectorIngestionService.ingest(batch)`: validate tenant/space/versions;
   upsert `SourcePrincipal`s and run the matcher; build ACL entries + sealed
   membership from the permissions payload; register the raw source and seal a
-  new ACL generation; compare-and-set the source ACL head.
-- [ ] A `SLACK` source-system profile mapping channel→`SOURCE_GROUP`,
-  member→`SOURCE_USER`, public-channel→workspace group, private→member list.
-- [ ] Idempotency: a batch cursor + content-revision hash make re-crawl append
-  only a new ACL generation when membership changed and skip the content path
-  when the content hash is unchanged.
-- [ ] Tombstones retire `SourceObject`s removed at the source (out of retrieval,
+  new ACL generation; compare-and-set the source ACL head. Ledger mechanics reuse
+  `KnowledgeIngestionService.registerConnectorSource` / `rotateConnectorAcl`
+  (package-private, external principals allowed, membership sealed before seal);
+  `ConnectorReconciler` runs each object in its own `TransactionTemplate` tx.
+- [x] A `SLACK` source-system profile (`SlackConnectorProfile`) mapping
+  channel→`SOURCE_GROUP`, member→`SOURCE_USER`, and fixing the OrgMemory
+  classification (`INTERNAL`/`ALL_EMPLOYEES`) so channel membership is the binding
+  gate.
+- [x] Idempotency: a new object materializes once; a re-crawl converges the ACL
+  by rotating the head (always a fresh generation, so membership-only changes take
+  effect). A changed content revision rotates the ACL and defers re-materialization
+  to the live increment (no stale broadening). Connector rotation never short-
+  circuits on the entry hash (membership is not in it).
+- [x] Tombstones retire `SourceObject`s removed at the source (out of retrieval,
   evidence retained). Per-item failures are isolated and recorded, not fatal to
   the batch.
-- [ ] Fail closed: unmapped principals grant nothing; no admin path can broaden
-  a sealed generation; every ingest/rotate/retire appends a permission audit.
+- [x] Fail closed: unmapped principals grant nothing; the public upload path still
+  rejects external principals; every materialize/rotate/retire appends a permission
+  audit. (Proven end-to-end in Phase 4.)
 
 ## 3 — Worker Orchestration
 

@@ -80,8 +80,70 @@ class SourceObject extends BaseEntity {
         this.status = SourceObjectStatus.ACTIVE;
     }
 
+    private SourceObject(
+            UUID id,
+            UUID organizationId,
+            UUID knowledgeSpaceId,
+            UUID departmentId,
+            UUID createdByUserId,
+            SourceType sourceType,
+            String sourceConnectionKey,
+            String externalObjectId,
+            String title,
+            KnowledgeClassification classification,
+            DeclaredAccessScope declaredAccess) {
+        super(id);
+        this.organizationId = organizationId;
+        this.knowledgeSpaceId = knowledgeSpaceId;
+        this.departmentId = departmentId;
+        this.createdByUserId = createdByUserId;
+        this.sourceType = sourceType;
+        this.sourceConnectionKey = sourceConnectionKey;
+        this.externalObjectId = externalObjectId;
+        this.title = title;
+        this.classification = classification;
+        this.declaredAccess = declaredAccess;
+        this.status = SourceObjectStatus.ACTIVE;
+    }
+
+    /** Creates an active connector-owned source object keyed by its external identity. */
+    static SourceObject connectorObject(
+            UUID id,
+            UUID organizationId,
+            UUID knowledgeSpaceId,
+            UUID departmentId,
+            UUID createdByUserId,
+            SourceType sourceType,
+            String sourceConnectionKey,
+            String externalObjectId,
+            String title,
+            KnowledgeClassification classification,
+            DeclaredAccessScope declaredAccess) {
+        return new SourceObject(
+                id,
+                organizationId,
+                knowledgeSpaceId,
+                departmentId,
+                createdByUserId,
+                sourceType,
+                sourceConnectionKey,
+                externalObjectId,
+                title,
+                classification,
+                declaredAccess);
+    }
+
     void useRevision(UUID revisionId) {
         this.currentRevisionId = revisionId;
+    }
+
+    /** Retires this object from retrieval; its evidence and history are retained. */
+    void archive() {
+        this.status = SourceObjectStatus.ARCHIVED;
+    }
+
+    SourceObjectStatus getStatus() {
+        return status;
     }
 
     UUID getOrganizationId() {

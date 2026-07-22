@@ -77,12 +77,18 @@ appends a sealed generation and rotates the head **without** re-materializing
 content — the reconciliation loop, under the ADR 0009 live-source ceiling.
 
 **Refinement discovered in implementation:** the content path reuses the core
-`normalize`/`promote`/`publish` use cases directly and embeds through a port,
-rather than routing through the upload worker's `SourceIngestionProcessor`. This
-leaves the proven upload pipeline untouched, keeps the connector self-contained,
-and makes the convergence proof a core-level Testcontainers test. Content
-embedding is synchronous for staging; moving it off the ingest transaction for
-large crawls is deferred to `slack-connector-live`.
+`normalize`/`publish` use cases directly (`publish` promotes internally) and
+embeds through a port, rather than routing through the upload worker's
+`SourceIngestionProcessor`. This leaves the proven upload pipeline untouched and
+keeps the connector self-contained. Each object reconciles in its own
+transaction (driven by a `TransactionTemplate`, since proxy `@Transactional` is
+ignored on non-public methods) so the sealed ACL, head, and materialized content
+commit together or not at all, and a per-object failure is isolated. The
+end-to-end convergence proof is a Spring integration test in the worker module
+(mirroring the upload pipeline test), which also exercises the fixture
+`ConnectorBatchSource` and embedder wiring. Content embedding is synchronous for
+staging; moving it off the ingest transaction for large crawls is deferred to
+`slack-connector-live`.
 
 ## Scope
 
