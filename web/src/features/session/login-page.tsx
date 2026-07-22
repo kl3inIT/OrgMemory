@@ -12,9 +12,7 @@ export function LoginPage() {
   const search = useSearch({ from: "/login" })
   const statusMessage = search.error
     ? "Sign-in failed. Try again or contact your administrator."
-    : search.loggedOut
-      ? "You are signed out."
-      : undefined
+    : undefined
 
   if (session.isPending) return <PageLoading label="Checking your session" />
 

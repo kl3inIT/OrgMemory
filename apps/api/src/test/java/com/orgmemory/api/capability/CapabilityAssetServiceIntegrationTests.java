@@ -5,7 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.orgmemory.core.capability.ApprovalAction;
 import com.orgmemory.core.capability.AssetApprovalEventRepository;
+import com.orgmemory.core.capability.AssetUsageEventRepository;
 import com.orgmemory.core.capability.AssetStatus;
 import com.orgmemory.core.capability.AssetType;
 import com.orgmemory.core.capability.AssetVersion;
@@ -26,8 +32,11 @@ import com.orgmemory.core.capability.CreateCapabilityAssetCommand;
 import com.orgmemory.core.capability.RiskLevel;
 import com.orgmemory.core.capability.UsageEventType;
 import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
+import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
+import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.ExternalIdentityRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
@@ -44,6 +53,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
@@ -95,9 +105,15 @@ class CapabilityAssetServiceIntegrationTests {
     @MockitoBean
     RelationshipAuthorizationPort authorizationPort;
 
+    @MockitoBean
+    RelationshipAuthorizationSetPort authorizationSetPort;
+
+    @MockitoSpyBean
+    AssetUsageEventRepository usageEvents;
+
     @BeforeEach
     void authorizeByRelationshipInsteadOfJwtRole() {
-        reset(authorizationPort);
+        reset(authorizationPort, authorizationSetPort);
         when(authorizationPort.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             String user = query.principal().id();
@@ -113,6 +129,15 @@ class CapabilityAssetServiceIntegrationTests {
             return allowed
                     ? AuthorizationDecision.allow("test-model")
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", "test-model");
+        });
+        when(authorizationSetPort.listAuthorizedResources(any()))
+                .thenReturn(AuthorizedResourceSetResult.resolved(List.of(), "test-model"));
+        when(authorizationSetPort.batchCheck(any())).thenAnswer(invocation -> {
+            com.orgmemory.core.authorization.BatchAuthorizationQuery query = invocation.getArgument(0);
+            var decisions = query.resources().stream().collect(java.util.stream.Collectors.toMap(
+                    resource -> resource,
+                    resource -> AuthorizationDecision.allow("test-model")));
+            return BatchAuthorizationResult.resolved(decisions, "test-model");
         });
     }
 
@@ -147,6 +172,40 @@ class CapabilityAssetServiceIntegrationTests {
 
         assertEquals(1, assets.recordUsage(CONTRIBUTOR, asset.getId(), UsageEventType.USED, "{}"));
         assertFalse(assets.search(CONTRIBUTOR, null, AssetType.PROMPT_TEMPLATE, "proposal").isEmpty());
+    }
+
+    @Test
+    void listUsesSetAuthorizationInsteadOfPerAssetChecks() throws Exception {
+        mvc.perform(get("/api/assets")
+                        .with(jwtFor(OWNER_ID.toString(), "linh@example.com", true, "ROLE_VIEWER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].usageCount").isNumber());
+
+        verify(authorizationSetPort, times(1)).listAuthorizedResources(any());
+        verify(authorizationSetPort, times(1)).batchCheck(any());
+        verify(usageEvents, times(1)).summarizeByAssetIds(any());
+        verify(usageEvents, never()).countByAssetId(any());
+        verify(authorizationPort, never()).check(argThat(query ->
+                "can_view".equals(query.permission().value())
+                        && "capability_asset".equals(query.resource().type())));
+    }
+
+    @Test
+    void listFailsClosedWhenOpenFgaSetQueriesAreIndeterminate() throws Exception {
+        when(authorizationSetPort.listAuthorizedResources(any()))
+                .thenReturn(AuthorizedResourceSetResult.indeterminate("OPENFGA_TIMEOUT", "test-model"));
+        doReturn(BatchAuthorizationResult.indeterminate("OPENFGA_TIMEOUT", "test-model"))
+                .when(authorizationSetPort)
+                .batchCheck(any());
+
+        mvc.perform(get("/api/assets")
+                        .with(jwtFor(OWNER_ID.toString(), "linh@example.com", true, "ROLE_VIEWER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        verify(authorizationPort, never()).check(argThat(query ->
+                "can_view".equals(query.permission().value())
+                        && "capability_asset".equals(query.resource().type())));
     }
 
     @Test

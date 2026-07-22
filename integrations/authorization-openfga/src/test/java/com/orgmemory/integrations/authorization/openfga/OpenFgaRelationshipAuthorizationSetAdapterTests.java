@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
+import com.orgmemory.core.authorization.ContextualRelationship;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class OpenFgaRelationshipAuthorizationSetAdapterTests {
 
@@ -97,6 +100,39 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
     }
 
     @Test
+    void batchCheckSendsResourceSpecificContextualRelationships() throws Exception {
+        OpenFgaClient client = mock(OpenFgaClient.class);
+        UUID organizationId = UUID.randomUUID();
+        ResourceRef firstResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        ResourceRef secondResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
+                CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
+                        new ClientBatchCheckSingleResponse(true, item(firstResource, "0"), "0", null),
+                        new ClientBatchCheckSingleResponse(true, item(secondResource, "1"), "1", null)))));
+        String firstUser = "user:" + UUID.randomUUID();
+        String secondUser = "user:" + UUID.randomUUID();
+
+        var result = adapter(client).batchCheck(new BatchAuthorizationQuery(
+                organizationId,
+                PrincipalRef.user(UUID.randomUUID()),
+                PermissionKey.of("can_view"),
+                List.of(firstResource, secondResource),
+                java.util.Map.of(
+                        firstResource, List.of(ContextualRelationship.of(
+                                firstUser, "owner", firstResource.openFgaObject())),
+                        secondResource, List.of(ContextualRelationship.of(
+                                secondUser, "editor", secondResource.openFgaObject())))));
+
+        assertTrue(result.resolved());
+        ArgumentCaptor<ClientBatchCheckRequest> request = ArgumentCaptor.forClass(ClientBatchCheckRequest.class);
+        verify(client).batchCheck(request.capture());
+        List<ClientBatchCheckItem> sent = request.getValue().getChecks();
+        assertEquals(2, sent.size());
+        assertContextualRelationship(sent.getFirst(), firstUser, "owner", firstResource);
+        assertContextualRelationship(sent.get(1), secondUser, "editor", secondResource);
+    }
+
+    @Test
     void providerTimeoutFailsClosed() throws Exception {
         OpenFgaClient client = mock(OpenFgaClient.class);
         when(client.listObjects(any(ClientListObjectsRequest.class))).thenReturn(new CompletableFuture<>());
@@ -152,5 +188,16 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
                 .relation("can_view")
                 ._object(resource.openFgaObject())
                 .correlationId(correlationId);
+    }
+
+    private static void assertContextualRelationship(
+            ClientBatchCheckItem item,
+            String expectedUser,
+            String expectedRelation,
+            ResourceRef expectedResource) {
+        assertEquals(1, item.getContextualTuples().size());
+        assertEquals(expectedUser, item.getContextualTuples().getFirst().getUser());
+        assertEquals(expectedRelation, item.getContextualTuples().getFirst().getRelation());
+        assertEquals(expectedResource.openFgaObject(), item.getContextualTuples().getFirst().getObject());
     }
 }

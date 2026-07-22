@@ -14,6 +14,8 @@ belongs in one active increment.
   authorization and atomic Space/owner publication tuples.
 - API, worker, and MCP deployable scaffolds.
 - Northstar-style repository harness and current dependency baseline.
+- Exact OIDC provider logout, dev-only Swagger, production configuration
+  fail-fast guards, and set-based Capability Asset list authorization/counts.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -25,8 +27,8 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Next — Shared Agent Tools And Secure Graph
 
-- Converge persistent Capability Asset tuples and remove its list-path N+1 with
-  ListObjects/BatchCheck, pagination, and aggregate usage counts.
+- Converge persistent Capability Asset tuples and add server-side pagination to
+  the now set-authorized Capability Asset registry.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Add graph core/testkit and PostgreSQL/Spring AI adapters with evidence-level
   contributions and permission-scoped local/global/mix retrieval.

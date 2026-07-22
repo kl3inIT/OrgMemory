@@ -40,8 +40,8 @@ class CapabilityAssetController {
             @RequestParam(required = false) String q,
             Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
-        return service.search(actor, status, assetType, q).stream()
-                .map(asset -> CapabilityAssetResponse.from(asset, service.usageCount(actor, asset.getId())))
+        return service.searchListings(actor, status, assetType, q).stream()
+                .map(listing -> CapabilityAssetResponse.from(listing.asset(), listing.usageCount()))
                 .toList();
     }
 

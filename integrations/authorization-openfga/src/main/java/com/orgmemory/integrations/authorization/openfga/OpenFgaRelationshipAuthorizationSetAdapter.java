@@ -11,6 +11,7 @@ import dev.openfga.sdk.api.client.OpenFgaClient;
 import dev.openfga.sdk.api.client.model.ClientBatchCheckItem;
 import dev.openfga.sdk.api.client.model.ClientBatchCheckRequest;
 import dev.openfga.sdk.api.client.model.ClientListObjectsRequest;
+import dev.openfga.sdk.api.client.model.ClientTupleKey;
 import dev.openfga.sdk.errors.FgaInvalidParameterException;
 import dev.openfga.sdk.errors.FgaValidationError;
 import java.time.Duration;
@@ -84,6 +85,12 @@ public final class OpenFgaRelationshipAuthorizationSetAdapter implements Relatio
                     .user(query.principal().openFgaUser())
                     .relation(query.permission().value())
                     ._object(resource.openFgaObject())
+                    .contextualTuples(query.contextualRelationshipsFor(resource).stream()
+                            .map(relationship -> new ClientTupleKey()
+                                    .user(relationship.user())
+                                    .relation(relationship.relation())
+                                    ._object(relationship.object()))
+                            .toList())
                     .correlationId(correlationId));
         }
         var request = ClientBatchCheckRequest.ofChecks(checks);

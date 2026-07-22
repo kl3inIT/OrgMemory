@@ -11,7 +11,8 @@ The browser uses Spring as a confidential OIDC BFF. Keycloak authenticates the
 user, Spring Session JDBC stores the server-side session, and React reads only
 the canonical actor through `/api/session`. The browser never stores OAuth access
 or refresh tokens. Browser writes require Spring Security SPA CSRF; logout is a
-CSRF-protected POST followed by OIDC provider logout.
+CSRF-protected POST followed by OIDC provider logout. The provider receives the
+exact registered application redirect ending in `/login`.
 
 Anonymous protected routes start OIDC immediately and preserve only a validated
 same-application return path in the server session. `/login` remains the explicit
@@ -23,6 +24,11 @@ The server derives user, organization, and department from the canonical actor;
 client payloads cannot choose them. There is no offline/permit-all profile.
 External source-system users/groups are not yet resolved into knowledge ACL
 principals.
+
+OpenAPI and Swagger are disabled by default and public only in the `dev`
+profile. Production configuration has mandatory environment-backed database,
+OIDC, OpenFGA, object-storage, and AI settings; invalid or known local values
+abort API startup before traffic is accepted.
 
 ## Source Modules
 

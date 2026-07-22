@@ -103,7 +103,10 @@ Java SDK adapter are runtime dependencies. OpenFGA now enforces organization
 control-plane entry and Capability Asset create/view/edit/review decisions.
 Transactional asset ownership and visibility facts are passed as contextual
 tuples; organization membership and role assignments are persistent OpenFGA
-tuples. The versioned model has executable allow/deny and list-object tests.
+tuples. Capability Asset collection reads use one `ListObjects`, at most one
+resource-contextual `BatchCheck`, and one aggregate usage query rather than
+per-row authorization/count queries. The versioned model has executable
+allow/deny and list-object tests.
 Direct upload lists only Knowledge Spaces authorized by OpenFGA
 `can_create_asset`, rechecks the selected parent before any object-store write,
 and carries that Space identity through the immutable source ledger. Publication
@@ -143,7 +146,12 @@ payloads do not choose the current tenant, creator, reviewer, or usage actor.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API
 is the interactive delivery and migration owner; worker/MCP share and validate
-the schema. The committed OpenAPI contract generates Fetch, Zod, SDK, and
+the schema. OpenAPI JSON and Swagger UI are disabled by default and exposed only
+under the `dev` profile; non-development security chains deny their paths. The
+`prod` profile requires explicit database, OIDC, OpenFGA, object-storage, and AI
+configuration, and the API rejects known local secrets or invalid production
+identity/AI routes during startup. OIDC logout uses the exact registered
+`/login` redirect. The committed OpenAPI contract generates Fetch, Zod, SDK, and
 TanStack Query artifacts through Hey API. A small legacy feature helper remains
 while the prototype pages are replaced; streaming and browser-navigation logout
 retain thin handwritten transports. There is no durable streaming conversation
@@ -167,7 +175,7 @@ docker compose up -d
 .\scripts\bootstrap-openfga.ps1
 .\gradlew.bat --no-daemon compileJava
 .\gradlew.bat --no-daemon clean test
-.\gradlew.bat :apps:api:bootRun
+.\gradlew.bat :apps:api:bootRun --args='--spring.profiles.active=dev'
 corepack pnpm -C web typecheck
 corepack pnpm -C web build
 ```
