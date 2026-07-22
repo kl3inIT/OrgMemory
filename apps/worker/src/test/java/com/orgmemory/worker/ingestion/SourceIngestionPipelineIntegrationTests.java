@@ -9,14 +9,17 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.authorization.RelationshipTupleWritePort;
-import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
-import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
+import com.orgmemory.core.ai.AiRoute;
+import com.orgmemory.core.ai.AiRouteResolver;
+import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
+import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
+import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
@@ -50,12 +53,14 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -478,5 +483,16 @@ class SourceIngestionPipelineIntegrationTests {
                     type = FilterType.REGEX,
                     pattern = "com\\.orgmemory\\.core\\.knowledge\\.Source(UploadService|UploadRegistrationService|QueryService)"))
     static class UploadTestConfiguration {
+
+        @Bean
+        @Primary
+        AiRouteResolver testAiRouteResolver() {
+            return workload -> {
+                if (workload != AiWorkload.DOCUMENT_EMBEDDING) {
+                    throw new IllegalArgumentException("Unsupported test workload: " + workload);
+                }
+                return new AiRoute("openai", "text-embedding-3-large");
+            };
+        }
     }
 }

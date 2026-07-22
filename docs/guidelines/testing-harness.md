@@ -27,8 +27,8 @@ GitHub CI mirrors the repository gates with three independent jobs: Gradle
 pinned OpenFGA model test. The web build also verifies that TanStack Router's
 committed `routeTree.gen.ts` is current. A stable `CI Gate` aggregates those
 jobs for branch protection. Workflow permissions remain read-only, action
-dependencies are pinned to full commit SHAs, and superseded runs on the same
-pull request are cancelled.
+dependencies use explicit release tags, Node-based actions target the Node 24
+runtime, and superseded runs on the same pull request are cancelled.
 
 JetBrains inspection is intentionally limited to backend `.java` files. Web
 code uses Oxlint and TypeScript as its static-analysis authority; production
