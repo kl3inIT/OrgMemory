@@ -381,9 +381,10 @@ public class KnowledgeIngestionService {
             if (entry == null || entry.principalType() == null) {
                 throw new IllegalArgumentException("ACL principal type is required");
             }
-            if (entry.principalType() == SourcePrincipalType.SOURCE_GROUP) {
+            if (entry.principalType() == SourcePrincipalType.SOURCE_USER
+                    || entry.principalType() == SourcePrincipalType.SOURCE_GROUP) {
                 throw new IllegalArgumentException(
-                        "Source group ACLs require an identity mapping and cannot be marked complete");
+                        "External source ACLs require an identity mapping and cannot be marked complete");
             }
             requireText(entry.principalKey(), "acl principal key");
             if (entry.gate() != AccessGate.ALLOW && entry.gate() != AccessGate.DENY) {

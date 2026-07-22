@@ -12,21 +12,22 @@
   `reject_entry_insert_into_sealed_acl` and
   `reject_source_acl_evidence_mutation` triggers), and the widened
   `chk_source_acl_principal_type` CHECK on `source_acl_entries`.
-- [ ] Add `SOURCE_USER` to `SourcePrincipalType`; extend the
+- [x] Add `SOURCE_USER` to `SourcePrincipalType`; extend the
   `SourceAclPolicy.matches` switch with `case SOURCE_USER, SOURCE_GROUP ->
   false` so the Java recheck stays fail-closed until phase 3.
-- [ ] Extend the `KnowledgeIngestionService` complete-ACL guard that rejects
+- [x] Extend the `KnowledgeIngestionService` complete-ACL guard that rejects
   `SOURCE_GROUP` today so it rejects `SOURCE_USER` for the same reason until
   mapping enforcement lands.
-- [ ] JPA entities and repositories in `core.knowledge`: `SourcePrincipal`
+- [x] JPA entities and repositories in `core.knowledge`: `SourcePrincipal`
   (mutable observation, extends `BaseEntity` like `KnowledgeSpace`),
   `SourcePrincipalMapping` (extends `BaseEntity`), `SourceAclGroupMember`
   (immutable, own `@Id` + `created_at` like `SourceAclEntry`), plus enums
   `SourcePrincipalKind`, mapping method, and mapping status; Modulith
   verification stays green.
-- [ ] Gates: `compileJava`, `ModulithVerificationTests`, and one
-  Testcontainers integration test run so Flyway applies V19 on real
-  PostgreSQL.
+- [x] Gates: `compileJava`, `ModulithVerificationTests`, and the
+  `OrgMemoryApiContextLoadTests` Testcontainers run — Flyway applies V19 on
+  real PostgreSQL and Hibernate `validate` confirms the three new entities
+  match the schema.
 
 ## 2 — Mapping Service And Matcher
 

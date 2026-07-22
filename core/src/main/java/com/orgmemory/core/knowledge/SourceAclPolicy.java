@@ -83,7 +83,9 @@ class SourceAclPolicy {
             case ORGMEMORY_DEPARTMENT -> persistedDepartmentId != null
                     && persistedDepartmentId.toString().equals(entry.getPrincipalKey());
             case ORGMEMORY_ORGANIZATION -> actor.organizationId().toString().equals(entry.getPrincipalKey());
-            case SOURCE_GROUP -> false;
+            // External principals are resolved through the verified mapping ledger in a later
+            // phase; until then they grant nothing so the recheck stays fail-closed.
+            case SOURCE_USER, SOURCE_GROUP -> false;
         };
     }
 }
