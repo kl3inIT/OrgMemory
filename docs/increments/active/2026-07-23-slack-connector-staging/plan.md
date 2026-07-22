@@ -2,14 +2,14 @@
 
 ## 1 — Staging Contract
 
-- [ ] Define `contracts/connector/` versioned JSON schemas: a batch envelope
+- [x] Define `contracts/connector/` versioned JSON schemas: a batch envelope
   (organization, source system, connection key, crawl cursor, per-payload
   versions) and three payload kinds — content, identity (users/groups/
   membership), permissions (per-object ACL). Not a Gradle module.
-- [ ] Add core records mirroring the contract (`ConnectorCrawlBatch`,
+- [x] Add core records mirroring the contract (`ConnectorCrawlBatch`,
   `ConnectorContentItem`, `ConnectorIdentityItem`, `ConnectorPermissionItem`,
   `ConnectorTombstone`) with explicit payload-version fields; unknown version
-  rejected.
+  rejected (`ConnectorContractVersions` + `UnsupportedConnectorPayloadException`).
 
 ## 2 — Connector Ingestion Use Case (core)
 

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orgmemory.com/contracts/connector/crawl-batch.schema.json",
+  "title": "Connector Crawl Batch",
+  "description": "One staging crawl batch a connector hands to ConnectorIngestionService. The envelope carries the tenant, source connection, target Knowledge Space, an opaque resume cursor, and the three separately-versioned payload kinds plus tombstones. An unknown payload version is rejected (fail closed).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "organizationId",
+    "sourceSystem",
+    "sourceConnectionKey",
+    "knowledgeSpaceId",
+    "actorUserId",
+    "crawlCursor",
+    "versions"
+  ],
+  "properties": {
+    "organizationId": { "type": "string", "format": "uuid" },
+    "sourceSystem": { "type": "string", "minLength": 1, "examples": ["slack"] },
+    "sourceConnectionKey": { "type": "string", "minLength": 1, "description": "Workspace/connection id within the source system." },
+    "knowledgeSpaceId": { "type": "string", "format": "uuid" },
+    "actorUserId": { "type": "string", "format": "uuid", "description": "Connection owner recorded as author, publication owner, and audit actor." },
+    "crawlCursor": { "type": "string", "minLength": 1, "description": "Opaque per-connection idempotency/resume marker owned by the batch producer." },
+    "versions": { "$ref": "#/$defs/versions" },
+    "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },
+    "contents": { "type": "array", "items": { "$ref": "#/$defs/content" }, "default": [] },
+    "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" }, "default": [] },
+    "tombstones": { "type": "array", "items": { "$ref": "#/$defs/tombstone" }, "default": [] }
+  },
+  "$defs": {
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "identity", "permission"],
+      "properties": {
+        "content": { "type": "string", "const": "content/v1" },
+        "identity": { "type": "string", "const": "identity/v1" },
+        "permission": { "type": "string", "const": "permissions/v1" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "externalKey"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["SOURCE_USER", "SOURCE_GROUP"] },
+        "externalKey": { "type": "string", "minLength": 1 },
+        "email": { "type": ["string", "null"] },
+        "displayName": { "type": ["string", "null"] },
+        "ssoVerified": { "type": "boolean", "default": false },
+        "idpIssuer": { "type": ["string", "null"] },
+        "idpSubject": { "type": ["string", "null"] },
+        "memberExternalKeys": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "default": [],
+          "description": "For a SOURCE_GROUP, the external keys of its member users at crawl time. Must be empty for a SOURCE_USER."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "SOURCE_USER" } } },
+          "then": { "properties": { "memberExternalKeys": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalObjectId", "title", "body", "contentRevision"],
+      "properties": {
+        "externalObjectId": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "contentRevision": { "type": "string", "minLength": 1, "description": "Source revision marker; the sole content idempotency key." }
+      }
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalObjectId", "grants"],
+      "properties": {
+        "externalObjectId": { "type": "string", "minLength": 1 },
+        "grants": { "type": "array", "items": { "$ref": "#/$defs/grant" } }
+      }
+    },
+    "grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalKind", "principalExternalKey", "gate"],
+      "properties": {
+        "principalKind": { "type": "string", "enum": ["SOURCE_USER", "SOURCE_GROUP"] },
+        "principalExternalKey": { "type": "string", "minLength": 1 },
+        "gate": { "type": "string", "enum": ["ALLOW", "DENY"] }
+      }
+    },
+    "tombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["externalObjectId"],
+      "properties": {
+        "externalObjectId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
