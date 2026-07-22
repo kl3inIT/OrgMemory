@@ -26,13 +26,14 @@ export async function getBrowserCsrfHeader(): Promise<[string, string]> {
 }
 
 export const csrfFetch: typeof fetch = async (input, init) => {
-  const method = init?.method?.toUpperCase() ?? "GET"
+  const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase()
   if (SAFE_METHODS.has(method)) {
     return fetch(input, { ...init, credentials: init?.credentials ?? "same-origin" })
   }
 
   const [headerName, token] = await getBrowserCsrfHeader()
-  const headers = new Headers(init?.headers)
+  const headers = new Headers(input instanceof Request ? input.headers : undefined)
+  new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
   headers.set(headerName, token)
 
   return fetch(input, {

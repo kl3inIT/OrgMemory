@@ -25,6 +25,9 @@ tuples:
   - user: user:laura
     relation: capability_contributor
     object: organization:acme
+  - user: user:laura
+    relation: knowledge_contributor
+    object: organization:acme
   - user: user:evelyn
     relation: capability_reviewer
     object: organization:acme
@@ -51,6 +54,9 @@ tuples:
   - user: organization:acme#member
     relation: viewer
     object: knowledge_space:company
+  - user: organization:acme#knowledge_contributor
+    relation: contributor
+    object: knowledge_space:company
   - user: organization:acme
     relation: organization
     object: knowledge_space:finance
@@ -59,6 +65,9 @@ tuples:
     object: knowledge_space:finance
   - user: organizational_unit:finance#member
     relation: viewer
+    object: knowledge_space:finance
+  - user: organizational_unit:finance#member
+    relation: contributor
     object: knowledge_space:finance
   - user: organization:acme#knowledge_reader
     relation: viewer
@@ -154,6 +163,40 @@ tests:
         assertions:
           can_edit: false
           can_view: false
+
+  - name: Upload targets are authorized on the parent Knowledge Space
+    check:
+      - user: user:laura
+        object: knowledge_space:company
+        assertions:
+          can_create_asset: true
+      - user: user:laura
+        object: knowledge_space:finance
+        assertions:
+          can_create_asset: true
+      - user: user:minh
+        object: knowledge_space:finance
+        assertions:
+          can_create_asset: false
+      - user: user:evelyn
+        object: knowledge_space:executive
+        assertions:
+          can_create_asset: false
+      - user: user:unknown
+        object: knowledge_space:company
+        assertions:
+          can_create_asset: false
+    list_objects:
+      - user: user:laura
+        type: knowledge_space
+        assertions:
+          can_create_asset:
+            - knowledge_space:company
+            - knowledge_space:finance
+      - user: user:minh
+        type: knowledge_space
+        assertions:
+          can_create_asset: []
 
   - name: List only knowledge assets visible to each user
     list_objects:

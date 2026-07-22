@@ -17,6 +17,9 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
+    @Column(name = "knowledge_space_id", nullable = false, updatable = false)
+    private UUID knowledgeSpaceId;
+
     @Column(name = "source_revision_id", nullable = false, updatable = false)
     private UUID sourceRevisionId;
 
@@ -71,6 +74,7 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
     KnowledgeAssetPublicationOutbox(PublishKnowledgeAssetCommand command, UUID knowledgeAssetId) {
         super(UUID.randomUUID());
         this.organizationId = command.organizationId();
+        this.knowledgeSpaceId = command.knowledgeSpaceId();
         this.sourceRevisionId = command.sourceRevisionId();
         this.sourceObjectId = command.sourceObjectId();
         this.knowledgeAssetId = knowledgeAssetId;
@@ -84,6 +88,7 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
 
     void requireSamePublication(PublishKnowledgeAssetCommand command, UUID expectedAssetId) {
         if (!organizationId.equals(command.organizationId())
+                || !knowledgeSpaceId.equals(command.knowledgeSpaceId())
                 || !sourceRevisionId.equals(command.sourceRevisionId())
                 || !sourceObjectId.equals(command.sourceObjectId())
                 || !knowledgeAssetId.equals(expectedAssetId)
@@ -125,6 +130,10 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
 
     UUID getOrganizationId() {
         return organizationId;
+    }
+
+    UUID getKnowledgeSpaceId() {
+        return knowledgeSpaceId;
     }
 
     UUID getSourceRevisionId() {

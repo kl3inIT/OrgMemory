@@ -59,7 +59,7 @@ the pinned OpenFGA model; no generic event framework has been introduced.
 
 The capability registry persists organizations, departments, users, external
 identities, capability assets, versions, usage, approval events, tags, and
-embeddings. The knowledge slice persists the canonical upload ledger
+embeddings. The knowledge slice persists Knowledge Spaces and the canonical upload ledger
 (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob` metadata), leased
 ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
 versioned chunks and embedding profiles, sealed ACL snapshots and entries,
@@ -75,11 +75,12 @@ The implemented service/test-backed one-leaf path is:
 RawSourceObject -> NormalizedRecord -> KnowledgeAsset
 ```
 
-For knowledge list/detail reads, SQL filters organization, lifecycle, immutable
-ingestion ACL, current ACL head, OrgMemory policy, and classification before
-keyword matching and `LIMIT`. Java verifies returned rows again. A missing,
-unknown, stale, unsupported, or denied decision fails closed. Denied detail and
-missing detail both return a generic `404`.
+Secure knowledge search first resolves authorized Knowledge Asset IDs with
+OpenFGA `ListObjects`. SQL then filters organization, lifecycle, immutable and
+current ACL, publication/model/profile state, and classification before ranking
+PostgreSQL FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL
+recheck guard every returned citation. Missing, unknown, stale, unsupported, or
+denied decisions fail closed.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
@@ -93,10 +94,8 @@ bootstrap identity or grant application permissions. External source principals
 and groups are not mapped into that identity model yet.
 
 Only explicitly namespaced OrgMemory user, department, and organization
-principals are supported. The one-leaf promotion is not a public ingestion API.
-External source groups, connector staging, vector/hybrid knowledge search,
-multi-source derivation, and permission-aware agent/MCP wiring are not
-implemented.
+principals are supported. External source groups, connector staging,
+multi-source derivation, and permission-aware MCP delivery are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -105,13 +104,16 @@ control-plane entry and Capability Asset create/view/edit/review decisions.
 Transactional asset ownership and visibility facts are passed as contextual
 tuples; organization membership and role assignments are persistent OpenFGA
 tuples. The versioned model has executable allow/deny and list-object tests.
-Direct-upload publication writes the uploader's persistent `owner` tuple
-idempotently and keeps the asset/chunks `PENDING` until OpenFGA confirms it. The
+Direct upload lists only Knowledge Spaces authorized by OpenFGA
+`can_create_asset`, rechecks the selected parent before any object-store write,
+and carries that Space identity through the immutable source ledger. Publication
+writes the Space and uploader-owner tuples together and keeps the asset/chunks
+`PENDING` until OpenFGA confirms them. The
 model id, attempts, and failure reason are recorded in the publication outbox;
-the existing ingestion job provides durable retry. Knowledge Asset retrieval
-still uses the prior relational policy and is the next cutover; source ACL
-remains the immutable permission ceiling. External source-principal and
-knowledge-space tuple projection are not implemented yet.
+the existing ingestion job provides durable retry. Source ACL remains an
+independent permission ceiling: internal upload ACLs grant the organization and
+confidential upload ACLs grant the selected Space's department. External
+source-principal projection is not implemented yet.
 
 ## Current AI And Graph Behavior
 

@@ -39,6 +39,7 @@ public class KnowledgeIngestionService {
     private final NormalizedRecordRepository normalizedRecords;
     private final KnowledgeAssetRepository knowledgeAssets;
     private final KnowledgePermissionPolicy permissionPolicy;
+    private final KnowledgeSpaceService knowledgeSpaces;
     private final EntityManager entityManager;
 
     public KnowledgeIngestionService(
@@ -52,6 +53,7 @@ public class KnowledgeIngestionService {
             NormalizedRecordRepository normalizedRecords,
             KnowledgeAssetRepository knowledgeAssets,
             KnowledgePermissionPolicy permissionPolicy,
+            KnowledgeSpaceService knowledgeSpaces,
             EntityManager entityManager) {
         this.organizations = organizations;
         this.departments = departments;
@@ -63,6 +65,7 @@ public class KnowledgeIngestionService {
         this.normalizedRecords = normalizedRecords;
         this.knowledgeAssets = knowledgeAssets;
         this.permissionPolicy = permissionPolicy;
+        this.knowledgeSpaces = knowledgeSpaces;
         this.entityManager = entityManager;
     }
 
@@ -262,6 +265,7 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(command.organizationId(), "organizationId");
         Objects.requireNonNull(command.normalizedRecordId(), "normalizedRecordId");
+        Objects.requireNonNull(command.knowledgeSpaceId(), "knowledgeSpaceId");
         if (command.orgMemoryGate() != AccessGate.ALLOW) {
             throw new IllegalArgumentException("Promotion requires an explicit OrgMemory ALLOW decision");
         }
@@ -270,8 +274,13 @@ public class KnowledgeIngestionService {
         NormalizedRecord normalized = normalizedRecords
                 .findByIdAndOrganizationId(command.normalizedRecordId(), command.organizationId())
                 .orElseThrow(() -> new IllegalArgumentException("Normalized record was not found"));
+        knowledgeSpaces.requireInOrganization(command.organizationId(), command.knowledgeSpaceId());
         var existing = knowledgeAssets.findByNormalizedRecordId(normalized.getId());
         if (existing.isPresent()) {
+            if (!existing.get().getKnowledgeSpaceId().equals(command.knowledgeSpaceId())) {
+                throw new KnowledgeIngestionConflictException(
+                        "The normalized record is already assigned to another Knowledge Space");
+            }
             return knowledgeRef(existing.get());
         }
         if (normalized.getStatus() != NormalizedRecordStatus.READY) {
@@ -302,7 +311,7 @@ public class KnowledgeIngestionService {
         validatePromotableMetadata(normalized);
 
         KnowledgeAsset asset = knowledgeAssets.save(new KnowledgeAsset(
-                normalized, command.orgMemoryGate()));
+                normalized, command.knowledgeSpaceId(), command.orgMemoryGate()));
         normalized.markPromoted();
         normalizedRecords.save(normalized);
         return knowledgeRef(asset);

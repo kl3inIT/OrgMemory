@@ -30,7 +30,10 @@ class KnowledgeAssetPublicationCoordinator {
     @Transactional
     KnowledgeAssetPublicationState prepare(PublishKnowledgeAssetCommand command) {
         KnowledgeAssetRef asset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                command.organizationId(), command.normalizedRecordId(), AccessGate.ALLOW));
+                command.organizationId(),
+                command.knowledgeSpaceId(),
+                command.normalizedRecordId(),
+                AccessGate.ALLOW));
         var existing = publications.findByKnowledgeAssetId(asset.knowledgeAssetId());
         if (existing.isPresent()) {
             KnowledgeAssetPublicationOutbox publication = existing.get();
@@ -126,6 +129,7 @@ class KnowledgeAssetPublicationCoordinator {
         return new KnowledgeAssetPublicationState(
                 publication.getId(),
                 publication.getOrganizationId(),
+                publication.getKnowledgeSpaceId(),
                 publication.getSourceRevisionId(),
                 publication.getKnowledgeAssetId(),
                 publication.getOwnerUserId(),

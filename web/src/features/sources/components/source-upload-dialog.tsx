@@ -16,25 +16,43 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { UploadSourceInput } from "@/features/sources/api/upload-source"
+import type { KnowledgeSpaceResponse } from "@/lib/hey-api"
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024
 
 export function SourceUploadDialog({
   pending,
+  spaces,
+  spacesPending,
+  spacesError,
+  onRetrySpaces,
   onUpload,
 }: {
   pending: boolean
+  spaces: KnowledgeSpaceResponse[]
+  spacesPending: boolean
+  spacesError: boolean
+  onRetrySpaces: () => void
   onUpload: (input: UploadSourceInput) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File>()
   const [classification, setClassification] = useState<UploadSourceInput["classification"]>("CONFIDENTIAL")
+  const [knowledgeSpaceId, setKnowledgeSpaceId] = useState("")
   const [error, setError] = useState<string>()
+  const availableSpaces = spaces.filter(
+    (space): space is KnowledgeSpaceResponse & { id: string; name: string } =>
+      Boolean(space.id && space.name) && (classification === "INTERNAL" || Boolean(space.departmentId)),
+  )
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) {
       setError("Choose a file to upload.")
+      return
+    }
+    if (!knowledgeSpaceId) {
+      setError("Choose a Knowledge Space.")
       return
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -43,10 +61,11 @@ export function SourceUploadDialog({
     }
     setError(undefined)
     try {
-      await onUpload({ file, classification })
+      await onUpload({ file, classification, knowledgeSpaceId })
       setOpen(false)
       setFile(undefined)
       setClassification("CONFIDENTIAL")
+      setKnowledgeSpaceId("")
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The upload could not be completed.")
     }
@@ -83,11 +102,53 @@ export function SourceUploadDialog({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="source-space">Knowledge Space</Label>
+            {spacesPending ? (
+              <div className="flex h-9 items-center gap-2 text-sm text-muted-foreground" role="status">
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                Loading available spaces
+              </div>
+            ) : null}
+            {spacesError ? (
+              <Alert variant="destructive">
+                <AlertDescription className="flex items-center justify-between gap-3">
+                  Available spaces could not be loaded.
+                  <Button type="button" variant="outline" size="sm" onClick={onRetrySpaces}>
+                    Try again
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {!spacesPending && !spacesError ? (
+              <Select value={knowledgeSpaceId} disabled={pending} onValueChange={setKnowledgeSpaceId}>
+                <SelectTrigger id="source-space" className="w-full">
+                  <SelectValue placeholder="Choose a space" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSpaces.map((space) => (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            {!spacesPending && !spacesError && availableSpaces.length === 0 ? (
+              <p className="text-sm text-muted-foreground">You do not have permission to upload to this scope.</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="source-classification">Classification</Label>
             <Select
               value={classification}
               disabled={pending}
-              onValueChange={(value: string) => setClassification(value as UploadSourceInput["classification"])}
+              onValueChange={(value: string) => {
+                const next = value as UploadSourceInput["classification"]
+                setClassification(next)
+                const selected = spaces.find((space) => space.id === knowledgeSpaceId)
+                if (next === "CONFIDENTIAL" && !selected?.departmentId) setKnowledgeSpaceId("")
+              }}
             >
               <SelectTrigger id="source-classification" className="w-full">
                 <SelectValue />
@@ -109,7 +170,10 @@ export function SourceUploadDialog({
             <Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button
+              type="submit"
+              disabled={pending || spacesPending || spacesError || availableSpaces.length === 0}
+            >
               {pending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
               {pending ? "Uploading" : "Upload"}
             </Button>

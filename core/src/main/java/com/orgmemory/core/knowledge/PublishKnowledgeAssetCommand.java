@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record PublishKnowledgeAssetCommand(
         UUID organizationId,
+        UUID knowledgeSpaceId,
         UUID sourceObjectId,
         UUID sourceRevisionId,
         UUID normalizedRecordId,
@@ -17,6 +18,7 @@ public record PublishKnowledgeAssetCommand(
 
     public PublishKnowledgeAssetCommand {
         Objects.requireNonNull(organizationId, "organizationId");
+        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         Objects.requireNonNull(sourceObjectId, "sourceObjectId");
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         Objects.requireNonNull(normalizedRecordId, "normalizedRecordId");

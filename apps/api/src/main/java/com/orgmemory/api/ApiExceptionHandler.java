@@ -3,6 +3,7 @@ package com.orgmemory.api;
 import com.orgmemory.core.capability.CapabilityAssetNotFoundException;
 import com.orgmemory.core.assistant.AssistantUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,6 +52,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(KnowledgeRetrievalUnavailableException.class)
     ProblemDetail retrievalUnavailable(KnowledgeRetrievalUnavailableException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    @ExceptionHandler(KnowledgeSpaceUnavailableException.class)
+    ProblemDetail knowledgeSpaceUnavailable(KnowledgeSpaceUnavailableException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 

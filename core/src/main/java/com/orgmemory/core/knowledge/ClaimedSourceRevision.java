@@ -8,6 +8,7 @@ import java.util.UUID;
 public record ClaimedSourceRevision(
         UUID jobId,
         UUID organizationId,
+        UUID knowledgeSpaceId,
         UUID sourceObjectId,
         UUID sourceRevisionId,
         UUID evidenceBlobId,

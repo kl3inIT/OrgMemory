@@ -37,7 +37,7 @@
 - [ ] Converge persistent Capability Asset tuples, then replace its list-path
   per-row OpenFGA checks and per-row usage counts with ListObjects/BatchCheck,
   pagination, and one aggregate count query.
-- [ ] Make direct upload target a Knowledge Space and authorize the command at
+- [x] Make direct upload target a Knowledge Space and authorize the command at
   its parent with `can_create_asset`; reserve organization
   `can_manage_sources` for administrative source operations.
 - [ ] Build the in-app assistant on the verified retrieval service, then expose

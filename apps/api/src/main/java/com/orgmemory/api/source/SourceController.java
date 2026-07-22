@@ -9,6 +9,7 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -49,6 +50,7 @@ class SourceController {
     SourceResponse upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam(defaultValue = "CONFIDENTIAL") KnowledgeClassification classification,
+            @RequestParam UUID knowledgeSpaceId,
             Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
         try (var content = file.getInputStream()) {
@@ -58,7 +60,8 @@ class SourceController {
                             file.getOriginalFilename(),
                             file.getContentType(),
                             file.getSize(),
-                            classification),
+                            classification,
+                            knowledgeSpaceId),
                     content));
         } catch (IOException exception) {
             throw new ResponseStatusException(
