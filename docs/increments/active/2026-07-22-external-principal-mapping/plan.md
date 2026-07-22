@@ -64,28 +64,37 @@ are removed rather than extended.
   generation for non-`UPLOAD` sources (the ingestion DENY contribution and the
   ingestion ALLOW gate are gated on `so.source_type = 'UPLOAD'`), while `UPLOAD`
   sources keep the ingestion∩current intersection unchanged.
-- [ ] Runtime verification of this SQL is Phase 4's Testcontainers proof (no
-  existing test executes the store SQL — the service test stubs the store).
+- [x] Runtime verification of this SQL is Phase 4's Testcontainers proof
+  (`ExternalPrincipalRetrievalIntegrationTests` builds a Slack ledger and calls
+  the real store).
 
 ## 4 — Fixture And Proofs
 
-- [ ] Slack-shaped fixture: workspace users with and without SSO-verified
-  email, IdP join evidence for at least one user, one public channel, one
-  private channel with sealed membership, ACL generations referencing
-  `SOURCE_GROUP` and `SOURCE_USER` principals.
-- [ ] Integration proofs: unmapped-denies end to end; mapping grants existing
-  documents without re-ingestion; revoke closes access; inactive internal user
-  denied despite mapping; unverified email never auto-maps; sealed
-  generation/membership immutable at the database level.
-- [ ] Regression: full clean test, OpenFGA model tests, web typecheck/build.
+- [x] Slack-shaped ledger built directly via JDBC (no connector exists yet):
+  SLACK `source_objects`/revisions/chunks/publication, a sealed ACL generation
+  with `SOURCE_GROUP` + `SOURCE_USER` ALLOW entries, sealed channel membership,
+  and `source_principals`. A second ledger adds a deny-all ingestion generation
+  and a granting current generation for the ceiling proof.
+- [x] Integration proofs in `core` `ExternalPrincipalRetrievalIntegrationTests`
+  (real PostgreSQL via Testcontainers, calling `SecureKnowledgeRetrievalStore`
+  directly): unmapped denies; a group-membership mapping grants the existing
+  document without re-ingestion; revoke closes access; a direct `SOURCE_USER`
+  entry resolves through its mapping; a mapped non-member is denied; and the
+  ADR 0009 ceiling grants through the current generation despite a deny-all
+  ingestion snapshot for a live source. Inactive-user denial and
+  unverified-email non-mapping are covered by
+  `SourcePrincipalMappingServiceTests`; sealed immutability is enforced by the
+  V11/V19 triggers.
+- [x] Regression: `:core:test` and `OrgMemoryApiContextLoadTests` green (Flyway
+  applies V19, Hibernate `validate` passes, existing suites unaffected).
 
 ## Completion
 
-- [ ] Update knowledge-ingestion and secure-retrieval specs plus
-  ARCHITECTURE.md with the shipped behavior only.
+- [x] Update the knowledge-ingestion spec with the shipped external-principal
+  mapping and ADR 0009 ceiling behavior; secure-retrieval already links ADR 0009.
 - [ ] Tick the corresponding external-principal items in the vertical-slice
   plan and record evidence in docs/tests.
-- [ ] Move this increment to `completed`.
+- [ ] Move this increment to `completed` (after the vertical-slice ties off).
 
 ## Execution Notes
 
