@@ -4,10 +4,14 @@ spring:
   ai:
     model:
       chat: ${ORGMEMORY_AI_MODEL_CHAT:none}
+      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
     openai:
       api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
       chat:
         model: ${ORGMEMORY_OPENAI_MODEL:gpt-5.5}
+      embedding:
+        model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
+        dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
   config:
     import: optional:file:.env[.properties],optional:file:../../.env[.properties],optional:file:.openfga.local.properties,optional:file:../../.openfga.local.properties
   threads:
@@ -44,6 +48,33 @@ spring:
       max-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
 
 orgmemory:
+  assistant:
+    heartbeat-interval: ${ORGMEMORY_ASSISTANT_HEARTBEAT_INTERVAL:15s}
+    turn-timeout: ${ORGMEMORY_ASSISTANT_TURN_TIMEOUT:2m}
+  ai:
+    gateways:
+      openai:
+        display-name: OpenAI
+        base-url: ${ORGMEMORY_OPENAI_BASE_URL:https://api.openai.com}
+        api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
+        capabilities: [CHAT, EMBEDDING]
+        timeout: ${ORGMEMORY_AI_GATEWAY_TIMEOUT:60s}
+    routes:
+      assistant-chat:
+        gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
+        model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.5}
+      embedding:
+        gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
+        model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
+  retrieval:
+    maximum-results: ${ORGMEMORY_RETRIEVAL_MAXIMUM_RESULTS:20}
+    candidate-multiplier: ${ORGMEMORY_RETRIEVAL_CANDIDATE_MULTIPLIER:5}
+    maximum-authorized-objects: ${ORGMEMORY_RETRIEVAL_MAXIMUM_AUTHORIZED_OBJECTS:5000}
+    maximum-query-length: ${ORGMEMORY_RETRIEVAL_MAXIMUM_QUERY_LENGTH:1000}
+    embedding:
+      provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
+      model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
+      dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
   ingestion:
     maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}

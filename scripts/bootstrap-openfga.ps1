@@ -6,7 +6,10 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $cli = Join-Path $repoRoot ".tools\openfga\fga.exe"
 $model = Join-Path $repoRoot "integrations\authorization-openfga\src\main\openfga\model.fga"
-$tuples = Join-Path $repoRoot "integrations\authorization-openfga\src\main\openfga\local-demo-tuples.csv"
+$tupleFiles = @(
+    (Join-Path $repoRoot "integrations\authorization-openfga\src\main\openfga\local-demo-tuples.csv"),
+    (Join-Path $repoRoot "demo\fixtures\openfga\dataset-tuples.csv")
+)
 $output = Join-Path $repoRoot ".openfga.local.properties"
 
 if (-not (Test-Path -LiteralPath $cli)) {
@@ -32,23 +35,34 @@ if ([string]::IsNullOrWhiteSpace($storeId) -or [string]::IsNullOrWhiteSpace($mod
     throw "OpenFGA CLI returned no store or authorization model id."
 }
 
-& $cli tuple write `
-    --api-url $ApiUrl `
-    --store-id $storeId `
-    --model-id $modelId `
-    --file $tuples `
-    --on-duplicate ignore `
-    --hide-imported-tuples
+foreach ($tupleFile in $tupleFiles) {
+    if (-not (Test-Path -LiteralPath $tupleFile)) {
+        throw "OpenFGA tuple fixture does not exist: $tupleFile"
+    }
 
-if ($LASTEXITCODE -ne 0) {
-    throw "OpenFGA demo relationship import failed."
+    & $cli tuple write `
+        --api-url $ApiUrl `
+        --store-id $storeId `
+        --model-id $modelId `
+        --file $tupleFile `
+        --on-duplicate ignore `
+        --hide-imported-tuples
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenFGA relationship import failed for $tupleFile."
+    }
 }
 
-@(
+$configuration = @(
     "orgmemory.authorization.openfga.api-url=$ApiUrl"
     "orgmemory.authorization.openfga.store-id=$storeId"
     "orgmemory.authorization.openfga.authorization-model-id=$modelId"
-) | Set-Content -LiteralPath $output -Encoding utf8NoBOM
+)
+[System.IO.File]::WriteAllLines(
+    $output,
+    $configuration,
+    [System.Text.UTF8Encoding]::new($false)
+)
 
 Write-Host "OpenFGA local store created."
 Write-Host "Store ID: $storeId"

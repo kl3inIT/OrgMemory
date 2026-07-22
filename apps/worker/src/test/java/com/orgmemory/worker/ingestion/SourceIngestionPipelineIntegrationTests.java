@@ -9,14 +9,27 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.ai.AiRoute;
+import com.orgmemory.core.ai.AiRouteResolver;
+import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
+import com.orgmemory.core.authorization.BatchAuthorizationResult;
+import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
+import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
+import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.SourceUploadService;
+import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.QueryEmbedding;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -30,6 +43,8 @@ import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -38,12 +53,15 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
@@ -56,7 +74,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-model=text-embedding-3-large",
         "orgmemory.ingestion.processing.embedding-dimensions=1536"
 })
-@Import(SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class)
+@Import({
+        SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class,
+        SecureKnowledgeRetrievalService.class
+})
+@EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SourceIngestionPipelineIntegrationTests {
@@ -80,6 +102,15 @@ class SourceIngestionPipelineIntegrationTests {
     @MockitoBean
     RelationshipTupleWritePort relationshipTuples;
 
+    @MockitoBean
+    RelationshipAuthorizationPort entryAuthorization;
+
+    @MockitoBean
+    RelationshipAuthorizationSetPort setAuthorization;
+
+    @MockitoBean
+    QueryEmbeddingPort queryEmbeddings;
+
     @Autowired
     SourceUploadService uploads;
 
@@ -91,6 +122,9 @@ class SourceIngestionPipelineIntegrationTests {
 
     @Autowired
     EmbeddingProfileRegistry embeddingProfiles;
+
+    @Autowired
+    SecureKnowledgeRetrievalService retrieval;
 
     @Test
     @SuppressWarnings("SqlResolve")
@@ -202,6 +236,107 @@ class SourceIngestionPipelineIntegrationTests {
         assertEquals(
                 "knowledge_asset:" + revision.get("knowledge_asset_id"),
                 writeRequest.getValue().tuples().getFirst().object());
+
+        UUID assetId = (UUID) revision.get("knowledge_asset_id");
+        ResourceRef resource = ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", assetId);
+        when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow("model-1"));
+        when(setAuthorization.listAuthorizedResources(any())).thenReturn(
+                AuthorizedResourceSetResult.resolved(List.of(resource), "model-1"));
+        when(setAuthorization.batchCheck(any())).thenReturn(BatchAuthorizationResult.resolved(
+                Map.of(resource, AuthorizationDecision.allow("model-1")),
+                "model-1"));
+        when(queryEmbeddings.embed(any(), any())).thenReturn(Optional.of(new QueryEmbedding(
+                (UUID) revision.get("embedding_profile_id"),
+                1536,
+                embedding())));
+
+        var permitted = retrieval.search(ACTOR, "customer resolution", 10, "retrieval-allowed");
+        assertEquals(1, permitted.evidence().size());
+        assertEquals(assetId, permitted.evidence().getFirst().knowledgeAssetId());
+
+        jdbc.update(
+                "UPDATE knowledge_asset_publication_outbox SET authorization_model_id = 'model-2' WHERE knowledge_asset_id = ?",
+                assetId);
+        assertEquals(
+                0,
+                retrieval.search(ACTOR, "customer resolution", 10, "retrieval-model-mismatch")
+                        .evidence()
+                        .size());
+        jdbc.update(
+                "UPDATE knowledge_asset_publication_outbox SET authorization_model_id = 'model-1' WHERE knowledge_asset_id = ?",
+                assetId);
+
+        assertEquals(
+                1,
+                retrieval.search(ACTOR, "semantically related but lexically absent", 10, "retrieval-vector")
+                        .evidence()
+                        .size());
+        when(queryEmbeddings.embed(any(), any())).thenReturn(Optional.of(new QueryEmbedding(
+                UUID.randomUUID(),
+                1536,
+                embedding())));
+        assertEquals(
+                0,
+                retrieval.search(ACTOR, "semantically related but lexically absent", 10, "retrieval-profile-mismatch")
+                        .evidence()
+                        .size());
+        when(queryEmbeddings.embed(any(), any())).thenReturn(Optional.of(new QueryEmbedding(
+                (UUID) revision.get("embedding_profile_id"),
+                1536,
+                embedding())));
+
+        jdbc.update("UPDATE knowledge_chunks SET active = false WHERE knowledge_asset_id = ?", assetId);
+        assertEquals(
+                0,
+                retrieval.search(ACTOR, "customer resolution", 10, "retrieval-inactive-generation")
+                        .evidence()
+                        .size());
+        jdbc.update("UPDATE knowledge_chunks SET active = true WHERE knowledge_asset_id = ?", assetId);
+
+        UUID staleSnapshotId = UUID.randomUUID();
+        UUID rawSourceId = (UUID) revision.get("raw_source_object_id");
+        jdbc.update(
+                """
+                INSERT INTO source_acl_snapshots (
+                    id, organization_id, raw_source_object_id, acl_generation,
+                    capture_status, default_gate, acl_sha256, captured_at, valid_until
+                ) VALUES (?, ?, ?, 2, 'COMPLETE', 'DENY', repeat('d', 64),
+                          now() - interval '2 hours', now() - interval '1 hour')
+                """,
+                staleSnapshotId,
+                ORGANIZATION_ID,
+                rawSourceId);
+        jdbc.update(
+                """
+                INSERT INTO source_acl_entries (
+                    id, organization_id, source_acl_snapshot_id,
+                    principal_type, principal_key, gate, created_at
+                ) VALUES (?, ?, ?, 'ORGMEMORY_USER', ?, 'ALLOW', now() - interval '2 hours')
+                """,
+                UUID.randomUUID(),
+                ORGANIZATION_ID,
+                staleSnapshotId,
+                USER_ID.toString());
+        jdbc.update(
+                """
+                INSERT INTO source_acl_snapshot_seals (
+                    source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at
+                ) VALUES (?, ?, 1, repeat('e', 64), now() - interval '2 hours')
+                """,
+                staleSnapshotId,
+                ORGANIZATION_ID);
+        jdbc.update(
+                """
+                UPDATE source_acl_heads
+                SET current_snapshot_id = ?, acl_generation = 2, updated_at = now(), version = version + 1
+                WHERE organization_id = ? AND current_raw_source_object_id = ?
+                """,
+                staleSnapshotId,
+                ORGANIZATION_ID,
+                rawSourceId);
+
+        var staleAcl = retrieval.search(ACTOR, "customer resolution", 10, "retrieval-stale-acl");
+        assertEquals(0, staleAcl.evidence().size());
     }
 
     @Test
@@ -348,5 +483,16 @@ class SourceIngestionPipelineIntegrationTests {
                     type = FilterType.REGEX,
                     pattern = "com\\.orgmemory\\.core\\.knowledge\\.Source(UploadService|UploadRegistrationService|QueryService)"))
     static class UploadTestConfiguration {
+
+        @Bean
+        @Primary
+        AiRouteResolver testAiRouteResolver() {
+            return workload -> {
+                if (workload != AiWorkload.DOCUMENT_EMBEDDING) {
+                    throw new IllegalArgumentException("Unsupported test workload: " + workload);
+                }
+                return new AiRoute("openai", "text-embedding-3-large");
+            };
+        }
     }
 }

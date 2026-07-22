@@ -8,4 +8,4 @@
 | Database rejects update/delete/truncate | `#databaseRejectsUpdateDeleteAndTruncate` |
 | Database rejects free-form metadata | `#databaseRejectsFreeFormAuditMetadata` |
 | Permission matrix/fail-closed rules | `KnowledgePermissionPolicyTests` |
-| Multi-document all-sources-allowed rule | `PermissionDatasetValidatorTests#allDocumentsInMultiDocumentEvaluationMustBeAllowed` |
+| Denied evidence is omitted at the final citation boundary | `SecureKnowledgeRetrievalServiceTests#citationMissingAtCanonicalRecheckIsOmitted` |

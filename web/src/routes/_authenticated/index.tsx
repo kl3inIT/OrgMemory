@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { AssistantWorkspace } from "@/features/assistant/components/assistant-workspace"
+import { AssistantPage } from "@/features/assistant/components/assistant-page"
 
 export const Route = createFileRoute("/_authenticated/")({
-  component: AssistantWorkspace,
+  component: AssistantPage,
 })

@@ -1,0 +1,642 @@
+[
+  {
+    "documentId": "DOC001",
+    "title": "Sổ tay nhân viên",
+    "department": "Company",
+    "classification": "Public",
+    "allowedAccess": "All",
+    "owner": "Company",
+    "lastUpdated": "2025-02-04",
+    "tags": [
+      "sổ",
+      "company",
+      "public"
+    ],
+    "language": "vi",
+    "file": "DOC001.md"
+  },
+  {
+    "documentId": "DOC002",
+    "title": "Chính sách nghỉ phép",
+    "department": "Company",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Company",
+    "lastUpdated": "2025-03-07",
+    "tags": [
+      "chính",
+      "company",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC002.md"
+  },
+  {
+    "documentId": "DOC003",
+    "title": "Chính sách công tác và di chuyển",
+    "department": "Company",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Company",
+    "lastUpdated": "2025-04-10",
+    "tags": [
+      "chính",
+      "company",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC003.md"
+  },
+  {
+    "documentId": "DOC004",
+    "title": "Chính sách sử dụng CNTT",
+    "department": "Company",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Company",
+    "lastUpdated": "2025-05-13",
+    "tags": [
+      "chính",
+      "company",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC004.md"
+  },
+  {
+    "documentId": "DOC005",
+    "title": "Quy tắc ứng xử",
+    "department": "Company",
+    "classification": "Public",
+    "allowedAccess": "All",
+    "owner": "Company",
+    "lastUpdated": "2025-06-16",
+    "tags": [
+      "quy",
+      "company",
+      "public"
+    ],
+    "language": "vi",
+    "file": "DOC005.md"
+  },
+  {
+    "documentId": "DOC006",
+    "title": "Quy trình tuyển dụng",
+    "department": "HR",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "HR",
+    "lastUpdated": "2025-07-19",
+    "tags": [
+      "quy",
+      "hr",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC006.md"
+  },
+  {
+    "documentId": "DOC007",
+    "title": "Khung lương tham khảo",
+    "department": "HR",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "HR",
+    "lastUpdated": "2025-08-22",
+    "tags": [
+      "khung",
+      "hr",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC007.md"
+  },
+  {
+    "documentId": "DOC008",
+    "title": "Quy trình đánh giá hiệu suất",
+    "department": "HR",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "HR",
+    "lastUpdated": "2025-09-25",
+    "tags": [
+      "quy",
+      "hr",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC008.md"
+  },
+  {
+    "documentId": "DOC009",
+    "title": "Chính sách đào tạo",
+    "department": "HR",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "HR",
+    "lastUpdated": "2025-10-03",
+    "tags": [
+      "chính",
+      "hr",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC009.md"
+  },
+  {
+    "documentId": "DOC010",
+    "title": "Hướng dẫn onboarding",
+    "department": "HR",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "HR",
+    "lastUpdated": "2025-11-06",
+    "tags": [
+      "hướng",
+      "hr",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC010.md"
+  },
+  {
+    "documentId": "DOC011",
+    "title": "Chính sách hoàn ứng chi phí",
+    "department": "Finance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Finance",
+    "lastUpdated": "2025-12-09",
+    "tags": [
+      "chính",
+      "finance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC011.md"
+  },
+  {
+    "documentId": "DOC012",
+    "title": "Hướng dẫn lập ngân sách",
+    "department": "Finance",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Finance",
+    "lastUpdated": "2025-01-12",
+    "tags": [
+      "hướng",
+      "finance",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC012.md"
+  },
+  {
+    "documentId": "DOC013",
+    "title": "Quy trình thanh toán nhà cung cấp",
+    "department": "Finance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Finance",
+    "lastUpdated": "2025-02-15",
+    "tags": [
+      "quy",
+      "finance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC013.md"
+  },
+  {
+    "documentId": "DOC014",
+    "title": "Ma trận phê duyệt tài chính",
+    "department": "Finance",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Finance",
+    "lastUpdated": "2025-03-18",
+    "tags": [
+      "ma",
+      "finance",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC014.md"
+  },
+  {
+    "documentId": "DOC015",
+    "title": "Chính sách mua sắm",
+    "department": "Finance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Finance",
+    "lastUpdated": "2025-04-21",
+    "tags": [
+      "chính",
+      "finance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC015.md"
+  },
+  {
+    "documentId": "DOC016",
+    "title": "Chiến lược sản phẩm",
+    "department": "Product",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Product",
+    "lastUpdated": "2025-05-24",
+    "tags": [
+      "chiến",
+      "product",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC016.md"
+  },
+  {
+    "documentId": "DOC017",
+    "title": "Lộ trình sản phẩm",
+    "department": "Product",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Product",
+    "lastUpdated": "2025-06-02",
+    "tags": [
+      "lộ",
+      "product",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC017.md"
+  },
+  {
+    "documentId": "DOC018",
+    "title": "Quy trình phát hành sản phẩm",
+    "department": "Product",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Product",
+    "lastUpdated": "2025-07-05",
+    "tags": [
+      "quy",
+      "product",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC018.md"
+  },
+  {
+    "documentId": "DOC019",
+    "title": "Khung KPI sản phẩm",
+    "department": "Product",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Product",
+    "lastUpdated": "2025-08-08",
+    "tags": [
+      "khung",
+      "product",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC019.md"
+  },
+  {
+    "documentId": "DOC020",
+    "title": "Mẫu PRD chuẩn",
+    "department": "Product",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Product",
+    "lastUpdated": "2025-09-11",
+    "tags": [
+      "mẫu",
+      "product",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC020.md"
+  },
+  {
+    "documentId": "DOC021",
+    "title": "Tiêu chuẩn kiến trúc hệ thống",
+    "department": "Engineering",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Engineering",
+    "lastUpdated": "2025-10-14",
+    "tags": [
+      "tiêu",
+      "engineering",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC021.md"
+  },
+  {
+    "documentId": "DOC022",
+    "title": "Coding Standards",
+    "department": "Engineering",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Engineering",
+    "lastUpdated": "2025-11-17",
+    "tags": [
+      "coding",
+      "engineering",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC022.md"
+  },
+  {
+    "documentId": "DOC023",
+    "title": "Hướng dẫn triển khai",
+    "department": "Engineering",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Engineering",
+    "lastUpdated": "2025-12-20",
+    "tags": [
+      "hướng",
+      "engineering",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC023.md"
+  },
+  {
+    "documentId": "DOC024",
+    "title": "Quy trình xử lý sự cố kỹ thuật",
+    "department": "Engineering",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Engineering",
+    "lastUpdated": "2025-01-23",
+    "tags": [
+      "quy",
+      "engineering",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC024.md"
+  },
+  {
+    "documentId": "DOC025",
+    "title": "Quy trình yêu cầu môi trường phát triển",
+    "department": "Engineering",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Engineering",
+    "lastUpdated": "2025-02-01",
+    "tags": [
+      "quy",
+      "engineering",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC025.md"
+  },
+  {
+    "documentId": "DOC026",
+    "title": "Quy trình hỗ trợ khách hàng",
+    "department": "Operations",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Operations",
+    "lastUpdated": "2025-03-04",
+    "tags": [
+      "quy",
+      "operations",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC026.md"
+  },
+  {
+    "documentId": "DOC027",
+    "title": "Quy định SLA vận hành",
+    "department": "Operations",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Operations",
+    "lastUpdated": "2025-04-07",
+    "tags": [
+      "quy",
+      "operations",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC027.md"
+  },
+  {
+    "documentId": "DOC028",
+    "title": "Quy trình phản hồi sự cố vận hành",
+    "department": "Operations",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Operations",
+    "lastUpdated": "2025-05-10",
+    "tags": [
+      "quy",
+      "operations",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC028.md"
+  },
+  {
+    "documentId": "DOC029",
+    "title": "Kế hoạch liên tục kinh doanh",
+    "department": "Operations",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Operations",
+    "lastUpdated": "2025-06-13",
+    "tags": [
+      "kế",
+      "operations",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC029.md"
+  },
+  {
+    "documentId": "DOC030",
+    "title": "Quy trình quản lý chất lượng dịch vụ",
+    "department": "Operations",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Operations",
+    "lastUpdated": "2025-07-16",
+    "tags": [
+      "quy",
+      "operations",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC030.md"
+  },
+  {
+    "documentId": "DOC031",
+    "title": "Chính sách bảo vệ dữ liệu cá nhân",
+    "department": "Legal & Compliance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Legal & Compliance",
+    "lastUpdated": "2025-08-19",
+    "tags": [
+      "chính",
+      "legal & compliance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC031.md"
+  },
+  {
+    "documentId": "DOC032",
+    "title": "Chính sách tuân thủ",
+    "department": "Legal & Compliance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Legal & Compliance",
+    "lastUpdated": "2025-09-22",
+    "tags": [
+      "chính",
+      "legal & compliance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC032.md"
+  },
+  {
+    "documentId": "DOC033",
+    "title": "Quy trình phê duyệt hợp đồng",
+    "department": "Legal & Compliance",
+    "classification": "Confidential",
+    "allowedAccess": "Own Department",
+    "owner": "Legal & Compliance",
+    "lastUpdated": "2025-10-25",
+    "tags": [
+      "quy",
+      "legal & compliance",
+      "confidential"
+    ],
+    "language": "vi",
+    "file": "DOC033.md"
+  },
+  {
+    "documentId": "DOC034",
+    "title": "Chính sách phân loại thông tin",
+    "department": "Legal & Compliance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Legal & Compliance",
+    "lastUpdated": "2025-11-03",
+    "tags": [
+      "chính",
+      "legal & compliance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC034.md"
+  },
+  {
+    "documentId": "DOC035",
+    "title": "Chính sách lưu trữ hồ sơ",
+    "department": "Legal & Compliance",
+    "classification": "Internal",
+    "allowedAccess": "All Employees",
+    "owner": "Legal & Compliance",
+    "lastUpdated": "2025-12-06",
+    "tags": [
+      "chính",
+      "legal & compliance",
+      "internal"
+    ],
+    "language": "vi",
+    "file": "DOC035.md"
+  },
+  {
+    "documentId": "DOC036",
+    "title": "Chiến lược công ty 2026",
+    "department": "Executive Office",
+    "classification": "Restricted",
+    "allowedAccess": "Executive Only",
+    "owner": "Executive Office",
+    "lastUpdated": "2025-01-09",
+    "tags": [
+      "chiến",
+      "executive office",
+      "restricted"
+    ],
+    "language": "vi",
+    "file": "DOC036.md"
+  },
+  {
+    "documentId": "DOC037",
+    "title": "Dự báo tài chính 2026",
+    "department": "Executive Office",
+    "classification": "Restricted",
+    "allowedAccess": "Executive Only",
+    "owner": "Executive Office",
+    "lastUpdated": "2025-02-12",
+    "tags": [
+      "dự",
+      "executive office",
+      "restricted"
+    ],
+    "language": "vi",
+    "file": "DOC037.md"
+  },
+  {
+    "documentId": "DOC038",
+    "title": "Ưu tiên kinh doanh năm 2026",
+    "department": "Executive Office",
+    "classification": "Restricted",
+    "allowedAccess": "Executive Only",
+    "owner": "Executive Office",
+    "lastUpdated": "2025-03-15",
+    "tags": [
+      "ưu",
+      "executive office",
+      "restricted"
+    ],
+    "language": "vi",
+    "file": "DOC038.md"
+  },
+  {
+    "documentId": "DOC039",
+    "title": "Kế hoạch M&A giả lập",
+    "department": "Executive Office",
+    "classification": "Restricted",
+    "allowedAccess": "Executive Only",
+    "owner": "Executive Office",
+    "lastUpdated": "2025-04-18",
+    "tags": [
+      "kế",
+      "executive office",
+      "restricted"
+    ],
+    "language": "vi",
+    "file": "DOC039.md"
+  },
+  {
+    "documentId": "DOC040",
+    "title": "Báo cáo chuyển đổi số nội bộ",
+    "department": "Executive Office",
+    "classification": "Restricted",
+    "allowedAccess": "Executive Only",
+    "owner": "Executive Office",
+    "lastUpdated": "2025-05-21",
+    "tags": [
+      "báo",
+      "executive office",
+      "restricted"
+    ],
+    "language": "vi",
+    "file": "DOC040.md"
+  }
+]

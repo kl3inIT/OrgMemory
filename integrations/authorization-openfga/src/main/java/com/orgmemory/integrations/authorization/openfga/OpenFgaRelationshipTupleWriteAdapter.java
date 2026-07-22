@@ -10,17 +10,25 @@ import dev.openfga.sdk.api.configuration.ClientWriteOptions;
 import dev.openfga.sdk.api.model.WriteRequestWrites;
 import dev.openfga.sdk.errors.FgaInvalidParameterException;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public final class OpenFgaRelationshipTupleWriteAdapter implements RelationshipTupleWritePort {
 
     private final OpenFgaClient client;
     private final String authorizationModelId;
+    private final Duration requestTimeout;
 
-    public OpenFgaRelationshipTupleWriteAdapter(OpenFgaClient client, String authorizationModelId) {
+    public OpenFgaRelationshipTupleWriteAdapter(
+            OpenFgaClient client,
+            String authorizationModelId,
+            Duration requestTimeout) {
         this.client = Objects.requireNonNull(client, "client");
         this.authorizationModelId = requireAuthorizationModelId(authorizationModelId);
+        this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
     }
 
     @Override
@@ -36,12 +44,15 @@ public final class OpenFgaRelationshipTupleWriteAdapter implements RelationshipT
                 .authorizationModelId(authorizationModelId)
                 .onDuplicate(WriteRequestWrites.OnDuplicateEnum.IGNORE);
         try {
-            client.write(write, options).get();
+            client.write(write, options).get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return RelationshipTupleWriteResult.applied(authorizationModelId);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return RelationshipTupleWriteResult.indeterminate(
                     "OPENFGA_WRITE_INTERRUPTED", authorizationModelId);
+        } catch (TimeoutException exception) {
+            return RelationshipTupleWriteResult.indeterminate(
+                    "OPENFGA_WRITE_TIMEOUT", authorizationModelId);
         } catch (FgaInvalidParameterException | ExecutionException | RuntimeException exception) {
             return RelationshipTupleWriteResult.indeterminate(
                     "OPENFGA_WRITE_UNAVAILABLE", authorizationModelId);

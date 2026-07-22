@@ -18,6 +18,7 @@ import dev.openfga.sdk.api.client.model.ClientCheckRequest;
 import dev.openfga.sdk.api.client.model.ClientCheckResponse;
 import java.util.UUID;
 import java.util.List;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -30,7 +31,7 @@ class OpenFgaRelationshipAuthorizationAdapterTests {
         ClientCheckResponse response = mock(ClientCheckResponse.class);
         when(response.getAllowed()).thenReturn(true);
         when(client.check(any(ClientCheckRequest.class))).thenReturn(CompletableFuture.completedFuture(response));
-        var adapter = new OpenFgaRelationshipAuthorizationAdapter(client, "model-1");
+        var adapter = new OpenFgaRelationshipAuthorizationAdapter(client, "model-1", Duration.ofSeconds(1));
         UUID organizationId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID assetId = UUID.randomUUID();

@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -66,5 +67,14 @@ public class EmbeddingProfileRegistry {
         return profiles.findByIdAndOrganizationId(profileId, organizationId)
                 .orElseThrow(() -> new IllegalStateException("embedding profile was not found"))
                 .toRef();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<EmbeddingProfileRef> find(UUID organizationId, EmbeddingProfileSpec spec) {
+        if (organizationId == null || spec == null) {
+            throw new IllegalArgumentException("organization and embedding profile are required");
+        }
+        return profiles.findByOrganizationIdAndProfileKey(organizationId, spec.profileKey())
+                .map(EmbeddingProfile::toRef);
     }
 }

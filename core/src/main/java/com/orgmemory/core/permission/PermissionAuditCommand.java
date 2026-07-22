@@ -14,7 +14,12 @@ public record PermissionAuditCommand(
         String requestId,
         String queryText,
         UUID ingestionAclSnapshotId,
-        UUID currentAclSnapshotId) {
+        UUID currentAclSnapshotId,
+        String authorizationModelId,
+        UUID sourceRevisionId,
+        UUID knowledgeChunkId,
+        UUID embeddingProfileId,
+        Long projectionGeneration) {
 
     public PermissionAuditCommand(
             UUID organizationId,
@@ -38,6 +43,11 @@ public record PermissionAuditCommand(
                 policyVersion,
                 requestId,
                 queryText,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null);
     }

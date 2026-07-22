@@ -23,18 +23,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: "25"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Run backend test suite
         run: ./gradlew --no-daemon clean build
@@ -48,17 +48,17 @@ jobs:
         working-directory: web
     steps:
       - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@v6.0.9
         with:
           version: 11.9.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@v7.0.0
         with:
           node-version: "24"
           cache: pnpm
@@ -85,15 +85,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
-      - name: Test authorization model
-        uses: openfga/action-openfga-test@e89aa8259796cd5ee5c1b1ae7d72c401029cb947 # v0.1.2
+      - name: Install OpenFGA CLI
+        uses: jaxxstorm/action-install-gh-release@v3.0.0
         with:
-          test_path: integrations/authorization-openfga/src/test/openfga/store.fga.yaml
-          fga_cli_version: v0.7.19
+          repo: openfga/cli
+          tag: v0.7.19
+          cache: enable
+
+      - name: Test authorization model
+        working-directory: integrations/authorization-openfga/src/test/openfga
+        run: fga model test --tests store.fga.yaml
 
   gate:
     name: CI Gate
