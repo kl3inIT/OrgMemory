@@ -22,7 +22,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.orgmemory.worker",
                 "com.orgmemory.core.knowledge",
                 "com.orgmemory.core.permission",
-                "com.orgmemory.core.shared"
+                "com.orgmemory.core.shared",
+                "com.orgmemory.integrations.authorization.openfga"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,

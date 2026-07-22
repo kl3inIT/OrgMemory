@@ -28,7 +28,7 @@ public class KnowledgeChunkProjectionStore {
                 :tokenCount, :startPage, :endPage, :heading,
                 CAST(:embedding AS vector), :embeddingProfileId,
                 :embeddingDimensions, :pipelineVersion,
-                :projectionGeneration, true, :createdAt
+                :projectionGeneration, false, :createdAt
             )
             """;
 
@@ -92,6 +92,29 @@ public class KnowledgeChunkProjectionStore {
                             Types.TIMESTAMP_WITH_TIMEZONE);
         }
         jdbc.batchUpdate(INSERT_CHUNK_SQL, batch);
+    }
+
+    @Transactional
+    public int activate(
+            UUID organizationId,
+            UUID sourceRevisionId,
+            UUID knowledgeAssetId,
+            long projectionGeneration) {
+        return jdbc.update(
+                """
+                        UPDATE knowledge_chunks
+                        SET active = true
+                        WHERE organization_id = :organizationId
+                          AND source_revision_id = :sourceRevisionId
+                          AND knowledge_asset_id = :knowledgeAssetId
+                          AND projection_generation = :projectionGeneration
+                          AND active = false
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("organizationId", organizationId)
+                        .addValue("sourceRevisionId", sourceRevisionId)
+                        .addValue("knowledgeAssetId", knowledgeAssetId)
+                        .addValue("projectionGeneration", projectionGeneration));
     }
 
     private static String vectorLiteral(float[] vector) {

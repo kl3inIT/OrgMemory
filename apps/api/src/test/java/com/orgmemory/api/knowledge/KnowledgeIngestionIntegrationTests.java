@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.KnowledgeAssetStatus;
 import com.orgmemory.core.knowledge.KnowledgeIngestionConflictException;
 import com.orgmemory.core.knowledge.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.NormalizationIssue;
@@ -96,6 +97,7 @@ class KnowledgeIngestionIntegrationTests {
         assertEquals(firstAsset.knowledgeAssetId(), repeatedAsset.knowledgeAssetId());
         assertEquals(firstRaw.rawSourceObjectId(), firstAsset.rawSourceObjectId());
         assertEquals(firstRaw.sourceAclSnapshotId(), firstAsset.sourceAclSnapshotId());
+        assertEquals(KnowledgeAssetStatus.PENDING, firstAsset.status());
 
         var row = jdbc.queryForMap(
                 """

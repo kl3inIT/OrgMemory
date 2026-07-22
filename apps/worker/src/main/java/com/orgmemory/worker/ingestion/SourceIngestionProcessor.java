@@ -8,11 +8,11 @@ import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.KnowledgeChunkDraft;
-import com.orgmemory.core.knowledge.KnowledgeChunkProjectionStore;
+import com.orgmemory.core.knowledge.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.NormalizeRawSourceCommand;
 import com.orgmemory.core.knowledge.NormalizedRecordRef;
-import com.orgmemory.core.knowledge.PromoteNormalizedRecordCommand;
+import com.orgmemory.core.knowledge.PublishKnowledgeAssetCommand;
 import com.orgmemory.core.knowledge.RawSourceRef;
 import com.orgmemory.core.knowledge.RegisterRawSourceCommand;
 import com.orgmemory.core.knowledge.SourceAclEntryCommand;
@@ -51,7 +51,7 @@ class SourceIngestionProcessor {
 
     private final SourceIngestionCoordinator coordinator;
     private final KnowledgeIngestionService ingestion;
-    private final KnowledgeChunkProjectionStore chunks;
+    private final KnowledgeAssetPublicationService publications;
     private final EmbeddingProfileRegistry embeddingProfiles;
     private final ObjectStoragePort objects;
     private final ObjectProvider<EmbeddingModel> embeddingModels;
@@ -62,7 +62,7 @@ class SourceIngestionProcessor {
     SourceIngestionProcessor(
             SourceIngestionCoordinator coordinator,
             KnowledgeIngestionService ingestion,
-            KnowledgeChunkProjectionStore chunks,
+            KnowledgeAssetPublicationService publications,
             EmbeddingProfileRegistry embeddingProfiles,
             ObjectStoragePort objects,
             ObjectProvider<EmbeddingModel> embeddingModels,
@@ -70,7 +70,7 @@ class SourceIngestionProcessor {
             SourceProcessingProperties properties) {
         this.coordinator = coordinator;
         this.ingestion = ingestion;
-        this.chunks = chunks;
+        this.publications = publications;
         this.embeddingProfiles = embeddingProfiles;
         this.objects = objects;
         this.embeddingModels = embeddingModels;
@@ -164,17 +164,16 @@ class SourceIngestionProcessor {
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.PUBLISHING, properties.leaseDuration());
             failureStage = "PUBLISHING";
-            KnowledgeAssetRef asset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                    claim.organizationId(), normalized.normalizedRecordId(), AccessGate.ALLOW));
-            chunks.replace(
+            KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
                     claim.organizationId(),
                     claim.sourceObjectId(),
                     claim.sourceRevisionId(),
-                    asset.knowledgeAssetId(),
+                    normalized.normalizedRecordId(),
+                    claim.createdByUserId(),
                     embeddingProfile,
                     properties.pipelineVersion(),
                     1,
-                    drafts);
+                    drafts));
             coordinator.complete(
                     claim.jobId(),
                     properties.workerId(),
