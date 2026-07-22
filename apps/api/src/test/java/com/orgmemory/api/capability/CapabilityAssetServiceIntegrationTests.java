@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.orgmemory.core.capability.ApprovalAction;
 import com.orgmemory.core.capability.AssetApprovalEventRepository;
+import com.orgmemory.core.capability.AssetUsageEventRepository;
 import com.orgmemory.core.capability.AssetStatus;
 import com.orgmemory.core.capability.AssetType;
 import com.orgmemory.core.capability.AssetVersion;
@@ -52,6 +53,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Container;
@@ -105,6 +107,9 @@ class CapabilityAssetServiceIntegrationTests {
 
     @MockitoBean
     RelationshipAuthorizationSetPort authorizationSetPort;
+
+    @MockitoSpyBean
+    AssetUsageEventRepository usageEvents;
 
     @BeforeEach
     void authorizeByRelationshipInsteadOfJwtRole() {
@@ -178,6 +183,8 @@ class CapabilityAssetServiceIntegrationTests {
 
         verify(authorizationSetPort, times(1)).listAuthorizedResources(any());
         verify(authorizationSetPort, times(1)).batchCheck(any());
+        verify(usageEvents, times(1)).summarizeByAssetIds(any());
+        verify(usageEvents, never()).countByAssetId(any());
         verify(authorizationPort, never()).check(argThat(query ->
                 "can_view".equals(query.permission().value())
                         && "capability_asset".equals(query.resource().type())));

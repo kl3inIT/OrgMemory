@@ -1,11 +1,14 @@
 package com.orgmemory.api.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.mock.env.MockEnvironment;
 
 class SwaggerProfileConfigurationTests {
 
@@ -25,5 +28,17 @@ class SwaggerProfileConfigurationTests {
 
         assertEquals(true, properties.getProperty("springdoc.api-docs.enabled"));
         assertEquals(true, properties.getProperty("springdoc.swagger-ui.enabled"));
+    }
+
+    @Test
+    void swaggerRoutesArePermittedOnlyWhenDevelopmentIsTheSoleActiveProfile() {
+        MockEnvironment development = new MockEnvironment();
+        development.setActiveProfiles("dev");
+        MockEnvironment mixed = new MockEnvironment();
+        mixed.setActiveProfiles("dev", "prod");
+
+        assertTrue(SecurityConfig.isSwaggerPermitted(development));
+        assertFalse(SecurityConfig.isSwaggerPermitted(mixed));
+        assertFalse(SecurityConfig.isSwaggerPermitted(new MockEnvironment()));
     }
 }

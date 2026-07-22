@@ -103,29 +103,33 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
     void batchCheckSendsResourceSpecificContextualRelationships() throws Exception {
         OpenFgaClient client = mock(OpenFgaClient.class);
         UUID organizationId = UUID.randomUUID();
-        ResourceRef resource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
-        ClientBatchCheckItem responseItem = item(resource, "0");
+        ResourceRef firstResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        ResourceRef secondResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
         when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
                 CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
-                        new ClientBatchCheckSingleResponse(true, responseItem, "0", null)))));
-        String contextualUser = "user:" + UUID.randomUUID();
+                        new ClientBatchCheckSingleResponse(true, item(firstResource, "0"), "0", null),
+                        new ClientBatchCheckSingleResponse(true, item(secondResource, "1"), "1", null)))));
+        String firstUser = "user:" + UUID.randomUUID();
+        String secondUser = "user:" + UUID.randomUUID();
 
         var result = adapter(client).batchCheck(new BatchAuthorizationQuery(
                 organizationId,
                 PrincipalRef.user(UUID.randomUUID()),
                 PermissionKey.of("can_view"),
-                List.of(resource),
-                java.util.Map.of(resource, List.of(ContextualRelationship.of(
-                        contextualUser, "owner", resource.openFgaObject())))));
+                List.of(firstResource, secondResource),
+                java.util.Map.of(
+                        firstResource, List.of(ContextualRelationship.of(
+                                firstUser, "owner", firstResource.openFgaObject())),
+                        secondResource, List.of(ContextualRelationship.of(
+                                secondUser, "editor", secondResource.openFgaObject())))));
 
         assertTrue(result.resolved());
         ArgumentCaptor<ClientBatchCheckRequest> request = ArgumentCaptor.forClass(ClientBatchCheckRequest.class);
         verify(client).batchCheck(request.capture());
-        ClientBatchCheckItem sent = request.getValue().getChecks().getFirst();
-        assertEquals(1, sent.getContextualTuples().size());
-        assertEquals(contextualUser, sent.getContextualTuples().getFirst().getUser());
-        assertEquals("owner", sent.getContextualTuples().getFirst().getRelation());
-        assertEquals(resource.openFgaObject(), sent.getContextualTuples().getFirst().getObject());
+        List<ClientBatchCheckItem> sent = request.getValue().getChecks();
+        assertEquals(2, sent.size());
+        assertContextualRelationship(sent.getFirst(), firstUser, "owner", firstResource);
+        assertContextualRelationship(sent.get(1), secondUser, "editor", secondResource);
     }
 
     @Test
@@ -184,5 +188,16 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
                 .relation("can_view")
                 ._object(resource.openFgaObject())
                 .correlationId(correlationId);
+    }
+
+    private static void assertContextualRelationship(
+            ClientBatchCheckItem item,
+            String expectedUser,
+            String expectedRelation,
+            ResourceRef expectedResource) {
+        assertEquals(1, item.getContextualTuples().size());
+        assertEquals(expectedUser, item.getContextualTuples().getFirst().getUser());
+        assertEquals(expectedRelation, item.getContextualTuples().getFirst().getRelation());
+        assertEquals(expectedResource.openFgaObject(), item.getContextualTuples().getFirst().getObject());
     }
 }

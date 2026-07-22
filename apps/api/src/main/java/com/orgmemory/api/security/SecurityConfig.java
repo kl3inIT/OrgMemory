@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -68,7 +67,7 @@ class SecurityConfig {
                         .sessionFixation(fixation -> fixation.changeSessionId()))
                 .authorizeHttpRequests(authorize -> {
                     authorize.requestMatchers("/api/health", "/actuator/health").permitAll();
-                    if (environment.acceptsProfiles(Profiles.of("dev"))) {
+                    if (isSwaggerPermitted(environment)) {
                         authorize.requestMatchers(
                                         "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
                                 .permitAll();
@@ -100,6 +99,11 @@ class SecurityConfig {
                                 writeProblem(response, HttpStatus.FORBIDDEN, "Access denied")))
                 .headers(Customizer.withDefaults());
         return http.build();
+    }
+
+    static boolean isSwaggerPermitted(Environment environment) {
+        String[] activeProfiles = environment.getActiveProfiles();
+        return activeProfiles.length == 1 && "dev".equals(activeProfiles[0]);
     }
 
     @Bean

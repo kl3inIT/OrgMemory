@@ -13,8 +13,8 @@
 
 1. Open a protected route without a session and verify it redirects directly to
    Keycloak while preserving the local return path.
-2. Open `/login` after logout or an authentication failure and verify the single
-   enterprise SSO fallback action and concise status message.
+2. Open `/login` after logout and verify the single enterprise SSO fallback
+   action. For an authentication failure, verify the concise error message.
 3. Complete Keycloak login and verify the internal name/email rendered by the
    workspace, not an external role mapping.
 4. Refresh the workspace and verify the JDBC-backed session is restored.
