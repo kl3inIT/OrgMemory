@@ -29,6 +29,11 @@ apply role, ownership, department, visibility, and status rules. Ask Memory and
 the relational graph currently use registry data, not the knowledge retrieval
 slice.
 
+Collection reads resolve persistent visibility with one OpenFGA `ListObjects`
+request, then batch-check remaining assets with their resource-specific
+contextual ownership/visibility tuples. Usage totals are loaded in one aggregate
+query. An indeterminate OpenFGA set operation contributes no authorization.
+
 ## Source Modules
 
 - `core.capability`

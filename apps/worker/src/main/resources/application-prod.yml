@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: ${ORGMEMORY_DB_URL}
+    username: ${ORGMEMORY_DB_USER}
+    password: ${ORGMEMORY_DB_PASSWORD}
+  ai:
+    openai:
+      api-key: ${ORGMEMORY_OPENAI_API_KEY}
+
+orgmemory:
+  ai:
+    gateways:
+      openai:
+        api-key: ${ORGMEMORY_OPENAI_API_KEY}
+  authorization:
+    openfga:
+      api-url: ${ORGMEMORY_OPENFGA_API_URL}
+      store-id: ${ORGMEMORY_OPENFGA_STORE_ID}
+      authorization-model-id: ${ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID}
+  storage:
+    object:
+      endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT}
+      access-key: ${ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY}
+      secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY}
+      bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

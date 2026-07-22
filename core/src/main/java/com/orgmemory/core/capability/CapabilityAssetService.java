@@ -1,16 +1,24 @@
 package com.orgmemory.core.capability;
 
+import com.orgmemory.core.authorization.AuthorizedResourceQuery;
+import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.ContextualRelationship;
 import com.orgmemory.core.authorization.EffectiveAuthorizationService;
 import com.orgmemory.core.authorization.PermissionKey;
+import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +31,7 @@ public class CapabilityAssetService {
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final PermissionKey CAN_EDIT = PermissionKey.of("can_edit");
     private static final PermissionKey CAN_REVIEW = PermissionKey.of("can_review");
+    private static final String CAPABILITY_ASSET_TYPE = "capability_asset";
 
     private final CapabilityAssetRepository assets;
     private final AssetVersionRepository versions;
@@ -31,11 +40,13 @@ public class CapabilityAssetService {
     private final AppUserRepository users;
     private final DepartmentRepository departments;
     private final EffectiveAuthorizationService authorization;
+    private final RelationshipAuthorizationSetPort authorizationSets;
 
     public CapabilityAssetService(CapabilityAssetRepository assets, AssetVersionRepository versions,
             AssetUsageEventRepository usageEvents, AssetApprovalEventRepository approvalEvents,
             AppUserRepository users, DepartmentRepository departments,
-            EffectiveAuthorizationService authorization) {
+            EffectiveAuthorizationService authorization,
+            RelationshipAuthorizationSetPort authorizationSets) {
         this.assets = assets;
         this.versions = versions;
         this.usageEvents = usageEvents;
@@ -43,6 +54,7 @@ public class CapabilityAssetService {
         this.users = users;
         this.departments = departments;
         this.authorization = authorization;
+        this.authorizationSets = authorizationSets;
     }
 
     @Transactional
@@ -73,9 +85,7 @@ public class CapabilityAssetService {
         List<CapabilityAsset> candidates = status == null
                 ? assets.findByOrganizationIdOrderByUpdatedAtDesc(actor.organizationId())
                 : assets.findByOrganizationIdAndStatusOrderByUpdatedAtDesc(actor.organizationId(), status);
-        List<CapabilityAsset> visibleCandidates = candidates.stream()
-                .filter(asset -> canView(actor, asset))
-                .toList();
+        List<CapabilityAsset> visibleCandidates = visibleAssets(actor, candidates);
         if (query == null || query.isBlank()) {
             return filterByAssetType(visibleCandidates, assetType);
         }
@@ -88,6 +98,21 @@ public class CapabilityAssetService {
                         || contains(asset.getBusinessProcess(), normalized)
                         || contains(asset.getAiTool(), normalized)
                         || contains(asset.getTagNames(), normalized))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CapabilityAssetListing> searchListings(
+            CurrentActor actor, AssetStatus status, AssetType assetType, String query) {
+        List<CapabilityAsset> visibleAssets = search(actor, status, assetType, query);
+        if (visibleAssets.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> usageCounts = new HashMap<>();
+        usageEvents.summarizeByAssetIds(visibleAssets.stream().map(CapabilityAsset::getId).toList())
+                .forEach(total -> usageCounts.put(total.getAssetId(), total.getUsageCount()));
+        return visibleAssets.stream()
+                .map(asset -> new CapabilityAssetListing(asset, usageCounts.getOrDefault(asset.getId(), 0L)))
                 .toList();
     }
 
@@ -232,12 +257,57 @@ public class CapabilityAssetService {
         return isAllowed(actor, asset, CAN_VIEW);
     }
 
+    private List<CapabilityAsset> visibleAssets(CurrentActor actor, List<CapabilityAsset> candidates) {
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        Set<ResourceRef> visibleResources = new HashSet<>();
+        var listed = authorizationSets.listAuthorizedResources(new AuthorizedResourceQuery(
+                actor.organizationId(), actor.principal(), CAN_VIEW, CAPABILITY_ASSET_TYPE));
+        if (listed.resolved()) {
+            visibleResources.addAll(listed.resources());
+        }
+
+        Map<ResourceRef, CapabilityAsset> candidatesByResource = new LinkedHashMap<>();
+        Map<ResourceRef, List<ContextualRelationship>> contextualByResource = new LinkedHashMap<>();
+        for (CapabilityAsset asset : candidates) {
+            ResourceRef resource = ResourceRef.of(
+                    actor.organizationId(), CAPABILITY_ASSET_TYPE, asset.getId());
+            candidatesByResource.put(resource, asset);
+            if (!visibleResources.contains(resource)) {
+                contextualByResource.put(resource, contextualRelationships(asset));
+            }
+        }
+
+        if (!contextualByResource.isEmpty()) {
+            var checked = authorizationSets.batchCheck(new BatchAuthorizationQuery(
+                    actor.organizationId(),
+                    actor.principal(),
+                    CAN_VIEW,
+                    List.copyOf(contextualByResource.keySet()),
+                    contextualByResource));
+            if (checked.resolved()) {
+                checked.decisions().forEach((resource, decision) -> {
+                    if (decision.allowed()) {
+                        visibleResources.add(resource);
+                    }
+                });
+            }
+        }
+
+        return candidatesByResource.entrySet().stream()
+                .filter(entry -> visibleResources.contains(entry.getKey()))
+                .map(Map.Entry::getValue)
+                .toList();
+    }
+
     private boolean isAllowed(CurrentActor actor, CapabilityAsset asset, PermissionKey permission) {
         return authorization.authorize(
                 actor.organizationId(),
                 actor.principal(),
                 permission,
-                ResourceRef.of(actor.organizationId(), "capability_asset", asset.getId()),
+                ResourceRef.of(actor.organizationId(), CAPABILITY_ASSET_TYPE, asset.getId()),
                 contextualRelationships(asset)).allowed();
     }
 

@@ -47,6 +47,12 @@ spring:
       max-file-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
       max-request-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 orgmemory:
   assistant:
     heartbeat-interval: ${ORGMEMORY_ASSISTANT_HEARTBEAT_INTERVAL:15s}

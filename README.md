@@ -33,7 +33,7 @@ docs/          vision, roadmap, decisions, specs, tests, and increments
 
 ```powershell
 .\gradlew.bat demoBootstrap
-.\gradlew.bat :apps:api:bootRun
+.\gradlew.bat :apps:api:bootRun --args='--spring.profiles.active=dev'
 # In another terminal after Flyway has created the schema:
 .\gradlew.bat demoSeed
 corepack pnpm -C web install
@@ -43,13 +43,20 @@ corepack pnpm -C web dev --host 127.0.0.1 --port 5173
 
 - Web: http://localhost:5173
 - API health: http://localhost:8080/api/health
-- API docs: http://localhost:8080/swagger-ui.html
+- API docs in `dev` only: http://localhost:8080/swagger-ui.html
 
 The development path always uses OIDC plus OpenFGA; there is no `permitAll`
 profile. Keycloak authenticates users, explicit issuer/subject bindings map them
 to internal users, and OpenFGA grants application permissions. The API can boot
 without an LLM key, but authorization fails closed when OpenFGA is unavailable.
 Never commit `.env` or provider secrets.
+
+Production starts with `--spring.profiles.active=prod`. That profile has no
+local-secret fallbacks: database, OIDC, OpenFGA, object-storage, and OpenAI
+settings must be supplied explicitly. The API also rejects known development
+credentials and non-HTTPS public OIDC/web origins before serving traffic. See
+[`application-prod.yml`](apps/api/src/main/resources/application-prod.yml) for
+the required environment-variable names.
 
 The reproducible synthetic POC fixtures are documented in
 [`demo/README.md`](demo/README.md). The original XLSX is provenance only; no

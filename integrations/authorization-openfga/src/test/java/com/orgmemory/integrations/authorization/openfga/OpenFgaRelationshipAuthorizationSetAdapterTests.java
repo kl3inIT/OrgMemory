@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
+import com.orgmemory.core.authorization.ContextualRelationship;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class OpenFgaRelationshipAuthorizationSetAdapterTests {
 
@@ -94,6 +97,35 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
                 CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
                         new ClientBatchCheckSingleResponse(true, allowedItem, "0", null)))));
         assertFalse(adapter(client).batchCheck(query).resolved());
+    }
+
+    @Test
+    void batchCheckSendsResourceSpecificContextualRelationships() throws Exception {
+        OpenFgaClient client = mock(OpenFgaClient.class);
+        UUID organizationId = UUID.randomUUID();
+        ResourceRef resource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        ClientBatchCheckItem responseItem = item(resource, "0");
+        when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
+                CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
+                        new ClientBatchCheckSingleResponse(true, responseItem, "0", null)))));
+        String contextualUser = "user:" + UUID.randomUUID();
+
+        var result = adapter(client).batchCheck(new BatchAuthorizationQuery(
+                organizationId,
+                PrincipalRef.user(UUID.randomUUID()),
+                PermissionKey.of("can_view"),
+                List.of(resource),
+                java.util.Map.of(resource, List.of(ContextualRelationship.of(
+                        contextualUser, "owner", resource.openFgaObject())))));
+
+        assertTrue(result.resolved());
+        ArgumentCaptor<ClientBatchCheckRequest> request = ArgumentCaptor.forClass(ClientBatchCheckRequest.class);
+        verify(client).batchCheck(request.capture());
+        ClientBatchCheckItem sent = request.getValue().getChecks().getFirst();
+        assertEquals(1, sent.getContextualTuples().size());
+        assertEquals(contextualUser, sent.getContextualTuples().getFirst().getUser());
+        assertEquals("owner", sent.getContextualTuples().getFirst().getRelation());
+        assertEquals(resource.openFgaObject(), sent.getContextualTuples().getFirst().getObject());
     }
 
     @Test

@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,6 +26,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
@@ -54,30 +57,39 @@ class SecurityConfig {
             HttpSecurity http,
             OrgMemoryOidcProperties oidc,
             ClientRegistrationRepository registrations,
-            BrowserLoginFlow loginFlow) throws Exception {
-        OidcClientInitiatedLogoutSuccessHandler oidcLogout =
-                new OidcClientInitiatedLogoutSuccessHandler(registrations);
-        oidcLogout.setPostLogoutRedirectUri(oidc.webLocation("/login?loggedOut=true"));
-
+            BrowserLoginFlow loginFlow,
+            LogoutSuccessHandler oidcLogoutSuccessHandler,
+            Environment environment) throws Exception {
         RequestMatcher apiRequest = request -> request.getRequestURI().startsWith("/api/");
         http
                 .csrf(csrf -> csrf.spa())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(fixation -> fixation.changeSessionId()))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/health", "/actuator/health").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/**", "/error").permitAll()
-                        .requestMatchers("/api/session", "/api/session/csrf", "/api/session/login").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(authorize -> {
+                    authorize.requestMatchers("/api/health", "/actuator/health").permitAll();
+                    if (environment.acceptsProfiles(Profiles.of("dev"))) {
+                        authorize.requestMatchers(
+                                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+                                .permitAll();
+                    } else {
+                        authorize.requestMatchers(
+                                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+                                .denyAll();
+                    }
+                    authorize.requestMatchers("/oauth2/**", "/login/**", "/error").permitAll();
+                    authorize.requestMatchers(
+                                    "/api/session", "/api/session/csrf", "/api/session/login")
+                            .permitAll();
+                    authorize.anyRequest().authenticated();
+                })
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(loginFlow::onAuthenticationSuccess)
                         .failureHandler((request, response, exception) ->
                                 response.sendRedirect(oidc.webLocation("/login?error=authentication_failed"))))
                 .logout(logout -> logout
                         .logoutUrl("/api/session/logout")
-                        .logoutSuccessHandler(oidcLogout)
+                        .logoutSuccessHandler(oidcLogoutSuccessHandler)
                         .deleteCookies("ORGMEMORY_SESSION"))
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
@@ -88,6 +100,16 @@ class SecurityConfig {
                                 writeProblem(response, HttpStatus.FORBIDDEN, "Access denied")))
                 .headers(Customizer.withDefaults());
         return http.build();
+    }
+
+    @Bean
+    LogoutSuccessHandler oidcLogoutSuccessHandler(
+            ClientRegistrationRepository registrations,
+            OrgMemoryOidcProperties oidc) {
+        OidcClientInitiatedLogoutSuccessHandler handler =
+                new OidcClientInitiatedLogoutSuccessHandler(registrations);
+        handler.setPostLogoutRedirectUri(oidc.webLocation("/login"));
+        return handler;
     }
 
     @Bean
