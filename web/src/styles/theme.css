@@ -1,0 +1,101 @@
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-xs: var(--elevation-1);
+  --shadow-sm: var(--elevation-1);
+  --shadow-md: var(--elevation-2);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-muted: var(--content-muted);
+  --color-content-disabled: var(--content-disabled);
+  --color-content-inverse: var(--content-inverse);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --color-action-primary: var(--action-primary);
+  --color-action-primary-hover: var(--action-primary-hover);
+  --color-action-primary-active: var(--action-primary-active);
+  --color-action-primary-foreground: var(--action-primary-foreground);
+  --color-action-secondary: var(--action-secondary);
+  --color-action-secondary-hover: var(--action-secondary-hover);
+  --color-action-secondary-active: var(--action-secondary-active);
+  --color-action-secondary-foreground: var(--action-secondary-foreground);
+  --color-action-ghost-hover: var(--action-ghost-hover);
+  --color-action-ghost-active: var(--action-ghost-active);
+  --color-action-link: var(--action-link);
+  --color-action-link-hover: var(--action-link-hover);
+  --color-focus-ring: var(--focus-ring);
+
+  --color-control-surface: var(--control-surface);
+  --color-control-surface-hover: var(--control-surface-hover);
+  --color-control-border: var(--control-border);
+  --color-control-track: var(--control-track);
+  --color-control-thumb: var(--control-thumb);
+
+  --color-status-danger-surface: var(--status-danger-surface);
+  --color-status-danger-border: var(--status-danger-border);
+  --color-status-danger-content: var(--status-danger-content);
+  --color-status-success-surface: var(--status-success-surface);
+  --color-status-success-border: var(--status-success-border);
+  --color-status-success-content: var(--status-success-content);
+  --color-status-warning-surface: var(--status-warning-surface);
+  --color-status-warning-border: var(--status-warning-border);
+  --color-status-warning-content: var(--status-warning-content);
+  --color-status-info-surface: var(--status-info-surface);
+  --color-status-info-border: var(--status-info-border);
+  --color-status-info-content: var(--status-info-content);
+
+  --color-assistant-composer: var(--assistant-composer);
+  --color-assistant-user-message: var(--assistant-user-message);
+  --color-citation-surface: var(--citation-surface);
+  --color-citation-border: var(--citation-border);
+  --color-retrieval-surface: var(--retrieval-surface);
+  --color-retrieval-content: var(--retrieval-content);
+  --color-permission-allowed-surface: var(--permission-allowed-surface);
+  --color-permission-denied-surface: var(--permission-denied-surface);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}

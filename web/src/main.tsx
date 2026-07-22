@@ -4,10 +4,10 @@ import { lazy, StrictMode, Suspense } from "react"
 import { createRoot } from "react-dom/client"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { ThemeProvider } from "next-themes"
-import { Toaster } from "sonner"
 
 import "./lib/api-client"
 import "./index.css"
+import { AppToaster } from "@/components/app-toaster"
 import { ApplicationError } from "@/components/states/application-error"
 import { queryClient } from "@/lib/query-client"
 import { router } from "@/router"
@@ -46,7 +46,7 @@ createRoot(rootElement).render(
             </ErrorBoundary>
           )}
         </QueryErrorResetBoundary>
-        <Toaster position="bottom-right" richColors />
+        <AppToaster />
         <Suspense fallback={null}>
           <QueryDevtools initialIsOpen={false} />
         </Suspense>

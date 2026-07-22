@@ -31,6 +31,24 @@ when it is generic, tested, and compatible with the new information architecture
 - Raw exception text is development-only. Production states use safe messages
   and an explicit retry path.
 
+## Semantic Theme Contract
+
+- `web/src/styles/tokens.css` owns primitive values and light/dark semantic
+  roles. Product components consume semantic roles, never primitive palette
+  values or per-component mode colors.
+- `web/src/styles/theme.css` only exposes those roles to Tailwind. Existing
+  shadcn names remain compatibility aliases while product-specific surfaces use
+  explicit names such as `assistant-composer`, `citation`, and `permission`.
+- `AppToaster` is the only Sonner host. Features may call Sonner's public
+  `toast` API, but must not mount another toaster or create a second global
+  notification store.
+- Authenticated routes declare their shell title through TanStack Router
+  `staticData`; the shell must not infer product identity from pathname string
+  comparisons.
+- Chart theme selectors may remain mode-specific because they map chart data,
+  not component presentation. Other manual color `dark:` variants require an
+  explicit design-system exception.
+
 ## Retained Building Blocks
 
 Keep shadcn/ui registry primitives and the AI Elements foundation even while a
