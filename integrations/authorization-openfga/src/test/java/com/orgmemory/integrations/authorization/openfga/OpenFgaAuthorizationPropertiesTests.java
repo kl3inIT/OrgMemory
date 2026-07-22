@@ -16,10 +16,12 @@ class OpenFgaAuthorizationPropertiesTests {
                 "store-id",
                 "model-id",
                 null,
+                null,
                 null);
 
         assertEquals(3, properties.maxRetries());
         assertEquals(Duration.ofMillis(100), properties.minimumRetryDelay());
+        assertEquals(Duration.ofSeconds(5), properties.requestTimeout());
     }
 
     @Test
@@ -31,6 +33,7 @@ class OpenFgaAuthorizationPropertiesTests {
                         "store-id",
                         "model-id",
                         -1,
+                        Duration.ofMillis(100),
                         Duration.ofMillis(100)));
     }
 }

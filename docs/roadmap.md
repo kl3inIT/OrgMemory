@@ -13,17 +13,20 @@ belongs in one active increment.
 - API, worker, and MCP deployable scaffolds.
 - Northstar-style repository harness and current dependency baseline.
 
-## Active — Secure Knowledge Vertical Slice
+## Active — Secure Hybrid Retrieval
 
-See [active plan](increments/active/2026-07-20-secure-knowledge-vertical-slice/plan.md).
+See [active plan](increments/active/2026-07-22-secure-hybrid-retrieval/plan.md).
 
-Outcome: one direct-upload document becomes an approved Knowledge Asset; source
-principals converge into OpenFGA and the search projection; two pilot users get
-different grounded in-app answers with allowed citations; revocation closes
-access; the minimal new Ask/Sources/Review UI exposes pipeline state.
+Outcome: one permission-aware search path uses a pinned OpenFGA model,
+tenant/ACL/lifecycle SQL prefiltering, PostgreSQL FTS + pgvector ranking,
+BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Next — Shared Agent Tools And Secure Graph
 
+- Converge persistent Capability Asset tuples and remove its list-path N+1 with
+  ListObjects/BatchCheck, pagination, and aggregate usage counts.
+- Authorize direct upload at a target Knowledge Space with `can_create_asset`;
+  keep organization `can_manage_sources` for administrative operations.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Add graph core/testkit and PostgreSQL/Spring AI adapters with evidence-level
   contributions and permission-scoped local/global/mix retrieval.

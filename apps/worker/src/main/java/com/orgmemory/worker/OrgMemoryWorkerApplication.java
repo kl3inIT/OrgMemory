@@ -1,6 +1,6 @@
 package com.orgmemory.worker;
 
-import com.orgmemory.core.knowledge.KnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
@@ -23,11 +23,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.orgmemory.core.knowledge",
                 "com.orgmemory.core.permission",
                 "com.orgmemory.core.shared",
+                "com.orgmemory.integrations.ai.openai",
                 "com.orgmemory.integrations.authorization.openfga"
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
-                classes = KnowledgeRetrievalService.class))
+                classes = SecureKnowledgeRetrievalService.class))
 public class OrgMemoryWorkerApplication {
 
     static void main(String[] args) {

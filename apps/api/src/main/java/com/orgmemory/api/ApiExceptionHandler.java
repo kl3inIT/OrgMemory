@@ -1,7 +1,8 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.capability.CapabilityAssetNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.assistant.AssistantUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,7 +29,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler({CapabilityAssetNotFoundException.class, KnowledgeAssetNotFoundException.class})
+    @ExceptionHandler(CapabilityAssetNotFoundException.class)
     ProblemDetail notFound(RuntimeException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
@@ -46,6 +47,16 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail conflict(OptimisticLockingFailureException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(KnowledgeRetrievalUnavailableException.class)
+    ProblemDetail retrievalUnavailable(KnowledgeRetrievalUnavailableException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    @ExceptionHandler(AssistantUnavailableException.class)
+    ProblemDetail assistantUnavailable(AssistantUnavailableException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 
     @ExceptionHandler(ResponseStatusException.class)

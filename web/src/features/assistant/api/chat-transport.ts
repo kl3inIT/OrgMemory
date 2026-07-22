@@ -2,9 +2,9 @@ import { DefaultChatTransport, type UIMessage } from "ai"
 
 import { csrfFetch } from "@/features/session/csrf-fetch"
 
-export function createAssistantTransport(conversationId: string) {
+export function createAssistantTransport() {
   return new DefaultChatTransport({
-    api: "/api/ai/chat",
+    api: "/api/assistant/chat",
     credentials: "same-origin",
     fetch: csrfFetch,
     prepareSendMessagesRequest: ({ messages }) => {
@@ -17,7 +17,7 @@ export function createAssistantTransport(conversationId: string) {
       return {
         body: {
           message,
-          conversationId,
+          limit: 5,
         },
       }
     },

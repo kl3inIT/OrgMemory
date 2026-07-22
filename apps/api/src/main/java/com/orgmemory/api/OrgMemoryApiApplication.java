@@ -1,5 +1,7 @@
 package com.orgmemory.api;
 
+import com.orgmemory.api.knowledge.QueryEmbeddingProperties;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -10,11 +12,16 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(scanBasePackages = {
         "com.orgmemory.api",
         "com.orgmemory.core",
+        "com.orgmemory.integrations.ai.openai",
         "com.orgmemory.integrations.authorization.openfga"
 })
 @EntityScan("com.orgmemory.core")
 @EnableJpaRepositories("com.orgmemory.core")
-@EnableConfigurationProperties(SourceIngestionProperties.class)
+@EnableConfigurationProperties({
+        SourceIngestionProperties.class,
+        KnowledgeRetrievalProperties.class,
+        QueryEmbeddingProperties.class
+})
 public class OrgMemoryApiApplication {
 
     static void main(String[] args) {

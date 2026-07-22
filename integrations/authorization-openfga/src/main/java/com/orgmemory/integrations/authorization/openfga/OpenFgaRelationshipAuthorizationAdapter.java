@@ -7,17 +7,25 @@ import dev.openfga.sdk.api.client.OpenFgaClient;
 import dev.openfga.sdk.api.client.model.ClientCheckRequest;
 import dev.openfga.sdk.api.client.model.ClientTupleKey;
 import dev.openfga.sdk.errors.FgaInvalidParameterException;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public final class OpenFgaRelationshipAuthorizationAdapter implements RelationshipAuthorizationPort {
 
     private final OpenFgaClient client;
     private final String authorizationModelId;
+    private final Duration requestTimeout;
 
-    public OpenFgaRelationshipAuthorizationAdapter(OpenFgaClient client, String authorizationModelId) {
+    public OpenFgaRelationshipAuthorizationAdapter(
+            OpenFgaClient client,
+            String authorizationModelId,
+            Duration requestTimeout) {
         this.client = Objects.requireNonNull(client, "client");
-        this.authorizationModelId = requireText(authorizationModelId, "authorizationModelId");
+        this.authorizationModelId = requireModelId(authorizationModelId);
+        this.requestTimeout = Objects.requireNonNull(requestTimeout, "requestTimeout");
     }
 
     @Override
@@ -34,22 +42,24 @@ public final class OpenFgaRelationshipAuthorizationAdapter implements Relationsh
                                 ._object(relationship.object()))
                         .toList());
         try {
-            var response = client.check(request).get();
+            var response = client.check(request).get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return Boolean.TRUE.equals(response.getAllowed())
                     ? AuthorizationDecision.allow(authorizationModelId)
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", authorizationModelId);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return AuthorizationDecision.indeterminate("OPENFGA_INTERRUPTED", authorizationModelId);
+        } catch (TimeoutException exception) {
+            return AuthorizationDecision.indeterminate("OPENFGA_TIMEOUT", authorizationModelId);
         } catch (FgaInvalidParameterException | ExecutionException | RuntimeException exception) {
             return AuthorizationDecision.indeterminate("OPENFGA_UNAVAILABLE", authorizationModelId);
         }
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
+    private static String requireModelId(String value) {
+        String normalized = Objects.requireNonNull(value, "authorizationModelId").trim();
         if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
+            throw new IllegalArgumentException("authorizationModelId must not be blank");
         }
         return normalized;
     }

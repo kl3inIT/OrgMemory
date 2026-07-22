@@ -15,6 +15,7 @@ import dev.openfga.sdk.api.configuration.ClientWriteOptions;
 import dev.openfga.sdk.api.model.WriteRequestWrites;
 
 import java.util.List;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class OpenFgaRelationshipTupleWriteAdapterTests {
         OpenFgaClient client = mock(OpenFgaClient.class);
         when(client.write(any(ClientWriteRequest.class), any(ClientWriteOptions.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        var adapter = new OpenFgaRelationshipTupleWriteAdapter(client, "model-1");
+        var adapter = new OpenFgaRelationshipTupleWriteAdapter(client, "model-1", Duration.ofSeconds(1));
 
         var result = adapter.write(new RelationshipTupleWriteRequest(List.of(
                 RelationshipTuple.of("user:123", "owner", "knowledge_asset:456"))));

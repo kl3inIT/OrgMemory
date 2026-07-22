@@ -17,7 +17,7 @@ public class PermissionAuditService {
 
     private final PermissionAuditStore store;
 
-    public PermissionAuditService(PermissionAuditStore store) {
+    PermissionAuditService(PermissionAuditStore store) {
         this.store = store;
     }
 
@@ -27,9 +27,9 @@ public class PermissionAuditService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<UUID> recordAll(List<PermissionAuditCommand> commands) {
+    public void recordAll(List<PermissionAuditCommand> commands) {
         Objects.requireNonNull(commands, "commands");
-        return commands.stream().map(this::append).toList();
+        commands.forEach(this::append);
     }
 
     private UUID append(PermissionAuditCommand command) {
@@ -57,6 +57,11 @@ public class PermissionAuditService {
                 fingerprint(command.queryText()),
                 command.ingestionAclSnapshotId(),
                 command.currentAclSnapshotId(),
+                command.authorizationModelId(),
+                command.sourceRevisionId(),
+                command.knowledgeChunkId(),
+                command.embeddingProfileId(),
+                command.projectionGeneration(),
                 Instant.now()));
         return eventId;
     }

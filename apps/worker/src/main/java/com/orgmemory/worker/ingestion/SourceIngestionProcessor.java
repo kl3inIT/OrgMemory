@@ -1,5 +1,7 @@
 package com.orgmemory.worker.ingestion;
 
+import com.orgmemory.core.ai.AiRouteResolver;
+import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.ClaimedSourceRevision;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
@@ -55,6 +57,7 @@ class SourceIngestionProcessor {
     private final EmbeddingProfileRegistry embeddingProfiles;
     private final ObjectStoragePort objects;
     private final ObjectProvider<EmbeddingModel> embeddingModels;
+    private final AiRouteResolver aiRoutes;
     private final SourceDocumentReader reader;
     private final SourceProcessingProperties properties;
     private final TokenTextSplitter splitter;
@@ -66,6 +69,7 @@ class SourceIngestionProcessor {
             EmbeddingProfileRegistry embeddingProfiles,
             ObjectStoragePort objects,
             ObjectProvider<EmbeddingModel> embeddingModels,
+            AiRouteResolver aiRoutes,
             SourceDocumentReader reader,
             SourceProcessingProperties properties) {
         this.coordinator = coordinator;
@@ -74,6 +78,7 @@ class SourceIngestionProcessor {
         this.embeddingProfiles = embeddingProfiles;
         this.objects = objects;
         this.embeddingModels = embeddingModels;
+        this.aiRoutes = aiRoutes;
         this.reader = reader;
         this.properties = properties;
         this.splitter = TokenTextSplitter.builder()
@@ -91,6 +96,11 @@ class SourceIngestionProcessor {
         String failureStage = "VALIDATION";
         Path temporaryFile = null;
         try {
+            var embeddingRoute = aiRoutes.resolve(AiWorkload.DOCUMENT_EMBEDDING);
+            if (!embeddingRoute.modelId().equals(properties.embeddingModel())) {
+                throw new IllegalStateException(
+                        "Document embedding route does not match the immutable embedding profile model");
+            }
             EmbeddingModel embeddingModel = embeddingModels.getIfAvailable();
             if (embeddingModel == null) {
                 coordinator.fail(

@@ -12,5 +12,6 @@ dependencies {
 
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.mockito:mockito-core")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

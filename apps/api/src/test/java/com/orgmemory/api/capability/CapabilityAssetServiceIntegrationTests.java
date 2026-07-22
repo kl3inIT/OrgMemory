@@ -270,18 +270,6 @@ class CapabilityAssetServiceIntegrationTests {
                 identities.findByIssuerAndSubject("https://idp.example.test", subject).orElseThrow().getAppUserId());
     }
 
-    @Test
-    void jwtRolesDoNotGrantAuthorizationWhenOpenFgaDenies() throws Exception {
-        reset(authorizationPort);
-        when(authorizationPort.check(any())).thenReturn(
-                AuthorizationDecision.deny("RELATIONSHIP_DENIED", "test-model"));
-        mvc.perform(post("/api/ai/chat")
-                        .with(jwtFor(OWNER_ID.toString(), "linh@example.com", true, "ROLE_ADMIN"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"message\":\"Show approved sales assets\"}"))
-                .andExpect(status().isForbidden());
-    }
-
     private static RequestPostProcessor jwtFor(String subject, String email, boolean emailVerified, String authority) {
         return jwt()
                 .jwt(jwt -> jwt

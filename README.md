@@ -7,9 +7,9 @@ keeps two lifecycle objects distinct:
 - **Capability Assets**: approved prompts, workflows, agents, playbooks, and
   other reusable AI work with ownership, version, risk, usage, and handover.
 
-The current repository contains a Capability Asset registry plus a narrow
-permission-aware Knowledge Asset backend slice. It is a prototype foundation,
-not an approved production deployment.
+The current repository contains a Capability Asset registry plus a canonical
+source-ingestion ledger and permission-aware hybrid Knowledge Asset retrieval.
+It is a production-shaped POC foundation, not an approved production deployment.
 
 ## Current Stack
 
@@ -21,20 +21,21 @@ CSS 4, shadcn/ui, TanStack Query/Router, and AI SDK UI components.
 
 ```text
 core/          domain, application services, JPA, and Flyway
-apps/api/      REST, OIDC, AI delivery, OpenAPI, migration owner
-apps/worker/   background ingestion/indexing boundary and dataset validator
+apps/api/      REST, OIDC, secure search, OpenAPI, migration owner
+apps/worker/   background source ingestion and indexing boundary
 apps/mcp/      reserved MCP delivery boundary; no runtime implementation yet
 integrations/  provider adapters, including the official OpenFGA Java SDK
-web/           current React prototype; replacement is planned
+web/           React app shell, secure search, and document management
 docs/          vision, roadmap, decisions, specs, tests, and increments
 ```
 
 ## Local Development
 
 ```powershell
-docker compose up -d
-.\scripts\bootstrap-openfga.ps1
+.\gradlew.bat demoBootstrap
 .\gradlew.bat :apps:api:bootRun
+# In another terminal after Flyway has created the schema:
+.\gradlew.bat demoSeed
 corepack pnpm -C web install
 corepack pnpm -C web gen:api
 corepack pnpm -C web dev --host 127.0.0.1 --port 5173
@@ -49,6 +50,10 @@ profile. Keycloak authenticates users, explicit issuer/subject bindings map them
 to internal users, and OpenFGA grants application permissions. The API can boot
 without an LLM key, but authorization fails closed when OpenFGA is unavailable.
 Never commit `.env` or provider secrets.
+
+The reproducible synthetic POC fixtures are documented in
+[`demo/README.md`](demo/README.md). The original XLSX is provenance only; no
+spreadsheet-specific code is loaded by the application runtime.
 
 The browser is an OIDC BFF client: it stores only an HttpOnly Spring session
 cookie, never Keycloak tokens. REST SDKs and TanStack Query options are generated
@@ -73,7 +78,8 @@ corepack pnpm -C web build
 - [Architecture decisions](docs/decisions)
 - [Current behavior specs](docs/specs)
 - [Verification contracts](docs/tests)
-- [Active implementation plan](docs/increments/active/2026-07-20-secure-knowledge-vertical-slice/plan.md)
+- [Active implementation plan](docs/increments/active/2026-07-22-secure-hybrid-retrieval/plan.md)
+- [Demo bootstrap plan](docs/increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md)
 - [Research report](docs/research/orgmemory_research_report_2026-07-06.md)
 
 Start with `CLAUDE.md` when working as a coding agent.

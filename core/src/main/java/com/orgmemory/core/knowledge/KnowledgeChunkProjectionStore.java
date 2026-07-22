@@ -81,7 +81,7 @@ public class KnowledgeChunkProjectionStore {
                     .addValue("startPage", chunk.startPage(), Types.INTEGER)
                     .addValue("endPage", chunk.endPage(), Types.INTEGER)
                     .addValue("heading", chunk.heading(), Types.VARCHAR)
-                    .addValue("embedding", vectorLiteral(embedding))
+                    .addValue("embedding", PgVectorLiteral.from(embedding))
                     .addValue("embeddingProfileId", embeddingProfile.id())
                     .addValue("embeddingDimensions", embeddingProfile.dimensions())
                     .addValue("pipelineVersion", pipelineVersion)
@@ -117,14 +117,4 @@ public class KnowledgeChunkProjectionStore {
                         .addValue("projectionGeneration", projectionGeneration));
     }
 
-    private static String vectorLiteral(float[] vector) {
-        StringBuilder value = new StringBuilder(vector.length * 12).append('[');
-        for (int index = 0; index < vector.length; index++) {
-            if (index > 0) {
-                value.append(',');
-            }
-            value.append(vector[index]);
-        }
-        return value.append(']').toString();
-    }
 }

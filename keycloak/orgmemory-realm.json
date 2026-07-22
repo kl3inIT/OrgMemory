@@ -13,7 +13,13 @@
       "lastName": "Nguyen",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
     },
     {
       "id": "55555555-5555-5555-5555-555555555555",
@@ -23,7 +29,13 @@
       "lastName": "Tran",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
     },
     {
       "id": "13000000-0000-4000-8000-000000000001",
@@ -33,7 +45,525 @@
       "lastName": "Admin",
       "enabled": true,
       "emailVerified": true,
-      "credentials": [{ "type": "password", "value": "orgmemory", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000001",
+      "username": "u001",
+      "email": "user001@synthetic.local",
+      "firstName": "Nguyễn Văn An",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000002",
+      "username": "u002",
+      "email": "user002@synthetic.local",
+      "firstName": "Trần Thị Bình",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000003",
+      "username": "u003",
+      "email": "user003@synthetic.local",
+      "firstName": "Lê Minh Châu",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000004",
+      "username": "u004",
+      "email": "user004@synthetic.local",
+      "firstName": "Phạm Quốc Dũng",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000005",
+      "username": "u005",
+      "email": "user005@synthetic.local",
+      "firstName": "Hoàng Thu Hà",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000006",
+      "username": "u006",
+      "email": "user006@synthetic.local",
+      "firstName": "Đỗ Anh Khoa",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000007",
+      "username": "u007",
+      "email": "user007@synthetic.local",
+      "firstName": "Vũ Thị Lan",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000008",
+      "username": "u008",
+      "email": "user008@synthetic.local",
+      "firstName": "Bùi Đức Minh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000009",
+      "username": "u009",
+      "email": "user009@synthetic.local",
+      "firstName": "Đặng Thanh Nga",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000010",
+      "username": "u010",
+      "email": "user010@synthetic.local",
+      "firstName": "Phan Hải Nam",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000011",
+      "username": "u011",
+      "email": "user011@synthetic.local",
+      "firstName": "Mai Phương Linh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000012",
+      "username": "u012",
+      "email": "user012@synthetic.local",
+      "firstName": "Tạ Quang Huy",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000013",
+      "username": "u013",
+      "email": "user013@synthetic.local",
+      "firstName": "Ngô Thùy Dương",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000014",
+      "username": "u014",
+      "email": "user014@synthetic.local",
+      "firstName": "Cao Việt Long",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000015",
+      "username": "u015",
+      "email": "user015@synthetic.local",
+      "firstName": "Lý Hồng Nhung",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000016",
+      "username": "u016",
+      "email": "user016@synthetic.local",
+      "firstName": "Trương Gia Bảo",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000017",
+      "username": "u017",
+      "email": "user017@synthetic.local",
+      "firstName": "Đinh Mai Anh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000018",
+      "username": "u018",
+      "email": "user018@synthetic.local",
+      "firstName": "Hồ Quốc Khánh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000019",
+      "username": "u019",
+      "email": "user019@synthetic.local",
+      "firstName": "Chu Thanh Tâm",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000020",
+      "username": "u020",
+      "email": "user020@synthetic.local",
+      "firstName": "Võ Minh Đức",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000021",
+      "username": "u021",
+      "email": "user021@synthetic.local",
+      "firstName": "Lâm Hương Giang",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000022",
+      "username": "u022",
+      "email": "user022@synthetic.local",
+      "firstName": "Tô Nhật Quang",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000023",
+      "username": "u023",
+      "email": "user023@synthetic.local",
+      "firstName": "Đào Mỹ Linh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000024",
+      "username": "u024",
+      "email": "user024@synthetic.local",
+      "firstName": "Nguyễn Hoàng Phúc",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000025",
+      "username": "u025",
+      "email": "user025@synthetic.local",
+      "firstName": "Trần Hải Yến",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000026",
+      "username": "u026",
+      "email": "user026@synthetic.local",
+      "firstName": "Lê Tuấn Anh",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000027",
+      "username": "u027",
+      "email": "user027@synthetic.local",
+      "firstName": "Phạm Ngọc Mai",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000028",
+      "username": "u028",
+      "email": "user028@synthetic.local",
+      "firstName": "Vũ Đức Thắng",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000029",
+      "username": "u029",
+      "email": "user029@synthetic.local",
+      "firstName": "Bùi Kim Ngân",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000030",
+      "username": "u030",
+      "email": "user030@synthetic.local",
+      "firstName": "Đặng Minh Trí",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000031",
+      "username": "u031",
+      "email": "user031@synthetic.local",
+      "firstName": "Hoàng Bảo Ngọc",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "id": "d1000000-0000-4000-8000-000000000032",
+      "username": "u032",
+      "email": "user032@synthetic.local",
+      "firstName": "Phan Quốc Việt",
+      "lastName": "Demo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "orgmemory",
+          "temporary": false
+        }
+      ]
     }
   ],
   "clients": [
