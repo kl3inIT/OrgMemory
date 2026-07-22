@@ -39,8 +39,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, and health.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
-  fail-closed authorization projection, publication, and external
-  permission-workbook validation.
+  fail-closed authorization projection, publication, external
+  permission-workbook validation, and a fixture-driven Slack connector staging
+  driver that ingests a versioned crawl-batch contract into the governed ledger.
 - `apps/mcp`: a reserved delivery module with no runtime implementation; the
   legacy scaffold was removed so secure agent tools can be rebuilt on the
   permission-aware retrieval contract.
@@ -63,9 +64,13 @@ embeddings. The knowledge slice persists Knowledge Spaces and the canonical uplo
 (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob` metadata), leased
 ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
 versioned chunks and embedding profiles, sealed ACL snapshots and entries,
-mutable ACL heads, publication outbox evidence, and append-only permission audit
-events. Immutable evidence bytes live in MinIO; chunks, embeddings, future graph
-data, and OpenFGA relationships are rebuildable projections.
+mutable ACL heads, an observed external source-principal registry with verified
+principal mappings and sealed per-generation group membership, publication outbox
+evidence, and append-only permission audit events. Immutable evidence bytes live
+in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
+rebuildable projections. A connector staging crawl (`SLACK` source type) produces
+the same governed ledger as uploads, with source ACL evidence resolved through the
+principal mappings.
 
 ## Current Permission-Aware Retrieval
 

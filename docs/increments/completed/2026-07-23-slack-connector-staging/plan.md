@@ -67,10 +67,12 @@
 
 ## Completion
 
-- [ ] Update the knowledge-ingestion spec and ARCHITECTURE with the shipped
-  connector staging path; add a connector spec if the surface warrants one.
-- [ ] Record evidence in docs/tests; move this increment to `completed`.
-- [ ] Open the follow-up `slack-connector-live` increment for the real Slack
+- [x] Updated the knowledge-ingestion spec and ARCHITECTURE with the shipped
+  connector staging path (folded into the ingestion spec; the surface did not
+  warrant a separate spec).
+- [x] Recorded evidence in docs/tests (Connector Staging Coverage); increment
+  moved to `completed`.
+- [x] Opened the follow-up `slack-connector-live` increment for the real Slack
   Web API adapter, credential storage, rate limiting, checkpoint/resume, and the
   Developer sandbox run.
 
