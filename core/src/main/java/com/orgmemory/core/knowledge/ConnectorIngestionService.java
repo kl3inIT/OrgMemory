@@ -5,10 +5,12 @@ import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -57,6 +59,10 @@ public class ConnectorIngestionService {
         for (ConnectorPermissionItem permission : batch.permissions()) {
             permissions.put(permission.externalObjectId(), permission);
         }
+        Set<String> contentObjectIds = new HashSet<>();
+        for (ConnectorContentItem content : batch.contents()) {
+            contentObjectIds.add(content.externalObjectId());
+        }
 
         List<String> materialized = new ArrayList<>();
         List<String> rotated = new ArrayList<>();
@@ -68,17 +74,24 @@ public class ConnectorIngestionService {
             try {
                 ObjectOutcome outcome = perObjectTransaction.execute(status -> reconciler.reconcile(
                         ctx, content, permissions.get(content.externalObjectId()), resolution));
-                switch (outcome) {
-                    case MATERIALIZED -> materialized.add(content.externalObjectId());
-                    case ROTATED -> rotated.add(content.externalObjectId());
-                    case ROTATED_CONTENT_DEFERRED -> {
-                        rotated.add(content.externalObjectId());
-                        contentDeferred.add(content.externalObjectId());
-                    }
-                    default -> throw new IllegalStateException("unhandled outcome: " + outcome);
-                }
+                recordOutcome(outcome, content.externalObjectId(), materialized, rotated, contentDeferred);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(content.externalObjectId(), reasonOf(failure)));
+            }
+        }
+
+        // Objects that arrived only in the permissions payload (a permissions-only re-crawl on
+        // its own cadence) reconcile their ACL without touching content.
+        for (ConnectorPermissionItem permission : batch.permissions()) {
+            if (contentObjectIds.contains(permission.externalObjectId())) {
+                continue;
+            }
+            try {
+                ObjectOutcome outcome = perObjectTransaction.execute(
+                        status -> reconciler.reconcilePermissions(ctx, permission, resolution));
+                recordOutcome(outcome, permission.externalObjectId(), materialized, rotated, contentDeferred);
+            } catch (RuntimeException failure) {
+                failures.add(new ConnectorItemFailure(permission.externalObjectId(), reasonOf(failure)));
             }
         }
 
@@ -95,6 +108,23 @@ public class ConnectorIngestionService {
         }
 
         return new ConnectorIngestionResult(materialized, rotated, contentDeferred, retired, failures);
+    }
+
+    private static void recordOutcome(
+            ObjectOutcome outcome,
+            String externalObjectId,
+            List<String> materialized,
+            List<String> rotated,
+            List<String> contentDeferred) {
+        switch (outcome) {
+            case MATERIALIZED -> materialized.add(externalObjectId);
+            case ROTATED -> rotated.add(externalObjectId);
+            case ROTATED_CONTENT_DEFERRED -> {
+                rotated.add(externalObjectId);
+                contentDeferred.add(externalObjectId);
+            }
+            default -> throw new IllegalStateException("unhandled outcome: " + outcome);
+        }
     }
 
     private void validateEnvelope(ConnectorCrawlBatch batch) {

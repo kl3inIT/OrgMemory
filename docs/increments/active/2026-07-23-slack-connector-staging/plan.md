@@ -51,15 +51,19 @@
 
 ## 4 — Fixture And Proofs
 
-- [ ] Committed Slack-shaped fixture batches under `demo/fixtures/connector/`:
-  an initial crawl (channel with member An) and a re-crawl (adds Chi, removes
-  An), plus a tombstone case.
-- [ ] Integration proof (Testcontainers): first crawl → An sees the doc, a
-  non-member does not; re-crawl → Chi sees it and An is revoked, content not
-  re-ingested (assert same revision, new ACL generation); tombstone removes the
-  doc from retrieval; unmapped principal denied throughout.
-- [ ] Regression: `:core:test`, `:apps:worker:test`, `:apps:api:test`, OpenFGA
-  model tests.
+- [x] Committed Slack-shaped fixture batches under `demo/fixtures/connector/`:
+  `slack-01-initial-crawl` (channel with member An), `slack-02-recrawl-membership`
+  (a permissions-only re-crawl adding Chi, removing An), and `slack-03-tombstone`.
+  `FileConnectorBatchSourceTests` proves they deserialize in order.
+- [x] Integration proof (`ConnectorStagingIngestionIntegrationTests`,
+  Testcontainers): first crawl → An sees the doc, mapped-non-member Bob and
+  unobserved Chi do not; re-crawl → Chi sees it and An is revoked, content not
+  re-ingested (same revision id, same chunk count, ACL generation advances to 2);
+  tombstone archives the object out of retrieval. Retrieval runs through the real
+  `SecureKnowledgeRetrievalService` with OpenFGA mocked to allow, so the sealed
+  source ACL is the deciding gate.
+- [x] Regression: `:core:test`, `:apps:worker:test`, `:apps:api:test`, and the
+  OpenFGA authorization model tests all green (`./gradlew test`).
 
 ## Completion
 

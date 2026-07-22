@@ -1,0 +1,21 @@
+{
+  "organizationId": "e0000000-0000-4000-8000-000000000001",
+  "sourceSystem": "slack",
+  "sourceConnectionKey": "T-fixture",
+  "knowledgeSpaceId": "e0000000-0000-4000-8000-000000000003",
+  "actorUserId": "e0000000-0000-4000-8000-000000000004",
+  "crawlCursor": "cursor-03-tombstone",
+  "versions": {
+    "content": "content/v1",
+    "identity": "identity/v1",
+    "permission": "permissions/v1"
+  },
+  "identities": [],
+  "contents": [],
+  "permissions": [],
+  "tombstones": [
+    {
+      "externalObjectId": "C-general-msg"
+    }
+  ]
+}

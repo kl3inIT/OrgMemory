@@ -1,0 +1,66 @@
+{
+  "organizationId": "e0000000-0000-4000-8000-000000000001",
+  "sourceSystem": "slack",
+  "sourceConnectionKey": "T-fixture",
+  "knowledgeSpaceId": "e0000000-0000-4000-8000-000000000003",
+  "actorUserId": "e0000000-0000-4000-8000-000000000004",
+  "crawlCursor": "cursor-01-initial",
+  "versions": {
+    "content": "content/v1",
+    "identity": "identity/v1",
+    "permission": "permissions/v1"
+  },
+  "identities": [
+    {
+      "kind": "SOURCE_USER",
+      "externalKey": "U-an",
+      "email": "an@slackfix.example",
+      "displayName": "An",
+      "ssoVerified": true,
+      "idpIssuer": null,
+      "idpSubject": null,
+      "memberExternalKeys": []
+    },
+    {
+      "kind": "SOURCE_USER",
+      "externalKey": "U-bob",
+      "email": "bob@slackfix.example",
+      "displayName": "Bob",
+      "ssoVerified": true,
+      "idpIssuer": null,
+      "idpSubject": null,
+      "memberExternalKeys": []
+    },
+    {
+      "kind": "SOURCE_GROUP",
+      "externalKey": "C-general",
+      "email": null,
+      "displayName": "#general",
+      "ssoVerified": false,
+      "idpIssuer": null,
+      "idpSubject": null,
+      "memberExternalKeys": ["U-an"]
+    }
+  ],
+  "contents": [
+    {
+      "externalObjectId": "C-general-msg",
+      "title": "General channel digest",
+      "body": "The quarterly onboarding runbook lives in the general channel and covers laptop setup, VPN access, and the first-week checklist.",
+      "contentRevision": "rev-1"
+    }
+  ],
+  "permissions": [
+    {
+      "externalObjectId": "C-general-msg",
+      "grants": [
+        {
+          "principalKind": "SOURCE_GROUP",
+          "principalExternalKey": "C-general",
+          "gate": "ALLOW"
+        }
+      ]
+    }
+  ],
+  "tombstones": []
+}

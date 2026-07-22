@@ -1,0 +1,49 @@
+{
+  "organizationId": "e0000000-0000-4000-8000-000000000001",
+  "sourceSystem": "slack",
+  "sourceConnectionKey": "T-fixture",
+  "knowledgeSpaceId": "e0000000-0000-4000-8000-000000000003",
+  "actorUserId": "e0000000-0000-4000-8000-000000000004",
+  "crawlCursor": "cursor-02-recrawl",
+  "versions": {
+    "content": "content/v1",
+    "identity": "identity/v1",
+    "permission": "permissions/v1"
+  },
+  "identities": [
+    {
+      "kind": "SOURCE_USER",
+      "externalKey": "U-chi",
+      "email": "chi@slackfix.example",
+      "displayName": "Chi",
+      "ssoVerified": true,
+      "idpIssuer": null,
+      "idpSubject": null,
+      "memberExternalKeys": []
+    },
+    {
+      "kind": "SOURCE_GROUP",
+      "externalKey": "C-general",
+      "email": null,
+      "displayName": "#general",
+      "ssoVerified": false,
+      "idpIssuer": null,
+      "idpSubject": null,
+      "memberExternalKeys": ["U-chi"]
+    }
+  ],
+  "contents": [],
+  "permissions": [
+    {
+      "externalObjectId": "C-general-msg",
+      "grants": [
+        {
+          "principalKind": "SOURCE_GROUP",
+          "principalExternalKey": "C-general",
+          "gate": "ALLOW"
+        }
+      ]
+    }
+  ],
+  "tombstones": []
+}

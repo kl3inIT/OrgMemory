@@ -141,6 +141,78 @@ class ConnectorReconciler {
             ConnectorContentItem content,
             ConnectorPermissionItem permission,
             ConnectorIdentityResolution resolution) {
+        AclPlan plan = buildAclPlan(ctx, permission, resolution);
+        var head = ingestion.findConnectorHead(
+                ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
+        if (head.isEmpty()) {
+            RawSourceRef raw = ingestion.registerConnectorSource(
+                    registerCommand(ctx, content, plan.entries(), Instant.now().plus(ACL_TTL)),
+                    plan.membership());
+            NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
+                    ctx.organizationId(),
+                    raw.rawSourceObjectId(),
+                    NORMALIZER_VERSION,
+                    content.title(),
+                    content.body(),
+                    "und"));
+            materializeContent(ctx, content, raw, normalized);
+            audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
+            return ObjectOutcome.MATERIALIZED;
+        }
+        return rotate(ctx, head.get(), plan, content.externalObjectId(), content.contentRevision());
+    }
+
+    /**
+     * Reconciles an object that arrived in the permissions payload without content — a
+     * permissions-only re-crawl on its own cadence. It rotates the existing object's ACL to a
+     * new sealed generation; an object with no materialized content yet cannot be established
+     * from permissions alone and is rejected.
+     */
+    ObjectOutcome reconcilePermissions(
+            ConnectorIngestionContext ctx,
+            ConnectorPermissionItem permission,
+            ConnectorIdentityResolution resolution) {
+        AclPlan plan = buildAclPlan(ctx, permission, resolution);
+        var head = ingestion.findConnectorHead(
+                ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), permission.externalObjectId());
+        if (head.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "permissions arrived for an object with no materialized content: "
+                            + permission.externalObjectId());
+        }
+        return rotate(ctx, head.get(), plan, permission.externalObjectId(), null);
+    }
+
+    private ObjectOutcome rotate(
+            ConnectorIngestionContext ctx,
+            ConnectorHeadView current,
+            AclPlan plan,
+            String externalObjectId,
+            String incomingContentRevision) {
+        ingestion.rotateConnectorAcl(
+                new RotateSourceAclCommand(
+                        ctx.organizationId(),
+                        current.rawSourceObjectId(),
+                        AclCaptureStatus.COMPLETE,
+                        AccessGate.DENY,
+                        Instant.now().plus(ACL_TTL),
+                        plan.entries(),
+                        current.currentSnapshotId()),
+                plan.membership());
+        boolean contentChanged = incomingContentRevision != null
+                && !incomingContentRevision.equals(current.currentContentRevision());
+        audit(
+                ctx,
+                "CONNECTOR_ROTATE",
+                externalObjectId,
+                contentChanged ? "ACL_ROTATED_CONTENT_DEFERRED" : "ACL_ROTATED");
+        return contentChanged ? ObjectOutcome.ROTATED_CONTENT_DEFERRED : ObjectOutcome.ROTATED;
+    }
+
+    private AclPlan buildAclPlan(
+            ConnectorIngestionContext ctx,
+            ConnectorPermissionItem permission,
+            ConnectorIdentityResolution resolution) {
         List<SourceAclEntryCommand> entries = new ArrayList<>();
         List<SealedGroupMembership> membership = new ArrayList<>();
         for (ConnectorAclGrant grant : grantsOf(permission)) {
@@ -161,44 +233,10 @@ class ConnectorReconciler {
                                 .getOrDefault(grant.principalExternalKey(), List.of())));
             }
         }
+        return new AclPlan(entries, membership);
+    }
 
-        Instant validUntil = Instant.now().plus(ACL_TTL);
-        var head = ingestion.findConnectorHead(
-                ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
-
-        if (head.isEmpty()) {
-            RawSourceRef raw = ingestion.registerConnectorSource(
-                    registerCommand(ctx, content, entries, validUntil), membership);
-            NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
-                    ctx.organizationId(),
-                    raw.rawSourceObjectId(),
-                    NORMALIZER_VERSION,
-                    content.title(),
-                    content.body(),
-                    "und"));
-            materializeContent(ctx, content, raw, normalized);
-            audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
-            return ObjectOutcome.MATERIALIZED;
-        }
-
-        ConnectorHeadView current = head.get();
-        ingestion.rotateConnectorAcl(
-                new RotateSourceAclCommand(
-                        ctx.organizationId(),
-                        current.rawSourceObjectId(),
-                        AclCaptureStatus.COMPLETE,
-                        AccessGate.DENY,
-                        validUntil,
-                        entries,
-                        current.currentSnapshotId()),
-                membership);
-        boolean contentChanged = !content.contentRevision().equals(current.currentContentRevision());
-        audit(
-                ctx,
-                "CONNECTOR_ROTATE",
-                content.externalObjectId(),
-                contentChanged ? "ACL_ROTATED_CONTENT_DEFERRED" : "ACL_ROTATED");
-        return contentChanged ? ObjectOutcome.ROTATED_CONTENT_DEFERRED : ObjectOutcome.ROTATED;
+    private record AclPlan(List<SourceAclEntryCommand> entries, List<SealedGroupMembership> membership) {
     }
 
     /** Retires a tombstoned object from retrieval. Returns whether an active object was retired. */

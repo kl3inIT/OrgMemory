@@ -22,11 +22,13 @@ import org.springframework.stereotype.Component;
 @Component
 class FileConnectorBatchSource implements ConnectorBatchSource {
 
-    private final ObjectMapper objectMapper;
+    // The connector worker is a non-web application with no shared ObjectMapper bean; the
+    // crawl-batch records need no custom configuration, so this source owns a plain mapper.
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final ConnectorCrawlProperties properties;
 
-    FileConnectorBatchSource(ObjectMapper objectMapper, ConnectorCrawlProperties properties) {
-        this.objectMapper = objectMapper;
+    FileConnectorBatchSource(ConnectorCrawlProperties properties) {
         this.properties = properties;
     }
 
@@ -53,7 +55,7 @@ class FileConnectorBatchSource implements ConnectorBatchSource {
 
     private ConnectorCrawlBatch read(Path path) {
         try {
-            return objectMapper.readValue(Files.readAllBytes(path), ConnectorCrawlBatch.class);
+            return OBJECT_MAPPER.readValue(Files.readAllBytes(path), ConnectorCrawlBatch.class);
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not read connector batch " + path, exception);
         }
