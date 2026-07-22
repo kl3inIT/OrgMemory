@@ -2,18 +2,31 @@
 
 ## 1 — Schema And Model
 
-- [ ] Add Flyway migration for `source_principals` (organization, source type,
-  external key, kind `SOURCE_USER|SOURCE_GROUP`, observed email/display,
-  `last_seen_at`; unique per organization + source type + external key).
-- [ ] Add `source_principal_mappings` (source principal, internal user,
-  `method`, evidence, `verified_at`, status; at most one ACTIVE mapping per
-  source principal enforced by a partial unique index).
-- [ ] Add sealed per-generation group membership storage following the existing
-  append-only ACL sealing conventions; no UPDATE/DELETE path.
-- [ ] Add `SOURCE_USER` to `SourcePrincipalType` and verify existing ACL entry
-  handling stays fail-closed for the new kind.
-- [ ] JPA entities and repositories in `core.knowledge`; Modulith verification
-  stays green.
+- [x] Add Flyway migration `V19__external_principal_mapping.sql`:
+  `source_principals` (unique per organization + source system + connection key
+  + external key; kind `SOURCE_USER|SOURCE_GROUP`; `sso_verified`;
+  `last_seen_at`), `source_principal_mappings` (kind-constrained composite FK
+  so only `SOURCE_USER` maps to `app_users(id, organization_id)`; partial
+  unique index allows one ACTIVE mapping per principal),
+  `source_acl_group_members` (sealed per snapshot; reuses
+  `reject_entry_insert_into_sealed_acl` and
+  `reject_source_acl_evidence_mutation` triggers), and the widened
+  `chk_source_acl_principal_type` CHECK on `source_acl_entries`.
+- [ ] Add `SOURCE_USER` to `SourcePrincipalType`; extend the
+  `SourceAclPolicy.matches` switch with `case SOURCE_USER, SOURCE_GROUP ->
+  false` so the Java recheck stays fail-closed until phase 3.
+- [ ] Extend the `KnowledgeIngestionService` complete-ACL guard that rejects
+  `SOURCE_GROUP` today so it rejects `SOURCE_USER` for the same reason until
+  mapping enforcement lands.
+- [ ] JPA entities and repositories in `core.knowledge`: `SourcePrincipal`
+  (mutable observation, extends `BaseEntity` like `KnowledgeSpace`),
+  `SourcePrincipalMapping` (extends `BaseEntity`), `SourceAclGroupMember`
+  (immutable, own `@Id` + `created_at` like `SourceAclEntry`), plus enums
+  `SourcePrincipalKind`, mapping method, and mapping status; Modulith
+  verification stays green.
+- [ ] Gates: `compileJava`, `ModulithVerificationTests`, and one
+  Testcontainers integration test run so Flyway applies V19 on real
+  PostgreSQL.
 
 ## 2 — Mapping Service And Matcher
 
@@ -37,6 +50,14 @@
   resolution; SQL/Java drift keeps recording `POLICY_PREDICATE_DRIFT` denies.
 - [ ] Missing, revoked, or inactive mapping and unknown principal kinds all
   resolve to deny.
+- [ ] Implement the [ADR 0009](../../../decisions/0009-dynamic-source-acl-ceiling.md)
+  ceiling for live sources: `SourceAclPolicy.evaluate` currently intersects the
+  ingestion snapshot AND the current head; for non-upload source systems the
+  enforcement ceiling becomes the current sealed generation only (ingestion
+  snapshot stays recorded for audit), while native upload sources keep the
+  existing intersection. Without this, a user present only in a newer
+  generation is still denied and the no-re-ingestion exit criterion cannot
+  pass.
 
 ## 4 — Fixture And Proofs
 
@@ -57,3 +78,16 @@
 - [ ] Tick the corresponding external-principal items in the vertical-slice
   plan and record evidence in docs/tests.
 - [ ] Move this increment to `completed`.
+
+## Execution Notes
+
+- Only phase 3 changes retrieval behavior; phases 1-2 must leave every
+  existing test green and every new code path denying.
+- Style anchors: `KnowledgeSpace`/`BaseEntity` for mutable entities,
+  `SourceAclEntry` for immutable evidence rows, V11 for tenant-safe composite
+  FK chains and seal triggers, `PermissionAuditService.record`
+  (`REQUIRES_NEW`) for audit events.
+- V19 is already written in this branch; it only adds tables/constraints and
+  widens one CHECK, so it deploys before any entity exists.
+- Local gates: `.\gradlew.bat --no-daemon compileJava`, then
+  `.\gradlew.bat --no-daemon :core:test`, web untouched until phase 4.
