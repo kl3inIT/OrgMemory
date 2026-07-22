@@ -35,10 +35,23 @@ while the independent classification gate limits retrieval to executives.
 Effective retrieval remains the intersection of Space authorization,
 immutable/current source ACL, classification, tenant, and lifecycle state.
 
-The current path does not yet implement Airbyte or Slack staging contracts,
-external source-group mapping, OCR, malware and DLP
-integrations, entity and relationship extraction, graph publication, or hybrid
-retrieval extensions beyond the current secure FTS + pgvector path.
+External source principals observed from a source are recorded in a
+`source_principals` registry (observation grants nothing) and resolved to active
+internal users through a verified `source_principal_mappings` ledger. Automatic
+matching runs a trusted issuer/subject IdP join first, then an SSO-verified email
+join; unverified tails use explicit self-claim or admin confirmation. Each
+mutation keeps at most one active mapping per principal and appends a permission
+audit event. A `SOURCE_USER` ACL entry grants only through an active mapping to
+the querying user; a `SOURCE_GROUP` entry grants only through that snapshot's
+sealed group membership joined to an active mapping. Any unmapped, revoked, or
+inactive principal grants nothing. Per [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md),
+live (non-upload) sources enforce the current sealed ACL generation as the
+ceiling while upload sources keep the ingestion-current intersection.
+
+The current path does not yet implement Airbyte or Slack staging contracts, a
+live source connector runtime, OCR, malware and DLP integrations, entity and
+relationship extraction, graph publication, or hybrid retrieval extensions
+beyond the current secure FTS + pgvector path.
 
 ## Source Modules
 
