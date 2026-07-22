@@ -46,3 +46,4 @@ multi-source derived permissions are not part of the implemented path.
 ## Related Decisions
 
 - [0003](../../decisions/0003-postgresql-ledger-openfga-authorization.md)
+- [0009](../../decisions/0009-dynamic-source-acl-ceiling.md)

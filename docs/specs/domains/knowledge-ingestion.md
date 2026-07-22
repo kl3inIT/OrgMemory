@@ -52,3 +52,4 @@ retrieval extensions beyond the current secure FTS + pgvector path.
 - [0004](../../decisions/0004-manual-upload-is-a-first-class-source.md)
 - [0005](../../decisions/0005-secure-java-graph-kernel.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
+- [0009](../../decisions/0009-dynamic-source-acl-ceiling.md)
