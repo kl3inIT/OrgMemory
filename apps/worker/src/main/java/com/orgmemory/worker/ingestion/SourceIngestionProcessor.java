@@ -268,7 +268,7 @@ class SourceIngestionProcessor {
 
     private static List<SourceAclEntryCommand> sourceAcl(ClaimedSourceRevision claim) {
         return switch (claim.declaredAccess()) {
-            case ALL, ALL_EMPLOYEES -> List.of(new SourceAclEntryCommand(
+            case ALL, ALL_EMPLOYEES, EXECUTIVE_ONLY -> List.of(new SourceAclEntryCommand(
                     SourcePrincipalType.ORGMEMORY_ORGANIZATION,
                     claim.organizationId().toString(),
                     AccessGate.ALLOW));
@@ -282,8 +282,6 @@ class SourceIngestionProcessor {
                         claim.departmentId().toString(),
                         AccessGate.ALLOW));
             }
-            case EXECUTIVE_ONLY -> throw new IllegalStateException(
-                    "Executive-only manual upload is not supported");
         };
     }
 

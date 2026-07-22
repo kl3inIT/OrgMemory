@@ -1,5 +1,6 @@
 package com.orgmemory.worker;
 
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
@@ -16,7 +17,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EntityScan("com.orgmemory.core")
 @EnableJpaRepositories("com.orgmemory.core")
-@EnableConfigurationProperties({SourceIngestionProperties.class, SourceProcessingProperties.class})
+@EnableConfigurationProperties({
+        SourceIngestionProperties.class,
+        SourceProcessingProperties.class,
+        KnowledgeRetrievalProperties.class
+})
 @ComponentScan(
         basePackages = {
                 "com.orgmemory.worker",

@@ -8,7 +8,7 @@ spring:
     openai:
       api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
       chat:
-        model: ${ORGMEMORY_OPENAI_MODEL:gpt-5.5}
+        model: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
       embedding:
         model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
         dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
@@ -55,14 +55,14 @@ orgmemory:
     gateways:
       openai:
         display-name: OpenAI
-        base-url: ${ORGMEMORY_OPENAI_BASE_URL:https://api.openai.com}
+        base-url: ${ORGMEMORY_OPENAI_BASE_URL:https://api.openai.com/v1}
         api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
         capabilities: [CHAT, EMBEDDING]
         timeout: ${ORGMEMORY_AI_GATEWAY_TIMEOUT:60s}
     routes:
       assistant-chat:
         gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
-        model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.5}
+        model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
       embedding:
         gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}

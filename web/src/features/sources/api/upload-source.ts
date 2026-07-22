@@ -2,7 +2,7 @@ import { uploadSource, type SourceResponse } from "@/lib/hey-api"
 
 export type UploadSourceInput = {
   file: File
-  classification: "INTERNAL" | "CONFIDENTIAL"
+  classification: "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED"
   knowledgeSpaceId: string
 }
 

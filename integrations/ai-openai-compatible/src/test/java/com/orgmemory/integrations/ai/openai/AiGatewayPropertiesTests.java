@@ -44,12 +44,12 @@ class AiGatewayPropertiesTests {
         return new AiGatewayProperties(
                 Map.of("openai", new AiGatewayProperties.Gateway(
                         "OpenAI",
-                        "https://api.openai.com",
+                        "https://api.openai.com/v1",
                         "top-secret-key",
                         capabilities,
                         Duration.ofSeconds(60))),
                 new AiGatewayProperties.Routes(
-                        new AiGatewayProperties.Route("openai", "gpt-5.5"),
+                        new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
     }
 }

@@ -87,14 +87,14 @@ public record AiGatewayProperties(Map<String, Gateway> gateways, Routes routes) 
 
         public Routes {
             assistantChat = assistantChat == null
-                    ? new Route("openai", "gpt-5.5") : assistantChat;
+                    ? new Route("openai", "gpt-5.6-sol") : assistantChat;
             embedding = embedding == null
                     ? new Route("openai", "text-embedding-3-large") : embedding;
         }
 
         static Routes defaults() {
             return new Routes(
-                    new Route("openai", "gpt-5.5"),
+                    new Route("openai", "gpt-5.6-sol"),
                     new Route("openai", "text-embedding-3-large"));
         }
 

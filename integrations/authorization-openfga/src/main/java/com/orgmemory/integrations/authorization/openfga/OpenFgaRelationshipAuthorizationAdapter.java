@@ -12,8 +12,12 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class OpenFgaRelationshipAuthorizationAdapter implements RelationshipAuthorizationPort {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OpenFgaRelationshipAuthorizationAdapter.class);
 
     private final OpenFgaClient client;
     private final String authorizationModelId;
@@ -52,6 +56,12 @@ public final class OpenFgaRelationshipAuthorizationAdapter implements Relationsh
         } catch (TimeoutException exception) {
             return AuthorizationDecision.indeterminate("OPENFGA_TIMEOUT", authorizationModelId);
         } catch (FgaInvalidParameterException | ExecutionException | RuntimeException exception) {
+            LOGGER.warn(
+                    "OpenFGA Check failed for resource type {} and relation {} using model {}",
+                    query.resource().type(),
+                    query.permission().value(),
+                    authorizationModelId,
+                    exception);
             return AuthorizationDecision.indeterminate("OPENFGA_UNAVAILABLE", authorizationModelId);
         }
     }

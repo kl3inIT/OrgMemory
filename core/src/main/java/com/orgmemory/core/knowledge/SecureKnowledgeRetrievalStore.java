@@ -217,6 +217,18 @@ class SecureKnowledgeRetrievalStore {
                 SecureKnowledgeRetrievalStore::mapCandidate);
     }
 
+    List<UUID> visibleSourceObjectIds(RetrievalScope scope) {
+        String sql = """
+                SELECT DISTINCT kc.source_object_id
+                """ + ELIGIBLE_FROM + """
+                ORDER BY kc.source_object_id
+                """;
+        return jdbc.query(
+                sql,
+                parameters(scope),
+                (result, rowNumber) -> result.getObject("source_object_id", UUID.class));
+    }
+
     private static MapSqlParameterSource parameters(RetrievalScope scope) {
         return new MapSqlParameterSource()
                 .addValue("organizationId", scope.organizationId())

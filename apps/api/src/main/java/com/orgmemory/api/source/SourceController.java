@@ -38,10 +38,10 @@ class SourceController {
     }
 
     @GetMapping
-    @Operation(operationId = "listSources", summary = "List sources uploaded by the current user")
+    @Operation(operationId = "listSources", summary = "List sources visible to the current user")
     List<SourceResponse> list(Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
-        return sources.listOwn(actor).stream().map(SourceResponse::from).toList();
+        return sources.listVisible(actor).stream().map(SourceResponse::from).toList();
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

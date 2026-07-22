@@ -72,12 +72,12 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
         UUID organizationId = UUID.randomUUID();
         ResourceRef allowed = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
         ResourceRef denied = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
-        ClientBatchCheckItem allowedItem = item(allowed);
-        ClientBatchCheckItem deniedItem = item(denied);
+        ClientBatchCheckItem allowedItem = item(allowed, "0");
+        ClientBatchCheckItem deniedItem = item(denied, "1");
         when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
                 CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
-                        new ClientBatchCheckSingleResponse(true, allowedItem, allowed.openFgaObject(), null),
-                        new ClientBatchCheckSingleResponse(false, deniedItem, denied.openFgaObject(), null)))));
+                        new ClientBatchCheckSingleResponse(true, allowedItem, "0", null),
+                        new ClientBatchCheckSingleResponse(false, deniedItem, "1", null)))));
         BatchAuthorizationQuery query = new BatchAuthorizationQuery(
                 organizationId,
                 PrincipalRef.user(UUID.randomUUID()),
@@ -92,7 +92,7 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
 
         when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
                 CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
-                        new ClientBatchCheckSingleResponse(true, allowedItem, allowed.openFgaObject(), null)))));
+                        new ClientBatchCheckSingleResponse(true, allowedItem, "0", null)))));
         assertFalse(adapter(client).batchCheck(query).resolved());
     }
 
@@ -146,11 +146,11 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
         return new OpenFgaRelationshipAuthorizationSetAdapter(client, "model-1", Duration.ofSeconds(1));
     }
 
-    private static ClientBatchCheckItem item(ResourceRef resource) {
+    private static ClientBatchCheckItem item(ResourceRef resource, String correlationId) {
         return new ClientBatchCheckItem()
                 .user("user:test")
                 .relation("can_view")
                 ._object(resource.openFgaObject())
-                .correlationId(resource.openFgaObject());
+                .correlationId(correlationId);
     }
 }

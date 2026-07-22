@@ -28,11 +28,12 @@ partial expression index. Canonical source and evidence records remain
 independent from rebuildable full-document, chunk, entity, relationship, and
 graph projections.
 
-Internal upload ACL evidence grants the organization; confidential upload ACL
-evidence grants the target Space's department and therefore requires a
-department-bound Space. Effective retrieval remains the intersection of Space
-authorization, immutable/current source ACL, classification, tenant, and
-lifecycle state.
+Public and internal upload ACL evidence grants the organization; confidential
+upload ACL evidence grants the target Space's department and therefore requires
+a department-bound Space. Restricted upload evidence remains organization-bound
+while the independent classification gate limits retrieval to executives.
+Effective retrieval remains the intersection of Space authorization,
+immutable/current source ACL, classification, tenant, and lifecycle state.
 
 The current path does not yet implement Airbyte or Slack staging contracts,
 external source-group mapping, OCR, malware and DLP

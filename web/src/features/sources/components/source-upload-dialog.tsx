@@ -154,8 +154,10 @@ export function SourceUploadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="PUBLIC">Public · all employees</SelectItem>
                 <SelectItem value="CONFIDENTIAL">Confidential · my department</SelectItem>
                 <SelectItem value="INTERNAL">Internal · all employees</SelectItem>
+                <SelectItem value="RESTRICTED">Restricted · executives only</SelectItem>
               </SelectContent>
             </Select>
           </div>

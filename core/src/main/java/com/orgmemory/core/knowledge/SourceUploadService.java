@@ -111,10 +111,6 @@ public class SourceUploadService {
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
-        if (classification != KnowledgeClassification.INTERNAL
-                && classification != KnowledgeClassification.CONFIDENTIAL) {
-            throw new IllegalArgumentException("manual upload currently supports internal or confidential knowledge");
-        }
         if (command.knowledgeSpaceId() == null) {
             throw new IllegalArgumentException("Knowledge Space is required");
         }
