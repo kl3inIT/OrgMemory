@@ -31,15 +31,16 @@
 
 ## 2 — Mapping Service And Matcher
 
-- [ ] `SourcePrincipalService`: idempotent upsert of observed principals and
-  group membership from an identity payload; observation grants nothing.
-- [ ] `SourcePrincipalMappingService` commands: `applyIdpJoin`,
-  `applySsoEmailJoin`, `selfClaim`, `adminConfirm`, `revoke`; each validates an
-  active internal user, enforces single-active-mapping, and appends a
-  permission audit event in `REQUIRES_NEW`.
-- [ ] Matcher runs tier 1 (issuer/subject join evidence) then tier 2 (email
-  join only for SSO-verified source identities); everything else stays
-  unmapped.
+- [x] `SourcePrincipalService`: idempotent `observe` upsert of observed
+  principals plus `recordGroupMembership` for a pre-seal snapshot; observation
+  grants nothing.
+- [x] `SourcePrincipalMappingService` commands: `autoMap` (tiers), `selfClaim`,
+  `adminConfirm`, `revoke`; each validates an active internal user, enforces
+  single-active-mapping, and appends a permission audit event via
+  `PermissionAuditService.record` (`REQUIRES_NEW`).
+- [x] Matcher runs tier 1 (issuer/subject IdP join) then tier 2 (email join
+  only for SSO-verified source identities); everything else stays unmapped.
+  Locked by `SourcePrincipalMappingServiceTests` (8 cases).
 
 ## 3 — Retrieval Enforcement
 
