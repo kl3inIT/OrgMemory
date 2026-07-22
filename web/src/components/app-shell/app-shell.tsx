@@ -14,7 +14,7 @@ export function AppShell({ identity, children }: { identity: SessionResponse; ch
   })
 
   useEffect(() => {
-    document.title = `${pageTitle} · OrgMemory`
+    document.title = pageTitle === "OrgMemory" ? "OrgMemory" : `${pageTitle} · OrgMemory`
   }, [pageTitle])
 
   return (

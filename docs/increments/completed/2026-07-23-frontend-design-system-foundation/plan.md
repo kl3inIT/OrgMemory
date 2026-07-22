@@ -18,5 +18,14 @@
 - [x] Run web lint, typecheck, and production build.
 - [x] Verify login, Assistant, Documents, the notification host, narrow layout, light, and dark
   modes in a real browser.
-- [ ] Consolidate docs, move the increment to completed, commit, push, open a PR,
+- [x] Consolidate docs, move the increment to completed, commit, push, open a PR,
   and resolve actionable CI or CodeRabbit findings.
+
+## Completion Evidence
+
+- Web Oxlint, TypeScript typecheck, and production build pass.
+- Real-browser login, Assistant, Documents, light/dark theme, route title, and
+  390 px viewport checks pass against the local stack.
+- GitHub CI passes for Web, Backend, OpenFGA, and the aggregate CI gate.
+- CodeRabbit findings were verified and addressed before the increment moved to
+  `completed`.
