@@ -239,6 +239,9 @@ class SourceIngestionPipelineIntegrationTests {
                 "knowledge_space:" + SALES_SPACE_ID,
                 writeRequest.getValue().tuples().getFirst().user());
         assertEquals("space", writeRequest.getValue().tuples().getFirst().relation());
+        assertEquals(
+                "knowledge_asset:" + revision.get("knowledge_asset_id"),
+                writeRequest.getValue().tuples().getFirst().object());
         assertEquals("user:" + USER_ID, writeRequest.getValue().tuples().get(1).user());
         assertEquals("owner", writeRequest.getValue().tuples().get(1).relation());
         assertEquals(

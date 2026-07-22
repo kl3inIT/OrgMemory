@@ -178,6 +178,10 @@ tests:
         object: knowledge_space:finance
         assertions:
           can_create_asset: false
+      - user: user:minh
+        object: knowledge_space:company
+        assertions:
+          can_create_asset: false
       - user: user:evelyn
         object: knowledge_space:executive
         assertions:

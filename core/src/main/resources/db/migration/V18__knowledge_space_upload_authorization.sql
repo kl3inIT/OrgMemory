@@ -77,91 +77,240 @@ WHERE NOT EXISTS (
 ALTER TABLE source_objects
     ADD COLUMN knowledge_space_id uuid;
 
-UPDATE source_objects source
-SET knowledge_space_id = COALESCE(
-    (
-        SELECT space.id
-        FROM knowledge_spaces space
-        WHERE space.organization_id = source.organization_id
-          AND space.department_id = source.department_id
-        ORDER BY space.space_key
-        LIMIT 1
-    ),
-    (
-        SELECT space.id
-        FROM knowledge_spaces space
-        WHERE space.organization_id = source.organization_id
-          AND space.space_key = 'company'
-    )
-);
-
 ALTER TABLE source_objects
-    ALTER COLUMN knowledge_space_id SET NOT NULL,
     ADD CONSTRAINT fk_source_object_space_organization
         FOREIGN KEY (knowledge_space_id, organization_id)
-        REFERENCES knowledge_spaces(id, organization_id);
+        REFERENCES knowledge_spaces(id, organization_id)
+        NOT VALID;
+
+CREATE PROCEDURE backfill_source_object_spaces(batch_size integer)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected_rows integer;
+BEGIN
+    LOOP
+        WITH pending AS (
+            SELECT id, organization_id
+            FROM source_objects
+            WHERE knowledge_space_id IS NULL
+            ORDER BY id
+            LIMIT batch_size
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE source_objects source
+        SET knowledge_space_id = COALESCE(
+            (
+                SELECT space.id
+                FROM knowledge_spaces space
+                WHERE space.organization_id = source.organization_id
+                  AND space.department_id = source.department_id
+                ORDER BY space.space_key
+                LIMIT 1
+            ),
+            (
+                SELECT space.id
+                FROM knowledge_spaces space
+                WHERE space.organization_id = source.organization_id
+                  AND space.space_key = 'company'
+            )
+        )
+        FROM pending
+        WHERE source.id = pending.id
+          AND source.organization_id = pending.organization_id;
+
+        GET DIAGNOSTICS affected_rows = ROW_COUNT;
+        COMMIT;
+        EXIT WHEN affected_rows = 0;
+    END LOOP;
+END;
+$$;
+
+CALL backfill_source_object_spaces(1000);
+DROP PROCEDURE backfill_source_object_spaces(integer);
+
+ALTER TABLE source_objects
+    ADD CONSTRAINT chk_source_object_space_present
+        CHECK (knowledge_space_id IS NOT NULL) NOT VALID;
+ALTER TABLE source_objects VALIDATE CONSTRAINT fk_source_object_space_organization;
+ALTER TABLE source_objects VALIDATE CONSTRAINT chk_source_object_space_present;
+ALTER TABLE source_objects ALTER COLUMN knowledge_space_id SET NOT NULL;
+ALTER TABLE source_objects DROP CONSTRAINT chk_source_object_space_present;
 
 ALTER TABLE source_revisions
     ADD COLUMN knowledge_space_id uuid;
 
-UPDATE source_revisions revision
-SET knowledge_space_id = source.knowledge_space_id
-FROM source_objects source
-WHERE source.id = revision.source_object_id
-  AND source.organization_id = revision.organization_id;
-
 ALTER TABLE source_revisions
-    ALTER COLUMN knowledge_space_id SET NOT NULL,
     ADD CONSTRAINT fk_source_revision_space_organization
         FOREIGN KEY (knowledge_space_id, organization_id)
-        REFERENCES knowledge_spaces(id, organization_id);
+        REFERENCES knowledge_spaces(id, organization_id)
+        NOT VALID;
+
+CREATE PROCEDURE backfill_source_revision_spaces(batch_size integer)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected_rows integer;
+BEGIN
+    LOOP
+        WITH pending AS (
+            SELECT id, organization_id
+            FROM source_revisions
+            WHERE knowledge_space_id IS NULL
+            ORDER BY id
+            LIMIT batch_size
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE source_revisions revision
+        SET knowledge_space_id = source.knowledge_space_id
+        FROM pending, source_objects source
+        WHERE revision.id = pending.id
+          AND revision.organization_id = pending.organization_id
+          AND source.id = revision.source_object_id
+          AND source.organization_id = revision.organization_id;
+
+        GET DIAGNOSTICS affected_rows = ROW_COUNT;
+        COMMIT;
+        EXIT WHEN affected_rows = 0;
+    END LOOP;
+END;
+$$;
+
+CALL backfill_source_revision_spaces(1000);
+DROP PROCEDURE backfill_source_revision_spaces(integer);
+
+ALTER TABLE source_revisions
+    ADD CONSTRAINT chk_source_revision_space_present
+        CHECK (knowledge_space_id IS NOT NULL) NOT VALID;
+ALTER TABLE source_revisions VALIDATE CONSTRAINT fk_source_revision_space_organization;
+ALTER TABLE source_revisions VALIDATE CONSTRAINT chk_source_revision_space_present;
+ALTER TABLE source_revisions ALTER COLUMN knowledge_space_id SET NOT NULL;
+ALTER TABLE source_revisions DROP CONSTRAINT chk_source_revision_space_present;
 
 ALTER TABLE knowledge_assets
     ADD COLUMN knowledge_space_id uuid;
 
-UPDATE knowledge_assets asset
-SET knowledge_space_id = COALESCE(
-    (
-        SELECT source.knowledge_space_id
-        FROM source_revisions revision
-        JOIN source_objects source
-          ON source.id = revision.source_object_id
-         AND source.organization_id = revision.organization_id
-        WHERE revision.knowledge_asset_id = asset.id
-          AND revision.organization_id = asset.organization_id
-        LIMIT 1
-    ),
-    (
-        SELECT space.id
-        FROM knowledge_spaces space
-        WHERE space.organization_id = asset.organization_id
-          AND space.space_key = 'company'
-    )
-);
-
 ALTER TABLE knowledge_assets
-    ALTER COLUMN knowledge_space_id SET NOT NULL,
     ADD CONSTRAINT fk_knowledge_asset_space_organization
         FOREIGN KEY (knowledge_space_id, organization_id)
-        REFERENCES knowledge_spaces(id, organization_id);
+        REFERENCES knowledge_spaces(id, organization_id)
+        NOT VALID;
+
+CREATE PROCEDURE backfill_knowledge_asset_spaces(batch_size integer)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected_rows integer;
+BEGIN
+    LOOP
+        WITH pending AS (
+            SELECT id, organization_id
+            FROM knowledge_assets
+            WHERE knowledge_space_id IS NULL
+            ORDER BY id
+            LIMIT batch_size
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE knowledge_assets asset
+        SET knowledge_space_id = COALESCE(
+            (
+                SELECT source.knowledge_space_id
+                FROM source_revisions revision
+                JOIN source_objects source
+                  ON source.id = revision.source_object_id
+                 AND source.organization_id = revision.organization_id
+                WHERE revision.knowledge_asset_id = asset.id
+                  AND revision.organization_id = asset.organization_id
+                LIMIT 1
+            ),
+            (
+                SELECT space.id
+                FROM knowledge_spaces space
+                WHERE space.organization_id = asset.organization_id
+                  AND space.space_key = 'company'
+            )
+        )
+        FROM pending
+        WHERE asset.id = pending.id
+          AND asset.organization_id = pending.organization_id;
+
+        GET DIAGNOSTICS affected_rows = ROW_COUNT;
+        COMMIT;
+        EXIT WHEN affected_rows = 0;
+    END LOOP;
+END;
+$$;
+
+CALL backfill_knowledge_asset_spaces(1000);
+DROP PROCEDURE backfill_knowledge_asset_spaces(integer);
+
+ALTER TABLE knowledge_assets
+    ADD CONSTRAINT chk_knowledge_asset_space_present
+        CHECK (knowledge_space_id IS NOT NULL) NOT VALID;
+ALTER TABLE knowledge_assets VALIDATE CONSTRAINT fk_knowledge_asset_space_organization;
+ALTER TABLE knowledge_assets VALIDATE CONSTRAINT chk_knowledge_asset_space_present;
+ALTER TABLE knowledge_assets ALTER COLUMN knowledge_space_id SET NOT NULL;
+ALTER TABLE knowledge_assets DROP CONSTRAINT chk_knowledge_asset_space_present;
 
 ALTER TABLE knowledge_asset_publication_outbox
     ADD COLUMN knowledge_space_id uuid;
 
-UPDATE knowledge_asset_publication_outbox publication
-SET knowledge_space_id = source.knowledge_space_id
-FROM source_objects source
-WHERE source.id = publication.source_object_id
-  AND source.organization_id = publication.organization_id;
-
 ALTER TABLE knowledge_asset_publication_outbox
-    ALTER COLUMN knowledge_space_id SET NOT NULL,
     ADD CONSTRAINT fk_knowledge_asset_publication_space_organization
         FOREIGN KEY (knowledge_space_id, organization_id)
-        REFERENCES knowledge_spaces(id, organization_id);
+        REFERENCES knowledge_spaces(id, organization_id)
+        NOT VALID;
+
+CREATE PROCEDURE backfill_knowledge_asset_publication_spaces(batch_size integer)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    affected_rows integer;
+BEGIN
+    LOOP
+        WITH pending AS (
+            SELECT id, organization_id
+            FROM knowledge_asset_publication_outbox
+            WHERE knowledge_space_id IS NULL
+            ORDER BY id
+            LIMIT batch_size
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE knowledge_asset_publication_outbox publication
+        SET knowledge_space_id = source.knowledge_space_id
+        FROM pending, source_objects source
+        WHERE publication.id = pending.id
+          AND publication.organization_id = pending.organization_id
+          AND source.id = publication.source_object_id
+          AND source.organization_id = publication.organization_id;
+
+        GET DIAGNOSTICS affected_rows = ROW_COUNT;
+        COMMIT;
+        EXIT WHEN affected_rows = 0;
+    END LOOP;
+END;
+$$;
+
+CALL backfill_knowledge_asset_publication_spaces(1000);
+DROP PROCEDURE backfill_knowledge_asset_publication_spaces(integer);
+
+ALTER TABLE knowledge_asset_publication_outbox
+    ADD CONSTRAINT chk_knowledge_asset_publication_space_present
+        CHECK (knowledge_space_id IS NOT NULL) NOT VALID;
+ALTER TABLE knowledge_asset_publication_outbox
+    VALIDATE CONSTRAINT fk_knowledge_asset_publication_space_organization;
+ALTER TABLE knowledge_asset_publication_outbox
+    VALIDATE CONSTRAINT chk_knowledge_asset_publication_space_present;
+ALTER TABLE knowledge_asset_publication_outbox
+    ALTER COLUMN knowledge_space_id SET NOT NULL;
+ALTER TABLE knowledge_asset_publication_outbox
+    DROP CONSTRAINT chk_knowledge_asset_publication_space_present;
 
 CREATE INDEX idx_knowledge_space_active
     ON knowledge_spaces (organization_id, active, name);
+-- Concurrent index builds are intentionally not run by application-owned Flyway.
+-- Large-table deployments must pre-stage equivalent concurrent indexes through
+-- the deployment pipeline before enabling this migration.
 CREATE INDEX idx_source_object_space
     ON source_objects (organization_id, knowledge_space_id, updated_at DESC);
 CREATE INDEX idx_knowledge_asset_space
