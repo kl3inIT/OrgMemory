@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":integrations:authorization-openfga"))
     implementation(project(":integrations:object-storage-minio"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation(libs.apache.poi.ooxml)

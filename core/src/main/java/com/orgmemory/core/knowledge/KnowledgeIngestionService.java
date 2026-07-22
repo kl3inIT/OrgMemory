@@ -302,7 +302,7 @@ public class KnowledgeIngestionService {
         validatePromotableMetadata(normalized);
 
         KnowledgeAsset asset = knowledgeAssets.save(new KnowledgeAsset(
-                normalized, command.orgMemoryGate(), Instant.now()));
+                normalized, command.orgMemoryGate()));
         normalized.markPromoted();
         normalizedRecords.save(normalized);
         return knowledgeRef(asset);

@@ -26,8 +26,9 @@
 - [x] Define stage state, durable claims, retries, terminal failures, and visible status.
 - [x] Move parse/normalize/chunk/embed work to worker; API only accepts commands
   and exposes state.
-- [x] Publish the Knowledge Asset head after all required stages and persist the
-  embedding profile and projection provenance.
+- [x] Stage the Knowledge Asset and inactive chunks transactionally, publish the
+  direct-upload owner tuple, then activate the searchable head only after the
+  pinned OpenFGA model confirms the write.
 
 ## 4 — OpenFGA And Source Principals
 
@@ -41,7 +42,10 @@
 - [ ] Add a live OpenFGA integration/contract test and runtime model-version
   convergence proof.
 - [ ] Map external source users/groups to verified OrgMemory principals.
-- [ ] Add outbox, tuple version, reconciliation, and fail-closed convergence.
+- [x] Add a direct-upload publication outbox, pinned model evidence, idempotent
+  tuple writes, durable retry, and fail-closed `PENDING -> ACTIVE` convergence.
+- [ ] Extend tuple reconciliation from the direct-upload owner relation to mapped
+  external source users/groups and knowledge spaces.
 - [ ] Prove Admin cannot broaden source ACL and unknown mappings deny.
 
 ## 5 — Hybrid Secure Retrieval

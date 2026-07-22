@@ -319,6 +319,9 @@ class KnowledgeRetrievalIntegrationTests {
                 ORGANIZATION_ID,
                 normalized.normalizedRecordId(),
                 AccessGate.ALLOW));
+        jdbc.update(
+                "UPDATE knowledge_assets SET status = 'ACTIVE', activated_at = now() WHERE id = ?",
+                asset.knowledgeAssetId());
         ingestion.rotateSourceAcl(new RotateSourceAclCommand(
                 ORGANIZATION_ID,
                 raw.rawSourceObjectId(),

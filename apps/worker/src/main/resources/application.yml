@@ -25,7 +25,7 @@ spring:
         model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
         dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
   config:
-    import: optional:file:.env[.properties],optional:file:../../.env[.properties]
+    import: optional:file:.env[.properties],optional:file:../../.env[.properties],optional:file:.openfga.local.properties,optional:file:../../.openfga.local.properties
 
 orgmemory:
   ingestion:

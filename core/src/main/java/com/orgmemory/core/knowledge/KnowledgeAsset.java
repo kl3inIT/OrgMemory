@@ -11,6 +11,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -60,7 +61,7 @@ public class KnowledgeAsset extends BaseEntity {
     @Column(nullable = false, length = 32)
     private KnowledgeAssetStatus status;
 
-    @Column(name = "activated_at", nullable = false, updatable = false)
+    @Column(name = "activated_at")
     private Instant activatedAt;
 
     @Column(name = "retired_at")
@@ -69,7 +70,7 @@ public class KnowledgeAsset extends BaseEntity {
     protected KnowledgeAsset() {
     }
 
-    KnowledgeAsset(NormalizedRecord normalized, AccessGate orgMemoryGate, Instant activatedAt) {
+    KnowledgeAsset(NormalizedRecord normalized, AccessGate orgMemoryGate) {
         super(UUID.randomUUID());
         this.organizationId = normalized.getOrganizationId();
         this.rawSourceObjectId = normalized.getRawSourceObjectId();
@@ -83,13 +84,24 @@ public class KnowledgeAsset extends BaseEntity {
         this.declaredAccess = normalized.getDeclaredAccess();
         this.contentSha256 = normalized.getContentSha256();
         this.orgMemoryGate = orgMemoryGate;
-        this.status = KnowledgeAssetStatus.ACTIVE;
-        this.activatedAt = activatedAt;
+        this.status = KnowledgeAssetStatus.PENDING;
+    }
+
+    void activate(Instant activatedAt) {
+        Instant activationTime = Objects.requireNonNull(activatedAt, "activatedAt");
+        if (status == KnowledgeAssetStatus.ACTIVE) {
+            return;
+        }
+        if (status != KnowledgeAssetStatus.PENDING) {
+            throw new IllegalStateException("Only a pending knowledge asset can be activated");
+        }
+        status = KnowledgeAssetStatus.ACTIVE;
+        this.activatedAt = activationTime;
     }
 
     void retire(Instant retiredAt) {
         if (status != KnowledgeAssetStatus.ACTIVE) {
-            throw new IllegalStateException("Knowledge asset is already retired");
+            throw new IllegalStateException("Only an active knowledge asset can be retired");
         }
         status = KnowledgeAssetStatus.RETIRED;
         this.retiredAt = retiredAt;

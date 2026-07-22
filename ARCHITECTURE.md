@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-20. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+2026-07-22. Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increment](docs/increments/active/2026-07-20-secure-knowledge-vertical-slice/design.md).
 
 ## System Shape
@@ -12,14 +12,17 @@ flowchart LR
     MCP[apps/mcp] --> CORE[core]
     API --> CORE
     WORKER[apps/worker] --> CORE
-    CORE --> PG[(PostgreSQL)]
+    CORE --> PG[(PostgreSQL pgvector)]
+    API --> BLOB[MinIO]
+    WORKER --> BLOB
+    WORKER --> FGA[OpenFGA]
     API -. optional .-> LLM[OpenAI-compatible model]
 ```
 
-The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`, and
-`integrations:authorization-openfga`.
-The web client is a separate Vite workspace. API owns Flyway execution; MCP and
-worker validate the existing schema with Flyway disabled in normal runtime.
+The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
+`integrations:authorization-openfga`, and `integrations:object-storage-minio`.
+The web client is a separate Vite workspace. API owns Flyway execution and the
+worker validates the existing schema with Flyway disabled in normal runtime.
 
 Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
 2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL/pgvector, React 19.2.7,
@@ -35,30 +38,34 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, and health.
-- `apps/worker`: external permission-workbook validation and a scaffold for
-  background ingestion/enrichment.
-- `apps/mcp`: a Spring AI MCP server scaffold sharing the core model.
+- `apps/worker`: leased background validation, parse/normalize, chunk/embed,
+  fail-closed authorization projection, publication, and external
+  permission-workbook validation.
+- `apps/mcp`: a reserved delivery module with no runtime implementation; the
+  legacy scaffold was removed so secure agent tools can be rebuilt on the
+  permission-aware retrieval contract.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
   restoration and passes the verified identity into the shell; feature code
   does not repeat authentication gates.
 
-`core` uses Spring Modulith package boundaries and a verification test. It still
-depends on the Modulith JPA event starter even though no cross-process event flow
-is implemented; the durable worker/outbox decision remains future work.
+`core` uses Spring Modulith package boundaries and a verification test. Leased
+database jobs carry ingestion work across processes. A specific Knowledge Asset
+publication outbox records direct-upload authorization projection attempts and
+the pinned OpenFGA model; no generic event framework has been introduced.
 
 ## Persisted Model
 
 The capability registry persists organizations, departments, users, external
 identities, capability assets, versions, usage, approval events, tags, and
-embeddings. The knowledge slice persists raw source objects, normalized records,
-knowledge assets, sealed ACL snapshots and entries, mutable ACL heads, and
-append-only permission audit events.
-
-The current ingestion object named `RawSourceObject` is source-shaped text plus
-version/hash/ACL metadata; it is not an object-storage blob. The planned rename
-and split is not current behavior.
+embeddings. The knowledge slice persists the canonical upload ledger
+(`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob` metadata), leased
+ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
+versioned chunks and embedding profiles, sealed ACL snapshots and entries,
+mutable ACL heads, publication outbox evidence, and append-only permission audit
+events. Immutable evidence bytes live in MinIO; chunks, embeddings, future graph
+data, and OpenFGA relationships are rebuildable projections.
 
 ## Current Permission-Aware Retrieval
 
@@ -87,9 +94,9 @@ and groups are not mapped into that identity model yet.
 
 Only explicitly namespaced OrgMemory user, department, and organization
 principals are supported. The one-leaf promotion is not a public ingestion API.
-External source groups, OpenFGA, connector staging,
-vector/hybrid knowledge search, multi-source derivation, and permission-aware
-agent/MCP wiring are not implemented.
+External source groups, connector staging, vector/hybrid knowledge search,
+multi-source derivation, and permission-aware agent/MCP wiring are not
+implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -98,8 +105,13 @@ control-plane entry and Capability Asset create/view/edit/review decisions.
 Transactional asset ownership and visibility facts are passed as contextual
 tuples; organization membership and role assignments are persistent OpenFGA
 tuples. The versioned model has executable allow/deny and list-object tests.
-Knowledge Asset resource authorization still uses the prior relational policy
-and is the next cutover; source ACL remains the immutable permission ceiling.
+Direct-upload publication writes the uploader's persistent `owner` tuple
+idempotently and keeps the asset/chunks `PENDING` until OpenFGA confirms it. The
+model id, attempts, and failure reason are recorded in the publication outbox;
+the existing ingestion job provides durable retry. Knowledge Asset retrieval
+still uses the prior relational policy and is the next cutover; source ACL
+remains the immutable permission ceiling. External source-principal and
+knowledge-space tuple projection are not implemented yet.
 
 ## Current AI And Graph Behavior
 
@@ -136,9 +148,9 @@ retain thin handwritten transports. There is no durable streaming conversation
 store.
 
 The repository is a prototype, not an approved production deployment. Backup and
-restore, connector reconciliation, malware/DLP upload scanning, OpenFGA tuple
-convergence, full retrieval-surface audit coverage, load testing, and an
-enterprise security review remain absent.
+restore, connector reconciliation, malware/DLP upload scanning, external
+principal/knowledge-space tuple convergence, full retrieval-surface audit
+coverage, load testing, and an enterprise security review remain absent.
 
 OpenFGA SDK `0.9.9` is pinned in the dependency catalog. The official CLI is
 installed reproducibly by `scripts/install-openfga-cli.ps1` and ignored from

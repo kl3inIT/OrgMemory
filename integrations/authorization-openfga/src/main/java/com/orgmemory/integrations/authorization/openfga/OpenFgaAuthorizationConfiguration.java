@@ -1,6 +1,7 @@
 package com.orgmemory.integrations.authorization.openfga;
 
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
+import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import dev.openfga.sdk.api.client.OpenFgaClient;
 import dev.openfga.sdk.api.configuration.ClientConfiguration;
 import dev.openfga.sdk.errors.FgaInvalidParameterException;
@@ -32,5 +33,11 @@ public class OpenFgaAuthorizationConfiguration {
     RelationshipAuthorizationPort relationshipAuthorizationPort(
             OpenFgaClient client, OpenFgaAuthorizationProperties properties) {
         return new OpenFgaRelationshipAuthorizationAdapter(client, properties.authorizationModelId());
+    }
+
+    @Bean
+    RelationshipTupleWritePort relationshipTupleWritePort(
+            OpenFgaClient client, OpenFgaAuthorizationProperties properties) {
+        return new OpenFgaRelationshipTupleWriteAdapter(client, properties.authorizationModelId());
     }
 }

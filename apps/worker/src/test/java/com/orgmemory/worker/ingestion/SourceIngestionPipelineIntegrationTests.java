@@ -6,8 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
+import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
@@ -28,6 +32,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
@@ -72,6 +77,9 @@ class SourceIngestionPipelineIntegrationTests {
     @MockitoBean
     EmbeddingModel embeddingModel;
 
+    @MockitoBean
+    RelationshipTupleWritePort relationshipTuples;
+
     @Autowired
     SourceUploadService uploads;
 
@@ -106,6 +114,8 @@ class SourceIngestionPipelineIntegrationTests {
                     List<Document> documents = invocation.getArgument(0);
                     return documents.stream().map(ignored -> embedding()).toList();
                 });
+        when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
+                .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
 
         var source = uploads.upload(
                 new CreateUploadSourceCommand(
@@ -139,9 +149,21 @@ class SourceIngestionPipelineIntegrationTests {
         assertNotNull(revision.get("normalized_record_id"));
         assertNotNull(revision.get("knowledge_asset_id"));
         assertEquals(
+                "ACTIVE",
+                jdbc.queryForObject(
+                        "SELECT status FROM knowledge_assets WHERE id = ?",
+                        String.class,
+                        revision.get("knowledge_asset_id")));
+        assertEquals(
                 1,
                 jdbc.queryForObject(
                         "SELECT count(*) FROM knowledge_chunks WHERE source_object_id = ?",
+                        Integer.class,
+                        source.id()));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM knowledge_chunks WHERE source_object_id = ? AND active",
                         Integer.class,
                         source.id()));
         assertEquals(
@@ -162,6 +184,125 @@ class SourceIngestionPipelineIntegrationTests {
                         "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT current_revision_id FROM source_objects WHERE id = ?)",
                         String.class,
                         source.id()));
+        var publication = jdbc.queryForMap(
+                """
+                        SELECT status, attempt_count, authorization_model_id
+                        FROM knowledge_asset_publication_outbox
+                        WHERE knowledge_asset_id = ?
+                        """,
+                revision.get("knowledge_asset_id"));
+        assertEquals("APPLIED", publication.get("status"));
+        assertEquals(1, publication.get("attempt_count"));
+        assertEquals("model-1", publication.get("authorization_model_id"));
+
+        var writeRequest = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
+        verify(relationshipTuples).write(writeRequest.capture());
+        assertEquals("user:" + USER_ID, writeRequest.getValue().tuples().getFirst().user());
+        assertEquals("owner", writeRequest.getValue().tuples().getFirst().relation());
+        assertEquals(
+                "knowledge_asset:" + revision.get("knowledge_asset_id"),
+                writeRequest.getValue().tuples().getFirst().object());
+    }
+
+    @Test
+    @SuppressWarnings("SqlResolve")
+    void keepsPublicationPendingWhenAuthorizationProjectionIsUnavailable() throws Exception {
+        byte[] content = "Resolve the request but do not publish before authorization converges."
+                .getBytes(StandardCharsets.UTF_8);
+        String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        when(objects.put(any(), any())).thenAnswer(invocation -> {
+            ObjectWriteRequest request = invocation.getArgument(0);
+            return new StoredObject(request.key(), content.length, "text/plain", sha256, "etag-2", null);
+        });
+        when(objects.open(any())).thenAnswer(invocation -> {
+            var key = (com.orgmemory.core.knowledge.storage.ObjectKey) invocation.getArgument(0);
+            return new ObjectContent(
+                    new ByteArrayInputStream(content),
+                    new StoredObject(key, content.length, "text/plain", sha256, "etag-2", null));
+        });
+        when(embeddingModel.embed(anyList(), isNull(), any(TokenCountBatchingStrategy.class)))
+                .thenAnswer(invocation -> {
+                    List<Document> documents = invocation.getArgument(0);
+                    return documents.stream().map(ignored -> embedding()).toList();
+                });
+        when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
+                .thenReturn(RelationshipTupleWriteResult.indeterminate(
+                        "OPENFGA_WRITE_UNAVAILABLE", "model-1"));
+
+        var source = uploads.upload(
+                new CreateUploadSourceCommand(
+                        ACTOR,
+                        "authorization-pending.txt",
+                        "text/plain",
+                        content.length,
+                        KnowledgeClassification.CONFIDENTIAL),
+                new ByteArrayInputStream(content));
+
+        processor.processNext();
+
+        var state = jdbc.queryForMap(
+                """
+                        SELECT r.status AS revision_status,
+                               ka.status AS asset_status,
+                               p.status AS publication_status,
+                               p.attempt_count,
+                               p.last_error_code,
+                               bool_and(NOT c.active) AS all_chunks_inactive
+                        FROM source_revisions r
+                        JOIN knowledge_asset_publication_outbox p ON p.source_revision_id = r.id
+                        JOIN knowledge_assets ka ON ka.id = p.knowledge_asset_id
+                        JOIN knowledge_chunks c ON c.knowledge_asset_id = ka.id
+                        WHERE r.source_object_id = ?
+                        GROUP BY r.status, ka.status, p.status, p.attempt_count, p.last_error_code
+                        """,
+                source.id());
+        assertEquals("RECEIVED", state.get("revision_status"));
+        assertEquals("PENDING", state.get("asset_status"));
+        assertEquals("PENDING", state.get("publication_status"));
+        assertEquals(1, state.get("attempt_count"));
+        assertEquals("OPENFGA_WRITE_UNAVAILABLE", state.get("last_error_code"));
+        assertEquals(true, state.get("all_chunks_inactive"));
+        assertEquals(
+                "PENDING",
+                jdbc.queryForObject(
+                        "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT current_revision_id FROM source_objects WHERE id = ?)",
+                        String.class,
+                        source.id()));
+
+        when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
+                .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        jdbc.update(
+                """
+                        UPDATE source_ingestion_jobs
+                        SET available_at = now()
+                        WHERE source_revision_id = (
+                            SELECT current_revision_id FROM source_objects WHERE id = ?
+                        )
+                        """,
+                source.id());
+
+        processor.processNext();
+
+        var converged = jdbc.queryForMap(
+                """
+                        SELECT r.status AS revision_status,
+                               ka.status AS asset_status,
+                               p.status AS publication_status,
+                               p.attempt_count,
+                               bool_and(c.active) AS all_chunks_active
+                        FROM source_revisions r
+                        JOIN knowledge_asset_publication_outbox p ON p.source_revision_id = r.id
+                        JOIN knowledge_assets ka ON ka.id = p.knowledge_asset_id
+                        JOIN knowledge_chunks c ON c.knowledge_asset_id = ka.id
+                        WHERE r.source_object_id = ?
+                        GROUP BY r.status, ka.status, p.status, p.attempt_count
+                        """,
+                source.id());
+        assertEquals("READY", converged.get("revision_status"));
+        assertEquals("ACTIVE", converged.get("asset_status"));
+        assertEquals("APPLIED", converged.get("publication_status"));
+        assertEquals(2, converged.get("attempt_count"));
+        assertEquals(true, converged.get("all_chunks_active"));
     }
 
     @Test

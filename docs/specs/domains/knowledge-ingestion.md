@@ -9,11 +9,14 @@ provider-neutral object-storage contract. PostgreSQL persists canonical
 jobs.
 
 The worker validates content integrity, parses and normalizes text through the
-Spring AI ETL readers, chunks it, requests embeddings, promotes the normalized
-record to a `KnowledgeAsset`, writes pgvector chunk projections, and publishes a
-ready revision. Failures are retryable or quarantined and exposed through source
-status. The first verified profile is OpenAI `text-embedding-3-large` at 1536
-dimensions with cosine distance.
+Spring AI ETL readers, chunks it, and requests embeddings. Publication first
+commits a `PENDING` Knowledge Asset, inactive pgvector chunks, and a direct-upload
+owner outbox row in one database transaction. It writes the noun relationship to
+OpenFGA with duplicate-ignore semantics against the pinned model, then atomically
+marks the outbox `APPLIED`, activates the asset/chunks, and publishes the ready
+revision. Unknown or unavailable authorization writes fail closed and use the
+leased ingestion job's durable retry path. The first verified profile is OpenAI
+`text-embedding-3-large` at 1536 dimensions with cosine distance.
 
 Every vector references an immutable organization-scoped `EmbeddingProfile`.
 The vector column supports multiple dimensions, while each search and index
@@ -22,9 +25,11 @@ partial expression index. Canonical source and evidence records remain
 independent from rebuildable full-document, chunk, entity, relationship, and
 graph projections.
 
-The current path does not yet implement Airbyte or Slack staging contracts,
-external source-group mapping, OCR, malware and DLP integrations, entity and
-relationship extraction, graph publication, or hybrid secure retrieval.
+The current path projects only the authenticated uploader's `owner` relationship.
+It does not yet implement Airbyte or Slack staging contracts, external
+source-group mapping and knowledge-space tuples, OCR, malware and DLP
+integrations, entity and relationship extraction, graph publication, or hybrid
+secure retrieval.
 
 ## Source Modules
 

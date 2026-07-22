@@ -8,8 +8,9 @@ Ask flow does not use the permission-aware Knowledge Asset retrieval service.
 Conversation memory, provider-neutral routing, durable turn idempotency, shared
 tool publication, and grounded knowledge citations are not implemented.
 
-The MCP application starts from the shared core/schema but remains a scaffold;
-it does not yet publish production Knowledge or Capability tools.
+The `apps/mcp` module is reserved, but has no runtime implementation. Its legacy
+scaffold was removed so the future server can publish only production Knowledge
+and Capability tools backed by the shared permission-aware use cases.
 
 ## Source Modules
 
