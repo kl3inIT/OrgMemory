@@ -44,22 +44,28 @@
 
 ## 3 — Retrieval Enforcement
 
-- [ ] Extend the authorization predicate so `SOURCE_USER` entries resolve
-  through an ACTIVE mapping to the querying user, and `SOURCE_GROUP` entries
-  resolve through the enforced generation's sealed membership joined to ACTIVE
-  mappings.
-- [ ] Extend `SourceAclPolicy` so the Java recheck reproduces the same
-  resolution; SQL/Java drift keeps recording `POLICY_PREDICATE_DRIFT` denies.
-- [ ] Missing, revoked, or inactive mapping and unknown principal kinds all
-  resolve to deny.
-- [ ] Implement the [ADR 0009](../../../decisions/0009-dynamic-source-acl-ceiling.md)
-  ceiling for live sources: `SourceAclPolicy.evaluate` currently intersects the
-  ingestion snapshot AND the current head; for non-upload source systems the
-  enforcement ceiling becomes the current sealed generation only (ingestion
-  snapshot stays recorded for audit), while native upload sources keep the
-  existing intersection. Without this, a user present only in a newer
-  generation is still denied and the no-re-ingestion exit criterion cannot
-  pass.
+Enforcement is SQL-only in `SecureKnowledgeRetrievalStore` (one `ELIGIBLE_FROM`
+shared by lexical/semantic/recheck/visibleSourceObjectIds). The legacy Java
+`SourceAclPolicy`/`SourceAclEvaluation` were dead code (no callers, no tests) and
+are removed rather than extended.
+
+- [x] Extend `PRINCIPAL_MATCH` so `SOURCE_USER` entries resolve through an ACTIVE
+  `source_principal_mappings` row to `:actorUserId`, and `SOURCE_GROUP` entries
+  resolve through the same snapshot's sealed `source_acl_group_members` joined to
+  an ACTIVE mapping. Add the `:actorUserId` UUID parameter.
+- [x] Remove dead `SourceAclPolicy`/`SourceAclEvaluation`; enforcement +
+  recheck both flow through the single store SQL, so there is no SQL/Java drift
+  surface to reconcile.
+- [x] Missing, revoked, or inactive mapping and unknown principal kinds all
+  resolve to deny (the EXISTS subqueries require `status = 'ACTIVE'`; no branch
+  grants otherwise).
+- [x] Implement the [ADR 0009](../../../decisions/0009-dynamic-source-acl-ceiling.md)
+  ceiling for live sources: the store now enforces only the current sealed
+  generation for non-`UPLOAD` sources (the ingestion DENY contribution and the
+  ingestion ALLOW gate are gated on `so.source_type = 'UPLOAD'`), while `UPLOAD`
+  sources keep the ingestion∩current intersection unchanged.
+- [ ] Runtime verification of this SQL is Phase 4's Testcontainers proof (no
+  existing test executes the store SQL — the service test stubs the store).
 
 ## 4 — Fixture And Proofs
 

@@ -27,6 +27,32 @@ class SecureKnowledgeRetrievalStore {
                     sae.principal_type = 'ORGMEMORY_ORGANIZATION'
                     AND sae.principal_key = :actorOrganizationKey
                 )
+                OR (
+                    sae.principal_type = 'SOURCE_USER'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM source_principal_mappings spm
+                        WHERE spm.organization_id = sae.organization_id
+                          AND spm.source_principal_id = sae.principal_key::uuid
+                          AND spm.app_user_id = :actorUserId
+                          AND spm.status = 'ACTIVE'
+                    )
+                )
+                OR (
+                    sae.principal_type = 'SOURCE_GROUP'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM source_acl_group_members sagm
+                        JOIN source_principal_mappings spm
+                          ON spm.organization_id = sagm.organization_id
+                         AND spm.source_principal_id = sagm.member_principal_id
+                         AND spm.app_user_id = :actorUserId
+                         AND spm.status = 'ACTIVE'
+                        WHERE sagm.organization_id = sae.organization_id
+                          AND sagm.source_acl_snapshot_id = sae.source_acl_snapshot_id
+                          AND sagm.group_principal_id = sae.principal_key::uuid
+                    )
+                )
             )
             """;
 
@@ -90,14 +116,18 @@ class SecureKnowledgeRetrievalStore {
               AND NOT EXISTS (
                   SELECT 1
                   FROM source_acl_entries sae
-                  WHERE sae.source_acl_snapshot_id IN (ingestion_sas.id, current_sas.id)
+                  WHERE (
+                            sae.source_acl_snapshot_id = current_sas.id
+                            OR (so.source_type = 'UPLOAD' AND sae.source_acl_snapshot_id = ingestion_sas.id)
+                        )
                     AND sae.organization_id = ka.organization_id
                     AND sae.gate = 'DENY'
                     AND
             """ + PRINCIPAL_MATCH + """
               )
               AND (
-                  ingestion_sas.default_gate = 'ALLOW'
+                  so.source_type <> 'UPLOAD'
+                  OR ingestion_sas.default_gate = 'ALLOW'
                   OR EXISTS (
                       SELECT 1
                       FROM source_acl_entries sae
@@ -237,6 +267,7 @@ class SecureKnowledgeRetrievalStore {
                 .addValue("evaluatedAt", OffsetDateTime.ofInstant(scope.evaluatedAt(), java.time.ZoneOffset.UTC),
                         Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("actorUserKey", scope.actorUserId().toString())
+                .addValue("actorUserId", scope.actorUserId(), Types.OTHER)
                 .addValue("actorDepartmentKey",
                         scope.actorDepartmentId() == null ? null : scope.actorDepartmentId().toString(),
                         Types.VARCHAR)
