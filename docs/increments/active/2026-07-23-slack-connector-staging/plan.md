@@ -38,12 +38,16 @@
 
 ## 3 — Worker Orchestration
 
-- [ ] Worker reads a staging batch from a pluggable `ConnectorBatchSource`
-  (fixture implementation now; the live Slack adapter implements the same port
-  next increment), calls `ConnectorIngestionService`, then drives the existing
-  parse/chunk/embed/publish pipeline for changed content.
-- [ ] Durable, resumable batch processing with a persisted crawl cursor and
-  bounded retry; observable per-object status.
+- [x] Worker reads a staging batch from a pluggable `ConnectorBatchSource`
+  (`FileConnectorBatchSource` reads committed JSON now; the live Slack adapter
+  implements the same port next increment), and `ConnectorCrawlRunner` calls
+  `ConnectorIngestionService`. Content is chunked/embedded/published inside the use
+  case via the `ModelConnectorTextEmbedder` port impl. `ConnectorCrawlScheduler`
+  polls on a fixed delay, disabled unless `orgmemory.connector.scheduling-enabled`.
+- [x] Observable per-object status (logged materialized/rotated/deferred/retired/
+  failures) with per-object failure isolation and an in-process idempotent cursor.
+  A persisted cross-restart cursor and bounded per-batch retry are deferred to the
+  live increment — the ledger is idempotent, so re-offering a batch is safe.
 
 ## 4 — Fixture And Proofs
 
