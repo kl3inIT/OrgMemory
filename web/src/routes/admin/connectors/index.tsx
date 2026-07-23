@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { AdminConnectorsPage } from "@/features/admin/components/admin-connectors-page"
 
-export const Route = createFileRoute("/admin/connectors")({
+export const Route = createFileRoute("/admin/connectors/")({
   component: AdminConnectorsPage,
-  staticData: { title: "Connectors" },
+  staticData: { title: "Sources" },
 })

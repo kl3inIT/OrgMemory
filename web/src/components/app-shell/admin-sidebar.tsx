@@ -20,8 +20,8 @@ import {
 
 const GROUPS = [
   {
-    label: "Sources",
-    items: [{ label: "Connectors", to: "/admin/connectors" as const, icon: Plug }],
+    label: "Evidence",
+    items: [{ label: "Sources", to: "/admin/connectors" as const, icon: Plug }],
   },
   {
     label: "Permissions",
@@ -36,6 +36,11 @@ const GROUPS = [
 
 const ITEM_CLASSES =
   "h-9 rounded-lg px-2.5 text-content-secondary data-[active=true]:bg-surface-raised data-[active=true]:text-content-primary data-[active=true]:shadow-xs"
+
+/** A section stays highlighted while you are inside it, not only on its own index. */
+function isInside(pathname: string, to: string) {
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
 
 export function AdminSidebar({ identity }: { identity: SessionResponse }) {
   const pathname = useLocation({ select: (location) => location.pathname })
@@ -67,11 +72,11 @@ export function AdminSidebar({ identity }: { identity: SessionResponse }) {
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname === item.to}
+                      isActive={isInside(pathname, item.to)}
                       tooltip={item.label}
                       className={ITEM_CLASSES}
                     >
-                      <Link to={item.to} aria-current={pathname === item.to ? "page" : undefined}>
+                      <Link to={item.to} aria-current={isInside(pathname, item.to) ? "page" : undefined}>
                         <item.icon aria-hidden="true" />
                         <span>{item.label}</span>
                       </Link>
