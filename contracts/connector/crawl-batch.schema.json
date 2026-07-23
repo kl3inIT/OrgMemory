@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://orgmemory.com/contracts/connector/crawl-batch.schema.json",
   "title": "Connector Crawl Batch",
-  "description": "One staging crawl batch a connector hands to ConnectorIngestionService. The envelope carries the tenant, source connection, target Knowledge Space, an opaque resume cursor, and the three separately-versioned payload kinds plus tombstones. An unknown payload version is rejected (fail closed).",
+  "description": "One crawl batch a connector hands to ConnectorIngestionService. The envelope carries the tenant, source connection, target Knowledge Space, an opaque resume cursor, whether the crawl was exhaustive, and the three separately-versioned payload kinds plus tombstones. An unknown payload version is rejected (fail closed).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -25,7 +25,12 @@
     "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },
     "contents": { "type": "array", "items": { "$ref": "#/$defs/content" }, "default": [] },
     "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" }, "default": [] },
-    "tombstones": { "type": "array", "items": { "$ref": "#/$defs/tombstone" }, "default": [] }
+    "tombstones": { "type": "array", "items": { "$ref": "#/$defs/tombstone" }, "default": [] },
+    "crawlComplete": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether contents and permissions together enumerate every object this connection currently has at the source. Only a batch that claims this may retire what it did not mention; pruning against a partial, interrupted, or single-channel crawl would retire the whole connection. Absent means no."
+    }
   },
   "$defs": {
     "versions": {

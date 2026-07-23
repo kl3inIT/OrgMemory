@@ -96,18 +96,64 @@ public class ConnectorIngestionService {
         }
 
         for (ConnectorTombstone tombstone : batch.tombstones()) {
-            try {
-                boolean wasRetired = Boolean.TRUE.equals(
-                        perObjectTransaction.execute(status -> reconciler.retire(ctx, tombstone)));
-                if (wasRetired) {
-                    retired.add(tombstone.externalObjectId());
-                }
-            } catch (RuntimeException failure) {
-                failures.add(new ConnectorItemFailure(tombstone.externalObjectId(), reasonOf(failure)));
-            }
+            retire(ctx, tombstone, retired, failures);
+        }
+
+        if (batch.crawlComplete()) {
+            prune(ctx, batch, retired, failures);
         }
 
         return new ConnectorIngestionResult(materialized, rotated, rematerialized, retired, failures);
+    }
+
+    /**
+     * Retires what a complete crawl did not mention: an object gone from the source leaves no
+     * tombstone behind it, so the only evidence of a deletion is its absence.
+     *
+     * <p>Absence is only evidence when the crawl was exhaustive, which is why this runs solely
+     * for a batch that declares itself complete. One case is refused even then: a complete crawl
+     * that enumerated nothing at all while the connection has indexed objects. A workspace can
+     * genuinely empty, but an adapter that lost its token, its scopes, or its channel membership
+     * reports the same thing, and the two are indistinguishable from here. Retiring a whole
+     * connection is the more expensive mistake, so it is not made on this evidence.
+     */
+    private void prune(
+            ConnectorIngestionContext ctx,
+            ConnectorCrawlBatch batch,
+            List<String> retired,
+            List<ConnectorItemFailure> failures) {
+        Set<String> crawled = batch.crawledObjectIds();
+        List<String> vanished = perObjectTransaction.execute(
+                status -> reconciler.vanishedSince(ctx, crawled));
+        if (vanished == null || vanished.isEmpty()) {
+            return;
+        }
+        if (crawled.isEmpty()) {
+            failures.add(new ConnectorItemFailure(
+                    ctx.sourceConnectionKey(),
+                    "refused to prune " + vanished.size()
+                            + " indexed objects: the crawl claimed completeness but enumerated none"));
+            return;
+        }
+        for (String externalObjectId : vanished) {
+            retire(ctx, new ConnectorTombstone(externalObjectId), retired, failures);
+        }
+    }
+
+    private void retire(
+            ConnectorIngestionContext ctx,
+            ConnectorTombstone tombstone,
+            List<String> retired,
+            List<ConnectorItemFailure> failures) {
+        try {
+            boolean wasRetired = Boolean.TRUE.equals(
+                    perObjectTransaction.execute(status -> reconciler.retire(ctx, tombstone)));
+            if (wasRetired) {
+                retired.add(tombstone.externalObjectId());
+            }
+        } catch (RuntimeException failure) {
+            failures.add(new ConnectorItemFailure(tombstone.externalObjectId(), reasonOf(failure)));
+        }
     }
 
     private static void recordOutcome(

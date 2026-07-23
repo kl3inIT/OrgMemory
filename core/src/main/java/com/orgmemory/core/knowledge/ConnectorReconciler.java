@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -287,6 +288,20 @@ class ConnectorReconciler {
     }
 
     private record AclPlan(List<SourceAclEntryCommand> entries, List<SealedGroupMembership> membership) {
+    }
+
+    /**
+     * The connection's active objects that a complete crawl did not mention — the ones deleted
+     * at the source since the last crawl. The caller retires them; this only reports the diff,
+     * and only its caller knows whether the crawl was complete enough to be trusted with it.
+     */
+    List<String> vanishedSince(ConnectorIngestionContext ctx, Set<String> crawledObjectIds) {
+        return sources
+                .findActiveExternalObjectIds(
+                        ctx.organizationId(), SlackConnectorProfile.SOURCE_TYPE, ctx.sourceConnectionKey())
+                .stream()
+                .filter(externalObjectId -> !crawledObjectIds.contains(externalObjectId))
+                .toList();
     }
 
     /** Retires a tombstoned object from retrieval. Returns whether an active object was retired. */

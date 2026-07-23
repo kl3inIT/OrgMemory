@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 interface SourceObjectRepository extends JpaRepository<SourceObject, UUID> {
 
@@ -16,4 +18,18 @@ interface SourceObjectRepository extends JpaRepository<SourceObject, UUID> {
 
     Optional<SourceObject> findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
             UUID organizationId, SourceType sourceType, String sourceConnectionKey, String externalObjectId);
+
+    /** The external ids a connection currently has in retrieval, for diffing against a crawl. */
+    @Query("""
+            SELECT source.externalObjectId
+            FROM SourceObject source
+            WHERE source.organizationId = :organizationId
+              AND source.sourceType = :sourceType
+              AND source.sourceConnectionKey = :sourceConnectionKey
+              AND source.status = com.orgmemory.core.knowledge.SourceObjectStatus.ACTIVE
+            """)
+    List<String> findActiveExternalObjectIds(
+            @Param("organizationId") UUID organizationId,
+            @Param("sourceType") SourceType sourceType,
+            @Param("sourceConnectionKey") String sourceConnectionKey);
 }

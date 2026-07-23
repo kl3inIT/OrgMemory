@@ -1,6 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -20,6 +22,11 @@ import java.util.UUID;
  * @param contents           content objects found by this crawl
  * @param permissions        per-object access control lists
  * @param tombstones         objects removed at the source since the last crawl
+ * @param crawlComplete      whether {@code contents} and {@code permissions} together enumerate
+ *                           every object this connection currently has at the source. Only a
+ *                           batch that says so may retire what it did not mention, because
+ *                           pruning against a partial, interrupted, or single-channel crawl
+ *                           would retire the whole connection. Absent means no.
  */
 public record ConnectorCrawlBatch(
         UUID organizationId,
@@ -32,7 +39,8 @@ public record ConnectorCrawlBatch(
         List<ConnectorIdentityItem> identities,
         List<ConnectorContentItem> contents,
         List<ConnectorPermissionItem> permissions,
-        List<ConnectorTombstone> tombstones) {
+        List<ConnectorTombstone> tombstones,
+        boolean crawlComplete) {
 
     public ConnectorCrawlBatch {
         if (organizationId == null) {
@@ -54,6 +62,46 @@ public record ConnectorCrawlBatch(
         contents = contents == null ? List.of() : List.copyOf(contents);
         permissions = permissions == null ? List.of() : List.copyOf(permissions);
         tombstones = tombstones == null ? List.of() : List.copyOf(tombstones);
+    }
+
+    /** A batch that makes no claim about completeness, and therefore retires nothing. */
+    public ConnectorCrawlBatch(
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            UUID knowledgeSpaceId,
+            UUID actorUserId,
+            String crawlCursor,
+            ConnectorContractVersions versions,
+            List<ConnectorIdentityItem> identities,
+            List<ConnectorContentItem> contents,
+            List<ConnectorPermissionItem> permissions,
+            List<ConnectorTombstone> tombstones) {
+        this(
+                organizationId,
+                sourceSystem,
+                sourceConnectionKey,
+                knowledgeSpaceId,
+                actorUserId,
+                crawlCursor,
+                versions,
+                identities,
+                contents,
+                permissions,
+                tombstones,
+                false);
+    }
+
+    /** The objects this crawl saw, which is the set a complete crawl is diffed against. */
+    Set<String> crawledObjectIds() {
+        Set<String> ids = new LinkedHashSet<>();
+        for (ConnectorContentItem content : contents) {
+            ids.add(content.externalObjectId());
+        }
+        for (ConnectorPermissionItem permission : permissions) {
+            ids.add(permission.externalObjectId());
+        }
+        return ids;
     }
 
     private static String requireText(String value, String field) {
