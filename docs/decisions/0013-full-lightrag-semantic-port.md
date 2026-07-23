@@ -55,8 +55,9 @@ OrgMemory web application owns the product experience.
 
 ### Core Boundary
 
-`graph-rag-core` remains pure Java. It owns orchestration and provider-neutral
-contracts for:
+`graph-rag-core` remains pure Java and is an executable functional core, not an
+interface-only compatibility layer. It owns deterministic LightRAG algorithms
+and orchestration for:
 
 - content and processing state;
 - lexical, vector, and graph indexes;
@@ -68,6 +69,48 @@ contracts for:
 - incremental indexing, commit/abort, delete/rebuild, editing, and export.
 
 Core code cannot import Spring, SQL, an SDK, or a vendor-specific type.
+
+Only effect boundaries become ports: model invocation, embeddings,
+provider-specific tokenization or reranking, parser engines, durable
+persistence, cache persistence, and telemetry export. Spring AI implements
+model-facing adapters and may expose the completed retrieval engine through a
+`DocumentRetriever` bridge; it does not own query planning, chunking parity,
+authorization, graph traversal, fusion, token budgets, or citation assembly.
+
+Core APIs remain synchronous and Reactor-free. Spring Boot owns configuration,
+security, durable jobs, bounded virtual-thread execution, transactions, and
+streaming delivery. Spring AI `TokenTextSplitter`, RAG advisors, vector stores,
+and semantic response caches may be optional adapters only when their behavior
+passes the same parity and authorization contracts.
+
+Derived content, lexical, vector, and graph data is staged by generation.
+Publication becomes visible through one compare-and-set generation head after
+every required projection is prepared. Per-store commit methods cannot claim
+cross-store atomicity. Durable worker lease/retry state remains in the
+OrgMemory application layer instead of being duplicated in the reusable
+engine.
+
+The publication subject is a `ProjectionNamespace` (organization, workspace,
+collection), not an individual Knowledge Asset version. Each asset-version
+ingest contributes one delta batch and advances that namespace generation.
+Queries pin one namespace snapshot so a shared graph, content, lexical and
+vector view cannot tear across independently changing assets. Cross-namespace
+retrieval is outside the current cache contract and must either be composed as
+explicit subqueries or receive a multi-snapshot contract before it is exposed.
+
+Each batch carries one producer-computed canonical `manifestFingerprint`,
+derived from its sorted per-projection artifact manifests. The publication
+store treats the fingerprint as opaque, persists it on the visible snapshot,
+and rejects reuse of a batch ID or namespace-scoped idempotency key with a
+different fingerprint. This makes crash retries truthful without duplicating
+canonicalization inside storage adapters.
+
+The graph adapter predates this shared publication contract. It remains
+specialized until its reads and writes accept the namespace snapshot; it cannot
+participate in mixed retrieval before that migration is complete. Omitting
+`GRAPH` from the initial `ProjectionKind` enum records that implementation
+truth rather than claiming false atomicity. The full graph capability remains
+required by PR 8 and the parity manifest.
 
 ### Adapter Rule
 

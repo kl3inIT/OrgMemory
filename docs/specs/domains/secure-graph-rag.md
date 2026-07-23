@@ -8,7 +8,7 @@
 - Canonical entities and relations do not contain merged descriptions.
   Descriptions, keywords, confidence, source revision, chunk, Knowledge Asset,
   ACL, projection, model, prompt, and extraction time remain on contributions.
-- Every graph read requires an `AuthorizedGraphScope`; ranking, adjacency,
+- Every graph read requires an `AuthorizedEvidenceScope`; ranking, adjacency,
   degree, weight, aggregation, and citations can use only visible
   contributions.
 - `SECURE_MIX` is the product default. Strategy selection remains internal.

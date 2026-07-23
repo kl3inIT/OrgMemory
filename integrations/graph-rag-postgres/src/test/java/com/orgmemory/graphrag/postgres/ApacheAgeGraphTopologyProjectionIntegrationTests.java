@@ -8,6 +8,7 @@ import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
@@ -126,12 +127,13 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
                 "BUILDS",
                 RelationOrientation.DIRECTED);
         EvidenceProvenance provenance = new EvidenceProvenance(
-                ORGANIZATION_ID,
-                ASSET_ID,
-                REVISION_ID,
-                CHUNK_ID,
-                ACL_ID,
-                1,
+                new EvidenceReference(
+                        ORGANIZATION_ID,
+                        ASSET_ID,
+                        REVISION_ID,
+                        CHUNK_ID,
+                        ACL_ID,
+                        1),
                 1,
                 "openai",
                 "gpt-5.6-sol",

@@ -6,24 +6,36 @@
 - [x] Pin the upstream reference and enumerate semantic capabilities.
 - [x] Define adapter and conformance rules.
 - [x] Record the twelve-PR integration and review flow.
-- [ ] Merge to `light-rag` after review and green CI.
+- [x] Merge to `light-rag` after review and green CI.
 
-## PR 2 — Full Pure-Java Core Contracts
+## PR 2 — Projection, Evidence And Cache Contracts
 
-- [ ] Add provider-neutral content, state, lexical, vector, graph, cache,
-  parser, chunker, multimodal, model-role, tokenizer, reranker, lifecycle,
-  query, reference, and export contracts.
-- [ ] Expand `graph-rag-testkit` with allow-all oracle fixtures and adapter
-  conformance suites.
-- [ ] Prove core runtime classpaths contain no Spring or vendor dependency.
+- [x] Consolidate one canonical authorization scope and evidence reference.
+- [x] Add capability-specific content, lexical, vector, publication, cache,
+  and safe telemetry contracts without a lowest-common-denominator store
+  interface.
+- [x] Define atomic generation-head publication, manifest-bound batch
+  idempotency, abort and cache-isolation semantics.
+- [x] Record the graph migration prerequisite without falsely declaring
+  `GRAPH` atomic before its adapter uses the shared namespace snapshot.
+- [x] Keep durable job leasing and retry in the OrgMemory worker/application
+  layer; do not duplicate it inside the reusable engine.
+- [x] Expand `graph-rag-testkit` with deterministic in-memory reference
+  adapters, publication/cache/security fixtures, and adapter conformance
+  foundations.
+- [x] Prove core runtime classpaths contain no Spring or vendor dependency.
 
-## PR 3 — Parser And Chunker Strategies
+## PR 3 — Executable Parser And Chunker Strategies
 
+- [ ] Add parser, tokenizer, embedding and chunker ports only where they cross
+  an effect or provider boundary.
 - [ ] Add parser registry, routing, capability validation, passthrough, and
   third-party registration.
 - [ ] Implement fixed-token, recursive-character, semantic-vector, and
   paragraph-semantic chunking.
 - [ ] Persist per-document parser/chunker profile and positional provenance.
+- [ ] Run golden fixtures against the pinned upstream behavior; do not close a
+  row with interfaces alone.
 
 ## PR 4 — Multimodal Sidecar And VLM
 
@@ -59,6 +71,9 @@
 
 - [ ] Implement all first-production storage/index contracts with PostgreSQL,
   pgvector, FTS, and AGE where appropriate.
+- [ ] Migrate the existing graph projection ports to the shared namespace
+  snapshot before PR 7 wires mixed retrieval, then add `GRAPH` to
+  `ProjectionKind`.
 - [ ] Remove concrete PostgreSQL retrieval assumptions from core.
 - [ ] Pass the complete adapter conformance suite.
 

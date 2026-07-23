@@ -1,6 +1,6 @@
 package com.orgmemory.graphrag.port;
 
-import com.orgmemory.graphrag.authorization.AuthorizedGraphScope;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +15,7 @@ import java.util.UUID;
 public interface GraphTopologyCandidateIndex {
 
     List<UUID> expandEntityIds(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> seedEntityIds,
             int maximumDepth,
             int limit);

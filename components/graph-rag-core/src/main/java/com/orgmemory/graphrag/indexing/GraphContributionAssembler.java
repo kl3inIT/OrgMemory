@@ -4,6 +4,7 @@ import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.ExtractedEntity;
 import com.orgmemory.graphrag.model.ExtractedRelation;
 import com.orgmemory.graphrag.model.ExtractionProfile;
@@ -253,12 +254,13 @@ public final class GraphContributionAssembler {
 
         EvidenceProvenance provenance(double confidence) {
             return new EvidenceProvenance(
-                    organizationId,
-                    knowledgeAssetId,
-                    sourceRevisionId,
-                    chunkId,
-                    aclSnapshotId,
-                    aclGeneration,
+                    new EvidenceReference(
+                            organizationId,
+                            knowledgeAssetId,
+                            sourceRevisionId,
+                            chunkId,
+                            aclSnapshotId,
+                            aclGeneration),
                     projectionGeneration,
                     profile.provider(),
                     profile.model(),

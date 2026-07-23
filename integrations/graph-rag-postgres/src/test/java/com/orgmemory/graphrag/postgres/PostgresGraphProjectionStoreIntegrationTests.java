@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.graphrag.authorization.AuthorizedGraphScope;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
+import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
@@ -99,10 +101,10 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     @Test
     void filtersEvidenceBeforeTextVectorAndGraphAggregation() {
-        AuthorizedGraphScope allowedOnly = scope(
+        AuthorizedEvidenceScope allowedOnly = scope(
                 primaryOrganization,
                 Set.of(allowedAsset.knowledgeAssetId()));
-        AuthorizedGraphScope allPrimaryEvidence = scope(
+        AuthorizedEvidenceScope allPrimaryEvidence = scope(
                 primaryOrganization,
                 Set.of(allowedAsset.knowledgeAssetId(), restrictedAsset.knowledgeAssetId()));
 
@@ -141,7 +143,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                 allowedOnly,
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 1)
                         .stream()
@@ -153,7 +155,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                 allowedOnly,
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 10)
                         .stream()
@@ -163,7 +165,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     @Test
     void tenantIdIsRequiredEvenWhenCanonicalIdsAndVectorsMatch() {
-        AuthorizedGraphScope primaryScope = scope(
+        AuthorizedEvidenceScope primaryScope = scope(
                 primaryOrganization,
                 Set.of(allowedAsset.knowledgeAssetId(), otherTenantAsset.knowledgeAssetId()));
 
@@ -176,7 +178,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                 primaryScope,
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 10)
                         .size());
@@ -188,7 +190,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
         store.replaceRevision(
                 publicProjection(archivedAsset, 1, archivedAsset.chunkId()));
         store.replaceRevisionEmbeddings(publicEmbeddings(archivedAsset, 1));
-        AuthorizedGraphScope archivedScope = scope(
+        AuthorizedEvidenceScope archivedScope = scope(
                 primaryOrganization, Set.of(archivedAsset.knowledgeAssetId()));
 
         assertEquals(
@@ -197,7 +199,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                 archivedScope,
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 10)
                         .size());
@@ -207,7 +209,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                 archivedScope,
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 10)
                         .size());
@@ -224,7 +226,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                         archivedScope,
                         primaryOrganization.embeddingProfileId(),
                         3,
-                        List.of(1.0f, 0.0f, 0.0f),
+                        vector(1.0f, 0.0f, 0.0f),
                         0.1,
                         10)
                 .isEmpty());
@@ -232,7 +234,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                         archivedScope,
                         primaryOrganization.embeddingProfileId(),
                         3,
-                        List.of(1.0f, 0.0f, 0.0f),
+                        vector(1.0f, 0.0f, 0.0f),
                         0.1,
                         10)
                 .isEmpty());
@@ -278,7 +280,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                                         Set.of(allowedAsset.knowledgeAssetId())),
                                 primaryOrganization.embeddingProfileId(),
                                 3,
-                                List.of(1.0f, 0.0f, 0.0f),
+                                vector(1.0f, 0.0f, 0.0f),
                                 0.1,
                                 1)
                         .stream()
@@ -348,7 +350,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                         List.of(conflictingIdentity),
                         List.of())));
 
-        AuthorizedGraphScope scope =
+        AuthorizedEvidenceScope scope =
                 scope(primaryOrganization, Set.of(replacementAsset.knowledgeAssetId()));
         assertEquals(
                 "Approved secure retrieval evidence.",
@@ -401,11 +403,11 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 3,
                 generationThree.entities().stream()
                         .map(contribution -> new ContributionEmbedding(
-                                contribution.id(), List.of(1.0f, 0.0f, 0.0f)))
+                                contribution.id(), vector(1.0f, 0.0f, 0.0f)))
                         .toList(),
                 generationThree.relations().stream()
                         .map(contribution -> new ContributionEmbedding(
-                                contribution.id(), List.of(1.0f, 0.0f, 0.0f)))
+                                contribution.id(), vector(1.0f, 0.0f, 0.0f)))
                         .toList());
 
         assertThrows(
@@ -543,13 +545,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 List.of(
                         new ContributionEmbedding(
                                 id("public-shared-" + fixture.key() + "-" + generation),
-                                List.of(1.0f, 0.0f, 0.0f)),
+                                vector(1.0f, 0.0f, 0.0f)),
                         new ContributionEmbedding(
                                 id("public-neighbor-" + fixture.key() + "-" + generation),
-                                List.of(0.0f, 1.0f, 0.0f))),
+                                vector(0.0f, 1.0f, 0.0f))),
                 List.of(new ContributionEmbedding(
                         id("public-relation-" + fixture.key() + "-" + generation),
-                        List.of(1.0f, 0.0f, 0.0f))));
+                        vector(1.0f, 0.0f, 0.0f))));
     }
 
     private static GraphRevisionEmbeddings restrictedEmbeddings(AssetFixture fixture) {
@@ -563,13 +565,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 List.of(
                         new ContributionEmbedding(
                                 id("restricted-shared"),
-                                List.of(1.0f, 0.0f, 0.0f)),
+                                vector(1.0f, 0.0f, 0.0f)),
                         new ContributionEmbedding(
                                 id("restricted-neighbor"),
-                                List.of(1.0f, 0.0f, 0.0f))),
+                                vector(1.0f, 0.0f, 0.0f))),
                 List.of(new ContributionEmbedding(
                         id("restricted-relation"),
-                        List.of(1.0f, 0.0f, 0.0f))));
+                        vector(1.0f, 0.0f, 0.0f))));
     }
 
     private static EntityContribution entityContribution(
@@ -610,12 +612,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
             long generation,
             double confidence) {
         return new EvidenceProvenance(
-                fixture.organizationId(),
-                fixture.knowledgeAssetId(),
-                fixture.sourceRevisionId(),
-                chunkId,
-                fixture.aclSnapshotId(),
-                1,
+                new EvidenceReference(
+                        fixture.organizationId(),
+                        fixture.knowledgeAssetId(),
+                        fixture.sourceRevisionId(),
+                        chunkId,
+                        fixture.aclSnapshotId(),
+                        1),
                 generation,
                 "openai",
                 "gpt-5.6-sol",
@@ -624,16 +627,17 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 NOW);
     }
 
-    private static AuthorizedGraphScope scope(
+    private static AuthorizedEvidenceScope scope(
             OrganizationFixture organization,
             Set<UUID> assets) {
-        return new AuthorizedGraphScope(
+        return new AuthorizedEvidenceScope(
                 organization.organizationId(),
                 organization.userId(),
                 organization.departmentId(),
                 false,
                 assets,
                 "model-v1",
+                1,
                 NOW);
     }
 
@@ -902,6 +906,10 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     private static UUID id(String value) {
         return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static FloatVector vector(float... values) {
+        return new FloatVector(values);
     }
 
     private static String sha256(String value) {
