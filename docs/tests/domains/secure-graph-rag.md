@@ -16,6 +16,10 @@
   lexical/vector ranking and topology expansion, relation endpoint visibility,
   generation rollback denial, atomic replacement, embedding-profile safety,
   bounded batch partitioning, and replaceable vector index strategies.
+- Worker tests prove deterministic assembly, bounded extraction orchestration,
+  immutable embedding-route enforcement, durable job creation for both upload
+  and connector ingestion, and atomic contribution-plus-embedding publication
+  rollback.
 - The pinned PostgreSQL 18 image test proves real Apache AGE graph creation,
   idempotent replacement, content-free topology properties, authorized
   traversal, denied-edge exclusion, and revision removal.
@@ -25,6 +29,7 @@
 ```powershell
 .\gradlew.bat --no-daemon :integrations:graph-rag-spring-ai:test
 .\gradlew.bat --no-daemon :integrations:graph-rag-postgres:test
+.\gradlew.bat --no-daemon :apps:worker:test
 .\gradlew.bat --no-daemon compileJava
 .\gradlew.bat --no-daemon clean test
 ```
@@ -35,5 +40,6 @@ starter or Spring Boot runtime.
 
 ## Remaining
 
-Worker integration tests must prove idempotent replacement and fail-closed
-handling of extraction/provider failures.
+Secure Assistant graph retrieval tests must prove authorization prefiltering,
+canonical current-state citation recheck, OpenFGA outage denial, and no
+cross-tenant graph influence before the graph can affect an answer.

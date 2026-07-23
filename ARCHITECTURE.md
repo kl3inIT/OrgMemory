@@ -195,8 +195,17 @@ that server. An idempotent bootstrap handles both fresh and existing volumes.
 OpenFGA tables remain isolated from the OrgMemory schema and are not queried by
 application SQL.
 
-The extractor and PostgreSQL adapter are not wired into the worker yet. There is
-no worker graph indexing, Assistant graph retrieval, or graph UI wiring.
+The worker enqueues a durable graph-index job in the same transaction that makes
+a source revision `READY`. Jobs pin the current Knowledge Asset version, source
+revision, active chunk generation, ACL snapshot/generation, embedding profile,
+and extraction route. Multi-replica workers claim jobs through leased
+`FOR UPDATE SKIP LOCKED` work, extract chunks with bounded concurrency, assemble
+deterministic evidence contributions, embed them with the immutable document
+embedding profile, and publish the complete graph generation together with the
+durable job outcome in one PostgreSQL transaction. A stale version is
+superseded and a failed publish leaves the previous generation intact.
+
+Assistant graph retrieval and graph UI wiring are not implemented yet.
 
 The Sources UI exposes a disabled Knowledge Graph navigation target until worker
 indexing and permission-scoped graph retrieval are wired. There is no legacy

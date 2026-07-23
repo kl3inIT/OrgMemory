@@ -18,8 +18,8 @@ import reactor.core.publisher.Flux;
 final class SpringAiChatModelAdapter implements ChatModelPort {
 
     private final AiGatewayRegistry gateways;
-    private final Map<String, ChatModel> models = new ConcurrentHashMap<>();
-    private final Map<String, ChatClient> clients = new ConcurrentHashMap<>();
+    private final Map<AiRoute, ChatModel> models = new ConcurrentHashMap<>();
+    private final Map<AiRoute, ChatClient> clients = new ConcurrentHashMap<>();
 
     SpringAiChatModelAdapter(AiGatewayRegistry gateways) {
         this.gateways = gateways;
@@ -32,7 +32,7 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
         }
         return Flux.defer(() -> {
             AiRoute route = gateways.resolve(workload);
-            return client(route)
+            return client(workload, route)
                     .prompt()
                     .options(OpenAiChatOptions.builder().model(route.modelId()))
                     .system(request.systemInstruction())
@@ -44,14 +44,14 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
                 error -> new AiGatewayUnavailableException("The configured AI gateway is unavailable", error));
     }
 
-    private ChatClient client(AiRoute route) {
-        return clients.computeIfAbsent(route.gatewayId(), gatewayId ->
-                ChatClient.builder(model(route)).build());
+    private ChatClient client(AiWorkload workload, AiRoute route) {
+        return clients.computeIfAbsent(
+                route, ignored -> ChatClient.builder(model(workload, route)).build());
     }
 
-    private ChatModel model(AiRoute route) {
-        return models.computeIfAbsent(route.gatewayId(), gatewayId -> {
-            AiGatewayProperties.Gateway gateway = gateways.definition(AiWorkload.ASSISTANT_CHAT, route);
+    private ChatModel model(AiWorkload workload, AiRoute route) {
+        return models.computeIfAbsent(route, ignored -> {
+            AiGatewayProperties.Gateway gateway = gateways.definition(workload, route);
             return OpenAiChatModel.builder()
                     .options(OpenAiChatOptions.builder()
                             .baseUrl(gateway.baseUrl())

@@ -83,11 +83,13 @@ public record AiGatewayProperties(Map<String, Gateway> gateways, Routes routes) 
         }
     }
 
-    public record Routes(Route assistantChat, Route embedding) {
+    public record Routes(Route assistantChat, Route graphExtraction, Route embedding) {
 
         public Routes {
             assistantChat = assistantChat == null
                     ? new Route("openai", "gpt-5.6-sol") : assistantChat;
+            graphExtraction = graphExtraction == null
+                    ? new Route("openai", "gpt-5.6-sol") : graphExtraction;
             embedding = embedding == null
                     ? new Route("openai", "text-embedding-3-large") : embedding;
         }
@@ -95,12 +97,14 @@ public record AiGatewayProperties(Map<String, Gateway> gateways, Routes routes) 
         static Routes defaults() {
             return new Routes(
                     new Route("openai", "gpt-5.6-sol"),
+                    new Route("openai", "gpt-5.6-sol"),
                     new Route("openai", "text-embedding-3-large"));
         }
 
         Route forWorkload(AiWorkload workload) {
             return switch (workload) {
                 case ASSISTANT_CHAT -> assistantChat;
+                case GRAPH_EXTRACTION -> graphExtraction;
                 case QUERY_EMBEDDING, DOCUMENT_EMBEDDING -> embedding;
             };
         }

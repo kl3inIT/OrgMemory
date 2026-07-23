@@ -51,8 +51,28 @@
   topology port when AGE is disabled. A future Neo4j projection can implement
   that port without changing core retrieval contracts.
 
+## Worker Publication
+
+- A durable graph-index job is inserted only after the canonical source
+  revision reaches `READY`. The job is unique per immutable Knowledge Asset
+  version and stores lease, attempts, retry time, and bounded failure evidence.
+- Claims pin the current asset/version/revision, active chunk generation, ACL
+  snapshot/generation, language, and immutable embedding profile.
+- Chunk extraction uses bounded virtual-thread concurrency and renews the lease
+  between batches. Model output remains untrusted and must satisfy the
+  structured extraction contract before assembly.
+- Unicode-normalized entity and relation keys create deterministic,
+  organization-scoped identities. Descriptions and confidence remain separate
+  per-chunk evidence contributions.
+- Contributions and their entity/relation embeddings publish through one
+  PostgreSQL transaction after a current-version recheck. Retries cannot expose
+  a partial generation or move the projection head backwards.
+- The graph extraction route is independently configurable from Assistant chat;
+  the graph embedding route must still equal the Knowledge Asset version's
+  immutable embedding profile.
+
 ## Not Implemented
 
-Worker execution, retries/gleaning, token-aware extraction chunking, entity
-canonicalization across chunks, runtime Assistant/MCP graph retrieval, and the
-graph explorer remain separate increments.
+Extraction gleaning, token-aware re-chunking beyond the canonical ingestion
+chunks, runtime Assistant/MCP graph retrieval, and the graph explorer remain
+separate increments.

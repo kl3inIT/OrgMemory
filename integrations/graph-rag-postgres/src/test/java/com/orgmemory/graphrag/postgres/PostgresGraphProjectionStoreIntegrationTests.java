@@ -14,6 +14,7 @@ import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
+import com.orgmemory.graphrag.port.GraphRevisionProjection;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -57,6 +58,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
     private static AssetFixture allowedAsset;
     private static AssetFixture restrictedAsset;
     private static AssetFixture replacementAsset;
+    private static AssetFixture atomicPublicationAsset;
     private static AssetFixture otherTenantAsset;
 
     @BeforeAll
@@ -79,15 +81,19 @@ class PostgresGraphProjectionStoreIntegrationTests {
         allowedAsset = seedAsset(primaryOrganization, "allowed");
         restrictedAsset = seedAsset(primaryOrganization, "restricted");
         replacementAsset = seedAsset(primaryOrganization, "replacement");
+        atomicPublicationAsset = seedAsset(primaryOrganization, "atomic-publication");
         otherTenantAsset = seedAsset(otherOrganization, "other-tenant");
 
         store.replaceRevision(publicProjection(allowedAsset, 1, allowedAsset.chunkId()));
         store.replaceRevision(restrictedProjection(restrictedAsset));
         store.replaceRevision(
                 publicProjection(replacementAsset, 1, replacementAsset.chunkId()));
+        store.replaceRevision(publicProjection(
+                atomicPublicationAsset, 1, atomicPublicationAsset.chunkId()));
         store.replaceRevision(publicProjection(otherTenantAsset, 1, otherTenantAsset.chunkId()));
         store.replaceRevisionEmbeddings(publicEmbeddings(allowedAsset, 1));
         store.replaceRevisionEmbeddings(restrictedEmbeddings(restrictedAsset));
+        store.replaceRevisionEmbeddings(publicEmbeddings(atomicPublicationAsset, 1));
         store.replaceRevisionEmbeddings(publicEmbeddings(otherTenantAsset, 1));
     }
 
@@ -305,6 +311,76 @@ class PostgresGraphProjectionStoreIntegrationTests {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> store.replaceRevisionEmbeddings(publicEmbeddings(allowedAsset, 999)));
+    }
+
+    @Test
+    void publishesContributionsAndEmbeddingsAtomically() {
+        UUID generationTwoChunk = seedAdditionalChunk(atomicPublicationAsset, 1, 2);
+        GraphRevisionContributions generationTwo =
+                publicProjection(atomicPublicationAsset, 2, generationTwoChunk);
+        store.publish(new GraphRevisionProjection(
+                generationTwo, publicEmbeddings(atomicPublicationAsset, 2)));
+        assertEquals(
+                2L,
+                jdbc.queryForObject(
+                        """
+                        SELECT projection_generation
+                        FROM graph_projection_heads
+                        WHERE organization_id = ?
+                          AND source_revision_id = ?
+                        """,
+                        Long.class,
+                        atomicPublicationAsset.organizationId(),
+                        atomicPublicationAsset.sourceRevisionId()));
+
+        UUID generationThreeChunk = seedAdditionalChunk(atomicPublicationAsset, 2, 3);
+        GraphRevisionContributions generationThree =
+                publicProjection(atomicPublicationAsset, 3, generationThreeChunk);
+        GraphRevisionEmbeddings invalidEmbeddings = new GraphRevisionEmbeddings(
+                atomicPublicationAsset.organizationId(),
+                atomicPublicationAsset.knowledgeAssetId(),
+                atomicPublicationAsset.sourceRevisionId(),
+                3,
+                UUID.randomUUID(),
+                3,
+                generationThree.entities().stream()
+                        .map(contribution -> new ContributionEmbedding(
+                                contribution.id(), List.of(1.0f, 0.0f, 0.0f)))
+                        .toList(),
+                generationThree.relations().stream()
+                        .map(contribution -> new ContributionEmbedding(
+                                contribution.id(), List.of(1.0f, 0.0f, 0.0f)))
+                        .toList());
+
+        assertThrows(
+                RuntimeException.class,
+                () -> store.publish(new GraphRevisionProjection(
+                        generationThree, invalidEmbeddings)));
+        assertEquals(
+                2L,
+                jdbc.queryForObject(
+                        """
+                        SELECT projection_generation
+                        FROM graph_projection_heads
+                        WHERE organization_id = ?
+                          AND source_revision_id = ?
+                        """,
+                        Long.class,
+                        atomicPublicationAsset.organizationId(),
+                        atomicPublicationAsset.sourceRevisionId()));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM graph_entity_contributions
+                        WHERE organization_id = ?
+                          AND source_revision_id = ?
+                          AND projection_generation = 3
+                        """,
+                        Integer.class,
+                        atomicPublicationAsset.organizationId(),
+                        atomicPublicationAsset.sourceRevisionId()));
     }
 
     private static GraphRevisionContributions publicProjection(
