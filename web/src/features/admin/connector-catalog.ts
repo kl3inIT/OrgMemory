@@ -51,6 +51,17 @@ export type ConnectorCredentialDescriptor = {
   note?: string
   /** What the connection will be keyed on, so the probe's answer is recognisable. */
   keyName: string
+  /**
+   * Where the credential is made. Onyx's source map carries a docs link per connector for the
+   * same reason: the step asks for something that does not exist yet, and a screen that only
+   * says what to paste leaves the reader to find out where from.
+   */
+  issuer?: { label: string; href: string }
+  /**
+   * A document the source accepts verbatim to produce a correctly scoped credential, offered
+   * to copy. It is the difference between listing six scopes and granting them.
+   */
+  recipe?: { label: string; body: string }
 }
 
 export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
@@ -76,6 +87,32 @@ export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
         "channels:join",
       ],
       note: "channels:join lets the bot add itself to the public channels you choose. Leave it out and it reads only what it has been invited to; a private channel needs an invite either way.",
+      issuer: { label: "Create a Slack app", href: "https://api.slack.com/apps" },
+      recipe: {
+        label: "App manifest",
+        body: `display_information:
+  name: OrgMemory
+  description: Crawls channels into the OrgMemory governed ledger
+features:
+  bot_user:
+    display_name: OrgMemory
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - channels:read
+      - channels:history
+      - groups:read
+      - groups:history
+      - users:read
+      - users:read.email
+      - channels:join
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  is_hosted: false
+  token_rotation_enabled: false`,
+      },
     },
   },
   {
@@ -93,6 +130,10 @@ export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
       keyName: "domain",
       requirements: ["https://www.googleapis.com/auth/drive.readonly"],
       note: "Either share the folders to crawl with the service account, or grant it domain-wide delegation and name a user to read as.",
+      issuer: {
+        label: "Create a service account",
+        href: "https://console.cloud.google.com/iam-admin/serviceaccounts",
+      },
     },
   },
   {

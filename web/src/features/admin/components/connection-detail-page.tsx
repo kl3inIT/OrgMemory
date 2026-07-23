@@ -166,9 +166,22 @@ export function ConnectionDetailPage({
         <Alert variant="destructive">
           <TriangleAlert aria-hidden="true" />
           <AlertTitle>This connection is switched on but cannot read anything</AlertTitle>
-          <AlertDescription>
-            The crawl is enabled and no credential is stored, so every poll ends without
-            contacting {catalogued?.name ?? sourceSystem}.
+          <AlertDescription className="space-y-2">
+            <p>
+              The crawl is enabled and no credential is stored, so every poll ends without
+              contacting {catalogued?.name ?? sourceSystem}.
+            </p>
+            {/* Straight to the step that fixes it. Naming the problem and leaving the reader to
+                find where it is solved is the same as not naming it. */}
+            <Button size="sm" variant="outline" asChild>
+              <Link
+                to="/admin/connectors/$sourceSystem"
+                params={{ sourceSystem }}
+                search={{ connection: connectionKey, step: "credential" }}
+              >
+                Store a credential
+              </Link>
+            </Button>
           </AlertDescription>
         </Alert>
       ) : null}

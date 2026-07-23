@@ -122,7 +122,13 @@ export function AdminConnectorsPage() {
     .filter((group) => group.rows.length > 0)
 
   const allRows = groups.flatMap((group) => group.rows)
-  const blocked = allRows.filter((row) => connectionState(row).blocked)
+  // Carried with its source, because what it links to is that source's wizard. Flattening the
+  // rows alone loses which one each came from.
+  const blocked = groups.flatMap((group) =>
+    group.rows
+      .filter((row) => connectionState(row).blocked)
+      .map((row) => ({ system: group.system, key: row.sourceConnectionKey ?? "" })),
+  )
 
   return (
     <AdminPage
@@ -151,9 +157,21 @@ export function AdminConnectorsPage() {
                   ? "One connection is switched on but cannot read anything"
                   : `${blocked.length} connections are switched on but cannot read anything`}
               </AlertTitle>
-              <AlertDescription>
-                {blocked.map((connection) => connection.sourceConnectionKey).join(", ")} — store a
-                credential, or switch the connection off until you have one.
+              <AlertDescription className="space-y-2">
+                <p>Store a credential, or switch the connection off until you have one.</p>
+                <div className="flex flex-wrap gap-2">
+                  {blocked.map((connection) => (
+                    <Button key={`${connection.system}/${connection.key}`} size="sm" variant="outline" asChild>
+                      <Link
+                        to="/admin/connectors/$sourceSystem"
+                        params={{ sourceSystem: connection.system }}
+                        search={{ connection: connection.key, step: "credential" }}
+                      >
+                        {connection.key}
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
               </AlertDescription>
             </Alert>
           ) : null}
