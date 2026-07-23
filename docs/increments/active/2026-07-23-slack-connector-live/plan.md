@@ -22,19 +22,26 @@ through the existing `FileConnectorBatchSource`.
 
 ## Phase B — Slack adapter
 
-- [ ] New `integrations:connectors` module; `SlackConnectorBatchSource` in
+- [x] New `integrations:connectors` module; `SlackConnectorBatchSource` in
   `com.orgmemory.connectors.slack` implementing `ConnectorBatchSource` over
   `conversations.list`/`history`/`replies`/`members` and `users.list` → the
   versioned `content/v1` / `identity/v1` / `permissions/v1` payloads.
-- [ ] Message-to-text and channel/member-to-identity rendering; a slim ID+ACL
-  pull for cheap permission-only re-crawls.
-- [ ] Token provider resolved per connection and never logged. Open: the official
-  Slack SDK or a plain HTTP client, and an environment-resolved token or an
-  encrypted store. Decide with the credential-handling rules in view and record
-  only the managed secret location.
-- [ ] Cursor pagination, `Retry-After` handling with bounded backoff, and
-  per-item failure isolation with a threshold abort.
-- [ ] Adapter tests against recorded Slack API responses; no live network in CI.
+- [x] Message-to-text and channel/member-to-identity rendering, threaded on
+  `channelId__threadTs`, with the completeness claim withdrawn whenever the crawl
+  did not in fact see the whole connection.
+- [x] Token provider resolved per connection and never logged. Decided: Spring
+  `RestClient` over the official SDK, and an environment-resolved token
+  (`ORGMEMORY_CONNECTOR_SLACK_BOT_TOKEN`) over an encrypted store. The store is
+  the right answer for many connections and replaces the provider without
+  anything else moving; recording that here rather than pretending it is built.
+- [x] Cursor pagination and `Retry-After` handling with bounded backoff, applied
+  before a request rather than only after a refusal.
+- [x] Adapter tests against recorded Slack API responses; no live network in CI.
+- [ ] Slim ID+ACL pull so a permissions-only re-crawl does not re-read message
+  bodies. The ledger already supports the cheap path; the adapter does not use
+  it yet, so a membership re-crawl currently costs a full content crawl.
+- [ ] Threshold abort: per-channel failures are isolated, but a crawl in which
+  most channels fail still reports as a crawl rather than giving up.
 
 Gate: `.\gradlew.bat test`.
 
@@ -52,6 +59,10 @@ Gate: `.\gradlew.bat test`.
 ## Credentials the operator supplies
 
 A Slack app with `channels:read`, `channels:history`, `groups:read`,
-`groups:history`, `users:read`, `users:read.email`; the bot token in `.env` as
-`ORGMEMORY_SLACK_BOT_TOKEN` and never committed; the bot invited to the crawled
-channel; member emails matching `app_users.email`.
+`groups:history`, `users:read`, `users:read.email`; the bot token supplied
+through the environment as `ORGMEMORY_CONNECTOR_SLACK_BOT_TOKEN` and never
+committed; the bot invited to the crawled channel; member emails matching
+`app_users.email`. The connection also needs its OrgMemory half configured —
+`orgmemory.connector.slack.connection-key`, `.organization-id`,
+`.knowledge-space-id`, `.actor-user-id` — because none of it has a Slack
+equivalent. Nothing runs until `orgmemory.connector.slack.enabled=true`.

@@ -39,7 +39,15 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
 | An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
 
+| A refusal inside a 200 response is read as a refusal; pagination ends only on an empty cursor | `readsARefusalOutOfASuccessfulResponse`, `collectsEveryPageUntilTheCursorRunsOut`, `treatsAnAbsentCursorAsTheLastPage` |
+| A rate limit is waited out before the next request, with jitter, and gives up when it outlasts the budget | `waitsOutARateLimitAndRetriesTheCall`, `appliesAWaitEarnedByOneCallToTheNext`, `spreadsResumingRequestsWithJitter`, `givesUpWhenTheRateLimitOutlastsTheRetryBudget` |
+| The token reaches the client and no failure message, properties description, or URI | `refusesAConnectionItHasNoCredentialFor`, `keepsTheTokenOutOfItsOwnDescription` |
+| A workspace becomes threads, members, and channel groups on the crawl contract | `turnsAWorkspaceIntoTheCrawlContract`, `reportsMembersAsUsersAndTheChannelAsTheirGroup`, `dropsBotsDeactivatedAccountsAndChannelNoise` |
+| Completeness is claimed only by an unfiltered, uninterrupted, in-scope crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeChannelsWereAskedFor`, `withdrawsTheCompletenessClaimWhenAChannelCouldNotBeRead`, `withdrawsTheCompletenessClaimWhenPrivateChannelsAreOutOfScope` |
+| The adapter is absent until enabled and inert until fully configured | `contributesNothingUntilTheConnectionIsEnabled`, `staysInertWhenEnabledButNotFullyConfigured`, `producesNothingUntilTheConnectionIsFullyConfigured` |
+
 Gaps: there is no public upload/connector REST API or a real blob-store/scan/parser
-integration test yet (the connector proofs mock object storage and OpenFGA); the
-live Slack Web API adapter, its credentials, and its rate limiting are the
-remaining `slack-connector-live` work.
+integration test yet (the connector proofs mock object storage and OpenFGA). The
+Slack adapter is proved against recorded responses only — no run against a real
+workspace has happened yet, and the slim ID-and-ACL pull and whole-crawl failure
+threshold are unbuilt. Those are the remaining `slack-connector-live` work.

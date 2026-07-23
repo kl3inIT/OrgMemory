@@ -55,7 +55,7 @@ inactive principal grants nothing. Per [ADR 0009](../../decisions/0009-dynamic-s
 live (non-upload) sources enforce the current sealed ACL generation as the
 ceiling while upload sources keep the ingestion-current intersection.
 
-A fixture-driven Slack connector ingests a versioned staging contract
+A Slack connector ingests a versioned crawl contract
 (`contracts/connector/`: three separately-versioned payload kinds — content,
 identity, permissions — plus tombstones, an opaque crawl cursor, and a
 completeness claim) through a
@@ -74,8 +74,29 @@ retrieval only serves chunks belonging to the current revision; a tombstone reti
 the `SourceObject` from retrieval, and a retired object refuses a later content
 revision rather than reviving itself. Each
 object reconciles in its own transaction so a per-object failure is isolated, and
-an unknown payload version fails closed. A worker `ConnectorBatchSource` port
-(fixture implementation now) feeds the driver.
+an unknown payload version fails closed. The driver consumes every
+`ConnectorBatchSource` bean, so committed fixtures and a live workspace can both
+feed it and a source that is rate limited or unreachable this poll does not stop
+the others.
+
+`integrations:connectors` holds the live adapters, one package per source, so a
+source SDK or wire shape never reaches `core` or an app. Its Slack adapter crawls
+`conversations.list`/`history`/`replies`/`members` and `users.list` through Spring
+`RestClient`, keyed on `channelId__threadTs` with a rendered-text hash as the
+content revision. Slack answers `200` for logical failures, so success is the
+`ok` field rather than the status; a collection ends only on an empty
+`next_cursor`; and a `429` is honoured as a wait recorded once and applied before
+every subsequent request with jitter, because the limit belongs to the workspace
+rather than the caller. A single worker holds that deadline in process; more than
+one would need it shared. The bot token is resolved per connection from
+configuration, travels in the `Authorization` header, and appears in no log,
+message, or properties description. The adapter reports observed users as
+SSO-verified because Slack confirms address ownership before an account can
+exist. It withdraws its completeness claim whenever a channel filter is
+configured, private channels prove out of scope, a channel cannot be read, or a
+channel exceeds its thread bound — each of which is indistinguishable from a mass
+deletion downstream. A slim ID+ACL-only pull and a whole-crawl failure threshold
+are not implemented.
 
 Deletions carry no tombstone of their own, so a batch may declare that its content
 and permission payloads enumerate everything the connection currently has; only
@@ -88,10 +109,11 @@ mistake. Driver progress is checkpointed per connection in
 rejected for a reason retrying cannot change is checkpointed past, and any other
 failure is retried a bounded number of times and then left for the next poll.
 
-The current path does not yet implement the live Slack Web API adapter
-(credentials, rate limiting, webhooks), Airbyte staging, OCR, malware and DLP
-integrations, entity and relationship extraction, graph publication, or hybrid
-retrieval extensions beyond the current secure FTS + pgvector path.
+The current path does not yet implement incremental webhooks or the Events API,
+a slim ID-and-ACL-only crawl, an encrypted per-connection credential store,
+Airbyte staging, OCR, malware and DLP integrations, entity and relationship
+extraction, graph publication, or hybrid retrieval extensions beyond the current
+secure FTS + pgvector path.
 
 ## Source Modules
 
@@ -99,6 +121,7 @@ retrieval extensions beyond the current secure FTS + pgvector path.
 - `apps.api.source`
 - `apps.worker.ingestion`
 - `apps.worker.connector`
+- `integrations.connectors` (live source adapters)
 - `contracts/connector` (staging contract)
 - `integrations.object-storage-minio`
 

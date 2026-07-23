@@ -20,7 +20,8 @@ flowchart LR
 ```
 
 The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
-`integrations:authorization-openfga`, and `integrations:object-storage-minio`.
+`integrations:authorization-openfga`, `integrations:object-storage-minio`, and
+`integrations:connectors` (one module, a package per source adapter).
 The web client is a separate Vite workspace. API owns Flyway execution and the
 worker validates the existing schema with Flyway disabled in normal runtime.
 
