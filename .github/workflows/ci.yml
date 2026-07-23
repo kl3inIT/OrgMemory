@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - light-rag
   workflow_dispatch:
 
 permissions:

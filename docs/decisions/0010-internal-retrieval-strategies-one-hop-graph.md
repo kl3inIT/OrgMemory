@@ -2,8 +2,11 @@
 
 ## Status
 
-Accepted on 2026-07-23. This decision supersedes only the V1 recursive-CTE
-retrieval clause in [0005](0005-secure-java-graph-kernel.md).
+Partially superseded on 2026-07-23 by
+[0013](0013-full-lightrag-semantic-port.md). The internal strategy and
+authorization requirements remain accepted. Batched one-hop PostgreSQL reads
+remain the first adapter implementation, but no longer define the full engine's
+traversal capability ceiling.
 
 ## Context
 
