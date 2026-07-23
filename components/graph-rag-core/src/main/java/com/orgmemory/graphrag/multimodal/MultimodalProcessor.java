@@ -116,8 +116,6 @@ public final class MultimodalProcessor {
                             false));
                     publishable = false;
                 }
-            } else if (outcome instanceof MultimodalAnalysisOutcome.Failure) {
-                publishable = false;
             } else {
                 publishable = false;
             }
@@ -175,6 +173,7 @@ public final class MultimodalProcessor {
             return skipped(item, "IMAGE_TOO_LARGE", "Image exceeds the byte limit");
         }
         if (artifact.width().isPresent()
+                && artifact.height().isPresent()
                 && Math.multiplyFull(
                                 artifact.width().getAsInt(),
                                 artifact.height().getAsInt())

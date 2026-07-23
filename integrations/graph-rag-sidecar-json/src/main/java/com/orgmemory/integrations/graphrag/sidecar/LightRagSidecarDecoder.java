@@ -132,7 +132,11 @@ public final class LightRagSidecarDecoder {
                             "sidecar.blockId", blockId,
                             "sidecar.sessionType",
                             row.path("session_type").asString("body"))));
-            blocksById.put(blockId, new BlockAnchor(index, start, content));
+            if (blocksById.putIfAbsent(blockId, new BlockAnchor(index, start, content))
+                    != null) {
+                throw new IllegalArgumentException(
+                        "duplicate blockid in blocks.jsonl: " + blockId);
+            }
         }
         String canonicalText = canonical.toString();
         String hash = ResolvedDocumentProcessingProfile.sha256(canonicalText);

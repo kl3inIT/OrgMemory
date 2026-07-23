@@ -32,6 +32,7 @@ public final class MultimodalPromptFactory {
         MultimodalSurroundingContext context = request.surroundingContext();
         String user = """
                 Modality: %s
+                ---BEGIN UNTRUSTED EVIDENCE---
                 Heading path: %s
                 Caption: %s
                 Footnotes: %s
@@ -39,9 +40,9 @@ public final class MultimodalPromptFactory {
                 %s
                 Trailing context:
                 %s
-                ---BEGIN UNTRUSTED ITEM---
+                Item:
                 %s
-                ---END UNTRUSTED ITEM---
+                ---END UNTRUSTED EVIDENCE---
                 JSON schema:
                 %s
                 """.formatted(

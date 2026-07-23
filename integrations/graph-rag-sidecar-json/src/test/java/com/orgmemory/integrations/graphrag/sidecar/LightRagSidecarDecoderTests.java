@@ -93,6 +93,28 @@ class LightRagSidecarDecoderTests {
         assertTrue(exception.getMessage().contains("hash"));
     }
 
+    @Test
+    void rejectsDuplicateBlockIdsInsteadOfSilentlyReplacingTheAnchor() {
+        LightRagSidecarDecoder decoder = new LightRagSidecarDecoder(
+                new ObjectMapper(),
+                (itemId, path, mediaType) -> artifact(itemId, mediaType));
+        String blocks = """
+                {"type":"meta","format":"lightrag","version":"1.0","document_name":"leave-policy.docx","document_format":"docx","document_hash":"sha256:%s","blocks":2,"doc_id":"doc-1","parse_engine":"native"}
+                {"type":"content","blockid":"block-1","format":"plain_text","content":"First","heading":"","parent_headings":[],"level":0,"session_type":"body"}
+                {"type":"content","blockid":"block-1","format":"plain_text","content":"Second","heading":"","parent_headings":[],"level":0,"session_type":"body"}
+                """.formatted(ResolvedDocumentProcessingProfile.sha256("First\n\nSecond"));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> decoder.decode(new LightRagSidecarBundle(
+                        blocks,
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty())));
+
+        assertTrue(exception.getMessage().contains("duplicate blockid"));
+    }
+
     private static LightRagSidecarBundle bundle(
             String imagePath,
             String hash) {

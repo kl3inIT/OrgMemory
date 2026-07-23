@@ -25,8 +25,7 @@ public record MultimodalAnalysisCacheKey(String value) {
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(route, "route");
         Objects.requireNonNull(profile, "profile");
-        String canonical = String.join(
-                "\n",
+        String canonical = MultimodalFingerprintInput.frame(
                 scope.organizationId().toString(),
                 scope.sourceRevisionId().toString(),
                 scope.aclSnapshotId().toString(),

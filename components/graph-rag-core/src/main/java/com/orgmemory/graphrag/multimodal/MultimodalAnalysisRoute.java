@@ -28,15 +28,15 @@ public record MultimodalAnalysisRoute(
     }
 
     public String fingerprint() {
-        return ResolvedDocumentProcessingProfile.sha256(String.join(
-                "\n",
-                provider,
-                model,
-                modelVersion,
-                promptVersion,
-                role.name(),
-                Double.toString(temperature),
-                Integer.toString(maxOutputTokens)));
+        return ResolvedDocumentProcessingProfile.sha256(
+                MultimodalFingerprintInput.frame(
+                        provider,
+                        model,
+                        modelVersion,
+                        promptVersion,
+                        role.name(),
+                        Double.toString(temperature),
+                        Integer.toString(maxOutputTokens)));
     }
 
     private static String requireText(String value, String field) {

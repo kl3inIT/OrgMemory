@@ -27,6 +27,10 @@ public sealed interface MultimodalPayload
         public Table {
             format = requireText(format, "format");
             content = requireText(content, "content");
+            if ((rows == null) != (columns == null)) {
+                throw new IllegalArgumentException(
+                        "table dimensions must both be present or both absent");
+            }
             if (rows != null && rows <= 0 || columns != null && columns <= 0) {
                 throw new IllegalArgumentException(
                         "table dimensions must be positive when present");
