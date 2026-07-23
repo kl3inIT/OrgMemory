@@ -53,7 +53,6 @@ export function ConnectorCatalogPage() {
   return (
     <AdminPage
       title="Add a source"
-      description="Where evidence comes from. A source only reaches retrieval through the same governed ledger, whichever of these it arrived by."
       actions={
         <Button variant="outline" asChild>
           <Link to="/admin/connectors">

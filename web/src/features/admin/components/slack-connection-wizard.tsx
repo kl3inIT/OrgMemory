@@ -201,7 +201,6 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
     <AdminPage
       title={connectionKey ? `Slack · ${connectionKey}` : "Connect Slack"}
       icon={<SourceIcon name="slack" className="size-6" />}
-      description="A workspace crawls only once it has a token, a Space to publish into, and a user to publish as."
       actions={
         <Button variant="outline" asChild>
           <Link to="/admin/connectors">
@@ -434,6 +433,11 @@ function TokenStep({
           {checking ? "Checking…" : "Check token"}
         </Button>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        What you paste here is encrypted before it is stored and is never shown again — not in a
+        response, not masked, not to you.
+      </p>
 
       <p className="text-xs text-muted-foreground">
         The Slack app needs{" "}

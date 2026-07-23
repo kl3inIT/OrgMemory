@@ -126,7 +126,6 @@ export function ConnectionDetailPage({
       icon={
         catalogued ? <SourceIcon name={catalogued.icon as SourceIconName} className="size-6" /> : undefined
       }
-      description="What this connection is set to do, and what it has done."
       actions={
         <>
           <Button variant="outline" asChild>
@@ -150,7 +149,7 @@ export function ConnectionDetailPage({
           { label: "Objects retrievable", value: activity.data?.objectsActive ?? 0 },
           { label: "Retired", value: activity.data?.objectsArchived ?? 0 },
           {
-            label: "Last crawl",
+            label: "Last indexed",
             value: activity.data?.lastCrawlAt ? formatTimestamp(activity.data.lastCrawlAt) : "Never",
             hint: activity.data?.lastCrawlAt ? undefined : "Nothing has been checkpointed",
           },
