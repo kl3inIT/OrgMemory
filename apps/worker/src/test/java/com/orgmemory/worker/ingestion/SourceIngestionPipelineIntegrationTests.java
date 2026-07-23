@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.document.Document;
@@ -133,6 +134,23 @@ class SourceIngestionPipelineIntegrationTests {
 
     @Autowired
     SecureKnowledgeRetrievalService retrieval;
+
+    /**
+     * Every test here calls {@code processNext()} expecting to claim the upload it just made,
+     * but the claim query takes the oldest available job across the whole table and will also
+     * reclaim a job whose lease has expired. Jobs left behind by earlier tests therefore win the
+     * race once the suite runs slowly enough for their leases to lapse. Parking them keeps each
+     * test's own upload the only claimable work without touching the rows any assertion reads.
+     */
+    @BeforeEach
+    @SuppressWarnings("SqlResolve")
+    void parkJobsLeftByEarlierTests() {
+        jdbc.update("""
+                UPDATE source_ingestion_jobs
+                SET available_at = now() + interval '1 day',
+                    lease_until = now() + interval '1 day'
+                """);
+    }
 
     @Test
     @SuppressWarnings("SqlResolve")
@@ -447,10 +465,14 @@ class SourceIngestionPipelineIntegrationTests {
 
         when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
                 .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        // Plainly in the past rather than now(): the claim compares this column against the
+        // JVM's clock, and this row is written by the database's. A container whose clock has
+        // drifted a fraction ahead of the host is enough to leave the job not yet due, which
+        // shows up as this test's second pass finding no work and asserting on a stale row.
         jdbc.update(
                 """
                         UPDATE source_ingestion_jobs
-                        SET available_at = now()
+                        SET available_at = now() - interval '1 minute'
                         WHERE source_revision_id = (
                             SELECT latest_revision_id FROM source_objects WHERE id = ?
                         )

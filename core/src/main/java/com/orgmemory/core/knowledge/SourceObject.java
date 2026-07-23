@@ -15,6 +15,9 @@ import java.util.UUID;
 @Table(name = "source_objects")
 class SourceObject extends BaseEntity {
 
+    /** Uploads are not a connector, so the ledger names their system itself. */
+    static final String NATIVE_UPLOAD_SYSTEM = "upload";
+
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
 
@@ -28,8 +31,11 @@ class SourceObject extends BaseEntity {
     private UUID createdByUserId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "source_type", nullable = false, length = 32, updatable = false)
-    private SourceType sourceType;
+    @Column(name = "acl_authority", nullable = false, length = 32, updatable = false)
+    private AclAuthority aclAuthority;
+
+    @Column(name = "source_system", nullable = false, length = 64, updatable = false)
+    private String sourceSystem;
 
     @Column(name = "source_connection_key", nullable = false, length = 128, updatable = false)
     private String sourceConnectionKey;
@@ -75,7 +81,8 @@ class SourceObject extends BaseEntity {
         this.knowledgeSpaceId = knowledgeSpaceId;
         this.departmentId = departmentId;
         this.createdByUserId = createdByUserId;
-        this.sourceType = SourceType.UPLOAD;
+        this.aclAuthority = AclAuthority.ORGMEMORY;
+        this.sourceSystem = NATIVE_UPLOAD_SYSTEM;
         this.sourceConnectionKey = "manual-upload";
         this.externalObjectId = id.toString();
         this.title = title;
@@ -90,7 +97,8 @@ class SourceObject extends BaseEntity {
             UUID knowledgeSpaceId,
             UUID departmentId,
             UUID createdByUserId,
-            SourceType sourceType,
+            AclAuthority aclAuthority,
+            String sourceSystem,
             String sourceConnectionKey,
             String externalObjectId,
             String title,
@@ -101,7 +109,8 @@ class SourceObject extends BaseEntity {
         this.knowledgeSpaceId = knowledgeSpaceId;
         this.departmentId = departmentId;
         this.createdByUserId = createdByUserId;
-        this.sourceType = sourceType;
+        this.aclAuthority = aclAuthority;
+        this.sourceSystem = sourceSystem;
         this.sourceConnectionKey = sourceConnectionKey;
         this.externalObjectId = externalObjectId;
         this.title = title;
@@ -117,7 +126,8 @@ class SourceObject extends BaseEntity {
             UUID knowledgeSpaceId,
             UUID departmentId,
             UUID createdByUserId,
-            SourceType sourceType,
+            AclAuthority aclAuthority,
+            String sourceSystem,
             String sourceConnectionKey,
             String externalObjectId,
             String title,
@@ -129,7 +139,8 @@ class SourceObject extends BaseEntity {
                 knowledgeSpaceId,
                 departmentId,
                 createdByUserId,
-                sourceType,
+                aclAuthority,
+                sourceSystem,
                 sourceConnectionKey,
                 externalObjectId,
                 title,
@@ -179,8 +190,12 @@ class SourceObject extends BaseEntity {
         return createdByUserId;
     }
 
-    SourceType getSourceType() {
-        return sourceType;
+    AclAuthority getAclAuthority() {
+        return aclAuthority;
+    }
+
+    String getSourceSystem() {
+        return sourceSystem;
     }
 
     String getSourceConnectionKey() {

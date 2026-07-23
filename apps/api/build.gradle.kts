@@ -8,6 +8,7 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":integrations:ai-openai-compatible"))
     implementation(project(":integrations:authorization-openfga"))
+    implementation(project(":integrations:connectors"))
     implementation(project(":integrations:object-storage-minio"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")

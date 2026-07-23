@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,11 +17,14 @@ import org.springframework.stereotype.Service;
  * canonical content storage. Model rotation rewrites idempotent direct tuples;
  * orphan cleanup deletes only OrgMemory-owned UUID asset tuples.
  */
+/**
+ * Always a bean, because both ports always exist: the OpenFGA adapter contributes them when it
+ * is configured and a fail-closed stand-in does when it is not. Making this conditional on them
+ * instead resolved against whichever packages the component scan had reached, so a fully
+ * configured deployment could silently lose convergence — and a scheduler that read the same
+ * condition a moment later would disagree and refuse to start.
+ */
 @Service
-@ConditionalOnBean({
-        RelationshipTupleWritePort.class,
-        RelationshipTupleReconciliationPort.class
-})
 public class KnowledgeAuthorizationConvergenceService {
 
     private static final String ASSET_PREFIX = "knowledge_asset:";

@@ -1,0 +1,627 @@
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link, useNavigate } from "@tanstack/react-router"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  TriangleAlert,
+} from "lucide-react"
+import { useState } from "react"
+import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { ErrorState } from "@/components/states/application-error"
+import { LoadingState } from "@/components/states/page-loading"
+import { formatTimestamp } from "@/features/admin/admin-labels"
+import {
+  adminConnectionScopesQueryOptions,
+  adminConnectionsQueryOptions,
+  adminUsersQueryOptions,
+  invalidateAdminData,
+  knowledgeSpacesQueryOptions,
+} from "@/features/admin/admin-queries"
+import { WIZARD_STEPS, type WizardStep } from "@/features/admin/connection-steps"
+import { AdminPage } from "@/features/admin/components/admin-page"
+import { ConnectorFields } from "@/features/admin/components/connector-fields"
+import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
+import { CONNECTOR_CATALOG, type ConnectorCredentialDescriptor } from "@/features/admin/connector-catalog"
+import {
+  CONNECTOR_FORMS,
+  configFrom,
+  draftFrom,
+  invalidFields,
+  type ConnectorFieldDraft,
+} from "@/features/admin/connector-forms"
+import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
+import {
+  configureAdminConnectionMutation,
+  setAdminConnectionCredentialMutation,
+  testAdminConnectorCredentialMutation,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
+import type { AdminConnectorProbeResponse } from "@/lib/hey-api"
+
+const DEFAULT_INTERVAL_MINUTES = 60
+
+/**
+ * Configuring one connection, in the order the work actually has to happen.
+ *
+ * <p>The credential comes first because it is what reports the connection key — a Slack
+ * workspace id, a Google Workspace domain — and there is nothing to configure until that is
+ * known. After that come the two halves the source has no opinion about: where crawled content
+ * lands, and how much to read.
+ *
+ * <p>Nothing here names a source. The credential step reads its label, its placeholder and what
+ * has to be granted from the catalogue; the scope step reads its fields from the descriptor;
+ * the destination step is true of every source. That is the whole claim of the last two
+ * increments, and this component is where it either holds or does not.
+ *
+ * <p>Saving is available from the second step rather than only the last, which is Onyx's
+ * arrangement and the right one: the scope step has working defaults, so walking through it to
+ * finish would be ceremony rather than a decision.
+ *
+ * <p>Which connection and which step are the caller's, read from and written back to the
+ * address. Nothing about where the reader is standing is held here, so there is no second copy
+ * of it to disagree with the one in the URL.
+ */
+export function ConnectionWizard({
+  sourceSystem,
+  connectionKey,
+  step: requestedStep,
+  onNavigate,
+}: {
+  sourceSystem: string
+  connectionKey?: string
+  step?: WizardStep
+  onNavigate: (next: { connection?: string; step?: WizardStep }) => void
+}) {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  const catalogued = CONNECTOR_CATALOG.find((entry) => entry.sourceSystem === sourceSystem)
+  const credentialDescriptor = catalogued?.credential
+  const form = CONNECTOR_FORMS[sourceSystem] ?? { fields: [], advanced: [] }
+
+  // Reconfiguring opens past the credential, because one is already stored and the step exists
+  // to obtain it. An address that names a step overrides that; one that does not is a default,
+  // not a position, so it is computed rather than remembered.
+  const step: WizardStep = requestedStep ?? (connectionKey ? "destination" : "credential")
+  const [credential, setCredential] = useState("")
+  const [probe, setProbe] = useState<AdminConnectorProbeResponse>()
+
+  const [crawlEnabled, setCrawlEnabled] = useState(true)
+  const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string>()
+  const [actorUserId, setActorUserId] = useState<string>()
+  const [intervalMinutes, setIntervalMinutes] = useState(String(DEFAULT_INTERVAL_MINUTES))
+  const [draft, setDraft] = useState<ConnectorFieldDraft>(() => draftFrom(form, {}))
+  const [loadedFrom, setLoadedFrom] = useState<string>()
+
+  const [connections, users, spaces] = useQueries({
+    queries: [
+      adminConnectionsQueryOptions(sourceSystem),
+      adminUsersQueryOptions(),
+      knowledgeSpacesQueryOptions(),
+    ],
+  })
+
+  const existing = (connections.data ?? []).find(
+    (candidate) => candidate.sourceConnectionKey === connectionKey,
+  )
+
+  // What the source holds, read with the credential this connection already stored. Before that
+  // there is nothing to read it with, and the field says so rather than showing an empty list.
+  const scopes = useQuery({
+    ...adminConnectionScopesQueryOptions(sourceSystem, connectionKey ?? ""),
+    enabled: Boolean(connectionKey) && Boolean(existing?.credentialSet),
+  })
+
+  // The form starts from what the connection already says, once that has arrived. Keyed on
+  // the connection so reopening on a different one does not show the last one's settings.
+  if (existing && loadedFrom !== existing.sourceConnectionKey) {
+    setLoadedFrom(existing.sourceConnectionKey)
+    setCrawlEnabled(existing.crawlEnabled ?? true)
+    setKnowledgeSpaceId(existing.knowledgeSpaceId)
+    setActorUserId(existing.actorUserId)
+    setDraft(draftFrom(form, existing.sourceConfig ?? {}))
+    setIntervalMinutes(
+      String(Math.max(1, Math.round((existing.contentCrawlIntervalSeconds ?? 3600) / 60))),
+    )
+  }
+
+  const test = useMutation({
+    ...testAdminConnectorCredentialMutation(),
+    onSuccess: (result) => setProbe(result),
+    onError: () => toast.error("The credential could not be checked."),
+  })
+
+  const store = useMutation({
+    ...setAdminConnectionCredentialMutation(),
+    onSuccess: async (_result, variables) => {
+      setCredential("")
+      setProbe(undefined)
+      await invalidateAdminData(queryClient)
+      // The connection the source named goes into the address along with the step. Until this
+      // point there was nothing to identify what is being configured, which is why a reload
+      // here used to land back on an empty form having already stored the credential.
+      onNavigate({ connection: String(variables.path.connectionKey), step: "destination" })
+      toast.success("Credential stored, encrypted. It is never shown again.")
+    },
+    onError: () => toast.error("The credential could not be stored."),
+  })
+
+  const configure = useMutation({
+    ...configureAdminConnectionMutation(),
+    onSuccess: async () => {
+      await invalidateAdminData(queryClient)
+      toast.success("Saved. The worker picks this up on its next poll.")
+      void navigate({ to: "/admin/connectors" })
+    },
+    onError: () => toast.error("The settings could not be saved."),
+  })
+
+  if (connections.isPending || users.isPending || spaces.isPending) {
+    return <LoadingState label="Loading connection" className="min-h-full flex-1" />
+  }
+
+  const failed = [connections, users, spaces].find((query) => query.isError)
+  if (failed) {
+    return (
+      <div className="grid min-h-full flex-1 place-items-center p-6">
+        <ErrorState
+          title="This connection could not be loaded"
+          description="This deployment may have no adapter for this source, or administration may require organization administrator permission."
+          error={failed.error}
+          onRetry={() => {
+            void connections.refetch()
+            void users.refetch()
+            void spaces.refetch()
+          }}
+        />
+      </div>
+    )
+  }
+
+  const sourceName = catalogued?.name ?? sourceSystem
+  const userRows = users.data ?? []
+  const spaceRows = spaces.data ?? []
+  const parsedInterval = Number.parseInt(intervalMinutes, 10)
+  const invalid = invalidFields(form, draft)
+  const boundsValid = parsedInterval > 0 && invalid.length === 0
+  const targetsChosen = Boolean(knowledgeSpaceId) && Boolean(actorUserId)
+  const canSave = Boolean(connectionKey) && boundsValid && (!crawlEnabled || targetsChosen)
+  const stepIndex = WIZARD_STEPS.findIndex((candidate) => candidate.key === step)
+
+  function save() {
+    if (!connectionKey) return
+    configure.mutate({
+      path: { sourceSystem, connectionKey },
+      body: {
+        crawlEnabled,
+        knowledgeSpaceId,
+        actorUserId,
+        // Everything only this source understands goes in one document the ledger stores unread.
+        sourceConfig: configFrom(form, draft),
+        contentCrawlIntervalSeconds: parsedInterval * 60,
+      },
+    })
+  }
+
+  return (
+    <AdminPage
+      title={connectionKey ? `${sourceName} · ${connectionKey}` : `Connect ${sourceName}`}
+      icon={
+        catalogued ? <SourceIcon name={catalogued.icon as SourceIconName} className="size-6" /> : undefined
+      }
+      actions={
+        <Button variant="outline" asChild>
+          <Link to="/admin/connectors">
+            <ArrowLeft aria-hidden="true" />
+            Sources
+          </Link>
+        </Button>
+      }
+    >
+      <ol className="flex flex-wrap gap-2">
+        {WIZARD_STEPS.map((candidate, index) => {
+          const done = index < stepIndex
+          const current = candidate.key === step
+          return (
+            <li key={candidate.key} className="flex-1 basis-52">
+              <button
+                type="button"
+                disabled={index > 0 && !connectionKey}
+                onClick={() => onNavigate({ step: candidate.key })}
+                data-state={current ? "current" : done ? "done" : "upcoming"}
+                className="w-full rounded-lg border border-border-subtle px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 data-[state=current]:border-action-primary data-[state=current]:bg-surface-raised"
+              >
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <span className="grid size-5 shrink-0 place-items-center rounded-full border text-xs tabular-nums">
+                    {done ? <Check className="size-3" aria-hidden="true" /> : index + 1}
+                  </span>
+                  {candidate.label}
+                </div>
+                <div className="mt-0.5 pl-7 text-xs text-muted-foreground">{candidate.hint}</div>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+
+      <Card className="py-0">
+        <CardContent className="space-y-4 p-5">
+          {step === "credential" ? (
+            <CredentialStep
+              sourceSystem={sourceSystem}
+              descriptor={credentialDescriptor}
+              existingSetAt={existing?.credentialSet ? existing.credentialSetAt : undefined}
+              credential={credential}
+              probe={probe}
+              checking={test.isPending}
+              storing={store.isPending}
+              onCredentialChange={(value) => {
+                setCredential(value)
+                setProbe(undefined)
+              }}
+              onCheck={() =>
+                test.mutate({ path: { sourceSystem }, body: { credential: credential.trim() } })
+              }
+              onStore={(key) =>
+                store.mutate({
+                  path: { sourceSystem, connectionKey: key },
+                  body: { credential: credential.trim() },
+                })
+              }
+            />
+          ) : null}
+
+          {step === "destination" ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="crawl-space">Knowledge Space</Label>
+                <Select value={knowledgeSpaceId} onValueChange={setKnowledgeSpaceId}>
+                  <SelectTrigger id="crawl-space" className="w-full">
+                    <SelectValue placeholder="Select a Space to publish into" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spaceRows
+                      .filter((space) => space.id)
+                      .map((space) => (
+                        <SelectItem key={space.id} value={space.id!}>
+                          {space.name ?? space.key}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="crawl-actor">Recorded as</Label>
+                <Select value={actorUserId} onValueChange={setActorUserId}>
+                  <SelectTrigger id="crawl-actor" className="w-full">
+                    <SelectValue placeholder="Select the user the crawl publishes as" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userRows
+                      .filter((user) => user.active && user.id)
+                      .map((user) => (
+                        <SelectItem key={user.id} value={user.id!}>
+                          {user.name ?? user.email} · {user.email}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Every crawled object is attributed to this user in the audit trail. Access still
+                  comes from what {sourceName} says, not from this choice.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="crawl-enabled">Index this connection</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Nothing is read from {sourceName} until this is on.
+                  </p>
+                </div>
+                <Switch id="crawl-enabled" checked={crawlEnabled} onCheckedChange={setCrawlEnabled} />
+              </div>
+
+              {crawlEnabled && !targetsChosen ? (
+                <p className="text-sm text-destructive">
+                  A crawl needs a Knowledge Space to publish into and a user to publish as.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {step === "scope" ? (
+            <ConnectorFields
+              descriptor={form}
+              draft={draft}
+              invalid={invalid}
+              onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
+              scopes={scopes.data}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="crawl-interval">Content interval (minutes)</Label>
+                <Input
+                  id="crawl-interval"
+                  inputMode="numeric"
+                  value={intervalMinutes}
+                  aria-invalid={parsedInterval > 0 ? undefined : true}
+                  onChange={(event) => setIntervalMinutes(event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Between these, only access is re-read, which is far cheaper than re-reading
+                  content. This setting is not the source's: every source is indexed on an
+                  interval, and it is a column with a constraint rather than part of the source's
+                  own document.
+                </p>
+                {parsedInterval > 0 ? null : (
+                  <p className="text-sm text-destructive">
+                    The interval must be a whole number of minutes, at least one.
+                  </p>
+                )}
+              </div>
+            </ConnectorFields>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 items-center gap-2">
+        <div>
+          {stepIndex > 0 ? (
+            <Button
+              variant="outline"
+              onClick={() => onNavigate({ step: WIZARD_STEPS[stepIndex - 1]!.key })}
+            >
+              <ArrowLeft aria-hidden="true" />
+              Back
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex justify-center">
+          {stepIndex > 0 ? (
+            <Button disabled={!canSave || configure.isPending} onClick={save}>
+              {configure.isPending ? "Saving…" : "Save connection"}
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex justify-end">
+          {stepIndex < WIZARD_STEPS.length - 1 ? (
+            <Button
+              variant="outline"
+              disabled={!connectionKey}
+              onClick={() => onNavigate({ step: WIZARD_STEPS[stepIndex + 1]!.key })}
+            >
+              {WIZARD_STEPS[stepIndex + 1]!.label}
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </AdminPage>
+  )
+}
+
+function CredentialStep({
+  sourceSystem,
+  descriptor,
+  existingSetAt,
+  credential,
+  probe,
+  checking,
+  storing,
+  onCredentialChange,
+  onCheck,
+  onStore,
+}: {
+  sourceSystem: string
+  descriptor?: ConnectorCredentialDescriptor
+  existingSetAt?: string
+  credential: string
+  probe?: AdminConnectorProbeResponse
+  checking: boolean
+  storing: boolean
+  onCredentialChange: (value: string) => void
+  onCheck: () => void
+  onStore: (connectionKey: string) => void
+}) {
+  if (!descriptor) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        This source does not take a credential here.
+      </p>
+    )
+  }
+
+  const id = "connector-credential"
+  return (
+    <div className="space-y-4">
+      {existingSetAt ? (
+        <div className="flex items-center gap-3 rounded-md border p-3">
+          <Badge variant="secondary">Stored</Badge>
+          <span className="text-sm text-muted-foreground">
+            Set {formatTimestamp(existingSetAt)}. Entering a new one below replaces it.
+          </span>
+        </div>
+      ) : null}
+
+      <CredentialSource descriptor={descriptor} />
+
+      <div
+        className={
+          descriptor.multiline ? "space-y-3" : "flex flex-col gap-3 sm:flex-row sm:items-end"
+        }
+      >
+        <div className="flex-1 space-y-2">
+          <Label htmlFor={id}>{descriptor.label}</Label>
+          {descriptor.multiline ? (
+            <Textarea
+              id={id}
+              rows={8}
+              spellCheck={false}
+              className="font-mono text-xs"
+              value={credential}
+              placeholder={descriptor.placeholder}
+              onChange={(event) => onCredentialChange(event.target.value)}
+            />
+          ) : (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={credential}
+              placeholder={descriptor.placeholder}
+              onChange={(event) => onCredentialChange(event.target.value)}
+            />
+          )}
+        </div>
+        <Button variant="outline" disabled={!credential.trim() || checking} onClick={onCheck}>
+          {checking ? "Checking…" : "Check"}
+        </Button>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        What you paste here is encrypted before it is stored and is never shown again — not in a
+        response, not masked, not to you.
+      </p>
+
+      {descriptor.requirements?.length ? (
+        <p className="text-xs text-muted-foreground">
+          It has to have been granted{" "}
+          {descriptor.requirements.map((requirement, index) => (
+            <span key={requirement}>
+              {index > 0 ? ", " : ""}
+              <code className="rounded bg-muted px-1 py-0.5">{requirement}</code>
+            </span>
+          ))}
+          . {descriptor.note} Checking here confirms both that it authenticates and that it can
+          actually read something — which authentication alone does not.
+        </p>
+      ) : null}
+
+      {probe ? (
+        <Card className="py-0">
+          <CardContent className="flex items-start gap-3 p-4">
+            {probeIsGood(probe) ? (
+              <CheckCircle2
+                className="mt-0.5 size-4 shrink-0 text-status-success-content"
+                aria-hidden="true"
+              />
+            ) : (
+              <TriangleAlert
+                className="mt-0.5 size-4 shrink-0 text-status-warning-content"
+                aria-hidden="true"
+              />
+            )}
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-medium">
+                {probe.authenticated
+                  ? `${probe.accountName || descriptor.keyName} · ${probe.connectionKey}`
+                  : "The credential was refused"}
+              </p>
+              <p className="text-sm text-muted-foreground">{probeReason(sourceSystem, probe)}</p>
+              {probe.authenticated && probe.identityName ? (
+                <p className="text-xs text-muted-foreground">
+                  Authenticated as {probe.identityName}.
+                </p>
+              ) : null}
+            </div>
+            {probe.authenticated && probe.connectionKey ? (
+              <Button disabled={storing} onClick={() => onStore(probe.connectionKey!)}>
+                {storing ? "Saving…" : "Save credential"}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Where the credential comes from, for the reader who does not have one yet.
+ *
+ * <p>A step that asks for something which does not exist yet, and only says what to paste,
+ * leaves the reader to go and find out where from. Onyx carries a documentation link per source
+ * for this reason. This goes one further where the source allows it: a manifest is a document
+ * the source accepts verbatim, so offering it to copy is the difference between listing seven
+ * scopes and granting them.
+ *
+ * <p>Both are optional. A source that has neither renders nothing rather than an empty frame.
+ */
+function CredentialSource({ descriptor }: { descriptor: ConnectorCredentialDescriptor }) {
+  if (!descriptor.issuer && !descriptor.recipe) return null
+
+  return (
+    <div className="space-y-3 rounded-md border border-border-subtle bg-surface-subtle p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">No credential yet?</p>
+        {descriptor.issuer ? (
+          <Button size="sm" variant="outline" asChild>
+            <a href={descriptor.issuer.href} target="_blank" rel="noreferrer">
+              {descriptor.issuer.label}
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </Button>
+        ) : null}
+      </div>
+      {descriptor.recipe ? <CredentialRecipe recipe={descriptor.recipe} /> : null}
+    </div>
+  )
+}
+
+function CredentialRecipe({
+  recipe,
+}: {
+  recipe: NonNullable<ConnectorCredentialDescriptor["recipe"]>
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="flex items-center justify-between gap-2">
+        <CollapsibleTrigger className="flex items-center gap-1.5 rounded-md text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring">
+          <ChevronDown
+            className="size-4 transition-transform data-[open=true]:rotate-180"
+            data-open={open}
+            aria-hidden="true"
+          />
+          {recipe.label}
+        </CollapsibleTrigger>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() =>
+            void navigator.clipboard
+              .writeText(recipe.body)
+              .then(() => toast.success(`${recipe.label} copied`))
+              .catch(() => toast.error(`${recipe.label} could not be copied`))
+          }
+        >
+          <Copy aria-hidden="true" />
+          Copy
+        </Button>
+      </div>
+      <CollapsibleContent>
+        <pre className="mt-2 max-h-64 overflow-auto rounded-md border bg-background p-3 font-mono text-xs">
+          {recipe.body}
+        </pre>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}

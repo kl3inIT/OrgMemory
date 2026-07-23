@@ -22,6 +22,18 @@ belongs in one active increment.
 - An administration surface over the identity ledger: users with their sign-in
   linkage, observed source principals with confirm/revoke, read-only sealed
   source-group membership, and a per-connection identity trust decision.
+- Connections configured from the browser rather than from environment
+  variables: an encrypted write-only credential, a source catalogue showing what
+  this deployment can ingest, one endpoint per operation rather than per source,
+  and a per-connection page reporting what each crawl actually did.
+- Two source adapters — Slack and Google Drive — proving the connector shape
+  holds: an adapter contributes a profile, a batch source and a credential probe,
+  and nothing in `core`, the API or the schema learns its name.
+- Drive crawl correctness found by review rather than by failure: shared-drive
+  sharing resolved through `permissionIds` instead of sealing an ACL that grants
+  nobody, a crawl cursor that names its grants rather than counting them, folder
+  scope that means the subtree, Google's own incomplete-search flag honoured, and
+  bounded retry and response size.
 - A framework-neutral secure GraphRAG kernel/testkit and a versioned Spring AI
   structured extraction adapter with deterministic, network-free tests.
 - A secure PostgreSQL GraphRAG projection with evidence-level ACL/provenance,
@@ -45,9 +57,9 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   over the shipped graph contracts and PostgreSQL projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
-- Replace the fixture connector batch source with the live Slack Web API adapter
-  (credentials, rate limiting, checkpoint/resume) reading the per-connection
-  identity trust decision.
+- Run the Slack adapter against a real workspace. The adapter, its administration
+  and its reporting are built and proved against recorded responses; nothing has
+  yet crawled a workspace that exists.
 
 ## Pilot Hardening
 

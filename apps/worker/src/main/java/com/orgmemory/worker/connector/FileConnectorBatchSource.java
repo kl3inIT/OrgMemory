@@ -3,6 +3,7 @@ package com.orgmemory.worker.connector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.ConnectorPoll;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -32,22 +33,27 @@ class FileConnectorBatchSource implements ConnectorBatchSource {
         this.properties = properties;
     }
 
+    /**
+     * Files on disk have no per-connection failure to report: a fixture either parses or the
+     * whole directory is unreadable, and the second is a failure of the source rather than of
+     * one connection. So this always reports an empty unavailable list.
+     */
     @Override
-    public List<ConnectorCrawlBatch> pendingBatches() {
+    public ConnectorPoll pendingBatches() {
         String directory = properties.fixturesDirectory();
         if (directory.isBlank()) {
-            return List.of();
+            return ConnectorPoll.of(List.of());
         }
         Path root = Path.of(directory);
         if (!Files.isDirectory(root)) {
-            return List.of();
+            return ConnectorPoll.of(List.of());
         }
         try (Stream<Path> entries = Files.list(root)) {
-            return entries
+            return ConnectorPoll.of(entries
                     .filter(path -> path.getFileName().toString().endsWith(".json"))
                     .sorted(Comparator.comparing(path -> path.getFileName().toString()))
                     .map(this::read)
-                    .toList();
+                    .toList());
         } catch (IOException exception) {
             throw new UncheckedIOException("Could not list connector fixtures in " + root, exception);
         }

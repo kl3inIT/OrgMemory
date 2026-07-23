@@ -3,6 +3,7 @@ package com.orgmemory.api;
 import com.orgmemory.api.knowledge.QueryEmbeddingProperties;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
+import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,6 +20,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EnableJpaRepositories("com.orgmemory.core")
 @EnableConfigurationProperties({
         SourceIngestionProperties.class,
+        SecretCipherProperties.class,
         KnowledgeRetrievalProperties.class,
         QueryEmbeddingProperties.class
 })

@@ -29,6 +29,10 @@ spring:
     import: optional:file:.env[.properties],optional:file:../../.env[.properties],optional:file:.openfga.local.properties,optional:file:../../.openfga.local.properties
 
 orgmemory:
+  secrets:
+    key: ${ORGMEMORY_SECRETS_KEY:orgmemory-local-dev-only-secret-key}
+    salt: ${ORGMEMORY_SECRETS_SALT:6f72676d656d6f7279736563726574}
+    version: ${ORGMEMORY_SECRETS_KEY_VERSION:1}
   authorization:
     convergence:
       scheduling-enabled: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_ENABLED:true}

@@ -22,9 +22,9 @@ flowchart LR
 The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
 the framework-neutral `components:graph-rag-core` and
 `components:graph-rag-testkit`, `integrations:graph-rag-spring-ai`,
-`integrations:graph-rag-postgres`,
-`integrations:authorization-openfga`, and
-`integrations:object-storage-minio`. The web client is a separate Vite
+`integrations:graph-rag-postgres`, `integrations:authorization-openfga`,
+`integrations:object-storage-minio`, and `integrations:connectors` (one module,
+a package per source adapter). The web client is a separate Vite
 workspace. API owns Flyway execution and the worker validates the existing
 schema with Flyway disabled in normal runtime.
 
@@ -43,12 +43,16 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
-  administration surface over the identity ledger gated on OpenFGA
-  `can_manage_members`.
+  administration surface over the identity ledger and the source connections,
+  gated on OpenFGA `can_manage_members`. A source credential is write-only across
+  that surface: it is submitted, stored encrypted, and never returned in any form.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
   fail-closed authorization projection, publication, external
-  permission-workbook validation, and a fixture-driven Slack connector staging
-  driver that ingests a versioned crawl-batch contract into the governed ledger.
+  permission-workbook validation, and a connector driver that ingests a versioned
+  crawl-batch contract into the governed ledger, checkpointing progress per
+  connection so a restart resumes rather than replays. Which connections it crawls
+  and what it authenticates with come from the ledger on every poll, so an
+  administrator's change takes effect on the next one without a restart.
 - `apps/mcp`: a reserved delivery module with no runtime implementation; the
   legacy scaffold was removed so secure agent tools can be rebuilt on the
   permission-aware retrieval contract.
@@ -75,12 +79,27 @@ stable `KnowledgeAsset` roots, immutable `KnowledgeAssetVersion` records,
 append-only evidence links, versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
 principal mappings and sealed per-generation group membership, per-connection
-identity trust decisions, publication outbox evidence, and append-only permission
-audit events. Immutable evidence bytes live
+identity trust decisions consumed by the crawl matcher, durable per-connection
+crawl checkpoints, a per-batch record of what each crawl did
+(`connector_crawl_attempts`), publication outbox evidence, and append-only
+permission audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, graph data, and OpenFGA relationships are
-rebuildable projections. A connector staging crawl (`SLACK` source type) produces
-the same governed ledger as uploads, with source ACL evidence resolved through the
-principal mappings.
+rebuildable projections. A connector crawl produces the same governed ledger as
+uploads, with source ACL evidence resolved through the principal mappings. Each
+object records `source_system` (which system it came from, governed by the
+connector registry rather than a check constraint) separately from `acl_authority`
+(`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
+rules applies), so adding a connector needs no migration — Slack and Google Drive
+are both adapters contributing a profile, a batch source and a credential probe,
+with no source named in `core` or in the API. An adapter that cannot establish an
+object's source ACL leaves that object out of its payload rather than sending an
+empty grant list, because the ledger seals an empty list as the source stating
+that nobody may read it. Source connection rows
+carry the configuration every source shares as columns and whatever only one
+source understands as an opaque `source_config` document, plus an encrypted
+credential in `source_connection_credentials`; the ciphertext is
+AES-256-GCM and a row that fails its authentication tag is refused rather than
+decrypted, so a tampered credential cannot be used.
 
 ## Current Permission-Aware Retrieval
 

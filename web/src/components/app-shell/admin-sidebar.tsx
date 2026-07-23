@@ -1,4 +1,4 @@
-import { ArrowLeft, KeyRound, Link2, ShieldCheck, UserRoundCog, Users } from "lucide-react"
+import { ArrowLeft, KeyRound, Link2, Plug, ShieldCheck, UserRoundCog, Users } from "lucide-react"
 import { Link, useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
@@ -18,15 +18,29 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-const PERMISSIONS = [
-  { label: "Users", to: "/admin/users" as const, icon: Users },
-  { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },
-  { label: "Source groups", to: "/admin/groups" as const, icon: ShieldCheck },
-  { label: "SCIM", to: "/admin/scim" as const, icon: KeyRound },
+const GROUPS = [
+  {
+    label: "Evidence",
+    items: [{ label: "Sources", to: "/admin/connectors" as const, icon: Plug }],
+  },
+  {
+    label: "Permissions",
+    items: [
+      { label: "Users", to: "/admin/users" as const, icon: Users },
+      { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },
+      { label: "Source groups", to: "/admin/groups" as const, icon: ShieldCheck },
+      { label: "SCIM", to: "/admin/scim" as const, icon: KeyRound },
+    ],
+  },
 ]
 
 const ITEM_CLASSES =
   "h-9 rounded-lg px-2.5 text-content-secondary data-[active=true]:bg-surface-raised data-[active=true]:text-content-primary data-[active=true]:shadow-xs"
+
+/** A section stays highlighted while you are inside it, not only on its own index. */
+function isInside(pathname: string, to: string) {
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
 
 export function AdminSidebar({ identity }: { identity: SessionResponse }) {
   const pathname = useLocation({ select: (location) => location.pathname })
@@ -49,28 +63,30 @@ export function AdminSidebar({ identity }: { identity: SessionResponse }) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup className="pt-2">
-          <SidebarGroupLabel>Permissions</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
-              {PERMISSIONS.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.to}
-                    tooltip={item.label}
-                    className={ITEM_CLASSES}
-                  >
-                    <Link to={item.to} aria-current={pathname === item.to ? "page" : undefined}>
-                      <item.icon aria-hidden="true" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {GROUPS.map((group) => (
+          <SidebarGroup key={group.label} className="pt-2">
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1.5">
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isInside(pathname, item.to)}
+                      tooltip={item.label}
+                      className={ITEM_CLASSES}
+                    >
+                      <Link to={item.to} aria-current={isInside(pathname, item.to) ? "page" : undefined}>
+                        <item.icon aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu className="gap-1">

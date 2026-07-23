@@ -393,10 +393,10 @@ class PermissionsAdminIntegrationTests {
                 """, NORMALIZED, ORG, RAW, SNAPSHOT, BODY, SHA);
         jdbc.update("""
                 INSERT INTO source_objects (
-                    id, organization_id, created_by_user_id, knowledge_space_id, source_type,
+                    id, organization_id, created_by_user_id, knowledge_space_id, acl_authority, source_system,
                     source_connection_key, external_object_id, title, classification, declared_access,
                     status, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, 'SLACK', 'T-workspace', 'C-general-msg', 'General channel digest',
+                VALUES (?, ?, ?, ?, 'SOURCE', 'slack', 'T-workspace', 'C-general-msg', 'General channel digest',
                     'INTERNAL', 'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT, ORG, ADMIN_USER, SPACE);
         jdbc.update("""

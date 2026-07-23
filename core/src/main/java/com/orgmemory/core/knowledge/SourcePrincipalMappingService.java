@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Resolves external {@code SOURCE_USER} principals to verified internal users. Automatic
- * matching runs the trusted tiers first (issuer/subject IdP join, then SSO-verified email
- * join); {@code selfClaim} and {@code adminConfirm} cover the tail. Every mutation validates
+ * matching runs the trusted tiers first: an issuer/subject IdP join, then an email join that
+ * needs the address vouched for either by the source itself or by an administrator's standing
+ * decision on the connection; {@code selfClaim} and {@code adminConfirm} cover the tail
+ * neither reaches. Every mutation validates
  * an active internal user, keeps at most one active mapping per principal, and appends a
  * permission audit event. Anything not matched here stays unmapped and therefore denied.
  */
@@ -41,7 +43,11 @@ class SourcePrincipalMappingService {
     }
 
     @Transactional
-    Optional<SourcePrincipalMapping> autoMap(SourcePrincipal principal, String idpIssuer, String idpSubject) {
+    Optional<SourcePrincipalMapping> autoMap(
+            SourcePrincipal principal,
+            String idpIssuer,
+            String idpSubject,
+            SourceIdentityTrust connectionTrust) {
         if (principal.getKind() != SourcePrincipalKind.SOURCE_USER) {
             return Optional.empty();
         }
@@ -58,7 +64,7 @@ class SourcePrincipalMappingService {
                 return byIdp;
             }
         }
-        if (principal.isSsoVerified() && hasText(principal.getObservedEmail())) {
+        if (hasText(principal.getObservedEmail()) && emailIsVouchedFor(principal, connectionTrust)) {
             return users.findByEmailIgnoreCase(principal.getObservedEmail())
                     .filter(user -> user.isActive()
                             && user.getOrganizationId().equals(principal.getOrganizationId()))
@@ -66,9 +72,27 @@ class SourcePrincipalMappingService {
                             principal,
                             user.getId(),
                             SourcePrincipalMappingMethod.SSO_EMAIL_JOIN,
-                            "sso-email:" + principal.getObservedEmail()));
+                            emailJoinEvidence(principal)));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Whether an observed email may be believed well enough to bind on its own. Two
+     * independent signals qualify. A source that confirms address ownership before an account
+     * can exist vouches per principal, and its crawl says so. A source that cannot vouch needs
+     * an administrator to attest the whole connection instead — a property of the workspace,
+     * not of any one user, which is why the decision lives on the connection. Absent both, the
+     * principal stays unmapped and therefore denied.
+     */
+    private static boolean emailIsVouchedFor(SourcePrincipal principal, SourceIdentityTrust connectionTrust) {
+        return principal.isSsoVerified() || connectionTrust == SourceIdentityTrust.SSO_VERIFIED;
+    }
+
+    /** Records which of the two signals carried the bind, so the audit trail can be read back. */
+    private static String emailJoinEvidence(SourcePrincipal principal) {
+        return "sso-email:" + principal.getObservedEmail()
+                + "|vouched-by:" + (principal.isSsoVerified() ? "source" : "connection-trust");
     }
 
     @Transactional

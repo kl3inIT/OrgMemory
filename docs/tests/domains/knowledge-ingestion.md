@@ -30,8 +30,102 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | Crawl grants only mapped members; mapped non-member and unobserved principal denied | `slackChannelBecomesGovernedAndConvergesOnMembership` (initial phase) |
 | Membership re-crawl converges grant/revoke without re-materializing content (same revision + chunks, ACL generation 1→2) | same test (re-crawl phase) |
 | Tombstone archives the object out of retrieval | same test (tombstone phase) |
+| Email join needs the source or an administrator to vouch; neither leaves it unmapped | `emailJoinNeedsSomebodyToVouchForTheAddress`, `emailJoinBindsWhenTheSourceVouchesForThePrincipal`, `emailJoinBindsWhenAnAdministratorAttestedTheConnection` |
+| An attested connection opens a sealed grant that an unvouched crawl left closed | `administratorTrustDecisionOpensAnUnvouchedEmailJoin` |
+| An edited message stops answering from the superseded text | `anEditedMessageStopsBeingAnsweredFromTheTextTheCrawlFirstSaw` |
+| A retired object refuses a later content revision | `aRetiredObjectIsNotRevivedByALaterContentRevision` |
+| A restarted driver resumes from the checkpoint instead of replaying | `aRestartedDriverResumesInsteadOfReplaying` |
+| A permanent rejection is checkpointed past; a transient one is retried and left pending | `aRejectedBatchIsCheckpointedPastRatherThanRetriedForever`, `aTransientFailureIsRetriedAndStaysPending` |
+| A batch that reconciled leaves a row with what it changed | `aSuccessfulBatchIsRecordedWithWhatItChanged` |
+| A connection that produced no batch is recorded with the source's own reason, and nothing is marked done | `aConnectionThatProducedNoBatchIsRecordedWithItsReason` |
+| Only what an adapter contributed is governed: an uncontributed source is refused, and two adapters cannot claim one name | `ConnectorSourceRegistryTests` |
+| A credential is checked by the adapter that claimed its source, a source with no probe is refused rather than answered, and two adapters cannot both probe one source | `ConnectorCredentialProbeRegistryTests` |
+| A database that already holds evidence survives the split of `source_type` into `acl_authority` and `source_system` | `SourceObjectAclAuthorityMigrationTests.anExistingObjectKeepsItsSystemAndGainsTheRightAuthority` |
+| A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
+| An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
 
-Gaps: there is no public upload/connector REST API or a real blob-store/scan/parser
-integration test yet (the connector proof mocks object storage and OpenFGA); the
-live Slack Web API adapter and connector content-edit re-materialization are the
-follow-up `slack-connector-live` increment.
+## Slack Adapter Coverage
+
+Evidence classes under `integrations/connectors/src/test/java/com/orgmemory/connectors/slack/`:
+`SlackWebApiClientTests`, `SlackConnectorBatchSourceTests`, `SlackTextCleanerTests`,
+`SlackConnectorAutoConfigurationTests`.
+All run against recorded Slack responses; none touches the network.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| A refusal inside a 200 response is read as a refusal; pagination ends only on an empty cursor | `readsARefusalOutOfASuccessfulResponse`, `collectsEveryPageUntilTheCursorRunsOut`, `treatsAnAbsentCursorAsTheLastPage` |
+| A rate limit is waited out before the next request, with jitter, and gives up when it outlasts the budget | `waitsOutARateLimitAndRetriesTheCall`, `appliesAWaitEarnedByOneCallToTheNext`, `spreadsResumingRequestsWithJitter`, `givesUpWhenTheRateLimitOutlastsTheRetryBudget` |
+| The token reaches the client and no failure message or URI | `refusesToCrawlWithACredentialSlackRejects` asserts the refusal carries the error code and not the token |
+| A workspace becomes threads, members, and channel groups on the crawl contract | `turnsAWorkspaceIntoTheCrawlContract`, `reportsMembersAsUsersAndTheChannelAsTheirGroup`, `dropsBotsDeactivatedAccountsAndChannelNoise` |
+| Completeness is claimed only by an unfiltered, uninterrupted, in-scope crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeChannelsWereAskedFor`, `withdrawsTheCompletenessClaimWhenAChannelCouldNotBeRead`, `withdrawsTheCompletenessClaimWhenPrivateChannelsAreOutOfScope` |
+| Slack markup leaves no identifiers or raw tags in the indexed body | `leavesNoSlackMarkupBehindInARealisticMessage`, `resolvesMentionsAndLinksOutOfTheIndexedBody`, and the rest of `SlackTextCleanerTests` |
+| A thread broadcast back to its channel is indexed once, whole | `indexesAThreadOnceWhenAReplyWasBroadcastBackToTheChannel` |
+| A rejected credential and a mostly-unreadable workspace fail rather than report a crawl | `refusesToCrawlWithACredentialSlackRejects`, `abandonsARunInWhichMostChannelsCouldNotBeRead` |
+| Between content crawls no message body is read, and the cheap batch never claims completeness | `readsNoMessageBodiesBetweenContentCrawls`, `aPermissionsCrawlNeverClaimsCompleteness`, `reissuesAContentCrawlOnceTheIntervalElapses` |
+| A permissions crawl omits objects whose channel it could not see rather than asserting nobody may read them | `aPermissionsCrawlLeavesOutObjectsWhoseChannelItCouldNotSee` |
+| The adapter is present wherever the module is and crawls nothing until a connection says so | `contributesTheAdapterWhereverTheModuleIsPresent`, `contributesNothingToCrawlUntilAConnectionIsEnabled`, `producesNothingUntilAConnectionIsEnabled` |
+| A connection with no stored credential produces nothing and says why, rather than being skipped silently | `reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently` |
+| A configuration change is picked up on the next poll, without a restart | `picksUpAConfigurationChangeWithoutARestart` |
+| One unusable workspace does not cost the others their poll, and is still reported | `oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll` |
+
+## Google Drive Adapter Coverage
+
+Evidence class: `integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveConnectorBatchSourceTests.java`.
+Run against recorded Drive responses with a service account key generated in the
+test, so the RS256 signing path executes for real and no credential from anywhere
+real exists in the repository. Nothing touches the network.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| A Drive becomes files, owners and per-file grants on the crawl contract | `turnsADriveIntoTheCrawlContract`, `observesOwnersAndSharedUsersAsVerifiedPeople` |
+| A user, a group and a domain grant; an anyone-with-the-link permission grants nothing | `grantsUsersGroupsAndDomainsButNeverAPublicLink` |
+| A domain group's membership is the users the crawl actually saw, and a group address is not one of them | `aDomainGroupIsMadeOfTheUsersTheCrawlActuallySaw` |
+| Completeness is claimed only by an unfiltered, uninterrupted crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeFoldersWereAskedFor`, `withdrawsTheCompletenessClaimWhenAFileCouldNotBeRead` |
+| Between content crawls no document body is read, and that pass never claims completeness | `readsNoDocumentBodiesBetweenContentCrawls`, `reissuesAContentCrawlOnceTheIntervalElapses` |
+| The content revision is the text, so an unchanged document costs nothing and an edit is a new revision | `anEditedDocumentGetsANewContentRevisionAndAnUnchangedOneDoesNot` |
+| A missing credential and a credential that is not a service account key are reported, and the refusal describes the credential rather than repeating any of it | `reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently`, `reportsACredentialThatIsNotAServiceAccountKey` |
+| A shared-drive file's `permissionIds` are followed instead of its absent inline permissions being read as an empty ACL | `followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl` |
+| Sharing that could not be read leaves the object out of the payload rather than granting nobody | `leavesOutAnObjectWhoseSharingCouldNotBeReadRatherThanGrantingNobody` |
+| Google reporting an incomplete search withdraws the completeness claim | `withdrawsTheCompletenessClaimWhenGoogleReportsAnIncompleteSearch` |
+| A scoped folder means its subtree, not its immediate children | `crawlsTheWholeSubtreeUnderAScopedFolder` |
+| Replacing one reader with another changes the cursor, so the driver cannot skip the batch | `changesTheCursorWhenAReaderIsReplacedByAnotherRatherThanCounting` |
+| A file past the size bound is not read, and that withdraws the claim because the bound is ours | `skipsAFileLargerThanTheBoundAndSaysTheCrawlIsNoLongerComplete` |
+| A rate limit is waited out rather than failing the connection | `waitsOutARateLimitAndCompletesTheCrawl` |
+| A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
+| Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |
+
+The shared-drive proof was verified by removing the `permissions.list` fallback
+and watching `followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl`
+fail, then restoring it.
+
+## Connection Administration Coverage
+
+Evidence classes: `core/src/test/java/com/orgmemory/core/shared/secret/SecretCipherTests.java`,
+`apps/api/src/test/java/com/orgmemory/api/admin/ConnectorAdminIntegrationTests.java`.
+`SourceConnectionAdminService` has no unit test of its own; it is proved through
+the API boundary, which is the only way it is reached.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| Only an organization administrator reaches any connector endpoint, and a refused request creates nothing | `nonAdministratorsAreRefusedEverywhere` |
+| A stored token is unreadable in its own row and is returned by no endpoint, in any form | `aStoredTokenIsEncryptedAndNeverComesBack` |
+| What comes out of the cipher is what the administrator put in | `testingAStoredTokenRoundTripsItThroughEncryption` |
+| A tampered ciphertext is refused rather than decrypted | `refusesATamperedRowRatherThanDecryptingIt` |
+| Crawl settings round-trip, and enabling with nowhere to publish is refused | `aCrawlIsConfiguredAndReadBack`, `enablingACrawlWithNowhereToPublishIsRefused` |
+| A probe reports the workspace it authenticated as and never repeats the token | `testingATokenReportsTheWorkspaceItAuthenticatedAs` |
+| Testing a connection with nothing stored answers rather than fails | `testingAConnectionWithNothingStoredSaysSoRatherThanFailing` |
+| Every mutation leaves an audit event recording that a token was set, not the token | `everyMutationLeavesAnAuditEvent` |
+| Only the sources this deployment installed are offered, and naming another is a request error rather than an empty list | `reportsOnlyTheSourcesThisDeploymentCanActuallyIngest`, `refusesASourceNoAdapterInstalled` |
+| A connection that looks healthy reports why it is producing nothing | `reportsWhyAConnectionThatLooksHealthyIsProducingNothing` |
+| A second source is configured over the same endpoints and stored under the name its adapter declared | `asecondSourceIsConfiguredOverTheSameEndpoints` |
+
+Gaps: there is no real blob-store/scan/parser integration test yet (the connector
+proofs mock object storage and OpenFGA). The Slack adapter is proved against
+recorded responses only, and so is the Google Drive adapter — no run against a
+real workspace or a real Drive has happened yet, which is the remaining
+`slack-connector-live` work. The administration screens have no
+browser test; their proofs are at the API boundary, and the catalogue, the field
+descriptor and the connection detail page have no automated proof at all — they
+are covered by lint, typecheck and build only. Only one migration is proved
+against a database that already holds rows; the rest are proved against an empty
+schema, where a data-transforming statement cannot fail.
