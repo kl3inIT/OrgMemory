@@ -36,6 +36,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.2.0
 
+      - name: Build PostgreSQL GraphRAG test image
+        run: >-
+          docker build
+          --file infrastructure/postgres-rag/Dockerfile
+          --tag orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
+          .
+
       - name: Run backend test suite
         run: ./gradlew --no-daemon clean build
 

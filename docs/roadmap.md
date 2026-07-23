@@ -23,6 +23,9 @@ belongs in one active increment.
   source-group membership, and a per-connection identity trust decision.
 - A framework-neutral secure GraphRAG kernel/testkit and a versioned Spring AI
   structured extraction adapter with deterministic, network-free tests.
+- A secure PostgreSQL GraphRAG projection with evidence-level ACL/provenance,
+  pgvector entity/relation indexes, Apache AGE topology candidates, bounded
+  recursive fallback, atomic revision replacement, and bounded batches.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -37,8 +40,8 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 - Converge persistent Capability Asset tuples and add server-side pagination to
   the now set-authorized Capability Asset registry.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
-- Add the PostgreSQL graph projection, worker extraction/indexing, and
-  permission-scoped runtime graph retrieval over the shipped graph contracts.
+- Wire worker extraction/indexing and permission-scoped runtime graph retrieval
+  over the shipped graph contracts and PostgreSQL projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Replace the fixture connector batch source with the live Slack Web API adapter

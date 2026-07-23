@@ -12,7 +12,7 @@ flowchart LR
     MCP[apps/mcp] --> CORE[core]
     API --> CORE
     WORKER[apps/worker] --> CORE
-    CORE --> PG[(PostgreSQL pgvector)]
+    CORE --> PG[(PostgreSQL 18<br/>pgvector + AGE)]
     API --> BLOB[MinIO]
     WORKER --> BLOB
     WORKER --> FGA[OpenFGA]
@@ -22,13 +22,15 @@ flowchart LR
 The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
 the framework-neutral `components:graph-rag-core` and
 `components:graph-rag-testkit`, `integrations:graph-rag-spring-ai`,
+`integrations:graph-rag-postgres`,
 `integrations:authorization-openfga`, and
 `integrations:object-storage-minio`. The web client is a separate Vite
 workspace. API owns Flyway execution and the worker validates the existing
 schema with Flyway disabled in normal runtime.
 
 Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
-2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL/pgvector, React 19.2.7,
+2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL 18 with pgvector 0.8.2
+and Apache AGE 1.7.0, React 19.2.7,
 TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, and pnpm 11.9.0.
 
 Dependency direction is currently `apps/* -> core`. The intended adapter rule is
@@ -75,7 +77,7 @@ mutable ACL heads, an observed external source-principal registry with verified
 principal mappings and sealed per-generation group membership, per-connection
 identity trust decisions, publication outbox evidence, and append-only permission
 audit events. Immutable evidence bytes live
-in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
+in MinIO; chunks, embeddings, graph data, and OpenFGA relationships are
 rebuildable projections. A connector staging crawl (`SLACK` source type) produces
 the same governed ledger as uploads, with source ACL evidence resolved through the
 principal mappings.
@@ -160,9 +162,30 @@ endpoints fail closed. Source text is user-scoped untrusted evidence rather than
 a system instruction. Deterministic adapter tests use a fake `ChatModel`, so no
 provider credentials or network calls are required.
 
-The extractor is not auto-configured or wired into the worker yet. There is no
-PostgreSQL graph projection, worker graph indexing, runtime graph retrieval, or
-graph UI wiring.
+The `graph-rag-postgres` integration implements the graph read/write, lexical
+seed, contribution-vector, and topology-candidate ports. PostgreSQL owns
+canonical identities, immutable evidence contributions, published revision
+heads, and entity/relation vectors. Apache AGE mirrors tenant-separated topology
+identity for bounded candidate traversal; it never owns descriptions, ACL, or
+provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
+relationally rechecked. A bounded recursive CTE supplies the same candidate port
+when AGE is disabled.
+
+Vector indexes are rebuildable and operator-selectable: exact, HNSW,
+half-vector HNSW, IVFFlat, or VChordRQ when its extension is installed. Writes
+use advisory revision locks, atomic generation replacement, monotonic generation
+checks, and record/payload-bounded JDBC batches. Spring Boot auto-configuration
+binds these mechanics under `orgmemory.graph-rag.postgres`; production defaults
+require AGE rather than silently dropping topology.
+
+The local runtime uses one PostgreSQL server and volume. OrgMemory owns the
+`orgmemory` database; OpenFGA owns a separate `openfga` database and login on
+that server. An idempotent bootstrap handles both fresh and existing volumes.
+OpenFGA tables remain isolated from the OrgMemory schema and are not queried by
+application SQL.
+
+The extractor and PostgreSQL adapter are not wired into the worker yet. There is
+no worker graph indexing, Assistant graph retrieval, or graph UI wiring.
 
 The graph endpoint visualizes relational capability metadata such as assets,
 owners, departments, types, tags, and processes. It is not a semantic knowledge
