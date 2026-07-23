@@ -435,6 +435,36 @@ class SlackConnectorBatchSourceTests {
     }
 
     @Test
+    void picksUpAConfigurationChangeWithoutARestart() {
+        UUID movedTo = UUID.fromString("aa000000-0000-4000-8000-0000000000ff");
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+
+        assertEquals(SPACE, source.pendingBatches().getFirst().knowledgeSpaceId());
+
+        // An administrator repoints the connection at another Space. Nothing restarts.
+        setUpServerOnly();
+        clock.advance(Duration.ofHours(2));
+        when(connections.enabledCrawls("slack")).thenReturn(List.of(new ConnectorCrawlConfiguration(
+                ORG, "slack", CONNECTION, movedTo, ACTOR, List.of(), Duration.ofHours(1), 500)));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+
+        assertEquals(
+                movedTo,
+                source.pendingBatches().getFirst().knowledgeSpaceId(),
+                "the next poll reads the connection again rather than what it started with");
+    }
+
+    @Test
     void oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll() {
         when(connections.enabledCrawls("slack"))
                 .thenReturn(List.of(configuration("T-broken", List.of()), configuration(List.of())));

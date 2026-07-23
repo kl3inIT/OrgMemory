@@ -88,9 +88,9 @@ content revision. Slack answers `200` for logical failures, so success is the
 `next_cursor`; and a `429` is honoured as a wait recorded once and applied before
 every subsequent request with jitter, because the limit belongs to the workspace
 rather than the caller. A single worker holds that deadline in process; more than
-one would need it shared. The bot token is resolved per connection from
-configuration, travels in the `Authorization` header, and appears in no log,
-message, or properties description. The adapter reports observed users as
+one would need it shared. The bot token is resolved per connection from the
+ledger, travels in the `Authorization` header, and appears in no log,
+message, or exception. The adapter reports observed users as
 SSO-verified because Slack confirms address ownership before an account can
 exist. It withdraws its completeness claim whenever a channel filter is
 configured, private channels prove out of scope, a channel cannot be read, or a
@@ -122,8 +122,28 @@ mistake. Driver progress is checkpointed per connection in
 rejected for a reason retrying cannot change is checkpointed past, and any other
 failure is retried a bounded number of times and then left for the next poll.
 
+Which connections are crawled is a ledger decision rather than a deployment one.
+`source_connections` carries the crawl configuration — enabled, target Knowledge
+Space, actor, channel filter, content interval, thread bound — and
+`source_connection_credentials` carries the token as AES-256-GCM ciphertext with
+the key version that produced it. A row whose authentication tag does not verify
+is refused rather than decrypted, and the application refuses to store a secret at
+all when no encryption key is configured, rather than storing something weaker.
+An administrator sets both through `/api/admin/connectors/slack`, where the
+credential is write-only: it is submitted, and no endpoint returns it in any form,
+masked or otherwise. `POST /test` checks a token before it is stored — reporting
+the workspace it authenticated as, which is the connection key — and follows
+`auth.test` with a one-channel `conversations.list`, because authentication cannot
+fail for a missing scope and a token without `channels:read` would otherwise look
+healthy until the first crawl. The adapter reads connections and credentials on
+every poll through `ConnectorConnectionDirectory`, so enabling a workspace,
+repointing it, or replacing its token takes effect on the next poll; the adapter
+bean is present wherever the module is and produces nothing until a connection
+says otherwise, and a connection that cannot produce is skipped rather than
+allowed to end the poll for the others.
+
 The current path does not yet implement incremental webhooks or the Events API,
-a slim ID-and-ACL-only crawl, an encrypted per-connection credential store,
+credential rotation, a connector catalog covering more than one source,
 Airbyte staging, OCR, malware and DLP integrations, entity and relationship
 extraction, graph publication, or hybrid retrieval extensions beyond the current
 secure FTS + pgvector path.

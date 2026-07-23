@@ -1,6 +1,8 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query"
 
 import {
+  listAdminSlackConnectionsOptions,
+  listAdminSlackConnectionsQueryKey,
   listAdminSourceConnectionsOptions,
   listAdminSourceConnectionsQueryKey,
   listAdminSourceGroupsOptions,
@@ -9,6 +11,7 @@ import {
   listAdminSourcePrincipalsQueryKey,
   listAdminUsersOptions,
   listAdminUsersQueryKey,
+  listKnowledgeSpaceUploadTargetsOptions,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
 // Administration data is small and changes only when an administrator acts, so it is
@@ -31,6 +34,15 @@ export function adminSourceGroupsQueryOptions() {
   return queryOptions({ ...listAdminSourceGroupsOptions(), staleTime: ADMIN_STALE_TIME })
 }
 
+export function adminSlackConnectionsQueryOptions() {
+  return queryOptions({ ...listAdminSlackConnectionsOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+/** The Spaces a crawl may publish into are the same ones an upload may target. */
+export function knowledgeSpacesQueryOptions() {
+  return queryOptions({ ...listKnowledgeSpaceUploadTargetsOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
 /**
  * Confirming or revoking a mapping changes the counts on every other administration
  * screen, so the whole area is refreshed together rather than guessing which parts moved.
@@ -41,5 +53,6 @@ export async function invalidateAdminData(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: listAdminSourcePrincipalsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceConnectionsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceGroupsQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listAdminSlackConnectionsQueryKey() }),
   ])
 }

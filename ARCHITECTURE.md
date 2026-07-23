@@ -39,13 +39,16 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
-  administration surface over the identity ledger gated on OpenFGA
-  `can_manage_members`.
+  administration surface over the identity ledger and the source connections,
+  gated on OpenFGA `can_manage_members`. A source credential is write-only across
+  that surface: it is submitted, stored encrypted, and never returned in any form.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
   fail-closed authorization projection, publication, external
-  permission-workbook validation, and a fixture-driven Slack connector driver
-  that ingests a versioned crawl-batch contract into the governed ledger,
-  checkpointing progress per connection so a restart resumes rather than replays.
+  permission-workbook validation, and a connector driver that ingests a versioned
+  crawl-batch contract into the governed ledger, checkpointing progress per
+  connection so a restart resumes rather than replays. Which connections it crawls
+  and what it authenticates with come from the ledger on every poll, so an
+  administrator's change takes effect on the next one without a restart.
 - `apps/mcp`: a reserved delivery module with no runtime implementation; the
   legacy scaffold was removed so secure agent tools can be rebuilt on the
   permission-aware retrieval contract.
@@ -76,9 +79,12 @@ identity trust decisions consumed by the crawl matcher, durable per-connection
 crawl checkpoints, publication outbox evidence, and append-only permission
 audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
-rebuildable projections. A connector staging crawl (`SLACK` source type) produces
+rebuildable projections. A connector crawl (`SLACK` source type) produces
 the same governed ledger as uploads, with source ACL evidence resolved through the
-principal mappings.
+principal mappings. Source connection rows carry the crawl configuration and an
+encrypted credential in `source_connection_credentials`; the ciphertext is
+AES-256-GCM and a row that fails its authentication tag is refused rather than
+decrypted, so a tampered credential cannot be used.
 
 ## Current Permission-Aware Retrieval
 

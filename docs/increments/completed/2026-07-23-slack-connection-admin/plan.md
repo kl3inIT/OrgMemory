@@ -61,12 +61,29 @@ and fails exactly as a no-op second pass would — but one green run is not proo
 
 ## Phase 4 — Web and proofs
 
-- [ ] `/admin/connectors` page: configuration form, write-only credential field with
-  its own state, and a test button reporting what Slack said.
-- [ ] Integration proof: a non-admin gets 403 everywhere; a configured credential is
+- [x] `/admin/connectors` page: a token field with its own step, crawl settings in a
+  dialog, and a test button reporting what Slack said.
+- [x] Integration proof: a non-admin gets 403 everywhere; a configured credential is
   never returned by any endpoint; a crawl picks up a configuration change without a
   restart.
-- [ ] Consolidate into the specs, `ARCHITECTURE.md`, and docs/tests; move the
+- [x] Consolidate into the specs, `ARCHITECTURE.md`, and docs/tests; move the
   increment to `completed`.
 
-Gate: `.\gradlew.bat clean test`, then `pnpm -C web lint`, `typecheck`, `build`.
+Gate: `.\gradlew.bat clean test`, then `pnpm lint`, `typecheck`, `build` in `web/`.
+
+Read across from Onyx's connector UI:
+
+- It shows a standing warning on a connector in an invalid state rather than waiting
+  for somebody to wonder why nothing indexed. The equivalent here is a connection
+  switched on with no token stored — enabled, pointed at a Space, and silently
+  contacting nothing — so that is its own status and its own banner.
+- Its setup puts the credential before the connector configuration. Here that
+  ordering is forced rather than conventional: checking a token is what reports the
+  workspace id, and the workspace id is the connection key.
+- Its form links out to per-connector docs. With one connector and no hosted docs
+  the useful version is the scope list inline, next to the field.
+
+Not read across: the multi-step wizard with a form context, and a credential as a
+first-class object swappable between connectors. Both exist because Onyx has a
+catalog of sources and a credential can serve several; one connector and one token
+per connection do not earn either.
