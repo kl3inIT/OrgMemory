@@ -11,11 +11,14 @@ import { Card, CardContent } from "@/components/ui/card"
 export function AdminPage({
   title,
   description,
+  icon,
   actions,
   children,
 }: {
   title: string
   description?: string
+  /** A mark for the thing this screen governs, when the screen is about one specific source. */
+  icon?: ReactNode
   actions?: ReactNode
   children: ReactNode
 }) {
@@ -24,7 +27,10 @@ export function AdminPage({
       <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <div className="flex items-center gap-2.5">
+              {icon ? <span className="grid size-7 shrink-0 place-items-center">{icon}</span> : null}
+              <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            </div>
             {description ? <p className="max-w-2xl text-sm text-muted-foreground">{description}</p> : null}
           </div>
           {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
@@ -90,6 +96,7 @@ export function AdminStats({
 export function AdminSection({
   title,
   description,
+  icon,
   actions,
   toolbar,
   footer,
@@ -97,6 +104,7 @@ export function AdminSection({
 }: {
   title: string
   description?: string
+  icon?: ReactNode
   actions?: ReactNode
   toolbar?: ReactNode
   footer?: ReactNode
@@ -106,7 +114,10 @@ export function AdminSection({
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            {icon ? <span className="grid size-4 shrink-0 place-items-center">{icon}</span> : null}
+            {title}
+          </h2>
           {description ? <p className="max-w-2xl text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

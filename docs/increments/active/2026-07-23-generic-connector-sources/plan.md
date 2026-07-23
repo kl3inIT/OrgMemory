@@ -31,12 +31,21 @@ Gate: `.\gradlew.bat :core:test :apps:api:test`, contract and client regenerated
 
 ## Phase 3 — The catalogue as Onyx builds it
 
-- [ ] `SourceIcon` over inline brand SVG; a real Slack mark rather than a generic
-  glyph. Inline because the artifact CSP blocks remote assets anyway.
-- [ ] Search and category grouping over the browser registry, matching Onyx's
-  `SourceCategory` split.
-- [ ] Tiles render the intersection of the browser registry and what the backend
-  reports; a source the deployment lacks is visibly unavailable.
+- [x] `SourceIcon` over inline brand SVG; a real Slack mark rather than a generic
+  glyph. Inline because a mark fetched at runtime is a request that can be blocked.
+  The same mark heads the Slack list section and the wizard.
+- [x] Category grouping over the browser catalogue — but by custody, not by Onyx's
+  `SourceCategory`. Onyx's axis sorts fifty-five business tools into wiki, storage,
+  ticketing; at three entries it would make one heading per tile and say nothing the
+  logo did not. Custody — does the access rule come from the source or from
+  OrgMemory — is the axis that carries a fact, and it is the axis the ledger already
+  records in `source_objects.acl_authority`.
+- [x] Tiles render the intersection of the browser catalogue and what the backend
+  reports; a source the deployment lacks is visibly unavailable, and says so in
+  different words from a source the product has not built.
+- Not done: the search box. Its usefulness is entirely a function of catalogue size,
+  and over three tiles it is worse than looking at three tiles. The page filters a
+  list, so it is a one-line addition when the catalogue earns it.
 
 Gate: `pnpm lint`, `typecheck`, `build` in `web/`.
 

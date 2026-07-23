@@ -17,6 +17,7 @@ import {
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
+import { SourceIcon } from "@/features/admin/components/source-icon"
 import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
 import {
   forgetAdminConnectionCredentialMutation,
@@ -153,6 +154,7 @@ export function AdminConnectorsPage() {
 
       <AdminSection
         title="Slack"
+        icon={<SourceIcon name="slack" className="size-4" />}
         description="A workspace crawls only once it has a token, a Space to publish into, and a user to publish as."
       >
         {connectionRows.length === 0 ? (

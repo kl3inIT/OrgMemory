@@ -21,6 +21,7 @@ import {
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminPage } from "@/features/admin/components/admin-page"
+import { SourceIcon } from "@/features/admin/components/source-icon"
 import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
 import {
   configureAdminConnectionMutation,
@@ -202,6 +203,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   return (
     <AdminPage
       title={connectionKey ? `Slack · ${connectionKey}` : "Connect Slack"}
+      icon={<SourceIcon name="slack" className="size-6" />}
       description="A workspace crawls only once it has a token, a Space to publish into, and a user to publish as."
       actions={
         <Button variant="outline" asChild>
