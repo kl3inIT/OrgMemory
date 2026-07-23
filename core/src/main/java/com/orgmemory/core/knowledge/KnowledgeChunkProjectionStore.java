@@ -20,7 +20,9 @@ public class KnowledgeChunkProjectionStore {
                 id, organization_id, source_object_id, source_revision_id,
                 knowledge_asset_id, knowledge_asset_version_id,
                 chunk_index, content, content_sha256,
-                token_count, start_page, end_page, heading, embedding,
+                token_count, start_page, end_page, heading,
+                source_start_char, source_end_char, source_block_indexes,
+                canonical_text_sha256, embedding,
                 embedding_profile_id, embedding_dimensions, pipeline_version,
                 projection_generation, active, created_at
             ) VALUES (
@@ -28,6 +30,8 @@ public class KnowledgeChunkProjectionStore {
                 :knowledgeAssetId, :knowledgeAssetVersionId,
                 :chunkIndex, :content, :contentSha256,
                 :tokenCount, :startPage, :endPage, :heading,
+                :sourceStartChar, :sourceEndChar, CAST(:sourceBlockIndexes AS integer[]),
+                :canonicalTextSha256,
                 CAST(:embedding AS vector), :embeddingProfileId,
                 :embeddingDimensions, :pipelineVersion,
                 :projectionGeneration, false, :createdAt
@@ -85,6 +89,13 @@ public class KnowledgeChunkProjectionStore {
                     .addValue("startPage", chunk.startPage(), Types.INTEGER)
                     .addValue("endPage", chunk.endPage(), Types.INTEGER)
                     .addValue("heading", chunk.heading(), Types.VARCHAR)
+                    .addValue("sourceStartChar", chunk.startChar(), Types.INTEGER)
+                    .addValue("sourceEndChar", chunk.endChar(), Types.INTEGER)
+                    .addValue("sourceBlockIndexes", pgIntegerArray(chunk.sourceBlockIndexes()))
+                    .addValue(
+                            "canonicalTextSha256",
+                            chunk.canonicalTextSha256(),
+                            Types.VARCHAR)
                     .addValue("embedding", PgVectorLiteral.from(embedding))
                     .addValue("embeddingProfileId", embeddingProfile.id())
                     .addValue("embeddingDimensions", embeddingProfile.dimensions())
@@ -96,6 +107,15 @@ public class KnowledgeChunkProjectionStore {
                             Types.TIMESTAMP_WITH_TIMEZONE);
         }
         jdbc.batchUpdate(INSERT_CHUNK_SQL, batch);
+    }
+
+    private static String pgIntegerArray(List<Integer> values) {
+        if (values.isEmpty()) {
+            return "{}";
+        }
+        return values.stream()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(",", "{", "}"));
     }
 
     @Transactional

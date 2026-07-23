@@ -41,10 +41,14 @@ public final class KnowledgeChunkDraftAssembler {
                     index,
                     chunk.content(),
                     sha256(chunk.content()),
-                    null,
+                    chunk.tokenCount(),
                     chunk.startPage(),
                     chunk.endPage(),
-                    null,
+                    chunk.heading(),
+                    chunk.startChar(),
+                    chunk.endChar(),
+                    chunk.sourceBlockIndexes(),
+                    chunk.canonicalTextSha256(),
                     vector));
         }
         return List.copyOf(drafts);

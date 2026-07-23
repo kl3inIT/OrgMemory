@@ -65,13 +65,16 @@ orgmemory:
       poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
       lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
       pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
-      parser-version: ${ORGMEMORY_INGESTION_PARSER_VERSION:spring-ai-etl-v1}
-      chunker-version: ${ORGMEMORY_INGESTION_CHUNKER_VERSION:token-800-v1}
+      parser-id: ${ORGMEMORY_INGESTION_PARSER:legacy}
+      chunker-id: ${ORGMEMORY_INGESTION_CHUNKER:fixed-token}
+      tokenizer-encoding: ${ORGMEMORY_INGESTION_TOKENIZER:o200k_base}
       normalizer-version: ${ORGMEMORY_INGESTION_NORMALIZER_VERSION:source-normalizer-v1}
       embedding-provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
       embedding-model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       embedding-dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
       chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
+      chunk-overlap: ${ORGMEMORY_INGESTION_CHUNK_OVERLAP:100}
+      semantic-embedding-batch-size: ${ORGMEMORY_SEMANTIC_EMBEDDING_BATCH_SIZE:64}
       maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
   graph-rag:
     indexing:

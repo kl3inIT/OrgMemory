@@ -39,13 +39,13 @@ exists.
 | Storage | Graph node/edge/degree/adjacency/batch contract | Specialized graph ports exist; shared namespace snapshot migration remains | partial | 8 |
 | Storage | OpenSearch unified KV/vector/graph/status backend | None | missing | 9 |
 | Storage | Neo4j graph backend | None | missing | 10 |
-| Parsing | Parser registry and runtime routing | Tika/PDF reader is worker-local | partial | 3 |
-| Parsing | Native, legacy, passthrough and third-party parser SPI | None | missing | 3 |
-| Chunking | Fixed-token strategy | Spring AI token splitter | partial | 3 |
-| Chunking | Recursive-character strategy | None | missing | 3 |
-| Chunking | Semantic-vector strategy | None | missing | 3 |
-| Chunking | Paragraph-semantic strategy | None | missing | 3 |
-| Chunking | Per-document strategy options and version snapshot | Version fields exist; no strategy profile | partial | 3 |
+| Parsing | Parser registry and runtime routing | Immutable registry snapshot, suffix/explicit routing and startup capability validation | implemented | 3 |
+| Parsing | Native, legacy, passthrough and third-party parser SPI | Native/legacy routes, passthrough/reuse parsers and ServiceLoader plugin registration | implemented | 3 |
+| Chunking | Fixed-token strategy | Pure-Java overlapping token windows with exact canonical-text offsets and pinned upstream fixture | implemented | 3 |
+| Chunking | Recursive-character strategy | Pure-Java recursive separator strategy with overlap, hard cap and exact provenance | implemented | 3 |
+| Chunking | Semantic-vector strategy | Batched embedding adapter, four threshold modes, deterministic breakpoints and hard-cap enforcement | implemented | 3 |
+| Chunking | Paragraph-semantic strategy | Structured blocks, table-row/header handling, short-paragraph anchors, part labels and level-aware merge | implemented | 3 |
+| Chunking | Per-document strategy options and version snapshot | Requested/actual components and options, tokenizer/embedding ids, canonical hash and profile hash persist per revision | implemented | 3 |
 | Multimodal | Sidecar interchange format | None | missing | 4 |
 | Multimodal | Image, table and equation extraction | None | missing | 4 |
 | Multimodal | Surrounding-context enrichment and VLM analysis | None | missing | 4 |

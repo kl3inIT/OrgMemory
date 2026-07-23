@@ -12,13 +12,16 @@ public record SourceProcessingProperties(
         String workerId,
         Duration leaseDuration,
         String pipelineVersion,
-        String parserVersion,
-        String chunkerVersion,
+        String parserId,
+        String chunkerId,
+        String tokenizerEncoding,
         String normalizerVersion,
         String embeddingProvider,
         String embeddingModel,
         Integer embeddingDimensions,
         Integer chunkSize,
+        Integer chunkOverlap,
+        Integer semanticEmbeddingBatchSize,
         Integer maximumChunks) {
 
     public SourceProcessingProperties {
@@ -29,13 +32,17 @@ public record SourceProcessingProperties(
                 : workerId.strip();
         leaseDuration = leaseDuration == null ? Duration.ofMinutes(5) : leaseDuration;
         pipelineVersion = defaultText(pipelineVersion, "source-pipeline-v1");
-        parserVersion = defaultText(parserVersion, "spring-ai-etl-v1");
-        chunkerVersion = defaultText(chunkerVersion, "token-800-v1");
+        parserId = defaultText(parserId, "legacy");
+        chunkerId = defaultText(chunkerId, "fixed-token");
+        tokenizerEncoding = defaultText(tokenizerEncoding, "o200k_base");
         normalizerVersion = defaultText(normalizerVersion, "source-normalizer-v1");
         embeddingProvider = defaultText(embeddingProvider, "openai");
         embeddingModel = defaultText(embeddingModel, "text-embedding-3-large");
         embeddingDimensions = embeddingDimensions == null ? 1536 : embeddingDimensions;
         chunkSize = chunkSize == null ? 800 : chunkSize;
+        chunkOverlap = chunkOverlap == null ? 100 : chunkOverlap;
+        semanticEmbeddingBatchSize =
+                semanticEmbeddingBatchSize == null ? 64 : semanticEmbeddingBatchSize;
         maximumChunks = maximumChunks == null ? 500 : maximumChunks;
         Assert.isTrue(!pollInterval.isNegative() && !pollInterval.isZero(), "poll interval must be positive");
         Assert.isTrue(!leaseDuration.isNegative() && !leaseDuration.isZero(), "lease duration must be positive");
@@ -43,7 +50,12 @@ public record SourceProcessingProperties(
                 embeddingDimensions > 0 && embeddingDimensions <= 16000,
                 "embedding dimensions must be between 1 and 16000");
         Assert.isTrue(
-                chunkSize > 0 && maximumChunks > 0 && maximumChunks < Integer.MAX_VALUE,
+                chunkSize > 0
+                        && chunkOverlap >= 0
+                        && chunkOverlap < chunkSize
+                        && semanticEmbeddingBatchSize > 0
+                        && maximumChunks > 0
+                        && maximumChunks < Integer.MAX_VALUE,
                 "chunk settings must be positive and maximumChunks must allow a sentinel chunk");
     }
 
