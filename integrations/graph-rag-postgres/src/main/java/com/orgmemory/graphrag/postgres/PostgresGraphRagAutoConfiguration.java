@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.postgres;
 
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -40,5 +41,20 @@ public class PostgresGraphRagAutoConfiguration {
                 transactionManager,
                 clockProvider.getIfAvailable(Clock::systemUTC),
                 properties.toStoreOptions());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    PostgresGraphVectorIndexManager postgresGraphVectorIndexManager(
+            NamedParameterJdbcTemplate jdbc) {
+        return new PostgresGraphVectorIndexManager(jdbc.getJdbcTemplate());
+    }
+
+    @Bean
+    @DependsOnDatabaseInitialization
+    ApplicationRunner postgresGraphVectorIndexProvisioner(
+            PostgresGraphVectorIndexManager indexManager,
+            PostgresGraphRagProperties properties) {
+        return arguments -> indexManager.ensureConfiguredIndexes(properties.toStoreOptions());
     }
 }

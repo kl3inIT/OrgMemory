@@ -6,6 +6,7 @@ dependencies {
     api(project(":components:graph-rag-core"))
     implementation("org.springframework:spring-jdbc")
     implementation("org.springframework.boot:spring-boot-autoconfigure")
+    implementation("org.springframework.boot:spring-boot-jdbc")
     implementation("org.springframework.boot:spring-boot-sql")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 

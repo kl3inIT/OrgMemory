@@ -203,6 +203,25 @@ class PostgresGraphProjectionStoreIntegrationTests {
                             'idx_relation_embeddings_3072_hnsw_halfvec_cosine'
                         )
                         """, Integer.class));
+        PostgresGraphProjectionStore halfVectorStore = new PostgresGraphProjectionStore(
+                new NamedParameterJdbcTemplate(jdbc.getDataSource()),
+                new DataSourceTransactionManager(jdbc.getDataSource()),
+                CLOCK,
+                halfVector);
+        assertEquals(
+                List.of(SHARED_ENTITY_ID),
+                halfVectorStore.searchEntitiesByVector(
+                                scope(
+                                        primaryOrganization,
+                                        Set.of(allowedAsset.knowledgeAssetId())),
+                                primaryOrganization.embeddingProfileId(),
+                                3,
+                                List.of(1.0f, 0.0f, 0.0f),
+                                0.1,
+                                1)
+                        .stream()
+                        .map(result -> result.value().id())
+                        .toList());
 
         PostgresGraphStoreOptions invalidFullVector = new PostgresGraphStoreOptions(
                 ApacheAgeMode.DISABLED,

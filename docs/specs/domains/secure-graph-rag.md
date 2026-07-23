@@ -47,9 +47,9 @@
 - Apache AGE stores topology identity and evidence identifiers only. Bounded
   traversal filters every edge by authorized Knowledge Asset; all returned IDs
   remain candidates requiring relational evidence recheck.
-- A bounded recursive CTE implements the same topology port when AGE is
-  disabled. A future Neo4j projection can implement that port without changing
-  core retrieval contracts.
+- A globally bounded breadth-first relational traversal implements the same
+  topology port when AGE is disabled. A future Neo4j projection can implement
+  that port without changing core retrieval contracts.
 
 ## Not Implemented
 

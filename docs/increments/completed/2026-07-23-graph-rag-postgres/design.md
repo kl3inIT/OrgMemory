@@ -54,8 +54,9 @@ from actor attributes. OpenFGA and the canonical ACL ledger remain upstream.
 
 The local PostgreSQL image pins PostgreSQL 18, pgvector 0.8.2 and Apache AGE 1.7.0.
 Vector index strategy is replaceable (exact, HNSW, halfvec HNSW, IVFFlat, and
-VChordRQ when its extension is installed); HNSW cosine at 1536 dimensions is
-the initial profile. Configuration is type-safe under
+VChordRQ). VChordRQ requires a separately installed `vchord` extension and
+fails startup when selected against the pinned local image. HNSW cosine at 1536
+dimensions is the initial profile. Configuration is type-safe under
 `orgmemory.graph-rag.postgres`.
 
 Local Compose runs one PostgreSQL server and volume. OrgMemory and OpenFGA use

@@ -168,15 +168,18 @@ canonical identities, immutable evidence contributions, published revision
 heads, and entity/relation vectors. Apache AGE mirrors tenant-separated topology
 identity for bounded candidate traversal; it never owns descriptions, ACL, or
 provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
-relationally rechecked. A bounded recursive CTE supplies the same candidate port
-when AGE is disabled.
+relationally rechecked. A globally bounded breadth-first relational traversal
+supplies the same candidate port when AGE is disabled.
 
 Vector indexes are rebuildable and operator-selectable: exact, HNSW,
-half-vector HNSW, IVFFlat, or VChordRQ when its extension is installed. Writes
-use advisory revision locks, atomic generation replacement, monotonic generation
-checks, and record/payload-bounded JDBC batches. Spring Boot auto-configuration
-binds these mechanics under `orgmemory.graph-rag.postgres`; production defaults
-require AGE rather than silently dropping topology.
+half-vector HNSW, IVFFlat, or VChordRQ. VChordRQ requires the separately
+installed `vchord` extension and is unavailable in the pinned local image;
+selecting it without that extension fails startup instead of silently falling
+back. Index provisioning runs after database initialization with concurrent
+PostgreSQL DDL. Writes use advisory revision locks, atomic generation replacement,
+monotonic generation checks, and record/payload-bounded JDBC batches. Spring Boot
+auto-configuration binds these mechanics under `orgmemory.graph-rag.postgres`;
+production defaults require AGE rather than silently dropping topology.
 
 The local runtime uses one PostgreSQL server and volume. OrgMemory owns the
 `orgmemory` database; OpenFGA owns a separate `openfga` database and login on

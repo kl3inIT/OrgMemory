@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -182,8 +183,6 @@ public final class PostgresGraphProjectionStore
         this.options = Objects.requireNonNull(options, "options");
         this.ageTopology = new ApacheAgeGraphTopologyProjection(
                 jdbc, options.apacheAgeMode());
-        new PostgresGraphVectorIndexManager(jdbc.getJdbcTemplate())
-                .ensureConfiguredIndexes(options);
     }
 
     @Override
@@ -699,8 +698,9 @@ public final class PostgresGraphProjectionStore
             int limit) {
         Set<UUID> requestedSeeds = requestedIds(seedEntityIds, "seedEntityIds");
         requireNonNegative(limit, "limit");
-        if (maximumDepth < 1 || maximumDepth > 5) {
-            throw new IllegalArgumentException("maximumDepth must be between 1 and 5");
+        if (maximumDepth < 1 || maximumDepth > 5 || limit > 10_000) {
+            throw new IllegalArgumentException(
+                    "maximumDepth must be between 1 and 5 and limit must not exceed 10000");
         }
         if (scopeHasNoEvidence(scope) || requestedSeeds.isEmpty() || limit == 0) {
             return List.of();
@@ -734,61 +734,56 @@ public final class PostgresGraphProjectionStore
             Set<UUID> visibleSeeds,
             int maximumDepth,
             int limit) {
-        MapSqlParameterSource parameters = scopeParameters(scope)
-                .addValue("seedEntityIds", visibleSeeds)
-                .addValue("maximumDepth", maximumDepth)
-                .addValue("limit", limit);
-        return jdbc.queryForList("""
-                WITH RECURSIVE
-                     %s,
-                     %s,
-                     visible_edges AS (
-                         SELECT DISTINCT
-                             relation.source_entity_id,
-                             relation.target_entity_id
-                         FROM visible_relation_contributions contribution
-                         JOIN graph_relations relation
-                           ON relation.organization_id = contribution.organization_id
-                          AND relation.id = contribution.relation_id
-                     ),
-                     walk(entity_id, depth, visited) AS (
-                         SELECT seed_id, 0, ARRAY[seed_id]::uuid[]
-                         FROM unnest(ARRAY[:seedEntityIds]::uuid[]) seed_id
-                         UNION ALL
-                         SELECT
-                             CASE
-                                 WHEN edge.source_entity_id = walk.entity_id
+        Set<UUID> visited = new LinkedHashSet<>(visibleSeeds);
+        Set<UUID> frontier = new LinkedHashSet<>(visibleSeeds);
+        List<UUID> emitted = new ArrayList<>(limit);
+        for (int depth = 0;
+                depth < maximumDepth && !frontier.isEmpty() && emitted.size() < limit;
+                depth++) {
+            int remaining = limit - emitted.size();
+            MapSqlParameterSource parameters = scopeParameters(scope)
+                    .addValue("frontierEntityIds", frontier)
+                    .addValue("visitedEntityIds", visited)
+                    .addValue("remaining", remaining);
+            List<UUID> next = jdbc.queryForList("""
+                    WITH %s,
+                         %s,
+                         visible_edges AS (
+                             SELECT DISTINCT
+                                 relation.source_entity_id,
+                                 relation.target_entity_id
+                             FROM visible_relation_contributions contribution
+                             JOIN graph_relations relation
+                               ON relation.organization_id = contribution.organization_id
+                              AND relation.id = contribution.relation_id
+                         ),
+                         candidate_neighbors AS (
+                             SELECT CASE
+                                 WHEN edge.source_entity_id IN (:frontierEntityIds)
                                      THEN edge.target_entity_id
                                  ELSE edge.source_entity_id
-                             END,
-                             walk.depth + 1,
-                             walk.visited || CASE
-                                 WHEN edge.source_entity_id = walk.entity_id
-                                     THEN edge.target_entity_id
-                                 ELSE edge.source_entity_id
-                             END
-                         FROM walk
-                         JOIN visible_edges edge
-                           ON edge.source_entity_id = walk.entity_id
-                           OR edge.target_entity_id = walk.entity_id
-                         WHERE walk.depth < :maximumDepth
-                           AND NOT (
-                               CASE
-                                   WHEN edge.source_entity_id = walk.entity_id
-                                       THEN edge.target_entity_id
-                                   ELSE edge.source_entity_id
-                               END = ANY(walk.visited)
-                           )
-                     )
-                SELECT DISTINCT entity_id
-                FROM walk
-                WHERE depth > 0
-                  AND entity_id NOT IN (:seedEntityIds)
-                ORDER BY entity_id
-                LIMIT :limit
-                """.formatted(VISIBLE_ENTITY_CONTRIBUTIONS, VISIBLE_RELATION_CONTRIBUTIONS),
-                parameters,
-                UUID.class);
+                             END AS entity_id
+                             FROM visible_edges edge
+                             WHERE edge.source_entity_id IN (:frontierEntityIds)
+                                OR edge.target_entity_id IN (:frontierEntityIds)
+                         )
+                    SELECT DISTINCT entity_id
+                    FROM candidate_neighbors
+                    WHERE entity_id NOT IN (:visitedEntityIds)
+                    ORDER BY entity_id
+                    LIMIT :remaining
+                    """.formatted(VISIBLE_ENTITY_CONTRIBUTIONS, VISIBLE_RELATION_CONTRIBUTIONS),
+                    parameters,
+                    UUID.class);
+            frontier = new LinkedHashSet<>();
+            for (UUID entityId : next) {
+                if (visited.add(entityId)) {
+                    frontier.add(entityId);
+                    emitted.add(entityId);
+                }
+            }
+        }
+        return List.copyOf(emitted);
     }
 
     private void replaceRevisionInTransaction(GraphRevisionContributions contributions) {
@@ -1572,12 +1567,19 @@ public final class PostgresGraphProjectionStore
                 parameters);
     }
 
-    private static String vectorExpression(String column, int dimensions) {
-        return "(" + column + "::vector(" + dimensions + "))";
+    private String vectorExpression(String column, int dimensions) {
+        return "(" + column + "::" + vectorType(dimensions) + ")";
     }
 
-    private static String vectorCast(String parameter, int dimensions) {
-        return "CAST(" + parameter + " AS vector(" + dimensions + "))";
+    private String vectorCast(String parameter, int dimensions) {
+        return "CAST(" + parameter + " AS " + vectorType(dimensions) + ")";
+    }
+
+    private String vectorType(int dimensions) {
+        String type = options.vectorIndexStrategy() == PostgresVectorIndexStrategy.HNSW_HALFVEC
+                ? "halfvec"
+                : "vector";
+        return type + "(" + dimensions + ")";
     }
 
     private static String vectorLiteral(List<Float> vector) {

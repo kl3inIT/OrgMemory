@@ -26,8 +26,8 @@ PostgreSQL 18 is the first multi-model GraphRAG projection:
   existing chunk vectors;
 - Apache AGE stores tenant-separated topology identity and evidence identifiers
   for bounded Cypher candidate traversal;
-- PostgreSQL FTS and a bounded recursive CTE remain deterministic fallback
-  channels.
+- PostgreSQL FTS and a globally bounded breadth-first relational traversal
+  remain deterministic fallback channels.
 
 All graph ports receive an already-authorized scope. Organization and authorized
 Knowledge Asset predicates apply before ranking, aggregation, traversal output,

@@ -116,7 +116,7 @@ public final class PostgresGraphVectorIndexManager {
             default -> throw new IllegalStateException(
                     "unsupported vector index strategy " + options.vectorIndexStrategy());
         }
-        jdbc.execute("CREATE INDEX IF NOT EXISTS " + indexName
+        jdbc.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS " + indexName
                 + " ON " + table
                 + " USING " + using
                 + " (" + expression + ")"
@@ -140,7 +140,7 @@ public final class PostgresGraphVectorIndexManager {
                 .stream()
                 .filter(indexName -> !indexName.equals(retainedIndexName))
                 .forEach(indexName -> jdbc.execute(
-                        "DROP INDEX IF EXISTS " + quoteIdentifier(indexName)));
+                        "DROP INDEX CONCURRENTLY IF EXISTS " + quoteIdentifier(indexName)));
     }
 
     private static String indexName(

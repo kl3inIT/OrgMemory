@@ -147,12 +147,29 @@ public final class ApacheAgeGraphTopologyProjection {
 
     private String ensureGraph(UUID organizationId) {
         String graphName = graphName(organizationId);
+        consumeVoid("""
+                SELECT pg_advisory_xact_lock(
+                    hashtextextended(CAST(:graphName AS text), 0)
+                )
+                """, new MapSqlParameterSource("graphName", graphName));
         if (graphExists(graphName)) {
             return graphName;
         }
-        consumeVoid("""
-                SELECT create_graph(:graphName)
-                """, new MapSqlParameterSource("graphName", graphName));
+        jdbc.getJdbcTemplate().execute("""
+                DO $orgmemory$
+                BEGIN
+                    PERFORM ag_catalog.create_graph(%1$s);
+                EXCEPTION WHEN OTHERS THEN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM ag_catalog.ag_graph
+                        WHERE name = %1$s
+                    ) THEN
+                        RAISE;
+                    END IF;
+                END
+                $orgmemory$
+                """.formatted(sqlString(graphName)));
         consumeVoid("""
                 SELECT create_vlabel(
                     CAST(:graphName AS cstring),
