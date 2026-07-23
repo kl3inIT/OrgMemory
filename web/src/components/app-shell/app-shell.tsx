@@ -27,7 +27,7 @@ export function AppShell({
   }, [pageTitle])
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-dvh min-h-0 overflow-hidden">
       <a
         href="#main-content"
         className="sr-only z-50 rounded-md bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
@@ -35,18 +35,26 @@ export function AppShell({
         Skip to content
       </a>
       {sidebar ?? <AppSidebar />}
-      <SidebarInset id="main-content" className="h-dvh min-w-0 overflow-hidden" tabIndex={-1}>
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-3 md:px-4">
-          <div className="flex min-w-0 items-center gap-2">
-            <SidebarTrigger />
-            <span className="truncate text-sm font-medium">{pageTitle}</span>
+      <SidebarInset
+        className="h-dvh min-w-0 overflow-hidden bg-surface-base md:h-[calc(100dvh-1rem)] md:border md:border-border-subtle"
+      >
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border-subtle bg-surface-base/90 px-3 backdrop-blur-sm md:px-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <SidebarTrigger className="text-content-secondary" />
+            <span className="truncate text-label text-content-primary">{pageTitle}</span>
           </div>
           <div className="flex items-center gap-1">
             <ModeToggle />
             <AccountMenu identity={identity} />
           </div>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+        <div
+          id="main-content"
+          className="flex min-h-0 min-w-0 flex-1 overflow-hidden"
+          tabIndex={-1}
+        >
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )
