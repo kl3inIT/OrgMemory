@@ -1,14 +1,31 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ChevronRight, Plus, TriangleAlert } from "lucide-react"
-import { useState, type ReactNode } from "react"
+import { ChevronRight, MoreHorizontal, Plus, TriangleAlert } from "lucide-react"
+import { useState, type MouseEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
@@ -63,6 +80,10 @@ function presentation(sourceSystem: string, displayName?: string) {
 export function AdminConnectorsPage() {
   const queryClient = useQueryClient()
   const [checked, setChecked] = useState<{ key: string; result: AdminConnectorProbeResponse }>()
+  // Forgetting a credential cannot be undone, so it is held until confirmed rather than done on
+  // the click that asked for it. The connection it belongs to is carried because the dialog is
+  // one, at the page, rather than one mounted per row.
+  const [forgetTarget, setForgetTarget] = useState<{ system: string; key: string }>()
 
   // Which sources exist is the deployment's answer, not this file's. Everything below is
   // driven by it, so a second adapter appears here without a line changing.
@@ -80,6 +101,7 @@ export function AdminConnectorsPage() {
   const forget = useMutation({
     ...forgetAdminConnectionCredentialMutation(),
     onSuccess: async () => {
+      setForgetTarget(undefined)
       await invalidateAdminData(queryClient)
       toast.success("Credential forgotten. This connection can no longer authenticate.")
     },
@@ -247,40 +269,50 @@ export function AdminConnectorsPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button size="sm" variant="outline" asChild>
-                                <Link
-                                  to="/admin/connectors/$sourceSystem/$connectionKey"
-                                  params={{ sourceSystem: group.system, connectionKey: key }}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" aria-label={`Actions for ${key}`}>
+                                  <MoreHorizontal aria-hidden="true" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    to="/admin/connectors/$sourceSystem/$connectionKey"
+                                    params={{ sourceSystem: group.system, connectionKey: key }}
+                                  >
+                                    Open
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    to="/admin/connectors/$sourceSystem"
+                                    params={{ sourceSystem: group.system }}
+                                    search={{ connection: key }}
+                                  >
+                                    Configure
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={check.isPending}
+                                  onSelect={() =>
+                                    check.mutate({
+                                      path: { sourceSystem: group.system, connectionKey: key },
+                                    })
+                                  }
                                 >
-                                  Open
-                                </Link>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={check.isPending}
-                                onClick={() =>
-                                  check.mutate({
-                                    path: { sourceSystem: group.system, connectionKey: key },
-                                  })
-                                }
-                              >
-                                Test
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={!connection.credentialSet || forget.isPending}
-                                onClick={() =>
-                                  forget.mutate({
-                                    path: { sourceSystem: group.system, connectionKey: key },
-                                  })
-                                }
-                              >
-                                Forget
-                              </Button>
-                            </div>
+                                  Test credential
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={!connection.credentialSet}
+                                  onSelect={() => setForgetTarget({ system: group.system, key })}
+                                >
+                                  Forget credential
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       )
@@ -292,6 +324,43 @@ export function AdminConnectorsPage() {
           })}
         </>
       )}
+
+      <AlertDialog
+        open={Boolean(forgetTarget)}
+        onOpenChange={(open: boolean) => {
+          if (!open) setForgetTarget(undefined)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forget this credential?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {forgetTarget?.key} can no longer authenticate once its credential is removed, and
+              the credential cannot be shown again — a new one has to be entered to restore it. The
+              connection and everything it has already crawled stay; only the ability to read more
+              is withdrawn.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={forget.isPending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={forget.isPending}
+              onClick={(event: MouseEvent) => {
+                // The dialog would otherwise close on click, before the request it started has
+                // returned; it is dismissed in onSuccess instead, once the credential is gone.
+                event.preventDefault()
+                if (forgetTarget) {
+                  forget.mutate({
+                    path: { sourceSystem: forgetTarget.system, connectionKey: forgetTarget.key },
+                  })
+                }
+              }}
+            >
+              {forget.isPending ? "Forgetting…" : "Forget credential"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminPage>
   )
 }
