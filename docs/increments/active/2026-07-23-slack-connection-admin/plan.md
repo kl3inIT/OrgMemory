@@ -4,25 +4,36 @@ Four phases, each a commit that leaves the build green.
 
 ## Phase 1 — Ledger and encryption
 
-- [ ] `V22__source_connection_configuration.sql`: crawl configuration on
+- [x] `V22__source_connection_configuration.sql`: crawl configuration on
   `source_connections`, and `source_connection_credentials` holding the ciphertext,
   key version, and who set it when.
-- [ ] `SourceConnectionSecretCipher` over `Encryptors.stronger`, keyed from
-  configuration, refusing to encrypt without a key rather than storing anything
-  weaker.
-- [ ] `SourceConnectionAdminService`: read the configuration, write it, set and
+- [x] `SecretCipher` over `Encryptors.stronger`, keyed from configuration, refusing
+  to encrypt without a key rather than storing anything weaker.
+- [x] `SourceConnectionAdminService`: read the configuration, write it, set and
   forget the credential, resolve the credential for a crawl. Every mutation appends
   a permission audit event and none of them logs the token.
 
-Gate: `.\gradlew.bat :core:test`.
+Gate: `.\gradlew.bat :core:test`. Done in `97bddfb`.
 
 ## Phase 2 — Admin API
 
-- [ ] `AdminSlackConnectorController` on `/api/admin/connectors/slack`: get, put,
-  put credential, delete credential, test.
-- [ ] `POST /test` calls Slack `auth.test` and returns the workspace it authenticated
+- [x] `AdminSlackConnectorController` on `/api/admin/connectors/slack`: list,
+  configure, put credential, delete credential, test a submitted token, test a
+  stored one.
+- [x] `POST /test` calls Slack `auth.test` and returns the workspace it authenticated
   as, or the error code, and never the token.
-- [ ] Regenerate `contracts/openapi.json` and `pnpm -C web gen:api`.
+- [x] Regenerate `contracts/openapi.json` and `pnpm -C web gen:api`.
+
+Two things came out of reading Onyx here rather than from the plan:
+
+- Its `validate_connector_settings` follows `auth.test` with a one-channel
+  `conversations.list`, because authentication cannot fail for a missing scope. A
+  token installed without `channels:read` passes `auth.test` and then fails hours
+  later as an indexing error. `SlackCredentialProbe` makes both calls and reports
+  `canListChannels` separately from `authenticated`.
+- Its admin API returns stored credentials masked to first and last four characters,
+  with `MASK_CREDENTIAL_PREFIX=false` turning even that off. Nothing here returns the
+  token in any form; the screen gets `credentialSet`, who set it, and when.
 
 Gate: `.\gradlew.bat :apps:api:test`.
 

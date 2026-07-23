@@ -9,6 +9,9 @@ interface SourceConnectionRepository extends JpaRepository<SourceConnection, UUI
 
     List<SourceConnection> findByOrganizationId(UUID organizationId);
 
+    List<SourceConnection> findByOrganizationIdAndSourceSystemOrderBySourceConnectionKeyAsc(
+            UUID organizationId, String sourceSystem);
+
     Optional<SourceConnection> findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
             UUID organizationId,
             String sourceSystem,

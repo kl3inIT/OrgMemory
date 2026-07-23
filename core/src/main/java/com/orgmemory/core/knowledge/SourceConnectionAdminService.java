@@ -57,6 +57,21 @@ public class SourceConnectionAdminService {
     }
 
     /**
+     * Every connection of one source system in this organization. A connection appears here
+     * once anybody has ruled on it, which includes connections a crawl discovered and nobody
+     * has configured yet — those are precisely the ones an administrator needs to see.
+     */
+    @Transactional(readOnly = true)
+    public List<SourceConnectionConfigurationView> list(UUID organizationId, String sourceSystem) {
+        return connections
+                .findByOrganizationIdAndSourceSystemOrderBySourceConnectionKeyAsc(
+                        organizationId, requireText(sourceSystem, "sourceSystem"))
+                .stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    /**
      * Records how a connection should be crawled, creating the connection row if this is the
      * first thing anybody has said about it.
      */
