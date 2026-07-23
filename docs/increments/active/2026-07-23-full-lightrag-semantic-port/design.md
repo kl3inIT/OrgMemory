@@ -56,6 +56,34 @@ merge. CodeRabbit findings are fixed when actionable. A PR merges only after all
 required GitHub checks are green and no unresolved actionable review thread
 remains.
 
+## PR 4 Multimodal Boundary
+
+`graph-rag-core` owns the executable semantics for image, table, and equation
+analysis: exact canonical-text anchors, deterministic surrounding context,
+preflight policy, content-addressed invocation identity, terminal outcomes, and
+derived chunk construction. `PENDING` is a worker scheduling state and is not a
+multimodal analysis result. The only terminal results are:
+
+- `Success`, which materializes validated analysis plus its ACL, route, cache
+  identity, source span, and artifact hash;
+- `Skipped`, which is allowed only for deterministic pre-provider rules such
+  as a disabled modality, unsupported raster format, or configured size limit;
+- `Failure`, classified as transient or permanent and never converted to
+  `Skipped`. Any enabled analysis failure blocks publication.
+
+The LightRAG `1.0` split-bundle decoder is an integration adapter. It validates
+the declared canonical hash and block anchors, rejects absolute/traversing
+asset paths, converts storage locations to opaque content-addressed artifacts,
+and ignores upstream `llm_analyze_result` values. OrgMemory recomputes model
+analysis under the pinned processing profile and current ACL snapshot.
+
+Spring AI is the provider adapter. Images use a media-bearing vision request;
+tables and equations use the text-extraction route. Structured-output
+conformance gets exactly one retry. Provider failures remain failures.
+
+Runtime worker wiring and durable outcome/cache persistence stay in PR 11 and
+PR 6/8 respectively; PR 4 exposes no silent no-op runtime configuration.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the

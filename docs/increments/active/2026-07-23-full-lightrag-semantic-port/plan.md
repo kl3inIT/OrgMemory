@@ -40,9 +40,9 @@
 
 ## PR 4 — Multimodal Sidecar And VLM
 
-- [ ] Define the sidecar interchange contract.
-- [ ] Support image, table, equation, surrounding-context, and analysis state.
-- [ ] Add VLM routing and multimodal chunk construction with inherited ACL and
+- [x] Define the sidecar interchange contract.
+- [x] Support image, table, equation, surrounding-context, and analysis state.
+- [x] Add VLM routing and multimodal chunk construction with inherited ACL and
   provenance.
 
 ## PR 5 — Extraction And Indexing Parity
