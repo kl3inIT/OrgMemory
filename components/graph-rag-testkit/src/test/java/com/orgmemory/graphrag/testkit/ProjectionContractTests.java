@@ -15,6 +15,7 @@ import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConflictException;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationNotReadyException;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.time.Instant;
 import java.util.List;
@@ -47,20 +48,22 @@ class ProjectionContractTests {
                 Set.of(ProjectionKind.CONTENT, ProjectionKind.VECTOR));
 
         assertThrows(
-                IllegalArgumentException.class,
-                () -> publications.publish(first, Set.of(ProjectionKind.CONTENT), NOW));
+                PublicationNotReadyException.class,
+                () -> publications.publish(first, NOW));
+        first.requiredProjections()
+                .forEach(kind -> publications.markPrepared(first, kind, NOW));
 
-        ProjectionSnapshot published =
-                publications.publish(first, first.requiredProjections(), NOW);
+        ProjectionSnapshot published = publications.publish(first, NOW);
         assertEquals(1, published.generation());
         assertEquals(
                 published,
-                publications.publish(first, first.requiredProjections(), NOW.plusSeconds(5)));
+                publications.publish(first, NOW.plusSeconds(5)));
 
         ProjectionBatch stale = batch("stale", 0, 1, Set.of(ProjectionKind.CONTENT));
+        publications.markPrepared(stale, ProjectionKind.CONTENT, NOW);
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(stale, stale.requiredProjections(), NOW));
+                () -> publications.publish(stale, NOW));
     }
 
     @Test
@@ -96,6 +99,21 @@ class ProjectionContractTests {
     }
 
     @Test
+    void publicationGenerationCannotOverflow() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectionBatch(
+                        UUID.randomUUID(),
+                        NAMESPACE,
+                        Long.MAX_VALUE,
+                        Long.MIN_VALUE,
+                        "publication",
+                        "manifest",
+                        Set.of(ProjectionKind.CONTENT),
+                        NOW));
+    }
+
+    @Test
     void abortedBatchCannotBecomeVisible() {
         InMemoryProjectionPublicationStore publications =
                 new InMemoryProjectionPublicationStore();
@@ -105,23 +123,23 @@ class ProjectionContractTests {
 
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(batch, batch.requiredProjections(), NOW));
+                () -> publications.publish(batch, NOW));
         assertTrue(publications.current(NAMESPACE).isEmpty());
     }
 
     @Test
     void contentReadsUseThePublishedSnapshotAndResolvedEvidenceScope() {
-        InMemoryContentStore content = new InMemoryContentStore();
         InMemoryProjectionPublicationStore publications =
                 new InMemoryProjectionPublicationStore();
+        InMemoryContentStore content = new InMemoryContentStore(publications);
         ProjectionBatch batch = batch("content", 0, 1, Set.of(ProjectionKind.CONTENT));
         content.stageUpsert(
                 batch,
                 List.of(
                         record("allowed", ALLOWED_ASSET_ID),
                         record("denied", DENIED_ASSET_ID)));
-        ProjectionSnapshot snapshot =
-                publications.publish(batch, batch.requiredProjections(), NOW);
+        publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
+        ProjectionSnapshot snapshot = publications.publish(batch, NOW);
 
         assertTrue(content.get(scope(Set.of(ALLOWED_ASSET_ID), 7), snapshot, "allowed")
                 .isPresent());
@@ -140,6 +158,48 @@ class ProjectionContractTests {
                                 snapshot.projections(),
                                 snapshot.publishedAt()),
                         "allowed"));
+        assertThrows(
+                IllegalStateException.class,
+                () -> content.get(
+                        scope(Set.of(ALLOWED_ASSET_ID), 7),
+                        new ProjectionSnapshot(
+                                snapshot.batchId(),
+                                snapshot.namespace(),
+                                snapshot.generation(),
+                                "fabricated-manifest",
+                                snapshot.projections(),
+                                snapshot.publishedAt()),
+                        "allowed"));
+    }
+
+    @Test
+    void contentGenerationInheritsOnlyFromItsPublishedPredecessor() {
+        InMemoryProjectionPublicationStore publications =
+                new InMemoryProjectionPublicationStore();
+        InMemoryContentStore content = new InMemoryContentStore(publications);
+
+        ProjectionBatch aborted =
+                batch("aborted-content", 0, 1, Set.of(ProjectionKind.CONTENT));
+        content.stageUpsert(aborted, List.of(record("aborted", ALLOWED_ASSET_ID)));
+        publications.abort(aborted, "fixture failure", NOW);
+
+        ProjectionBatch first =
+                batch("published-content", 0, 1, Set.of(ProjectionKind.CONTENT));
+        content.stageUpsert(first, List.of(record("published", ALLOWED_ASSET_ID)));
+        publications.markPrepared(first, ProjectionKind.CONTENT, NOW);
+        publications.publish(first, NOW);
+
+        ProjectionBatch second =
+                batch("second-content", 1, 2, Set.of(ProjectionKind.CONTENT));
+        content.stageUpsert(second, List.of(record("second", ALLOWED_ASSET_ID)));
+        publications.markPrepared(second, ProjectionKind.CONTENT, NOW.plusSeconds(1));
+        ProjectionSnapshot secondSnapshot =
+                publications.publish(second, NOW.plusSeconds(1));
+
+        AuthorizedEvidenceScope scope = scope(Set.of(ALLOWED_ASSET_ID), 7);
+        assertTrue(content.get(scope, secondSnapshot, "aborted").isEmpty());
+        assertTrue(content.get(scope, secondSnapshot, "published").isPresent());
+        assertTrue(content.get(scope, secondSnapshot, "second").isPresent());
     }
 
     @Test

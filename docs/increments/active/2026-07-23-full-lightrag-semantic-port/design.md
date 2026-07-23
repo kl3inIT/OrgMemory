@@ -31,6 +31,9 @@ final `light-rag -> main` PR carries the complete program.
   before code is committed.
 - Publication retries bind batch identity and namespace-scoped idempotency to
   one canonical manifest fingerprint persisted on the visible snapshot.
+- Durable preparation receipts live beside the publication head. Publication
+  verifies every required kind; readers validate pinned snapshots against
+  immutable publication history rather than trusting caller-created state.
 
 ## Branch And Review Flow
 

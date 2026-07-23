@@ -14,8 +14,9 @@
 - [x] Add capability-specific content, lexical, vector, publication, cache,
   and safe telemetry contracts without a lowest-common-denominator store
   interface.
-- [x] Define atomic generation-head publication, manifest-bound batch
-  idempotency, abort and cache-isolation semantics.
+- [x] Define atomic generation-head publication, durable preparation receipts,
+  manifest-bound idempotency, published history, abort and cache-isolation
+  semantics.
 - [x] Record the graph migration prerequisite without falsely declaring
   `GRAPH` atomic before its adapter uses the shared namespace snapshot.
 - [x] Keep durable job leasing and retry in the OrgMemory worker/application

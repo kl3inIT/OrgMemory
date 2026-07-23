@@ -25,7 +25,8 @@ public record ProjectionBatch(
             throw new IllegalArgumentException(
                     "expectedPreviousGeneration must be non-negative");
         }
-        if (generation != expectedPreviousGeneration + 1) {
+        if (expectedPreviousGeneration == Long.MAX_VALUE
+                || generation != expectedPreviousGeneration + 1) {
             throw new IllegalArgumentException(
                     "generation must immediately follow expectedPreviousGeneration");
         }

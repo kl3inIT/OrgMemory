@@ -4,6 +4,7 @@ import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -15,7 +16,12 @@ import java.util.UUID;
 
 public final class InMemoryContentStore implements ContentStore {
 
+    private final ProjectionPublicationStore publications;
     private final Map<UUID, BatchState> batches = new LinkedHashMap<>();
+
+    public InMemoryContentStore(ProjectionPublicationStore publications) {
+        this.publications = Objects.requireNonNull(publications, "publications");
+    }
 
     @Override
     public synchronized void stageUpsert(
@@ -81,24 +87,29 @@ public final class InMemoryContentStore implements ContentStore {
             }
             return existing;
         }
+        Map<String, ContentRecord> predecessor = batch.expectedPreviousGeneration() == 0
+                ? Map.of()
+                : recordsAt(publishedPredecessor(batch));
         BatchState created = new BatchState(batch, new LinkedHashMap<>(
-                batch.expectedPreviousGeneration() == 0
-                        ? Map.of()
-                        : recordsAt(batch.namespace(), batch.expectedPreviousGeneration())));
+                predecessor));
         batches.put(batch.id(), created);
         return created;
     }
 
-    private Map<String, ContentRecord> recordsAt(
-            com.orgmemory.graphrag.storage.ProjectionNamespace namespace,
-            long generation) {
-        return batches.values().stream()
-                .filter(state -> state.batch().namespace().equals(namespace))
-                .filter(state -> state.batch().generation() == generation)
-                .findFirst()
-                .map(BatchState::records)
+    private ProjectionSnapshot publishedPredecessor(ProjectionBatch batch) {
+        return publications
+                .published(batch.namespace(), batch.expectedPreviousGeneration())
+                .filter(snapshot -> snapshot.projections().contains(ProjectionKind.CONTENT))
                 .orElseThrow(() -> new IllegalStateException(
-                        "previous content generation is unavailable"));
+                        "previous published content generation is unavailable"));
+    }
+
+    private Map<String, ContentRecord> recordsAt(ProjectionSnapshot snapshot) {
+        BatchState state = batches.get(snapshot.batchId());
+        if (state == null || !matches(state.batch(), snapshot)) {
+            throw new IllegalStateException("published content generation is unavailable");
+        }
+        return state.records();
     }
 
     private BatchState readableState(
@@ -112,13 +123,26 @@ public final class InMemoryContentStore implements ContentStore {
             throw new IllegalArgumentException(
                     "authorization scope and projection snapshot belong to different organizations");
         }
+        ProjectionSnapshot recorded = publications
+                .published(snapshot.namespace(), snapshot.generation())
+                .filter(snapshot::equals)
+                .orElseThrow(() -> new IllegalStateException(
+                        "content snapshot is not published"));
         BatchState state = batches.get(snapshot.batchId());
-        if (state == null
-                || state.batch().generation() != snapshot.generation()
-                || !state.batch().namespace().equals(snapshot.namespace())) {
+        if (state == null || !matches(state.batch(), recorded)) {
             throw new IllegalStateException("content snapshot is unavailable");
         }
         return state;
+    }
+
+    private static boolean matches(
+            ProjectionBatch batch,
+            ProjectionSnapshot snapshot) {
+        return batch.id().equals(snapshot.batchId())
+                && batch.namespace().equals(snapshot.namespace())
+                && batch.generation() == snapshot.generation()
+                && batch.manifestFingerprint().equals(snapshot.manifestFingerprint())
+                && batch.requiredProjections().equals(snapshot.projections());
     }
 
     private static void requireSameOrganization(

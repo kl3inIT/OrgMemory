@@ -3,21 +3,22 @@ package com.orgmemory.graphrag.storage;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Atomic visibility head shared by every derived projection participating in
- * a publication batch.
+ * a publication batch. Preparation receipts and the publication head live in
+ * the same durable store. A receipt is recorded only after its projection
+ * staging write commits; this is an ordered saga boundary, not a cross-store
+ * transaction.
  *
  * <p>Adapters stage generation data first. This store performs one
  * compare-and-set from the expected previous generation to the prepared
- * generation. Data at a generation that is not the current head is never
- * query-visible.
+ * generation. Data at an unpublished generation is never query-visible.
  *
  * <p>Required semantics:
  *
  * <ul>
- *   <li>publishing requires the prepared set to exactly match the batch plan;
+ *   <li>publishing verifies a durable receipt for every required projection;
  *   <li>the head advances only when its current generation equals
  *       {@code expectedPreviousGeneration};
  *   <li>replaying the same batch or idempotency key with identical content
@@ -32,16 +33,29 @@ public interface ProjectionPublicationStore {
 
     Optional<ProjectionSnapshot> current(ProjectionNamespace namespace);
 
-    ProjectionSnapshot publish(
+    Optional<ProjectionSnapshot> published(
+            ProjectionNamespace namespace,
+            long generation);
+
+    void markPrepared(
             ProjectionBatch batch,
-            Set<ProjectionKind> preparedProjections,
-            Instant publishedAt);
+            ProjectionKind projection,
+            Instant preparedAt);
+
+    ProjectionSnapshot publish(ProjectionBatch batch, Instant publishedAt);
 
     void abort(ProjectionBatch batch, String reason, Instant abortedAt);
 
     final class PublicationConflictException extends RuntimeException {
 
         public PublicationConflictException(String message) {
+            super(Objects.requireNonNull(message, "message"));
+        }
+    }
+
+    final class PublicationNotReadyException extends RuntimeException {
+
+        public PublicationNotReadyException(String message) {
             super(Objects.requireNonNull(message, "message"));
         }
     }

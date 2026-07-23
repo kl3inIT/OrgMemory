@@ -105,6 +105,16 @@ and rejects reuse of a batch ID or namespace-scoped idempotency key with a
 different fingerprint. This makes crash retries truthful without duplicating
 canonicalization inside storage adapters.
 
+The publication store also owns durable per-kind preparation receipts. An
+adapter records its receipt only after the corresponding staging write commits.
+The publication transaction verifies the complete required receipt set before
+advancing the namespace head. This is an ordered saga with compensating discard,
+not a false cross-store ACID claim. Receipts intentionally carry no second
+content fingerprint: the canonical manifest remains producer-owned and opaque
+to storage. Published snapshot history remains addressable by namespace and
+generation so a pinned older query stays valid while staged, aborted, or
+fabricated snapshots remain unreadable.
+
 The graph adapter predates this shared publication contract. It remains
 specialized until its reads and writes accept the namespace snapshot; it cannot
 participate in mixed retrieval before that migration is complete. Omitting
