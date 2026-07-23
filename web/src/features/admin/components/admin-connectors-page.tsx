@@ -221,9 +221,15 @@ export function AdminConnectorsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {/* The detail page first, not the form. "Why is this producing
+                            nothing" is asked far more often than "change this setting", and
+                            the form cannot answer it. */}
                         <Button size="sm" variant="outline" asChild>
-                          <Link to="/admin/connectors/slack" search={{ connection: key }}>
-                            Configure
+                          <Link
+                            to="/admin/connectors/$sourceSystem/$connectionKey"
+                            params={{ sourceSystem: SLACK, connectionKey: key }}
+                          >
+                            Open
                           </Link>
                         </Button>
                         <Button

@@ -1,6 +1,7 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query"
 
 import {
+  getAdminConnectionActivityOptions,
   listAdminConnectionsOptions,
   listAdminConnectionsQueryKey,
   listAdminConnectorSourcesOptions,
@@ -46,6 +47,18 @@ export function adminConnectionsQueryOptions(sourceSystem: string) {
 /** Which sources this deployment can actually ingest, from the adapters it has installed. */
 export function adminConnectorSourcesQueryOptions() {
   return queryOptions({ ...listAdminConnectorSourcesOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+/**
+ * What a connection has done. Kept fresher than the rest of administration because it moves
+ * without anybody acting: a crawl runs on the worker's schedule, so a stale answer here is a
+ * screen quietly reporting yesterday's failure as the current one.
+ */
+export function adminConnectionActivityQueryOptions(sourceSystem: string, connectionKey: string) {
+  return queryOptions({
+    ...getAdminConnectionActivityOptions({ path: { sourceSystem, connectionKey } }),
+    staleTime: 5_000,
+  })
 }
 
 /** The Spaces a crawl may publish into are the same ones an upload may target. */
