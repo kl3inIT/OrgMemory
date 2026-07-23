@@ -13,4 +13,7 @@ interface SourceConnectionRepository extends JpaRepository<SourceConnection, UUI
             UUID organizationId,
             String sourceSystem,
             String sourceConnectionKey);
+
+    /** Across tenants: a worker crawls for every organization that enabled the connection. */
+    List<SourceConnection> findBySourceSystemAndCrawlEnabledTrue(String sourceSystem);
 }

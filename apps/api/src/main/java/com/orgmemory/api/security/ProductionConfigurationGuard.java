@@ -1,6 +1,7 @@
 package com.orgmemory.api.security;
 
 import com.orgmemory.core.ai.AiGatewayCapability;
+import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.integrations.ai.openai.AiGatewayProperties;
 import com.orgmemory.integrations.authorization.openfga.OpenFgaAuthorizationProperties;
 import com.orgmemory.integrations.storage.minio.MinioObjectStorageProperties;
@@ -15,24 +16,28 @@ final class ProductionConfigurationGuard implements InitializingBean {
     private static final String LOCAL_OIDC_CLIENT_SECRET = "orgmemory-local-dev-only";
     private static final String LOCAL_OBJECT_STORAGE_ACCESS_KEY = "orgmemory-local";
     private static final String LOCAL_OBJECT_STORAGE_SECRET_KEY = "orgmemory-local-secret";
+    private static final String LOCAL_SECRETS_KEY = "orgmemory-local-dev-only-secret-key";
 
     private final DataSourceProperties dataSource;
     private final OrgMemoryOidcProperties oidc;
     private final OpenFgaAuthorizationProperties openFga;
     private final MinioObjectStorageProperties objectStorage;
     private final AiGatewayProperties ai;
+    private final SecretCipherProperties secrets;
 
     ProductionConfigurationGuard(
             DataSourceProperties dataSource,
             OrgMemoryOidcProperties oidc,
             OpenFgaAuthorizationProperties openFga,
             MinioObjectStorageProperties objectStorage,
-            AiGatewayProperties ai) {
+            AiGatewayProperties ai,
+            SecretCipherProperties secrets) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.oidc = Objects.requireNonNull(oidc, "oidc");
         this.openFga = Objects.requireNonNull(openFga, "openFga");
         this.objectStorage = Objects.requireNonNull(objectStorage, "objectStorage");
         this.ai = Objects.requireNonNull(ai, "ai");
+        this.secrets = Objects.requireNonNull(secrets, "secrets");
     }
 
     @Override
@@ -58,6 +63,10 @@ final class ProductionConfigurationGuard implements InitializingBean {
                 objectStorage.secretKey(),
                 LOCAL_OBJECT_STORAGE_SECRET_KEY,
                 "orgmemory.storage.object.secret-key");
+
+        // Stored source credentials are only as private as this key. A deployment that kept the
+        // development one would encrypt every token with a value published in this repository.
+        requireSecret(secrets.key(), LOCAL_SECRETS_KEY, "orgmemory.secrets.key");
 
         requireGateway(
                 ai.routes().assistantChat(),

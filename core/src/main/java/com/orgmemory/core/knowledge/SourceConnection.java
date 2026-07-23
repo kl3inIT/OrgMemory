@@ -37,6 +37,30 @@ class SourceConnection extends BaseEntity {
     @Column(name = "trust_decided_at")
     private Instant trustDecidedAt;
 
+    @Column(name = "crawl_enabled", nullable = false)
+    private boolean crawlEnabled;
+
+    @Column(name = "knowledge_space_id")
+    private UUID knowledgeSpaceId;
+
+    @Column(name = "actor_user_id")
+    private UUID actorUserId;
+
+    @Column(name = "channel_filter", nullable = false, length = 2048)
+    private String channelFilter;
+
+    @Column(name = "content_crawl_interval_seconds", nullable = false)
+    private int contentCrawlIntervalSeconds;
+
+    @Column(name = "max_threads_per_channel", nullable = false)
+    private int maxThreadsPerChannel;
+
+    @Column(name = "crawl_configured_by_user_id")
+    private UUID crawlConfiguredByUserId;
+
+    @Column(name = "crawl_configured_at")
+    private Instant crawlConfiguredAt;
+
     protected SourceConnection() {
     }
 
@@ -46,6 +70,73 @@ class SourceConnection extends BaseEntity {
         this.sourceSystem = sourceSystem;
         this.sourceConnectionKey = sourceConnectionKey;
         this.identityTrust = SourceIdentityTrust.UNTRUSTED;
+        this.crawlEnabled = false;
+        this.channelFilter = "";
+        this.contentCrawlIntervalSeconds = 3600;
+        this.maxThreadsPerChannel = 500;
+    }
+
+    /**
+     * Records how this connection should be crawled. Enabling without a target Space or an actor
+     * is refused here as well as by the database, because the alternative is a crawl that fails
+     * once per object long after the mistake was made.
+     */
+    void configureCrawl(
+            boolean crawlEnabled,
+            UUID knowledgeSpaceId,
+            UUID actorUserId,
+            String channelFilter,
+            int contentCrawlIntervalSeconds,
+            int maxThreadsPerChannel,
+            UUID configuredByUserId,
+            Instant configuredAt) {
+        if (crawlEnabled && (knowledgeSpaceId == null || actorUserId == null)) {
+            throw new IllegalArgumentException(
+                    "A crawl needs a Knowledge Space to publish into and a user to publish as");
+        }
+        if (contentCrawlIntervalSeconds <= 0 || maxThreadsPerChannel <= 0) {
+            throw new IllegalArgumentException("Crawl bounds must be positive");
+        }
+        this.crawlEnabled = crawlEnabled;
+        this.knowledgeSpaceId = knowledgeSpaceId;
+        this.actorUserId = actorUserId;
+        this.channelFilter = channelFilter == null ? "" : channelFilter.strip();
+        this.contentCrawlIntervalSeconds = contentCrawlIntervalSeconds;
+        this.maxThreadsPerChannel = maxThreadsPerChannel;
+        this.crawlConfiguredByUserId = configuredByUserId;
+        this.crawlConfiguredAt = configuredAt;
+    }
+
+    boolean isCrawlEnabled() {
+        return crawlEnabled;
+    }
+
+    UUID getKnowledgeSpaceId() {
+        return knowledgeSpaceId;
+    }
+
+    UUID getActorUserId() {
+        return actorUserId;
+    }
+
+    String getChannelFilter() {
+        return channelFilter;
+    }
+
+    int getContentCrawlIntervalSeconds() {
+        return contentCrawlIntervalSeconds;
+    }
+
+    int getMaxThreadsPerChannel() {
+        return maxThreadsPerChannel;
+    }
+
+    UUID getCrawlConfiguredByUserId() {
+        return crawlConfiguredByUserId;
+    }
+
+    Instant getCrawlConfiguredAt() {
+        return crawlConfiguredAt;
     }
 
     void decideTrust(SourceIdentityTrust identityTrust, UUID decidedByUserId, Instant decidedAt) {

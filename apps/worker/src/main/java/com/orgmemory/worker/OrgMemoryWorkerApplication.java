@@ -3,6 +3,7 @@ package com.orgmemory.worker;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
+import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.worker.connector.ConnectorCrawlProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
@@ -20,6 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories("com.orgmemory.core")
 @EnableConfigurationProperties({
         SourceIngestionProperties.class,
+        SecretCipherProperties.class,
         SourceProcessingProperties.class,
         KnowledgeRetrievalProperties.class,
         ConnectorCrawlProperties.class

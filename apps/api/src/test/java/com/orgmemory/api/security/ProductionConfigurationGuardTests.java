@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.orgmemory.core.ai.AiGatewayCapability;
+import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.integrations.ai.openai.AiGatewayProperties;
 import com.orgmemory.integrations.authorization.openfga.OpenFgaAuthorizationProperties;
 import com.orgmemory.integrations.storage.minio.MinioObjectStorageProperties;
@@ -42,6 +43,16 @@ class ProductionConfigurationGuardTests {
     }
 
     @Test
+    void rejectsTheDevelopmentEncryptionKey() {
+        // Every stored source credential is only as private as this key, and the development
+        // one is published in this repository.
+        assertThrows(
+                IllegalStateException.class,
+                () -> guardWithSecretsKey("orgmemory-local-dev-only-secret-key").afterPropertiesSet());
+        assertDoesNotThrow(() -> guardWithSecretsKey("a-production-encryption-key").afterPropertiesSet());
+    }
+
+    @Test
     void rejectsAnEmbeddingRouteWithoutAnEmbeddingCapableGateway() {
         var dataSource = new DataSourceProperties();
         dataSource.setUrl("jdbc:postgresql://db.example.test/orgmemory");
@@ -66,7 +77,8 @@ class ProductionConfigurationGuardTests {
                         URI.create("https://memory.example.test")),
                 openFga(),
                 objectStorage("object-secret"),
-                ai);
+                ai,
+                secrets("a-production-encryption-key"));
 
         assertThrows(IllegalStateException.class, guard::afterPropertiesSet);
     }
@@ -108,7 +120,43 @@ class ProductionConfigurationGuardTests {
                 new AiGatewayProperties.Routes(
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
-        return new ProductionConfigurationGuard(dataSource, oidc, openFga, objectStorage, ai);
+        return new ProductionConfigurationGuard(
+                dataSource, oidc, openFga, objectStorage, ai, secrets("a-production-encryption-key"));
+    }
+
+    private static ProductionConfigurationGuard guardWithSecretsKey(String key) {
+        var dataSource = new DataSourceProperties();
+        dataSource.setUrl("jdbc:postgresql://db.example.test/orgmemory");
+        dataSource.setUsername("orgmemory_app");
+        dataSource.setPassword("database-secret");
+        return new ProductionConfigurationGuard(
+                dataSource,
+                new OrgMemoryOidcProperties(
+                        URI.create("https://id.example.test/realms/orgmemory"),
+                        "orgmemory-web",
+                        "oidc-secret",
+                        URI.create("https://memory.example.test")),
+                openFga(),
+                objectStorage("object-secret"),
+                productionAi(),
+                secrets(key));
+    }
+
+    private static AiGatewayProperties productionAi() {
+        return new AiGatewayProperties(
+                Map.of("openai", new AiGatewayProperties.Gateway(
+                        "OpenAI",
+                        "https://api.openai.com/v1",
+                        "provider-secret",
+                        Set.of(AiGatewayCapability.CHAT, AiGatewayCapability.EMBEDDING),
+                        Duration.ofSeconds(60))),
+                new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
+                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
+    }
+
+    private static SecretCipherProperties secrets(String key) {
+        return new SecretCipherProperties(key, null, 1);
     }
 
     private static OpenFgaAuthorizationProperties openFga() {
