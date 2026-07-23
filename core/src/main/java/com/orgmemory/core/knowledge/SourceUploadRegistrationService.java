@@ -52,7 +52,7 @@ class SourceUploadRegistrationService {
                 classification,
                 declaredAccess));
         EvidenceBlob blob = blobs.saveAndFlush(new EvidenceBlob(blobId, actor.organizationId(), stored));
-        SourceRevision revision = revisions.saveAndFlush(new SourceRevision(revisionId, source, blob, fileName));
+        SourceRevision revision = revisions.saveAndFlush(new SourceRevision(revisionId, source, blob, fileName, 1));
         source.useRevision(revision.getId());
         sources.save(source);
         jobs.save(new SourceIngestionJob(

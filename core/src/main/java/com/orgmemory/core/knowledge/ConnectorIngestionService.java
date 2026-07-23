@@ -66,7 +66,7 @@ public class ConnectorIngestionService {
 
         List<String> materialized = new ArrayList<>();
         List<String> rotated = new ArrayList<>();
-        List<String> contentDeferred = new ArrayList<>();
+        List<String> rematerialized = new ArrayList<>();
         List<String> retired = new ArrayList<>();
         List<ConnectorItemFailure> failures = new ArrayList<>();
 
@@ -74,7 +74,7 @@ public class ConnectorIngestionService {
             try {
                 ObjectOutcome outcome = perObjectTransaction.execute(status -> reconciler.reconcile(
                         ctx, content, permissions.get(content.externalObjectId()), resolution));
-                recordOutcome(outcome, content.externalObjectId(), materialized, rotated, contentDeferred);
+                recordOutcome(outcome, content.externalObjectId(), materialized, rotated, rematerialized);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(content.externalObjectId(), reasonOf(failure)));
             }
@@ -89,7 +89,7 @@ public class ConnectorIngestionService {
             try {
                 ObjectOutcome outcome = perObjectTransaction.execute(
                         status -> reconciler.reconcilePermissions(ctx, permission, resolution));
-                recordOutcome(outcome, permission.externalObjectId(), materialized, rotated, contentDeferred);
+                recordOutcome(outcome, permission.externalObjectId(), materialized, rotated, rematerialized);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(permission.externalObjectId(), reasonOf(failure)));
             }
@@ -107,7 +107,7 @@ public class ConnectorIngestionService {
             }
         }
 
-        return new ConnectorIngestionResult(materialized, rotated, contentDeferred, retired, failures);
+        return new ConnectorIngestionResult(materialized, rotated, rematerialized, retired, failures);
     }
 
     private static void recordOutcome(
@@ -115,14 +115,11 @@ public class ConnectorIngestionService {
             String externalObjectId,
             List<String> materialized,
             List<String> rotated,
-            List<String> contentDeferred) {
+            List<String> rematerialized) {
         switch (outcome) {
             case MATERIALIZED -> materialized.add(externalObjectId);
             case ROTATED -> rotated.add(externalObjectId);
-            case ROTATED_CONTENT_DEFERRED -> {
-                rotated.add(externalObjectId);
-                contentDeferred.add(externalObjectId);
-            }
+            case REMATERIALIZED -> rematerialized.add(externalObjectId);
             default -> throw new IllegalStateException("unhandled outcome: " + outcome);
         }
     }

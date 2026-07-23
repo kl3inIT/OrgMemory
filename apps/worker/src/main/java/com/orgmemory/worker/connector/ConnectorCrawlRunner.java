@@ -40,11 +40,12 @@ class ConnectorCrawlRunner {
             try {
                 ConnectorIngestionResult result = ingestion.ingest(batch);
                 log.info(
-                        "Connector batch {} ingested: materialized={} rotated={} deferred={} retired={} failures={}",
+                        "Connector batch {} ingested: materialized={} rotated={} rematerialized={} "
+                                + "retired={} failures={}",
                         batch.crawlCursor(),
                         result.materialized().size(),
                         result.rotated().size(),
-                        result.contentDeferred().size(),
+                        result.rematerialized().size(),
                         result.retired().size(),
                         result.failures().size());
                 result.failures().forEach(failure -> log.warn(

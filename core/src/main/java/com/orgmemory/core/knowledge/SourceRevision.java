@@ -96,17 +96,27 @@ class SourceRevision extends BaseEntity {
     protected SourceRevision() {
     }
 
+    /**
+     * @param revisionNumber the object's next revision ordinal. An upload object only ever has
+     *     one; a connector object gains another every time the source edits its content, and the
+     *     unique constraint on (object, number) is what keeps two crawls from claiming the same
+     *     ordinal.
+     */
     SourceRevision(
             UUID id,
             SourceObject source,
             EvidenceBlob blob,
-            String fileName) {
+            String fileName,
+            long revisionNumber) {
         super(id);
+        if (revisionNumber < 1) {
+            throw new IllegalArgumentException("revision number starts at 1");
+        }
         this.organizationId = source.getOrganizationId();
         this.knowledgeSpaceId = source.getKnowledgeSpaceId();
         this.sourceObjectId = source.getId();
         this.evidenceBlobId = blob.getId();
-        this.revisionNumber = 1;
+        this.revisionNumber = revisionNumber;
         this.fileName = fileName;
         this.mediaType = blob.getMediaType();
         this.contentLength = blob.getContentLength();

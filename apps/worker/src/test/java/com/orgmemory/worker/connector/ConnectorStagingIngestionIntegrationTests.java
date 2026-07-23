@@ -137,7 +137,7 @@ class ConnectorStagingIngestionIntegrationTests {
         ConnectorIngestionResult recrawl = connector.ingest(load("slack-02-recrawl-membership.json"));
         assertEquals(List.of("C-general-msg"), recrawl.rotated());
         assertTrue(recrawl.materialized().isEmpty(), "a membership re-crawl must not re-materialize content");
-        assertTrue(recrawl.contentDeferred().isEmpty(), "content revision is unchanged");
+        assertTrue(recrawl.rematerialized().isEmpty(), "a permissions-only re-crawl carries no content revision");
         assertTrue(sees(CHI_USER), "Chi joined the channel and must now see the message");
         assertFalse(sees(AN_USER), "An left the channel and must be revoked");
         assertEquals(revisionAfterInitial, currentRevisionId(), "content revision must be unchanged");

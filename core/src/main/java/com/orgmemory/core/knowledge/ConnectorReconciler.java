@@ -148,10 +148,11 @@ class ConnectorReconciler {
     }
 
     /**
-     * Reconciles one content object: a new object is materialized (raw + sealed ACL +
-     * normalize + chunks + publish); an existing object converges its ACL to a new sealed
-     * generation via head rotation. A changed content revision on an existing object rotates
-     * the ACL but defers re-materialization to the live increment.
+     * Reconciles one content object. A new object is materialized (raw + sealed ACL + normalize
+     * + chunks + publish). An existing object whose content revision is unchanged converges its
+     * ACL to a new sealed generation via head rotation. A changed content revision materializes
+     * a new source revision on the same object, which is what makes an edited message stop
+     * being served from the text the crawl first saw.
      */
     ObjectOutcome reconcile(
             ConnectorIngestionContext ctx,
@@ -162,21 +163,60 @@ class ConnectorReconciler {
         var head = ingestion.findConnectorHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
         if (head.isEmpty()) {
-            RawSourceRef raw = ingestion.registerConnectorSource(
-                    registerCommand(ctx, content, plan.entries(), Instant.now().plus(ACL_TTL)),
-                    plan.membership());
-            NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
+            SourceObject source = sources.saveAndFlush(SourceObject.connectorObject(
+                    UUID.randomUUID(),
                     ctx.organizationId(),
-                    raw.rawSourceObjectId(),
-                    NORMALIZER_VERSION,
+                    ctx.knowledgeSpaceId(),
+                    null,
+                    ctx.actorUserId(),
+                    SlackConnectorProfile.SOURCE_TYPE,
+                    ctx.sourceConnectionKey(),
+                    content.externalObjectId(),
                     content.title(),
-                    content.body(),
-                    "und"));
-            materializeContent(ctx, content, raw, normalized);
+                    SlackConnectorProfile.CLASSIFICATION,
+                    SlackConnectorProfile.DECLARED_ACCESS));
+            materializeRevision(ctx, content, source, plan, null);
             audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
             return ObjectOutcome.MATERIALIZED;
         }
-        return rotate(ctx, head.get(), plan, content.externalObjectId(), content.contentRevision());
+        ConnectorHeadView current = head.get();
+        if (content.contentRevision().equals(current.currentContentRevision())) {
+            return rotate(ctx, current, plan, content.externalObjectId());
+        }
+        return rematerialize(ctx, current, content, plan);
+    }
+
+    /**
+     * Materializes a changed content revision onto the object that already exists. Registering
+     * the new revision appends the sealed ACL generation and advances the head to it in one
+     * step, so the edited text and the permissions that came with it commit together. The new
+     * source revision becomes current, and because retrieval only serves chunks belonging to
+     * the current revision, the superseded text leaves the index the moment this commits.
+     *
+     * <p>A retired object is not revived here. Whether content reappearing at the source should
+     * resurrect a tombstoned object, and under whose ACL, is a decision this path should not
+     * make silently, so it fails as an isolated per-object error instead.
+     */
+    private ObjectOutcome rematerialize(
+            ConnectorIngestionContext ctx,
+            ConnectorHeadView current,
+            ConnectorContentItem content,
+            AclPlan plan) {
+        SourceObject source = sources
+                .findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+                        ctx.organizationId(),
+                        SlackConnectorProfile.SOURCE_TYPE,
+                        ctx.sourceConnectionKey(),
+                        content.externalObjectId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "an ACL head exists without its source object: " + content.externalObjectId()));
+        if (source.getStatus() != SourceObjectStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "a retired object cannot take a new content revision: " + content.externalObjectId());
+        }
+        materializeRevision(ctx, content, source, plan, current.currentSnapshotId());
+        audit(ctx, "CONNECTOR_REMATERIALIZE", content.externalObjectId(), "CONTENT_REVISION_MATERIALIZED");
+        return ObjectOutcome.REMATERIALIZED;
     }
 
     /**
@@ -197,15 +237,14 @@ class ConnectorReconciler {
                     "permissions arrived for an object with no materialized content: "
                             + permission.externalObjectId());
         }
-        return rotate(ctx, head.get(), plan, permission.externalObjectId(), null);
+        return rotate(ctx, head.get(), plan, permission.externalObjectId());
     }
 
     private ObjectOutcome rotate(
             ConnectorIngestionContext ctx,
             ConnectorHeadView current,
             AclPlan plan,
-            String externalObjectId,
-            String incomingContentRevision) {
+            String externalObjectId) {
         ingestion.rotateConnectorAcl(
                 new RotateSourceAclCommand(
                         ctx.organizationId(),
@@ -216,14 +255,8 @@ class ConnectorReconciler {
                         plan.entries(),
                         current.currentSnapshotId()),
                 plan.membership());
-        boolean contentChanged = incomingContentRevision != null
-                && !incomingContentRevision.equals(current.currentContentRevision());
-        audit(
-                ctx,
-                "CONNECTOR_ROTATE",
-                externalObjectId,
-                contentChanged ? "ACL_ROTATED_CONTENT_DEFERRED" : "ACL_ROTATED");
-        return contentChanged ? ObjectOutcome.ROTATED_CONTENT_DEFERRED : ObjectOutcome.ROTATED;
+        audit(ctx, "CONNECTOR_ROTATE", externalObjectId, "ACL_ROTATED");
+        return ObjectOutcome.ROTATED;
     }
 
     private AclPlan buildAclPlan(
@@ -273,12 +306,29 @@ class ConnectorReconciler {
         return true;
     }
 
-    private void materializeContent(
+    /**
+     * Registers the crawled revision, normalizes it, and materializes it as the current
+     * revision of {@code source}. The same path serves a first crawl and a later edit; the only
+     * difference is whether an ACL head already exists to compare against, which the caller
+     * supplies as {@code expectedCurrentSnapshotId}.
+     */
+    private void materializeRevision(
             ConnectorIngestionContext ctx,
             ConnectorContentItem content,
-            RawSourceRef raw,
-            NormalizedRecordRef normalized) {
-        UUID sourceId = UUID.randomUUID();
+            SourceObject source,
+            AclPlan plan,
+            UUID expectedCurrentSnapshotId) {
+        RawSourceRef raw = ingestion.registerConnectorSource(
+                registerCommand(
+                        ctx, content, plan.entries(), Instant.now().plus(ACL_TTL), expectedCurrentSnapshotId),
+                plan.membership());
+        NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
+                ctx.organizationId(),
+                raw.rawSourceObjectId(),
+                NORMALIZER_VERSION,
+                content.title(),
+                content.body(),
+                "und"));
         UUID revisionId = UUID.randomUUID();
         UUID blobId = UUID.randomUUID();
         byte[] bytes = content.body().getBytes(StandardCharsets.UTF_8);
@@ -294,25 +344,20 @@ class ConnectorReconciler {
                         SlackConnectorProfile.MEDIA_TYPE,
                         Map.of(
                                 "organization-id", ctx.organizationId().toString(),
-                                "source-object-id", sourceId.toString(),
+                                "source-object-id", source.getId().toString(),
                                 "source-revision-id", revisionId.toString())),
                 new ByteArrayInputStream(bytes));
         try {
-            SourceObject source = sources.saveAndFlush(SourceObject.connectorObject(
-                    sourceId,
-                    ctx.organizationId(),
-                    ctx.knowledgeSpaceId(),
-                    null,
-                    ctx.actorUserId(),
-                    SlackConnectorProfile.SOURCE_TYPE,
-                    ctx.sourceConnectionKey(),
-                    content.externalObjectId(),
-                    content.title(),
-                    SlackConnectorProfile.CLASSIFICATION,
-                    SlackConnectorProfile.DECLARED_ACCESS));
             EvidenceBlob blob = blobs.saveAndFlush(new EvidenceBlob(blobId, ctx.organizationId(), stored));
             SourceRevision revision = revisions.saveAndFlush(
-                    new SourceRevision(revisionId, source, blob, content.title()));
+                    new SourceRevision(
+                            revisionId,
+                            source,
+                            blob,
+                            content.title(),
+                            // Registering the revision above took the per-identity advisory lock,
+                            // so no concurrent crawl of this object can claim the same ordinal.
+                            revisions.findHighestRevisionNumber(source.getId()) + 1));
             source.useRevision(revision.getId());
             sources.saveAndFlush(source);
 
@@ -362,7 +407,8 @@ class ConnectorReconciler {
             ConnectorIngestionContext ctx,
             ConnectorContentItem content,
             List<SourceAclEntryCommand> entries,
-            Instant validUntil) {
+            Instant validUntil,
+            UUID expectedCurrentSnapshotId) {
         return new RegisterRawSourceCommand(
                 ctx.organizationId(),
                 null,
@@ -380,7 +426,8 @@ class ConnectorReconciler {
                 AclCaptureStatus.COMPLETE,
                 AccessGate.DENY,
                 validUntil,
-                entries);
+                entries,
+                expectedCurrentSnapshotId);
     }
 
     private ResolvedPrincipal resolve(
@@ -464,6 +511,6 @@ class ConnectorReconciler {
     enum ObjectOutcome {
         MATERIALIZED,
         ROTATED,
-        ROTATED_CONTENT_DEFERRED
+        REMATERIALIZED
     }
 }
