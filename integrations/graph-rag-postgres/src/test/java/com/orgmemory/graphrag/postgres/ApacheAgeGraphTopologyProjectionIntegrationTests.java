@@ -118,13 +118,12 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
     }
 
     private static GraphRevisionContributions projectionBatch() {
-        CanonicalEntity source = new CanonicalEntity(SOURCE_ID, "OrgMemory", "PRODUCT");
-        CanonicalEntity target = new CanonicalEntity(TARGET_ID, "Secure Search", "CAPABILITY");
+        CanonicalEntity source = new CanonicalEntity(SOURCE_ID, "OrgMemory");
+        CanonicalEntity target = new CanonicalEntity(TARGET_ID, "Secure Search");
         CanonicalRelation relation = new CanonicalRelation(
                 RELATION_ID,
                 SOURCE_ID,
                 TARGET_ID,
-                "BUILDS",
                 RelationOrientation.DIRECTED);
         EvidenceProvenance provenance = new EvidenceProvenance(
                 new EvidenceReference(
@@ -149,18 +148,22 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
                         new EntityContribution(
                                 id("age-source-contribution"),
                                 source,
+                                "PRODUCT",
                                 "sensitive evidence description",
                                 provenance),
                         new EntityContribution(
                                 id("age-target-contribution"),
                                 target,
+                                "CAPABILITY",
                                 "another sensitive description",
                                 provenance)),
                 List.of(new RelationContribution(
                         RELATION_CONTRIBUTION_ID,
                         relation,
+                        "BUILDS",
                         List.of("sensitive"),
                         "sensitive evidence description",
+                        1.0,
                         provenance)));
     }
 

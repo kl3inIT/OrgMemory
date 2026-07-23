@@ -153,7 +153,7 @@ public class KnowledgeChunkProjectionStore {
             long projectionGeneration) {
         return jdbc.query(
                 """
-                SELECT id, chunk_index, content
+                SELECT id, chunk_index, content, heading
                 FROM knowledge_chunks
                 WHERE organization_id = :organizationId
                   AND source_revision_id = :sourceRevisionId
@@ -172,7 +172,8 @@ public class KnowledgeChunkProjectionStore {
                 (resultSet, rowNumber) -> new GraphIndexChunk(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getInt("chunk_index"),
-                        resultSet.getString("content")));
+                        resultSet.getString("content"),
+                        resultSet.getString("heading")));
     }
 
 }

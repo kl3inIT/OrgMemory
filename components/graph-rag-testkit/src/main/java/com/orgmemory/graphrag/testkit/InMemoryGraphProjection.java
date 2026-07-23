@@ -256,7 +256,7 @@ public final class InMemoryGraphProjection
         if (normalizedName.contains(query)) {
             return 2.0;
         }
-        if (entity.type().toLowerCase(Locale.ROOT).contains(query)
+        if (contribution.type().toLowerCase(Locale.ROOT).contains(query)
                 || contribution.description().toLowerCase(Locale.ROOT).contains(query)) {
             return 1.0;
         }
@@ -264,7 +264,7 @@ public final class InMemoryGraphProjection
     }
 
     private static double relationScore(RelationContribution contribution, String query) {
-        if (contribution.relation().type().toLowerCase(Locale.ROOT).contains(query)) {
+        if (contribution.type().toLowerCase(Locale.ROOT).contains(query)) {
             return 2.0;
         }
         boolean keywordMatch = contribution.keywords().stream()

@@ -46,15 +46,15 @@ exists.
 | Chunking | Semantic-vector strategy | Batched embedding adapter, four threshold modes, deterministic breakpoints and hard-cap enforcement | implemented | 3 |
 | Chunking | Paragraph-semantic strategy | Structured blocks, table-row/header handling, short-paragraph anchors, part labels and level-aware merge | implemented | 3 |
 | Chunking | Per-document strategy options and version snapshot | Requested/actual components and options, tokenizer/embedding ids, canonical hash and profile hash persist per revision | implemented | 3 |
-| Multimodal | Sidecar interchange format | None | missing | 4 |
-| Multimodal | Image, table and equation extraction | None | missing | 4 |
-| Multimodal | Surrounding-context enrichment and VLM analysis | None | missing | 4 |
-| Extraction | Structured entity/relation extraction | Spring AI adapter | implemented | 5 parity hardening |
-| Extraction | Continuation/gleaning | None | missing | 5 |
-| Extraction | Configurable entity-type guidance and language profile | Fixed prompt guidance | partial | 5 |
-| Extraction | Relation keywords, weight and binary decomposition | Keywords/decomposition exist; weight parity is incomplete | partial | 5 |
-| Extraction | Entity/relation profiling and description summarization | Per-contribution descriptions only | partial | 5 |
-| Indexing | Deduplication and canonical merge | Deterministic identities exist | partial | 5 |
+| Multimodal | Sidecar interchange format | Validated LightRAG split-bundle decoder with canonical hashes, anchors and opaque artifacts | implemented | 4 |
+| Multimodal | Image, table and equation extraction | Executable multimodal core plus Spring AI image/text-analysis adapter and terminal outcome contract | implemented | 4 |
+| Multimodal | Surrounding-context enrichment and VLM analysis | Token-bounded surrounding context, policy preflight, content-addressed invocation identity and derived chunks | implemented | 4 |
+| Extraction | Structured entity/relation extraction | Pure-Java prompt/orchestration with Spring AI invocation and structured-response adapter | implemented | 5 |
+| Extraction | Continuation/gleaning | Full initial-assistant-continuation conversation, token guard, correction merge and endpoint validation | implemented | 5 |
+| Extraction | Configurable entity-type guidance and language profile | Immutable guidance, trusted examples, language, token-bounded section context and response limits included in the extraction-profile fingerprint | implemented | 5 |
+| Extraction | Relation keywords, weight and binary decomposition | Binary relations, evidence-scoped type/keywords, positive support weight and visible-only aggregation | implemented | 5 |
+| Extraction | Entity/relation profiling and description summarization | Per-round provider/estimated tokens and latency plus executable permission-scoped iterative map/reduce summarization | implemented | 5 |
+| Indexing | Deduplication and canonical merge | Deterministic name/endpoint identities with evidence-scoped semantic contributions and type-drift tests | implemented | 5 |
 | Indexing | Incremental update without full rebuild | Revision replacement exists | partial | 5, 6 |
 | Indexing | Atomic publication and failed-batch abort | Durable PostgreSQL publication | implemented | 6 conformance |
 | Lifecycle | Delete document and rebuild remaining contributions | Revision replacement primitive only | partial | 6 |

@@ -35,22 +35,20 @@ class InMemoryGraphProjectionSecurityTests {
     private static final UUID SECRET_RELATION_ID = id("secret-relation");
 
     private final CanonicalEntity sharedEntity =
-            new CanonicalEntity(SHARED_ENTITY_ID, "OrgMemory", "PRODUCT");
+            new CanonicalEntity(SHARED_ENTITY_ID, "OrgMemory");
     private final CanonicalEntity publicNeighbor =
-            new CanonicalEntity(PUBLIC_NEIGHBOR_ID, "Secure Search", "CAPABILITY");
+            new CanonicalEntity(PUBLIC_NEIGHBOR_ID, "Secure Search");
     private final CanonicalEntity secretNeighbor =
-            new CanonicalEntity(SECRET_NEIGHBOR_ID, "Project Nightfall", "INITIATIVE");
+            new CanonicalEntity(SECRET_NEIGHBOR_ID, "Project Nightfall");
     private final CanonicalRelation publicRelation = new CanonicalRelation(
             PUBLIC_RELATION_ID,
             SHARED_ENTITY_ID,
             PUBLIC_NEIGHBOR_ID,
-            "BUILDS",
             RelationOrientation.DIRECTED);
     private final CanonicalRelation secretRelation = new CanonicalRelation(
             SECRET_RELATION_ID,
             SHARED_ENTITY_ID,
             SECRET_NEIGHBOR_ID,
-            "ACQUIRES",
             RelationOrientation.DIRECTED);
 
     private InMemoryGraphProjection projection;
@@ -203,6 +201,7 @@ class InMemoryGraphProjectionSecurityTests {
         EntityContribution collidingContribution = new EntityContribution(
                 id("restricted-shared"),
                 sharedEntity,
+                "PRODUCT",
                 "This id belongs to the restricted revision.",
                 provenance(
                         "replacement-collision",
@@ -250,8 +249,19 @@ class InMemoryGraphProjectionSecurityTests {
         return new EntityContribution(
                 id(key),
                 entity,
+                typeFor(entity),
                 description,
                 provenance(key, assetId, revisionId, confidence));
+    }
+
+    private static String typeFor(CanonicalEntity entity) {
+        if (SHARED_ENTITY_ID.equals(entity.id())) {
+            return "PRODUCT";
+        }
+        if (PUBLIC_NEIGHBOR_ID.equals(entity.id())) {
+            return "CAPABILITY";
+        }
+        return "INITIATIVE";
     }
 
     private static RelationContribution relationContribution(
@@ -265,9 +275,15 @@ class InMemoryGraphProjectionSecurityTests {
         return new RelationContribution(
                 id(key),
                 relation,
+                typeFor(relation),
                 keywords,
                 description,
+                1.0,
                 provenance(key, assetId, revisionId, confidence));
+    }
+
+    private static String typeFor(CanonicalRelation relation) {
+        return PUBLIC_RELATION_ID.equals(relation.id()) ? "BUILDS" : "ACQUIRES";
     }
 
     private static EvidenceProvenance provenance(

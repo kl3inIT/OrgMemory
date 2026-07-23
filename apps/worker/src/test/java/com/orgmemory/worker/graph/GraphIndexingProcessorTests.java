@@ -53,6 +53,7 @@ class GraphIndexingProcessorTests {
     private static final UUID ACL_SNAPSHOT_ID = UUID.randomUUID();
     private static final UUID EMBEDDING_PROFILE_ID = UUID.randomUUID();
     private static final UUID CHUNK_ID = UUID.randomUUID();
+    private static final UUID SECOND_CHUNK_ID = UUID.randomUUID();
 
     @Test
     void publishesOneAtomicProjectionAndCompletesTheDurableJob() {
@@ -62,36 +63,54 @@ class GraphIndexingProcessorTests {
         EmbeddingModel embeddingModel = mock(EmbeddingModel.class);
         AiRouteResolver routes = mock(AiRouteResolver.class);
         GraphIndexingProperties properties = properties();
-        ClaimedGraphIndex claim = claim();
+        ClaimedGraphIndex claim = claim(List.of(
+                new GraphIndexChunk(
+                        CHUNK_ID,
+                        0,
+                        "OrgMemory builds secure retrieval.",
+                        "Engineering > Search"),
+                new GraphIndexChunk(
+                        SECOND_CHUNK_ID,
+                        1,
+                        "OrgMemory also builds secure retrieval.",
+                        "Engineering > Search")));
         when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
                 .thenReturn(Optional.of(claim));
         when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
                 .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
         when(routes.resolve(AiWorkload.DOCUMENT_EMBEDDING))
                 .thenReturn(new AiRoute("openai", "text-embedding-3-large"));
-        EntityRelationExtractor extractor = request -> new ExtractionResult(
-                request.profile(),
-                List.of(
-                        new ExtractedEntity(
-                                "source", "OrgMemory", "product",
-                                "Enterprise memory platform", 0.98),
-                        new ExtractedEntity(
-                                "target", "Secure Search", "capability",
-                                "Permission-aware retrieval", 0.97)),
-                List.of(new ExtractedRelation(
-                        "source",
-                        "target",
-                        "builds",
-                        List.of("security", "retrieval"),
-                        "OrgMemory builds Secure Search",
-                        RelationOrientation.DIRECTED,
-                        0.96)));
+        EntityRelationExtractor extractor = request -> {
+            assertEquals("Engineering > Search", request.sectionContext());
+            return new ExtractionResult(
+                    request.profile(),
+                    List.of(
+                            new ExtractedEntity(
+                                    "source", "OrgMemory", "product",
+                                    "Enterprise memory platform", 0.98),
+                            new ExtractedEntity(
+                                    "target", "Secure Search", "capability",
+                                    "Permission-aware retrieval", 0.97)),
+                    List.of(new ExtractedRelation(
+                            "source",
+                            "target",
+                            "builds",
+                            List.of("security", "retrieval"),
+                            "OrgMemory builds Secure Search",
+                            RelationOrientation.DIRECTED,
+                            0.96)));
+        };
         when(extractors.create(new AiRoute("openai", "gpt-5.6-sol")))
                 .thenReturn(extractor);
         when(embeddingModel.embed(
                         anyList(), isNull(), any(TokenCountBatchingStrategy.class)))
                 .thenAnswer(invocation -> {
                     List<Document> documents = invocation.getArgument(0);
+                    assertEquals(6, documents.size());
+                    assertTrue(documents.getLast().getText().contains("orgmemory"));
+                    assertTrue(documents.getLast().getText().contains("secure search"));
+                    assertTrue(documents.getLast().getText().contains("retrieval"));
+                    assertTrue(documents.getLast().getText().contains("security"));
                     return documents.stream()
                             .map(ignored -> new float[] {1.0f, 0.0f, 0.0f})
                             .toList();
@@ -114,10 +133,10 @@ class GraphIndexingProcessorTests {
                 org.mockito.ArgumentMatchers.eq(properties.workerId()),
                 org.mockito.ArgumentMatchers.eq(properties.leaseDuration()),
                 projection.capture());
-        assertEquals(2, projection.getValue().contributions().entities().size());
-        assertEquals(1, projection.getValue().contributions().relations().size());
-        assertEquals(2, projection.getValue().embeddings().entityEmbeddings().size());
-        assertEquals(1, projection.getValue().embeddings().relationEmbeddings().size());
+        assertEquals(4, projection.getValue().contributions().entities().size());
+        assertEquals(2, projection.getValue().contributions().relations().size());
+        assertEquals(4, projection.getValue().embeddings().entityEmbeddings().size());
+        assertEquals(2, projection.getValue().embeddings().relationEmbeddings().size());
         verify(coordinator, never()).complete(any(), any());
         verify(coordinator, never()).fail(any(), any(), any(), any());
     }
@@ -290,6 +309,11 @@ class GraphIndexingProcessorTests {
     }
 
     private static ClaimedGraphIndex claim() {
+        return claim(List.of(new GraphIndexChunk(
+                CHUNK_ID, 0, "OrgMemory builds secure retrieval.")));
+    }
+
+    private static ClaimedGraphIndex claim(List<GraphIndexChunk> chunks) {
         return new ClaimedGraphIndex(
                 JOB_ID,
                 ORGANIZATION_ID,
@@ -309,7 +333,7 @@ class GraphIndexingProcessorTests {
                         EmbeddingDistanceMetric.COSINE),
                 "en",
                 1,
-                List.of(new GraphIndexChunk(CHUNK_ID, 0, "OrgMemory builds secure retrieval.")));
+                chunks);
     }
 
     private static GraphIndexingProperties properties() {
@@ -324,7 +348,12 @@ class GraphIndexingProcessorTests {
                 leaseDuration,
                 2,
                 40,
-                60);
+                60,
+                null,
+                null,
+                1,
+                24_000,
+                256);
     }
 
     private static ObjectProvider<EmbeddingModel> provider(EmbeddingModel embeddingModel) {

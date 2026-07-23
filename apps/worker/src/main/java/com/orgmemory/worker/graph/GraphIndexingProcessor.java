@@ -16,11 +16,16 @@ import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
+import com.orgmemory.integrations.graphrag.springai.GraphExtractionException;
 import com.orgmemory.integrations.graphrag.springai.SpringAiEntityRelationExtractor;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,7 +80,12 @@ class GraphIndexingProcessor {
                     extractionRoute.modelId(),
                     SpringAiEntityRelationExtractor.PROMPT_VERSION,
                     properties.maximumEntitiesPerChunk(),
-                    properties.maximumRelationsPerChunk());
+                    properties.maximumRelationsPerChunk(),
+                    properties.entityTypeGuidance(),
+                    properties.extractionExamples(),
+                    properties.maximumGleaningRounds(),
+                    properties.maximumGleaningInputTokens(),
+                    properties.maximumSectionContextTokens());
             EntityRelationExtractor extractor = extractors.create(extractionRoute);
             List<ExtractedChunk> extracted = extractChunks(claim, extractionProfile, extractor);
             var contributions = GraphContributionAssembler.assemble(
@@ -105,13 +115,37 @@ class GraphIndexingProcessor {
                     "Graph indexing interrupted for job {}; leaving its lease to expire for retry",
                     claim.jobId());
         } catch (Exception failure) {
-            log.error(
-                    "Graph indexing failed for Knowledge Asset version {} on attempt {}",
-                    claim.knowledgeAssetVersionId(),
-                    claim.attempt(),
-                    failure);
+            logFailure(claim, failure);
             recordFailure(claim);
         }
+    }
+
+    private static void logFailure(ClaimedGraphIndex claim, Exception failure) {
+        GraphExtractionException extractionFailure = findExtractionFailure(failure);
+        if (extractionFailure != null) {
+            log.error(
+                    "Graph extraction failed for Knowledge Asset version {} on attempt {}: {}",
+                    claim.knowledgeAssetVersionId(),
+                    claim.attempt(),
+                    extractionFailure.getMessage());
+            return;
+        }
+        log.error(
+                "Graph indexing failed for Knowledge Asset version {} on attempt {}",
+                claim.knowledgeAssetVersionId(),
+                claim.attempt(),
+                failure);
+    }
+
+    private static GraphExtractionException findExtractionFailure(Throwable failure) {
+        Throwable current = failure;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            if (current instanceof GraphExtractionException extractionFailure) {
+                return extractionFailure;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private List<ExtractedChunk> extractChunks(
@@ -186,8 +220,23 @@ class GraphIndexingProcessor {
                 claim.sourceRevisionId(),
                 chunk.id(),
                 chunk.content(),
+                chunk.heading(),
                 Locale.forLanguageTag(claim.language()),
                 profile));
+        int estimatedInputTokens = result.diagnostics().rounds().stream()
+                .mapToInt(round -> round.estimatedInputTokens())
+                .sum();
+        long elapsedMillis = result.diagnostics().rounds().stream()
+                .map(round -> round.elapsed())
+                .reduce(java.time.Duration.ZERO, java.time.Duration::plus)
+                .toMillis();
+        log.debug(
+                "Extracted graph chunk {} in {} round(s), {} estimated input tokens, {} ms, gleaning={}",
+                chunk.id(),
+                result.diagnostics().rounds().size(),
+                estimatedInputTokens,
+                elapsedMillis,
+                result.diagnostics().gleaningOutcome());
         return new ExtractedChunk(chunk.id(), result);
     }
 
@@ -202,11 +251,17 @@ class GraphIndexingProcessor {
                     "Graph embeddings must use the immutable Knowledge Asset embedding profile");
         }
         List<Document> documents = new ArrayList<>(entities.size() + relations.size());
+        Map<EntityContributionKey, EntityContribution> entitiesByEvidence = entities.stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        entity -> new EntityContributionKey(
+                                entity.entity().id(),
+                                entity.provenance().chunkId()),
+                        Function.identity()));
         entities.stream()
                 .map(GraphIndexingProcessor::embeddingDocument)
                 .forEach(documents::add);
         relations.stream()
-                .map(GraphIndexingProcessor::embeddingDocument)
+                .map(relation -> embeddingDocument(relation, entitiesByEvidence))
                 .forEach(documents::add);
         List<float[]> vectors;
         if (documents.isEmpty()) {
@@ -246,18 +301,46 @@ class GraphIndexingProcessor {
     private static Document embeddingDocument(EntityContribution contribution) {
         return new Document("%s\n%s\n%s".formatted(
                 contribution.entity().normalizedName(),
-                contribution.entity().type(),
+                contribution.type(),
                 contribution.description()));
     }
 
-    private static Document embeddingDocument(RelationContribution contribution) {
-        return new Document("%s\n%s\n%s".formatted(
-                contribution.relation().type(),
+    private static Document embeddingDocument(
+            RelationContribution contribution,
+            Map<EntityContributionKey, EntityContribution> entitiesByEvidence) {
+        EntityContribution source = requiredEntity(
+                entitiesByEvidence,
+                contribution.relation().sourceEntityId(),
+                contribution.provenance().chunkId());
+        EntityContribution target = requiredEntity(
+                entitiesByEvidence,
+                contribution.relation().targetEntityId(),
+                contribution.provenance().chunkId());
+        return new Document("%s\t%s\n%s\n%s\n%s".formatted(
                 String.join(", ", contribution.keywords()),
+                contribution.type(),
+                source.entity().normalizedName(),
+                target.entity().normalizedName(),
                 contribution.description()));
+    }
+
+    private static EntityContribution requiredEntity(
+            Map<EntityContributionKey, EntityContribution> entitiesByEvidence,
+            UUID entityId,
+            UUID chunkId) {
+        EntityContribution contribution =
+                entitiesByEvidence.get(new EntityContributionKey(entityId, chunkId));
+        if (contribution == null) {
+            throw new IllegalStateException(
+                    "relation embedding endpoint has no contribution in the same evidence chunk");
+        }
+        return contribution;
     }
 
     private static FloatVector vector(float[] values) {
         return new FloatVector(values);
+    }
+
+    private record EntityContributionKey(UUID entityId, UUID chunkId) {
     }
 }

@@ -118,6 +118,18 @@ class PostgresGraphProjectionStoreIntegrationTests {
         assertTrue(store.searchRelations(allowedOnly, "acquisition", 10).isEmpty());
         assertEquals(
                 List.of(PUBLIC_RELATION_ID),
+                store.searchRelations(allowedOnly, "builds", 10).stream()
+                        .map(result -> result.value().id())
+                        .toList());
+        assertEquals(
+                List.of("BUILDS"),
+                store.loadRelationContributions(
+                                allowedOnly, List.of(PUBLIC_RELATION_ID))
+                        .stream()
+                        .map(RelationContribution::type)
+                        .toList());
+        assertEquals(
+                List.of(PUBLIC_RELATION_ID),
                 store.loadIncidentRelations(allowedOnly, List.of(SHARED_ENTITY_ID), 10)
                         .stream()
                         .map(CanonicalRelation::id)
@@ -136,6 +148,11 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 2L,
                 store.loadVisibleEntityDegrees(allPrimaryEvidence, List.of(SHARED_ENTITY_ID))
                         .get(SHARED_ENTITY_ID));
+        assertEquals(
+                1.0,
+                store.loadVisibleRelationWeights(
+                                allowedOnly, List.of(PUBLIC_RELATION_ID))
+                        .get(PUBLIC_RELATION_ID));
 
         assertEquals(
                 List.of(SHARED_ENTITY_ID),
@@ -333,7 +350,8 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
         EntityContribution conflictingIdentity = new EntityContribution(
                 id("conflicting-replacement"),
-                new CanonicalEntity(SHARED_ENTITY_ID, "Different identity", "PRODUCT"),
+                new CanonicalEntity(SHARED_ENTITY_ID, "Different identity"),
+                "PRODUCT",
                 "Must be rejected before replacing the current generation.",
                 provenance(
                         replacementAsset,
@@ -446,14 +464,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
             long generation,
             UUID chunkId) {
         CanonicalEntity shared = new CanonicalEntity(
-                SHARED_ENTITY_ID, "OrgMemory", "PRODUCT");
+                SHARED_ENTITY_ID, "OrgMemory");
         CanonicalEntity neighbor = new CanonicalEntity(
-                PUBLIC_NEIGHBOR_ID, "Secure Search", "CAPABILITY");
+                PUBLIC_NEIGHBOR_ID, "Secure Search");
         CanonicalRelation relation = new CanonicalRelation(
                 PUBLIC_RELATION_ID,
                 SHARED_ENTITY_ID,
                 PUBLIC_NEIGHBOR_ID,
-                "BUILDS",
                 RelationOrientation.DIRECTED);
         return new GraphRevisionContributions(
                 fixture.organizationId(),
@@ -490,14 +507,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     private static GraphRevisionContributions restrictedProjection(AssetFixture fixture) {
         CanonicalEntity shared = new CanonicalEntity(
-                SHARED_ENTITY_ID, "OrgMemory", "PRODUCT");
+                SHARED_ENTITY_ID, "OrgMemory");
         CanonicalEntity neighbor = new CanonicalEntity(
-                SECRET_NEIGHBOR_ID, "Project Nightfall", "INITIATIVE");
+                SECRET_NEIGHBOR_ID, "Project Nightfall");
         CanonicalRelation relation = new CanonicalRelation(
                 SECRET_RELATION_ID,
                 SHARED_ENTITY_ID,
                 SECRET_NEIGHBOR_ID,
-                "ACQUIRES",
                 RelationOrientation.DIRECTED);
         return new GraphRevisionContributions(
                 fixture.organizationId(),
@@ -585,8 +601,19 @@ class PostgresGraphProjectionStoreIntegrationTests {
         return new EntityContribution(
                 id(key),
                 entity,
+                entityType(entity),
                 description,
                 provenance(fixture, chunkId, generation, confidence));
+    }
+
+    private static String entityType(CanonicalEntity entity) {
+        if (SHARED_ENTITY_ID.equals(entity.id())) {
+            return "PRODUCT";
+        }
+        if (PUBLIC_NEIGHBOR_ID.equals(entity.id())) {
+            return "CAPABILITY";
+        }
+        return "INITIATIVE";
     }
 
     private static RelationContribution relationContribution(
@@ -601,8 +628,10 @@ class PostgresGraphProjectionStoreIntegrationTests {
         return new RelationContribution(
                 id(key),
                 relation,
+                PUBLIC_RELATION_ID.equals(relation.id()) ? "BUILDS" : "ACQUIRES",
                 keywords,
                 description,
+                1.0,
                 provenance(fixture, chunkId, generation, confidence));
     }
 
