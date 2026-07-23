@@ -18,13 +18,15 @@ public class KnowledgeChunkProjectionStore {
     private static final String INSERT_CHUNK_SQL = """
             INSERT INTO knowledge_chunks (
                 id, organization_id, source_object_id, source_revision_id,
-                knowledge_asset_id, chunk_index, content, content_sha256,
+                knowledge_asset_id, knowledge_asset_version_id,
+                chunk_index, content, content_sha256,
                 token_count, start_page, end_page, heading, embedding,
                 embedding_profile_id, embedding_dimensions, pipeline_version,
                 projection_generation, active, created_at
             ) VALUES (
                 :id, :organizationId, :sourceObjectId, :sourceRevisionId,
-                :knowledgeAssetId, :chunkIndex, :content, :contentSha256,
+                :knowledgeAssetId, :knowledgeAssetVersionId,
+                :chunkIndex, :content, :contentSha256,
                 :tokenCount, :startPage, :endPage, :heading,
                 CAST(:embedding AS vector), :embeddingProfileId,
                 :embeddingDimensions, :pipelineVersion,
@@ -44,6 +46,7 @@ public class KnowledgeChunkProjectionStore {
             UUID sourceObjectId,
             UUID sourceRevisionId,
             UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
             EmbeddingProfileRef embeddingProfile,
             String pipelineVersion,
             long projectionGeneration,
@@ -74,6 +77,7 @@ public class KnowledgeChunkProjectionStore {
                     .addValue("sourceObjectId", sourceObjectId)
                     .addValue("sourceRevisionId", sourceRevisionId)
                     .addValue("knowledgeAssetId", knowledgeAssetId)
+                    .addValue("knowledgeAssetVersionId", knowledgeAssetVersionId)
                     .addValue("chunkIndex", chunk.index())
                     .addValue("content", chunk.content())
                     .addValue("contentSha256", chunk.contentSha256())
@@ -99,6 +103,7 @@ public class KnowledgeChunkProjectionStore {
             UUID organizationId,
             UUID sourceRevisionId,
             UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
             long projectionGeneration) {
         return jdbc.update(
                 """
@@ -107,6 +112,7 @@ public class KnowledgeChunkProjectionStore {
                         WHERE organization_id = :organizationId
                           AND source_revision_id = :sourceRevisionId
                           AND knowledge_asset_id = :knowledgeAssetId
+                          AND knowledge_asset_version_id = :knowledgeAssetVersionId
                           AND projection_generation = :projectionGeneration
                           AND active = false
                         """,
@@ -114,6 +120,7 @@ public class KnowledgeChunkProjectionStore {
                         .addValue("organizationId", organizationId)
                         .addValue("sourceRevisionId", sourceRevisionId)
                         .addValue("knowledgeAssetId", knowledgeAssetId)
+                        .addValue("knowledgeAssetVersionId", knowledgeAssetVersionId)
                         .addValue("projectionGeneration", projectionGeneration));
     }
 

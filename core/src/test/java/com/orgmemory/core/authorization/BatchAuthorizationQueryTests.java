@@ -13,8 +13,8 @@ class BatchAuthorizationQueryTests {
     @Test
     void keepsContextualRelationshipsScopedToTheirRequestedResource() {
         UUID organizationId = UUID.randomUUID();
-        ResourceRef requested = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
-        ResourceRef unrelated = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        ResourceRef requested = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
+        ResourceRef unrelated = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
         ContextualRelationship relationship = ContextualRelationship.of(
                 "user:" + UUID.randomUUID(), "owner", requested.openFgaObject());
 

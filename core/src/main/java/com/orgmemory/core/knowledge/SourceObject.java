@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -55,6 +56,9 @@ class SourceObject extends BaseEntity {
 
     @Column(name = "current_revision_id")
     private UUID currentRevisionId;
+
+    @Column(name = "latest_revision_id")
+    private UUID latestRevisionId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
@@ -144,7 +148,20 @@ class SourceObject extends BaseEntity {
                 declaredAccess);
     }
 
-    void useRevision(UUID revisionId) {
+    void stageRevision(UUID revisionId) {
+        if (status != SourceObjectStatus.ACTIVE) {
+            throw new IllegalStateException("An archived source object cannot accept a revision");
+        }
+        latestRevisionId = revisionId;
+    }
+
+    void publishRevision(UUID revisionId) {
+        if (status != SourceObjectStatus.ACTIVE) {
+            throw new IllegalStateException("An archived source object cannot publish a revision");
+        }
+        if (!Objects.equals(latestRevisionId, revisionId)) {
+            throw new IllegalStateException("Only the latest source revision can be published");
+        }
         this.currentRevisionId = revisionId;
     }
 
@@ -203,5 +220,9 @@ class SourceObject extends BaseEntity {
 
     UUID getCurrentRevisionId() {
         return currentRevisionId;
+    }
+
+    UUID getLatestRevisionId() {
+        return latestRevisionId;
     }
 }

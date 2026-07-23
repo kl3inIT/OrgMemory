@@ -18,6 +18,7 @@ import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -72,6 +73,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
         "orgmemory.ingestion.processing.scheduling-enabled=false",
+        "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.ingestion.processing.embedding-model=text-embedding-3-large",
         "orgmemory.ingestion.processing.embedding-dimensions=1536"
 })
@@ -103,6 +105,9 @@ class SourceIngestionPipelineIntegrationTests {
 
     @MockitoBean
     RelationshipTupleWritePort relationshipTuples;
+
+    @MockitoBean
+    RelationshipTupleReconciliationPort relationshipTupleReconciliation;
 
     @MockitoBean
     RelationshipAuthorizationPort entryAuthorization;
@@ -206,7 +211,13 @@ class SourceIngestionPipelineIntegrationTests {
         assertEquals(
                 "ACTIVE",
                 jdbc.queryForObject(
-                        "SELECT status FROM knowledge_assets WHERE id = ?",
+                        """
+                        SELECT version.status
+                        FROM knowledge_assets asset
+                        JOIN knowledge_asset_versions version
+                          ON version.id = asset.current_version_id
+                        WHERE asset.id = ?
+                        """,
                         String.class,
                         revision.get("knowledge_asset_id")));
         assertEquals(
@@ -236,7 +247,7 @@ class SourceIngestionPipelineIntegrationTests {
         assertEquals(
                 "SUCCEEDED",
                 jdbc.queryForObject(
-                        "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT current_revision_id FROM source_objects WHERE id = ?)",
+                        "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT latest_revision_id FROM source_objects WHERE id = ?)",
                         String.class,
                         source.id()));
         var publication = jdbc.queryForMap(
@@ -408,17 +419,18 @@ class SourceIngestionPipelineIntegrationTests {
         var state = jdbc.queryForMap(
                 """
                         SELECT r.status AS revision_status,
-                               ka.status AS asset_status,
+                               kav.status AS asset_status,
                                p.status AS publication_status,
                                p.attempt_count,
                                p.last_error_code,
                                bool_and(NOT c.active) AS all_chunks_inactive
                         FROM source_revisions r
                         JOIN knowledge_asset_publication_outbox p ON p.source_revision_id = r.id
-                        JOIN knowledge_assets ka ON ka.id = p.knowledge_asset_id
-                        JOIN knowledge_chunks c ON c.knowledge_asset_id = ka.id
+                        JOIN knowledge_asset_versions kav ON kav.id = p.knowledge_asset_version_id
+                        JOIN knowledge_chunks c
+                          ON c.knowledge_asset_version_id = kav.id
                         WHERE r.source_object_id = ?
-                        GROUP BY r.status, ka.status, p.status, p.attempt_count, p.last_error_code
+                        GROUP BY r.status, kav.status, p.status, p.attempt_count, p.last_error_code
                         """,
                 source.id());
         assertEquals("RECEIVED", state.get("revision_status"));
@@ -430,7 +442,7 @@ class SourceIngestionPipelineIntegrationTests {
         assertEquals(
                 "PENDING",
                 jdbc.queryForObject(
-                        "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT current_revision_id FROM source_objects WHERE id = ?)",
+                        "SELECT status FROM source_ingestion_jobs WHERE source_revision_id = (SELECT latest_revision_id FROM source_objects WHERE id = ?)",
                         String.class,
                         source.id()));
 
@@ -445,7 +457,7 @@ class SourceIngestionPipelineIntegrationTests {
                         UPDATE source_ingestion_jobs
                         SET available_at = now() - interval '1 minute'
                         WHERE source_revision_id = (
-                            SELECT current_revision_id FROM source_objects WHERE id = ?
+                            SELECT latest_revision_id FROM source_objects WHERE id = ?
                         )
                         """,
                 source.id());
@@ -455,16 +467,17 @@ class SourceIngestionPipelineIntegrationTests {
         var converged = jdbc.queryForMap(
                 """
                         SELECT r.status AS revision_status,
-                               ka.status AS asset_status,
+                               kav.status AS asset_status,
                                p.status AS publication_status,
                                p.attempt_count,
                                bool_and(c.active) AS all_chunks_active
                         FROM source_revisions r
                         JOIN knowledge_asset_publication_outbox p ON p.source_revision_id = r.id
-                        JOIN knowledge_assets ka ON ka.id = p.knowledge_asset_id
-                        JOIN knowledge_chunks c ON c.knowledge_asset_id = ka.id
+                        JOIN knowledge_asset_versions kav ON kav.id = p.knowledge_asset_version_id
+                        JOIN knowledge_chunks c
+                          ON c.knowledge_asset_version_id = kav.id
                         WHERE r.source_object_id = ?
-                        GROUP BY r.status, ka.status, p.status, p.attempt_count
+                        GROUP BY r.status, kav.status, p.status, p.attempt_count
                         """,
                 source.id());
         assertEquals("READY", converged.get("revision_status"));

@@ -12,15 +12,31 @@ services:
       - ./keycloak/orgmemory-realm.json:/opt/keycloak/data/import/orgmemory-realm.json:ro
 
   postgres:
-    image: pgvector/pgvector:pg18
+    image: orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
+    build:
+      context: .
+      dockerfile: infrastructure/postgres-rag/Dockerfile
     environment:
       POSTGRES_DB: orgmemory
       POSTGRES_USER: orgmemory
       POSTGRES_PASSWORD: orgmemory
+      OPENFGA_POSTGRES_DB: openfga
+      OPENFGA_POSTGRES_USER: openfga
+      OPENFGA_POSTGRES_PASSWORD: openfga
     ports:
       - "55432:5432"
     volumes:
       - orgmemory_pg:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U orgmemory -d orgmemory && psql -U orgmemory -d orgmemory -Atqc \"SELECT count(*) = 2 FROM pg_extension WHERE extname IN ('age', 'vector')\" | grep -qx t",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     labels:
       org.springframework.boot.service-connection: postgres
 
@@ -41,19 +57,20 @@ services:
     volumes:
       - orgmemory_minio:/data
 
-  openfga-postgres:
-    image: postgres:18-alpine
+  postgres-openfga-bootstrap:
+    image: orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
+    entrypoint: ["/docker-entrypoint-initdb.d/01-create-openfga-database.sh"]
     environment:
-      POSTGRES_DB: openfga
-      POSTGRES_USER: openfga
-      POSTGRES_PASSWORD: openfga
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U openfga -d openfga"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-    volumes:
-      - openfga_pg:/var/lib/postgresql
+      POSTGRES_DB: orgmemory
+      POSTGRES_USER: orgmemory
+      PGPASSWORD: orgmemory
+      PGHOST: postgres
+      OPENFGA_POSTGRES_DB: openfga
+      OPENFGA_POSTGRES_USER: openfga
+      OPENFGA_POSTGRES_PASSWORD: openfga
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   openfga-migrate:
     image: openfga/openfga:v1.18.1
@@ -62,10 +79,10 @@ services:
       - --datastore-engine
       - postgres
       - --datastore-uri
-      - postgres://openfga:openfga@openfga-postgres:5432/openfga?sslmode=disable
+      - postgres://openfga:openfga@postgres:5432/openfga?sslmode=disable
     depends_on:
-      openfga-postgres:
-        condition: service_healthy
+      postgres-openfga-bootstrap:
+        condition: service_completed_successfully
 
   openfga:
     image: openfga/openfga:v1.18.1
@@ -74,7 +91,7 @@ services:
       - --datastore-engine
       - postgres
       - --datastore-uri
-      - postgres://openfga:openfga@openfga-postgres:5432/openfga?sslmode=disable
+      - postgres://openfga:openfga@postgres:5432/openfga?sslmode=disable
       - --playground-enabled=false
     ports:
       - "8081:8080"
@@ -85,5 +102,4 @@ services:
 
 volumes:
   orgmemory_pg:
-  openfga_pg:
   orgmemory_minio:

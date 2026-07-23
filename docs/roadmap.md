@@ -5,17 +5,18 @@ belongs in one active increment.
 
 ## Shipped Foundation
 
-- Capability Asset registry lifecycle, ownership, versions, approval, and usage.
 - OIDC issuer/subject identity linking with server-derived current actor.
-- Service/test-backed one-leaf knowledge ingestion persistence.
+- Canonical source ledger with stable Knowledge Asset identities, immutable
+  versions, append-only evidence links, and monotonically increasing source
+  revisions.
 - Sealed ACL evidence, rotating current head, fail-closed SQL prefilter, Java
   recheck, generic denied resource `404`, and append-only retrieval audit.
 - Knowledge Space-targeted upload with OpenFGA `can_create_asset` pre-write
-  authorization and atomic Space/owner publication tuples.
+  authorization and durable Space/owner publication tuples.
 - API, worker, and MCP deployable scaffolds.
 - Northstar-style repository harness and current dependency baseline.
 - Exact OIDC provider logout, dev-only Swagger, production configuration
-  fail-fast guards, and set-based Capability Asset list authorization/counts.
+  fail-fast guards, and explicit issuer/subject identity binding.
 - A versioned connector staging contract with a fixture-driven Slack crawl that
   converges membership through sealed generations.
 - An administration surface over the identity ledger: users with their sign-in
@@ -28,6 +29,13 @@ belongs in one active increment.
 - Two source adapters — Slack and Google Drive — proving the connector shape
   holds: an adapter contributes a profile, a batch source and a credential probe,
   and nothing in `core`, the API or the schema learns its name.
+- A framework-neutral secure GraphRAG kernel/testkit and a versioned Spring AI
+  structured extraction adapter with deterministic, network-free tests.
+- A secure PostgreSQL GraphRAG projection with evidence-level ACL/provenance,
+  pgvector entity/relation indexes, Apache AGE topology candidates, bounded
+  recursive fallback, atomic revision replacement, and bounded batches.
+- Independent publication transactions plus worker reconciliation for retry,
+  obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -39,11 +47,9 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Next — Shared Agent Tools And Secure Graph
 
-- Converge persistent Capability Asset tuples and add server-side pagination to
-  the now set-authorized Capability Asset registry.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
-- Add graph core/testkit and PostgreSQL/Spring AI adapters with evidence-level
-  contributions and permission-scoped local/global/mix retrieval.
+- Wire worker extraction/indexing and permission-scoped runtime graph retrieval
+  over the shipped graph contracts and PostgreSQL projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration

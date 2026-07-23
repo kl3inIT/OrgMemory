@@ -1,6 +1,5 @@
 package com.orgmemory.api;
 
-import com.orgmemory.core.capability.CapabilityAssetNotFoundException;
 import com.orgmemory.core.assistant.AssistantUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
@@ -30,11 +29,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
-
-    @ExceptionHandler(CapabilityAssetNotFoundException.class)
-    ProblemDetail notFound(RuntimeException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
-    }
 
     @ExceptionHandler(OrgMemoryAccessDeniedException.class)
     ProblemDetail accessDenied(OrgMemoryAccessDeniedException e) {

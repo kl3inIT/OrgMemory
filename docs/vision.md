@@ -11,10 +11,9 @@ capture/import -> stage -> normalize -> ground -> review -> publish
 -> reuse -> measure -> transfer -> retire
 ```
 
-A Knowledge Asset is trusted, citable knowledge. A Capability Asset is reusable
-AI work with inputs, outputs, owner, backup owner, version, approval, risk,
-usage, and handover value. A possible reusable workflow is a candidate until a
-human approves it.
+A Knowledge Asset is trusted, citable knowledge. Reusable workflows, prompts,
+and agent procedures may later become governed capability candidates, but that
+separate product lifecycle is not implemented in the current repository.
 
 ## Product Boundary
 
@@ -82,9 +81,12 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `EvidenceBlob`: object-store binary plus integrity and scan metadata.
 - `NormalizedRecord`: parsed and cleaned content.
 - `GraphCandidate`: extracted facts awaiting validation/publication.
-- `KnowledgeAsset`: approved knowledge with active provenance and ACL state.
+- `KnowledgeAsset`: stable governed identity for approved knowledge.
+- `KnowledgeAssetVersion`: immutable content and security provenance selected
+  by the stable asset's current-version pointer.
 - `CapabilityCandidate`: possible reusable AI workflow.
-- `CapabilityAsset`: approved, versioned, reusable capability.
+- `CapabilityAsset`: possible future approved, versioned reusable capability;
+  not part of the current implementation.
 
 Manual upload is a first-class source and follows the same quarantine, scan,
 parse, ACL, indexing, review, and audit pipeline as connectors.
@@ -137,10 +139,18 @@ custom graph retriever.
 
 Implement a LightRAG-inspired secure graph kernel in Java; do not port the
 Python server, WebUI, provider bindings, or storage catalog file by file. V1 uses
-PostgreSQL graph tables, recursive CTEs, and pgvector behind ports. Every entity
-or relation contribution retains source revision, chunk, asset, ACL generation,
-extractor/model/prompt version, confidence, and provenance. Permission filtering
-occurs before seed ranking and at every traversal/citation boundary.
+PostgreSQL graph tables, batched one-hop relational queries, and pgvector behind
+ports. A bounded recursive query is reserved for an explicit graph-explorer or
+measured multi-hop requirement. Every entity or relation contribution retains
+source revision, chunk, asset, ACL generation, extractor/model/prompt version,
+confidence, and provenance. Permission filtering occurs before seed ranking and
+at every traversal/citation boundary.
+
+The product exposes one stable graph-assisted retrieval API. Its internal
+planner can compose chunk-only, entity-only, relation-only, secure-hybrid, and
+secure-mix strategies from chunk, entity, and relation channels. `SECURE_MIX`
+is the default; strategy selection is not a user-controlled request parameter.
+LightRAG's mode names do not become OrgMemory API options.
 
 Neo4j is optional only when measured traversal or algorithm requirements justify
 it. It would be a rebuildable projection, not the canonical ledger.

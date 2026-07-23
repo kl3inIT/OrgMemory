@@ -44,6 +44,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static final UUID SNAPSHOT = UUID.fromString("f0000000-0000-4000-8000-0000000000b9");
     private static final UUID NORMALIZED = UUID.fromString("f0000000-0000-4000-8000-0000000000ba");
     private static final UUID ASSET = UUID.fromString("f0000000-0000-4000-8000-0000000000bb");
+    private static final UUID ASSET_VERSION = UUID.fromString("f0000000-0000-4000-8000-0000000000c1");
     private static final UUID OBJECT = UUID.fromString("f0000000-0000-4000-8000-0000000000bc");
     private static final UUID REVISION = UUID.fromString("f0000000-0000-4000-8000-0000000000bd");
     private static final UUID CHUNK = UUID.fromString("f0000000-0000-4000-8000-0000000000be");
@@ -57,6 +58,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static final UUID CUR_SNAPSHOT = UUID.fromString("f0000000-0000-4000-8000-0000000000d3");
     private static final UUID NORMALIZED2 = UUID.fromString("f0000000-0000-4000-8000-0000000000d4");
     private static final UUID ASSET2 = UUID.fromString("f0000000-0000-4000-8000-0000000000d5");
+    private static final UUID ASSET_VERSION2 = UUID.fromString("f0000000-0000-4000-8000-0000000000da");
     private static final UUID OBJECT2 = UUID.fromString("f0000000-0000-4000-8000-0000000000d6");
     private static final UUID REVISION2 = UUID.fromString("f0000000-0000-4000-8000-0000000000d7");
     private static final UUID CHUNK2 = UUID.fromString("f0000000-0000-4000-8000-0000000000d8");
@@ -243,15 +245,6 @@ class ExternalPrincipalRetrievalIntegrationTests {
                     'INTERNAL', 'ALL_EMPLOYEES', ?, 'PROMOTED', now(), now(), 0)
                 """, NORMALIZED, ORG, RAW, SNAPSHOT, SHA);
 
-        jdbc.update("""
-                INSERT INTO knowledge_assets (
-                    id, organization_id, raw_source_object_id, normalized_record_id, source_acl_snapshot_id,
-                    knowledge_space_id, title, content, language, classification, declared_access, content_sha256,
-                    orgmemory_gate, status, activated_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, 'Slack doc', 'normalized body', 'en', 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0)
-                """, ASSET, ORG, RAW, NORMALIZED, SNAPSHOT, SPACE, SHA);
-
         // Source object carries acl_authority SOURCE (drives the ADR 0009 live-source ceiling).
         jdbc.update("""
                 INSERT INTO source_objects (
@@ -261,6 +254,13 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 VALUES (?, ?, ?, ?, 'SOURCE', 'slack', 'T-workspace', 'C-doc-1', 'Slack doc', 'INTERNAL',
                     'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT, ORG, AN_USER, SPACE);
+
+        jdbc.update("""
+                INSERT INTO knowledge_assets (
+                    id, organization_id, knowledge_space_id, source_object_id, current_version_id,
+                    archived_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, NULL, NULL, now(), now(), 0)
+                """, ASSET, ORG, SPACE, OBJECT);
 
         jdbc.update("""
                 INSERT INTO source_revisions (
@@ -273,26 +273,56 @@ class ExternalPrincipalRetrievalIntegrationTests {
                     ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, now(), now(), now(), 0)
                 """, REVISION, ORG, OBJECT, SPACE, BLOB, SHA, AN_USER, PROFILE, RAW, NORMALIZED, ASSET);
 
-        jdbc.update("UPDATE source_objects SET current_revision_id = ?, updated_at = now() WHERE id = ?",
-                REVISION, OBJECT);
+        insertAssetVersion(
+                ASSET_VERSION,
+                ASSET,
+                REVISION,
+                RAW,
+                NORMALIZED,
+                SNAPSHOT,
+                "Slack doc",
+                "normalized body");
+        jdbc.update(
+                """
+                UPDATE source_revisions
+                SET knowledge_asset_version_id = ?
+                WHERE id = ?
+                """,
+                ASSET_VERSION,
+                REVISION);
+        jdbc.update(
+                """
+                UPDATE source_objects
+                SET current_revision_id = ?, latest_revision_id = ?, updated_at = now()
+                WHERE id = ?
+                """,
+                REVISION,
+                REVISION,
+                OBJECT);
+        jdbc.update(
+                "UPDATE knowledge_assets SET current_version_id = ?, updated_at = now() WHERE id = ?",
+                ASSET_VERSION,
+                ASSET);
 
         jdbc.update("""
                 INSERT INTO knowledge_chunks (
                     id, organization_id, source_object_id, source_revision_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     chunk_index, content, content_sha256, embedding, embedding_profile_id,
                     embedding_dimensions, pipeline_version, projection_generation, active, created_at)
-                VALUES (?, ?, ?, ?, ?, 0, 'normalized body', ?, '[0.1,0.2,0.3]'::vector, ?, 3,
+                VALUES (?, ?, ?, ?, ?, ?, 0, 'normalized body', ?, '[0.1,0.2,0.3]'::vector, ?, 3,
                     'pipe-v1', 1, true, now())
-                """, CHUNK, ORG, OBJECT, REVISION, ASSET, SHA, PROFILE);
+                """, CHUNK, ORG, OBJECT, REVISION, ASSET, ASSET_VERSION, SHA, PROFILE);
 
         jdbc.update("""
                 INSERT INTO knowledge_asset_publication_outbox (
                     id, organization_id, source_revision_id, source_object_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     knowledge_space_id, owner_user_id, projection_generation, embedding_profile_id,
                     embedding_dimensions, pipeline_version, status, attempt_count, authorization_model_id,
                     applied_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?, now(), now(), now(), 0)
-                """, PUBLICATION, ORG, REVISION, OBJECT, ASSET, SPACE, AN_USER, PROFILE, MODEL_ID);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?, now(), now(), now(), 0)
+                """, PUBLICATION, ORG, REVISION, OBJECT, ASSET, ASSET_VERSION, SPACE, AN_USER, PROFILE, MODEL_ID);
     }
 
     private static void seedCeilingLedger() {
@@ -355,15 +385,6 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 """, NORMALIZED2, ORG, RAW2, ING_SNAPSHOT, SHA);
 
         jdbc.update("""
-                INSERT INTO knowledge_assets (
-                    id, organization_id, raw_source_object_id, normalized_record_id, source_acl_snapshot_id,
-                    knowledge_space_id, title, content, language, classification, declared_access, content_sha256,
-                    orgmemory_gate, status, activated_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, 'Slack doc 2', 'normalized body 2', 'en', 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0)
-                """, ASSET2, ORG, RAW2, NORMALIZED2, ING_SNAPSHOT, SPACE, SHA);
-
-        jdbc.update("""
                 INSERT INTO source_objects (
                     id, organization_id, created_by_user_id, knowledge_space_id, acl_authority, source_system,
                     source_connection_key, external_object_id, title, classification, declared_access,
@@ -371,6 +392,13 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 VALUES (?, ?, ?, ?, 'SOURCE', 'slack', 'T-workspace', 'C-doc-2', 'Slack doc 2', 'INTERNAL',
                     'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT2, ORG, AN_USER, SPACE);
+
+        jdbc.update("""
+                INSERT INTO knowledge_assets (
+                    id, organization_id, knowledge_space_id, source_object_id, current_version_id,
+                    archived_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, NULL, NULL, now(), now(), 0)
+                """, ASSET2, ORG, SPACE, OBJECT2);
 
         jdbc.update("""
                 INSERT INTO source_revisions (
@@ -382,26 +410,84 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 VALUES (?, ?, ?, ?, ?, 1, 'doc2.txt', 'text/plain', 42, ?, 'INTERNAL', 'ALL_EMPLOYEES',
                     ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, now(), now(), now(), 0)
                 """, REVISION2, ORG, OBJECT2, SPACE, BLOB, SHA2(), AN_USER, PROFILE, RAW2, NORMALIZED2, ASSET2);
-        jdbc.update("UPDATE source_objects SET current_revision_id = ?, updated_at = now() WHERE id = ?",
-                REVISION2, OBJECT2);
+        insertAssetVersion(
+                ASSET_VERSION2,
+                ASSET2,
+                REVISION2,
+                RAW2,
+                NORMALIZED2,
+                ING_SNAPSHOT,
+                "Slack doc 2",
+                "normalized body 2");
+        jdbc.update(
+                "UPDATE source_revisions SET knowledge_asset_version_id = ? WHERE id = ?",
+                ASSET_VERSION2,
+                REVISION2);
+        jdbc.update(
+                """
+                UPDATE source_objects
+                SET current_revision_id = ?, latest_revision_id = ?, updated_at = now()
+                WHERE id = ?
+                """,
+                REVISION2,
+                REVISION2,
+                OBJECT2);
+        jdbc.update(
+                "UPDATE knowledge_assets SET current_version_id = ?, updated_at = now() WHERE id = ?",
+                ASSET_VERSION2,
+                ASSET2);
 
         jdbc.update("""
                 INSERT INTO knowledge_chunks (
                     id, organization_id, source_object_id, source_revision_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     chunk_index, content, content_sha256, embedding, embedding_profile_id,
                     embedding_dimensions, pipeline_version, projection_generation, active, created_at)
-                VALUES (?, ?, ?, ?, ?, 0, 'normalized body 2', ?, '[0.1,0.2,0.3]'::vector, ?, 3,
+                VALUES (?, ?, ?, ?, ?, ?, 0, 'normalized body 2', ?, '[0.1,0.2,0.3]'::vector, ?, 3,
                     'pipe-v1', 1, true, now())
-                """, CHUNK2, ORG, OBJECT2, REVISION2, ASSET2, SHA, PROFILE);
+                """, CHUNK2, ORG, OBJECT2, REVISION2, ASSET2, ASSET_VERSION2, SHA, PROFILE);
 
         jdbc.update("""
                 INSERT INTO knowledge_asset_publication_outbox (
                     id, organization_id, source_revision_id, source_object_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     knowledge_space_id, owner_user_id, projection_generation, embedding_profile_id,
                     embedding_dimensions, pipeline_version, status, attempt_count, authorization_model_id,
                     applied_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?, now(), now(), now(), 0)
-                """, PUBLICATION2, ORG, REVISION2, OBJECT2, ASSET2, SPACE, AN_USER, PROFILE, MODEL_ID);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?, now(), now(), now(), 0)
+                """, PUBLICATION2, ORG, REVISION2, OBJECT2, ASSET2, ASSET_VERSION2, SPACE, AN_USER, PROFILE, MODEL_ID);
+    }
+
+    private static void insertAssetVersion(
+            UUID versionId,
+            UUID assetId,
+            UUID sourceRevisionId,
+            UUID rawSourceId,
+            UUID normalizedId,
+            UUID snapshotId,
+            String title,
+            String content) {
+        jdbc.update("""
+                INSERT INTO knowledge_asset_versions (
+                    id, organization_id, raw_source_object_id, normalized_record_id,
+                    source_acl_snapshot_id, knowledge_space_id, title, content, language,
+                    classification, declared_access, content_sha256, orgmemory_gate, status,
+                    activated_at, created_at, updated_at, version, knowledge_asset_id,
+                    version_number, source_revision_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'en', 'INTERNAL', 'ALL_EMPLOYEES', ?,
+                    'ALLOW', 'ACTIVE', now(), now(), now(), 0, ?, 1, ?)
+                """,
+                versionId,
+                ORG,
+                rawSourceId,
+                normalizedId,
+                snapshotId,
+                SPACE,
+                title,
+                content,
+                SHA,
+                assetId,
+                sourceRevisionId);
     }
 
     // evidence_blobs is reused across both ledgers but source_revisions requires a distinct

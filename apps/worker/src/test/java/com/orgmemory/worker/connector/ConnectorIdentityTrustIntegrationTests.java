@@ -75,6 +75,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-provider=fixture",
         "orgmemory.ingestion.processing.embedding-model=fixture-embed",
         "orgmemory.ingestion.processing.embedding-dimensions=3",
+        "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(SecureKnowledgeRetrievalService.class)
@@ -241,7 +242,13 @@ class ConnectorIdentityTrustIntegrationTests {
         when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow(MODEL_ID));
         when(setAuthorization.listAuthorizedResources(any())).thenAnswer(invocation -> {
             List<ResourceRef> resources = jdbc.queryForList(
-                            "SELECT id FROM knowledge_assets WHERE organization_id = ? AND status = 'ACTIVE'",
+                            """
+                            SELECT id
+                            FROM knowledge_assets
+                            WHERE organization_id = ?
+                              AND archived_at IS NULL
+                              AND current_version_id IS NOT NULL
+                            """,
                             UUID.class,
                             ORG)
                     .stream()

@@ -39,6 +39,10 @@ public class KnowledgeIngestionService {
     private final SourceAclHeadRepository aclHeads;
     private final NormalizedRecordRepository normalizedRecords;
     private final KnowledgeAssetRepository knowledgeAssets;
+    private final KnowledgeAssetVersionRepository knowledgeAssetVersions;
+    private final KnowledgeAssetEvidenceLinkRepository knowledgeAssetEvidence;
+    private final SourceObjectRepository sourceObjects;
+    private final SourceRevisionRepository sourceRevisions;
     private final KnowledgePermissionPolicy permissionPolicy;
     private final KnowledgeSpaceService knowledgeSpaces;
     private final SourcePrincipalService sourcePrincipals;
@@ -54,6 +58,10 @@ public class KnowledgeIngestionService {
             SourceAclHeadRepository aclHeads,
             NormalizedRecordRepository normalizedRecords,
             KnowledgeAssetRepository knowledgeAssets,
+            KnowledgeAssetVersionRepository knowledgeAssetVersions,
+            KnowledgeAssetEvidenceLinkRepository knowledgeAssetEvidence,
+            SourceObjectRepository sourceObjects,
+            SourceRevisionRepository sourceRevisions,
             KnowledgePermissionPolicy permissionPolicy,
             KnowledgeSpaceService knowledgeSpaces,
             SourcePrincipalService sourcePrincipals,
@@ -67,6 +75,10 @@ public class KnowledgeIngestionService {
         this.aclHeads = aclHeads;
         this.normalizedRecords = normalizedRecords;
         this.knowledgeAssets = knowledgeAssets;
+        this.knowledgeAssetVersions = knowledgeAssetVersions;
+        this.knowledgeAssetEvidence = knowledgeAssetEvidence;
+        this.sourceObjects = sourceObjects;
+        this.sourceRevisions = sourceRevisions;
         this.permissionPolicy = permissionPolicy;
         this.knowledgeSpaces = knowledgeSpaces;
         this.sourcePrincipals = sourcePrincipals;
@@ -318,6 +330,8 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command.organizationId(), "organizationId");
         Objects.requireNonNull(command.normalizedRecordId(), "normalizedRecordId");
         Objects.requireNonNull(command.knowledgeSpaceId(), "knowledgeSpaceId");
+        Objects.requireNonNull(command.sourceObjectId(), "sourceObjectId");
+        Objects.requireNonNull(command.sourceRevisionId(), "sourceRevisionId");
         if (command.orgMemoryGate() != AccessGate.ALLOW) {
             throw new IllegalArgumentException("Promotion requires an explicit OrgMemory ALLOW decision");
         }
@@ -327,13 +341,15 @@ public class KnowledgeIngestionService {
                 .findByIdAndOrganizationId(command.normalizedRecordId(), command.organizationId())
                 .orElseThrow(() -> new IllegalArgumentException("Normalized record was not found"));
         knowledgeSpaces.requireInOrganization(command.organizationId(), command.knowledgeSpaceId());
-        var existing = knowledgeAssets.findByNormalizedRecordId(normalized.getId());
+        var existing = knowledgeAssetVersions.findByNormalizedRecordId(normalized.getId());
         if (existing.isPresent()) {
             if (!existing.get().getKnowledgeSpaceId().equals(command.knowledgeSpaceId())) {
                 throw new KnowledgeIngestionConflictException(
                         "The normalized record is already assigned to another Knowledge Space");
             }
-            return knowledgeRef(existing.get());
+            KnowledgeAsset asset = knowledgeAssets.findById(existing.get().getKnowledgeAssetId())
+                    .orElseThrow(() -> new IllegalStateException("Knowledge asset identity is missing"));
+            return knowledgeRef(asset, existing.get());
         }
         if (normalized.getStatus() != NormalizedRecordStatus.READY) {
             throw new IllegalStateException("Only a ready normalized record can be promoted");
@@ -362,19 +378,62 @@ public class KnowledgeIngestionService {
         }
         validatePromotableMetadata(normalized);
 
-        KnowledgeAsset asset = knowledgeAssets.save(new KnowledgeAsset(
-                normalized, command.knowledgeSpaceId(), command.orgMemoryGate()));
+        SourceObject source = sourceObjects
+                .findById(command.sourceObjectId())
+                .filter(candidate -> candidate.getOrganizationId().equals(command.organizationId()))
+                .orElseThrow(() -> new IllegalArgumentException("Source object was not found"));
+        SourceRevision revision = sourceRevisions
+                .findByIdAndOrganizationId(command.sourceRevisionId(), command.organizationId())
+                .filter(candidate -> candidate.getSourceObjectId().equals(source.getId()))
+                .orElseThrow(() -> new IllegalArgumentException("Source revision was not found"));
+        if (!source.getKnowledgeSpaceId().equals(command.knowledgeSpaceId())
+                || !revision.getKnowledgeSpaceId().equals(command.knowledgeSpaceId())) {
+            throw new KnowledgeIngestionConflictException(
+                    "Source identity and revision must belong to the promotion Knowledge Space");
+        }
+
+        KnowledgeAsset asset = knowledgeAssets
+                .findByOrganizationIdAndSourceObjectId(command.organizationId(), source.getId())
+                .orElseGet(() -> knowledgeAssets.save(new KnowledgeAsset(
+                        command.organizationId(), command.knowledgeSpaceId(), source.getId())));
+        if (!asset.getKnowledgeSpaceId().equals(command.knowledgeSpaceId())) {
+            throw new KnowledgeIngestionConflictException(
+                    "The source is already assigned to another Knowledge Space");
+        }
+        long versionNumber = knowledgeAssetVersions.maximumVersionNumber(asset.getId()) + 1;
+        KnowledgeAssetVersion version = knowledgeAssetVersions.save(new KnowledgeAssetVersion(
+                asset,
+                versionNumber,
+                revision.getId(),
+                normalized,
+                command.orgMemoryGate()));
+        knowledgeAssetEvidence.save(KnowledgeAssetEvidenceLink.primary(
+                command.organizationId(),
+                version.getId(),
+                revision.getId(),
+                normalized.getSourceAclSnapshotId()));
         normalized.markPromoted();
         normalizedRecords.save(normalized);
-        return knowledgeRef(asset);
+        return knowledgeRef(asset, version);
     }
 
     @Transactional
     public KnowledgeAssetRef retire(UUID organizationId, UUID knowledgeAssetId) {
         KnowledgeAsset asset = knowledgeAssets.findByIdAndOrganizationId(knowledgeAssetId, organizationId)
                 .orElseThrow(KnowledgeAssetNotFoundException::new);
-        asset.retire(Instant.now());
-        return knowledgeRef(knowledgeAssets.save(asset));
+        UUID currentVersionId = asset.getCurrentVersionId();
+        if (currentVersionId == null) {
+            throw new IllegalStateException("Knowledge asset has no active version");
+        }
+        KnowledgeAssetVersion version = knowledgeAssetVersions
+                .findByIdAndOrganizationId(currentVersionId, organizationId)
+                .orElseThrow(() -> new IllegalStateException("Knowledge asset version is missing"));
+        Instant retiredAt = Instant.now();
+        version.retire(retiredAt);
+        asset.archive(retiredAt);
+        knowledgeAssetVersions.save(version);
+        knowledgeAssets.save(asset);
+        return knowledgeRef(asset, version);
     }
 
     private void validateRawCommand(RegisterRawSourceCommand command, boolean allowExternalPrincipals) {
@@ -682,13 +741,15 @@ public class KnowledgeIngestionService {
                 normalized.getIssue());
     }
 
-    private static KnowledgeAssetRef knowledgeRef(KnowledgeAsset asset) {
+    private static KnowledgeAssetRef knowledgeRef(
+            KnowledgeAsset asset, KnowledgeAssetVersion version) {
         return new KnowledgeAssetRef(
                 asset.getId(),
-                asset.getNormalizedRecordId(),
-                asset.getRawSourceObjectId(),
-                asset.getSourceAclSnapshotId(),
-                asset.getStatus());
+                version.getId(),
+                version.getNormalizedRecordId(),
+                version.getRawSourceObjectId(),
+                version.getSourceAclSnapshotId(),
+                version.getStatus());
     }
 
     private static void requireText(String value, String field) {

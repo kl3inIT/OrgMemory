@@ -90,6 +90,9 @@ class SourceRevision extends BaseEntity {
     @Column(name = "knowledge_asset_id")
     private UUID knowledgeAssetId;
 
+    @Column(name = "knowledge_asset_version_id")
+    private UUID knowledgeAssetVersionId;
+
     @Column(name = "processed_at")
     private Instant processedAt;
 
@@ -172,6 +175,7 @@ class SourceRevision extends BaseEntity {
         this.rawSourceObjectId = raw.rawSourceObjectId();
         this.normalizedRecordId = normalized.normalizedRecordId();
         this.knowledgeAssetId = asset.knowledgeAssetId();
+        this.knowledgeAssetVersionId = asset.knowledgeAssetVersionId();
         this.processedAt = processedAt;
     }
 
@@ -185,6 +189,10 @@ class SourceRevision extends BaseEntity {
 
     UUID getSourceObjectId() {
         return sourceObjectId;
+    }
+
+    long getRevisionNumber() {
+        return revisionNumber;
     }
 
     UUID getEvidenceBlobId() {
@@ -241,5 +249,13 @@ class SourceRevision extends BaseEntity {
 
     Integer getEmbeddingDimensions() {
         return embeddingDimensions;
+    }
+
+    UUID getKnowledgeAssetId() {
+        return knowledgeAssetId;
+    }
+
+    UUID getKnowledgeAssetVersionId() {
+        return knowledgeAssetVersionId;
     }
 }

@@ -33,6 +33,13 @@ orgmemory:
     key: ${ORGMEMORY_SECRETS_KEY:orgmemory-local-dev-only-secret-key}
     salt: ${ORGMEMORY_SECRETS_SALT:6f72676d656d6f7279736563726574}
     version: ${ORGMEMORY_SECRETS_KEY_VERSION:1}
+  authorization:
+    convergence:
+      scheduling-enabled: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_ENABLED:true}
+      poll-interval: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_POLL_INTERVAL:5m}
+      model-batch-size: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_MODEL_BATCH_SIZE:50}
+      tuple-page-size: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_TUPLE_PAGE_SIZE:100}
+      maximum-tuple-pages: ${ORGMEMORY_AUTHORIZATION_CONVERGENCE_MAXIMUM_TUPLE_PAGES:1000}
   ai:
     gateways:
       openai:

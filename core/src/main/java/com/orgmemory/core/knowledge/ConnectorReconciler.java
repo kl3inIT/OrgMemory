@@ -55,8 +55,7 @@ class ConnectorReconciler {
     private final ObjectProvider<ConnectorTextEmbedder> embedder;
     private final ObjectStoragePort objects;
     private final SourceObjectRepository sources;
-    private final EvidenceBlobRepository blobs;
-    private final SourceRevisionRepository revisions;
+    private final ConnectorSourceRevisionCoordinator revisionCoordinator;
     private final PermissionAuditService audit;
 
     ConnectorReconciler(
@@ -69,8 +68,7 @@ class ConnectorReconciler {
             ObjectProvider<ConnectorTextEmbedder> embedder,
             ObjectStoragePort objects,
             SourceObjectRepository sources,
-            EvidenceBlobRepository blobs,
-            SourceRevisionRepository revisions,
+            ConnectorSourceRevisionCoordinator revisionCoordinator,
             PermissionAuditService audit) {
         this.ingestion = ingestion;
         this.principals = principals;
@@ -81,8 +79,7 @@ class ConnectorReconciler {
         this.embedder = embedder;
         this.objects = objects;
         this.sources = sources;
-        this.blobs = blobs;
-        this.revisions = revisions;
+        this.revisionCoordinator = revisionCoordinator;
         this.audit = audit;
     }
 
@@ -164,20 +161,10 @@ class ConnectorReconciler {
         var head = ingestion.findConnectorHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
         if (head.isEmpty()) {
-            SourceObject source = sources.saveAndFlush(SourceObject.connectorObject(
-                    UUID.randomUUID(),
-                    ctx.organizationId(),
-                    ctx.knowledgeSpaceId(),
-                    null,
-                    ctx.actorUserId(),
-                    ctx.profile().aclAuthority(),
-                    ctx.profile().sourceSystem(),
-                    ctx.sourceConnectionKey(),
-                    content.externalObjectId(),
-                    content.title(),
-                    ctx.profile().classification(),
-                    ctx.profile().declaredAccess()));
-            materializeRevision(ctx, content, source, plan, null);
+            // The source object itself is created by the revision coordinator, in the committed
+            // transaction that also stages the revision — publication runs in its own and has to
+            // be able to read both.
+            materializeRevision(ctx, content, UUID.randomUUID(), plan, null);
             audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
             return ObjectOutcome.MATERIALIZED;
         }
@@ -197,7 +184,7 @@ class ConnectorReconciler {
      *
      * <p>A retired object is not revived here. Whether content reappearing at the source should
      * resurrect a tombstoned object, and under whose ACL, is a decision this path should not
-     * make silently, so it fails as an isolated per-object error instead.
+     * make silently, so the revision coordinator refuses it as an isolated per-object error.
      */
     private ObjectOutcome rematerialize(
             ConnectorIngestionContext ctx,
@@ -212,11 +199,7 @@ class ConnectorReconciler {
                         content.externalObjectId())
                 .orElseThrow(() -> new IllegalStateException(
                         "an ACL head exists without its source object: " + content.externalObjectId()));
-        if (source.getStatus() != SourceObjectStatus.ACTIVE) {
-            throw new IllegalStateException(
-                    "a retired object cannot take a new content revision: " + content.externalObjectId());
-        }
-        materializeRevision(ctx, content, source, plan, current.currentSnapshotId());
+        materializeRevision(ctx, content, source.getId(), plan, current.currentSnapshotId());
         audit(ctx, "CONNECTOR_REMATERIALIZE", content.externalObjectId(), "CONTENT_REVISION_MATERIALIZED");
         return ObjectOutcome.REMATERIALIZED;
     }
@@ -331,7 +314,7 @@ class ConnectorReconciler {
     private void materializeRevision(
             ConnectorIngestionContext ctx,
             ConnectorContentItem content,
-            SourceObject source,
+            UUID sourceId,
             AclPlan plan,
             UUID expectedCurrentSnapshotId) {
         RawSourceRef raw = ingestion.registerConnectorSource(
@@ -345,38 +328,45 @@ class ConnectorReconciler {
                 content.title(),
                 content.body(),
                 "und"));
-        UUID revisionId = UUID.randomUUID();
-        UUID blobId = UUID.randomUUID();
         byte[] bytes = content.body().getBytes(StandardCharsets.UTF_8);
+        String contentSha256 = sha256(content.body());
         ObjectKey key = new ObjectKey("organizations/" + ctx.organizationId()
                 + "/connector/" + ctx.sourceSystem()
                 + "/" + ctx.sourceConnectionKey()
                 + "/" + content.externalObjectId()
                 + "/" + content.contentRevision());
-        StoredObject stored = objects.put(
-                new ObjectWriteRequest(
-                        key,
-                        bytes.length,
-                        ctx.profile().mediaType(),
-                        Map.of(
-                                "organization-id", ctx.organizationId().toString(),
-                                "source-object-id", source.getId().toString(),
-                                "source-revision-id", revisionId.toString())),
-                new ByteArrayInputStream(bytes));
-        try {
-            EvidenceBlob blob = blobs.saveAndFlush(new EvidenceBlob(blobId, ctx.organizationId(), stored));
-            SourceRevision revision = revisions.saveAndFlush(
-                    new SourceRevision(
-                            revisionId,
-                            source,
-                            blob,
-                            content.title(),
-                            // Registering the revision above took the per-identity advisory lock,
-                            // so no concurrent crawl of this object can claim the same ordinal.
-                            revisions.findHighestRevisionNumber(source.getId()) + 1));
-            source.useRevision(revision.getId());
-            sources.saveAndFlush(source);
 
+        // A retry that already stored this exact text reuses the revision it made rather than
+        // storing a second copy of it under a new ordinal.
+        ConnectorRevisionDraft draft = revisionCoordinator
+                .findExisting(ctx, content, contentSha256)
+                .orElse(null);
+        if (draft == null) {
+            UUID revisionId = UUID.randomUUID();
+            StoredObject stored = objects.put(
+                    new ObjectWriteRequest(
+                            key,
+                            bytes.length,
+                            ctx.profile().mediaType(),
+                            Map.of(
+                                    "organization-id", ctx.organizationId().toString(),
+                                    "source-object-id", sourceId.toString(),
+                                    "source-revision-id", revisionId.toString())),
+                    new ByteArrayInputStream(bytes));
+            try {
+                draft = revisionCoordinator.stage(
+                        ctx, content, sourceId, revisionId, UUID.randomUUID(), stored);
+            } catch (RuntimeException failure) {
+                try {
+                    objects.delete(key);
+                } catch (ObjectStorageException cleanupFailure) {
+                    failure.addSuppressed(cleanupFailure);
+                }
+                throw failure;
+            }
+        }
+
+        try {
             List<String> texts = chunk(content.body());
             ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
             List<float[]> vectors = embedding.vectors();
@@ -391,24 +381,22 @@ class ConnectorReconciler {
             KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
                     ctx.organizationId(),
                     ctx.knowledgeSpaceId(),
-                    source.getId(),
-                    revision.getId(),
+                    draft.sourceObjectId(),
+                    draft.sourceRevisionId(),
                     normalized.normalizedRecordId(),
                     ctx.actorUserId(),
                     embedding.profile(),
                     PIPELINE_VERSION,
-                    PROJECTION_GENERATION,
                     drafts));
-            revision.ready(
+            revisionCoordinator.complete(
+                    draft,
                     PIPELINE_VERSION,
                     PARSER_VERSION,
                     CHUNKER_VERSION,
                     embedding.profile(),
                     raw,
                     normalized,
-                    asset,
-                    Instant.now());
-            revisions.saveAndFlush(revision);
+                    asset);
         } catch (RuntimeException failure) {
             try {
                 objects.delete(key);

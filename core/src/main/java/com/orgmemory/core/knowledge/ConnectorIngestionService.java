@@ -75,8 +75,16 @@ public class ConnectorIngestionService {
 
         for (ConnectorContentItem content : batch.contents()) {
             try {
-                ObjectOutcome outcome = perObjectTransaction.execute(status -> reconciler.reconcile(
-                        ctx, content, permissions.get(content.externalObjectId()), resolution));
+                // Deliberately not wrapped in a transaction of its own. Materializing publishes,
+                // and publication commits independently so a failed projection can be retried
+                // from the outbox rather than rolling the evidence back — which means it reads
+                // the registration, normalization and staged revision from the database and only
+                // sees them once each has committed. An outer transaction here would hold all of
+                // them open and publication would find nothing. Isolation is not lost: each of
+                // those steps is transactional on its own, and a failure is still caught per
+                // object below.
+                ObjectOutcome outcome = reconciler.reconcile(
+                        ctx, content, permissions.get(content.externalObjectId()), resolution);
                 recordOutcome(outcome, content.externalObjectId(), materialized, rotated, rematerialized);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(content.externalObjectId(), reasonOf(failure)));

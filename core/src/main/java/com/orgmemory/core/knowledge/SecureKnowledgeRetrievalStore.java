@@ -61,6 +61,12 @@ class SecureKnowledgeRetrievalStore {
             JOIN knowledge_assets ka
               ON ka.id = kc.knowledge_asset_id
              AND ka.organization_id = kc.organization_id
+             AND ka.current_version_id = kc.knowledge_asset_version_id
+             AND ka.archived_at IS NULL
+            JOIN knowledge_asset_versions kav
+              ON kav.id = kc.knowledge_asset_version_id
+             AND kav.organization_id = kc.organization_id
+             AND kav.knowledge_asset_id = ka.id
             JOIN source_objects so
               ON so.id = kc.source_object_id
              AND so.organization_id = kc.organization_id
@@ -70,20 +76,22 @@ class SecureKnowledgeRetrievalStore {
              AND sr.organization_id = kc.organization_id
              AND sr.source_object_id = so.id
              AND sr.knowledge_asset_id = ka.id
+             AND sr.knowledge_asset_version_id = kav.id
             JOIN raw_source_objects rso
-              ON rso.id = ka.raw_source_object_id
+              ON rso.id = kav.raw_source_object_id
              AND rso.organization_id = ka.organization_id
             JOIN normalized_records nr
-              ON nr.id = ka.normalized_record_id
+              ON nr.id = kav.normalized_record_id
              AND nr.organization_id = ka.organization_id
             JOIN knowledge_asset_publication_outbox publication
               ON publication.knowledge_asset_id = ka.id
+             AND publication.knowledge_asset_version_id = kav.id
              AND publication.organization_id = ka.organization_id
              AND publication.source_revision_id = sr.id
              AND publication.projection_generation = kc.projection_generation
              AND publication.embedding_profile_id = kc.embedding_profile_id
             JOIN source_acl_snapshots ingestion_sas
-              ON ingestion_sas.id = ka.source_acl_snapshot_id
+              ON ingestion_sas.id = kav.source_acl_snapshot_id
              AND ingestion_sas.organization_id = ka.organization_id
             JOIN source_acl_snapshot_seals ingestion_seal
               ON ingestion_seal.source_acl_snapshot_id = ingestion_sas.id
@@ -102,14 +110,14 @@ class SecureKnowledgeRetrievalStore {
             WHERE kc.organization_id = :organizationId
               AND kc.knowledge_asset_id IN (:authorizedAssetIds)
               AND kc.active
-              AND ka.status = 'ACTIVE'
+              AND kav.status = 'ACTIVE'
               AND so.status = 'ACTIVE'
               AND sr.status = 'READY'
               AND rso.status = 'NORMALIZED'
               AND nr.status = 'PROMOTED'
               AND publication.status = 'APPLIED'
               AND publication.authorization_model_id = :authorizationModelId
-              AND ka.orgmemory_gate = 'ALLOW'
+              AND kav.orgmemory_gate = 'ALLOW'
               AND ingestion_sas.capture_status = 'COMPLETE'
               AND current_sas.capture_status = 'COMPLETE'
               AND current_sas.valid_until > :evaluatedAt
@@ -151,17 +159,17 @@ class SecureKnowledgeRetrievalStore {
                   )
               )
               AND (
-                  (ka.classification = 'PUBLIC' AND ka.declared_access = 'ALL')
-                  OR (ka.classification = 'INTERNAL' AND ka.declared_access = 'ALL_EMPLOYEES')
+                  (kav.classification = 'PUBLIC' AND kav.declared_access = 'ALL')
+                  OR (kav.classification = 'INTERNAL' AND kav.declared_access = 'ALL_EMPLOYEES')
                   OR (
-                      ka.classification = 'CONFIDENTIAL'
-                      AND ka.declared_access = 'OWN_DEPARTMENT'
+                      kav.classification = 'CONFIDENTIAL'
+                      AND kav.declared_access = 'OWN_DEPARTMENT'
                       AND :actorDepartmentId IS NOT NULL
-                      AND (:actorExecutive OR ka.department_id = :actorDepartmentId)
+                      AND (:actorExecutive OR kav.department_id = :actorDepartmentId)
                   )
                   OR (
-                      ka.classification = 'RESTRICTED'
-                      AND ka.declared_access = 'EXECUTIVE_ONLY'
+                      kav.classification = 'RESTRICTED'
+                      AND kav.declared_access = 'EXECUTIVE_ONLY'
                       AND :actorExecutive
                   )
               )
@@ -173,7 +181,7 @@ class SecureKnowledgeRetrievalStore {
                    kc.knowledge_asset_id,
                    kc.source_object_id,
                    kc.source_revision_id,
-                   ka.title,
+                   kav.title,
                    kc.content,
                    rso.source_uri,
                    kc.start_page,

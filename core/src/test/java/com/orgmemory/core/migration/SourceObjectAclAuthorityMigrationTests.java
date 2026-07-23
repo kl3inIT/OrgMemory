@@ -27,6 +27,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * it. So this stops at the version before, seeds the shapes the old schema allowed, and
  * migrates the rest of the way.
  *
+ * <p>The version numbers moved once, when the connector migrations were renumbered to land
+ * after main's; the migration this pins is the one separating source system from ACL authority,
+ * whatever ordinal it currently carries.
+ *
  * <p>It uses Flyway directly rather than a Spring context because the point is the migration
  * sequence, and a context would only offer to run it in one shot.
  */
@@ -34,7 +38,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class SourceObjectAclAuthorityMigrationTests {
 
     /** The last version at which {@code source_objects.source_type} still existed. */
-    private static final String BEFORE_THE_SPLIT = "22";
+    private static final String BEFORE_THE_SPLIT = "24";
 
     private static final UUID ORG = UUID.fromString("c9000000-0000-4000-8000-000000000001");
     private static final UUID SPACE = UUID.fromString("c9000000-0000-4000-8000-000000000002");
