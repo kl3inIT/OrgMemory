@@ -15,14 +15,17 @@ class ConnectorSourceRevisionCoordinator {
     private final SourceObjectRepository sources;
     private final EvidenceBlobRepository blobs;
     private final SourceRevisionRepository revisions;
+    private final GraphIndexJobQueue graphIndexJobs;
 
     ConnectorSourceRevisionCoordinator(
             SourceObjectRepository sources,
             EvidenceBlobRepository blobs,
-            SourceRevisionRepository revisions) {
+            SourceRevisionRepository revisions,
+            GraphIndexJobQueue graphIndexJobs) {
         this.sources = sources;
         this.blobs = blobs;
         this.revisions = revisions;
+        this.graphIndexJobs = graphIndexJobs;
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
@@ -97,6 +100,7 @@ class ConnectorSourceRevisionCoordinator {
             NormalizedRecordRef normalized,
             KnowledgeAssetRef asset) {
         SourceRevision revision = revisions.findById(draft.sourceRevisionId()).orElseThrow();
+        Instant completedAt = Instant.now();
         revision.ready(
                 pipelineVersion,
                 parserVersion,
@@ -105,10 +109,12 @@ class ConnectorSourceRevisionCoordinator {
                 raw,
                 normalized,
                 asset,
-                Instant.now());
+                completedAt);
         SourceObject source = sources.findById(draft.sourceObjectId()).orElseThrow();
         source.publishRevision(revision.getId());
-        revisions.save(revision);
+        revisions.saveAndFlush(revision);
+        graphIndexJobs.enqueue(
+                revision.getOrganizationId(), revision.getId(), asset, completedAt);
         sources.save(source);
     }
 

@@ -2,6 +2,7 @@ package com.orgmemory.integrations.ai.openai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.orgmemory.core.ai.AiGatewayCapability;
@@ -40,6 +41,27 @@ class AiGatewayPropertiesTests {
                 () -> registry.resolve(AiWorkload.QUERY_EMBEDDING));
     }
 
+    @Test
+    void chatModelsAreCachedByCompleteRouteInsteadOfGatewayOnly() {
+        var configured = new AiGatewayProperties(
+                Map.of("openai", new AiGatewayProperties.Gateway(
+                        "OpenAI",
+                        "https://api.openai.com/v1",
+                        "top-secret-key",
+                        Set.of(AiGatewayCapability.CHAT),
+                        Duration.ofSeconds(60))),
+                new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route("openai", "assistant-model"),
+                        new AiGatewayProperties.Route("openai", "graph-model"),
+                        new AiGatewayProperties.Route("openai", "embedding-model")));
+        var provider = new OpenAiCompatibleChatModelProvider(
+                new AiGatewayRegistry(configured));
+
+        assertNotSame(
+                provider.resolve(AiWorkload.ASSISTANT_CHAT),
+                provider.resolve(AiWorkload.GRAPH_EXTRACTION));
+    }
+
     private static AiGatewayProperties properties(Set<AiGatewayCapability> capabilities) {
         return new AiGatewayProperties(
                 Map.of("openai", new AiGatewayProperties.Gateway(
@@ -49,6 +71,7 @@ class AiGatewayPropertiesTests {
                         capabilities,
                         Duration.ofSeconds(60))),
                 new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
     }

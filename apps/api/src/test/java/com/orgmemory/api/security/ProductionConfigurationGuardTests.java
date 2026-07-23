@@ -56,6 +56,7 @@ class ProductionConfigurationGuardTests {
                         Duration.ofSeconds(60))),
                 new AiGatewayProperties.Routes(
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
+                        new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
         ProductionConfigurationGuard guard = new ProductionConfigurationGuard(
                 dataSource,
@@ -106,6 +107,7 @@ class ProductionConfigurationGuardTests {
                         Set.of(AiGatewayCapability.CHAT, AiGatewayCapability.EMBEDDING),
                         Duration.ofSeconds(60))),
                 new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
         return new ProductionConfigurationGuard(dataSource, oidc, openFga, objectStorage, ai);

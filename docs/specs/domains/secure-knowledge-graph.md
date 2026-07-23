@@ -9,10 +9,17 @@ chunk, ACL/model provenance, extraction profile, and projection generation.
 PostgreSQL/pgvector own evidence and ranking; Apache AGE is a rebuildable,
 tenant-separated topology candidate index with a bounded relational fallback.
 
-The worker does not yet run extraction/publication, the Assistant does not yet
-select graph retrieval, and the Sources UI keeps the Knowledge Graph tab
-disabled. No graph data is exposed until secure retrieval can prefilter the
-authorized stable asset set and canonically recheck every returned citation.
+The worker now runs durable, bounded extraction and atomically publishes one
+complete graph generation for each current source-backed Knowledge Asset
+version. Jobs are created only after the canonical source revision is `READY`;
+they pin version, chunks, ACL generation, embedding profile, extractor route,
+and prompt version. Replay is deterministic, stale versions are superseded, and
+an embedding or publication failure cannot expose a partial generation.
+
+The Assistant does not yet select graph retrieval, and the Sources UI keeps the
+Knowledge Graph tab disabled. No graph data is exposed to users until secure
+retrieval can prefilter the authorized stable asset set and canonically recheck
+every returned citation.
 
 ## Source Modules
 
@@ -20,6 +27,7 @@ authorized stable asset set and canonically recheck every returned citation.
 - `components.graph-rag-testkit`
 - `integrations.graph-rag-spring-ai`
 - `integrations.graph-rag-postgres`
+- `apps.worker`
 
 ## Related Decisions
 

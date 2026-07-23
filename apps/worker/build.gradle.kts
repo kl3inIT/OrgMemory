@@ -6,6 +6,8 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":integrations:ai-openai-compatible"))
     implementation(project(":integrations:authorization-openfga"))
+    implementation(project(":integrations:graph-rag-postgres"))
+    implementation(project(":integrations:graph-rag-spring-ai"))
     implementation(project(":integrations:object-storage-minio"))
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation(libs.spring.ai.starter.openai)

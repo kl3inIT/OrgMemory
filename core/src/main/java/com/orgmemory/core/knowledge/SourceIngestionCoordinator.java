@@ -14,16 +14,19 @@ public class SourceIngestionCoordinator {
     private final SourceRevisionRepository revisions;
     private final SourceObjectRepository sources;
     private final EvidenceBlobRepository blobs;
+    private final GraphIndexJobQueue graphIndexJobs;
 
     SourceIngestionCoordinator(
             SourceIngestionJobRepository jobs,
             SourceRevisionRepository revisions,
             SourceObjectRepository sources,
-            EvidenceBlobRepository blobs) {
+            EvidenceBlobRepository blobs,
+            GraphIndexJobQueue graphIndexJobs) {
         this.jobs = jobs;
         this.revisions = revisions;
         this.sources = sources;
         this.blobs = blobs;
+        this.graphIndexJobs = graphIndexJobs;
     }
 
     @Transactional
@@ -76,6 +79,7 @@ public class SourceIngestionCoordinator {
             KnowledgeAssetRef asset) {
         SourceIngestionJob job = claimedJob(jobId, workerId);
         SourceRevision revision = revisions.findById(job.getSourceRevisionId()).orElseThrow();
+        Instant completedAt = Instant.now();
         revision.ready(
                 pipelineVersion,
                 parserVersion,
@@ -84,9 +88,12 @@ public class SourceIngestionCoordinator {
                 raw,
                 normalized,
                 asset,
-                Instant.now());
+                completedAt);
         SourceObject source = sources.findById(revision.getSourceObjectId()).orElseThrow();
         source.publishRevision(revision.getId());
+        revisions.saveAndFlush(revision);
+        graphIndexJobs.enqueue(
+                revision.getOrganizationId(), revision.getId(), asset, completedAt);
         job.succeed();
     }
 

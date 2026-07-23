@@ -48,6 +48,9 @@ orgmemory:
       assistant-chat:
         gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
+      graph-extraction:
+        gateway-id: ${ORGMEMORY_GRAPH_EXTRACTION_GATEWAY:openai}
+        model-id: ${ORGMEMORY_GRAPH_EXTRACTION_MODEL:${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}}
       embedding:
         gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
@@ -66,6 +69,14 @@ orgmemory:
       embedding-dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
       chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
       maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
+  graph-rag:
+    indexing:
+      scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
+      poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
+      lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
+      maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
+      maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
+      maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
   storage:
     object:
       endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}

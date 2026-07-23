@@ -143,10 +143,13 @@ tuples.
 
 ## Current AI And Graph Behavior
 
-API directly wires the Spring AI OpenAI starter. The application can boot without
-a model key and uses local fallback behavior for prototype normalization/chat.
-There is no provider-neutral runtime AI gateway or persistent agent conversation
-model yet.
+API and worker resolve workload-specific gateway/model routes through the
+provider-neutral runtime AI gateway, whose current production adapter uses Spring
+AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
+embedding have independent configured routes; immutable Knowledge Asset embedding
+profiles still pin the provider/model used by derived indexes. The application can
+boot without a model key and uses local fallback behavior for prototype
+normalization/chat. A persistent agent conversation model does not exist yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
@@ -195,8 +198,17 @@ that server. An idempotent bootstrap handles both fresh and existing volumes.
 OpenFGA tables remain isolated from the OrgMemory schema and are not queried by
 application SQL.
 
-The extractor and PostgreSQL adapter are not wired into the worker yet. There is
-no worker graph indexing, Assistant graph retrieval, or graph UI wiring.
+The worker enqueues a durable graph-index job in the same transaction that makes
+a source revision `READY`. Jobs pin the current Knowledge Asset version, source
+revision, active chunk generation, ACL snapshot/generation, embedding profile,
+and extraction route. Multi-replica workers claim jobs through leased
+`FOR UPDATE SKIP LOCKED` work, extract chunks with bounded concurrency, assemble
+deterministic evidence contributions, embed them with the immutable document
+embedding profile, and publish the complete graph generation together with the
+durable job outcome in one PostgreSQL transaction. A stale version is
+superseded and a failed publish leaves the previous generation intact.
+
+Assistant graph retrieval and graph UI wiring are not implemented yet.
 
 The Sources UI exposes a disabled Knowledge Graph navigation target until worker
 indexing and permission-scoped graph retrieval are wired. There is no legacy
