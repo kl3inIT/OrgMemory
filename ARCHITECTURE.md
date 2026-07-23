@@ -21,7 +21,8 @@ flowchart LR
 
 The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
 the framework-neutral `components:graph-rag-core` and
-`components:graph-rag-testkit`, `integrations:authorization-openfga`, and
+`components:graph-rag-testkit`, `integrations:graph-rag-spring-ai`,
+`integrations:authorization-openfga`, and
 `integrations:object-storage-minio`. The web client is a separate Vite
 workspace. API owns Flyway execution and the worker validates the existing
 schema with Flyway disabled in normal runtime.
@@ -151,8 +152,17 @@ testkit provides a permission-scoped in-memory reference projection and proves
 that restricted contribution text, seeds, neighbors, degrees, and weights do
 not affect visible results. Neither module has Spring on its runtime classpath.
 
-There is no Spring AI extractor, PostgreSQL graph projection, worker indexing,
-runtime graph retrieval, or graph UI wiring yet.
+The replaceable `graph-rag-spring-ai` integration implements the graph-core
+entity/relation extraction port with Spring AI structured output. It requires
+the configured provider, request model, and registered prompt version to match
+the immutable extraction profile; malformed output and unresolved relation
+endpoints fail closed. Source text is user-scoped untrusted evidence rather than
+a system instruction. Deterministic adapter tests use a fake `ChatModel`, so no
+provider credentials or network calls are required.
+
+The extractor is not auto-configured or wired into the worker yet. There is no
+PostgreSQL graph projection, worker graph indexing, runtime graph retrieval, or
+graph UI wiring.
 
 The graph endpoint visualizes relational capability metadata such as assets,
 owners, departments, types, tags, and processes. It is not a semantic knowledge

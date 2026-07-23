@@ -21,6 +21,8 @@ belongs in one active increment.
 - An administration surface over the identity ledger: users with their sign-in
   linkage, observed source principals with confirm/revoke, read-only sealed
   source-group membership, and a per-connection identity trust decision.
+- A framework-neutral secure GraphRAG kernel/testkit and a versioned Spring AI
+  structured extraction adapter with deterministic, network-free tests.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -35,8 +37,8 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 - Converge persistent Capability Asset tuples and add server-side pagination to
   the now set-authorized Capability Asset registry.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
-- Add graph core/testkit and PostgreSQL/Spring AI adapters with evidence-level
-  contributions and permission-scoped local/global/mix retrieval.
+- Add the PostgreSQL graph projection, worker extraction/indexing, and
+  permission-scoped runtime graph retrieval over the shipped graph contracts.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Replace the fixture connector batch source with the live Slack Web API adapter
