@@ -51,29 +51,7 @@ public final class InMemoryGraphProjection
                                 contribution.provenance().sourceRevisionId(),
                                 contributions.organizationId(),
                                 contributions.sourceRevisionId()));
-        boolean collidesAcrossContributionTypes = contributions.entities().stream()
-                        .anyMatch(contribution -> relationContributions.containsKey(contribution.id())
-                                && !belongsToRevision(
-                                        relationContributions.get(contribution.id())
-                                                .provenance()
-                                                .organizationId(),
-                                        relationContributions.get(contribution.id())
-                                                .provenance()
-                                                .sourceRevisionId(),
-                                        contributions.organizationId(),
-                                        contributions.sourceRevisionId()))
-                || contributions.relations().stream()
-                        .anyMatch(contribution -> entityContributions.containsKey(contribution.id())
-                                && !belongsToRevision(
-                                        entityContributions.get(contribution.id())
-                                                .provenance()
-                                                .organizationId(),
-                                        entityContributions.get(contribution.id())
-                                                .provenance()
-                                                .sourceRevisionId(),
-                                        contributions.organizationId(),
-                                        contributions.sourceRevisionId()));
-        if (collidesWithAnotherRevision || collidesAcrossContributionTypes) {
+        if (collidesWithAnotherRevision) {
             throw new IllegalArgumentException("contribution id already belongs to another revision");
         }
         removeRevision(contributions.organizationId(), contributions.sourceRevisionId());

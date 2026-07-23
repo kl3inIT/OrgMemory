@@ -6,10 +6,19 @@ import org.junit.jupiter.api.Test;
 
 class FrameworkNeutralityTests {
 
+    private static final String[] SPRING_RUNTIME_MARKERS = {
+        "org.springframework.core.SpringVersion",
+        "org.springframework.beans.BeanUtils",
+        "org.springframework.context.ApplicationContext"
+    };
+
     @Test
     void graphCoreAndTestkitDoNotBringSpringOntoTheRuntimeClasspath() {
-        assertThrows(
-                ClassNotFoundException.class,
-                () -> Class.forName("org.springframework.context.ApplicationContext"));
+        for (String springRuntimeMarker : SPRING_RUNTIME_MARKERS) {
+            assertThrows(
+                    ClassNotFoundException.class,
+                    () -> Class.forName(springRuntimeMarker),
+                    springRuntimeMarker + " must not be available");
+        }
     }
 }
