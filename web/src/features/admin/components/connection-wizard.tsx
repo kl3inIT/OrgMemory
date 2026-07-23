@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, TriangleAlert } from "lucide-react"
 import { useState } from "react"
@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatTimestamp } from "@/features/admin/admin-labels"
 import {
+  adminConnectionScopesQueryOptions,
   adminConnectionsQueryOptions,
   adminUsersQueryOptions,
   invalidateAdminData,
@@ -104,6 +105,13 @@ export function ConnectionWizard({
   const existing = (connections.data ?? []).find(
     (candidate) => candidate.sourceConnectionKey === savedKey,
   )
+
+  // What the source holds, read with the credential this connection already stored. Before that
+  // there is nothing to read it with, and the field says so rather than showing an empty list.
+  const scopes = useQuery({
+    ...adminConnectionScopesQueryOptions(sourceSystem, savedKey ?? ""),
+    enabled: Boolean(savedKey) && Boolean(existing?.credentialSet),
+  })
 
   // The form starts from what the connection already says, once that has arrived. Keyed on
   // the connection so reopening on a different one does not show the last one's settings.
@@ -328,6 +336,7 @@ export function ConnectionWizard({
               draft={draft}
               invalid={invalid}
               onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
+              scopes={scopes.data}
             >
               <div className="space-y-2">
                 <Label htmlFor="crawl-interval">Content interval (minutes)</Label>

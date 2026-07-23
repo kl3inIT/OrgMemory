@@ -4,6 +4,7 @@ import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorCredentialProbe;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
+import com.orgmemory.core.knowledge.ConnectorScopeBrowser;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -43,5 +44,11 @@ public class SlackConnectorAutoConfiguration {
     @Bean
     ConnectorCredentialProbe slackCredentialProbe(RestClient.Builder restClientBuilder) {
         return new SlackCredentialProbe(restClientBuilder);
+    }
+
+    /** Listing channels, so choosing what to crawl is picking rather than typing an id. */
+    @Bean
+    ConnectorScopeBrowser slackScopeBrowser(RestClient.Builder restClientBuilder) {
+        return new SlackScopeBrowser(restClientBuilder);
     }
 }

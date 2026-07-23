@@ -27,6 +27,11 @@ export type ConnectorField =
       /** Applied to each entry on the way to storage, for sources that constrain their names. */
       normalize?: (value: string) => string
     })
+  /**
+   * A list whose entries the source can enumerate, so it is picked rather than typed. Stored
+   * exactly like a `list` — the difference is only that the options are known.
+   */
+  | (FieldBase & { type: "scopes"; default?: string[]; emptyMeans?: string })
   | (FieldBase & { type: "number"; default: number; min?: number })
   | (FieldBase & { type: "checkbox"; default?: boolean })
   | (FieldBase & { type: "select"; default: string; options: { value: string; label: string }[] })
@@ -45,14 +50,13 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
   slack: {
     fields: [
       {
-        type: "list",
+        type: "scopes",
         name: "channels",
         label: "Channels",
-        placeholder: "general, engineering",
         description:
-          "Leave empty to crawl every channel the bot can see. A filter also stops the crawl claiming it enumerated the workspace, so nothing is retired on its word.",
-        // Slack channel names are lowercase, and people type the hash they see in the client.
-        normalize: (value) => value.replace(/^#/, "").toLowerCase(),
+          "Choosing a channel is the instruction to read it: the bot adds itself to a public channel it is not in yet. A private one it cannot, so that says what to run in Slack instead.",
+        emptyMeans:
+          "Nothing chosen means the bot reads only the channels it has been invited to, and adds itself to none.",
       },
     ],
     advanced: [
@@ -130,7 +134,8 @@ export function draftFrom(
       case "text":
         draft[field.name] = typeof stored === "string" ? stored : (field.default ?? "")
         break
-      case "list": {
+      case "list":
+      case "scopes": {
         const entries = Array.isArray(stored)
           ? stored.filter((entry): entry is string => typeof entry === "string")
           : (field.default ?? [])
@@ -167,11 +172,12 @@ export function configFrom(
         config[field.name] = String(value ?? "")
         break
       case "list":
+      case "scopes":
         config[field.name] = String(value ?? "")
           .split(",")
           .map((entry) => entry.trim())
           .filter(Boolean)
-          .map((entry) => (field.normalize ? field.normalize(entry) : entry))
+          .map((entry) => ("normalize" in field && field.normalize ? field.normalize(entry) : entry))
         break
       case "number":
         config[field.name] = Number.parseInt(String(value), 10)

@@ -73,8 +73,9 @@ export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
         "groups:history",
         "users:read",
         "users:read.email",
+        "channels:join",
       ],
-      note: "The bot also has to be invited to each channel it should read.",
+      note: "channels:join lets the bot add itself to the public channels you choose. Leave it out and it reads only what it has been invited to; a private channel needs an invite either way.",
     },
   },
   {

@@ -23,6 +23,7 @@ export function ConnectorFields({
   draft,
   invalid,
   onChange,
+  scopes,
   children,
 }: {
   descriptor: ConnectorFormDescriptor
@@ -30,6 +31,11 @@ export function ConnectorFields({
   /** Field names that cannot be saved as typed. */
   invalid: string[]
   onChange: (name: string, value: string | boolean) => void
+  /**
+   * What the source says it holds, for a `scopes` field. Absent until a credential is stored,
+   * because the list is read with it.
+   */
+  scopes?: ConnectorScopeOption[]
   /**
    * Settings every source shares, rendered alongside the source's own. They are separate
    * because they are columns with constraints rather than part of the opaque document.
@@ -47,6 +53,7 @@ export function ConnectorFields({
           value={draft[field.name]}
           invalid={invalid.includes(field.name)}
           onChange={onChange}
+          scopes={scopes}
         />
       ))}
 
@@ -79,19 +86,46 @@ export function ConnectorFields({
   )
 }
 
+/**
+ * One thing the source says a crawl could be pointed at. Every field is optional because that
+ * is how the generated contract types describe them; a scope without a key is not one, and is
+ * dropped rather than rendered as a box that saves nothing.
+ */
+export type ConnectorScopeOption = {
+  key?: string
+  displayName?: string
+  reachable?: boolean
+  admissible?: boolean
+  instruction?: string | null
+}
+
 function Field({
   field,
   value,
   invalid,
   onChange,
+  scopes,
 }: {
   field: ConnectorField
   value: string | boolean | undefined
   invalid: boolean
   onChange: (name: string, value: string | boolean) => void
+  scopes?: ConnectorScopeOption[]
 }) {
   const id = `connector-field-${field.name}`
   const describedBy = field.description ? `${id}-description` : undefined
+
+  if (field.type === "scopes") {
+    return (
+      <ScopeField
+        field={field}
+        chosen={String(value ?? "")}
+        scopes={scopes}
+        onChange={onChange}
+        describedBy={describedBy}
+      />
+    )
+  }
 
   if (field.type === "checkbox") {
     return (
@@ -149,6 +183,98 @@ function Field({
         <p className="text-sm text-destructive">
           {field.label} must be a whole number of at least {field.min ?? 1}.
         </p>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Picking from what the source holds, with what each choice costs.
+ *
+ * <p>Three states, and the difference is the reason for listing at all: already readable,
+ * readable once chosen because the adapter can let itself in, and readable only after somebody
+ * acts at the source — which says what to do rather than leaving a crawl to return nothing.
+ */
+function ScopeField({
+  field,
+  chosen,
+  scopes,
+  onChange,
+  describedBy,
+}: {
+  field: Extract<ConnectorField, { type: "scopes" }>
+  chosen: string
+  scopes?: ConnectorScopeOption[]
+  onChange: (name: string, value: string | boolean) => void
+  describedBy?: string
+}) {
+  const selected = new Set(
+    chosen
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  )
+
+  function toggle(key: string, on: boolean) {
+    const next = new Set(selected)
+    if (on) {
+      next.add(key)
+    } else {
+      next.delete(key)
+    }
+    onChange(field.name, [...next].join(", "))
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label>{field.label}</Label>
+      {field.description ? (
+        <p id={describedBy} className="text-xs text-muted-foreground">
+          {field.description}
+        </p>
+      ) : null}
+
+      {scopes === undefined ? (
+        <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          Store a credential first — this is read from the source with it.
+        </p>
+      ) : scopes.length === 0 ? (
+        <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          The source reported nothing to choose from.
+        </p>
+      ) : (
+        <ul className="divide-y rounded-md border">
+          {scopes.flatMap((scope) =>
+            scope.key
+              ? [
+                  <li key={scope.key} className="flex items-start justify-between gap-3 p-3">
+                    <div className="min-w-0 space-y-0.5">
+                      <Label htmlFor={`scope-${scope.key}`} className="font-normal">
+                        {scope.displayName ?? scope.key}
+                      </Label>
+                      {scope.reachable ? null : scope.admissible ? (
+                        <p className="text-xs text-muted-foreground">
+                          The bot will add itself when this is saved.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-warning-foreground">{scope.instruction}</p>
+                      )}
+                    </div>
+                    <Switch
+                      id={`scope-${scope.key}`}
+                      checked={selected.has(scope.key)}
+                      disabled={!scope.reachable && !scope.admissible}
+                      onCheckedChange={(on: boolean) => toggle(scope.key as string, on)}
+                    />
+                  </li>,
+                ]
+              : [],
+          )}
+        </ul>
+      )}
+
+      {field.emptyMeans && selected.size === 0 ? (
+        <p className="text-xs text-muted-foreground">{field.emptyMeans}</p>
       ) : null}
     </div>
   )

@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Crawls the Slack workspaces an administrator has enabled into the crawl-batch contract the
@@ -365,10 +366,42 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             crawl.incomplete();
             Set<String> wanted = Set.copyOf(settings.channels());
             channels = channels.stream()
-                    .filter(channel -> wanted.contains(channel.path("name").asString("")))
+                    .filter(channel -> wanted.contains(channel.path("id").asString(""))
+                            || wanted.contains(channel.path("name").asString("")))
                     .toList();
+            channels.forEach(channel -> joinIfChosen(client, channel));
         }
         return joinedOnly(channels, crawl);
+    }
+
+    /**
+     * Adds the bot to a chosen channel it is not yet in.
+     *
+     * <p>Only for channels an administrator named. Choosing a channel here is the instruction to
+     * read it, and requiring a separate trip to Slack to repeat that instruction is a step that
+     * carries no decision. It also repairs itself: a bot removed from a channel that is still
+     * configured rejoins on the next crawl rather than leaving a silent gap.
+     *
+     * <p>Nothing is chosen implicitly. A connection with no channels configured joins nothing and
+     * reads what it was invited to, so a deployment that would rather grant no write scope simply
+     * does not use the picker — and an app installed without {@code channels:join} refuses here,
+     * which costs the completeness claim rather than the crawl.
+     */
+    private static void joinIfChosen(SlackWebApiClient client, JsonNode channel) {
+        if (channel.path("is_member").asBoolean(true)) {
+            return;
+        }
+        String id = channel.path("id").asString("");
+        try {
+            client.call("conversations.join", Map.of("channel", id));
+            log.info("Joined Slack channel {} because it is configured to be crawled", id);
+            // conversations.list said otherwise a moment ago; it is a member now.
+            ((ObjectNode) channel).put("is_member", true);
+        } catch (SlackApiException refused) {
+            // A private channel, or an app without channels:join. Either way somebody at the
+            // source has to act, and joinedOnly will withdraw the completeness claim for it.
+            log.warn("Could not join Slack channel {}: {}", id, refused.errorCode());
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query"
 
 import {
   getAdminConnectionActivityOptions,
+  listAdminConnectionScopesOptions,
   listAdminConnectionsOptions,
   listAdminConnectionsQueryKey,
   listAdminConnectorSourcesOptions,
@@ -40,6 +41,17 @@ export function adminSourceGroupsQueryOptions() {
 export function adminConnectionsQueryOptions(sourceSystem: string) {
   return queryOptions({
     ...listAdminConnectionsOptions({ path: { sourceSystem } }),
+    staleTime: ADMIN_STALE_TIME,
+  })
+}
+
+/**
+ * What a connection could be pointed at, read from the source with its stored credential. Only
+ * once there is a connection to read it with, which is why the key is part of the path.
+ */
+export function adminConnectionScopesQueryOptions(sourceSystem: string, connectionKey: string) {
+  return queryOptions({
+    ...listAdminConnectionScopesOptions({ path: { sourceSystem, connectionKey } }),
     staleTime: ADMIN_STALE_TIME,
   })
 }

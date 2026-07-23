@@ -1,6 +1,8 @@
 package com.orgmemory.api.admin;
 
 import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.ConnectorScope;
+import com.orgmemory.core.knowledge.ConnectorScopeBrowserRegistry;
 import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
@@ -58,6 +60,7 @@ class AdminConnectorController {
     private final SourceConnectionActivityService activity;
     private final ConnectorSourceRegistry sources;
     private final ConnectorCredentialProbeRegistry probes;
+    private final ConnectorScopeBrowserRegistry scopeBrowsers;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     AdminConnectorController(
@@ -65,12 +68,14 @@ class AdminConnectorController {
             SourceConnectionAdminService connections,
             SourceConnectionActivityService activity,
             ConnectorSourceRegistry sources,
-            ConnectorCredentialProbeRegistry probes) {
+            ConnectorCredentialProbeRegistry probes,
+            ConnectorScopeBrowserRegistry scopeBrowsers) {
         this.guard = guard;
         this.connections = connections;
         this.activity = activity;
         this.sources = sources;
         this.probes = probes;
+        this.scopeBrowsers = scopeBrowsers;
     }
 
     /** A source this deployment can actually ingest, as reported by the adapters installed. */
@@ -193,6 +198,28 @@ class AdminConnectorController {
 
         static AdminConnectorProbeResponse noCredential() {
             return from(ConnectorCredentialProbeResult.noCredential());
+        }
+    }
+
+    /**
+     * One thing a connection could be pointed at. {@code reachable} says the credential can
+     * already read it; {@code admissible} says choosing it is enough because the adapter can
+     * gain access itself; neither means {@code instruction} explains what a person must do.
+     */
+    record AdminConnectorScopeResponse(
+            String key,
+            String displayName,
+            boolean reachable,
+            boolean admissible,
+            String instruction) {
+
+        static AdminConnectorScopeResponse from(ConnectorScope scope) {
+            return new AdminConnectorScopeResponse(
+                    scope.key(),
+                    scope.displayName(),
+                    scope.reachable(),
+                    scope.admissible(),
+                    scope.instruction());
         }
     }
 
@@ -324,6 +351,37 @@ class AdminConnectorController {
                 connections.resolveCredential(actor.organizationId(), system, connectionKey);
         return stored.map(credential -> AdminConnectorProbeResponse.from(probes.probe(system, credential)))
                 .orElseGet(AdminConnectorProbeResponse::noCredential);
+    }
+
+    /**
+     * What this connection could be pointed at, so choosing is picking from what exists.
+     *
+     * <p>Read with the stored credential, which is also why the answer is honest: it reports what
+     * that credential can reach, not what the source contains. A scope it cannot reach is still
+     * listed, with whether choosing it is enough or somebody at the source has to act first.
+     */
+    @GetMapping("/{sourceSystem}/{connectionKey}/scopes")
+    @Operation(operationId = "listAdminConnectionScopes", summary = "List what a connection can be pointed at")
+    List<AdminConnectorScopeResponse> scopes(
+            @PathVariable String sourceSystem,
+            @PathVariable String connectionKey,
+            Authentication authentication) {
+        CurrentActor actor = guard.requireAdministrator(authentication);
+        String system = requireInstalled(sourceSystem);
+        if (!scopeBrowsers.supports(system)) {
+            // Nothing to enumerate is not an error. The screen falls back to typing.
+            return List.of();
+        }
+        String sourceConfig = connections.describe(actor.organizationId(), system, connectionKey)
+                .map(SourceConnectionConfigurationView::sourceConfig)
+                .orElse("");
+        // Without a stored credential there is nothing to ask the source with. An empty list is
+        // the honest answer, and the screen already says the credential is missing.
+        return connections.resolveCredential(actor.organizationId(), system, connectionKey)
+                .map(credential -> scopeBrowsers.scopes(system, credential, sourceConfig).stream()
+                        .map(AdminConnectorScopeResponse::from)
+                        .toList())
+                .orElseGet(List::of);
     }
 
     /** A source no adapter contributed has nothing to configure, so naming it is a request error. */
