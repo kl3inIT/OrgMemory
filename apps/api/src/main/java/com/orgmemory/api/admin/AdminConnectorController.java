@@ -319,6 +319,27 @@ class AdminConnectorController {
     }
 
     /**
+     * Asks for a content crawl on the next poll rather than at the next interval.
+     *
+     * <p>The worker re-reads access every poll and content far less often; between those an
+     * administrator who has just changed what to crawl would otherwise wait out the interval with
+     * no way to say "now". This records that request. It does not run a crawl inline — the worker
+     * owns crawling — so the response is empty and the outcome shows on the connection's activity
+     * once the next poll acts on it.
+     */
+    @PostMapping("/{sourceSystem}/{connectionKey}/crawl")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(operationId = "requestAdminConnectionCrawl", summary = "Ask for a content crawl on the next poll")
+    void requestCrawl(
+            @PathVariable String sourceSystem,
+            @PathVariable String connectionKey,
+            Authentication authentication) {
+        CurrentActor actor = guard.requireAdministrator(authentication);
+        connections.requestContentCrawl(
+                actor.organizationId(), requireInstalled(sourceSystem), connectionKey, actor.userId());
+    }
+
+    /**
      * Checks a credential that has not been stored, which is how a connection gets configured at
      * all: the connection key this returns is the one the connection will use, so an
      * administrator pastes a credential and is told the key rather than looking it up.

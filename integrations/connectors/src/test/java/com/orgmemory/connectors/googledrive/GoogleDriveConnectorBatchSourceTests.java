@@ -19,6 +19,7 @@ import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -472,6 +473,11 @@ class GoogleDriveConnectorBatchSourceTests {
     }
 
     private static ConnectorCrawlConfiguration configuration(List<String> folderIds) {
+        return configuration(folderIds, null);
+    }
+
+    private static ConnectorCrawlConfiguration configuration(
+            List<String> folderIds, Instant contentCrawlRequestedAt) {
         String folders = folderIds.stream()
                 .map(id -> "\"" + id + "\"")
                 .reduce((left, right) -> left + "," + right)
@@ -483,7 +489,8 @@ class GoogleDriveConnectorBatchSourceTests {
                 SPACE,
                 ACTOR,
                 "{\"folderIds\":[" + folders + "],\"maxFiles\":500}",
-                Duration.ofMinutes(60));
+                Duration.ofMinutes(60),
+                contentCrawlRequestedAt);
     }
 
     private void expectToken() {

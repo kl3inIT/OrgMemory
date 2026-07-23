@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -11,6 +12,9 @@ import java.util.UUID;
  * @param sourceConfig settings only this source system understands, as a JSON object. The
  *                     ledger carried it here without reading inside; the adapter that defined
  *                     its shape is the only thing that should parse it.
+ * @param contentCrawlRequestedAt when an administrator last asked for a content crawl out of
+ *                     turn, or null. An adapter forces a content crawl when this is newer than
+ *                     the last request it served; between requests it follows its own cadence.
  */
 public record ConnectorCrawlConfiguration(
         UUID organizationId,
@@ -19,7 +23,8 @@ public record ConnectorCrawlConfiguration(
         UUID knowledgeSpaceId,
         UUID actorUserId,
         String sourceConfig,
-        Duration contentCrawlInterval) {
+        Duration contentCrawlInterval,
+        Instant contentCrawlRequestedAt) {
 
     public ConnectorCrawlConfiguration {
         sourceConfig = sourceConfig == null || sourceConfig.isBlank() ? "{}" : sourceConfig;

@@ -68,6 +68,14 @@ class SourceConnection extends BaseEntity {
     @Column(name = "crawl_configured_at")
     private Instant crawlConfiguredAt;
 
+    /**
+     * When an administrator last asked for a content crawl out of turn. Null until one does.
+     * The worker reads this against the last request it served: a newer value forces one
+     * content crawl and is then spent, so it is a request rather than a schedule.
+     */
+    @Column(name = "content_crawl_requested_at")
+    private Instant contentCrawlRequestedAt;
+
     protected SourceConnection() {
     }
 
@@ -137,6 +145,20 @@ class SourceConnection extends BaseEntity {
 
     Instant getCrawlConfiguredAt() {
         return crawlConfiguredAt;
+    }
+
+    /**
+     * Asks for a content crawl on the next poll rather than at the next interval. Recording the
+     * instant is the whole mechanism: the worker forces a content crawl when this is newer than
+     * the last request it acted on, so asking again while one is still pending simply moves the
+     * instant forward and changes nothing.
+     */
+    void requestContentCrawl(Instant requestedAt) {
+        this.contentCrawlRequestedAt = requestedAt;
+    }
+
+    Instant getContentCrawlRequestedAt() {
+        return contentCrawlRequestedAt;
     }
 
     void decideTrust(SourceIdentityTrust identityTrust, UUID decidedByUserId, Instant decidedAt) {

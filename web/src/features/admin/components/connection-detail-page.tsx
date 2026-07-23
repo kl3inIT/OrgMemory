@@ -1,6 +1,7 @@
-import { useQueries } from "@tanstack/react-query"
+import { useMutation, useQueries } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowLeft, TriangleAlert } from "lucide-react"
+import { ArrowLeft, RefreshCw, TriangleAlert } from "lucide-react"
+import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +15,7 @@ import {
   adminConnectionsQueryOptions,
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
+import { requestAdminConnectionCrawlMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
@@ -84,6 +86,13 @@ export function ConnectionDetailPage({
     ],
   })
 
+  const crawlNow = useMutation({
+    ...requestAdminConnectionCrawlMutation(),
+    onSuccess: () =>
+      toast.success("Crawl requested. The worker reads its content on the next poll — the attempt appears below when it does."),
+    onError: () => toast.error("The crawl could not be requested."),
+  })
+
   if (connections.isPending || activity.isPending || spaces.isPending) {
     return <LoadingState label="Loading connection" className="min-h-full flex-1" />
   }
@@ -133,6 +142,16 @@ export function ConnectionDetailPage({
               <ArrowLeft aria-hidden="true" />
               Sources
             </Link>
+          </Button>
+          {/* Only meaningful once the connection can actually read: an off or credential-less
+              connection accepts the request and the worker, which polls neither, never acts. */}
+          <Button
+            variant="outline"
+            disabled={!connection?.crawlEnabled || !connection.credentialSet || crawlNow.isPending}
+            onClick={() => crawlNow.mutate({ path: { sourceSystem, connectionKey } })}
+          >
+            <RefreshCw aria-hidden="true" />
+            {crawlNow.isPending ? "Requesting…" : "Crawl now"}
           </Button>
           <Button asChild>
             <Link

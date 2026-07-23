@@ -42,6 +42,7 @@ import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
 import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
   forgetAdminConnectionCredentialMutation,
+  requestAdminConnectionCrawlMutation,
   testAdminConnectionMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminConnectionResponse, AdminConnectorProbeResponse } from "@/lib/hey-api"
@@ -112,6 +113,13 @@ export function AdminConnectorsPage() {
     ...testAdminConnectionMutation(),
     onSuccess: (result, variables) => setChecked({ key: String(variables.path.connectionKey), result }),
     onError: () => toast.error("The stored credential could not be checked."),
+  })
+
+  const crawlNow = useMutation({
+    ...requestAdminConnectionCrawlMutation(),
+    onSuccess: () =>
+      toast.success("Crawl requested. The worker reads its content on the next poll."),
+    onError: () => toast.error("The crawl could not be requested."),
   })
 
   if (sources.isPending || spaces.isPending || connectionQueries.some((query) => query.isPending)) {
@@ -302,6 +310,18 @@ export function AdminConnectorsPage() {
                                   }
                                 >
                                   Test credential
+                                </DropdownMenuItem>
+                                {/* Only an enabled connection holding a credential — the state the
+                                    worker actually polls — has a crawl to bring forward. */}
+                                <DropdownMenuItem
+                                  disabled={state.label !== "Indexing" || crawlNow.isPending}
+                                  onSelect={() =>
+                                    crawlNow.mutate({
+                                      path: { sourceSystem: group.system, connectionKey: key },
+                                    })
+                                  }
+                                >
+                                  Crawl now
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem

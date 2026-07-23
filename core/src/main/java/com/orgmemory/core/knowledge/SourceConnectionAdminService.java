@@ -172,8 +172,30 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                         connection.getKnowledgeSpaceId(),
                         connection.getActorUserId(),
                         connection.getSourceConfig(),
-                        Duration.ofSeconds(connection.getContentCrawlIntervalSeconds())))
+                        Duration.ofSeconds(connection.getContentCrawlIntervalSeconds()),
+                        connection.getContentCrawlRequestedAt()))
                 .toList();
+    }
+
+    /**
+     * Asks for a content crawl on the next poll rather than at the next interval.
+     *
+     * <p>Only meaningful for a connection that is enabled and holds a credential — a request is
+     * an override of the cadence, and a connection with no cadence running has nothing to
+     * override. It is refused for a connection nobody has configured, because there would be no
+     * crawl for the worker to bring forward and the request would sit unremarked forever.
+     */
+    @Transactional
+    public void requestContentCrawl(
+            UUID organizationId, String sourceSystem, String sourceConnectionKey, UUID adminUserId) {
+        String system = requireText(sourceSystem, "sourceSystem");
+        String key = requireText(sourceConnectionKey, "sourceConnectionKey");
+        SourceConnection connection = find(organizationId, system, key)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No connection is configured for " + system + "/" + key));
+        connection.requestContentCrawl(Instant.now());
+        connections.save(connection);
+        record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CRAWL", "CRAWL_REQUESTED");
     }
 
     private Optional<SourceConnection> find(

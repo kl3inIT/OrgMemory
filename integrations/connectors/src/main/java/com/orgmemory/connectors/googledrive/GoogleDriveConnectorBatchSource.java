@@ -1,5 +1,6 @@
 package com.orgmemory.connectors.googledrive;
 
+import com.orgmemory.connectors.ContentCadence;
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
@@ -66,7 +66,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final Map<String, Instant> contentCrawlDueAt = new ConcurrentHashMap<>();
+    private final ContentCadence contentCadence = new ContentCadence();
 
     GoogleDriveConnectorBatchSource(
             ConnectorConnectionDirectory connections, RestClient.Builder restClientBuilder) {
@@ -130,12 +130,11 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         GoogleDriveCrawlSettings settings = GoogleDriveCrawlSettings.from(configuration.sourceConfig());
         GoogleDriveApiClient client = clientFor(configuration, settings);
 
-        String due = dueKey(configuration);
         Instant now = clock.instant();
-        boolean contentDue = !now.isBefore(contentCrawlDueAt.getOrDefault(due, Instant.EPOCH));
+        boolean contentDue = contentCadence.contentDue(configuration, now);
         ConnectorCrawlBatch batch = crawl(client, configuration, settings, contentDue);
         if (contentDue) {
-            contentCrawlDueAt.put(due, now.plus(configuration.contentCrawlInterval()));
+            contentCadence.contentCrawled(configuration, now);
         }
         return batch;
     }
@@ -156,11 +155,6 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 settings.impersonatedUser(),
                 clock);
         return new GoogleDriveApiClient(restClientBuilder, tokens, objectMapper);
-    }
-
-    /** Two tenants may key a connection the same way, so the cadence is remembered per tenant. */
-    private static String dueKey(ConnectorCrawlConfiguration configuration) {
-        return configuration.organizationId() + "/" + configuration.sourceConnectionKey();
     }
 
     private ConnectorCrawlBatch crawl(

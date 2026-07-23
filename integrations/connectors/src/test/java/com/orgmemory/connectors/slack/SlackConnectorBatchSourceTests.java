@@ -480,6 +480,58 @@ class SlackConnectorBatchSourceTests {
         assertFalse(again.contents().isEmpty(), "content is re-read once its interval has elapsed");
     }
 
+    /**
+     * An administrator who has just changed what to crawl should not have to wait out the
+     * interval. A request re-reads content on the next poll however recently the last content
+     * crawl ran — but only once: the same request does not force every poll after it, or the
+     * cadence would be gone and every poll would pay for a full crawl.
+     */
+    @Test
+    void anAdministratorsRequestForcesOneContentCrawlWithinTheInterval() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        ConnectorCrawlConfiguration noRequest = configuration(CONNECTION, List.of(), null);
+        ConnectorCrawlConfiguration requested =
+                configuration(CONNECTION, List.of(), Instant.parse("2026-07-23T09:03:00Z"));
+        when(connections.enabledCrawls("slack"))
+                .thenReturn(List.of(noRequest), List.of(requested), List.of(requested));
+        SlackConnectorBatchSource source =
+                new SlackConnectorBatchSource(connections, directory, builder, clock);
+
+        // First poll pays for a content crawl, as any fresh connection does.
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        assertFalse(source.pendingBatches().batches().getFirst().contents().isEmpty());
+        server.verify();
+
+        // Three minutes later, far inside the hour, but a request has arrived — content is read.
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(3));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        assertFalse(
+                source.pendingBatches().batches().getFirst().contents().isEmpty(),
+                "a request forces content even though the interval has not elapsed");
+        server.verify();
+
+        // The same request, still the newest, does not force content again: back to permissions.
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(3));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        assertTrue(
+                source.pendingBatches().batches().getFirst().contents().isEmpty(),
+                "a served request does not re-fire on every later poll");
+        server.verify();
+    }
+
     @Test
     void producesNothingUntilAConnectionIsEnabled() {
         when(connections.enabledCrawls("slack")).thenReturn(List.of());
@@ -529,7 +581,7 @@ class SlackConnectorBatchSourceTests {
         setUpServerOnly();
         clock.advance(Duration.ofHours(2));
         when(connections.enabledCrawls("slack")).thenReturn(List.of(new ConnectorCrawlConfiguration(
-                ORG, "slack", CONNECTION, movedTo, ACTOR, "{}", Duration.ofHours(1))));
+                ORG, "slack", CONNECTION, movedTo, ACTOR, "{}", Duration.ofHours(1), null)));
         expectAuth();
         expectUsers();
         expectChannels();
@@ -629,6 +681,11 @@ class SlackConnectorBatchSourceTests {
     }
 
     private static ConnectorCrawlConfiguration configuration(String connectionKey, List<String> channels) {
+        return configuration(connectionKey, channels, null);
+    }
+
+    private static ConnectorCrawlConfiguration configuration(
+            String connectionKey, List<String> channels, Instant contentCrawlRequestedAt) {
         // The settings only Slack understands travel as the opaque document the ledger stores.
         String sourceConfig = channels.isEmpty()
                 ? "{\"maxThreadsPerChannel\":500}"
@@ -636,7 +693,8 @@ class SlackConnectorBatchSourceTests {
                         + channels.stream().map(name -> '"' + name + '"').collect(Collectors.joining(","))
                         + "],\"maxThreadsPerChannel\":500}";
         return new ConnectorCrawlConfiguration(
-                ORG, "slack", connectionKey, SPACE, ACTOR, sourceConfig, Duration.ofHours(1));
+                ORG, "slack", connectionKey, SPACE, ACTOR, sourceConfig,
+                Duration.ofHours(1), contentCrawlRequestedAt);
     }
 
     private void expectAuth() {

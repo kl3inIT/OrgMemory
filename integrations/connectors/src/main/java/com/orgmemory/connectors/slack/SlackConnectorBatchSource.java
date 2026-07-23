@@ -1,5 +1,6 @@
 package com.orgmemory.connectors.slack;
 
+import com.orgmemory.connectors.ContentCadence;
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
@@ -27,7 +28,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
@@ -72,7 +72,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     private final ConnectorObjectDirectory objects;
     private final RestClient.Builder restClientBuilder;
     private final Clock clock;
-    private final Map<String, Instant> contentCrawlDueAt = new ConcurrentHashMap<>();
+    private final ContentCadence contentCadence = new ContentCadence();
 
     SlackConnectorBatchSource(
             ConnectorConnectionDirectory connections,
@@ -145,14 +145,11 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * <p>Access changes daily and content rarely, so re-reading every message body to answer "who
      * can see this now" is the expensive mistake. Between content crawls this produces a
      * permissions crawl instead: channels and their members, applied to the objects the ledger
-     * already holds. That costs a call per channel rather than a call per thread.
+     * already holds. That costs a call per channel rather than a call per thread. When content is
+     * due — because the interval elapsed or an administrator asked — the whole thread is read.
      *
-     * <p>The due time is held in memory on purpose. Losing it costs one extra content crawl after
-     * a restart, and the alternative — another durable row to keep honest — buys nothing against
-     * a failure that benign.
-     *
-     * <p>It advances only once the crawl has produced a batch. Advancing it first spends the
-     * interval on an attempt that failed: a workspace briefly unreachable, or a bot not yet
+     * <p>The cadence advances only once the crawl has produced a batch. Advancing it first spends
+     * the interval on an attempt that failed: a workspace briefly unreachable, or a bot not yet
      * invited anywhere, would quietly downgrade every poll for the next hour to permissions only,
      * and the connection would look busy while nothing was being read.
      */
@@ -164,19 +161,13 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                         "No Slack credential is stored for connection " + configuration.sourceConnectionKey()));
         SlackWebApiClient client = new SlackWebApiClient(restClientBuilder, token.expose());
 
-        String due = dueKey(configuration);
         Instant now = clock.instant();
-        if (now.isBefore(contentCrawlDueAt.getOrDefault(due, Instant.EPOCH))) {
+        if (!contentCadence.contentDue(configuration, now)) {
             return permissionsCrawl(client, configuration);
         }
         ConnectorCrawlBatch batch = crawl(client, configuration);
-        contentCrawlDueAt.put(due, now.plus(configuration.contentCrawlInterval()));
+        contentCadence.contentCrawled(configuration, now);
         return batch;
-    }
-
-    /** Two tenants may key a connection the same way, so the cadence is remembered per tenant. */
-    private static String dueKey(ConnectorCrawlConfiguration configuration) {
-        return configuration.organizationId() + "/" + configuration.sourceConnectionKey();
     }
 
     /**
