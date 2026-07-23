@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client"
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary"
 import { ThemeProvider } from "next-themes"
 
+import "@fontsource-variable/hanken-grotesk/wght.css"
 import "./lib/api-client"
 import "./index.css"
 import { AppToaster } from "@/components/app-toaster"

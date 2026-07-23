@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
 import { toast } from "sonner"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -23,10 +24,14 @@ import {
   listSourcesQueryKey,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
-export function SourcesPage() {
+export function SourcesPage({
+  search,
+  onSearchChange,
+}: {
+  search: string
+  onSearchChange: (search: string) => void
+}) {
   const queryClient = useQueryClient()
-  const search = useDocumentManagerStore((state) => state.search)
-  const setSearch = useDocumentManagerStore((state) => state.setSearch)
   const statusFilter = useDocumentManagerStore((state) => state.statusFilter)
   const setStatusFilter = useDocumentManagerStore((state) => state.setStatusFilter)
   const sources = useQuery({
@@ -52,6 +57,10 @@ export function SourcesPage() {
       .filter(Boolean)
       .some((value) => value?.toLocaleLowerCase().includes(normalizedSearch))
   })
+  const visibleDocumentLabel = formatVisibleDocumentCount(
+    filteredDocuments.length,
+    normalizedSearch.length > 0,
+  )
 
   return (
     <main className="min-h-0 flex-1 overflow-y-auto">
@@ -71,7 +80,7 @@ export function SourcesPage() {
 
           <TabsContent value="documents" className="space-y-6">
             <header className="flex items-center justify-between gap-5">
-              <h1 className="text-2xl font-semibold tracking-tight">Documents</h1>
+              <h1 className="text-page-title text-content-primary">Documents</h1>
               <SourceUploadDialog
                 pending={upload.isPending}
                 spaces={uploadTargets.data ?? []}
@@ -88,17 +97,38 @@ export function SourcesPage() {
             >
               <TabsList
                 variant="line"
-                className="h-auto w-full justify-start gap-6 overflow-x-auto overflow-y-hidden border-b p-0"
+                className="h-auto w-full justify-start gap-4 overflow-x-auto overflow-y-hidden border-b p-0 [scrollbar-width:none] sm:gap-6 [&::-webkit-scrollbar]:hidden"
                 aria-label="Document status"
               >
-                {SOURCE_STATUS_FILTERS.map((filter) => (
-                  <TabsTrigger key={filter.value} value={filter.value} className="flex-none gap-2 px-0 py-3">
-                    {filter.label}
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {sourceStatusCount(documents, filter.value)}
-                    </span>
-                  </TabsTrigger>
-                ))}
+                {SOURCE_STATUS_FILTERS.map((filter) => {
+                  const count = sourceStatusCount(documents, filter.value)
+                  return (
+                    <TabsTrigger
+                      key={filter.value}
+                      value={filter.value}
+                      className="flex-none gap-2 px-0 py-3"
+                      aria-label={`${filter.label}, ${formatDocumentCount(count)}`}
+                    >
+                      {filter.compactLabel ? (
+                        <>
+                          <span className="sm:hidden">{filter.compactLabel}</span>
+                          <span className="hidden sm:inline">{filter.label}</span>
+                        </>
+                      ) : (
+                        filter.label
+                      )}
+                      {count > 0 ? (
+                        <Badge
+                          variant="muted"
+                          className="h-5 min-w-5 justify-center rounded-full px-1.5 text-[11px] tabular-nums"
+                          aria-hidden="true"
+                        >
+                          {count.toLocaleString()}
+                        </Badge>
+                      ) : null}
+                    </TabsTrigger>
+                  )
+                })}
               </TabsList>
             </Tabs>
 
@@ -113,12 +143,12 @@ export function SourcesPage() {
                     value={search}
                     placeholder="Search documents"
                     aria-label="Search documents"
-                    onChange={(event) => setSearch(event.target.value)}
+                    onChange={(event) => onSearchChange(event.target.value)}
                   />
                 </InputGroup>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {filteredDocuments.length} of {documents.length}
+                  <span className="whitespace-nowrap text-sm text-muted-foreground" aria-live="polite">
+                    {visibleDocumentLabel}
                   </span>
                   <Button
                     variant="outline"
@@ -142,6 +172,16 @@ export function SourcesPage() {
       </div>
     </main>
   )
+}
+
+function formatDocumentCount(count: number) {
+  return `${count.toLocaleString()} ${count === 1 ? "document" : "documents"}`
+}
+
+function formatVisibleDocumentCount(count: number, hasSearch: boolean) {
+  if (count === 0) return hasSearch ? "No results" : "No documents"
+  if (hasSearch) return `${count.toLocaleString()} ${count === 1 ? "result" : "results"}`
+  return formatDocumentCount(count)
 }
 
 function SourcesLoading() {

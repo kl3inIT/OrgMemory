@@ -45,6 +45,19 @@ export function SourceUploadDialog({
       Boolean(space.id && space.name) && (classification === "INTERNAL" || Boolean(space.departmentId)),
   )
 
+  function reset() {
+    setFile(undefined)
+    setClassification("CONFIDENTIAL")
+    setKnowledgeSpaceId("")
+    setError(undefined)
+  }
+
+  function changeOpen(nextOpen: boolean) {
+    if (!nextOpen && pending) return
+    setOpen(nextOpen)
+    if (!nextOpen) reset()
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!file) {
@@ -63,16 +76,14 @@ export function SourceUploadDialog({
     try {
       await onUpload({ file, classification, knowledgeSpaceId })
       setOpen(false)
-      setFile(undefined)
-      setClassification("CONFIDENTIAL")
-      setKnowledgeSpaceId("")
+      reset()
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The upload could not be completed.")
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         <Button>
           <Upload aria-hidden="true" />
@@ -99,6 +110,30 @@ export function SourceUploadDialog({
                 setError(undefined)
               }}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="source-classification">Classification</Label>
+            <Select
+              value={classification}
+              disabled={pending}
+              onValueChange={(value: string) => {
+                const next = value as UploadSourceInput["classification"]
+                setClassification(next)
+                const selected = spaces.find((space) => space.id === knowledgeSpaceId)
+                if (next === "CONFIDENTIAL" && !selected?.departmentId) setKnowledgeSpaceId("")
+              }}
+            >
+              <SelectTrigger id="source-classification" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PUBLIC">Public · all employees</SelectItem>
+                <SelectItem value="CONFIDENTIAL">Confidential · my department</SelectItem>
+                <SelectItem value="INTERNAL">Internal · all employees</SelectItem>
+                <SelectItem value="RESTRICTED">Restricted · executives only</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -138,30 +173,6 @@ export function SourceUploadDialog({
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="source-classification">Classification</Label>
-            <Select
-              value={classification}
-              disabled={pending}
-              onValueChange={(value: string) => {
-                const next = value as UploadSourceInput["classification"]
-                setClassification(next)
-                const selected = spaces.find((space) => space.id === knowledgeSpaceId)
-                if (next === "CONFIDENTIAL" && !selected?.departmentId) setKnowledgeSpaceId("")
-              }}
-            >
-              <SelectTrigger id="source-classification" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PUBLIC">Public · all employees</SelectItem>
-                <SelectItem value="CONFIDENTIAL">Confidential · my department</SelectItem>
-                <SelectItem value="INTERNAL">Internal · all employees</SelectItem>
-                <SelectItem value="RESTRICTED">Restricted · executives only</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -169,7 +180,7 @@ export function SourceUploadDialog({
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" disabled={pending} onClick={() => changeOpen(false)}>
               Cancel
             </Button>
             <Button

@@ -61,7 +61,9 @@ function hasVisibleOutput(message: UIMessage) {
 
 function sourceHref(source: SourcePart) {
   if (source.type === "source-url") return source.url
-  return source.sourceId.startsWith("/") ? source.sourceId : "/sources"
+  if (source.sourceId.startsWith("/")) return source.sourceId
+  const query = source.title?.trim()
+  return query ? `/sources?q=${encodeURIComponent(query)}` : "/sources"
 }
 
 function greeting() {
@@ -136,10 +138,10 @@ export function AssistantPage() {
 
   if (messages.length === 0) {
     return (
-      <main className="flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6">
-        <h1 className="text-3xl font-semibold tracking-tight">{greeting()}</h1>
+      <main className="flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 pb-12">
+        <h1 className="text-page-title text-content-primary">{greeting()}</h1>
         <div className="w-full max-w-2xl">{composer}</div>
-        <Suggestions className="mx-auto justify-center">
+        <Suggestions className="mx-auto max-w-2xl flex-wrap justify-center whitespace-normal">
           {SUGGESTIONS.map((suggestion) => (
             <Suggestion
               key={suggestion}
@@ -167,20 +169,21 @@ export function AssistantPage() {
             return (
               <Message from={message.role} key={message.id}>
                 {content.trim() ? (
-                  <MessageContent>
+                  <MessageContent className="text-body">
                     <MessageResponse>{content}</MessageResponse>
                   </MessageContent>
                 ) : null}
                 {sources.length > 0 ? (
-                  <Sources className="mb-0">
+                  <Sources className="mb-0 text-content-secondary">
                     <SourcesTrigger count={sources.length} />
-                    <SourcesContent>
+                    <SourcesContent className="flex-row flex-wrap gap-2">
                       {sources.map((source) => (
                         <Source
                           key={`${source.type}-${source.sourceId}`}
                           href={sourceHref(source)}
                           title={source.title ?? "Company knowledge"}
                           target={sourceHref(source).startsWith("/") ? "_self" : "_blank"}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-subtle px-2.5 py-1.5 text-supporting text-content-secondary transition-colors hover:bg-action-ghost-hover hover:text-content-primary"
                         />
                       ))}
                     </SourcesContent>
@@ -207,7 +210,7 @@ export function AssistantPage() {
           })}
           {showWaiting ? (
             <Message from="assistant">
-              <MessageContent className="flex-row items-center gap-2 text-muted-foreground">
+              <MessageContent className="flex-row items-center gap-2 text-body text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                 <span>Searching permitted knowledge…</span>
               </MessageContent>
