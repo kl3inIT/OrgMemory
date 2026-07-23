@@ -37,7 +37,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `core`: organization, capability, permission, and knowledge domain packages;
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
-  optional Spring AI normalization/chat, OpenAPI, and health.
+  optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
+  administration surface over the identity ledger gated on OpenFGA
+  `can_manage_members`.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
   fail-closed authorization projection, publication, external
   permission-workbook validation, and a fixture-driven Slack connector staging
@@ -49,7 +51,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
   restoration and passes the verified identity into the shell; feature code
-  does not repeat authentication gates.
+  does not repeat authentication gates. A separate `/admin` area reuses the same
+  shell with a Permissions sidebar and is hidden from non-administrators by the
+  session role, which is a rendering hint over the server-side gate.
 
 `core` uses Spring Modulith package boundaries and a verification test. Leased
 database jobs carry ingestion work across processes. A specific Knowledge Asset
@@ -65,8 +69,9 @@ embeddings. The knowledge slice persists Knowledge Spaces and the canonical uplo
 ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
 versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
-principal mappings and sealed per-generation group membership, publication outbox
-evidence, and append-only permission audit events. Immutable evidence bytes live
+principal mappings and sealed per-generation group membership, per-connection
+identity trust decisions, publication outbox evidence, and append-only permission
+audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
 rebuildable projections. A connector staging crawl (`SLACK` source type) produces
 the same governed ledger as uploads, with source ACL evidence resolved through the
@@ -96,11 +101,13 @@ query text.
 OIDC identities are mapped only by an explicit `(issuer, subject)` binding to an
 active internal user. Email claims and identity-provider roles are never used to
 bootstrap identity or grant application permissions. External source principals
-and groups are not mapped into that identity model yet.
+are mapped into that identity model only through the verified mapping ledger, and
+an administrator governs that ledger from `/api/admin/**`.
 
-Only explicitly namespaced OrgMemory user, department, and organization
-principals are supported. External source groups, connector staging,
-multi-source derivation, and permission-aware MCP delivery are not implemented.
+Source ACL evidence accepts namespaced OrgMemory user, department, and
+organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
+principals, the latter resolved through sealed per-generation membership.
+Multi-source derivation and permission-aware MCP delivery are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -120,8 +127,9 @@ writes the Space and uploader-owner tuples together and keeps the asset/chunks
 model id, attempts, and failure reason are recorded in the publication outbox;
 the existing ingestion job provides durable retry. Source ACL remains an
 independent permission ceiling: internal upload ACLs grant the organization and
-confidential upload ACLs grant the selected Space's department. External
-source-principal projection is not implemented yet.
+confidential upload ACLs grant the selected Space's department. External source
+principals are resolved in that ceiling by the SQL enforcement path through their
+verified mappings; they are not projected into OpenFGA tuples.
 
 ## Current AI And Graph Behavior
 

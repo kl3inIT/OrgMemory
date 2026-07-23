@@ -22,11 +22,29 @@ backslash, and malformed return targets fall back to `/`.
 Stateless bearer requests remain available for MCP, CLI, and integration clients.
 The server derives user, organization, and department from the canonical actor;
 client payloads cannot choose them. There is no offline/permit-all profile.
-External source-system users/groups are not yet resolved into knowledge ACL
-principals.
+External source-system users and groups are resolved into knowledge ACL
+principals through the verified mapping ledger described in the
+[knowledge ingestion spec](knowledge-ingestion.md).
+
+An administration surface under `/api/admin/**` governs that identity layer.
+Every endpoint is gated on OpenFGA `can_manage_members` against the actor's
+organization; the app role carried by `/api/session` and `/api/me` is a browser
+rendering hint and never a boundary. Administration lists internal users with
+their role, activation, whether an `external_identities` row exists at all, and
+how many source principals resolve to them; it changes role and activation but
+never creates users, refusing self-edits so an organization cannot be locked out
+of its own administration. It lists observed source principals with the tier that
+mapped them, records administrator-confirmed mappings and revocations through the
+existing mapping service, records the per-connection identity trust decision, and
+exposes sealed source-group membership read-only. There is no in-application
+invitation, registration, or application-managed group: accounts come from the
+identity provider and group membership is fixed at ACL seal time. SCIM
+provisioning is not implemented.
 
 OpenAPI and Swagger are disabled by default and public only in the `dev`
-profile. Production configuration has mandatory environment-backed database,
+profile. The committed `contracts/openapi.json` is generated from the running
+application and verified against it, so the browser client cannot be generated
+from a stale contract. Production configuration has mandatory environment-backed database,
 OIDC, OpenFGA, object-storage, and AI settings; invalid or known local values
 abort API startup before traffic is accepted.
 
@@ -34,6 +52,8 @@ abort API startup before traffic is accepted.
 
 - `core.organization`
 - `apps.api.security`
+- `apps.api.admin`
+- `core.knowledge` `SourcePrincipalAdminService`
 
 ## Invariants
 
@@ -44,6 +64,9 @@ abort API startup before traffic is accepted.
   grants.
 - Browser and bearer paths must resolve the same `CurrentActor`.
 - Unknown, inactive, stale, or ambiguous identity state denies access.
+- Administration is authorized by OpenFGA, never by the app role a browser reads.
+- Administration resolves existing sealed grants; it never creates a grant, an
+  account, or a group.
 
 ## Related Decisions
 

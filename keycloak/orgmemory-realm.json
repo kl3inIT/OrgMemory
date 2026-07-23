@@ -583,7 +583,9 @@
       "baseUrl": "http://localhost:5173",
       "redirectUris": [
         "http://localhost:8080/login/oauth2/code/keycloak",
-        "http://127.0.0.1:8080/login/oauth2/code/keycloak"
+        "http://127.0.0.1:8080/login/oauth2/code/keycloak",
+        "http://localhost:8090/login/oauth2/code/keycloak",
+        "http://127.0.0.1:8090/login/oauth2/code/keycloak"
       ],
       "webOrigins": [],
       "attributes": {

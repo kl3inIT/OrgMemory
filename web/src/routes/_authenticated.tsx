@@ -1,19 +1,12 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router"
+import { createFileRoute, Outlet } from "@tanstack/react-router"
 
 import { AppShell } from "@/components/app-shell/app-shell"
-import { browserLoginUrl } from "@/features/session/browser-login"
-import { browserSessionQueryOptions } from "@/features/session/session-query"
+import { requireBrowserSession } from "@/features/session/require-session"
 
 export const Route = createFileRoute("/_authenticated")({
-  beforeLoad: async ({ context, location }) => {
-    const session = await context.queryClient.ensureQueryData(browserSessionQueryOptions())
-
-    if (!session.authenticated) {
-      throw redirect({ href: browserLoginUrl(location.href), replace: true })
-    }
-
-    return { session }
-  },
+  beforeLoad: async ({ context, location }) => ({
+    session: await requireBrowserSession(context.queryClient, location.href),
+  }),
   component: AuthenticatedLayout,
 })
 

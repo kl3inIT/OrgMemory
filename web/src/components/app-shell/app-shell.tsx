@@ -7,7 +7,16 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import type { SessionResponse } from "@/lib/hey-api"
 
-export function AppShell({ identity, children }: { identity: SessionResponse; children: ReactNode }) {
+export function AppShell({
+  identity,
+  children,
+  sidebar,
+}: {
+  identity: SessionResponse
+  children: ReactNode
+  /** The admin area swaps the navigation but keeps one header, title, and skip link. */
+  sidebar?: ReactNode
+}) {
   const pageTitle = useMatches({
     select: (matches) =>
       [...matches].reverse().find((match) => match.staticData.title)?.staticData.title ?? "OrgMemory",
@@ -25,7 +34,7 @@ export function AppShell({ identity, children }: { identity: SessionResponse; ch
       >
         Skip to content
       </a>
-      <AppSidebar />
+      {sidebar ?? <AppSidebar />}
       <SidebarInset
         className="h-dvh min-w-0 overflow-hidden bg-surface-base md:h-[calc(100dvh-1rem)] md:border md:border-border-subtle"
       >

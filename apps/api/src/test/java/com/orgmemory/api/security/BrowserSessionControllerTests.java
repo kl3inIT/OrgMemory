@@ -9,8 +9,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.organization.AppUser;
+import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.UserRole;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -29,7 +33,8 @@ class BrowserSessionControllerTests {
                 "anonymousUser",
                 List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
 
-        var response = new BrowserSessionController(actors, mock(BrowserLoginFlow.class)).session(anonymous);
+        var response = new BrowserSessionController(
+                actors, mock(BrowserLoginFlow.class), mock(AppUserRepository.class)).session(anonymous);
 
         assertFalse(response.authenticated());
         assertNull(response.userId());
@@ -51,13 +56,20 @@ class BrowserSessionControllerTests {
                 "Laura Nguyen",
                 "laura@example.test"));
 
-        var response = new BrowserSessionController(actors, mock(BrowserLoginFlow.class)).session(authentication);
+        AppUserRepository users = mock(AppUserRepository.class);
+        AppUser user = new AppUser(organizationId, departmentId, "Laura Nguyen", "laura@example.test",
+                UserRole.ADMIN);
+        when(users.findById(userId)).thenReturn(Optional.of(user));
+
+        var response = new BrowserSessionController(
+                actors, mock(BrowserLoginFlow.class), users).session(authentication);
 
         assertTrue(response.authenticated());
         assertEquals(userId, response.userId());
         assertEquals(organizationId, response.organizationId());
         assertEquals(departmentId, response.departmentId());
         assertEquals("Laura Nguyen", response.name());
+        assertEquals(UserRole.ADMIN, response.role());
     }
 
     @Test
@@ -65,7 +77,8 @@ class BrowserSessionControllerTests {
         var token = new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "test-token");
 
         var response = new BrowserSessionController(
-                mock(CurrentActorProvider.class), mock(BrowserLoginFlow.class)).csrf(token);
+                mock(CurrentActorProvider.class), mock(BrowserLoginFlow.class), mock(AppUserRepository.class))
+                .csrf(token);
 
         assertEquals("X-XSRF-TOKEN", response.headerName());
         assertEquals("_csrf", response.parameterName());
@@ -77,7 +90,8 @@ class BrowserSessionControllerTests {
         BrowserLoginFlow loginFlow = mock(BrowserLoginFlow.class);
         var request = new MockHttpServletRequest();
 
-        var view = new BrowserSessionController(mock(CurrentActorProvider.class), loginFlow)
+        var view = new BrowserSessionController(
+                mock(CurrentActorProvider.class), loginFlow, mock(AppUserRepository.class))
                 .login("/ask?q=leave", request);
 
         assertEquals("/oauth2/authorization/keycloak", view.getUrl());

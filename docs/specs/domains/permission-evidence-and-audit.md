@@ -13,8 +13,15 @@ and selected ACL snapshot IDs. Raw query text and unrestricted metadata are not
 stored. An audit attempt does not prove the surrounding business transaction
 committed.
 
+Administrator actions on the identity ledger append an event attributed to the
+acting administrator alongside the mapping service's event attributed to the
+affected user; the pair answers who acted and who was affected. A per-connection
+identity trust decision is audited the same way, and any non-default trust level
+also records on the connection row who decided it and when.
+
 ## Source Modules
 
 - `core.permission`
 - `core.knowledge` ACL records
 - `apps.api.permission`
+- `apps.api.admin`

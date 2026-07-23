@@ -1,5 +1,6 @@
-import { LogOut } from "lucide-react"
+import { LogOut, UserRoundCog } from "lucide-react"
 import { useState } from "react"
+import { Link } from "@tanstack/react-router"
 import { toast } from "sonner"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -13,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { submitBrowserLogout } from "@/features/session/logout"
+import { isAdministrator } from "@/features/session/require-session"
 import type { SessionResponse } from "@/lib/hey-api"
 
 function initials(name?: string, email?: string) {
@@ -57,6 +59,14 @@ export function AccountMenu({ identity }: { identity: SessionResponse }) {
           ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdministrator(identity) ? (
+          <DropdownMenuItem asChild>
+            <Link to="/admin/users">
+              <UserRoundCog aria-hidden="true" />
+              Administration
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem disabled={isSigningOut} onSelect={() => void signOut()}>
           <LogOut aria-hidden="true" />
           {isSigningOut ? "Signing out…" : "Sign out"}
