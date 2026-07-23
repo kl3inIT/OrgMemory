@@ -91,7 +91,10 @@ connector registry rather than a check constraint) separately from `acl_authorit
 (`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
 rules applies), so adding a connector needs no migration — Slack and Google Drive
 are both adapters contributing a profile, a batch source and a credential probe,
-with no source named in `core` or in the API. Source connection rows
+with no source named in `core` or in the API. An adapter that cannot establish an
+object's source ACL leaves that object out of its payload rather than sending an
+empty grant list, because the ledger seals an empty list as the source stating
+that nobody may read it. Source connection rows
 carry the configuration every source shares as columns and whatever only one
 source understands as an opaque `source_config` document, plus an encrypted
 credential in `source_connection_credentials`; the ciphertext is

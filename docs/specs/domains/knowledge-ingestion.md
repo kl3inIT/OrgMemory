@@ -220,6 +220,28 @@ a parser concern the ingestion pipeline already owns for uploads. A skipped file
 was never in the adapter's universe and does not withdraw the completeness claim;
 a folder filter, an unreadable file and a hit bound each do.
 
+Drive omits inline `permissions` for an item in a shared drive and returns
+`permissionIds` instead, so the adapter follows those ids through
+`permissions.list`. A file whose sharing still cannot be read is left out of the
+payload rather than sent with no grants: an empty grant list is the assertion
+that the source says nobody may read the object, and the ledger would seal it as
+one. Leaving the object out keeps whatever generation was last sealed for it and
+withdraws the completeness claim. Three other things withdraw it — Google
+reporting `incompleteSearch` for a combined-corpora listing, a folder scope
+larger than the adapter walks, and a file past the configured size bound, which
+is the adapter's own policy rather than a fact about the file.
+
+A folder scope means the subtree: Drive reads `'X' in parents` as the immediate
+parent only, so the configured folders are expanded breadth-first, visiting each
+folder once, before any file is listed.
+
+The crawl cursor is the batch's fingerprint, covering the sorted grants,
+identities and their membership, content revisions and titles, and the
+completeness flag. It has to name the grants and not count them — replacing one
+reader with another leaves the count unchanged, and a cursor that only counted
+would let the driver skip the batch as already ingested, leaving the removed
+reader with access and the added one without.
+
 Its permission mapping is defined by what it refuses. A `user` or `group`
 permission grants to that address; a `domain` permission grants to a group keyed
 on the domain whose membership is the users this crawl observed there, because the
@@ -228,6 +250,12 @@ members, and resolves as more of the Drive is crawled. An `anyone` permission
 grants nothing: a public link is a statement about people outside the
 organization, and translating it into an internal grant would widen access on the
 strength of a setting that says nothing about who inside may read.
+
+Drive rate limits and transient server errors are retried rather than surfaced: a
+429, or a 403 whose reason names a rate limit, waits out `Retry-After`, and a 5xx
+or dropped connection backs off. The attempts are bounded, so a quota that stays
+exhausted becomes the connection's recorded failure instead of the worker's
+stall.
 
 The current path does not yet implement incremental webhooks or the Events API,
 credential rotation, a run of either adapter against a real workspace, Airbyte

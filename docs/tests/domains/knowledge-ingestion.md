@@ -84,6 +84,19 @@ real exists in the repository. Nothing touches the network.
 | Between content crawls no document body is read, and that pass never claims completeness | `readsNoDocumentBodiesBetweenContentCrawls`, `reissuesAContentCrawlOnceTheIntervalElapses` |
 | The content revision is the text, so an unchanged document costs nothing and an edit is a new revision | `anEditedDocumentGetsANewContentRevisionAndAnUnchangedOneDoesNot` |
 | A missing credential and a credential that is not a service account key are reported, and the refusal describes the credential rather than repeating any of it | `reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently`, `reportsACredentialThatIsNotAServiceAccountKey` |
+| A shared-drive file's `permissionIds` are followed instead of its absent inline permissions being read as an empty ACL | `followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl` |
+| Sharing that could not be read leaves the object out of the payload rather than granting nobody | `leavesOutAnObjectWhoseSharingCouldNotBeReadRatherThanGrantingNobody` |
+| Google reporting an incomplete search withdraws the completeness claim | `withdrawsTheCompletenessClaimWhenGoogleReportsAnIncompleteSearch` |
+| A scoped folder means its subtree, not its immediate children | `crawlsTheWholeSubtreeUnderAScopedFolder` |
+| Replacing one reader with another changes the cursor, so the driver cannot skip the batch | `changesTheCursorWhenAReaderIsReplacedByAnotherRatherThanCounting` |
+| A file past the size bound is not read, and that withdraws the claim because the bound is ours | `skipsAFileLargerThanTheBoundAndSaysTheCrawlIsNoLongerComplete` |
+| A rate limit is waited out rather than failing the connection | `waitsOutARateLimitAndCompletesTheCrawl` |
+| A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
+| Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |
+
+The shared-drive proof was verified by removing the `permissions.list` fallback
+and watching `followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl`
+fail, then restoring it.
 
 ## Connection Administration Coverage
 

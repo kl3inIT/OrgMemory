@@ -1,6 +1,9 @@
 package com.orgmemory.connectors.googledrive;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Which Drive files this adapter indexes, and how each becomes text.
@@ -37,22 +40,29 @@ final class GoogleDriveDocumentTypes {
         return EXPORTS.get(mimeType);
     }
 
+    /** Types stored as themselves that this adapter reads, beyond the {@code text/*} family. */
+    private static final Set<String> TEXTUAL = Set.of("application/json", "application/xml");
+
     private static boolean isAlreadyText(String mimeType) {
-        return mimeType.startsWith("text/")
-                || "application/json".equals(mimeType)
-                || "application/xml".equals(mimeType);
+        return mimeType.startsWith("text/") || TEXTUAL.contains(mimeType);
     }
 
-    /** The Drive query that excludes what this adapter would skip anyway. */
+    /**
+     * The Drive query that excludes what this adapter would skip anyway.
+     *
+     * <p>Every type {@link #isIndexable} accepts has to appear here. A type this asked Drive not
+     * to return can never reach that check, so leaving one out does not filter it — it deletes
+     * it, silently and only for files that happen to be of that type.
+     */
     static String indexableTypeClause() {
-        StringBuilder clause = new StringBuilder("(");
-        for (String googleType : EXPORTS.keySet()) {
-            clause.append("mimeType = '").append(googleType).append("' or ");
-        }
-        // Drive's query language has no prefix match on mimeType, so textual files are let
-        // through here and filtered on the way out. Over-fetching metadata is cheap; the
-        // expensive call is the content download, and that only happens for what survives.
-        clause.append("mimeType contains 'text/'");
-        return clause.append(")").toString();
+        List<String> terms = new ArrayList<>();
+        EXPORTS.keySet().forEach(googleType -> terms.add("mimeType = '" + googleType + "'"));
+        TEXTUAL.forEach(textualType -> terms.add("mimeType = '" + textualType + "'"));
+        // Drive's query language has no prefix match on mimeType, so the text/* family is let
+        // through by substring here and filtered exactly on the way out. Over-fetching metadata
+        // is cheap; the expensive call is the content download, and that only happens for what
+        // survives that filter.
+        terms.add("mimeType contains 'text/'");
+        return "(" + String.join(" or ", terms) + ")";
     }
 }
