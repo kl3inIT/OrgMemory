@@ -24,18 +24,8 @@ import {
   AdminSearch,
 } from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
+import { avatarInitials } from "@/lib/avatar"
 import { updateAdminUserMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
-
-function initials(name?: string, email?: string) {
-  const source = name?.trim() || email?.trim()
-  if (!source) return "OM"
-  return source
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-}
 
 export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
   const queryClient = useQueryClient()
@@ -245,7 +235,7 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
                       <TableCell>
                         <div className="flex min-w-64 items-center gap-3">
                           <Avatar className="size-9">
-                            <AvatarFallback>{initials(user.name, user.email)}</AvatarFallback>
+                            <AvatarFallback>{avatarInitials(user.name, user.email)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
                             <div className="truncate font-medium">{user.name ?? "Unnamed user"}</div>

@@ -18,17 +18,7 @@ import { SidebarMenuButton } from "@/components/ui/sidebar"
 import { submitBrowserLogout } from "@/features/session/logout"
 import { isAdministrator } from "@/features/session/require-session"
 import type { SessionResponse } from "@/lib/hey-api"
-
-function initials(name?: string, email?: string) {
-  const source = name?.trim() || email?.trim()
-  if (!source) return "OM"
-  return source
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase()
-}
+import { avatarInitials } from "@/lib/avatar"
 
 export function AccountMenu({
   identity,
@@ -66,7 +56,7 @@ export function AccountMenu({
             className="h-12 rounded-lg px-2 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           >
             <Avatar size="sm" className="shrink-0">
-              <AvatarFallback>{initials(identity.name, identity.email)}</AvatarFallback>
+              <AvatarFallback>{avatarInitials(identity.name, identity.email)}</AvatarFallback>
             </Avatar>
             <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate text-sm font-medium">{displayName}</span>
@@ -82,7 +72,7 @@ export function AccountMenu({
         ) : (
           <Button variant="ghost" size="icon" aria-label="Open account menu">
             <Avatar size="sm">
-              <AvatarFallback>{initials(identity.name, identity.email)}</AvatarFallback>
+              <AvatarFallback>{avatarInitials(identity.name, identity.email)}</AvatarFallback>
             </Avatar>
           </Button>
         )}

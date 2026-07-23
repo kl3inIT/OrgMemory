@@ -86,7 +86,7 @@ export function AppSidebar({ identity }: { identity: SessionResponse }) {
             </SidebarMenuItem>
           ) : null}
           <SidebarMenuItem>
-            <AccountMenu identity={identity} variant="sidebar" />
+            <AccountMenu identity={identity} variant="sidebar" showAdministration={false} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
