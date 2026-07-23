@@ -53,3 +53,27 @@ Gate: `pnpm -C web lint`, `typecheck`, `build`, `check:api`.
 2. Full `.\gradlew.bat test`.
 3. Consolidate into `docs/specs`, `docs/tests`, `ARCHITECTURE.md`; move the
    increment to `docs/increments/completed`.
+
+## Outcome
+
+Delivered as designed, with two deviations worth recording.
+
+The admin area lives at `/admin` as its own layout route rather than nested
+under `_authenticated`. Nesting would have put a second `SidebarProvider` inside
+the product shell; a sibling layout gives a genuinely separate area, and the
+shared `requireBrowserSession` helper keeps the two guards from drifting.
+
+`OpenApiContractTests` was added beyond the plan. `contracts/openapi.json` is the
+committed artifact the browser client is generated from (the client itself is
+gitignored), and nothing verified it still described the code. The test
+regenerates it from the running application and fails on drift; refresh it with
+`ORGMEMORY_OPENAPI_WRITE=true`.
+
+Verified: `.\gradlew.bat test` green, including
+`PermissionsAdminIntegrationTests` proving the admin gate and that a confirmed
+identity makes the sealed grant retrievable on the next query while a revoke
+closes it. Web `lint`, `typecheck`, and `build` are clean.
+
+Not done, deliberately: `selfClaim` still has no API surface, SCIM remains a
+placeholder, and no browser test covers the screens — they are exercised only
+through the API they call.

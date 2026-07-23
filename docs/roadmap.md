@@ -16,6 +16,11 @@ belongs in one active increment.
 - Northstar-style repository harness and current dependency baseline.
 - Exact OIDC provider logout, dev-only Swagger, production configuration
   fail-fast guards, and set-based Capability Asset list authorization/counts.
+- A versioned connector staging contract with a fixture-driven Slack crawl that
+  converges membership through sealed generations.
+- An administration surface over the identity ledger: users with their sign-in
+  linkage, observed source principals with confirm/revoke, read-only sealed
+  source-group membership, and a per-connection identity trust decision.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -34,7 +39,9 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   contributions and permission-scoped local/global/mix retrieval.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
-- Add one approved connector staging contract and reconciliation loop.
+- Replace the fixture connector batch source with the live Slack Web API adapter
+  (credentials, rate limiting, checkpoint/resume) reading the per-connection
+  identity trust decision.
 
 ## Pilot Hardening
 

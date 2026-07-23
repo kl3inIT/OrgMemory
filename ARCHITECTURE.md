@@ -37,7 +37,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `core`: organization, capability, permission, and knowledge domain packages;
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
-  optional Spring AI normalization/chat, OpenAPI, and health.
+  optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
+  administration surface over the identity ledger gated on OpenFGA
+  `can_manage_members`.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
   fail-closed authorization projection, publication, external
   permission-workbook validation, and a fixture-driven Slack connector staging
@@ -49,7 +51,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
   restoration and passes the verified identity into the shell; feature code
-  does not repeat authentication gates.
+  does not repeat authentication gates. A separate `/admin` area reuses the same
+  shell with a Permissions sidebar and is hidden from non-administrators by the
+  session role, which is a rendering hint over the server-side gate.
 
 `core` uses Spring Modulith package boundaries and a verification test. Leased
 database jobs carry ingestion work across processes. A specific Knowledge Asset
@@ -65,8 +69,9 @@ embeddings. The knowledge slice persists Knowledge Spaces and the canonical uplo
 ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
 versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
-principal mappings and sealed per-generation group membership, publication outbox
-evidence, and append-only permission audit events. Immutable evidence bytes live
+principal mappings and sealed per-generation group membership, per-connection
+identity trust decisions, publication outbox evidence, and append-only permission
+audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
 rebuildable projections. A connector staging crawl (`SLACK` source type) produces
 the same governed ledger as uploads, with source ACL evidence resolved through the

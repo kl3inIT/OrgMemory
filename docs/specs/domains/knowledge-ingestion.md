@@ -39,7 +39,10 @@ External source principals observed from a source are recorded in a
 `source_principals` registry (observation grants nothing) and resolved to active
 internal users through a verified `source_principal_mappings` ledger. Automatic
 matching runs a trusted issuer/subject IdP join first, then an SSO-verified email
-join; unverified tails use explicit self-claim or admin confirmation. Each
+join; unverified tails use explicit self-claim or admin confirmation. Whether the
+email join may fire at all is an administrator's standing per-connection decision
+recorded in `source_connections` (`UNTRUSTED` by default) — a property of the
+source workspace, not a per-user judgement and not an adapter's guess. Each
 mutation keeps at most one active mapping per principal and appends a permission
 audit event. A `SOURCE_USER` ACL entry grants only through an active mapping to
 the querying user; a `SOURCE_GROUP` entry grants only through that snapshot's
