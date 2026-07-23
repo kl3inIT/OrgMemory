@@ -21,7 +21,15 @@ import {
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminPage } from "@/features/admin/components/admin-page"
+import { ConnectorFields } from "@/features/admin/components/connector-fields"
 import { SourceIcon } from "@/features/admin/components/source-icon"
+import {
+  CONNECTOR_FORMS,
+  configFrom,
+  draftFrom,
+  invalidFields,
+  type ConnectorFieldDraft,
+} from "@/features/admin/connector-forms"
 import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
 import {
   configureAdminConnectionMutation,
@@ -52,7 +60,12 @@ const STEPS = [
 type StepKey = (typeof STEPS)[number]["key"]
 
 const DEFAULT_INTERVAL_MINUTES = 60
-const DEFAULT_MAX_THREADS = 500
+
+/**
+ * What Slack itself lets an administrator decide. Read from the descriptor rather than written
+ * into this component, so the fields and what the adapter parses stay one statement.
+ */
+const SLACK_FORM = CONNECTOR_FORMS[SLACK] ?? { fields: [], advanced: [] }
 
 function probeReason(result: AdminConnectorProbeResponse) {
   if (result.errorCode && PROBE_REASONS[result.errorCode]) return PROBE_REASONS[result.errorCode]
@@ -84,9 +97,8 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   const [crawlEnabled, setCrawlEnabled] = useState(true)
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string>()
   const [actorUserId, setActorUserId] = useState<string>()
-  const [channels, setChannels] = useState("")
   const [intervalMinutes, setIntervalMinutes] = useState(String(DEFAULT_INTERVAL_MINUTES))
-  const [maxThreads, setMaxThreads] = useState(String(DEFAULT_MAX_THREADS))
+  const [draft, setDraft] = useState<ConnectorFieldDraft>(() => draftFrom(SLACK_FORM, {}))
   const [loadedFrom, setLoadedFrom] = useState<string>()
 
   const [connections, users, spaces] = useQueries({
@@ -104,18 +116,9 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
     setCrawlEnabled(existing.crawlEnabled ?? true)
     setKnowledgeSpaceId(existing.knowledgeSpaceId)
     setActorUserId(existing.actorUserId)
-    const configured = existing.sourceConfig ?? {}
-    const channelNames = Array.isArray(configured.channels)
-      ? configured.channels.filter((name): name is string => typeof name === "string")
-      : []
-    setChannels(channelNames.join(", "))
+    setDraft(draftFrom(SLACK_FORM, existing.sourceConfig ?? {}))
     setIntervalMinutes(
       String(Math.max(1, Math.round((existing.contentCrawlIntervalSeconds ?? 3600) / 60))),
-    )
-    setMaxThreads(
-      String(typeof configured.maxThreadsPerChannel === "number"
-        ? configured.maxThreadsPerChannel
-        : DEFAULT_MAX_THREADS),
     )
   }
 
@@ -173,8 +176,8 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   const userRows = users.data ?? []
   const spaceRows = spaces.data ?? []
   const parsedInterval = Number.parseInt(intervalMinutes, 10)
-  const parsedMaxThreads = Number.parseInt(maxThreads, 10)
-  const boundsValid = parsedInterval > 0 && parsedMaxThreads > 0
+  const invalid = invalidFields(SLACK_FORM, draft)
+  const boundsValid = parsedInterval > 0 && invalid.length === 0
   const targetsChosen = Boolean(knowledgeSpaceId) && Boolean(actorUserId)
   const canSave = Boolean(savedKey) && boundsValid && (!crawlEnabled || targetsChosen)
   const stepIndex = STEPS.findIndex((candidate) => candidate.key === step)
@@ -188,13 +191,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
         knowledgeSpaceId,
         actorUserId,
         // Everything only Slack understands goes in one document the ledger stores unread.
-        sourceConfig: {
-          channels: channels
-            .split(",")
-            .map((channel) => channel.trim().replace(/^#/, ""))
-            .filter(Boolean),
-          maxThreadsPerChannel: parsedMaxThreads,
-        },
+        sourceConfig: configFrom(SLACK_FORM, draft),
         contentCrawlIntervalSeconds: parsedInterval * 60,
       },
     })
@@ -326,52 +323,33 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
           ) : null}
 
           {step === "scope" ? (
-            <div className="space-y-4">
+            <ConnectorFields
+              descriptor={SLACK_FORM}
+              draft={draft}
+              invalid={invalid}
+              onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
+            >
               <div className="space-y-2">
-                <Label htmlFor="crawl-channels">Channels</Label>
+                <Label htmlFor="crawl-interval">Content interval (minutes)</Label>
                 <Input
-                  id="crawl-channels"
-                  value={channels}
-                  placeholder="general, engineering"
-                  onChange={(event) => setChannels(event.target.value)}
+                  id="crawl-interval"
+                  inputMode="numeric"
+                  value={intervalMinutes}
+                  aria-invalid={parsedInterval > 0 ? undefined : true}
+                  onChange={(event) => setIntervalMinutes(event.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave empty to crawl every channel the bot can see. A filter also stops the crawl
-                  claiming it enumerated the workspace, so nothing is retired on its word.
+                  Between these, only access is re-read — a call per channel rather than per thread.
+                  This one is not Slack's: every source is crawled on an interval, and it is a
+                  column with a constraint rather than part of the source's own document.
                 </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="crawl-interval">Content interval (minutes)</Label>
-                  <Input
-                    id="crawl-interval"
-                    inputMode="numeric"
-                    value={intervalMinutes}
-                    onChange={(event) => setIntervalMinutes(event.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Between these, only access is re-read — a call per channel rather than per thread.
+                {parsedInterval > 0 ? null : (
+                  <p className="text-sm text-destructive">
+                    The interval must be a whole number of minutes, at least one.
                   </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="crawl-threads">Threads per channel</Label>
-                  <Input
-                    id="crawl-threads"
-                    inputMode="numeric"
-                    value={maxThreads}
-                    onChange={(event) => setMaxThreads(event.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    A bound on one crawl. Hitting it withdraws the completeness claim.
-                  </p>
-                </div>
+                )}
               </div>
-
-              {!boundsValid ? (
-                <p className="text-sm text-destructive">Both bounds must be positive numbers.</p>
-              ) : null}
-            </div>
+            </ConnectorFields>
           ) : null}
         </CardContent>
       </Card>
