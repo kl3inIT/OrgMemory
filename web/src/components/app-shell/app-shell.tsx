@@ -27,9 +27,7 @@ export function AppShell({ identity, children }: { identity: SessionResponse; ch
       </a>
       <AppSidebar />
       <SidebarInset
-        id="main-content"
         className="h-dvh min-w-0 overflow-hidden bg-surface-base md:h-[calc(100dvh-1rem)] md:border md:border-border-subtle"
-        tabIndex={-1}
       >
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-border-subtle bg-surface-base/90 px-3 backdrop-blur-sm md:px-4">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -41,7 +39,13 @@ export function AppShell({ identity, children }: { identity: SessionResponse; ch
             <AccountMenu identity={identity} />
           </div>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+        <div
+          id="main-content"
+          className="flex min-h-0 min-w-0 flex-1 overflow-hidden"
+          tabIndex={-1}
+        >
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

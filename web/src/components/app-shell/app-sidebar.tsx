@@ -54,7 +54,7 @@ export function AppSidebar() {
                     tooltip={item.label}
                     className="h-9 rounded-lg px-2.5 text-content-secondary data-[active=true]:bg-surface-raised data-[active=true]:text-content-primary data-[active=true]:shadow-xs"
                   >
-                    <Link to={item.to}>
+                    <Link to={item.to} aria-current={pathname === item.to ? "page" : undefined}>
                       <item.icon aria-hidden="true" />
                       <span>{item.label}</span>
                     </Link>

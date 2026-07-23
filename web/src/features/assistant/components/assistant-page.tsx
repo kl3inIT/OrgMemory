@@ -61,7 +61,15 @@ function hasVisibleOutput(message: UIMessage) {
 
 function sourceHref(source: SourcePart) {
   if (source.type === "source-url") return source.url
-  if (source.sourceId.startsWith("/")) return source.sourceId
+  try {
+    const baseUrl = new URL("https://orgmemory.invalid")
+    const sourceUrl = new URL(source.sourceId, baseUrl)
+    if (sourceUrl.origin === baseUrl.origin && sourceUrl.pathname === "/sources") {
+      return `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`
+    }
+  } catch {
+    // Fall through to the validated Documents search route.
+  }
   const query = source.title?.trim()
   return query ? `/sources?q=${encodeURIComponent(query)}` : "/sources"
 }
@@ -138,7 +146,7 @@ export function AssistantPage() {
 
   if (messages.length === 0) {
     return (
-      <main className="flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 pb-12">
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 pb-12">
         <h1 className="text-page-title text-content-primary">{greeting()}</h1>
         <div className="w-full max-w-2xl">{composer}</div>
         <Suggestions className="mx-auto max-w-2xl flex-wrap justify-center whitespace-normal">
@@ -153,12 +161,12 @@ export function AssistantPage() {
             />
           ))}
         </Suggestions>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <Conversation className="min-h-0 flex-1">
         <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
           {messages.map((message) => {
@@ -225,6 +233,6 @@ export function AssistantPage() {
         <ConversationScrollButton />
       </Conversation>
       <div className="mx-auto w-full max-w-3xl px-4 pb-6">{composer}</div>
-    </main>
+    </div>
   )
 }

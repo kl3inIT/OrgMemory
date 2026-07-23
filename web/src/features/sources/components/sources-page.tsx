@@ -63,7 +63,7 @@ export function SourcesPage({
   )
 
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
         <Tabs value="documents" className="gap-6">
           <TabsList aria-label="Knowledge workspace" className="h-10 gap-1">
@@ -170,7 +170,7 @@ export function SourcesPage({
           </TabsContent>
         </Tabs>
       </div>
-    </main>
+    </div>
   )
 }
 

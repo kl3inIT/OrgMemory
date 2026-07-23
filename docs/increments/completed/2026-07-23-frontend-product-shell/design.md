@@ -17,31 +17,12 @@ without changing authentication, retrieval, ingestion, or AI delivery behavior.
 - Do not change backend contracts, OpenFGA policy, source ingestion, or the
   Assistant streaming protocol in this increment.
 
-## Typography
+## Decision
 
-Use self-hosted Hanken Grotesk Variable as the primary interface typeface. Load
-it from the application bundle through Fontsource so enterprise deployments do
-not depend on a third-party font CDN. Retain the platform monospace stack for
-technical identifiers; a second product font is unnecessary.
-
-Expose typography through semantic roles for page titles, section titles, body,
-supporting text, and metadata. Feature components consume those roles rather
-than inventing per-screen sizes and tracking.
-
-## Product Chrome
-
-- The authenticated shell owns the sidebar, route title, compact global
-  actions, responsive collapse behavior, and main-content boundary.
-- The sidebar distinguishes product identity from workspace navigation and
-  gives selected, hover, focus, and collapsed states equal attention.
-- Assistant remains the primary workspace. Documents retains its nested
-  Documents/Knowledge graph navigation and permission-aware ingestion states.
-- Counts are compact badges when non-zero. Zero counts are omitted from status
-  tabs; result summaries use human language rather than bare fractions.
-- The shell has one content scroll owner; inset margins must not make the body
-  taller than the viewport.
-- Assistant source chips deep-link to a validated Documents query, while the
-  upload flow asks for classification before the dependent Knowledge Space.
+This increment established the shared product shell, self-hosted interface
+typography, responsive Documents presentation, and citation and upload
+interactions. The durable contracts now live only in the
+[frontend design system](../../../guidelines/frontend-design-system.md).
 
 ## Verification
 

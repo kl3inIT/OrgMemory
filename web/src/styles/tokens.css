@@ -5,7 +5,7 @@
     "Hanken Grotesk Variable", "Segoe UI Variable", "Segoe UI", ui-sans-serif,
     system-ui, sans-serif;
   --font-metadata:
-    ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono",
+    ui-monospace, "Cascadia Code", "SFMono-Regular", consolas, "Liberation Mono",
     monospace;
 
   /* Primitive palette. Components consume semantic aliases below. */
