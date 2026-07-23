@@ -1,15 +1,14 @@
 # OrgMemory
 
-OrgMemory is a governed organizational memory layer for enterprise AI work. It
-keeps two lifecycle objects distinct:
+OrgMemory is a governed organizational memory layer for enterprise AI work.
+It turns uploads and approved connector evidence into versioned, citable
+Knowledge Assets without weakening source permissions.
 
-- **Knowledge Assets**: cleaned, trusted, permission-aware, citable knowledge.
-- **Capability Assets**: approved prompts, workflows, agents, playbooks, and
-  other reusable AI work with ownership, version, risk, usage, and handover.
-
-The current repository contains a Capability Asset registry plus a canonical
-source-ingestion ledger and permission-aware hybrid Knowledge Asset retrieval.
-It is a production-shaped POC foundation, not an approved production deployment.
+The current repository contains a canonical source-ingestion ledger, stable
+Knowledge Asset identities with immutable versions, permission-aware hybrid
+retrieval, an in-app Assistant, and the foundations for a secure knowledge
+graph. It is a production-shaped POC foundation, not an approved production
+deployment.
 
 ## Current Stack
 
@@ -85,7 +84,7 @@ corepack pnpm -C web build
 - [Architecture decisions](docs/decisions)
 - [Current behavior specs](docs/specs)
 - [Verification contracts](docs/tests)
-- [Active implementation plan](docs/increments/active/2026-07-22-secure-hybrid-retrieval/plan.md)
+- [Knowledge Asset foundation increment](docs/increments/completed/2026-07-23-knowledge-asset-foundation/plan.md)
 - [Demo bootstrap plan](docs/increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md)
 - [Research report](docs/research/orgmemory_research_report_2026-07-06.md)
 

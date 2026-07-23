@@ -39,7 +39,7 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 
 ## Current Runtime Responsibilities
 
-- `core`: organization, capability, permission, and knowledge domain packages;
+- `core`: organization, permission, assistant, AI, and knowledge domain packages;
   JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
@@ -67,12 +67,12 @@ the pinned OpenFGA model; no generic event framework has been introduced.
 
 ## Persisted Model
 
-The capability registry persists organizations, departments, users, external
-identities, capability assets, versions, usage, approval events, tags, and
-embeddings. The knowledge slice persists Knowledge Spaces and the canonical upload ledger
-(`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob` metadata), leased
-ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
-versioned chunks and embedding profiles, sealed ACL snapshots and entries,
+The identity ledger persists organizations, departments, users, and external
+identities. The knowledge slice persists Knowledge Spaces and the canonical
+source ledger (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob`
+metadata), leased ingestion jobs, source-shaped raw and normalized records,
+stable `KnowledgeAsset` roots, immutable `KnowledgeAssetVersion` records,
+append-only evidence links, versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
 principal mappings and sealed per-generation group membership, per-connection
 identity trust decisions, publication outbox evidence, and append-only permission
@@ -87,15 +87,17 @@ principal mappings.
 The implemented service/test-backed one-leaf path is:
 
 ```text
-RawSourceObject -> NormalizedRecord -> KnowledgeAsset
+SourceObject -> SourceRevision -> NormalizedRecord
+             -> KnowledgeAsset -> KnowledgeAssetVersion -> chunks
 ```
 
 Secure knowledge search first resolves authorized Knowledge Asset IDs with
 OpenFGA `ListObjects`. SQL then filters organization, lifecycle, immutable and
-current ACL, publication/model/profile state, and classification before ranking
-PostgreSQL FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL
-recheck guard every returned citation. Missing, unknown, stale, unsupported, or
-denied decisions fail closed.
+current ACL, the stable asset's current-version pointer,
+publication/model/profile state, and classification before ranking PostgreSQL
+FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL recheck
+guard every returned citation. Missing, unknown, stale, unsupported, or denied
+decisions fail closed.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
@@ -116,25 +118,28 @@ Multi-source derivation and permission-aware MCP delivery are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
-Java SDK adapter are runtime dependencies. OpenFGA now enforces organization
-control-plane entry and Capability Asset create/view/edit/review decisions.
-Transactional asset ownership and visibility facts are passed as contextual
-tuples; organization membership and role assignments are persistent OpenFGA
-tuples. Capability Asset collection reads use one `ListObjects`, at most one
-resource-contextual `BatchCheck`, and one aggregate usage query rather than
-per-row authorization/count queries. The versioned model has executable
-allow/deny and list-object tests.
+Java SDK adapter are runtime dependencies. OpenFGA enforces organization
+control-plane entry, Knowledge Space administration/upload, and stable
+Knowledge Asset view decisions. Organization membership and role assignments
+are persistent OpenFGA tuples. The versioned model has executable allow/deny
+and list-object tests.
 Direct upload lists only Knowledge Spaces authorized by OpenFGA
 `can_create_asset`, rechecks the selected parent before any object-store write,
 and carries that Space identity through the immutable source ledger. Publication
 writes the Space and uploader-owner tuples together and keeps the asset/chunks
-`PENDING` until OpenFGA confirms them. The
-model id, attempts, and failure reason are recorded in the publication outbox;
-the existing ingestion job provides durable retry. Source ACL remains an
-independent permission ceiling: internal upload ACLs grant the organization and
-confidential upload ACLs grant the selected Space's department. External source
-principals are resolved in that ceiling by the SQL enforcement path through their
-verified mappings; they are not projected into OpenFGA tuples.
+inactive and the version `PENDING` until OpenFGA confirms them. PostgreSQL
+prepare commits before the external write; an independent completion
+transaction activates the new version/chunks, retires the previous active
+version, advances stable asset/source heads, and records the applied outbox
+state. The model id, attempts, and failure reason are recorded in the publication
+outbox; the existing ingestion job provides durable retry. A worker convergence
+sweep republishes applied rows pinned to an obsolete model and deletes only
+managed direct owner/Space tuples for assets that no longer exist. Source ACL
+remains an independent permission ceiling: internal upload ACLs grant the
+organization and confidential upload ACLs grant the selected Space's department.
+External source principals are resolved in that ceiling by the SQL enforcement
+path through their verified mappings; they are not projected into OpenFGA
+tuples.
 
 ## Current AI And Graph Behavior
 
@@ -193,9 +198,9 @@ application SQL.
 The extractor and PostgreSQL adapter are not wired into the worker yet. There is
 no worker graph indexing, Assistant graph retrieval, or graph UI wiring.
 
-The graph endpoint visualizes relational capability metadata such as assets,
-owners, departments, types, tags, and processes. It is not a semantic knowledge
-graph and does not use Neo4j or LightRAG.
+The Sources UI exposes a disabled Knowledge Graph navigation target until worker
+indexing and permission-scoped graph retrieval are wired. There is no legacy
+relational capability graph endpoint.
 
 ## Current Security And Operations
 
@@ -226,9 +231,9 @@ retain thin handwritten transports. There is no durable streaming conversation
 store.
 
 The repository is a prototype, not an approved production deployment. Backup and
-restore, connector reconciliation, malware/DLP upload scanning, external
-principal/knowledge-space tuple convergence, full retrieval-surface audit
-coverage, load testing, and an enterprise security review remain absent.
+restore, malware/DLP upload scanning, live Slack credentials/rate-limit handling,
+full source-principal tuple convergence, full retrieval-surface audit coverage,
+load testing, and an enterprise security review remain absent.
 
 OpenFGA SDK `0.9.9` is pinned in the dependency catalog. The official CLI is
 installed reproducibly by `scripts/install-openfga-cli.ps1` and ignored from

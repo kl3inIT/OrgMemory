@@ -123,5 +123,5 @@ gets a 403 from every call — visibly wrong, never permissive.
 - SCIM provisioning (the page is a placeholder that states the current model).
 - Self-service claim flow for end users; `selfClaim` stays without an API.
 - Connector consumption of `identity_trust` — the live Slack adapter reads it in
-  [slack-connector-live](../2026-07-23-slack-connector-live/design.md).
+  [slack-connector-live](../../active/2026-07-23-slack-connector-live/design.md).
 - Editing a user's department or creating users; both belong to the IdP.

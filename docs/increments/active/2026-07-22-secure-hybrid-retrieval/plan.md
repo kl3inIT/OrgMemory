@@ -34,9 +34,8 @@
 
 ## Backlog After This Slice
 
-- [ ] Converge persistent Capability Asset tuples, then replace its list-path
-  per-row OpenFGA checks and per-row usage counts with ListObjects/BatchCheck,
-  pagination, and one aggregate count query.
+- [x] Remove the retired Capability Asset MVP; stable Knowledge Asset
+  publication now converges obsolete-model and managed orphan tuples.
 - [x] Make direct upload target a Knowledge Space and authorize the command at
   its parent with `can_create_asset`; reserve organization
   `can_manage_sources` for administrative source operations.

@@ -42,7 +42,9 @@ public record SourceProcessingProperties(
         Assert.isTrue(
                 embeddingDimensions > 0 && embeddingDimensions <= 16000,
                 "embedding dimensions must be between 1 and 16000");
-        Assert.isTrue(chunkSize > 0 && maximumChunks > 0, "chunk settings must be positive");
+        Assert.isTrue(
+                chunkSize > 0 && maximumChunks > 0 && maximumChunks < Integer.MAX_VALUE,
+                "chunk settings must be positive and maximumChunks must allow a sentinel chunk");
     }
 
     private static String defaultText(String value, String fallback) {

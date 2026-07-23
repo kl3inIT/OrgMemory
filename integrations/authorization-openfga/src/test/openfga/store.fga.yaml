@@ -23,13 +23,7 @@ tuples:
     relation: knowledge_reader
     object: organization:acme
   - user: user:laura
-    relation: capability_contributor
-    object: organization:acme
-  - user: user:laura
     relation: knowledge_contributor
-    object: organization:acme
-  - user: user:evelyn
-    relation: capability_reviewer
     object: organization:acme
 
   - user: organization:acme
@@ -94,19 +88,6 @@ tuples:
   - user: knowledge_space:finance
     relation: space
     object: knowledge_asset:finance-private-draft
-
-  - user: organization:acme
-    relation: organization
-    object: capability_asset:approved-org-playbook
-  - user: organization:acme#member
-    relation: viewer
-    object: capability_asset:approved-org-playbook
-  - user: organization:acme
-    relation: organization
-    object: capability_asset:finance-draft
-  - user: user:laura
-    relation: owner
-    object: capability_asset:finance-draft
 
 tests:
   - name: Company department and executive access are isolated
@@ -224,35 +205,3 @@ tests:
             - knowledge_asset:expense-policy
             - knowledge_asset:finance-private-draft
             - knowledge_asset:financial-forecast
-
-  - name: Capability registry separates create review and per-asset access
-    check:
-      - user: user:laura
-        object: organization:acme
-        assertions:
-          can_view_capability_registry: true
-          can_create_capability_asset: true
-      - user: user:minh
-        object: organization:acme
-        assertions:
-          can_view_capability_registry: true
-          can_create_capability_asset: false
-      - user: user:evelyn
-        object: capability_asset:finance-draft
-        assertions:
-          can_review: true
-          can_view: true
-      - user: user:laura
-        object: capability_asset:finance-draft
-        assertions:
-          can_edit: true
-          can_view: true
-      - user: user:minh
-        object: capability_asset:finance-draft
-        assertions:
-          can_edit: false
-          can_view: false
-      - user: user:minh
-        object: capability_asset:approved-org-playbook
-        assertions:
-          can_view: true

@@ -555,6 +555,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
         UUID snapshotId = id(key + "-snapshot-" + organization.organizationId());
         UUID normalizedId = id(key + "-normalized-" + organization.organizationId());
         UUID assetId = id(key + "-asset-" + organization.organizationId());
+        UUID assetVersionId = id(key + "-asset-version-" + organization.organizationId());
         UUID sourceObjectId = id(key + "-object-" + organization.organizationId());
         UUID revisionId = id(key + "-revision-" + organization.organizationId());
         UUID chunkId = id(key + "-chunk-" + organization.organizationId());
@@ -621,24 +622,6 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 content,
                 sha);
         jdbc.update("""
-                INSERT INTO knowledge_assets (
-                    id, organization_id, raw_source_object_id, normalized_record_id,
-                    source_acl_snapshot_id, knowledge_space_id, title, content, language,
-                    classification, declared_access, content_sha256, orgmemory_gate,
-                    status, activated_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'en', 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0)
-                """,
-                assetId,
-                organization.organizationId(),
-                rawId,
-                normalizedId,
-                snapshotId,
-                organization.knowledgeSpaceId(),
-                key,
-                content,
-                sha);
-        jdbc.update("""
                 INSERT INTO source_objects (
                     id, organization_id, created_by_user_id, knowledge_space_id,
                     source_type, source_connection_key, external_object_id, title,
@@ -652,6 +635,16 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 organization.knowledgeSpaceId(),
                 key,
                 key);
+        jdbc.update("""
+                INSERT INTO knowledge_assets (
+                    id, organization_id, knowledge_space_id, source_object_id,
+                    current_version_id, archived_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, NULL, NULL, now(), now(), 0)
+                """,
+                assetId,
+                organization.organizationId(),
+                organization.knowledgeSpaceId(),
+                sourceObjectId);
         jdbc.update("""
                 INSERT INTO source_revisions (
                     id, organization_id, source_object_id, knowledge_space_id,
@@ -679,17 +672,49 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 normalizedId,
                 assetId);
         jdbc.update("""
-                UPDATE source_objects
-                SET current_revision_id = ?, updated_at = now()
+                INSERT INTO knowledge_asset_versions (
+                    id, organization_id, raw_source_object_id, normalized_record_id,
+                    source_acl_snapshot_id, knowledge_space_id, title, content, language,
+                    classification, declared_access, content_sha256, orgmemory_gate,
+                    status, activated_at, created_at, updated_at, version,
+                    knowledge_asset_id, version_number, source_revision_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'en', 'INTERNAL', 'ALL_EMPLOYEES',
+                    ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0, ?, 1, ?)
+                """,
+                assetVersionId,
+                organization.organizationId(),
+                rawId,
+                normalizedId,
+                snapshotId,
+                organization.knowledgeSpaceId(),
+                key,
+                content,
+                sha,
+                assetId,
+                revisionId);
+        jdbc.update("""
+                UPDATE source_revisions
+                SET knowledge_asset_version_id = ?
                 WHERE id = ?
-                """, revisionId, sourceObjectId);
+                """, assetVersionId, revisionId);
+        jdbc.update("""
+                UPDATE source_objects
+                SET current_revision_id = ?, latest_revision_id = ?, updated_at = now()
+                WHERE id = ?
+                """, revisionId, revisionId, sourceObjectId);
+        jdbc.update("""
+                UPDATE knowledge_assets
+                SET current_version_id = ?, updated_at = now()
+                WHERE id = ?
+                """, assetVersionId, assetId);
         jdbc.update("""
                 INSERT INTO knowledge_chunks (
                     id, organization_id, source_object_id, source_revision_id,
-                    knowledge_asset_id, chunk_index, content, content_sha256, embedding,
+                    knowledge_asset_id, knowledge_asset_version_id,
+                    chunk_index, content, content_sha256, embedding,
                     embedding_profile_id, embedding_dimensions, pipeline_version,
                     projection_generation, active, created_at)
-                VALUES (?, ?, ?, ?, ?, 0, ?, ?, '[1,0,0]'::vector, ?, 3,
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, '[1,0,0]'::vector, ?, 3,
                     'test-v1', 1, true, now())
                 """,
                 chunkId,
@@ -697,6 +722,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 sourceObjectId,
                 revisionId,
                 assetId,
+                assetVersionId,
                 content,
                 sha,
                 organization.embeddingProfileId());
@@ -707,6 +733,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 sourceObjectId,
                 revisionId,
                 assetId,
+                assetVersionId,
                 snapshotId,
                 chunkId);
     }
@@ -720,10 +747,11 @@ class PostgresGraphProjectionStoreIntegrationTests {
         jdbc.update("""
                 INSERT INTO knowledge_chunks (
                     id, organization_id, source_object_id, source_revision_id,
-                    knowledge_asset_id, chunk_index, content, content_sha256, embedding,
+                    knowledge_asset_id, knowledge_asset_version_id,
+                    chunk_index, content, content_sha256, embedding,
                     embedding_profile_id, embedding_dimensions, pipeline_version,
                     projection_generation, active, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[1,0,0]'::vector, ?, 3,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '[1,0,0]'::vector, ?, 3,
                     'test-v1', ?, true, now())
                 """,
                 chunkId,
@@ -731,6 +759,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 fixture.sourceObjectId(),
                 fixture.sourceRevisionId(),
                 fixture.knowledgeAssetId(),
+                fixture.knowledgeAssetVersionId(),
                 chunkIndex,
                 content,
                 sha256(content),
@@ -768,6 +797,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
             UUID sourceObjectId,
             UUID sourceRevisionId,
             UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
             UUID aclSnapshotId,
             UUID chunkId) {
     }

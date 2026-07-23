@@ -19,7 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Ingests a connector crawl batch into the governed knowledge ledger. This is the dedicated
  * connector use case: it validates the staging envelope (fail closed on an unknown payload
  * version or unsupported source system), resolves identities once, then reconciles each
- * object and tombstone in its own transaction so a per-object failure is isolated from the
+ * object through explicit committed phases so a per-object failure is isolated from the
  * rest of the batch. It never widens access beyond the payload and grants nothing to unmapped
  * principals — the sealed ACL evidence it produces is intersected downstream with tenant,
  * OpenFGA policy, classification, and lifecycle at retrieval time.
@@ -66,15 +66,14 @@ public class ConnectorIngestionService {
 
         List<String> materialized = new ArrayList<>();
         List<String> rotated = new ArrayList<>();
-        List<String> contentDeferred = new ArrayList<>();
         List<String> retired = new ArrayList<>();
         List<ConnectorItemFailure> failures = new ArrayList<>();
 
         for (ConnectorContentItem content : batch.contents()) {
             try {
-                ObjectOutcome outcome = perObjectTransaction.execute(status -> reconciler.reconcile(
-                        ctx, content, permissions.get(content.externalObjectId()), resolution));
-                recordOutcome(outcome, content.externalObjectId(), materialized, rotated, contentDeferred);
+                ObjectOutcome outcome = reconciler.reconcile(
+                        ctx, content, permissions.get(content.externalObjectId()), resolution);
+                recordOutcome(outcome, content.externalObjectId(), materialized, rotated);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(content.externalObjectId(), reasonOf(failure)));
             }
@@ -89,7 +88,7 @@ public class ConnectorIngestionService {
             try {
                 ObjectOutcome outcome = perObjectTransaction.execute(
                         status -> reconciler.reconcilePermissions(ctx, permission, resolution));
-                recordOutcome(outcome, permission.externalObjectId(), materialized, rotated, contentDeferred);
+                recordOutcome(outcome, permission.externalObjectId(), materialized, rotated);
             } catch (RuntimeException failure) {
                 failures.add(new ConnectorItemFailure(permission.externalObjectId(), reasonOf(failure)));
             }
@@ -107,22 +106,17 @@ public class ConnectorIngestionService {
             }
         }
 
-        return new ConnectorIngestionResult(materialized, rotated, contentDeferred, retired, failures);
+        return new ConnectorIngestionResult(materialized, rotated, retired, failures);
     }
 
     private static void recordOutcome(
             ObjectOutcome outcome,
             String externalObjectId,
             List<String> materialized,
-            List<String> rotated,
-            List<String> contentDeferred) {
+            List<String> rotated) {
         switch (outcome) {
             case MATERIALIZED -> materialized.add(externalObjectId);
             case ROTATED -> rotated.add(externalObjectId);
-            case ROTATED_CONTENT_DEFERRED -> {
-                rotated.add(externalObjectId);
-                contentDeferred.add(externalObjectId);
-            }
             default -> throw new IllegalStateException("unhandled outcome: " + outcome);
         }
     }

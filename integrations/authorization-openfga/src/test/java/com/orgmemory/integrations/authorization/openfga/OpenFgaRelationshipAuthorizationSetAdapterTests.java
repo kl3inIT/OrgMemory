@@ -103,8 +103,8 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
     void batchCheckSendsResourceSpecificContextualRelationships() throws Exception {
         OpenFgaClient client = mock(OpenFgaClient.class);
         UUID organizationId = UUID.randomUUID();
-        ResourceRef firstResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
-        ResourceRef secondResource = ResourceRef.of(organizationId, "capability_asset", UUID.randomUUID());
+        ResourceRef firstResource = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
+        ResourceRef secondResource = ResourceRef.of(organizationId, "knowledge_asset", UUID.randomUUID());
         when(client.batchCheck(any(ClientBatchCheckRequest.class))).thenReturn(
                 CompletableFuture.completedFuture(new ClientBatchCheckResponse(List.of(
                         new ClientBatchCheckSingleResponse(true, item(firstResource, "0"), "0", null),

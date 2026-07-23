@@ -8,6 +8,7 @@ record KnowledgeAssetPublicationState(
         UUID knowledgeSpaceId,
         UUID sourceRevisionId,
         UUID knowledgeAssetId,
+        UUID knowledgeAssetVersionId,
         UUID ownerUserId,
         long projectionGeneration,
         KnowledgeAssetPublicationStatus status) {

@@ -2,10 +2,9 @@
 
 | Behavior | Evidence |
 | --- | --- |
-| Client identity is ignored in favor of linked actor | `CapabilityAssetServiceIntegrationTests#createUsesLinkedActorInsteadOfClientSuppliedIdentity` |
-| Unverified email cannot bootstrap identity | `#unverifiedEmailCannotBootstrapAnIdentityLink` |
-| External identity linking is idempotent | `#externalIdentityLinkIsIdempotent` |
-| Missing OrgMemory control role denies chat | `#chatRejectsAuthenticatedIdentityWithoutAnOrgMemoryRole` |
+| JWT/session email and IdP roles are ignored in favor of explicit binding | `OidcCurrentActorProviderTests#resolvesOnlyTheExplicitIssuerSubjectBindingAndIgnoresJwtRolesAndEmail`, `#resolvesTheSameBindingForAnOidcBrowserSession` |
+| Verified email and IdP admin role cannot bootstrap identity | `OidcCurrentActorProviderTests#rejectsVerifiedEmailAndAdminRoleWhenNoExplicitBindingExists` |
+| Inactive linked users are denied | `OidcCurrentActorProviderTests#rejectsAnInactiveLinkedUser` |
 | Session carries the app role for browser rendering | `BrowserSessionControllerTests#exposesOnlyTheCanonicalInternalActorForAnAuthenticatedSession` |
 | Non-administrators are refused on every admin endpoint | `PermissionsAdminIntegrationTests#nonAdministratorsAreRefusedEverywhere` |
 | Admin confirmation opens retrieval and revocation closes it | `#confirmingAnIdentityOpensRetrievalAndRevokingClosesIt` |

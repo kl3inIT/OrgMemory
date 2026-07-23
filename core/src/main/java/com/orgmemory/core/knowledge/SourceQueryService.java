@@ -121,15 +121,16 @@ public class SourceQueryService {
         }
         Map<UUID, SourceRevision> revisionById = new LinkedHashMap<>();
         revisions.findAllById(visibleSources.stream()
-                        .map(SourceObject::getCurrentRevisionId)
+                        .map(SourceObject::getLatestRevisionId)
+                        .filter(Objects::nonNull)
                         .toList())
                 .forEach(revision -> revisionById.put(revision.getId(), revision));
         Map<UUID, EmbeddingProfileRef> profileById = new LinkedHashMap<>();
         return visibleSources.stream()
                 .map(source -> {
                     SourceRevision revision = Objects.requireNonNull(
-                            revisionById.get(source.getCurrentRevisionId()),
-                            "Source current revision was not found");
+                            revisionById.get(source.getLatestRevisionId()),
+                            "Source latest revision was not found");
                     EmbeddingProfileRef profile = revision.getEmbeddingProfileId() == null
                             ? null
                             : profileById.computeIfAbsent(

@@ -74,6 +74,7 @@ class PermissionsAdminIntegrationTests {
     private static final UUID SNAPSHOT = UUID.fromString("c1000000-0000-4000-8000-00000000000e");
     private static final UUID NORMALIZED = UUID.fromString("c1000000-0000-4000-8000-00000000000f");
     private static final UUID ASSET = UUID.fromString("c1000000-0000-4000-8000-000000000010");
+    private static final UUID ASSET_VERSION = UUID.fromString("c1000000-0000-4000-8000-000000000015");
     private static final UUID OBJECT = UUID.fromString("c1000000-0000-4000-8000-000000000011");
     private static final UUID REVISION = UUID.fromString("c1000000-0000-4000-8000-000000000012");
     private static final UUID CHUNK = UUID.fromString("c1000000-0000-4000-8000-000000000013");
@@ -391,14 +392,6 @@ class PermissionsAdminIntegrationTests {
                     'INTERNAL', 'ALL_EMPLOYEES', ?, 'PROMOTED', now(), now(), 0)
                 """, NORMALIZED, ORG, RAW, SNAPSHOT, BODY, SHA);
         jdbc.update("""
-                INSERT INTO knowledge_assets (
-                    id, organization_id, raw_source_object_id, normalized_record_id, source_acl_snapshot_id,
-                    knowledge_space_id, title, content, language, classification, declared_access, content_sha256,
-                    orgmemory_gate, status, activated_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, 'General channel digest', ?, 'en', 'INTERNAL', 'ALL_EMPLOYEES',
-                    ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0)
-                """, ASSET, ORG, RAW, NORMALIZED, SNAPSHOT, SPACE, BODY, SHA);
-        jdbc.update("""
                 INSERT INTO source_objects (
                     id, organization_id, created_by_user_id, knowledge_space_id, source_type,
                     source_connection_key, external_object_id, title, classification, declared_access,
@@ -406,6 +399,12 @@ class PermissionsAdminIntegrationTests {
                 VALUES (?, ?, ?, ?, 'SLACK', 'T-workspace', 'C-general-msg', 'General channel digest',
                     'INTERNAL', 'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT, ORG, ADMIN_USER, SPACE);
+        jdbc.update("""
+                INSERT INTO knowledge_assets (
+                    id, organization_id, knowledge_space_id, source_object_id, current_version_id,
+                    archived_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, NULL, NULL, now(), now(), 0)
+                """, ASSET, ORG, SPACE, OBJECT);
         jdbc.update("""
                 INSERT INTO source_revisions (
                     id, organization_id, source_object_id, knowledge_space_id, evidence_blob_id,
@@ -416,23 +415,72 @@ class PermissionsAdminIntegrationTests {
                 VALUES (?, ?, ?, ?, ?, 1, 'digest.txt', 'text/plain', 42, ?, 'INTERNAL', 'ALL_EMPLOYEES',
                     ?, 'READY', 'pipe-v1', 'parse-v1', 'chunk-v1', ?, 3, ?, ?, ?, now(), now(), now(), 0)
                 """, REVISION, ORG, OBJECT, SPACE, BLOB, SHA, ADMIN_USER, PROFILE, RAW, NORMALIZED, ASSET);
-        jdbc.update("UPDATE source_objects SET current_revision_id = ?, updated_at = now() WHERE id = ?",
-                REVISION, OBJECT);
+        jdbc.update("""
+                INSERT INTO knowledge_asset_versions (
+                    id, organization_id, raw_source_object_id, normalized_record_id,
+                    source_acl_snapshot_id, knowledge_space_id, title, content, language,
+                    classification, declared_access, content_sha256, orgmemory_gate, status,
+                    activated_at, created_at, updated_at, version, knowledge_asset_id,
+                    version_number, source_revision_id)
+                VALUES (?, ?, ?, ?, ?, ?, 'General channel digest', ?, 'en', 'INTERNAL',
+                    'ALL_EMPLOYEES', ?, 'ALLOW', 'ACTIVE', now(), now(), now(), 0, ?, 1, ?)
+                """,
+                ASSET_VERSION,
+                ORG,
+                RAW,
+                NORMALIZED,
+                SNAPSHOT,
+                SPACE,
+                BODY,
+                SHA,
+                ASSET,
+                REVISION);
+        jdbc.update(
+                "UPDATE source_revisions SET knowledge_asset_version_id = ? WHERE id = ?",
+                ASSET_VERSION,
+                REVISION);
+        jdbc.update(
+                """
+                UPDATE source_objects
+                SET current_revision_id = ?, latest_revision_id = ?, updated_at = now()
+                WHERE id = ?
+                """,
+                REVISION,
+                REVISION,
+                OBJECT);
+        jdbc.update(
+                "UPDATE knowledge_assets SET current_version_id = ?, updated_at = now() WHERE id = ?",
+                ASSET_VERSION,
+                ASSET);
         jdbc.update("""
                 INSERT INTO knowledge_chunks (
                     id, organization_id, source_object_id, source_revision_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     chunk_index, content, content_sha256, embedding, embedding_profile_id,
                     embedding_dimensions, pipeline_version, projection_generation, active, created_at)
-                VALUES (?, ?, ?, ?, ?, 0, ?, ?, '[0.1,0.2,0.3]'::vector, ?, 3, 'pipe-v1', 1, true, now())
-                """, CHUNK, ORG, OBJECT, REVISION, ASSET, BODY, SHA, PROFILE);
+                VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, '[0.1,0.2,0.3]'::vector, ?, 3,
+                    'pipe-v1', 1, true, now())
+                """, CHUNK, ORG, OBJECT, REVISION, ASSET, ASSET_VERSION, BODY, SHA, PROFILE);
         jdbc.update("""
                 INSERT INTO knowledge_asset_publication_outbox (
                     id, organization_id, source_revision_id, source_object_id, knowledge_asset_id,
+                    knowledge_asset_version_id,
                     knowledge_space_id, owner_user_id, projection_generation, embedding_profile_id,
                     embedding_dimensions, pipeline_version, status, attempt_count, authorization_model_id,
                     applied_at, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?, now(), now(), now(), 0)
-                """, PUBLICATION, ORG, REVISION, OBJECT, ASSET, SPACE, ADMIN_USER, PROFILE, MODEL_ID);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 3, 'pipe-v1', 'APPLIED', 1, ?,
+                    now(), now(), now(), 0)
+                """,
+                PUBLICATION,
+                ORG,
+                REVISION,
+                OBJECT,
+                ASSET,
+                ASSET_VERSION,
+                SPACE,
+                ADMIN_USER,
+                PROFILE,
+                MODEL_ID);
     }
 
     private static final String BODY =

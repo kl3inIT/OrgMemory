@@ -2,6 +2,7 @@ package com.orgmemory.integrations.authorization.openfga;
 
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import dev.openfga.sdk.api.client.OpenFgaClient;
 import dev.openfga.sdk.api.configuration.ClientConfiguration;
@@ -48,6 +49,13 @@ public class OpenFgaAuthorizationConfiguration {
     RelationshipTupleWritePort relationshipTupleWritePort(
             OpenFgaClient client, OpenFgaAuthorizationProperties properties) {
         return new OpenFgaRelationshipTupleWriteAdapter(
+                client, properties.authorizationModelId(), properties.requestTimeout());
+    }
+
+    @Bean
+    RelationshipTupleReconciliationPort relationshipTupleReconciliationPort(
+            OpenFgaClient client, OpenFgaAuthorizationProperties properties) {
+        return new OpenFgaRelationshipTupleReconciliationAdapter(
                 client, properties.authorizationModelId(), properties.requestTimeout());
     }
 }

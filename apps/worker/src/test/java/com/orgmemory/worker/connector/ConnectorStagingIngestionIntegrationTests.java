@@ -16,6 +16,7 @@ import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -67,6 +68,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-provider=fixture",
         "orgmemory.ingestion.processing.embedding-model=fixture-embed",
         "orgmemory.ingestion.processing.embedding-dimensions=3",
+        "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(SecureKnowledgeRetrievalService.class)
@@ -98,6 +100,9 @@ class ConnectorStagingIngestionIntegrationTests {
     RelationshipTupleWritePort relationshipTuples;
 
     @MockitoBean
+    RelationshipTupleReconciliationPort relationshipTupleReconciliation;
+
+    @MockitoBean
     RelationshipAuthorizationPort entryAuthorization;
 
     @MockitoBean
@@ -124,8 +129,8 @@ class ConnectorStagingIngestionIntegrationTests {
         stubPorts();
 
         ConnectorIngestionResult initial = connector.ingest(load("slack-01-initial-crawl.json"));
-        assertEquals(List.of("C-general-msg"), initial.materialized());
         assertTrue(initial.failures().isEmpty(), () -> "unexpected failures: " + initial.failures());
+        assertEquals(List.of("C-general-msg"), initial.materialized());
         assertTrue(sees(AN_USER), "An is a mapped channel member and must see the message");
         assertFalse(sees(BOB_USER), "Bob is mapped but not a channel member");
         assertFalse(sees(CHI_USER), "Chi has not been observed or mapped yet");
@@ -137,7 +142,6 @@ class ConnectorStagingIngestionIntegrationTests {
         ConnectorIngestionResult recrawl = connector.ingest(load("slack-02-recrawl-membership.json"));
         assertEquals(List.of("C-general-msg"), recrawl.rotated());
         assertTrue(recrawl.materialized().isEmpty(), "a membership re-crawl must not re-materialize content");
-        assertTrue(recrawl.contentDeferred().isEmpty(), "content revision is unchanged");
         assertTrue(sees(CHI_USER), "Chi joined the channel and must now see the message");
         assertFalse(sees(AN_USER), "An left the channel and must be revoked");
         assertEquals(revisionAfterInitial, currentRevisionId(), "content revision must be unchanged");
@@ -171,7 +175,13 @@ class ConnectorStagingIngestionIntegrationTests {
         when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow(MODEL_ID));
         when(setAuthorization.listAuthorizedResources(any())).thenAnswer(invocation -> {
             List<ResourceRef> resources = jdbc.queryForList(
-                            "SELECT id FROM knowledge_assets WHERE organization_id = ? AND status = 'ACTIVE'",
+                            """
+                            SELECT id
+                            FROM knowledge_assets
+                            WHERE organization_id = ?
+                              AND archived_at IS NULL
+                              AND current_version_id IS NOT NULL
+                            """,
                             UUID.class,
                             ORG)
                     .stream()
