@@ -337,6 +337,41 @@ class SlackConnectorBatchSourceTests {
                 permissions.permissions().getFirst().grants().getFirst().principalExternalKey());
     }
 
+    /**
+     * A content crawl that failed has not happened. Spending the interval on it would leave the
+     * connection reporting permissions only for the next hour — which is exactly what a bot that
+     * has not been invited to its channels yet does on its first poll.
+     */
+    @Test
+    void aFailedContentCrawlDoesNotConsumeTheContentInterval() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        // Every channel refuses, so the crawl aborts rather than reporting an empty workspace.
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.history"))
+                .andRespond(withSuccess(
+                        "{\"ok\":false,\"error\":\"not_in_channel\"}", MediaType.APPLICATION_JSON));
+        assertTrue(source.pendingBatches().batches().isEmpty(), "the crawl produced no batch");
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+
+        ConnectorCrawlBatch retry = source.pendingBatches().batches().getFirst();
+
+        assertFalse(
+                retry.contents().isEmpty(),
+                "the next poll still owes a content crawl, well inside the interval");
+    }
+
     @Test
     void aPermissionsCrawlNeverClaimsCompleteness() {
         MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));

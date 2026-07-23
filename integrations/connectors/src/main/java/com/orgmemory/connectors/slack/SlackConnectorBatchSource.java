@@ -147,6 +147,11 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * <p>The due time is held in memory on purpose. Losing it costs one extra content crawl after
      * a restart, and the alternative — another durable row to keep honest — buys nothing against
      * a failure that benign.
+     *
+     * <p>It advances only once the crawl has produced a batch. Advancing it first spends the
+     * interval on an attempt that failed: a workspace briefly unreachable, or a bot not yet
+     * invited anywhere, would quietly downgrade every poll for the next hour to permissions only,
+     * and the connection would look busy while nothing was being read.
      */
     ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
         SecretValue token = connections
@@ -161,8 +166,9 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         if (now.isBefore(contentCrawlDueAt.getOrDefault(due, Instant.EPOCH))) {
             return permissionsCrawl(client, configuration);
         }
+        ConnectorCrawlBatch batch = crawl(client, configuration);
         contentCrawlDueAt.put(due, now.plus(configuration.contentCrawlInterval()));
-        return crawl(client, configuration);
+        return batch;
     }
 
     /** Two tenants may key a connection the same way, so the cadence is remembered per tenant. */
