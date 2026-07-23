@@ -64,6 +64,8 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
 
     /** Above this share of unreadable channels the run is a failure, not a crawl. */
     private static final double FAILED_CHANNEL_ABORT_SHARE = 0.5;
+    /** Slack's word for "the bot is not in this channel", which is a scope rather than a fault. */
+    private static final String NOT_IN_CHANNEL = "not_in_channel";
 
     private final ConnectorConnectionDirectory connections;
     private final ConnectorObjectDirectory objects;
@@ -202,7 +204,9 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             } catch (SlackApiException failure) {
                 log.warn("Slack channel {} membership was skipped: {}",
                         channel.path("id").asString(""), failure.getMessage());
-                failed++;
+                if (!NOT_IN_CHANNEL.equals(failure.errorCode())) {
+                    failed++;
+                }
             }
         }
         abortIfMostlyFailed(failed, channels.size());
@@ -242,7 +246,12 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                 // this crawl its completeness claim rather than costing the workspace its index.
                 log.warn("Slack channel {} was skipped: {}", channel.path("id").asString(""), failure.getMessage());
                 crawl.incomplete();
-                failed++;
+                if (!NOT_IN_CHANNEL.equals(failure.errorCode())) {
+                    // Membership can change between listing the channels and reading one. That
+                    // says nothing about the workspace being reachable, so it must not push this
+                    // crawl toward being abandoned.
+                    failed++;
+                }
             }
         }
         abortIfMostlyFailed(failed, channels.size());
@@ -351,15 +360,42 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                     Map.of("types", PUBLIC_CHANNELS_ONLY, "exclude_archived", "true"),
                     "channels");
         }
-        if (settings.channels().isEmpty()) {
-            return channels;
+        if (!settings.channels().isEmpty()) {
+            // A configured subset cannot speak for what it was never asked to look at.
+            crawl.incomplete();
+            Set<String> wanted = Set.copyOf(settings.channels());
+            channels = channels.stream()
+                    .filter(channel -> wanted.contains(channel.path("name").asString("")))
+                    .toList();
         }
-        // A configured subset cannot speak for what it was never asked to look at.
-        crawl.incomplete();
-        Set<String> wanted = Set.copyOf(settings.channels());
-        return channels.stream()
-                .filter(channel -> wanted.contains(channel.path("name").asString("")))
+        return joinedOnly(channels, crawl);
+    }
+
+    /**
+     * Only the channels the bot was actually invited to.
+     *
+     * <p>A channel the bot is not in is not a failure to read one. Inviting the bot is how an
+     * administrator says which channels to crawl, so being outside the rest is the configuration
+     * working. Asking Slack for their history anyway spends a call to be told {@code
+     * not_in_channel}, and — because that read like a failure — a workspace where the bot had been
+     * invited to a minority of its channels could never finish a crawl at all: the threshold
+     * abort fired on the normal case it was never meant to catch.
+     *
+     * <p>They do cost the completeness claim. They exist in this connection and were not read, so
+     * their objects must not be retired for going unmentioned.
+     *
+     * <p>Only an explicit {@code false} excludes a channel. Slack lists a private channel only to
+     * an app that is in it, and does not always restate the flag there; absent means try it, and
+     * a genuine refusal is still caught.
+     */
+    private static List<JsonNode> joinedOnly(List<JsonNode> channels, Crawl crawl) {
+        List<JsonNode> joined = channels.stream()
+                .filter(channel -> channel.path("is_member").asBoolean(true))
                 .toList();
+        if (joined.size() != channels.size()) {
+            crawl.incomplete();
+        }
+        return joined;
     }
 
     private void crawlChannel(

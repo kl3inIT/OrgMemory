@@ -186,6 +186,11 @@ class SlackConnectorBatchSourceTests {
         assertFalse(batch.contents().isEmpty(), "the readable channels still arrive");
     }
 
+    /**
+     * A workspace answering with something other than "the bot is not in there" — the abort is
+     * for a connection that has stopped working, not for one whose scope is smaller than its
+     * channel list.
+     */
     @Test
     void abandonsARunInWhichMostChannelsCouldNotBeRead() {
         expectAuth();
@@ -193,7 +198,7 @@ class SlackConnectorBatchSourceTests {
         server.expect(requestTo("https://slack.com/api/conversations.list"))
                 .andRespond(withSuccess(THREE_CHANNELS_JSON, MediaType.APPLICATION_JSON));
         server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.members"))
-                .andRespond(withSuccess("{\"ok\":false,\"error\":\"not_in_channel\"}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"ok\":false,\"error\":\"internal_error\"}", MediaType.APPLICATION_JSON));
 
         SlackApiException abandoned = org.junit.jupiter.api.Assertions.assertThrows(
                 SlackApiException.class, () -> crawl(List.of()));
@@ -338,6 +343,31 @@ class SlackConnectorBatchSourceTests {
     }
 
     /**
+     * Inviting the bot is how an administrator says which channels to crawl, so a channel it is
+     * not in is the configuration working rather than a failure to read one. Counting those as
+     * failures meant the normal case — a bot invited to a minority of a workspace's channels —
+     * tripped the threshold abort and could never complete a crawl at all.
+     */
+    @Test
+    void crawlsWhatTheBotWasInvitedToAndDoesNotCallTheRestFailures() {
+        expectAuth();
+        expectUsers();
+        // Only one channel is stubbed for membership and history. Reaching for either of the
+        // other two would find no expectation, which is the assertion that it does not.
+        server.expect(requestTo("https://slack.com/api/conversations.list"))
+                .andRespond(withSuccess(MIXED_MEMBERSHIP_CHANNELS_JSON, MediaType.APPLICATION_JSON));
+        expectMembers();
+        expectHistory();
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertFalse(batch.contents().isEmpty(), "the channel the bot is in is crawled");
+        assertFalse(
+                batch.crawlComplete(),
+                "the channels it was not invited to went unread, so it cannot speak for them");
+    }
+
+    /**
      * A content crawl that failed has not happened. Spending the interval on it would leave the
      * connection reporting permissions only for the next hour — which is exactly what a bot that
      * has not been invited to its channels yet does on its first poll.
@@ -351,10 +381,10 @@ class SlackConnectorBatchSourceTests {
         expectUsers();
         expectChannels();
         expectMembers();
-        // Every channel refuses, so the crawl aborts rather than reporting an empty workspace.
+        // Slack is answering badly, so the crawl aborts rather than reporting an empty workspace.
         server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.history"))
                 .andRespond(withSuccess(
-                        "{\"ok\":false,\"error\":\"not_in_channel\"}", MediaType.APPLICATION_JSON));
+                        "{\"ok\":false,\"error\":\"internal_error\"}", MediaType.APPLICATION_JSON));
         assertTrue(source.pendingBatches().batches().isEmpty(), "the crawl produced no batch");
 
         setUpServerOnly();
@@ -656,6 +686,15 @@ class SlackConnectorBatchSourceTests {
               {"id":"C-eng","name":"engineering","is_private":false},
               {"id":"C-ops","name":"operations","is_private":false},
               {"id":"C-sales","name":"sales","is_private":false}]}
+            """;
+
+    /** A workspace where the bot was invited to one channel of three, which is the normal case. */
+    private static final String MIXED_MEMBERSHIP_CHANNELS_JSON =
+            """
+            {"ok":true,"channels":[
+              {"id":"C-eng","name":"engineering","is_private":false,"is_member":true},
+              {"id":"C-ops","name":"operations","is_private":false,"is_member":false},
+              {"id":"C-sales","name":"sales","is_private":false,"is_member":false}]}
             """;
 
     private static final String CHANNELS_JSON =
