@@ -8,6 +8,7 @@ springAi = "2.0.0"
 apachePoi = "5.5.1"
 openfgaSdk = "0.9.9"
 minioSdk = "9.0.3"
+junit = "6.0.3"
 
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
@@ -20,6 +21,9 @@ spring-ai-starter-mcp-server-webmvc = { module = "org.springframework.ai:spring-
 apache-poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "apachePoi" }
 openfga-sdk = { module = "dev.openfga:openfga-sdk", version.ref = "openfgaSdk" }
 minio-sdk = { module = "io.minio:minio", version.ref = "minioSdk" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 plugin-spring-boot = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
 plugin-spring-dependency-management = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "springDependencyManagement" }
 

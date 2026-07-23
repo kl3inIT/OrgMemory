@@ -1,8 +1,8 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-22. Intended changes belong in [docs/vision.md](docs/vision.md) and the
-[active increment](docs/increments/active/2026-07-20-secure-knowledge-vertical-slice/design.md).
+2026-07-23. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+[active increments](docs/increments/active/README.md).
 
 ## System Shape
 
@@ -20,9 +20,11 @@ flowchart LR
 ```
 
 The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
-`integrations:authorization-openfga`, and `integrations:object-storage-minio`.
-The web client is a separate Vite workspace. API owns Flyway execution and the
-worker validates the existing schema with Flyway disabled in normal runtime.
+the framework-neutral `components:graph-rag-core` and
+`components:graph-rag-testkit`, `integrations:authorization-openfga`, and
+`integrations:object-storage-minio`. The web client is a separate Vite
+workspace. API owns Flyway execution and the worker validates the existing
+schema with Flyway disabled in normal runtime.
 
 Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
 2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL/pgvector, React 19.2.7,
@@ -137,6 +139,20 @@ API directly wires the Spring AI OpenAI starter. The application can boot withou
 a model key and uses local fallback behavior for prototype normalization/chat.
 There is no provider-neutral runtime AI gateway or persistent agent conversation
 model yet.
+
+The pure-Java GraphRAG core defines canonical entity/relation identity,
+evidence-level contributions and provenance, structured extraction contracts,
+authorization-scoped graph read ports, atomic revision replacement, one internal
+retrieval-plan contract with chunk-only, entity-only, relation-only,
+secure-hybrid, and secure-mix strategies, deterministic ranking and round-robin
+merge, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is the
+default plan; strategy selection is not exposed as a public request option. Its
+testkit provides a permission-scoped in-memory reference projection and proves
+that restricted contribution text, seeds, neighbors, degrees, and weights do
+not affect visible results. Neither module has Spring on its runtime classpath.
+
+There is no Spring AI extractor, PostgreSQL graph projection, worker indexing,
+runtime graph retrieval, or graph UI wiring yet.
 
 The graph endpoint visualizes relational capability metadata such as assets,
 owners, departments, types, tags, and processes. It is not a semantic knowledge
