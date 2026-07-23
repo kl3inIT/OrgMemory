@@ -3,6 +3,7 @@ package com.orgmemory.connectors.slack;
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
+import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
@@ -12,6 +13,8 @@ import com.orgmemory.core.permission.AccessGate;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -19,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
@@ -56,17 +60,44 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
 
     private final SlackConnectorProperties properties;
     private final SlackCredentialProvider credentials;
+    private final ConnectorObjectDirectory objects;
     private final RestClient.Builder restClientBuilder;
+    private final Clock clock;
+    private final AtomicReference<Instant> contentCrawlDueAt = new AtomicReference<>(Instant.EPOCH);
 
     SlackConnectorBatchSource(
             SlackConnectorProperties properties,
             SlackCredentialProvider credentials,
+            ConnectorObjectDirectory objects,
             RestClient.Builder restClientBuilder) {
-        this.properties = properties;
-        this.credentials = credentials;
-        this.restClientBuilder = restClientBuilder;
+        this(properties, credentials, objects, restClientBuilder, Clock.systemUTC());
     }
 
+    SlackConnectorBatchSource(
+            SlackConnectorProperties properties,
+            SlackCredentialProvider credentials,
+            ConnectorObjectDirectory objects,
+            RestClient.Builder restClientBuilder,
+            Clock clock) {
+        this.properties = properties;
+        this.credentials = credentials;
+        this.objects = objects;
+        this.restClientBuilder = restClientBuilder;
+        this.clock = clock;
+    }
+
+    /**
+     * One batch per poll, and which kind depends on what is due.
+     *
+     * <p>Access changes daily and content rarely, so re-reading every message body to answer "who
+     * can see this now" is the expensive mistake. Between content crawls this produces a
+     * permissions crawl instead: channels and their members, applied to the objects the ledger
+     * already holds. That costs a call per channel rather than a call per thread.
+     *
+     * <p>The due time is held in memory on purpose. Losing it costs one extra content crawl after
+     * a restart, and the alternative — another durable row to keep honest — buys nothing against
+     * a failure that benign.
+     */
     @Override
     public List<ConnectorCrawlBatch> pendingBatches() {
         if (!properties.isRunnable()) {
@@ -74,7 +105,73 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
         SlackWebApiClient client = new SlackWebApiClient(
                 restClientBuilder, credentials.botToken(properties.connectionKey()));
+        Instant now = clock.instant();
+        if (now.isBefore(contentCrawlDueAt.get())) {
+            return List.of(permissionsCrawl(client));
+        }
+        contentCrawlDueAt.set(now.plus(properties.contentCrawlInterval()));
         return List.of(crawl(client));
+    }
+
+    /**
+     * Who may currently read what, without reading anything. Channels and their members come from
+     * Slack; the objects those grants apply to come from the ledger, because asking Slack to
+     * enumerate them again would mean paging every channel's history for ids we already have.
+     *
+     * <p>This batch never claims completeness, and the reason is worth stating plainly: its object
+     * list is our own record rather than the source's. A crawl that claimed to have enumerated the
+     * connection on that basis would be confirming itself, and the ledger would then be entitled
+     * to retire anything the circular answer left out.
+     */
+    private ConnectorCrawlBatch permissionsCrawl(SlackWebApiClient client) {
+        requireWorkingCredential(client);
+        Crawl crawl = new Crawl();
+        crawl.incomplete();
+        Map<String, SlackUser> usersById = users(client);
+        List<JsonNode> channels = channels(client, crawl);
+
+        int failed = 0;
+        for (JsonNode channel : channels) {
+            try {
+                observeMembership(client, channel, usersById, crawl);
+            } catch (SlackApiException failure) {
+                log.warn("Slack channel {} membership was skipped: {}",
+                        channel.path("id").asString(""), failure.getMessage());
+                failed++;
+            }
+        }
+        abortIfMostlyFailed(failed, channels.size());
+
+        crawl.grantKnownObjects(
+                objects.activeObjectIds(
+                        properties.organizationId(), "slack", properties.connectionKey()));
+
+        return new ConnectorCrawlBatch(
+                properties.organizationId(),
+                "slack",
+                properties.connectionKey(),
+                properties.knowledgeSpaceId(),
+                properties.actorUserId(),
+                crawlCursor(crawl),
+                ConnectorContractVersions.supported(),
+                crawl.identities(),
+                List.of(),
+                crawl.permissions,
+                List.of(),
+                false);
+    }
+
+    private void observeMembership(
+            SlackWebApiClient client, JsonNode channel, Map<String, SlackUser> usersById, Crawl crawl) {
+        String channelId = channel.path("id").asString("");
+        List<String> memberIds = client
+                .collectPaged("conversations.members", Map.of("channel", channelId), "members")
+                .stream()
+                .map(JsonNode::asString)
+                .filter(usersById::containsKey)
+                .toList();
+        memberIds.forEach(memberId -> crawl.observe(usersById.get(memberId)));
+        crawl.observeChannel(channelId, channel.path("name").asString(channelId), memberIds);
     }
 
     private ConnectorCrawlBatch crawl(SlackWebApiClient client) {
@@ -265,14 +362,20 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     }
 
     /**
-     * A cursor that changes when the crawl's result changes. The producer owns its meaning, and
-     * what this producer needs from it is that an unchanged workspace does not look like new
-     * work: the same crawl twice checkpoints once.
+     * A cursor that changes when the crawl's result changes and not otherwise. The producer owns
+     * its meaning; what this one needs is that an unchanged workspace does not look like new work,
+     * because the driver skips a cursor it has already completed.
+     *
+     * <p>Membership is part of the material, not just content. A permissions crawl carries no
+     * content at all, so hashing content alone would give every one of them the same cursor and
+     * the first would be the last ever ingested.
      */
     private static String crawlCursor(Crawl crawl) {
         StringBuilder material = new StringBuilder();
         crawl.contents.forEach(content ->
                 material.append(content.externalObjectId()).append('=').append(content.contentRevision()).append(';'));
+        crawl.observedChannels.forEach((channelId, channel) ->
+                material.append(channelId).append('@').append(channel.memberIds()).append(';'));
         material.append("complete=").append(crawl.complete);
         return "slack-" + sha256(material.toString());
     }
@@ -318,6 +421,31 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
 
         private void observeChannel(String channelId, String channelName, List<String> memberIds) {
             observedChannels.put(channelId, new ChannelIdentity(channelId, channelName, memberIds));
+        }
+
+        /**
+         * Re-states each known object's grant against the channel it belongs to. An object id is
+         * {@code channelId__threadTs}, so the channel is read off the id rather than looked up.
+         *
+         * <p>An object whose channel this crawl did not see gets no entry at all. Emitting an
+         * empty grant list would be an assertion that nobody may read it, and the crawl has no
+         * grounds for that: the channel may simply have been unreadable this time.
+         */
+        private void grantKnownObjects(List<String> knownObjectIds) {
+            for (String externalObjectId : knownObjectIds) {
+                int separator = externalObjectId.indexOf("__");
+                if (separator <= 0) {
+                    continue;
+                }
+                String channelId = externalObjectId.substring(0, separator);
+                if (!observedChannels.containsKey(channelId)) {
+                    continue;
+                }
+                permissions.add(new ConnectorPermissionItem(
+                        externalObjectId,
+                        List.of(new ConnectorAclGrant(
+                                SourcePrincipalKind.SOURCE_GROUP, channelId, AccessGate.ALLOW))));
+            }
         }
 
         private void addThread(

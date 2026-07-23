@@ -8,10 +8,21 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.orgmemory.core.knowledge.ConnectorContentItem;
+import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,11 +48,14 @@ class SlackConnectorBatchSourceTests {
 
     private RestClient.Builder builder;
     private MockRestServiceServer server;
+    private ConnectorObjectDirectory directory;
 
     @BeforeEach
     void setUp() {
         builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+        directory = mock(ConnectorObjectDirectory.class);
+        when(directory.activeObjectIds(any(), any(), any())).thenReturn(List.of());
     }
 
     @Test
@@ -276,12 +290,128 @@ class SlackConnectorBatchSourceTests {
     }
 
     @Test
+    void readsNoMessageBodiesBetweenContentCrawls() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        when(directory.activeObjectIds(ORG, "slack", CONNECTION))
+                .thenReturn(List.of("C-eng__1700000001.000100", "C-eng__1700000009.000100"));
+
+        // First poll is due a content crawl and pays for it.
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        assertTrue(source.pendingBatches().getFirst().crawlComplete());
+        server.verify();
+
+        // Ten minutes later the interval has not elapsed, so only access is re-read.
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(10));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+
+        ConnectorCrawlBatch permissions = source.pendingBatches().getFirst();
+
+        // No history or replies expectation was registered, so asking for either would have failed.
+        server.verify();
+        assertTrue(permissions.contents().isEmpty(), "a permissions crawl carries no content");
+        assertEquals(
+                List.of("C-eng__1700000001.000100", "C-eng__1700000009.000100"),
+                permissions.permissions().stream().map(p -> p.externalObjectId()).toList(),
+                "it re-states the grants of objects the ledger already holds");
+        assertEquals(
+                "C-eng",
+                permissions.permissions().getFirst().grants().getFirst().principalExternalKey());
+    }
+
+    @Test
+    void aPermissionsCrawlNeverClaimsCompleteness() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        when(directory.activeObjectIds(ORG, "slack", CONNECTION))
+                .thenReturn(List.of("C-eng__1700000001.000100"));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        source.pendingBatches();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(1));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+
+        assertFalse(
+                source.pendingBatches().getFirst().crawlComplete(),
+                "its object list is our own record, so claiming completeness would confirm itself");
+    }
+
+    @Test
+    void aPermissionsCrawlLeavesOutObjectsWhoseChannelItCouldNotSee() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        when(directory.activeObjectIds(ORG, "slack", CONNECTION))
+                .thenReturn(List.of("C-eng__1700000001.000100", "C-vanished__1700000002.000100"));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        source.pendingBatches();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(1));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+
+        ConnectorCrawlBatch permissions = source.pendingBatches().getFirst();
+
+        assertEquals(
+                List.of("C-eng__1700000001.000100"),
+                permissions.permissions().stream().map(p -> p.externalObjectId()).toList(),
+                "an empty grant list would assert nobody may read it, which this crawl cannot know");
+    }
+
+    @Test
+    void reissuesAContentCrawlOnceTheIntervalElapses() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        source.pendingBatches();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofHours(2));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+
+        ConnectorCrawlBatch again = source.pendingBatches().getFirst();
+
+        server.verify();
+        assertFalse(again.contents().isEmpty(), "content is re-read once its interval has elapsed");
+    }
+
+    @Test
     void producesNothingUntilTheConnectionIsFullyConfigured() {
         SlackConnectorProperties unconfigured = new SlackConnectorProperties(
-                false, "xoxb-token", CONNECTION, ORG, SPACE, ACTOR, List.of(), null);
+                false, "xoxb-token", CONNECTION, ORG, SPACE, ACTOR, List.of(), null, null);
 
         assertTrue(
-                new SlackConnectorBatchSource(unconfigured, key -> "xoxb-token", builder)
+                new SlackConnectorBatchSource(unconfigured, key -> "xoxb-token", directory, builder)
                         .pendingBatches()
                         .isEmpty(),
                 "a disabled connection contacts Slack not at all");
@@ -301,13 +431,52 @@ class SlackConnectorBatchSourceTests {
         assertEquals("ratelimited", limited.errorCode());
     }
 
+    /** Re-arms the mock server between polls without discarding the source under test. */
+    private void setUpServerOnly() {
+        server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+    }
+
+    /** A clock the test moves, so a cadence can be proved without waiting for one. */
+    private static final class MutableClock extends Clock {
+
+        private Instant now;
+
+        private MutableClock(Instant now) {
+            this.now = now;
+        }
+
+        private void advance(Duration amount) {
+            now = now.plus(amount);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+    }
+
     private ConnectorCrawlBatch crawl(List<String> channels) {
-        SlackConnectorProperties properties = new SlackConnectorProperties(
-                true, "xoxb-not-a-real-token", CONNECTION, ORG, SPACE, ACTOR, channels, null);
-        List<ConnectorCrawlBatch> batches =
-                new SlackConnectorBatchSource(properties, key -> "xoxb-not-a-real-token", builder).pendingBatches();
+        List<ConnectorCrawlBatch> batches = source(channels, Clock.systemUTC()).pendingBatches();
         assertEquals(1, batches.size());
         return batches.getFirst();
+    }
+
+    private SlackConnectorBatchSource source(List<String> channels, Clock clock) {
+        SlackConnectorProperties properties = new SlackConnectorProperties(
+                true, "xoxb-not-a-real-token", CONNECTION, ORG, SPACE, ACTOR, channels, null,
+                Duration.ofHours(1));
+        return new SlackConnectorBatchSource(
+                properties, key -> "xoxb-not-a-real-token", directory, builder, clock);
     }
 
     private void expectAuth() {

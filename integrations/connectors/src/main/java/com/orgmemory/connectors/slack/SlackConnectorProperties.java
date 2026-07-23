@@ -1,5 +1,6 @@
 package com.orgmemory.connectors.slack;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -22,6 +23,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param actorUserId        the connection owner recorded as author, publication owner, and actor
  * @param channels           channel names to crawl; empty means every channel the bot can see
  * @param maxThreadsPerChannel a bound on one crawl so a large workspace cannot run unbounded
+ * @param contentCrawlInterval how often to re-read message bodies. Between content crawls the
+ *                           adapter only re-reads who may see what, which is the change that
+ *                           actually happens daily and costs a fraction as much
  */
 @ConfigurationProperties("orgmemory.connector.slack")
 public record SlackConnectorProperties(
@@ -32,7 +36,8 @@ public record SlackConnectorProperties(
         UUID knowledgeSpaceId,
         UUID actorUserId,
         List<String> channels,
-        Integer maxThreadsPerChannel) {
+        Integer maxThreadsPerChannel,
+        Duration contentCrawlInterval) {
 
     public SlackConnectorProperties {
         enabled = enabled != null && enabled;
@@ -42,6 +47,9 @@ public record SlackConnectorProperties(
         maxThreadsPerChannel = maxThreadsPerChannel == null || maxThreadsPerChannel <= 0
                 ? 500
                 : maxThreadsPerChannel;
+        contentCrawlInterval = contentCrawlInterval == null || contentCrawlInterval.isNegative()
+                ? Duration.ofHours(1)
+                : contentCrawlInterval;
     }
 
     /** Whether enough is configured to crawl. A partially configured connection stays inert. */
@@ -67,6 +75,7 @@ public record SlackConnectorProperties(
                 + ", knowledgeSpaceId=" + knowledgeSpaceId
                 + ", actorUserId=" + actorUserId
                 + ", channels=" + channels
-                + ", maxThreadsPerChannel=" + maxThreadsPerChannel + "]";
+                + ", maxThreadsPerChannel=" + maxThreadsPerChannel
+                + ", contentCrawlInterval=" + contentCrawlInterval + "]";
     }
 }

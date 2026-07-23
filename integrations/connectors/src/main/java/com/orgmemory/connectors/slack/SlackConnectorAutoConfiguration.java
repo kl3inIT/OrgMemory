@@ -1,6 +1,7 @@
 package com.orgmemory.connectors.slack;
 
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,8 +22,9 @@ public class SlackConnectorAutoConfiguration {
     ConnectorBatchSource slackConnectorBatchSource(
             SlackConnectorProperties properties,
             SlackCredentialProvider credentials,
+            ConnectorObjectDirectory objects,
             RestClient.Builder restClientBuilder) {
-        return new SlackConnectorBatchSource(properties, credentials, restClientBuilder);
+        return new SlackConnectorBatchSource(properties, credentials, objects, restClientBuilder);
     }
 
     @Bean

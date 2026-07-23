@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -57,12 +58,18 @@ class SlackConnectorAutoConfigurationTests {
                 });
     }
 
+    /** The collaborators the adapter expects an application to already have. */
     @Configuration(proxyBeanMethods = false)
     static class RestClientConfiguration {
 
         @Bean
         RestClient.Builder restClientBuilder() {
             return RestClient.builder();
+        }
+
+        @Bean
+        ConnectorObjectDirectory connectorObjectDirectory() {
+            return org.mockito.Mockito.mock(ConnectorObjectDirectory.class);
         }
     }
 }

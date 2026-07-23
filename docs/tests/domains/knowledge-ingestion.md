@@ -44,10 +44,14 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | The token reaches the client and no failure message, properties description, or URI | `refusesAConnectionItHasNoCredentialFor`, `keepsTheTokenOutOfItsOwnDescription` |
 | A workspace becomes threads, members, and channel groups on the crawl contract | `turnsAWorkspaceIntoTheCrawlContract`, `reportsMembersAsUsersAndTheChannelAsTheirGroup`, `dropsBotsDeactivatedAccountsAndChannelNoise` |
 | Completeness is claimed only by an unfiltered, uninterrupted, in-scope crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeChannelsWereAskedFor`, `withdrawsTheCompletenessClaimWhenAChannelCouldNotBeRead`, `withdrawsTheCompletenessClaimWhenPrivateChannelsAreOutOfScope` |
+| Slack markup leaves no identifiers or raw tags in the indexed body | `leavesNoSlackMarkupBehindInARealisticMessage`, `resolvesMentionsAndLinksOutOfTheIndexedBody`, and the rest of `SlackTextCleanerTests` |
+| A thread broadcast back to its channel is indexed once, whole | `indexesAThreadOnceWhenAReplyWasBroadcastBackToTheChannel` |
+| A rejected credential and a mostly-unreadable workspace fail rather than report a crawl | `refusesToCrawlWithACredentialSlackRejects`, `abandonsARunInWhichMostChannelsCouldNotBeRead` |
+| Between content crawls no message body is read, and the cheap batch never claims completeness | `readsNoMessageBodiesBetweenContentCrawls`, `aPermissionsCrawlNeverClaimsCompleteness`, `reissuesAContentCrawlOnceTheIntervalElapses` |
+| A permissions crawl omits objects whose channel it could not see rather than asserting nobody may read them | `aPermissionsCrawlLeavesOutObjectsWhoseChannelItCouldNotSee` |
 | The adapter is absent until enabled and inert until fully configured | `contributesNothingUntilTheConnectionIsEnabled`, `staysInertWhenEnabledButNotFullyConfigured`, `producesNothingUntilTheConnectionIsFullyConfigured` |
 
 Gaps: there is no public upload/connector REST API or a real blob-store/scan/parser
 integration test yet (the connector proofs mock object storage and OpenFGA). The
 Slack adapter is proved against recorded responses only — no run against a real
-workspace has happened yet, and the slim ID-and-ACL pull and whole-crawl failure
-threshold are unbuilt. Those are the remaining `slack-connector-live` work.
+workspace has happened yet, which is the remaining `slack-connector-live` work.

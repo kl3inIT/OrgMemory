@@ -95,8 +95,21 @@ SSO-verified because Slack confirms address ownership before an account can
 exist. It withdraws its completeness claim whenever a channel filter is
 configured, private channels prove out of scope, a channel cannot be read, or a
 channel exceeds its thread bound — each of which is indistinguishable from a mass
-deletion downstream. A slim ID+ACL-only pull and a whole-crawl failure threshold
-are not implemented.
+deletion downstream, and it abandons a run in which most channels could not be
+read rather than reporting it as a crawl. Slack markup — mentions, channel links,
+group handles, escaped characters — is resolved to readable text before indexing,
+because an opaque identifier cannot match the name a question would use, and a
+thread is emitted once even when a reply broadcast back to its channel surfaces
+it twice.
+
+Between content crawls the adapter produces a permissions-only batch instead:
+channels and their members from Slack, applied through `ConnectorObjectDirectory`
+to the objects the ledger already holds. That costs a call per channel rather than
+a call per thread, which matters because access changes daily and content rarely.
+Such a batch never claims completeness — its object list is OrgMemory's own record
+rather than the source's, so the claim would confirm itself — and it omits any
+object whose channel the crawl could not see, since an empty grant list would
+assert that nobody may read it.
 
 Deletions carry no tombstone of their own, so a batch may declare that its content
 and permission payloads enumerate everything the connection currently has; only

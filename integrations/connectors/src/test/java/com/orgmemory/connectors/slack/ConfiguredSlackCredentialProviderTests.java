@@ -54,18 +54,18 @@ class ConfiguredSlackCredentialProviderTests {
         assertFalse(
                 new SlackConnectorProperties(
                                 true, "", CONNECTION, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                                List.of(), null)
+                                List.of(), null, null)
                         .isRunnable(),
                 "a missing token is not a runnable connection");
         assertTrue(
                 new SlackConnectorProperties(
                                 true, TOKEN, CONNECTION, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                                List.of(), null)
+                                List.of(), null, null)
                         .isRunnable());
     }
 
     private static SlackConnectorProperties properties(String token) {
         return new SlackConnectorProperties(
-                null, token, CONNECTION, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), List.of(), null);
+                null, token, CONNECTION, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), List.of(), null, null);
     }
 }

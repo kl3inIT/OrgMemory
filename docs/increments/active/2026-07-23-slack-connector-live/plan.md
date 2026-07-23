@@ -37,11 +37,14 @@ through the existing `FileConnectorBatchSource`.
 - [x] Cursor pagination and `Retry-After` handling with bounded backoff, applied
   before a request rather than only after a refusal.
 - [x] Adapter tests against recorded Slack API responses; no live network in CI.
-- [ ] Slim ID+ACL pull so a permissions-only re-crawl does not re-read message
-  bodies. The ledger already supports the cheap path; the adapter does not use
-  it yet, so a membership re-crawl currently costs a full content crawl.
-- [ ] Threshold abort: per-channel failures are isolated, but a crawl in which
-  most channels fail still reports as a crawl rather than giving up.
+- [x] Slim ACL pull between content crawls: channels and their members from
+  Slack, applied to the objects the ledger already holds through
+  `ConnectorObjectDirectory`. A call per channel rather than a call per thread,
+  and never a completeness claim, because its object list is our own record.
+- [x] Threshold abort, plus an `auth.test` preflight so a dead credential says
+  so instead of surfacing as every channel failing at once.
+- [x] Slack markup resolved out of the indexed body, threads deduped across a
+  broadcast reply, and `app_id` posts filtered — read across from Onyx.
 
 Gate: `.\gradlew.bat test`.
 
