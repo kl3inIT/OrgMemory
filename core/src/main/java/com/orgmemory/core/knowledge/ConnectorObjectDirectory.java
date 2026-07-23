@@ -22,22 +22,22 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConnectorObjectDirectory {
 
     private final SourceObjectRepository sources;
+    private final ConnectorSourceRegistry registry;
 
-    ConnectorObjectDirectory(SourceObjectRepository sources) {
+    ConnectorObjectDirectory(SourceObjectRepository sources, ConnectorSourceRegistry registry) {
         this.sources = sources;
+        this.registry = registry;
     }
 
     /**
      * The external ids this connection currently has in retrieval, in no particular order.
      *
-     * @throws IllegalArgumentException when the source system has no connector profile
+     * @throws UnsupportedConnectorSourceException when no adapter contributed this source
      */
     @Transactional(readOnly = true)
     public List<String> activeObjectIds(UUID organizationId, String sourceSystem, String sourceConnectionKey) {
-        if (!SlackConnectorProfile.supports(sourceSystem)) {
-            throw new IllegalArgumentException("Unsupported connector source system: " + sourceSystem);
-        }
+        ConnectorSourceProfile profile = registry.require(sourceSystem);
         return sources.findActiveExternalObjectIds(
-                organizationId, SlackConnectorProfile.SOURCE_TYPE, sourceConnectionKey.trim());
+                organizationId, profile.sourceSystem(), sourceConnectionKey.trim());
     }
 }

@@ -3,6 +3,7 @@ package com.orgmemory.connectors.slack;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
+import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;
@@ -18,6 +19,16 @@ import org.springframework.web.client.RestClient;
  */
 @AutoConfiguration
 public class SlackConnectorAutoConfiguration {
+
+    /**
+     * Declaring the profile is how this adapter tells the ledger that Slack exists. Without it
+     * a Slack crawl batch would be refused, because the ledger governs only what an adapter
+     * has claimed.
+     */
+    @Bean
+    ConnectorSourceProfile slackSourceProfile() {
+        return SlackSourceProfile.profile();
+    }
 
     @Bean
     ConnectorBatchSource slackConnectorBatchSource(

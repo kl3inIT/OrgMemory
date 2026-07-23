@@ -118,7 +118,7 @@ class SecureKnowledgeRetrievalStore {
                   FROM source_acl_entries sae
                   WHERE (
                             sae.source_acl_snapshot_id = current_sas.id
-                            OR (so.source_type = 'UPLOAD' AND sae.source_acl_snapshot_id = ingestion_sas.id)
+                            OR (so.acl_authority = 'ORGMEMORY' AND sae.source_acl_snapshot_id = ingestion_sas.id)
                         )
                     AND sae.organization_id = ka.organization_id
                     AND sae.gate = 'DENY'
@@ -126,7 +126,7 @@ class SecureKnowledgeRetrievalStore {
             """ + PRINCIPAL_MATCH + """
               )
               AND (
-                  so.source_type <> 'UPLOAD'
+                  so.acl_authority = 'SOURCE'
                   OR ingestion_sas.default_gate = 'ALLOW'
                   OR EXISTS (
                       SELECT 1

@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class ConnectorIngestionService {
 
     private final ConnectorReconciler reconciler;
+    private final ConnectorSourceRegistry sources;
     private final OrganizationRepository organizations;
     private final AppUserRepository users;
     private final KnowledgeSpaceService knowledgeSpaces;
@@ -35,11 +36,13 @@ public class ConnectorIngestionService {
 
     ConnectorIngestionService(
             ConnectorReconciler reconciler,
+            ConnectorSourceRegistry sources,
             OrganizationRepository organizations,
             AppUserRepository users,
             KnowledgeSpaceService knowledgeSpaces,
             PlatformTransactionManager transactionManager) {
         this.reconciler = reconciler;
+        this.sources = sources;
         this.organizations = organizations;
         this.users = users;
         this.knowledgeSpaces = knowledgeSpaces;
@@ -49,9 +52,9 @@ public class ConnectorIngestionService {
     public ConnectorIngestionResult ingest(ConnectorCrawlBatch batch) {
         Objects.requireNonNull(batch, "batch");
         batch.versions().requireSupported();
-        validateEnvelope(batch);
+        ConnectorSourceProfile profile = validateEnvelope(batch);
 
-        ConnectorIngestionContext ctx = ConnectorIngestionContext.from(batch);
+        ConnectorIngestionContext ctx = ConnectorIngestionContext.from(batch, profile);
         ConnectorIdentityResolution resolution =
                 perObjectTransaction.execute(status -> reconciler.resolveIdentities(ctx, batch));
 
@@ -170,10 +173,10 @@ public class ConnectorIngestionService {
         }
     }
 
-    private void validateEnvelope(ConnectorCrawlBatch batch) {
-        if (!SlackConnectorProfile.supports(batch.sourceSystem())) {
-            throw new IllegalArgumentException("Unsupported connector source system: " + batch.sourceSystem());
-        }
+    private ConnectorSourceProfile validateEnvelope(ConnectorCrawlBatch batch) {
+        // Resolving the profile is the check: a batch naming a system no adapter contributed
+        // has nothing governing it and must not be allowed to write under that name.
+        ConnectorSourceProfile profile = sources.require(batch.sourceSystem());
         if (!organizations.existsById(batch.organizationId())) {
             throw new IllegalArgumentException("Organization does not exist");
         }
@@ -183,6 +186,7 @@ public class ConnectorIngestionService {
             throw new IllegalArgumentException("Connector actor must be an active user in the organization");
         }
         knowledgeSpaces.requireInOrganization(batch.organizationId(), batch.knowledgeSpaceId());
+        return profile;
     }
 
     private static String reasonOf(RuntimeException failure) {

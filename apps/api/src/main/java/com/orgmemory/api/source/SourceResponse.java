@@ -7,7 +7,8 @@ import java.util.UUID;
 record SourceResponse(
         UUID id,
         String title,
-        String sourceType,
+        String sourceSystem,
+        String aclAuthority,
         String status,
         String classification,
         String fileName,
@@ -26,7 +27,8 @@ record SourceResponse(
         return new SourceResponse(
                 source.id(),
                 source.title(),
-                source.sourceType().name(),
+                source.sourceSystem(),
+                source.aclAuthority().name(),
                 source.status().name(),
                 source.classification().name(),
                 source.fileName(),

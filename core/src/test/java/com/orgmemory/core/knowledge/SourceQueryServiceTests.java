@@ -124,7 +124,8 @@ class SourceQueryServiceTests {
         when(source.getId()).thenReturn(sourceId);
         when(source.getCurrentRevisionId()).thenReturn(revisionId);
         when(source.getTitle()).thenReturn(title);
-        when(source.getSourceType()).thenReturn(SourceType.UPLOAD);
+        when(source.getSourceSystem()).thenReturn("upload");
+        when(source.getAclAuthority()).thenReturn(AclAuthority.ORGMEMORY);
         when(source.getClassification()).thenReturn(KnowledgeClassification.INTERNAL);
         return source;
     }

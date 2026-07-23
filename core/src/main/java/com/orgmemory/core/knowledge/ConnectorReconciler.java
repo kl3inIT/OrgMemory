@@ -170,12 +170,13 @@ class ConnectorReconciler {
                     ctx.knowledgeSpaceId(),
                     null,
                     ctx.actorUserId(),
-                    SlackConnectorProfile.SOURCE_TYPE,
+                    ctx.profile().aclAuthority(),
+                    ctx.profile().sourceSystem(),
                     ctx.sourceConnectionKey(),
                     content.externalObjectId(),
                     content.title(),
-                    SlackConnectorProfile.CLASSIFICATION,
-                    SlackConnectorProfile.DECLARED_ACCESS));
+                    ctx.profile().classification(),
+                    ctx.profile().declaredAccess()));
             materializeRevision(ctx, content, source, plan, null);
             audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
             return ObjectOutcome.MATERIALIZED;
@@ -204,9 +205,9 @@ class ConnectorReconciler {
             ConnectorContentItem content,
             AclPlan plan) {
         SourceObject source = sources
-                .findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
                         ctx.organizationId(),
-                        SlackConnectorProfile.SOURCE_TYPE,
+                        ctx.profile().sourceSystem(),
                         ctx.sourceConnectionKey(),
                         content.externalObjectId())
                 .orElseThrow(() -> new IllegalStateException(
@@ -298,7 +299,7 @@ class ConnectorReconciler {
     List<String> vanishedSince(ConnectorIngestionContext ctx, Set<String> crawledObjectIds) {
         return sources
                 .findActiveExternalObjectIds(
-                        ctx.organizationId(), SlackConnectorProfile.SOURCE_TYPE, ctx.sourceConnectionKey())
+                        ctx.organizationId(), ctx.profile().sourceSystem(), ctx.sourceConnectionKey())
                 .stream()
                 .filter(externalObjectId -> !crawledObjectIds.contains(externalObjectId))
                 .toList();
@@ -306,9 +307,9 @@ class ConnectorReconciler {
 
     /** Retires a tombstoned object from retrieval. Returns whether an active object was retired. */
     boolean retire(ConnectorIngestionContext ctx, ConnectorTombstone tombstone) {
-        var existing = sources.findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+        var existing = sources.findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
                 ctx.organizationId(),
-                SlackConnectorProfile.SOURCE_TYPE,
+                ctx.profile().sourceSystem(),
                 ctx.sourceConnectionKey(),
                 tombstone.externalObjectId());
         if (existing.isEmpty() || existing.get().getStatus() != SourceObjectStatus.ACTIVE) {
@@ -356,7 +357,7 @@ class ConnectorReconciler {
                 new ObjectWriteRequest(
                         key,
                         bytes.length,
-                        SlackConnectorProfile.MEDIA_TYPE,
+                        ctx.profile().mediaType(),
                         Map.of(
                                 "organization-id", ctx.organizationId().toString(),
                                 "source-object-id", source.getId().toString(),
@@ -431,13 +432,13 @@ class ConnectorReconciler {
                 ctx.sourceConnectionKey(),
                 content.externalObjectId(),
                 content.contentRevision(),
-                SlackConnectorProfile.OBJECT_TYPE,
+                ctx.profile().objectType(),
                 content.title(),
                 content.body(),
                 null,
                 null,
-                SlackConnectorProfile.CLASSIFICATION,
-                SlackConnectorProfile.DECLARED_ACCESS,
+                ctx.profile().classification(),
+                ctx.profile().declaredAccess(),
                 AclCaptureStatus.COMPLETE,
                 AccessGate.DENY,
                 validUntil,

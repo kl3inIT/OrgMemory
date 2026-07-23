@@ -16,20 +16,20 @@ interface SourceObjectRepository extends JpaRepository<SourceObject, UUID> {
     List<SourceObject> findAllByOrganizationIdAndIdInOrderByUpdatedAtDesc(
             UUID organizationId, Collection<UUID> ids);
 
-    Optional<SourceObject> findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
-            UUID organizationId, SourceType sourceType, String sourceConnectionKey, String externalObjectId);
+    Optional<SourceObject> findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+            UUID organizationId, String sourceSystem, String sourceConnectionKey, String externalObjectId);
 
     /** The external ids a connection currently has in retrieval, for diffing against a crawl. */
     @Query("""
             SELECT source.externalObjectId
             FROM SourceObject source
             WHERE source.organizationId = :organizationId
-              AND source.sourceType = :sourceType
+              AND source.sourceSystem = :sourceSystem
               AND source.sourceConnectionKey = :sourceConnectionKey
               AND source.status = com.orgmemory.core.knowledge.SourceObjectStatus.ACTIVE
             """)
     List<String> findActiveExternalObjectIds(
             @Param("organizationId") UUID organizationId,
-            @Param("sourceType") SourceType sourceType,
+            @Param("sourceSystem") String sourceSystem,
             @Param("sourceConnectionKey") String sourceConnectionKey);
 }

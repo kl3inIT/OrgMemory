@@ -6,6 +6,7 @@ import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
+import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +73,8 @@ class ConnectorCrawlRunner {
                 report(batch, ingestion.ingest(batch));
                 checkpoints.complete(batch);
                 return;
-            } catch (UnsupportedConnectorPayloadException | IllegalArgumentException permanent) {
+            } catch (UnsupportedConnectorPayloadException | UnsupportedConnectorSourceException
+                    | IllegalArgumentException permanent) {
                 log.warn("Connector batch {} was rejected and will not be retried: {}",
                         batch.crawlCursor(), permanent.getMessage());
                 checkpoints.complete(batch);
