@@ -122,8 +122,7 @@ class ConnectorSourceRevisionCoordinator {
                 pipelineVersion,
                 parserVersion,
                 chunkerVersion,
-                DocumentProcessingProfileSnapshot.legacy(
-                        parserVersion, chunkerVersion, revision.getContentSha256()),
+                DocumentProcessingProfileSnapshot.legacy(parserVersion, chunkerVersion),
                 embeddingProfile,
                 raw,
                 normalized,

@@ -59,18 +59,36 @@ public final class FixedTokenChunker implements TextChunker<FixedTokenOptions> {
             int step = options.chunkTokenSize() - options.overlapTokenSize();
             for (int tokenStart = 0; tokenStart < encoded.size(); tokenStart += step) {
                 int tokenEnd = Math.min(tokenStart + options.chunkTokenSize(), encoded.size());
-                SourceSpan local = encoded.sourceSpan(tokenStart, tokenEnd);
-                int sourceStart = trimmed.startChar() + local.startChar();
-                int sourceEnd = trimmed.startChar() + local.endChar();
-                SourceSpan output =
-                        ChunkProvenanceFactory.trim(document.content(), sourceStart, sourceEnd);
+                SourceSpan output = null;
+                int actualTokenCount = Integer.MAX_VALUE;
+                while (tokenEnd > tokenStart) {
+                    SourceSpan local = encoded.sourceSpan(tokenStart, tokenEnd);
+                    int sourceStart = trimmed.startChar() + local.startChar();
+                    int sourceEnd = trimmed.startChar() + local.endChar();
+                    output = ChunkProvenanceFactory.trim(
+                            document.content(), sourceStart, sourceEnd);
+                    if (output == null) {
+                        break;
+                    }
+                    actualTokenCount = request.tokenizer().count(
+                            document.content().substring(
+                                    output.startChar(), output.endChar()));
+                    if (actualTokenCount <= options.chunkTokenSize()) {
+                        break;
+                    }
+                    tokenEnd--;
+                }
                 if (output != null) {
+                    if (actualTokenCount > options.chunkTokenSize()) {
+                        throw new ChunkTokenLimitExceededException(
+                                actualTokenCount, options.chunkTokenSize());
+                    }
                     result.add(toChunk(
                             result.size(),
                             document,
                             output.startChar(),
                             output.endChar(),
-                            tokenEnd - tokenStart));
+                            actualTokenCount));
                 }
             }
         }

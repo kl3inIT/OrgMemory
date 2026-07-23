@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.Charset;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -54,5 +55,18 @@ class SourceDocumentReaderTests {
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 parsed.detectedMediaType());
         assertEquals("Review the request before approval.", parsed.normalizedText());
+    }
+
+    @Test
+    void letsTikaDetectLegacyPlainTextEncoding() throws Exception {
+        Path file = temporaryDirectory.resolve("legacy.txt");
+        String content = "Résumé – café. ".repeat(20);
+        Files.write(
+                file,
+                content.getBytes(Charset.forName("windows-1252")));
+
+        ParsedSource parsed = reader.read(file, file.getFileName().toString());
+
+        assertEquals(content.strip(), parsed.normalizedText());
     }
 }

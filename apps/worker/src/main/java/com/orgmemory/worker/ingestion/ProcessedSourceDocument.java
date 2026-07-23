@@ -15,7 +15,9 @@ record ProcessedSourceDocument(
         Objects.requireNonNull(parseResult, "parseResult");
         chunks = List.copyOf(Objects.requireNonNull(chunks, "chunks"));
         if (chunks.isEmpty()) {
-            throw new IllegalArgumentException("processed document requires at least one chunk");
+            throw new RejectedSourceException(
+                    "NO_EXTRACTABLE_CHUNKS",
+                    "Processed document requires at least one chunk");
         }
         Objects.requireNonNull(profile, "profile");
     }

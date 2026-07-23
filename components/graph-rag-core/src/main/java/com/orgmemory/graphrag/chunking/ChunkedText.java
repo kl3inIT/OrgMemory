@@ -13,8 +13,8 @@ public record ChunkedText(
         if (order < 0) {
             throw new IllegalArgumentException("chunk order must not be negative");
         }
-        content = Objects.requireNonNull(content, "content").strip();
-        if (content.isEmpty()) {
+        content = Objects.requireNonNull(content, "content");
+        if (content.isBlank()) {
             throw new IllegalArgumentException("chunk content must not be blank");
         }
         if (tokenCount <= 0) {

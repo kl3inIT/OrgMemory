@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.graphrag.chunking.ChunkTokenLimitExceededException;
+import com.orgmemory.graphrag.chunking.ChunkProvenance;
+import com.orgmemory.graphrag.chunking.ChunkedText;
 import com.orgmemory.graphrag.chunking.ChunkingRequest;
 import com.orgmemory.graphrag.chunking.FixedTokenChunker;
 import com.orgmemory.graphrag.chunking.FixedTokenOptions;
@@ -83,6 +85,43 @@ class LightRagChunkerGoldenTests {
         assertEquals(List.of("A😀", "BC"),
                 chunks.stream().map(chunk -> chunk.content()).toList());
         assertEquals(3, chunks.getFirst().provenance().endChar());
+    }
+
+    @Test
+    void chunkValueDoesNotMutateCanonicalBoundaryWhitespace() {
+        var chunk = new ChunkedText(
+                0,
+                " padded ",
+                2,
+                null,
+                new ChunkProvenance(
+                        0,
+                        8,
+                        null,
+                        null,
+                        List.of(0),
+                        "0".repeat(64)));
+
+        assertEquals(" padded ", chunk.content());
+    }
+
+    @Test
+    void canonicalDocumentsRejectCarriageReturns() {
+        String content = "first\r\nsecond";
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new CanonicalDocument(
+                        content,
+                        ResolvedDocumentProcessingProfile.sha256(content),
+                        List.of(new DocumentBlock(
+                                0,
+                                DocumentBlockKind.PARAGRAPH,
+                                0,
+                                content.length(),
+                                null,
+                                null,
+                                null,
+                                Map.of()))));
     }
 
     @Test

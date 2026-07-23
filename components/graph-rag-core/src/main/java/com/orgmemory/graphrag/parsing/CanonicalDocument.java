@@ -12,6 +12,9 @@ public record CanonicalDocument(String content, String contentSha256, List<Docum
         if (content.isBlank()) {
             throw new IllegalArgumentException("canonical document content must not be blank");
         }
+        if (content.indexOf('\r') >= 0) {
+            throw new IllegalArgumentException("canonical document content must use LF line endings");
+        }
         String computed = ResolvedDocumentProcessingProfile.sha256(content);
         if (!computed.equals(Objects.requireNonNull(contentSha256, "contentSha256"))) {
             throw new IllegalArgumentException("canonical document hash does not match its content");

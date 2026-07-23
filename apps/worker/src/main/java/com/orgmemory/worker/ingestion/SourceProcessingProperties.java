@@ -49,14 +49,16 @@ public record SourceProcessingProperties(
         Assert.isTrue(
                 embeddingDimensions > 0 && embeddingDimensions <= 16000,
                 "embedding dimensions must be between 1 and 16000");
+        Assert.isTrue(chunkSize > 0, "chunkSize must be positive");
+        Assert.isTrue(chunkOverlap >= 0, "chunkOverlap must not be negative");
+        Assert.isTrue(chunkOverlap < chunkSize, "chunkOverlap must be less than chunkSize");
         Assert.isTrue(
-                chunkSize > 0
-                        && chunkOverlap >= 0
-                        && chunkOverlap < chunkSize
-                        && semanticEmbeddingBatchSize > 0
-                        && maximumChunks > 0
-                        && maximumChunks < Integer.MAX_VALUE,
-                "chunk settings must be positive and maximumChunks must allow a sentinel chunk");
+                semanticEmbeddingBatchSize > 0,
+                "semanticEmbeddingBatchSize must be positive");
+        Assert.isTrue(maximumChunks > 0, "maximumChunks must be positive");
+        Assert.isTrue(
+                maximumChunks < Integer.MAX_VALUE,
+                "maximumChunks must allow a sentinel chunk");
     }
 
     private static String defaultText(String value, String fallback) {

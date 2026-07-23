@@ -67,27 +67,49 @@ public final class JtokkitTextTokenizer implements TextTokenizer {
             int predictedStart = anchor.getValue()
                     + decode(tokenIds, anchor.getKey(), fromInclusive).length();
             String window = decode(tokenIds, fromInclusive, toExclusive);
-            if (window.indexOf('\uFFFD') >= 0) {
-                throw new TokenSourceMappingException(
-                        "token window crosses an undecodable UTF-8 boundary");
+            int safeFrom = fromInclusive;
+            int safeTo = toExclusive;
+            if (window.indexOf('\uFFFD') >= 0
+                    && findNear(source, window, predictedStart) < 0) {
+                do {
+                    if (safeFrom > 0) {
+                        safeFrom--;
+                    }
+                    if (safeTo < tokenIds.length) {
+                        safeTo++;
+                    }
+                    window = decode(tokenIds, safeFrom, safeTo);
+                    if (safeFrom == 0 && safeTo == tokenIds.length
+                            && window.indexOf('\uFFFD') >= 0) {
+                        throw new TokenSourceMappingException(
+                                "token stream cannot be decoded as canonical UTF-8 text");
+                    }
+                } while (window.indexOf('\uFFFD') >= 0);
+                predictedStart = decode(tokenIds, 0, safeFrom).length();
             }
             int predictedEnd = predictedStart + window.length();
             int start = predictedStart;
             if (predictedEnd > source.length()
                     || !source.regionMatches(predictedStart, window, 0, window.length())) {
-                int lower = Math.max(0, predictedStart - SOURCE_SEARCH_RADIUS);
-                int upper = Math.min(
-                        source.length(),
-                        predictedEnd + SOURCE_SEARCH_RADIUS + window.length());
-                int found = source.indexOf(window, lower);
-                if (found < 0 || found + window.length() > upper) {
+                int found = findNear(source, window, predictedStart);
+                if (found < 0) {
                     throw new TokenSourceMappingException(
                             "decoded token window cannot be mapped to canonical text");
                 }
                 start = found;
             }
-            anchors.put(fromInclusive, start);
+            anchors.put(safeFrom, start);
             return new SourceSpan(start, start + window.length());
+        }
+
+        private static int findNear(String source, String window, int predictedStart) {
+            int predictedEnd = predictedStart + window.length();
+            int lower = Math.max(0, predictedStart - SOURCE_SEARCH_RADIUS);
+            int upper = Math.min(
+                    source.length(),
+                    predictedEnd + SOURCE_SEARCH_RADIUS + window.length());
+            int found = source.indexOf(window, lower);
+            return found >= 0 && found + window.length() <= upper ? found : -1;
         }
 
         private String decode(int[] ids, int fromInclusive, int toExclusive) {

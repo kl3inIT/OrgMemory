@@ -41,6 +41,24 @@ class SpringAiTextEmbeddingPortTests {
                 () -> port.embedAll(List.of("a", "bb")));
     }
 
+    @Test
+    void rejectsMissingProviderOrModelIdentity() {
+        RecordingEmbeddingModel model = new RecordingEmbeddingModel(false);
+
+        assertThrows(
+                NullPointerException.class,
+                () -> new SpringAiTextEmbeddingPort(model, null, "model", 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SpringAiTextEmbeddingPort(model, " ", "model", 1));
+        assertThrows(
+                NullPointerException.class,
+                () -> new SpringAiTextEmbeddingPort(model, "provider", null, 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SpringAiTextEmbeddingPort(model, "provider", " ", 1));
+    }
+
     private static final class RecordingEmbeddingModel implements EmbeddingModel {
 
         private final boolean mixedDimensions;

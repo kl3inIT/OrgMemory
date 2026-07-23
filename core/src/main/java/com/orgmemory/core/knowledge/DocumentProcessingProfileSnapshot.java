@@ -26,14 +26,11 @@ public record DocumentProcessingProfileSnapshot(String canonicalForm, String sha
 
     static DocumentProcessingProfileSnapshot legacy(
             String parserVersion,
-            String chunkerVersion,
-            String sourceSha256) {
+            String chunkerVersion) {
         return from("parser.actual="
                 + Objects.requireNonNull(parserVersion, "parserVersion")
                 + "\nchunker.actual="
                 + Objects.requireNonNull(chunkerVersion, "chunkerVersion")
-                + "\ncanonicalTextSha256="
-                + Objects.requireNonNull(sourceSha256, "sourceSha256")
                 + "\n");
     }
 

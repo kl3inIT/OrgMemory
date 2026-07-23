@@ -9,7 +9,6 @@ import com.orgmemory.graphrag.parsing.DocumentParser;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -18,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.tika.Tika;
+import org.apache.tika.parser.txt.CharsetDetector;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
@@ -75,32 +75,41 @@ class SourceDocumentReader implements DocumentParser {
         List<Document> documents;
         if ("application/pdf".equals(detectedMediaType)) {
             documents = new PagePdfDocumentReader(resource).get();
-        } else if (isPlainText(detectedMediaType)) {
-            documents = List.of(new Document(new String(bytes, StandardCharsets.UTF_8)));
+        } else if (detectedMediaType.startsWith("text/")) {
+            var match = new CharsetDetector().setText(bytes).detect();
+            if (match == null) {
+                throw new RejectedSourceException(
+                        "UNSUPPORTED_TEXT_ENCODING",
+                        "The plain-text encoding could not be detected");
+            }
+            documents = List.of(new Document(match.getString()));
         } else {
             documents = new TikaDocumentReader(resource).get();
         }
-        List<Document> nonEmpty = documents.stream()
+        List<Document> normalizedDocuments = documents.stream()
                 .filter(document -> document.getText() != null && !document.getText().isBlank())
+                .map(document -> new Document(
+                        document.getId(),
+                        normalize(Objects.requireNonNull(document.getText())),
+                        document.getMetadata()))
+                .filter(document -> !document.getText().isBlank())
                 .toList();
-        if (nonEmpty.isEmpty()) {
+        if (normalizedDocuments.isEmpty()) {
             throw new RejectedSourceException("NO_EXTRACTABLE_TEXT", "No extractable text was found");
         }
-        String normalizedText = nonEmpty.stream()
+        String normalizedText = normalizedDocuments.stream()
                 .map(Document::getText)
-                .map(text -> normalize(Objects.requireNonNull(text)))
-                .filter(text -> !text.isBlank())
                 .reduce((left, right) -> left + "\n\n" + right)
                 .orElseThrow(() -> new RejectedSourceException(
                         "NO_EXTRACTABLE_TEXT", "No extractable text was found"));
-        return new ParsedSource(nonEmpty, normalizedText, detectedMediaType);
+        return new ParsedSource(normalizedDocuments, normalizedText, detectedMediaType);
     }
 
     private static CanonicalDocument canonical(List<Document> documents) {
         StringBuilder content = new StringBuilder();
         List<DocumentBlock> blocks = new ArrayList<>();
         for (Document document : documents) {
-            String body = normalize(Objects.requireNonNull(document.getText()));
+            String body = Objects.requireNonNull(document.getText());
             if (body.isBlank()) {
                 continue;
             }
@@ -138,10 +147,6 @@ class SourceDocumentReader implements DocumentParser {
         }
         String lower = fileName.toLowerCase(Locale.ROOT);
         return mediaType.startsWith("text/") && (lower.endsWith(".txt") || lower.endsWith(".md"));
-    }
-
-    private static boolean isPlainText(String mediaType) {
-        return mediaType.startsWith("text/");
     }
 
     private static String normalize(String text) {

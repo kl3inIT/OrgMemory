@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.parsing;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -15,7 +16,9 @@ public final class ParserRegistrySnapshot {
     }
 
     public ParserSpec require(String parserId) {
-        String key = Objects.requireNonNull(parserId, "parserId").trim().toLowerCase();
+        String key = Objects.requireNonNull(parserId, "parserId")
+                .trim()
+                .toLowerCase(Locale.ROOT);
         ParserSpec spec = specs.get(key);
         if (spec == null) {
             throw new IllegalArgumentException("unknown parser " + key);

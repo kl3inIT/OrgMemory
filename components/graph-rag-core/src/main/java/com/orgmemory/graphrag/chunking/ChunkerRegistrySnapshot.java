@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.chunking;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -15,7 +16,9 @@ public final class ChunkerRegistrySnapshot {
     }
 
     public TextChunker<?> require(String chunkerId) {
-        String key = Objects.requireNonNull(chunkerId, "chunkerId").trim().toLowerCase();
+        String key = Objects.requireNonNull(chunkerId, "chunkerId")
+                .trim()
+                .toLowerCase(Locale.ROOT);
         TextChunker<?> chunker = chunkers.get(key);
         if (chunker == null) {
             throw new IllegalArgumentException("unknown chunker " + key);

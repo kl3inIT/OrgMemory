@@ -10,7 +10,7 @@ ALTER TABLE source_revisions
             btrim(processing_profile) <> ''
             AND processing_profile_sha256 ~ '^[0-9a-f]{64}$'
         )
-    );
+    ) NOT VALID;
 
 ALTER TABLE knowledge_chunks
     ADD COLUMN source_start_char integer,
@@ -28,10 +28,10 @@ ALTER TABLE knowledge_chunks
             AND source_end_char > source_start_char
             AND canonical_text_sha256 ~ '^[0-9a-f]{64}$'
         )
-    ),
+    ) NOT VALID,
     ADD CONSTRAINT chk_knowledge_chunk_block_indexes CHECK (
         array_position(source_block_indexes, NULL) IS NULL
-    );
+    ) NOT VALID;
 
 COMMENT ON COLUMN source_revisions.processing_profile IS
     'Canonical resolved parser, chunker, tokenizer, model, and option snapshot.';

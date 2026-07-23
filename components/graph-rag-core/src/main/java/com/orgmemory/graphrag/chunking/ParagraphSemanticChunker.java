@@ -472,7 +472,7 @@ public final class ParagraphSemanticChunker
         int part = 0;
         String previousHeading = null;
         for (Draft draft : drafts) {
-            if (draft.heading() != null && draft.heading().equals(previousHeading)) {
+            if (Objects.equals(draft.heading(), previousHeading)) {
                 part++;
             } else {
                 previousHeading = draft.heading();

@@ -96,6 +96,14 @@ final class DocumentProcessingEngine {
             EmbeddingModel embeddingModel) {
         ParserSpec parser = parsers.route(request.suffix(), properties.parserId());
         var parsed = parser.parser().parse(request);
+        long minimumChunks = Math.ceilDiv(
+                (long) tokenizer.count(parsed.document().content()),
+                properties.chunkSize());
+        if (minimumChunks > properties.maximumChunks()) {
+            throw new RejectedSourceException(
+                    "CHUNK_LIMIT_EXCEEDED",
+                    "The document exceeds the configured chunk limit");
+        }
         var semanticEmbedding = new SpringAiTextEmbeddingPort(
                 embeddingModel,
                 properties.embeddingProvider(),

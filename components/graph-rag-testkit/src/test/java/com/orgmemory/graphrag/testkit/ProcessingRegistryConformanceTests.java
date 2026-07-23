@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.orgmemory.graphrag.chunking.ChunkerRegistry;
 import com.orgmemory.graphrag.chunking.FixedTokenChunker;
+import com.orgmemory.graphrag.chunking.RecursiveCharacterChunker;
+import com.orgmemory.graphrag.parsing.DocumentParser;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.ParserRegistry;
 import com.orgmemory.graphrag.parsing.ParserSpec;
@@ -13,8 +15,9 @@ import com.orgmemory.graphrag.parsing.ReuseParser;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -58,8 +61,52 @@ class ProcessingRegistryConformanceTests {
     void chunkerSnapshotDoesNotChangeWhenStartupRegistryChanges() {
         ChunkerRegistry registry = new ChunkerRegistry().register(new FixedTokenChunker());
         var snapshot = registry.snapshot();
+
+        registry.register(new RecursiveCharacterChunker());
+
         assertEquals(1, snapshot.chunkers().size());
-        assertThrows(IllegalArgumentException.class, () -> snapshot.require("missing"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> snapshot.require(RecursiveCharacterChunker.COMPONENT.id()));
+    }
+
+    @Test
+    void registryLookupsDoNotDependOnTheDefaultLocale() {
+        Locale previous = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            var parserComponent = new ProcessingComponentRef("fixture", "1");
+            DocumentParser parser = new DocumentParser() {
+                @Override
+                public ProcessingComponentRef component() {
+                    return parserComponent;
+                }
+
+                @Override
+                public com.orgmemory.graphrag.parsing.DocumentParseResult parse(
+                        DocumentParseRequest request) {
+                    return new PassthroughParser().parse(request);
+                }
+            };
+            var parserSnapshot = new ParserRegistry()
+                    .register(new ParserSpec(
+                            parserComponent,
+                            Set.of("txt"),
+                            true,
+                            true,
+                            "",
+                            parser))
+                    .snapshot();
+            var chunkerSnapshot =
+                    new ChunkerRegistry().register(new FixedTokenChunker()).snapshot();
+
+            assertEquals(parserComponent, parserSnapshot.require("FIXTURE").component());
+            assertEquals(
+                    FixedTokenChunker.COMPONENT,
+                    chunkerSnapshot.require("FIXED-TOKEN").component());
+        } finally {
+            Locale.setDefault(previous);
+        }
     }
 
     @Test
@@ -90,5 +137,17 @@ class ProcessingRegistryConformanceTests {
 
         assertEquals(left.canonicalForm(), right.canonicalForm());
         assertEquals(left.profileSha256(), right.profileSha256());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ResolvedDocumentProcessingProfile(
+                        component,
+                        component,
+                        component,
+                        component,
+                        component,
+                        Optional.empty(),
+                        Map.of(),
+                        sourceHash,
+                        "0".repeat(64)));
     }
 }

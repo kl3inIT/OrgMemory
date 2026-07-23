@@ -22,7 +22,11 @@ public final class SpringAiTextEmbeddingPort implements TextEmbeddingPort {
             String modelId,
             int maximumBatchSize) {
         this.model = Objects.requireNonNull(model, "model");
-        this.component = new ProcessingComponentRef(providerId + "-" + modelId, "1");
+        String provider = requireNonBlank(providerId, "providerId");
+        String embeddingModel = requireNonBlank(modelId, "modelId");
+        this.component = new ProcessingComponentRef(
+                provider + "-" + embeddingModel,
+                "1");
         if (maximumBatchSize <= 0) {
             throw new IllegalArgumentException("maximumBatchSize must be positive");
         }
@@ -66,5 +70,13 @@ public final class SpringAiTextEmbeddingPort implements TextEmbeddingPort {
                     "semantic embedding invocation failed", failure);
         }
         return List.copyOf(result);
+    }
+
+    private static String requireNonBlank(String value, String field) {
+        String normalized = Objects.requireNonNull(value, field).trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
+        return normalized;
     }
 }

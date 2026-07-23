@@ -36,6 +36,19 @@ public record ResolvedDocumentProcessingProfile(
         options = Map.copyOf(new TreeMap<>(Objects.requireNonNull(options, "options")));
         canonicalTextSha256 = requireSha256(canonicalTextSha256, "canonicalTextSha256");
         profileSha256 = requireSha256(profileSha256, "profileSha256");
+        String expected = sha256(canonicalForm(
+                requestedParser,
+                actualParser,
+                requestedChunker,
+                actualChunker,
+                tokenizer,
+                semanticEmbedding,
+                options,
+                canonicalTextSha256));
+        if (!expected.equals(profileSha256)) {
+            throw new IllegalArgumentException(
+                    "profileSha256 does not match the canonical processing profile");
+        }
     }
 
     public static ResolvedDocumentProcessingProfile resolve(
