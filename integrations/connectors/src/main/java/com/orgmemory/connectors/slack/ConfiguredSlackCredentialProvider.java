@@ -1,7 +1,5 @@
 package com.orgmemory.connectors.slack;
 
-import org.springframework.stereotype.Component;
-
 /**
  * Resolves the bot token from configuration, which in practice means the environment. Enough
  * for the single workspace this increment crawls, and deliberately not more: an encrypted
@@ -11,7 +9,6 @@ import org.springframework.stereotype.Component;
  * <p>The token is only ever returned, never logged or put in a message. A connection asking for
  * a token it has no configuration for is told which connection failed and nothing else.
  */
-@Component
 class ConfiguredSlackCredentialProvider implements SlackCredentialProvider {
 
     private final SlackConnectorProperties properties;

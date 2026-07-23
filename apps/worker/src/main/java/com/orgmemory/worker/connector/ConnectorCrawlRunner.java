@@ -6,14 +6,21 @@ import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Drives the connector: pulls pending batches from the {@link ConnectorBatchSource} and ingests
- * each through {@link ConnectorIngestionService}. Progress is checkpointed per connection, so a
- * driver that restarts resumes instead of replaying everything the producer still holds.
+ * Drives the connector: pulls pending batches from every {@link ConnectorBatchSource} and
+ * ingests each through {@link ConnectorIngestionService}. Progress is checkpointed per
+ * connection, so a driver that restarts resumes instead of replaying everything the producers
+ * still hold.
+ *
+ * <p>Sources are taken as a list because a deployment can run more than one — committed
+ * fixtures and a live workspace are both present in development — and because a source that
+ * cannot produce right now, whether it is rate limited or unreachable, must not stop the others
+ * from running.
  *
  * <p>A batch the ingestion service rejects is dealt with by what the rejection means. An
  * unsupported payload version or an invalid envelope will read the same on every attempt, so it
@@ -27,25 +34,35 @@ class ConnectorCrawlRunner {
     private static final Logger log = LoggerFactory.getLogger(ConnectorCrawlRunner.class);
     private static final int MAX_ATTEMPTS = 3;
 
-    private final ConnectorBatchSource source;
+    private final List<ConnectorBatchSource> sources;
     private final ConnectorIngestionService ingestion;
     private final ConnectorCrawlCheckpointService checkpoints;
 
     ConnectorCrawlRunner(
-            ConnectorBatchSource source,
+            List<ConnectorBatchSource> sources,
             ConnectorIngestionService ingestion,
             ConnectorCrawlCheckpointService checkpoints) {
-        this.source = source;
+        this.sources = List.copyOf(sources);
         this.ingestion = ingestion;
         this.checkpoints = checkpoints;
     }
 
     void runPending() {
-        for (ConnectorCrawlBatch batch : source.pendingBatches()) {
-            if (checkpoints.isCompleted(batch)) {
+        for (ConnectorBatchSource source : sources) {
+            List<ConnectorCrawlBatch> pending;
+            try {
+                pending = source.pendingBatches();
+            } catch (RuntimeException unavailable) {
+                log.warn("Connector source {} could not produce batches this poll: {}",
+                        source.getClass().getSimpleName(), unavailable.getMessage());
                 continue;
             }
-            ingestWithRetry(batch);
+            for (ConnectorCrawlBatch batch : pending) {
+                if (checkpoints.isCompleted(batch)) {
+                    continue;
+                }
+                ingestWithRetry(batch);
+            }
         }
     }
 

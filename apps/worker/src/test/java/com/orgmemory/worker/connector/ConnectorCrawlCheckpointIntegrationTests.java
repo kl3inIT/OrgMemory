@@ -92,7 +92,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
         seedOrganization();
         List<String> firstRun = new ArrayList<>();
         new ConnectorCrawlRunner(
-                        () -> List.of(batch(STEADY_CONNECTION, "cursor-1"), batch(STEADY_CONNECTION, "cursor-2")),
+                        List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-1"), batch(STEADY_CONNECTION, "cursor-2"))),
                         recordingIngestion(firstRun),
                         checkpoints)
                 .runPending();
@@ -106,7 +106,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
         // A second driver over the same database is what a restart looks like from here.
         List<String> afterRestart = new ArrayList<>();
         new ConnectorCrawlRunner(
-                        () -> List.of(batch(STEADY_CONNECTION, "cursor-2"), batch(STEADY_CONNECTION, "cursor-3")),
+                        List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-2"), batch(STEADY_CONNECTION, "cursor-3"))),
                         recordingIngestion(afterRestart),
                         checkpoints)
                 .runPending();
@@ -123,7 +123,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
                 attempts,
                 () -> new UnsupportedConnectorPayloadException("Unsupported connector content payload version"));
         ConnectorCrawlRunner driver = new ConnectorCrawlRunner(
-                () -> List.of(batch(STEADY_CONNECTION, "cursor-poison")), poisoned, checkpoints);
+                List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-poison"))), poisoned, checkpoints);
 
         driver.runPending();
         assertEquals(1, attempts[0], "a rejection that will read the same next time is not retried");
@@ -138,7 +138,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
         int[] attempts = {0};
         ConnectorIngestionService flaky =
                 failingIngestion(attempts, () -> new IllegalStateException("database is unavailable"));
-        new ConnectorCrawlRunner(() -> List.of(batch(FLAKY_CONNECTION, "cursor-flaky")), flaky, checkpoints)
+        new ConnectorCrawlRunner(List.of(() -> List.of(batch(FLAKY_CONNECTION, "cursor-flaky"))), flaky, checkpoints)
                 .runPending();
 
         assertEquals(3, attempts[0], "a transient failure is retried within the run");
