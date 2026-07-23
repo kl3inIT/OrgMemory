@@ -4,4 +4,5 @@ import { SourcesPage } from "@/features/sources/components/sources-page"
 
 export const Route = createFileRoute("/_authenticated/sources")({
   component: SourcesPage,
+  staticData: { title: "Documents" },
 })

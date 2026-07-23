@@ -106,7 +106,7 @@ export function AssistantPage() {
   const composer = (
     <PromptInput
       onSubmit={submit}
-      className="w-full [&_[data-slot=input-group]]:rounded-3xl [&_[data-slot=input-group]]:border-transparent [&_[data-slot=input-group]]:bg-muted/60 [&_[data-slot=input-group]]:shadow-none [&_[data-slot=input-group]]:ring-0"
+      className="w-full [&_[data-slot=input-group]]:rounded-3xl [&_[data-slot=input-group]]:border-border-subtle [&_[data-slot=input-group]]:bg-assistant-composer [&_[data-slot=input-group]]:shadow-sm [&_[data-slot=input-group]]:ring-0"
     >
       <PromptInputBody>
         <PromptInputTextarea

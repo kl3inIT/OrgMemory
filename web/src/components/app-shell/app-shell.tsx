@@ -1,5 +1,5 @@
-import type { ReactNode } from "react"
-import { useLocation } from "@tanstack/react-router"
+import { type ReactNode, useEffect } from "react"
+import { useMatches } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
 import { AppSidebar } from "@/components/app-shell/app-sidebar"
@@ -8,8 +8,14 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import type { SessionResponse } from "@/lib/hey-api"
 
 export function AppShell({ identity, children }: { identity: SessionResponse; children: ReactNode }) {
-  const pathname = useLocation({ select: (location) => location.pathname })
-  const pageTitle = pathname === "/sources" ? "Documents" : "Ask"
+  const pageTitle = useMatches({
+    select: (matches) =>
+      [...matches].reverse().find((match) => match.staticData.title)?.staticData.title ?? "OrgMemory",
+  })
+
+  useEffect(() => {
+    document.title = pageTitle === "OrgMemory" ? "OrgMemory" : `${pageTitle} · OrgMemory`
+  }, [pageTitle])
 
   return (
     <SidebarProvider>
