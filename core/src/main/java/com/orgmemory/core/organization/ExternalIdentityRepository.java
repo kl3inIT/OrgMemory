@@ -1,5 +1,7 @@
 package com.orgmemory.core.organization;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +12,9 @@ import org.springframework.data.repository.query.Param;
 public interface ExternalIdentityRepository extends JpaRepository<ExternalIdentity, UUID> {
 
     Optional<ExternalIdentity> findByIssuerAndSubject(String issuer, String subject);
+
+    /** Which users have a linked identity and can therefore actually sign in. */
+    List<ExternalIdentity> findByAppUserIdIn(Collection<UUID> appUserIds);
 
     @Modifying
     @Query(value = """

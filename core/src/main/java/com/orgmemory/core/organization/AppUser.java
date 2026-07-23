@@ -54,6 +54,26 @@ public class AppUser extends BaseEntity {
         this.active = active;
     }
 
+    public void changeRole(UserRole role) {
+        if (role == null) {
+            throw new IllegalArgumentException("A user role is required");
+        }
+        this.role = role;
+    }
+
+    /**
+     * Deactivation is the only revocation this application controls. The account
+     * still exists in the identity provider; an inactive user fails the identity
+     * boundary on the next request and resolves no source principal mapping.
+     */
+    public void deactivate() {
+        this.active = false;
+    }
+
+    public void activate() {
+        this.active = true;
+    }
+
     public UUID getOrganizationId() {
         return organizationId;
     }

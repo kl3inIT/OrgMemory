@@ -1,6 +1,9 @@
 package com.orgmemory.api.security;
 
+import com.orgmemory.core.organization.AppUser;
+import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.UserRole;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,22 +22,30 @@ class BrowserSessionController {
 
     private final CurrentActorProvider actors;
     private final BrowserLoginFlow loginFlow;
+    private final AppUserRepository users;
 
-    BrowserSessionController(CurrentActorProvider actors, BrowserLoginFlow loginFlow) {
+    BrowserSessionController(CurrentActorProvider actors, BrowserLoginFlow loginFlow, AppUserRepository users) {
         this.actors = actors;
         this.loginFlow = loginFlow;
+        this.users = users;
     }
 
+    /**
+     * The role travels with the session so the browser can avoid rendering an admin
+     * entry point nobody can use. It is a rendering hint, not a boundary: every
+     * administration endpoint re-decides through OpenFGA.
+     */
     record SessionResponse(
             boolean authenticated,
             String name,
             String email,
             UUID userId,
             UUID organizationId,
-            UUID departmentId) {
+            UUID departmentId,
+            UserRole role) {
 
         static SessionResponse anonymous() {
-            return new SessionResponse(false, null, null, null, null, null);
+            return new SessionResponse(false, null, null, null, null, null, null);
         }
     }
 
@@ -56,7 +67,8 @@ class BrowserSessionController {
                 actor.email(),
                 actor.userId(),
                 actor.organizationId(),
-                actor.departmentId());
+                actor.departmentId(),
+                users.findById(actor.userId()).map(AppUser::getRole).orElse(null));
     }
 
     @GetMapping("/api/session/login")
