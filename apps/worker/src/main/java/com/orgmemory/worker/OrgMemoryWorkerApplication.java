@@ -3,6 +3,7 @@ package com.orgmemory.worker;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
+import com.orgmemory.worker.connector.ConnectorCrawlProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -20,7 +21,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableConfigurationProperties({
         SourceIngestionProperties.class,
         SourceProcessingProperties.class,
-        KnowledgeRetrievalProperties.class
+        KnowledgeRetrievalProperties.class,
+        ConnectorCrawlProperties.class
 })
 @ComponentScan(
         basePackages = {
