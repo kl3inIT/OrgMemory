@@ -62,6 +62,9 @@ dimensions is the initial profile. Configuration is type-safe under
 Local Compose runs one PostgreSQL server and volume. OrgMemory and OpenFGA use
 separate databases and logins on that server so operational consolidation does
 not collapse schema ownership. The bootstrap is idempotent for existing volumes.
+Large-table upgrades can pre-stage the prerequisite unique indexes concurrently
+outside application-owned Flyway; the migration attaches those indexes as
+constraints while retaining a direct path for fresh and small installations.
 
 All writes are bounded by record count and estimated payload size. AGE traversal
 is bounded to five hops and filters every edge against the authorized Knowledge

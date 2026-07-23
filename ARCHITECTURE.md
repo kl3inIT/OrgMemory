@@ -180,6 +180,9 @@ PostgreSQL DDL. Writes use advisory revision locks, atomic generation replacemen
 monotonic generation checks, and record/payload-bounded JDBC batches. Spring Boot
 auto-configuration binds these mechanics under `orgmemory.graph-rag.postgres`;
 production defaults require AGE rather than silently dropping topology.
+Large-table upgrades pre-stage the graph prerequisite unique indexes through the
+deployment pipeline before Flyway attaches them as constraints; fresh and small
+installations can let Flyway create them directly.
 
 The local runtime uses one PostgreSQL server and volume. OrgMemory owns the
 `orgmemory` database; OpenFGA owns a separate `openfga` database and login on

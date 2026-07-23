@@ -17,27 +17,59 @@ BEGIN
 END;
 $$;
 
-ALTER TABLE source_revisions
-    ADD CONSTRAINT uq_source_revision_graph_asset
-        UNIQUE (id, organization_id, knowledge_asset_id);
+-- Large-table deployments may pre-stage the four *_prestage indexes from
+-- infrastructure/postgres-rag before this migration. Flyway must not run
+-- CREATE INDEX CONCURRENTLY itself because its schema-history connection can
+-- block the concurrent build.
+DO $$
+BEGIN
+    IF to_regclass('ux_source_revision_graph_asset_prestage') IS NOT NULL THEN
+        ALTER TABLE source_revisions
+            ADD CONSTRAINT uq_source_revision_graph_asset
+                UNIQUE USING INDEX ux_source_revision_graph_asset_prestage;
+    ELSE
+        ALTER TABLE source_revisions
+            ADD CONSTRAINT uq_source_revision_graph_asset
+                UNIQUE (id, organization_id, knowledge_asset_id);
+    END IF;
 
-ALTER TABLE source_acl_snapshots
-    ADD CONSTRAINT uq_source_acl_graph_generation
-        UNIQUE (id, organization_id, acl_generation);
+    IF to_regclass('ux_source_acl_graph_generation_prestage') IS NOT NULL THEN
+        ALTER TABLE source_acl_snapshots
+            ADD CONSTRAINT uq_source_acl_graph_generation
+                UNIQUE USING INDEX ux_source_acl_graph_generation_prestage;
+    ELSE
+        ALTER TABLE source_acl_snapshots
+            ADD CONSTRAINT uq_source_acl_graph_generation
+                UNIQUE (id, organization_id, acl_generation);
+    END IF;
 
-ALTER TABLE knowledge_assets
-    ADD CONSTRAINT uq_knowledge_asset_graph_acl
-        UNIQUE (id, organization_id, source_acl_snapshot_id);
+    IF to_regclass('ux_knowledge_asset_graph_acl_prestage') IS NOT NULL THEN
+        ALTER TABLE knowledge_assets
+            ADD CONSTRAINT uq_knowledge_asset_graph_acl
+                UNIQUE USING INDEX ux_knowledge_asset_graph_acl_prestage;
+    ELSE
+        ALTER TABLE knowledge_assets
+            ADD CONSTRAINT uq_knowledge_asset_graph_acl
+                UNIQUE (id, organization_id, source_acl_snapshot_id);
+    END IF;
 
-ALTER TABLE knowledge_chunks
-    ADD CONSTRAINT uq_knowledge_chunk_graph_provenance
-        UNIQUE (
-            id,
-            organization_id,
-            source_revision_id,
-            knowledge_asset_id,
-            projection_generation
-        );
+    IF to_regclass('ux_knowledge_chunk_graph_provenance_prestage') IS NOT NULL THEN
+        ALTER TABLE knowledge_chunks
+            ADD CONSTRAINT uq_knowledge_chunk_graph_provenance
+                UNIQUE USING INDEX ux_knowledge_chunk_graph_provenance_prestage;
+    ELSE
+        ALTER TABLE knowledge_chunks
+            ADD CONSTRAINT uq_knowledge_chunk_graph_provenance
+                UNIQUE (
+                    id,
+                    organization_id,
+                    source_revision_id,
+                    knowledge_asset_id,
+                    projection_generation
+                );
+    END IF;
+END;
+$$;
 
 CREATE TABLE graph_entities (
     organization_id uuid NOT NULL REFERENCES organizations(id),
