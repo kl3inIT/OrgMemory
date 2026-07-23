@@ -30,24 +30,33 @@ belongs in one active increment.
 - Independent publication transactions plus worker reconciliation for retry,
   obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
 
-## Active — Secure Hybrid Retrieval
+## Active — Full LightRAG Semantic Port
 
-See [active plan](increments/active/2026-07-22-secure-hybrid-retrieval/plan.md).
+See the
+[twelve-PR program](increments/active/2026-07-23-full-lightrag-semantic-port/plan.md)
+and
+[v1.5.4 parity manifest](research/lightrag-v1.5.4-parity-manifest.md).
 
-Outcome: one permission-aware search path uses a pinned OpenFGA model,
-tenant/ACL/lifecycle SQL prefiltering, PostgreSQL FTS + pgvector ranking,
-BatchCheck, citation-time canonical recheck, and append-only audit evidence.
+All program PRs target the `light-rag` integration branch. The program covers
+the complete parser, chunker, multimodal, extraction, indexing, lifecycle,
+query, storage-adapter, runtime, UI, evaluation, and operations capability set.
+Earlier scope exclusions do not remove manifest rows.
 
-## Next — Shared Agent Tools And Secure Graph
+The existing secure hybrid chunk path, OpenFGA boundary, evidence contribution
+model, PostgreSQL graph projection, and durable worker publication are the
+foundation, not the final port.
 
-- Publish proven read-only in-app tools through MCP with service identity/audit.
-- Wire worker extraction/indexing and permission-scoped runtime graph retrieval
-  over the shipped graph contracts and PostgreSQL projection.
-- Detect Capability Candidates from approved evidence and connect the existing
-  review/publish/reuse lifecycle.
-- Replace the fixture connector batch source with the live Slack Web API adapter
-  (credentials, rate limiting, checkpoint/resume) reading the per-connection
-  identity trust decision.
+## Next — Integration Sequence
+
+- Complete full pure-Java contracts and conformance fixtures.
+- Port parsing/chunking, multimodal, extraction/indexing, lifecycle, and query
+  semantics in dependency order.
+- Complete PostgreSQL parity, then implement unified OpenSearch and Neo4j graph
+  adapters.
+- Wire worker, Assistant, MCP, citations, source preview, and authorized graph
+  explorer.
+- Close with RAGAS, observability, security, lifecycle, and load evidence before
+  opening `light-rag -> main`.
 
 ## Pilot Hardening
 
@@ -59,6 +68,8 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Later, Only With Evidence
 
-Neo4j, OpenSearch, Airflow, Kafka, SCIM, more providers/connectors, mutation MCP
-tools, and multi-agent orchestration require measured need. Search and graph
-remain rebuildable projections behind stable ledger/permission contracts.
+Airflow, Kafka, SCIM, more providers/connectors, mutation MCP tools, and
+multi-agent orchestration require measured need. OpenSearch and Neo4j adapters
+are already in the full LightRAG port program; production backend selection is
+still evidence-driven. Search and graph remain rebuildable projections behind
+stable ledger/permission contracts.

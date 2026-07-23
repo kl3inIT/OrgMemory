@@ -135,25 +135,31 @@ support, document ETL, vector stores, and RAG building blocks. OrgMemory still
 owns routing policy, evidence trust, permission filtering, provenance, and the
 custom graph retriever.
 
-## Knowledge Graph Direction
+## Knowledge Graph And LightRAG Direction
 
-Implement a LightRAG-inspired secure graph kernel in Java; do not port the
-Python server, WebUI, provider bindings, or storage catalog file by file. V1 uses
-PostgreSQL graph tables, batched one-hop relational queries, and pgvector behind
-ports. A bounded recursive query is reserved for an explicit graph-explorer or
-measured multi-hop requirement. Every entity or relation contribution retains
-source revision, chunk, asset, ACL generation, extractor/model/prompt version,
-confidence, and provenance. Permission filtering occurs before seed ranking and
-at every traversal/citation boundary.
+Implement a full semantic port of LightRAG `v1.5.4` in Java: parser and chunker
+extension points, multimodal analysis, extraction and gleaning, profiling and
+merge, incremental update and delete/rebuild, all query strategies, reranking,
+context/reference assembly, caching, evaluation, and replaceable storage
+families. Port equivalent behavior and contracts rather than Python syntax,
+FastAPI, or the upstream WebUI layout.
 
-The product exposes one stable graph-assisted retrieval API. Its internal
-planner can compose chunk-only, entity-only, relation-only, secure-hybrid, and
-secure-mix strategies from chunk, entity, and relation channels. `SECURE_MIX`
-is the default; strategy selection is not a user-controlled request parameter.
-LightRAG's mode names do not become OrgMemory API options.
+The framework-neutral core cannot depend on Spring or a database. PostgreSQL,
+Spring AI, OpenSearch, Neo4j, parser engines, and model providers are adapters
+behind conformance-tested ports. PostgreSQL/FTS/pgvector/AGE is the first
+production adapter. OpenSearch implements unified lexical/vector/graph/state
+storage and Neo4j implements graph storage without changing core orchestration.
 
-Neo4j is optional only when measured traversal or algorithm requirements justify
-it. It would be a rebuildable projection, not the canonical ledger.
+Every entity or relation contribution retains source revision, chunk, asset,
+ACL generation, extractor/model/prompt version, confidence, and provenance.
+Descriptions, degree, weights, expansion, ranking, context, and citations use
+only actor-visible contributions. PostgreSQL remains canonical for source,
+evidence, ACL, lifecycle, and audit; every derived store is rebuildable.
+
+The engine implements local, global, hybrid, naive, mix, and trusted bypass
+semantics for parity and internal planning. Product delivery exposes one stable
+permission-aware API, uses secure mix by default, and never lets a query mode
+bypass authorization.
 
 ## Web Direction
 
