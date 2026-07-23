@@ -14,16 +14,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
+import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
+import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,10 +49,12 @@ class SlackConnectorBatchSourceTests {
     private static final UUID SPACE = UUID.fromString("aa000000-0000-4000-8000-000000000002");
     private static final UUID ACTOR = UUID.fromString("aa000000-0000-4000-8000-000000000003");
     private static final String CONNECTION = "T-workspace";
+    private static final String TOKEN = "xoxb-not-a-real-token";
 
     private RestClient.Builder builder;
     private MockRestServiceServer server;
     private ConnectorObjectDirectory directory;
+    private ConnectorConnectionDirectory connections;
 
     @BeforeEach
     void setUp() {
@@ -56,6 +62,8 @@ class SlackConnectorBatchSourceTests {
         server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
         directory = mock(ConnectorObjectDirectory.class);
         when(directory.activeObjectIds(any(), any(), any())).thenReturn(List.of());
+        connections = mock(ConnectorConnectionDirectory.class);
+        when(connections.resolveCredential(any(), any(), any())).thenReturn(Optional.of(SecretValue.of(TOKEN)));
     }
 
     @Test
@@ -406,15 +414,42 @@ class SlackConnectorBatchSourceTests {
     }
 
     @Test
-    void producesNothingUntilTheConnectionIsFullyConfigured() {
-        SlackConnectorProperties unconfigured = new SlackConnectorProperties(
-                false, "xoxb-token", CONNECTION, ORG, SPACE, ACTOR, List.of(), null, null);
+    void producesNothingUntilAConnectionIsEnabled() {
+        when(connections.enabledCrawls("slack")).thenReturn(List.of());
 
         assertTrue(
-                new SlackConnectorBatchSource(unconfigured, key -> "xoxb-token", directory, builder)
-                        .pendingBatches()
-                        .isEmpty(),
-                "a disabled connection contacts Slack not at all");
+                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches().isEmpty(),
+                "with nothing enabled the adapter contacts Slack not at all");
+        server.verify();
+    }
+
+    @Test
+    void producesNothingForAConnectionWithNoStoredCredential() {
+        when(connections.enabledCrawls("slack")).thenReturn(List.of(configuration(List.of())));
+        when(connections.resolveCredential(ORG, "slack", CONNECTION)).thenReturn(Optional.empty());
+
+        assertTrue(
+                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches().isEmpty(),
+                "an enabled connection nobody has given a token to is not yet a crawl");
+        server.verify();
+    }
+
+    @Test
+    void oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll() {
+        when(connections.enabledCrawls("slack"))
+                .thenReturn(List.of(configuration("T-broken", List.of()), configuration(List.of())));
+        when(connections.resolveCredential(ORG, "slack", "T-broken")).thenReturn(Optional.empty());
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+
+        List<ConnectorCrawlBatch> batches =
+                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches();
+
+        assertEquals(1, batches.size(), "the workspace that could be crawled still was");
+        assertEquals(CONNECTION, batches.getFirst().sourceConnectionKey());
     }
 
     @Test
@@ -465,18 +500,27 @@ class SlackConnectorBatchSourceTests {
         }
     }
 
+    /**
+     * Drives one connection directly. Whether a batch is produced at all is the poll loop's
+     * business and is proved separately; what these tests are about is the crawl itself, and
+     * the loop deliberately swallows the failures several of them assert on.
+     */
     private ConnectorCrawlBatch crawl(List<String> channels) {
-        List<ConnectorCrawlBatch> batches = source(channels, Clock.systemUTC()).pendingBatches();
-        assertEquals(1, batches.size());
-        return batches.getFirst();
+        return source(channels, Clock.systemUTC()).batchFor(configuration(channels));
     }
 
     private SlackConnectorBatchSource source(List<String> channels, Clock clock) {
-        SlackConnectorProperties properties = new SlackConnectorProperties(
-                true, "xoxb-not-a-real-token", CONNECTION, ORG, SPACE, ACTOR, channels, null,
-                Duration.ofHours(1));
-        return new SlackConnectorBatchSource(
-                properties, key -> "xoxb-not-a-real-token", directory, builder, clock);
+        when(connections.enabledCrawls("slack")).thenReturn(List.of(configuration(channels)));
+        return new SlackConnectorBatchSource(connections, directory, builder, clock);
+    }
+
+    private static ConnectorCrawlConfiguration configuration(List<String> channels) {
+        return configuration(CONNECTION, channels);
+    }
+
+    private static ConnectorCrawlConfiguration configuration(String connectionKey, List<String> channels) {
+        return new ConnectorCrawlConfiguration(
+                ORG, "slack", connectionKey, SPACE, ACTOR, channels, Duration.ofHours(1), 500);
     }
 
     private void expectAuth() {

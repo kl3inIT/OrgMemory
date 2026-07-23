@@ -39,13 +39,25 @@ Gate: `.\gradlew.bat :apps:api:test`.
 
 ## Phase 3 — Adapter reads the ledger
 
-- [ ] `SlackConnectorBatchSource` resolves its connection and credential per poll, so
-  a change takes effect without a restart.
-- [ ] `SlackConnectorProperties` stops being a configuration source; the adapter bean
-  is present whenever the module is and produces nothing until a connection says
-  otherwise.
+- [x] `SlackConnectorBatchSource` resolves its connections and their credentials per
+  poll through `ConnectorConnectionDirectory`, so a change takes effect without a
+  restart. It now produces one batch per enabled connection rather than one for the
+  single workspace a property named, and a connection that cannot produce — no
+  token, rate limited, most channels unreadable — is skipped rather than allowed to
+  end the poll for the others.
+- [x] `SlackConnectorProperties`, `SlackCredentialProvider`, and
+  `ConfiguredSlackCredentialProvider` deleted. The adapter bean is present whenever
+  the module is and produces nothing until a connection says otherwise: consent to
+  crawl is a row somebody wrote, not a flag on a host.
 
 Gate: `.\gradlew.bat :integrations:connectors:test :apps:worker:test`.
+
+`SourceIngestionPipelineIntegrationTests` re-arms a job with `now()` and the claim
+compares that column against the JVM clock, so a container clock drifting slightly
+ahead of the host leaves the job not yet due and the test asserts on a stale row.
+Backdating the re-arm removes the dependence on the two clocks agreeing. The
+diagnosis fits the evidence — fails only under a loaded suite, passes in isolation,
+and fails exactly as a no-op second pass would — but one green run is not proof.
 
 ## Phase 4 — Web and proofs
 

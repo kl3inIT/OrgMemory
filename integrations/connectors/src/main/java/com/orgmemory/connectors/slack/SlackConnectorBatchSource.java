@@ -1,8 +1,10 @@
 package com.orgmemory.connectors.slack;
 
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
+import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
+import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
@@ -10,6 +12,7 @@ import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.permission.AccessGate;
+import com.orgmemory.core.shared.secret.SecretValue;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -22,15 +25,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Crawls a Slack workspace into the crawl-batch contract the governed ledger already ingests.
- * Nothing downstream changes: this only replaces the fixture producer.
+ * Crawls the Slack workspaces an administrator has enabled into the crawl-batch contract the
+ * governed ledger already ingests. Nothing downstream changes: this only replaces the fixture
+ * producer.
  *
  * <p>A thread is the unit, keyed {@code channelId__threadTs} as Onyx keys it. A message on its
  * own is too small to answer anything and a whole channel is too coarse to cite, and the thread
@@ -46,6 +50,7 @@ import tools.jackson.databind.JsonNode;
 class SlackConnectorBatchSource implements ConnectorBatchSource {
 
     private static final Logger log = LoggerFactory.getLogger(SlackConnectorBatchSource.class);
+    private static final String SOURCE_SYSTEM = "slack";
     private static final String ALL_CHANNEL_TYPES = "public_channel,private_channel";
     private static final String PUBLIC_CHANNELS_ONLY = "public_channel";
     /** Housekeeping events Slack records as messages. They say nothing about the work. */
@@ -58,36 +63,56 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     /** Above this share of unreadable channels the run is a failure, not a crawl. */
     private static final double FAILED_CHANNEL_ABORT_SHARE = 0.5;
 
-    private final SlackConnectorProperties properties;
-    private final SlackCredentialProvider credentials;
+    private final ConnectorConnectionDirectory connections;
     private final ConnectorObjectDirectory objects;
     private final RestClient.Builder restClientBuilder;
     private final Clock clock;
-    private final AtomicReference<Instant> contentCrawlDueAt = new AtomicReference<>(Instant.EPOCH);
+    private final Map<String, Instant> contentCrawlDueAt = new ConcurrentHashMap<>();
 
     SlackConnectorBatchSource(
-            SlackConnectorProperties properties,
-            SlackCredentialProvider credentials,
+            ConnectorConnectionDirectory connections,
             ConnectorObjectDirectory objects,
             RestClient.Builder restClientBuilder) {
-        this(properties, credentials, objects, restClientBuilder, Clock.systemUTC());
+        this(connections, objects, restClientBuilder, Clock.systemUTC());
     }
 
     SlackConnectorBatchSource(
-            SlackConnectorProperties properties,
-            SlackCredentialProvider credentials,
+            ConnectorConnectionDirectory connections,
             ConnectorObjectDirectory objects,
             RestClient.Builder restClientBuilder,
             Clock clock) {
-        this.properties = properties;
-        this.credentials = credentials;
+        this.connections = connections;
         this.objects = objects;
         this.restClientBuilder = restClientBuilder;
         this.clock = clock;
     }
 
     /**
-     * One batch per poll, and which kind depends on what is due.
+     * One batch per enabled connection, asked for fresh each poll so that enabling a workspace,
+     * repointing it at another Space, or replacing its token takes effect on the next poll rather
+     * than on the next restart.
+     *
+     * <p>A connection that cannot produce is skipped rather than allowed to end the poll. One
+     * workspace being rate limited, missing a token, or refusing a scope says nothing about the
+     * others, and because nothing is checkpointed for a connection that produced no batch, the
+     * only cost of skipping it is that it is tried again next time.
+     */
+    @Override
+    public List<ConnectorCrawlBatch> pendingBatches() {
+        List<ConnectorCrawlBatch> batches = new ArrayList<>();
+        for (ConnectorCrawlConfiguration configuration : connections.enabledCrawls(SOURCE_SYSTEM)) {
+            try {
+                batches.add(batchFor(configuration));
+            } catch (SlackCredentialUnavailableException | SlackApiException failure) {
+                log.warn("Slack connection {} produced no batch this poll: {}",
+                        configuration.sourceConnectionKey(), failure.getMessage());
+            }
+        }
+        return batches;
+    }
+
+    /**
+     * What one connection owes this poll, and which kind depends on what is due.
      *
      * <p>Access changes daily and content rarely, so re-reading every message body to answer "who
      * can see this now" is the expensive mistake. Between content crawls this produces a
@@ -98,19 +123,26 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * a restart, and the alternative — another durable row to keep honest — buys nothing against
      * a failure that benign.
      */
-    @Override
-    public List<ConnectorCrawlBatch> pendingBatches() {
-        if (!properties.isRunnable()) {
-            return List.of();
-        }
-        SlackWebApiClient client = new SlackWebApiClient(
-                restClientBuilder, credentials.botToken(properties.connectionKey()));
+    ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
+        SecretValue token = connections
+                .resolveCredential(
+                        configuration.organizationId(), SOURCE_SYSTEM, configuration.sourceConnectionKey())
+                .orElseThrow(() -> new SlackCredentialUnavailableException(
+                        "No Slack credential is stored for connection " + configuration.sourceConnectionKey()));
+        SlackWebApiClient client = new SlackWebApiClient(restClientBuilder, token.expose());
+
+        String due = dueKey(configuration);
         Instant now = clock.instant();
-        if (now.isBefore(contentCrawlDueAt.get())) {
-            return List.of(permissionsCrawl(client));
+        if (now.isBefore(contentCrawlDueAt.getOrDefault(due, Instant.EPOCH))) {
+            return permissionsCrawl(client, configuration);
         }
-        contentCrawlDueAt.set(now.plus(properties.contentCrawlInterval()));
-        return List.of(crawl(client));
+        contentCrawlDueAt.put(due, now.plus(configuration.contentCrawlInterval()));
+        return crawl(client, configuration);
+    }
+
+    /** Two tenants may key a connection the same way, so the cadence is remembered per tenant. */
+    private static String dueKey(ConnectorCrawlConfiguration configuration) {
+        return configuration.organizationId() + "/" + configuration.sourceConnectionKey();
     }
 
     /**
@@ -123,12 +155,13 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * connection on that basis would be confirming itself, and the ledger would then be entitled
      * to retire anything the circular answer left out.
      */
-    private ConnectorCrawlBatch permissionsCrawl(SlackWebApiClient client) {
-        requireWorkingCredential(client);
+    private ConnectorCrawlBatch permissionsCrawl(
+            SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
+        requireWorkingCredential(client, configuration);
         Crawl crawl = new Crawl();
         crawl.incomplete();
         Map<String, SlackUser> usersById = users(client);
-        List<JsonNode> channels = channels(client, crawl);
+        List<JsonNode> channels = channels(client, configuration, crawl);
 
         int failed = 0;
         for (JsonNode channel : channels) {
@@ -142,23 +175,10 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
         abortIfMostlyFailed(failed, channels.size());
 
-        crawl.grantKnownObjects(
-                objects.activeObjectIds(
-                        properties.organizationId(), "slack", properties.connectionKey()));
+        crawl.grantKnownObjects(objects.activeObjectIds(
+                configuration.organizationId(), SOURCE_SYSTEM, configuration.sourceConnectionKey()));
 
-        return new ConnectorCrawlBatch(
-                properties.organizationId(),
-                "slack",
-                properties.connectionKey(),
-                properties.knowledgeSpaceId(),
-                properties.actorUserId(),
-                crawlCursor(crawl),
-                ConnectorContractVersions.supported(),
-                crawl.identities(),
-                List.of(),
-                crawl.permissions,
-                List.of(),
-                false);
+        return batch(configuration, crawl, List.of(), false);
     }
 
     private void observeMembership(
@@ -174,16 +194,16 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         crawl.observeChannel(channelId, channel.path("name").asString(channelId), memberIds);
     }
 
-    private ConnectorCrawlBatch crawl(SlackWebApiClient client) {
-        requireWorkingCredential(client);
+    private ConnectorCrawlBatch crawl(SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
+        requireWorkingCredential(client, configuration);
         Crawl crawl = new Crawl();
         Map<String, SlackUser> usersById = users(client);
-        List<JsonNode> channels = channels(client, crawl);
+        List<JsonNode> channels = channels(client, configuration, crawl);
 
         int failed = 0;
         for (JsonNode channel : channels) {
             try {
-                crawlChannel(client, channel, usersById, crawl);
+                crawlChannel(client, channel, usersById, configuration, crawl);
             } catch (SlackApiException failure) {
                 // A channel the bot cannot read is not a channel that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the workspace its index.
@@ -194,19 +214,27 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
         abortIfMostlyFailed(failed, channels.size());
 
+        return batch(configuration, crawl, crawl.contents, crawl.complete);
+    }
+
+    private static ConnectorCrawlBatch batch(
+            ConnectorCrawlConfiguration configuration,
+            Crawl crawl,
+            List<ConnectorContentItem> contents,
+            boolean complete) {
         return new ConnectorCrawlBatch(
-                properties.organizationId(),
-                "slack",
-                properties.connectionKey(),
-                properties.knowledgeSpaceId(),
-                properties.actorUserId(),
+                configuration.organizationId(),
+                SOURCE_SYSTEM,
+                configuration.sourceConnectionKey(),
+                configuration.knowledgeSpaceId(),
+                configuration.actorUserId(),
                 crawlCursor(crawl),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
-                crawl.contents,
+                contents,
                 crawl.permissions,
                 List.of(),
-                crawl.complete);
+                complete);
     }
 
     /**
@@ -214,13 +242,14 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * up as every channel failing at once, which reads like a workspace problem; {@code auth.test}
      * costs one call and says plainly which it is.
      */
-    private void requireWorkingCredential(SlackWebApiClient client) {
+    private static void requireWorkingCredential(
+            SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
         try {
             client.call("auth.test", Map.of());
         } catch (SlackApiException refused) {
             String error = refused.errorCode() == null ? "" : refused.errorCode();
             throw new SlackCredentialUnavailableException(
-                    "The Slack bot token for connection " + properties.connectionKey()
+                    "The Slack bot token for connection " + configuration.sourceConnectionKey()
                             + " was rejected (" + error + ")");
         }
     }
@@ -230,8 +259,8 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      *
      * <p>Nothing is destroyed by carrying on — the completeness claim is already withdrawn, so
      * pruning cannot fire — but a batch would be checkpointed and the connection would look
-     * healthy while its index quietly went stale. Failing instead sends the driver down its
-     * transient path, which retries and then leaves the work for the next poll.
+     * healthy while its index quietly went stale. Failing instead leaves this connection without
+     * a batch, so the work is simply retried on the next poll.
      */
     private static void abortIfMostlyFailed(int failed, int total) {
         if (failed > 0 && failed >= total * FAILED_CHANNEL_ABORT_SHARE) {
@@ -244,7 +273,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * Every human account in the workspace, indexed by id. Bots and deactivated accounts are
      * dropped: neither can be a person to map to, and a bot has no address to map by.
      */
-    private Map<String, SlackUser> users(SlackWebApiClient client) {
+    private static Map<String, SlackUser> users(SlackWebApiClient client) {
         Map<String, SlackUser> usersById = new LinkedHashMap<>();
         for (JsonNode member : client.collectPaged("users.list", Map.of(), "members")) {
             if (member.path("deleted").asBoolean(false)
@@ -272,7 +301,8 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * a refusal falls back to public channels rather than failing the crawl — Onyx's behaviour —
      * but the narrower result can no longer speak for the whole connection.
      */
-    private List<JsonNode> channels(SlackWebApiClient client, Crawl crawl) {
+    private static List<JsonNode> channels(
+            SlackWebApiClient client, ConnectorCrawlConfiguration configuration, Crawl crawl) {
         List<JsonNode> channels;
         try {
             channels = client.collectPaged(
@@ -288,19 +318,23 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                     Map.of("types", PUBLIC_CHANNELS_ONLY, "exclude_archived", "true"),
                     "channels");
         }
-        if (properties.channels().isEmpty()) {
+        if (configuration.channels().isEmpty()) {
             return channels;
         }
         // A configured subset cannot speak for what it was never asked to look at.
         crawl.incomplete();
-        Set<String> wanted = Set.copyOf(properties.channels());
+        Set<String> wanted = Set.copyOf(configuration.channels());
         return channels.stream()
                 .filter(channel -> wanted.contains(channel.path("name").asString("")))
                 .toList();
     }
 
     private void crawlChannel(
-            SlackWebApiClient client, JsonNode channel, Map<String, SlackUser> usersById, Crawl crawl) {
+            SlackWebApiClient client,
+            JsonNode channel,
+            Map<String, SlackUser> usersById,
+            ConnectorCrawlConfiguration configuration,
+            Crawl crawl) {
         String channelId = channel.path("id").asString("");
         String channelName = channel.path("name").asString(channelId);
 
@@ -320,9 +354,9 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             if (isIgnorable(message)) {
                 continue;
             }
-            if (threads++ >= properties.maxThreadsPerChannel()) {
+            if (threads++ >= configuration.maxThreadsPerChannel()) {
                 log.warn("Slack channel {} exceeded {} threads; the crawl no longer covers it fully",
-                        channelName, properties.maxThreadsPerChannel());
+                        channelName, configuration.maxThreadsPerChannel());
                 crawl.incomplete();
                 break;
             }
@@ -339,7 +373,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * reply is seen before its parent — keying off the entry itself would index the reply alone
      * and then discard the real thread as a duplicate.
      */
-    private List<JsonNode> thread(SlackWebApiClient client, String channelId, JsonNode entry) {
+    private static List<JsonNode> thread(SlackWebApiClient client, String channelId, JsonNode entry) {
         String threadTs = entry.path("thread_ts").asString("");
         if (threadTs.isBlank() && entry.path("reply_count").asInt(0) <= 0) {
             return List.of(entry);
@@ -402,7 +436,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     }
 
     /** Accumulates one crawl's payloads and whether it may still claim to have seen everything. */
-    private final class Crawl {
+    private static final class Crawl {
 
         private final Map<String, SlackUser> observedUsers = new LinkedHashMap<>();
         private final Map<String, ChannelIdentity> observedChannels = new LinkedHashMap<>();

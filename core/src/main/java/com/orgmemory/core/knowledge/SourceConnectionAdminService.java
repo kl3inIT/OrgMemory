@@ -24,9 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
  * and comes out only through {@link #resolveCredential}, which exists for the adapter that has
  * to authenticate; nothing that builds an administrator's view can reach it, and no method
  * returns it alongside anything else.
+ *
+ * <p>It implements {@link ConnectorConnectionDirectory} rather than having a second class read
+ * the same rows, so what a worker sees of a connection and what an administrator sets on it can
+ * never drift apart. The port is the narrow half a crawl is allowed to know about.
  */
 @Service
-public class SourceConnectionAdminService {
+public class SourceConnectionAdminService implements ConnectorConnectionDirectory {
 
     static final String POLICY_VERSION = "connection-admin-v1";
 
@@ -147,6 +151,7 @@ public class SourceConnectionAdminService {
     }
 
     /** The credential an adapter needs to authenticate. The only read path for a stored secret. */
+    @Override
     @Transactional(readOnly = true)
     public Optional<SecretValue> resolveCredential(
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
@@ -158,6 +163,7 @@ public class SourceConnectionAdminService {
     }
 
     /** Every connection of one source system that an administrator has enabled, across tenants. */
+    @Override
     @Transactional(readOnly = true)
     public List<ConnectorCrawlConfiguration> enabledCrawls(String sourceSystem) {
         return connections.findBySourceSystemAndCrawlEnabledTrue(requireText(sourceSystem, "sourceSystem"))

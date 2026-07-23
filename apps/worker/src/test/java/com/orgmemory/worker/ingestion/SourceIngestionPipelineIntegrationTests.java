@@ -436,10 +436,14 @@ class SourceIngestionPipelineIntegrationTests {
 
         when(relationshipTuples.write(any(RelationshipTupleWriteRequest.class)))
                 .thenReturn(RelationshipTupleWriteResult.applied("model-1"));
+        // Plainly in the past rather than now(): the claim compares this column against the
+        // JVM's clock, and this row is written by the database's. A container whose clock has
+        // drifted a fraction ahead of the host is enough to leave the job not yet due, which
+        // shows up as this test's second pass finding no work and asserting on a stale row.
         jdbc.update(
                 """
                         UPDATE source_ingestion_jobs
-                        SET available_at = now()
+                        SET available_at = now() - interval '1 minute'
                         WHERE source_revision_id = (
                             SELECT current_revision_id FROM source_objects WHERE id = ?
                         )

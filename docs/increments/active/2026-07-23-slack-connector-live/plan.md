@@ -34,6 +34,9 @@ through the existing `FileConnectorBatchSource`.
   (`ORGMEMORY_CONNECTOR_SLACK_BOT_TOKEN`) over an encrypted store. The store is
   the right answer for many connections and replaces the provider without
   anything else moving; recording that here rather than pretending it is built.
+  **Superseded** by `2026-07-23-slack-connection-admin`: connections and their
+  encrypted tokens now live in the ledger, and the environment-resolved provider
+  is gone. It did replace without anything else moving.
 - [x] Cursor pagination and `Retry-After` handling with bounded backoff, applied
   before a request rather than only after a refusal.
 - [x] Adapter tests against recorded Slack API responses; no live network in CI.
@@ -62,10 +65,12 @@ Gate: `.\gradlew.bat test`.
 ## Credentials the operator supplies
 
 A Slack app with `channels:read`, `channels:history`, `groups:read`,
-`groups:history`, `users:read`, `users:read.email`; the bot token supplied
-through the environment as `ORGMEMORY_CONNECTOR_SLACK_BOT_TOKEN` and never
-committed; the bot invited to the crawled channel; member emails matching
-`app_users.email`. The connection also needs its OrgMemory half configured —
-`orgmemory.connector.slack.connection-key`, `.organization-id`,
-`.knowledge-space-id`, `.actor-user-id` — because none of it has a Slack
-equivalent. Nothing runs until `orgmemory.connector.slack.enabled=true`.
+`groups:history`, `users:read`, `users:read.email`; the bot invited to the
+crawled channel; member emails matching `app_users.email`.
+
+The token and the connection's OrgMemory half — which workspace, which Knowledge
+Space, which actor — are entered in the browser under `/admin/connectors` and
+stored encrypted, not configured on the host. Nothing runs until an administrator
+has enabled a connection there. The worker still needs
+`ORGMEMORY_CONNECTOR_SCHEDULING_ENABLED=true` to poll at all, which is the one
+remaining deployment-level decision: whether this process crawls.
