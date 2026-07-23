@@ -1,6 +1,7 @@
 # Permissions Admin Plan
 
-Three phases, each a commit that leaves the build green.
+Four phases, each a commit that leaves the build green. The first three deliver;
+the fourth proves and consolidates.
 
 ## Phase 1 — Ledger and core facade
 

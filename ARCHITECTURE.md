@@ -101,11 +101,13 @@ query text.
 OIDC identities are mapped only by an explicit `(issuer, subject)` binding to an
 active internal user. Email claims and identity-provider roles are never used to
 bootstrap identity or grant application permissions. External source principals
-and groups are not mapped into that identity model yet.
+are mapped into that identity model only through the verified mapping ledger, and
+an administrator governs that ledger from `/api/admin/**`.
 
-Only explicitly namespaced OrgMemory user, department, and organization
-principals are supported. External source groups, connector staging,
-multi-source derivation, and permission-aware MCP delivery are not implemented.
+Source ACL evidence accepts namespaced OrgMemory user, department, and
+organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
+principals, the latter resolved through sealed per-generation membership.
+Multi-source derivation and permission-aware MCP delivery are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -125,8 +127,9 @@ writes the Space and uploader-owner tuples together and keeps the asset/chunks
 model id, attempts, and failure reason are recorded in the publication outbox;
 the existing ingestion job provides durable retry. Source ACL remains an
 independent permission ceiling: internal upload ACLs grant the organization and
-confidential upload ACLs grant the selected Space's department. External
-source-principal projection is not implemented yet.
+confidential upload ACLs grant the selected Space's department. External source
+principals are resolved in that ceiling by the SQL enforcement path through their
+verified mappings; they are not projected into OpenFGA tuples.
 
 ## Current AI And Graph Behavior
 

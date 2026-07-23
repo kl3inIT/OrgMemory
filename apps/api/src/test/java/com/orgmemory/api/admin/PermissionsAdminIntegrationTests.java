@@ -82,6 +82,12 @@ class PermissionsAdminIntegrationTests {
     private static final UUID CHANNEL_PRINCIPAL = UUID.fromString("c1000000-0000-4000-8000-000000000021");
     private static final UUID AN_PRINCIPAL = UUID.fromString("c1000000-0000-4000-8000-000000000022");
 
+    // A second tenant whose administrator is a full administrator of their own
+    // organization, which is exactly what makes them a useful negative case here.
+    private static final UUID OTHER_ORG = UUID.fromString("c2000000-0000-4000-8000-000000000001");
+    private static final UUID OTHER_DEPT = UUID.fromString("c2000000-0000-4000-8000-000000000002");
+    private static final UUID OTHER_ADMIN = UUID.fromString("c2000000-0000-4000-8000-000000000003");
+
     @Container
     @ServiceConnection
     static PostgreSQLContainer postgres = new PostgreSQLContainer("pgvector/pgvector:pg18");
@@ -136,6 +142,51 @@ class PermissionsAdminIntegrationTests {
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/admin/source-principals/{id}/mapping", AN_PRINCIPAL).with(employee))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anAdministratorOfAnotherOrganizationReachesNothingHere() throws Exception {
+        var foreign = jwtFor(OTHER_ADMIN);
+
+        // Reads are scoped to the actor's own organization, so this tenant's ledger is
+        // simply absent rather than merely hidden behind a filter in the response.
+        mvc.perform(get("/api/admin/users").with(foreign))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')]").isEmpty());
+        mvc.perform(get("/api/admin/source-principals").with(foreign))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+        mvc.perform(get("/api/admin/source-groups").with(foreign))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        // Writes name a resource explicitly, so they must be refused rather than scoped.
+        mvc.perform(patch("/api/admin/users/{id}", AN_USER)
+                        .with(foreign)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/admin/source-principals/{id}/mapping", AN_PRINCIPAL)
+                        .with(foreign)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"appUserId\":\"" + AN_USER + "\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/admin/source-principals/{id}/mapping", AN_PRINCIPAL).with(foreign))
+                .andExpect(status().isBadRequest());
+
+        assertTrue(
+                jdbc.queryForObject(
+                        "SELECT active FROM app_users WHERE id = ?", Boolean.class, AN_USER),
+                "A foreign administrator must not have been able to deactivate this tenant's user");
+    }
+
+    @Test
+    void confirmingWithoutATargetUserIsARequestError() throws Exception {
+        mvc.perform(put("/api/admin/source-principals/{id}/mapping", AN_PRINCIPAL)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -223,8 +274,11 @@ class PermissionsAdminIntegrationTests {
         // the sealed source ACL is the only gate the retrieval assertions can be failing on.
         when(entryAuthorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
+            // The foreign administrator passes the gate too, so cross-tenant refusal has to
+            // come from the ledger scoping rather than from the permission check.
             boolean allowed = !"can_manage_members".equals(query.permission().value())
-                    || ADMIN_USER.toString().equals(query.principal().id());
+                    || ADMIN_USER.toString().equals(query.principal().id())
+                    || OTHER_ADMIN.toString().equals(query.principal().id());
             return allowed
                     ? AuthorizationDecision.allow(MODEL_ID)
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID);
@@ -257,10 +311,17 @@ class PermissionsAdminIntegrationTests {
                 + "VALUES (?, 'Admin Test Org', now(), now(), 0)", ORG);
         jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
                 + "VALUES (?, ?, 'Operations', now(), now(), 0)", DEPT, ORG);
-        insertUser(ADMIN_USER, "admin@admintest.example", "ADMIN");
-        insertUser(AN_USER, "an@admintest.example", "EMPLOYEE");
+        insertUser(ADMIN_USER, ORG, DEPT, "admin@admintest.example", "ADMIN");
+        insertUser(AN_USER, ORG, DEPT, "an@admintest.example", "EMPLOYEE");
         linkIdentity(ADMIN_USER);
         linkIdentity(AN_USER);
+
+        jdbc.update("INSERT INTO organizations (id, name, created_at, updated_at, version) "
+                + "VALUES (?, 'Other Tenant', now(), now(), 0)", OTHER_ORG);
+        jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
+                + "VALUES (?, ?, 'Other Operations', now(), now(), 0)", OTHER_DEPT, OTHER_ORG);
+        insertUser(OTHER_ADMIN, OTHER_ORG, OTHER_DEPT, "admin@othertenant.example", "ADMIN");
+        linkIdentity(OTHER_ADMIN);
 
         jdbc.update("""
                 INSERT INTO embedding_profiles (
@@ -378,12 +439,12 @@ class PermissionsAdminIntegrationTests {
             "The quarterly onboarding runbook lives in the general channel and covers laptop setup, "
                     + "VPN access, and the first-week checklist.";
 
-    private void insertUser(UUID id, String email, String role) {
+    private void insertUser(UUID id, UUID organizationId, UUID departmentId, String email, String role) {
         jdbc.update("""
                 INSERT INTO app_users (
                     id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, ?, true, now(), now(), 0)
-                """, id, ORG, DEPT, email, email, role);
+                """, id, organizationId, departmentId, email, email, role);
     }
 
     private void linkIdentity(UUID userId) {

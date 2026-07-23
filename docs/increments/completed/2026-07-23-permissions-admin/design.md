@@ -54,11 +54,15 @@ sidebar, one table per concern, an inline action per row — and drop its
 
 - **`source_connections` (V20)**: one row per observed connection carrying an
   `identity_trust` decision (`UNTRUSTED` by default, `SSO_VERIFIED` when the
-  admin attests the source workspace is SSO/SCIM-provisioned). This is the
-  per-connection trust flag: it decides once, for the connection, whether the
-  `SSO_EMAIL_JOIN` tier may fire — instead of asking an admin to confirm every
-  user, and instead of an adapter guessing. Connections are discovered from
-  observed principals; the row is upserted when a decision is made.
+  admin attests the source workspace is SSO/SCIM-provisioned). Connections are
+  discovered from observed principals; the row is upserted when a decision is
+  made, and lowering trust back to the default clears its attribution.
+
+  This increment only **records** the decision. No ingestion path reads it yet:
+  `SourcePrincipalMappingService.autoMap` still gates `SSO_EMAIL_JOIN` on the
+  principal's own `sso_verified` flag as the crawl reported it. Consuming the
+  connection decision — so an administrator attests once instead of an adapter
+  guessing per user — belongs to the live adapter and is listed under Deferred.
 
 ### Core
 

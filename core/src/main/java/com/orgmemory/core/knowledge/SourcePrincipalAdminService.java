@@ -112,6 +112,12 @@ public class SourcePrincipalAdminService {
 
     @Transactional
     public SourcePrincipalView confirmMapping(UUID organizationId, UUID principalId, UUID appUserId, UUID adminUserId) {
+        // A confirmation without a target user is an incomplete command, not a lookup for
+        // nobody: reject it here so it fails as a bad request instead of reaching the
+        // repository, where a null identifier surfaces as a server error.
+        if (appUserId == null) {
+            throw new IllegalArgumentException("An internal user is required to confirm a mapping");
+        }
         SourcePrincipal principal = requirePrincipal(organizationId, principalId);
         // The mapping service refuses a second active mapping with an IllegalStateException.
         // Rejecting it here keeps a routine admin mistake a 400 instead of a 500.
