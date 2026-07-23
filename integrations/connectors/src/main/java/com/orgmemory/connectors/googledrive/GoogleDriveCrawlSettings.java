@@ -17,22 +17,31 @@ import tools.jackson.databind.ObjectMapper;
  * connection somebody enabled without filling in the optional half should crawl what the account
  * can see with the default bound, not refuse to run.
  *
- * @param folderIds           folders to crawl; empty means everything the account can see
+ * @param folderIds           folders to crawl, each including everything beneath it; empty means
+ *                            everything the account can see
  * @param impersonatedUser    who to read as, with domain-wide delegation; empty means the
  *                            service account acts as itself
  * @param includeSharedDrives whether shared drives are in scope as well as shared files
  * @param maxFiles            a bound on one crawl so a large Drive cannot run unbounded
+ * @param maxFileBytes        the largest file whose text this will read
  */
 record GoogleDriveCrawlSettings(
-        List<String> folderIds, String impersonatedUser, boolean includeSharedDrives, int maxFiles) {
+        List<String> folderIds,
+        String impersonatedUser,
+        boolean includeSharedDrives,
+        int maxFiles,
+        long maxFileBytes) {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int DEFAULT_MAX_FILES = 500;
+    /** Ten mebibytes of text is far past what a useful answer is chunked out of. */
+    private static final long DEFAULT_MAX_FILE_BYTES = 10L * 1024 * 1024;
 
     GoogleDriveCrawlSettings {
         folderIds = folderIds == null ? List.of() : List.copyOf(folderIds);
         impersonatedUser = impersonatedUser == null ? "" : impersonatedUser.strip();
         maxFiles = maxFiles <= 0 ? DEFAULT_MAX_FILES : maxFiles;
+        maxFileBytes = maxFileBytes <= 0 ? DEFAULT_MAX_FILE_BYTES : maxFileBytes;
     }
 
     static GoogleDriveCrawlSettings from(String sourceConfig) {
@@ -64,7 +73,8 @@ record GoogleDriveCrawlSettings(
                 // Shared drives are in scope unless somebody said otherwise: a crawl that
                 // silently skipped them would look like an emptied Drive to the reconciler.
                 root.path("includeSharedDrives").asBoolean(true),
-                root.path("maxFiles").asInt(0));
+                root.path("maxFiles").asInt(0),
+                root.path("maxFileBytes").asLong(0));
     }
 
     /** A folder filter means this crawl did not enumerate the connection, and cannot claim to. */
@@ -73,6 +83,7 @@ record GoogleDriveCrawlSettings(
     }
 
     private static GoogleDriveCrawlSettings defaults() {
-        return new GoogleDriveCrawlSettings(List.of(), "", true, DEFAULT_MAX_FILES);
+        return new GoogleDriveCrawlSettings(
+                List.of(), "", true, DEFAULT_MAX_FILES, DEFAULT_MAX_FILE_BYTES);
     }
 }

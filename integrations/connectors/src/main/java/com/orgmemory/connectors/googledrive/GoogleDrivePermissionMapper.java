@@ -10,7 +10,9 @@ import java.util.Set;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Turns one file's Drive sharing into the grants the ledger seals.
+ * Turns one file's Drive sharing into the grants the ledger seals. The permissions may have
+ * arrived inline with the listing or through {@code permissions.list} — Drive uses the same
+ * shape for both, and which road they took is not this mapper's concern.
  *
  * <p>A connector may only translate what the source states, never widen it, and the two
  * decisions here are both about refusing to widen.
@@ -35,10 +37,10 @@ final class GoogleDrivePermissionMapper {
     private GoogleDrivePermissionMapper() {
     }
 
-    static List<ConnectorAclGrant> grantsFor(JsonNode file) {
+    static List<ConnectorAclGrant> grantsFor(Iterable<JsonNode> permissions) {
         List<ConnectorAclGrant> grants = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        for (JsonNode permission : file.path("permissions")) {
+        for (JsonNode permission : permissions) {
             if (permission.path("deleted").asBoolean(false)) {
                 continue;
             }
@@ -52,9 +54,9 @@ final class GoogleDrivePermissionMapper {
     }
 
     /** Every domain a file's permissions grant to, so the crawl knows which groups to declare. */
-    static Set<String> domainsGrantedBy(JsonNode file) {
+    static Set<String> domainsGrantedBy(Iterable<JsonNode> permissions) {
         Set<String> domains = new LinkedHashSet<>();
-        for (JsonNode permission : file.path("permissions")) {
+        for (JsonNode permission : permissions) {
             if (!"domain".equals(permission.path("type").asString(""))) {
                 continue;
             }

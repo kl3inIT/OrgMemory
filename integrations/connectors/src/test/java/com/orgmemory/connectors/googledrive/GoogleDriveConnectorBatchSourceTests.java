@@ -162,10 +162,11 @@ class GoogleDriveConnectorBatchSourceTests {
     @Test
     void withdrawsTheCompletenessClaimWhenOnlySomeFoldersWereAskedFor() {
         expectToken();
+        expectFolderList("{\"files\":[]}");
         expectList(FILES);
         expectExport("1-handbook", "Anything.");
 
-        // A crawl of two folders says nothing about the rest of the Drive, and the ledger must
+        // A crawl of one folder says nothing about the rest of the Drive, and the ledger must
         // not read its silence as a deletion.
         assertFalse(crawl(List.of("1AbC")).crawlComplete());
     }
@@ -288,6 +289,170 @@ class GoogleDriveConnectorBatchSourceTests {
         server.verify();
     }
 
+    /**
+     * Drive does not inline permissions for a file in a shared drive; it returns
+     * {@code permissionIds}. Reading that absence as "shared with nobody" would seal a
+     * generation granting nobody, which is fail-closed and wrong: the file has readers.
+     */
+    @Test
+    void followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl() {
+        expectToken();
+        expectFileList(SHARED_DRIVE_FILE);
+        expectPermissions("1-shared", """
+                {"permissions":[
+                  {"id":"p9","type":"user","emailAddress":"mai@example.com","role":"reader"},
+                  {"id":"p10","type":"domain","domain":"example.com","role":"reader"}
+                ]}
+                """);
+        expectExport("1-shared", "Shared drive text.");
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertEquals(
+                List.of("mai@example.com", "domain:example.com"),
+                batch.permissions().getFirst().grants().stream()
+                        .map(grant -> grant.principalExternalKey())
+                        .toList(),
+                "the sharing Drive reported separately still becomes the object's grants");
+    }
+
+    /**
+     * When the sharing cannot be established at all, the object is left out rather than sent
+     * with no grants — the ledger keeps what it last sealed instead of being told nobody may
+     * read it.
+     */
+    @Test
+    void leavesOutAnObjectWhoseSharingCouldNotBeReadRatherThanGrantingNobody() {
+        expectToken();
+        expectFileList(SHARED_DRIVE_FILE);
+        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("/files/1-shared/permissions")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"errors\":[{\"reason\":\"insufficientPermissions\"}]}}"));
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertTrue(batch.permissions().isEmpty(), "no grant is asserted for sharing that was not read");
+        assertTrue(batch.contents().isEmpty(), "and its content is not indexed under an unknown ACL");
+        assertFalse(batch.crawlComplete(), "a crawl that skipped an object cannot speak for it");
+    }
+
+    /** Google's own admission that it did not search everywhere it was asked to. */
+    @Test
+    void withdrawsTheCompletenessClaimWhenGoogleReportsAnIncompleteSearch() {
+        expectToken();
+        expectFileList(FILES.replace("{\"files\":[", "{\"incompleteSearch\":true,\"files\":["));
+        expectExport("1-handbook", "Anything.");
+
+        assertFalse(
+                crawl(List.of()).crawlComplete(),
+                "what an incomplete search left out is indistinguishable from a deletion");
+    }
+
+    /**
+     * Drive reads {@code 'X' in parents} as the immediate parent only. An administrator who
+     * scoped a crawl to a folder meant everything under it.
+     */
+    @Test
+    void crawlsTheWholeSubtreeUnderAScopedFolder() {
+        expectToken();
+        // The folder walk: 1AbC contains 2DeF, which contains nothing.
+        expectFolderList("{\"files\":[{\"id\":\"2DeF\",\"name\":\"Runbooks\","
+                + "\"mimeType\":\"application/vnd.google-apps.folder\"}]}");
+        expectFolderList("{\"files\":[]}");
+        expectFileList(NESTED_FILE);
+        expectExport("3-nested", "Nested text.");
+
+        ConnectorCrawlBatch batch = crawl(List.of("1AbC"));
+
+        assertEquals(
+                List.of("3-nested"),
+                batch.contents().stream().map(content -> content.externalObjectId()).toList(),
+                "a file in the folder's child folder is in scope");
+        server.verify();
+    }
+
+    /**
+     * The cursor is what lets the driver skip a batch it has already ingested, so it has to
+     * change when the grants change. Swapping one reader for another leaves their number alone.
+     */
+    @Test
+    void changesTheCursorWhenAReaderIsReplacedByAnotherRatherThanCounting() {
+        expectToken();
+        expectFileList(ONE_READER.replace("READER", "alice@example.com"));
+        expectExport("1-handbook", "Same text.");
+        String withAlice = crawl(List.of()).crawlCursor();
+
+        setUp();
+        expectToken();
+        expectFileList(ONE_READER.replace("READER", "bob@example.com"));
+        expectExport("1-handbook", "Same text.");
+        String withBob = crawl(List.of()).crawlCursor();
+
+        assertNotEquals(
+                withAlice,
+                withBob,
+                "revoking Alice and granting Bob must not look like a batch already ingested");
+    }
+
+    /** A file too large to read is this adapter's own policy, so it cannot license a retirement. */
+    @Test
+    void skipsAFileLargerThanTheBoundAndSaysTheCrawlIsNoLongerComplete() {
+        expectToken();
+        expectFileList(OVERSIZE_FILE);
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertTrue(batch.contents().isEmpty(), "the body is never fetched");
+        assertFalse(batch.permissions().isEmpty(), "its access is still reported");
+        assertFalse(batch.crawlComplete(), "our own bound is not evidence the file went away");
+    }
+
+    /** Drive rate limits routinely; one refusal is a moment, not an answer about the Drive. */
+    @Test
+    void waitsOutARateLimitAndCompletesTheCrawl() {
+        expectToken();
+        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("google-apps.document")))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                        .header("Retry-After", "0")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"errors\":[{\"reason\":\"userRateLimitExceeded\"}]}}"));
+        expectFileList(FILES);
+        expectExport("1-handbook", "Anything.");
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertEquals(1, batch.contents().size(), "the retry produced the crawl the first call did not");
+        server.verify();
+    }
+
+    /**
+     * A content crawl that failed has not happened, so the next poll must try again rather than
+     * spend the interval reporting permissions only.
+     */
+    @Test
+    void aFailedContentCrawlDoesNotConsumeTheContentInterval() {
+        MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
+        GoogleDriveConnectorBatchSource source = source(clock);
+
+        expectToken();
+        server.expect(ExpectedCount.manyTimes(), requestTo(Matchers.containsString("google-apps.document")))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"errors\":[{\"reason\":\"backendError\"}]}}"));
+        assertTrue(source.pendingBatches().batches().isEmpty(), "the crawl failed");
+
+        setUpServerOnly();
+        expectToken();
+        expectFileList(FILES);
+        expectExport("1-handbook", "Anything.");
+        clock.advance(Duration.ofMinutes(5));
+
+        assertFalse(
+                source.pendingBatches().batches().getFirst().contents().isEmpty(),
+                "the next poll still owes a content crawl, well inside the interval");
+    }
+
     // --- harness -------------------------------------------------------------------------
 
     private ConnectorCrawlBatch crawl(List<String> folderIds) {
@@ -329,7 +494,25 @@ class GoogleDriveConnectorBatchSourceTests {
     }
 
     private void expectList(String body) {
-        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("/drive/v3/files?")))
+        expectFileList(body);
+    }
+
+    /**
+     * The file listing and the folder walk both go to {@code /files}; they are told apart by the
+     * mime type each query names, which is the only part of the two that never coincides.
+     */
+    private void expectFileList(String body) {
+        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("google-apps.document")))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+    }
+
+    private void expectFolderList(String body) {
+        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("google-apps.folder")))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+    }
+
+    private void expectPermissions(String fileId, String body) {
+        server.expect(ExpectedCount.once(), requestTo(Matchers.containsString("/files/" + fileId + "/permissions")))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 
@@ -356,6 +539,57 @@ class GoogleDriveConnectorBatchSourceTests {
                 {"id":"p3","type":"domain","domain":"example.com","role":"reader"},
                 {"id":"p4","type":"anyone","role":"reader"}
               ]
+            }]}
+            """;
+
+    /**
+     * What a shared-drive item actually looks like: a {@code driveId}, no inline permissions and
+     * no owners, and the permission ids Drive expects to be followed.
+     */
+    private static final String SHARED_DRIVE_FILE = """
+            {"files":[{
+              "id":"1-shared",
+              "name":"Shared drive handbook",
+              "mimeType":"application/vnd.google-apps.document",
+              "driveId":"0AbCsharedDrive",
+              "trashed":false,
+              "permissionIds":["p9","p10"]
+            }]}
+            """;
+
+    private static final String NESTED_FILE = """
+            {"files":[{
+              "id":"3-nested",
+              "name":"Runbook",
+              "mimeType":"application/vnd.google-apps.document",
+              "trashed":false,
+              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]
+            }]}
+            """;
+
+    /** One file, one reader, whose address the test substitutes. */
+    private static final String ONE_READER = """
+            {"files":[{
+              "id":"1-handbook",
+              "name":"Engineering handbook",
+              "mimeType":"application/vnd.google-apps.document",
+              "trashed":false,
+              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "permissions":[{"id":"p1","type":"user","emailAddress":"READER","role":"reader"}]
+            }]}
+            """;
+
+    /** A plain-text file whose reported size is past the ten-mebibyte default. */
+    private static final String OVERSIZE_FILE = """
+            {"files":[{
+              "id":"4-dump",
+              "name":"application.log",
+              "mimeType":"text/plain",
+              "trashed":false,
+              "size":"104857600",
+              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]
             }]}
             """;
 

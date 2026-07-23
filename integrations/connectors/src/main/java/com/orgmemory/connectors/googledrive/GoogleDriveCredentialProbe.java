@@ -73,7 +73,7 @@ public class GoogleDriveCredentialProbe implements ConnectorCredentialProbe {
         try {
             // One file rather than a page: this asks whether the account can see anything at all,
             // not what is in the Drive.
-            List<JsonNode> visible = client.listFiles("trashed = false", true, 1);
+            List<JsonNode> visible = client.listFiles("trashed = false", true, 1).files();
             if (visible.isEmpty()) {
                 return ConnectorCredentialProbeResult.withoutContentAccess(
                         domain, domain, displayName, "access_denied");

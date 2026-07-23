@@ -18,13 +18,16 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,15 +47,20 @@ import tools.jackson.databind.ObjectMapper;
  * <p>The care here, as in the Slack adapter, is the completeness claim. Declaring a crawl
  * complete authorizes the ledger to retire everything the crawl did not mention, so it is
  * claimed only when this really did enumerate the connection: no folder filter, nothing skipped,
- * nothing truncated.
+ * nothing truncated, and nothing Google itself called an incomplete search.
  */
 class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleDriveConnectorBatchSource.class);
     private static final String SOURCE_SYSTEM = GoogleDriveSourceProfile.SOURCE_SYSTEM;
     private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+    private static final String FOLDER_TYPE = "application/vnd.google-apps.folder";
     /** Above this share of unreadable files the run is a failure, not a crawl. */
     private static final double FAILED_FILE_ABORT_SHARE = 0.5;
+    /** How many parent ids go into one query, so a folder scope cannot outgrow Drive's limit. */
+    private static final int PARENTS_PER_QUERY = 25;
+    /** A bound on folder expansion, so a pathological tree cannot spin here forever. */
+    private static final int MAX_FOLDERS = 500;
 
     private final ConnectorConnectionDirectory connections;
     private final RestClient.Builder restClientBuilder;
@@ -112,9 +120,11 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
      *
      * <p>Access changes far more often than content, so between content crawls this reads
      * metadata only — one listing carries every file's permissions, and no document body is
-     * fetched at all. That is the same split the Slack adapter makes for the same reason, and
-     * here it is even cheaper: the permissions ride along with the listing rather than costing
-     * their own call.
+     * fetched at all. That is the same split the Slack adapter makes for the same reason.
+     *
+     * <p>The content cadence advances only once the crawl has produced a batch. Advancing it
+     * first would let a Drive that was briefly unreachable suppress its own content crawl until
+     * the interval came round again, quietly degrading every poll in between to permissions.
      */
     ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
         GoogleDriveCrawlSettings settings = GoogleDriveCrawlSettings.from(configuration.sourceConfig());
@@ -123,10 +133,11 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         String due = dueKey(configuration);
         Instant now = clock.instant();
         boolean contentDue = !now.isBefore(contentCrawlDueAt.getOrDefault(due, Instant.EPOCH));
+        ConnectorCrawlBatch batch = crawl(client, configuration, settings, contentDue);
         if (contentDue) {
             contentCrawlDueAt.put(due, now.plus(configuration.contentCrawlInterval()));
         }
-        return crawl(client, configuration, settings, contentDue);
+        return batch;
     }
 
     private GoogleDriveApiClient clientFor(
@@ -164,8 +175,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             crawl.incomplete();
         }
 
-        List<JsonNode> files =
-                client.listFiles(queryFor(settings), settings.includeSharedDrives(), settings.maxFiles());
+        List<JsonNode> files = listFiles(client, settings, crawl);
         if (files.size() >= settings.maxFiles()) {
             // Hitting the bound means there may be more. Indistinguishable downstream from a
             // mass deletion, so the claim goes.
@@ -181,7 +191,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             }
             considered++;
             try {
-                observe(client, file, crawl, readContent);
+                observe(client, file, crawl, readContent, settings);
             } catch (GoogleDriveApiException failure) {
                 // A file the account cannot read is not a file that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the Drive its index.
@@ -211,7 +221,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 configuration.sourceConnectionKey(),
                 configuration.knowledgeSpaceId(),
                 configuration.actorUserId(),
-                crawlCursor(crawl),
+                crawlCursor(crawl, readContent),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
                 crawl.contents,
@@ -220,17 +230,147 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 crawl.complete);
     }
 
+    /**
+     * Every file in scope, which for a folder filter means the whole subtree beneath it.
+     *
+     * <p>Drive reads {@code 'X' in parents} as a file's immediate parent, so a folder scope has
+     * to be expanded into the folders under it before anything is listed. An administrator who
+     * picked a folder meant its contents, not the handful of files that happen to sit at its top.
+     */
+    private static List<JsonNode> listFiles(
+            GoogleDriveApiClient client, GoogleDriveCrawlSettings settings, Crawl crawl) {
+        List<String> parents = folderScope(client, settings, crawl);
+        String typeClause = GoogleDriveDocumentTypes.indexableTypeClause();
+        Map<String, JsonNode> byId = new LinkedHashMap<>();
+        if (parents.isEmpty()) {
+            collect(client, "trashed = false and " + typeClause, settings, crawl, byId);
+            return List.copyOf(byId.values());
+        }
+        for (List<String> chunk : chunked(parents)) {
+            collect(
+                    client,
+                    "trashed = false and " + typeClause + " and " + parentClause(chunk),
+                    settings,
+                    crawl,
+                    byId);
+            if (byId.size() >= settings.maxFiles()) {
+                break;
+            }
+        }
+        return List.copyOf(byId.values());
+    }
+
+    private static void collect(
+            GoogleDriveApiClient client,
+            String query,
+            GoogleDriveCrawlSettings settings,
+            Crawl crawl,
+            Map<String, JsonNode> byId) {
+        int remaining = settings.maxFiles() - byId.size();
+        if (remaining <= 0) {
+            return;
+        }
+        GoogleDriveApiClient.FileListing listing =
+                client.listFiles(query, settings.includeSharedDrives(), remaining);
+        if (listing.incompleteSearch()) {
+            // Google itself says it did not search everywhere it was asked to. Whatever it left
+            // out is missing from this crawl, and absence is what authorizes retiring.
+            crawl.incomplete();
+        }
+        for (JsonNode file : listing.files()) {
+            String id = file.path("id").asString("");
+            if (!id.isEmpty()) {
+                // A file reachable from two scoped folders comes back twice; it is one object.
+                byId.putIfAbsent(id, file);
+            }
+        }
+    }
+
+    /** The configured folders plus every folder beneath them, with cycles walked only once. */
+    private static List<String> folderScope(
+            GoogleDriveApiClient client, GoogleDriveCrawlSettings settings, Crawl crawl) {
+        if (settings.folderIds().isEmpty()) {
+            return List.of();
+        }
+        Set<String> visited = new LinkedHashSet<>(settings.folderIds());
+        Deque<String> frontier = new ArrayDeque<>(settings.folderIds());
+        while (!frontier.isEmpty()) {
+            List<String> chunk = new ArrayList<>();
+            while (!frontier.isEmpty() && chunk.size() < PARENTS_PER_QUERY) {
+                chunk.add(frontier.poll());
+            }
+            GoogleDriveApiClient.FileListing children = client.listFiles(
+                    "trashed = false and mimeType = '" + FOLDER_TYPE + "' and " + parentClause(chunk),
+                    settings.includeSharedDrives(),
+                    MAX_FOLDERS);
+            if (children.incompleteSearch()) {
+                crawl.incomplete();
+            }
+            for (JsonNode folder : children.files()) {
+                String id = folder.path("id").asString("");
+                if (id.isEmpty() || !visited.add(id)) {
+                    continue;
+                }
+                if (visited.size() > MAX_FOLDERS) {
+                    // The scope is larger than this will walk, so it did not see all of it.
+                    crawl.incomplete();
+                    return List.copyOf(visited);
+                }
+                frontier.add(id);
+            }
+        }
+        return List.copyOf(visited);
+    }
+
+    private static List<List<String>> chunked(List<String> ids) {
+        List<List<String>> chunks = new ArrayList<>();
+        for (int start = 0; start < ids.size(); start += PARENTS_PER_QUERY) {
+            chunks.add(ids.subList(start, Math.min(start + PARENTS_PER_QUERY, ids.size())));
+        }
+        return chunks;
+    }
+
+    private static String parentClause(List<String> parentIds) {
+        StringBuilder clause = new StringBuilder("(");
+        for (int index = 0; index < parentIds.size(); index++) {
+            clause.append(index == 0 ? "" : " or ")
+                    .append("'").append(parentIds.get(index)).append("' in parents");
+        }
+        return clause.append(")").toString();
+    }
+
     private void observe(
-            GoogleDriveApiClient client, JsonNode file, Crawl crawl, boolean readContent) {
+            GoogleDriveApiClient client,
+            JsonNode file,
+            Crawl crawl,
+            boolean readContent,
+            GoogleDriveCrawlSettings settings) {
         String fileId = file.path("id").asString("");
         String title = file.path("name").asString(fileId);
 
+        List<JsonNode> permissions = permissionsOf(client, file);
+        if (permissions == null) {
+            // Sharing this crawl could not read. Leaving the object out of the payload keeps
+            // whatever was last sealed for it; sending an empty grant list would instead assert
+            // that Drive says nobody may read it, which is a claim this crawl cannot make.
+            log.warn("Google Drive file {} was left out: its sharing could not be read", fileId);
+            crawl.incomplete();
+            return;
+        }
         crawl.observeOwner(file);
-        List<ConnectorAclGrant> grants = GoogleDrivePermissionMapper.grantsFor(file);
-        crawl.observePrincipals(file, grants);
+        List<ConnectorAclGrant> grants = GoogleDrivePermissionMapper.grantsFor(permissions);
+        crawl.observePrincipals(permissions, grants);
         crawl.permissions.add(new ConnectorPermissionItem(fileId, grants));
 
         if (!readContent) {
+            return;
+        }
+        if (exceedsSizeBound(file, settings)) {
+            // Refusing to read a file is this adapter's own policy, not a fact about the file,
+            // so unlike a type it does not index, it must not license retiring what is already
+            // held for this object.
+            log.warn("Google Drive file {} is larger than the configured bound and was not read", fileId);
+            crawl.incomplete();
             return;
         }
         String body = extractText(client, file);
@@ -243,6 +383,52 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         crawl.contents.add(new ConnectorContentItem(fileId, title, body, sha256(body)));
     }
 
+    /**
+     * One file's sharing, or null when it could not be established.
+     *
+     * <p>Drive does not inline {@code permissions} for an item in a shared drive; it returns
+     * {@code permissionIds} and expects a separate call. Reading the absent field as "shared with
+     * nobody" would seal a generation denying everyone, so the ids are followed instead, and a
+     * file with neither is reported as unreadable rather than as empty.
+     */
+    private static List<JsonNode> permissionsOf(GoogleDriveApiClient client, JsonNode file) {
+        JsonNode inline = file.path("permissions");
+        if (inline.isArray() && !inline.isEmpty()) {
+            List<JsonNode> permissions = new ArrayList<>();
+            inline.forEach(permissions::add);
+            return permissions;
+        }
+        JsonNode ids = file.path("permissionIds");
+        if (!ids.isArray() || ids.isEmpty()) {
+            // Nothing inline and nothing to follow. A file genuinely shared with nobody but its
+            // owner still reports the owner's own permission, so this is an absence of evidence.
+            return inline.isArray() ? List.of() : null;
+        }
+        try {
+            return client.listPermissions(file.path("id").asString(""));
+        } catch (GoogleDriveApiException refused) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether Drive's own metadata puts this file past the bound. Google-native documents report
+     * no size because they are exported rather than downloaded; the client's hard cap on a
+     * response body is what covers those.
+     */
+    private static boolean exceedsSizeBound(JsonNode file, GoogleDriveCrawlSettings settings) {
+        JsonNode size = file.path("size");
+        if (size.isMissingNode() || size.isNull()) {
+            return false;
+        }
+        try {
+            // Drive reports size as a decimal string, not a number.
+            return Long.parseLong(size.asString("0").strip()) > settings.maxFileBytes();
+        } catch (NumberFormatException unreadable) {
+            return false;
+        }
+    }
+
     private static String extractText(GoogleDriveApiClient client, JsonNode file) {
         String fileId = file.path("id").asString("");
         String mimeType = file.path("mimeType").asString("");
@@ -250,21 +436,6 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         return exportTarget == null
                 ? client.downloadText(fileId)
                 : client.exportText(fileId, exportTarget);
-    }
-
-    /** Only the types this adapter indexes, and only inside the folders asked for. */
-    private static String queryFor(GoogleDriveCrawlSettings settings) {
-        StringBuilder query = new StringBuilder("trashed = false and ")
-                .append(GoogleDriveDocumentTypes.indexableTypeClause());
-        if (!settings.folderIds().isEmpty()) {
-            query.append(" and (");
-            for (int index = 0; index < settings.folderIds().size(); index++) {
-                query.append(index == 0 ? "" : " or ")
-                        .append("'").append(settings.folderIds().get(index)).append("' in parents");
-            }
-            query.append(")");
-        }
-        return query.toString();
     }
 
     /**
@@ -282,14 +453,43 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         }
     }
 
-    private static String crawlCursor(Crawl crawl) {
-        StringBuilder material = new StringBuilder();
-        crawl.contents.forEach(content ->
-                material.append(content.externalObjectId()).append('=')
-                        .append(content.contentRevision()).append(';'));
-        crawl.permissions.forEach(permission ->
-                material.append(permission.externalObjectId()).append('@')
-                        .append(permission.grants().size()).append(';'));
+    /**
+     * A fingerprint of everything this batch asserts, which is what lets the driver recognise a
+     * batch it has already ingested.
+     *
+     * <p>It has to cover the grants themselves and not merely how many there are. Swapping one
+     * reader for another leaves the count alone, and a cursor that only counted would let the
+     * driver skip the batch as already done — leaving the removed reader with access and the
+     * added one without, which is the exact convergence the permissions cadence exists for.
+     * Everything is sorted first, because Drive's ordering is not a change.
+     */
+    private static String crawlCursor(Crawl crawl, boolean readContent) {
+        StringBuilder material = new StringBuilder("mode=").append(readContent ? "content" : "acl").append(';');
+
+        Map<String, String> contents = new TreeMap<>();
+        crawl.contents.forEach(content -> contents.put(
+                content.externalObjectId(), content.contentRevision() + '/' + sha256(content.title())));
+        contents.forEach((id, revision) -> material.append(id).append('=').append(revision).append(';'));
+
+        Map<String, String> permissions = new TreeMap<>();
+        crawl.permissions.forEach(permission -> permissions.put(
+                permission.externalObjectId(),
+                permission.grants().stream()
+                        .map(grant -> grant.principalKind() + ":" + grant.principalExternalKey()
+                                + ":" + grant.gate())
+                        .sorted()
+                        .reduce((left, right) -> left + "," + right)
+                        .orElse("")));
+        permissions.forEach((id, grants) -> material.append(id).append('@').append(grants).append(';'));
+
+        Map<String, String> identities = new TreeMap<>();
+        crawl.identities().forEach(identity -> identities.put(
+                identity.kind() + ":" + identity.externalKey(),
+                identity.memberExternalKeys().stream().sorted()
+                        .reduce((left, right) -> left + "," + right)
+                        .orElse("")));
+        identities.forEach((key, members) -> material.append(key).append('#').append(members).append(';'));
+
         material.append("complete=").append(crawl.complete);
         return "google-drive-" + sha256(material.toString());
     }
@@ -326,7 +526,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             }
         }
 
-        private void observePrincipals(JsonNode file, List<ConnectorAclGrant> grants) {
+        private void observePrincipals(List<JsonNode> filePermissions, List<ConnectorAclGrant> grants) {
             for (ConnectorAclGrant grant : grants) {
                 String key = grant.principalExternalKey();
                 if (grant.principalKind() == SourcePrincipalKind.SOURCE_USER) {
@@ -337,7 +537,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                     observedGroups.computeIfAbsent(key, ignored -> new LinkedHashSet<>());
                 }
             }
-            GoogleDrivePermissionMapper.domainsGrantedBy(file)
+            GoogleDrivePermissionMapper.domainsGrantedBy(filePermissions)
                     .forEach(domain -> observedDomainGroups.computeIfAbsent(
                             GoogleDrivePermissionMapper.domainGroupKey(domain),
                             ignored -> new LinkedHashSet<>()));
