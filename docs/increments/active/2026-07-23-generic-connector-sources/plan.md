@@ -51,10 +51,19 @@ Gate: `pnpm lint`, `typecheck`, `build` in `web/`.
 
 ## Phase 4 — Declarative connection form and connection detail
 
-- [ ] A field descriptor in the shape Onyx's `connectorConfigs` uses — text, list,
+- [x] A field descriptor in the shape Onyx's `connectorConfigs` uses — text, list,
   checkbox, number, select, split into ordinary and advanced — and a renderer. The
-  Slack wizard becomes a descriptor rather than a component.
-- [ ] A connection detail page: objects indexed, last crawl, last failure.
+  Slack wizard's configuration step became a descriptor. Its credential step did
+  not: the probe is Slack-only in the backend for the same reason, and one
+  indirection over one implementation is not a seam.
+- [x] `V25__connector_crawl_attempts`: a crawl outcome is a row, not a log line.
+  This was not on the plan and turned out to be the prerequisite — "last failure"
+  was recorded nowhere, so a detail page could only have shown counts.
+- [x] `ConnectorBatchSource.pendingBatches` returns a `ConnectorPoll` carrying the
+  connections that produced no batch. Without it the most common failure — a
+  revoked credential — is invisible, because it produces no batch to fail at.
+- [x] A connection detail page: objects retrievable and retired, last crawl, last
+  change, and the recent attempts with their outcomes.
 - [ ] Consolidate into the specs, `ARCHITECTURE.md`, and docs/tests; move the
   increment to `completed`.
 

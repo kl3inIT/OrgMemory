@@ -52,8 +52,21 @@ audit event. A `SOURCE_USER` ACL entry grants only through an active mapping to
 the querying user; a `SOURCE_GROUP` entry grants only through that snapshot's
 sealed group membership joined to an active mapping. Any unmapped, revoked, or
 inactive principal grants nothing. Per [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md),
-live (non-upload) sources enforce the current sealed ACL generation as the
-ceiling while upload sources keep the ingestion-current intersection.
+sources whose access rule the source itself owns enforce the current sealed ACL
+generation as the ceiling, while sources OrgMemory holds the rule for keep the
+ingestion-current intersection.
+
+Which of the two an object follows is `source_objects.acl_authority`
+(`SOURCE`/`ORGMEMORY`), and which system it came from is `source_objects.source_system`
+(`slack`, `upload`). One column used to answer both, so every new connector needed
+DDL to widen a check constraint guarding a distinction the source's name has
+nothing to do with. The authority is recorded at ingestion and never updated: it
+is what was true when the evidence entered, not a policy an administrator can
+change afterwards. The system is governed by the connector registry rather than a
+constraint — a `ConnectorSourceProfile` bean contributed by an adapter declares
+the name, display name, classification, declared access, object type and media
+type, `ConnectorSourceRegistry` refuses a name no adapter claimed and refuses two
+adapters claiming one name, and nothing in `core` names a source.
 
 A Slack connector ingests a versioned crawl contract
 (`contracts/connector/`: three separately-versioned payload kinds — content,
@@ -122,16 +135,41 @@ mistake. Driver progress is checkpointed per connection in
 rejected for a reason retrying cannot change is checkpointed past, and any other
 failure is retried a bounded number of times and then left for the next poll.
 
+What each pass did is a row in `connector_crawl_attempts` rather than a log line,
+with an outcome, per-object counts, and an error code and message. The four
+outcomes are kept apart because they call for different actions: `SUCCEEDED`
+reconciled, `REJECTED` was checkpointed past and is not coming back, `FAILED` is
+still queued, and `UNAVAILABLE` means the source produced no batch for that
+connection at all — which is what a revoked or missing credential looks like, and
+which needs `ConnectorBatchSource.pendingBatches` to return a `ConnectorPoll`
+carrying the connections it could not read, because a driver that only sees
+batches has nothing to record for the failure that produces none. Recording runs
+in its own transaction, since the ingesting one is already marked for rollback
+when it matters. The error message is a diagnostic: adapters authenticate through
+a header and report the method and the source's error code, so no credential has
+ever reached it.
+
 Which connections are crawled is a ledger decision rather than a deployment one.
-`source_connections` carries the crawl configuration — enabled, target Knowledge
-Space, actor, channel filter, content interval, thread bound — and
+`source_connections` carries the configuration every source has — enabled, target
+Knowledge Space, actor, content interval — as columns with check constraints, plus
+`source_config jsonb` holding whatever only that source understands. The split is
+by what the database can check: a crawl must have a Space and an actor, and an
+interval must be positive, and those stay enforceable; Slack's channel list and
+thread bound are opaque to the ledger and parsed by the adapter that defined them.
 `source_connection_credentials` carries the token as AES-256-GCM ciphertext with
 the key version that produced it. A row whose authentication tag does not verify
 is refused rather than decrypted, and the application refuses to store a secret at
 all when no encryption key is configured, rather than storing something weaker.
-An administrator sets both through `/api/admin/connectors/slack`, where the
-credential is write-only: it is submitted, and no endpoint returns it in any form,
-masked or otherwise. `POST /test` checks a token before it is stored — reporting
+
+An administrator sets both through `/api/admin/connectors/{sourceSystem}`, one
+endpoint for every source rather than one per source; a source system no adapter
+contributed is a `400` rather than an empty list, so a typo does not read as "you
+have no connections". `GET /api/admin/connectors/sources` reports what this
+deployment can actually ingest, and
+`GET /api/admin/connectors/{sourceSystem}/{connectionKey}/activity` reports what a
+connection has done — objects retrievable and retired, last checkpoint, and recent
+attempts. The credential is write-only: it is submitted, and no endpoint returns
+it in any form, masked or otherwise. `POST /test` checks a token before it is stored — reporting
 the workspace it authenticated as, which is the connection key — and follows
 `auth.test` with a one-channel `conversations.list`, because authentication cannot
 fail for a missing scope and a token without `channels:read` would otherwise look
@@ -139,14 +177,26 @@ healthy until the first crawl. The adapter reads connections and credentials on
 every poll through `ConnectorConnectionDirectory`, so enabling a workspace,
 repointing it, or replacing its token takes effect on the next poll; the adapter
 bean is present wherever the module is and produces nothing until a connection
-says otherwise, and a connection that cannot produce is skipped rather than
-allowed to end the poll for the others.
+says otherwise, and a connection that cannot produce is skipped — but reported,
+not swallowed — rather than allowed to end the poll for the others.
+
+The browser side is generic in the same way. A catalogue lists what OrgMemory
+governs, grouped by whether the access rule comes from the source or from
+OrgMemory, and a tile the deployment has no adapter for is shown unavailable in
+different words from one the product has not built. A source's own settings are a
+field descriptor — text, list, number, checkbox, select, split into ordinary and
+advanced — rendered by one renderer and read back on the connection detail page
+from the same descriptor, so a setting cannot appear on the form and be missing
+from the summary. Adding a source is an adapter package with a
+`ConnectorSourceProfile` bean, a catalogue entry, and a descriptor: no migration,
+no new endpoint, no change to `core`.
 
 The current path does not yet implement incremental webhooks or the Events API,
-credential rotation, a connector catalog covering more than one source,
-Airbyte staging, OCR, malware and DLP integrations, entity and relationship
-extraction, graph publication, or hybrid retrieval extensions beyond the current
-secure FTS + pgvector path.
+credential rotation, an adapter for any source other than Slack (credential
+probing is likewise Slack-only, and refuses other sources by name rather than
+pretending to succeed), Airbyte staging, OCR, malware and DLP integrations, entity
+and relationship extraction, graph publication, or hybrid retrieval extensions
+beyond the current secure FTS + pgvector path.
 
 ## Source Modules
 

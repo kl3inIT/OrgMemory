@@ -76,13 +76,19 @@ versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
 principal mappings and sealed per-generation group membership, per-connection
 identity trust decisions consumed by the crawl matcher, durable per-connection
-crawl checkpoints, publication outbox evidence, and append-only permission
-audit events. Immutable evidence bytes live
+crawl checkpoints, a per-batch record of what each crawl did
+(`connector_crawl_attempts`), publication outbox evidence, and append-only
+permission audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
-rebuildable projections. A connector crawl (`SLACK` source type) produces
-the same governed ledger as uploads, with source ACL evidence resolved through the
-principal mappings. Source connection rows carry the crawl configuration and an
-encrypted credential in `source_connection_credentials`; the ciphertext is
+rebuildable projections. A connector crawl produces the same governed ledger as
+uploads, with source ACL evidence resolved through the principal mappings. Each
+object records `source_system` (which system it came from, governed by the
+connector registry rather than a check constraint) separately from `acl_authority`
+(`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
+rules applies), so adding a connector needs no migration. Source connection rows
+carry the configuration every source shares as columns and whatever only one
+source understands as an opaque `source_config` document, plus an encrypted
+credential in `source_connection_credentials`; the ciphertext is
 AES-256-GCM and a row that fails its authentication tag is refused rather than
 decrypted, so a tampered credential cannot be used.
 

@@ -20,13 +20,19 @@ SET source_system = CASE WHEN source_type = 'UPLOAD' THEN 'upload' ELSE lower(so
 
 ALTER TABLE source_objects ALTER COLUMN source_system SET NOT NULL;
 
+-- Dropped before the values change, not after. Renaming a column rewrites the constraints
+-- that reference it rather than dropping them, so this check would still be in force —
+-- restricted to the old vocabulary — while the UPDATE below writes the new one. On an empty
+-- table the UPDATE touches nothing and the ordering never shows; on a table with a single row
+-- the migration fails and rolls back.
+ALTER TABLE source_objects DROP CONSTRAINT chk_source_object_type;
+
 ALTER TABLE source_objects RENAME COLUMN source_type TO acl_authority;
 
 UPDATE source_objects
 SET acl_authority = CASE WHEN acl_authority = 'UPLOAD' THEN 'ORGMEMORY' ELSE 'SOURCE' END;
 
 ALTER TABLE source_objects
-    DROP CONSTRAINT chk_source_object_type,
     ADD CONSTRAINT chk_source_object_acl_authority
         CHECK (acl_authority IN ('ORGMEMORY', 'SOURCE')),
     ADD CONSTRAINT chk_source_object_system CHECK (btrim(source_system) <> '');

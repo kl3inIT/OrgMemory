@@ -36,6 +36,10 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | A retired object refuses a later content revision | `aRetiredObjectIsNotRevivedByALaterContentRevision` |
 | A restarted driver resumes from the checkpoint instead of replaying | `aRestartedDriverResumesInsteadOfReplaying` |
 | A permanent rejection is checkpointed past; a transient one is retried and left pending | `aRejectedBatchIsCheckpointedPastRatherThanRetriedForever`, `aTransientFailureIsRetriedAndStaysPending` |
+| A batch that reconciled leaves a row with what it changed | `aSuccessfulBatchIsRecordedWithWhatItChanged` |
+| A connection that produced no batch is recorded with the source's own reason, and nothing is marked done | `aConnectionThatProducedNoBatchIsRecordedWithItsReason` |
+| Only what an adapter contributed is governed: an uncontributed source is refused, and two adapters cannot claim one name | `ConnectorSourceRegistryTests` |
+| A database that already holds evidence survives the split of `source_type` into `acl_authority` and `source_system` | `SourceObjectAclAuthorityMigrationTests.anExistingObjectKeepsItsSystemAndGainsTheRightAuthority` |
 | A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
 | An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
 
@@ -58,14 +62,15 @@ All run against recorded Slack responses; none touches the network.
 | A rejected credential and a mostly-unreadable workspace fail rather than report a crawl | `refusesToCrawlWithACredentialSlackRejects`, `abandonsARunInWhichMostChannelsCouldNotBeRead` |
 | Between content crawls no message body is read, and the cheap batch never claims completeness | `readsNoMessageBodiesBetweenContentCrawls`, `aPermissionsCrawlNeverClaimsCompleteness`, `reissuesAContentCrawlOnceTheIntervalElapses` |
 | A permissions crawl omits objects whose channel it could not see rather than asserting nobody may read them | `aPermissionsCrawlLeavesOutObjectsWhoseChannelItCouldNotSee` |
-| The adapter is present wherever the module is and crawls nothing until a connection says so | `contributesTheAdapterWhereverTheModuleIsPresent`, `contributesNothingToCrawlUntilAConnectionIsEnabled`, `producesNothingUntilAConnectionIsEnabled`, `producesNothingForAConnectionWithNoStoredCredential` |
+| The adapter is present wherever the module is and crawls nothing until a connection says so | `contributesTheAdapterWhereverTheModuleIsPresent`, `contributesNothingToCrawlUntilAConnectionIsEnabled`, `producesNothingUntilAConnectionIsEnabled` |
+| A connection with no stored credential produces nothing and says why, rather than being skipped silently | `reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently` |
 | A configuration change is picked up on the next poll, without a restart | `picksUpAConfigurationChangeWithoutARestart` |
-| One unusable workspace does not cost the others their poll | `oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll` |
+| One unusable workspace does not cost the others their poll, and is still reported | `oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll` |
 
 ## Connection Administration Coverage
 
 Evidence classes: `core/src/test/java/com/orgmemory/core/shared/secret/SecretCipherTests.java`,
-`apps/api/src/test/java/com/orgmemory/api/admin/SlackConnectionAdminIntegrationTests.java`.
+`apps/api/src/test/java/com/orgmemory/api/admin/ConnectorAdminIntegrationTests.java`.
 `SourceConnectionAdminService` has no unit test of its own; it is proved through
 the API boundary, which is the only way it is reached.
 
@@ -79,9 +84,15 @@ the API boundary, which is the only way it is reached.
 | A probe reports the workspace it authenticated as and never repeats the token | `testingATokenReportsTheWorkspaceItAuthenticatedAs` |
 | Testing a connection with nothing stored answers rather than fails | `testingAConnectionWithNothingStoredSaysSoRatherThanFailing` |
 | Every mutation leaves an audit event recording that a token was set, not the token | `everyMutationLeavesAnAuditEvent` |
+| Only the sources this deployment installed are offered, and naming another is a request error rather than an empty list | `reportsOnlyTheSourcesThisDeploymentCanActuallyIngest`, `refusesASourceNoAdapterInstalled` |
+| A connection that looks healthy reports why it is producing nothing | `reportsWhyAConnectionThatLooksHealthyIsProducingNothing` |
 
 Gaps: there is no real blob-store/scan/parser integration test yet (the connector
 proofs mock object storage and OpenFGA). The Slack adapter is proved against
 recorded responses only — no run against a real workspace has happened yet, which
-is the remaining `slack-connector-live` work. The administration screen itself has
-no browser test; its proofs are at the API boundary.
+is the remaining `slack-connector-live` work. The administration screens have no
+browser test; their proofs are at the API boundary, and the catalogue, the field
+descriptor and the connection detail page have no automated proof at all — they
+are covered by lint, typecheck and build only. Only one migration is proved
+against a database that already holds rows; the rest are proved against an empty
+schema, where a data-transforming statement cannot fail.

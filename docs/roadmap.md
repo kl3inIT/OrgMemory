@@ -21,6 +21,10 @@ belongs in one active increment.
 - An administration surface over the identity ledger: users with their sign-in
   linkage, observed source principals with confirm/revoke, read-only sealed
   source-group membership, and a per-connection identity trust decision.
+- Connections configured from the browser rather than from environment
+  variables: an encrypted write-only credential, a source catalogue showing what
+  this deployment can ingest, one endpoint per operation rather than per source,
+  and a per-connection page reporting what each crawl actually did.
 
 ## Active — Secure Hybrid Retrieval
 
@@ -39,9 +43,9 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   contributions and permission-scoped local/global/mix retrieval.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
-- Replace the fixture connector batch source with the live Slack Web API adapter
-  (credentials, rate limiting, checkpoint/resume) reading the per-connection
-  identity trust decision.
+- Run the Slack adapter against a real workspace. The adapter, its administration
+  and its reporting are built and proved against recorded responses; nothing has
+  yet crawled a workspace that exists.
 
 ## Pilot Hardening
 
