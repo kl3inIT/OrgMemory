@@ -12,11 +12,19 @@
   provider mismatch, unsupported prompt version, unresolved relation endpoints,
   deduplicated keywords, and non-disclosure in the public exception message.
 - No test calls a provider or requires an API key.
+- PostgreSQL Testcontainers tests prove tenant isolation, ACL filtering before
+  lexical/vector ranking and topology expansion, relation endpoint visibility,
+  generation rollback denial, atomic replacement, embedding-profile safety,
+  bounded batch partitioning, and replaceable vector index strategies.
+- The pinned PostgreSQL 18 image test proves real Apache AGE graph creation,
+  idempotent replacement, content-free topology properties, authorized
+  traversal, denied-edge exclusion, and revision removal.
 
 ## Verification
 
 ```powershell
 .\gradlew.bat --no-daemon :integrations:graph-rag-spring-ai:test
+.\gradlew.bat --no-daemon :integrations:graph-rag-postgres:test
 .\gradlew.bat --no-daemon compileJava
 .\gradlew.bat --no-daemon clean test
 ```
@@ -27,6 +35,5 @@ starter or Spring Boot runtime.
 
 ## Remaining
 
-PostgreSQL adapter tests must prove ACL filtering before aggregation and
-ranking. Worker integration tests must prove idempotent replacement and
-fail-closed handling of extraction/provider failures.
+Worker integration tests must prove idempotent replacement and fail-closed
+handling of extraction/provider failures.

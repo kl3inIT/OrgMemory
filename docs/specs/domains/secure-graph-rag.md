@@ -30,8 +30,29 @@
   duplicate references, unresolved endpoints, and provenance mismatch fail
   closed before a projection writer is called.
 
+## PostgreSQL Projection
+
+- `graph-rag-postgres` implements the graph projection, seed, embedding, and
+  topology-candidate ports without becoming an authorization authority.
+- Canonical identity, contributions, publication heads, and entity/relation
+  embeddings are stored relationally. Every query applies organization and the
+  pre-authorized Knowledge Asset set before aggregation, distance threshold, and
+  limit.
+- Revision replacement is atomic and generation-monotonic under a transaction
+  advisory lock. Contribution and embedding writes are bounded by both record
+  count and estimated payload bytes.
+- pgvector supports exact, HNSW, half-vector HNSW, IVFFlat, and optional
+  VChordRQ index strategies. Indexes are rebuildable and embedding profiles
+  remain immutable.
+- Apache AGE stores topology identity and evidence identifiers only. Bounded
+  traversal filters every edge by authorized Knowledge Asset; all returned IDs
+  remain candidates requiring relational evidence recheck.
+- A globally bounded breadth-first relational traversal implements the same
+  topology port when AGE is disabled. A future Neo4j projection can implement
+  that port without changing core retrieval contracts.
+
 ## Not Implemented
 
-Worker execution, retries/gleaning, token-aware extraction chunking, PostgreSQL
-graph storage, entity canonicalization across chunks, runtime graph retrieval,
-and the graph explorer remain separate increments.
+Worker execution, retries/gleaning, token-aware extraction chunking, entity
+canonicalization across chunks, runtime Assistant/MCP graph retrieval, and the
+graph explorer remain separate increments.
