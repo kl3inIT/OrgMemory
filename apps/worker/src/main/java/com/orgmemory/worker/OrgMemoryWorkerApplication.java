@@ -6,6 +6,7 @@ import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.worker.authorization.KnowledgeAuthorizationConvergenceProperties;
 import com.orgmemory.worker.connector.ConnectorCrawlProperties;
+import com.orgmemory.worker.graph.GraphIndexingProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -26,6 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         SourceProcessingProperties.class,
         KnowledgeRetrievalProperties.class,
         ConnectorCrawlProperties.class,
+        GraphIndexingProperties.class,
         KnowledgeAuthorizationConvergenceProperties.class
 })
 @ComponentScan(

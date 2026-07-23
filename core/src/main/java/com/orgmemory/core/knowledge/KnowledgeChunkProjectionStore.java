@@ -124,4 +124,35 @@ public class KnowledgeChunkProjectionStore {
                         .addValue("projectionGeneration", projectionGeneration));
     }
 
+    @Transactional(readOnly = true)
+    public List<GraphIndexChunk> loadActive(
+            UUID organizationId,
+            UUID sourceRevisionId,
+            UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
+            long projectionGeneration) {
+        return jdbc.query(
+                """
+                SELECT id, chunk_index, content
+                FROM knowledge_chunks
+                WHERE organization_id = :organizationId
+                  AND source_revision_id = :sourceRevisionId
+                  AND knowledge_asset_id = :knowledgeAssetId
+                  AND knowledge_asset_version_id = :knowledgeAssetVersionId
+                  AND projection_generation = :projectionGeneration
+                  AND active
+                ORDER BY chunk_index, id
+                """,
+                new MapSqlParameterSource()
+                        .addValue("organizationId", organizationId)
+                        .addValue("sourceRevisionId", sourceRevisionId)
+                        .addValue("knowledgeAssetId", knowledgeAssetId)
+                        .addValue("knowledgeAssetVersionId", knowledgeAssetVersionId)
+                        .addValue("projectionGeneration", projectionGeneration),
+                (resultSet, rowNumber) -> new GraphIndexChunk(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getInt("chunk_index"),
+                        resultSet.getString("content")));
+    }
+
 }

@@ -73,6 +73,9 @@ orgmemory:
       assistant-chat:
         gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
+      graph-extraction:
+        gateway-id: ${ORGMEMORY_GRAPH_EXTRACTION_GATEWAY:openai}
+        model-id: ${ORGMEMORY_GRAPH_EXTRACTION_MODEL:${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}}
       embedding:
         gateway-id: ${ORGMEMORY_EMBEDDING_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}

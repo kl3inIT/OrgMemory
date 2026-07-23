@@ -38,7 +38,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class SourceObjectAclAuthorityMigrationTests {
 
     /** The last version at which {@code source_objects.source_type} still existed. */
-    private static final String BEFORE_THE_SPLIT = "24";
+    private static final String BEFORE_THE_SPLIT = "25";
 
     private static final UUID ORG = UUID.fromString("c9000000-0000-4000-8000-000000000001");
     private static final UUID SPACE = UUID.fromString("c9000000-0000-4000-8000-000000000002");

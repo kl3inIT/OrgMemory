@@ -73,6 +73,10 @@ final class ProductionConfigurationGuard implements InitializingBean {
                 AiGatewayCapability.CHAT,
                 "orgmemory.ai.routes.assistant-chat");
         requireGateway(
+                ai.routes().graphExtraction(),
+                AiGatewayCapability.CHAT,
+                "orgmemory.ai.routes.graph-extraction");
+        requireGateway(
                 ai.routes().embedding(),
                 AiGatewayCapability.EMBEDDING,
                 "orgmemory.ai.routes.embedding");

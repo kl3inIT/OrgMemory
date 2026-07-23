@@ -67,6 +67,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-provider=fixture",
         "orgmemory.ingestion.processing.embedding-model=fixture-embed",
         "orgmemory.ingestion.processing.embedding-dimensions=3",
+        "orgmemory.authorization.convergence.scheduling-enabled=false",
+        "orgmemory.graph-rag.indexing.scheduling-enabled=false",
+        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(SecureKnowledgeRetrievalService.class)
@@ -131,6 +134,23 @@ class ConnectorStagingIngestionIntegrationTests {
         assertTrue(sees(AN_USER), "An is a mapped channel member and must see the message");
         assertFalse(sees(BOB_USER), "Bob is mapped but not a channel member");
         assertFalse(sees(CHI_USER), "Chi has not been observed or mapped yet");
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM graph_index_jobs job
+                        JOIN source_revisions revision
+                          ON revision.id = job.source_revision_id
+                         AND revision.organization_id = job.organization_id
+                        JOIN source_objects source
+                          ON source.id = revision.source_object_id
+                         AND source.organization_id = revision.organization_id
+                        WHERE source.external_object_id = 'C-general-msg'
+                          AND revision.status = 'READY'
+                          AND job.status = 'PENDING'
+                        """,
+                        Integer.class));
 
         UUID revisionAfterInitial = currentRevisionId();
         long chunksAfterInitial = chunkCount();

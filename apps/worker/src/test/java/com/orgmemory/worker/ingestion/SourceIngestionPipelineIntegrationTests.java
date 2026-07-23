@@ -73,6 +73,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @SpringBootTest(properties = {
         "spring.flyway.enabled=true",
         "orgmemory.ingestion.processing.scheduling-enabled=false",
+        "orgmemory.graph-rag.indexing.scheduling-enabled=false",
+        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.ingestion.processing.embedding-model=text-embedding-3-large",
         "orgmemory.ingestion.processing.embedding-dimensions=1536"
@@ -230,6 +232,21 @@ class SourceIngestionPipelineIntegrationTests {
                 1,
                 jdbc.queryForObject(
                         "SELECT count(*) FROM knowledge_chunks WHERE source_object_id = ? AND active",
+                        Integer.class,
+                        source.id()));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM graph_index_jobs job
+                        JOIN source_revisions revision
+                          ON revision.id = job.source_revision_id
+                         AND revision.organization_id = job.organization_id
+                        WHERE revision.source_object_id = ?
+                          AND revision.status = 'READY'
+                          AND job.status = 'PENDING'
+                        """,
                         Integer.class,
                         source.id()));
         assertEquals(

@@ -77,6 +77,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-provider=fixture",
         "orgmemory.ingestion.processing.embedding-model=fixture-embed",
         "orgmemory.ingestion.processing.embedding-dimensions=3",
+        "orgmemory.authorization.convergence.scheduling-enabled=false",
+        "orgmemory.graph-rag.indexing.scheduling-enabled=false",
+        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(SecureKnowledgeRetrievalService.class)

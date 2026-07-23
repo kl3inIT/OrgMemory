@@ -162,6 +162,10 @@ class KnowledgeAssetVersion extends BaseEntity {
         return sourceAclSnapshotId;
     }
 
+    String getLanguage() {
+        return language;
+    }
+
     KnowledgeAssetVersionStatus getStatus() {
         return status;
     }
