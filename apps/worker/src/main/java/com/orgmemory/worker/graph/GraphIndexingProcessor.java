@@ -11,6 +11,7 @@ import com.orgmemory.graphrag.indexing.GraphContributionAssembler;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.ExtractionProfile;
+import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
@@ -256,11 +257,7 @@ class GraphIndexingProcessor {
                 contribution.description()));
     }
 
-    private static List<Float> vector(float[] values) {
-        List<Float> result = new ArrayList<>(values.length);
-        for (float value : values) {
-            result.add(value);
-        }
-        return List.copyOf(result);
+    private static FloatVector vector(float[] values) {
+        return new FloatVector(values);
     }
 }

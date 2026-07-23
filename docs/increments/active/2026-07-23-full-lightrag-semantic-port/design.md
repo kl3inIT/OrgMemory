@@ -12,7 +12,10 @@ final `light-rag -> main` PR carries the complete program.
 ## Invariants
 
 - `graph-rag-core` remains pure Java.
-- Spring AI and vendor SDKs are adapters.
+- `graph-rag-core` contains executable LightRAG semantics, not an
+  interface-only abstraction layer.
+- Spring AI and vendor SDKs are adapters; Spring Boot is the imperative
+  runtime shell.
 - PostgreSQL is the first production adapter, not a permanent core assumption.
 - Every adapter implements a shared port and conformance suite.
 - The full engine supports all upstream query strategies; product delivery
@@ -21,6 +24,16 @@ final `light-rag -> main` PR carries the complete program.
   PostgreSQL.
 - Derived stores are rebuildable and cannot grant access.
 - No PR closes a parity row using compilation alone.
+- Core orchestration is synchronous and Reactor-free. The runtime may use
+  bounded virtual threads for blocking adapters and Reactor at streaming
+  delivery boundaries.
+- Material architecture decisions use the repository's Fable 5 debate rule
+  before code is committed.
+- Publication retries bind batch identity and namespace-scoped idempotency to
+  one canonical manifest fingerprint persisted on the visible snapshot.
+- Durable preparation receipts live beside the publication head. Publication
+  verifies every required kind; readers validate pinned snapshots against
+  immutable publication history rather than trusting caller-created state.
 
 ## Branch And Review Flow
 

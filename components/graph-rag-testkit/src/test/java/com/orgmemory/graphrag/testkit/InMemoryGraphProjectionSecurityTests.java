@@ -4,11 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.graphrag.authorization.AuthorizedGraphScope;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
@@ -117,7 +118,7 @@ class InMemoryGraphProjectionSecurityTests {
 
     @Test
     void restrictedContributionCannotAffectDescriptionsSeedsOrScores() {
-        AuthorizedGraphScope scope = scope(Set.of(ALLOWED_ASSET_ID));
+        AuthorizedEvidenceScope scope = scope(Set.of(ALLOWED_ASSET_ID));
 
         List<EntityContribution> visible =
                 projection.loadEntityContributions(scope, List.of(SHARED_ENTITY_ID));
@@ -130,8 +131,8 @@ class InMemoryGraphProjectionSecurityTests {
 
     @Test
     void restrictedNeighborDegreeAndWeightDoNotLeak() {
-        AuthorizedGraphScope allowedOnly = scope(Set.of(ALLOWED_ASSET_ID));
-        AuthorizedGraphScope allowAll = scope(Set.of(ALLOWED_ASSET_ID, RESTRICTED_ASSET_ID));
+        AuthorizedEvidenceScope allowedOnly = scope(Set.of(ALLOWED_ASSET_ID));
+        AuthorizedEvidenceScope allowAll = scope(Set.of(ALLOWED_ASSET_ID, RESTRICTED_ASSET_ID));
 
         assertEquals(
                 List.of(PUBLIC_RELATION_ID),
@@ -227,14 +228,15 @@ class InMemoryGraphProjectionSecurityTests {
                         .description());
     }
 
-    private static AuthorizedGraphScope scope(Set<UUID> assets) {
-        return new AuthorizedGraphScope(
+    private static AuthorizedEvidenceScope scope(Set<UUID> assets) {
+        return new AuthorizedEvidenceScope(
                 ORGANIZATION_ID,
                 ACTOR_ID,
                 null,
                 false,
                 assets,
                 "model-v1",
+                1,
                 Instant.parse("2026-07-23T00:00:00Z"));
     }
 
@@ -274,12 +276,13 @@ class InMemoryGraphProjectionSecurityTests {
             UUID revisionId,
             double confidence) {
         return new EvidenceProvenance(
-                ORGANIZATION_ID,
-                assetId,
-                revisionId,
-                id(key + "-chunk"),
-                id(key + "-acl"),
-                1,
+                new EvidenceReference(
+                        ORGANIZATION_ID,
+                        assetId,
+                        revisionId,
+                        id(key + "-chunk"),
+                        id(key + "-acl"),
+                        1),
                 1,
                 "fixture",
                 "deterministic",

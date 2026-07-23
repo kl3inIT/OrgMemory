@@ -1,11 +1,13 @@
 package com.orgmemory.graphrag.postgres;
 
-import com.orgmemory.graphrag.authorization.AuthorizedGraphScope;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
+import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphEmbeddingIndex;
@@ -263,7 +265,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<EntityContribution> loadEntityContributions(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds) {
         Set<UUID> requestedIds = requestedIds(entityIds, "entityIds");
         if (scopeHasNoEvidence(scope) || requestedIds.isEmpty()) {
@@ -287,7 +289,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<RelationContribution> loadRelationContributions(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> relationIds) {
         Set<UUID> requestedIds = requestedIds(relationIds, "relationIds");
         if (scopeHasNoEvidence(scope) || requestedIds.isEmpty()) {
@@ -315,7 +317,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<CanonicalRelation> loadIncidentRelations(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds,
             int limit) {
         Set<UUID> requestedIds = requestedIds(entityIds, "entityIds");
@@ -350,7 +352,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public Map<UUID, Long> loadVisibleEntityDegrees(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds) {
         Set<UUID> requestedIds = requestedIds(entityIds, "entityIds");
         Map<UUID, Long> degrees = requestedIds.stream()
@@ -399,7 +401,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public Map<UUID, Double> loadVisibleRelationWeights(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> relationIds) {
         Set<UUID> requestedIds = requestedIds(relationIds, "relationIds");
         Map<UUID, Double> weights = requestedIds.stream()
@@ -431,7 +433,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<RankedItem<CanonicalEntity>> searchEntities(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             String query,
             int limit) {
         String normalizedQuery = requireQuery(query);
@@ -494,7 +496,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<RankedItem<CanonicalRelation>> searchRelations(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             String query,
             int limit) {
         String normalizedQuery = requireQuery(query);
@@ -568,10 +570,10 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<RankedItem<CanonicalEntity>> searchEntitiesByVector(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             UUID embeddingProfileId,
             int embeddingDimensions,
-            List<Float> queryEmbedding,
+            FloatVector queryEmbedding,
             double maximumCosineDistance,
             int limit) {
         VectorQuery vectorQuery = vectorQuery(
@@ -638,10 +640,10 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<RankedItem<CanonicalRelation>> searchRelationsByVector(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             UUID embeddingProfileId,
             int embeddingDimensions,
-            List<Float> queryEmbedding,
+            FloatVector queryEmbedding,
             double maximumCosineDistance,
             int limit) {
         VectorQuery vectorQuery = vectorQuery(
@@ -734,7 +736,7 @@ public final class PostgresGraphProjectionStore
 
     @Override
     public List<UUID> expandEntityIds(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> seedEntityIds,
             int maximumDepth,
             int limit) {
@@ -772,7 +774,7 @@ public final class PostgresGraphProjectionStore
     }
 
     private List<UUID> expandEntityIdsRelationally(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Set<UUID> visibleSeeds,
             int maximumDepth,
             int limit) {
@@ -1052,7 +1054,7 @@ public final class PostgresGraphProjectionStore
                 contributionEmbeddings,
                 options.maxBatchRecords(),
                 options.maxBatchPayloadBytes(),
-                embedding -> 256L + (long) embedding.vector().size() * Float.BYTES,
+                embedding -> 256L + (long) embedding.vector().dimensions() * Float.BYTES,
                 batch -> insertEmbeddingBatch(sql, embeddings, batch));
     }
 
@@ -1556,12 +1558,13 @@ public final class PostgresGraphProjectionStore
     private static EvidenceProvenance mapProvenance(ResultSet resultSet)
             throws SQLException {
         return new EvidenceProvenance(
-                resultSet.getObject("organization_id", UUID.class),
-                resultSet.getObject("knowledge_asset_id", UUID.class),
-                resultSet.getObject("source_revision_id", UUID.class),
-                resultSet.getObject("chunk_id", UUID.class),
-                resultSet.getObject("acl_snapshot_id", UUID.class),
-                resultSet.getLong("acl_generation"),
+                new EvidenceReference(
+                        resultSet.getObject("organization_id", UUID.class),
+                        resultSet.getObject("knowledge_asset_id", UUID.class),
+                        resultSet.getObject("source_revision_id", UUID.class),
+                        resultSet.getObject("chunk_id", UUID.class),
+                        resultSet.getObject("acl_snapshot_id", UUID.class),
+                        resultSet.getLong("acl_generation")),
                 resultSet.getLong("projection_generation"),
                 resultSet.getString("extractor_provider"),
                 resultSet.getString("extractor_model"),
@@ -1570,7 +1573,7 @@ public final class PostgresGraphProjectionStore
                 resultSet.getTimestamp("extracted_at").toInstant());
     }
 
-    private static MapSqlParameterSource scopeParameters(AuthorizedGraphScope scope) {
+    private static MapSqlParameterSource scopeParameters(AuthorizedEvidenceScope scope) {
         Objects.requireNonNull(scope, "scope");
         return new MapSqlParameterSource()
                 .addValue("organizationId", scope.organizationId())
@@ -1585,7 +1588,7 @@ public final class PostgresGraphProjectionStore
                 .addValue("sourceRevisionId", sourceRevisionId);
     }
 
-    private static boolean scopeHasNoEvidence(AuthorizedGraphScope scope) {
+    private static boolean scopeHasNoEvidence(AuthorizedEvidenceScope scope) {
         Objects.requireNonNull(scope, "scope");
         return scope.authorizedAssetIds().isEmpty();
     }
@@ -1614,10 +1617,10 @@ public final class PostgresGraphProjectionStore
     }
 
     private static VectorQuery vectorQuery(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             UUID embeddingProfileId,
             int embeddingDimensions,
-            List<Float> queryEmbedding,
+            FloatVector queryEmbedding,
             double maximumCosineDistance,
             int limit) {
         Objects.requireNonNull(scope, "scope");
@@ -1628,9 +1631,7 @@ public final class PostgresGraphProjectionStore
             throw new IllegalArgumentException(
                     "embeddingDimensions must be between 1 and 16000");
         }
-        if (queryEmbedding.size() != embeddingDimensions
-                || queryEmbedding.stream()
-                        .anyMatch(value -> value == null || !Float.isFinite(value))) {
+        if (queryEmbedding.dimensions() != embeddingDimensions) {
             throw new IllegalArgumentException(
                     "queryEmbedding must contain exactly embeddingDimensions finite values");
         }
@@ -1666,10 +1667,15 @@ public final class PostgresGraphProjectionStore
         return type + "(" + dimensions + ")";
     }
 
-    private static String vectorLiteral(List<Float> vector) {
-        return vector.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(",", "[", "]"));
+    private static String vectorLiteral(FloatVector vector) {
+        StringBuilder literal = new StringBuilder(vector.dimensions() * 12).append('[');
+        for (int index = 0; index < vector.dimensions(); index++) {
+            if (index > 0) {
+                literal.append(',');
+            }
+            literal.append(vector.valueAt(index));
+        }
+        return literal.append(']').toString();
     }
 
     private static String relationSearchContent(RelationContribution contribution) {

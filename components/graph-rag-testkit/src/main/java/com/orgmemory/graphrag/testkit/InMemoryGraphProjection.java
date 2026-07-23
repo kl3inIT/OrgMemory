@@ -1,6 +1,6 @@
 package com.orgmemory.graphrag.testkit;
 
-import com.orgmemory.graphrag.authorization.AuthorizedGraphScope;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
@@ -75,7 +75,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized List<EntityContribution> loadEntityContributions(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds) {
         Objects.requireNonNull(scope, "scope");
         Set<UUID> requestedIds = Set.copyOf(Objects.requireNonNull(entityIds, "entityIds"));
@@ -88,7 +88,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized List<RelationContribution> loadRelationContributions(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> relationIds) {
         Objects.requireNonNull(scope, "scope");
         Set<UUID> requestedIds = Set.copyOf(Objects.requireNonNull(relationIds, "relationIds"));
@@ -102,7 +102,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized List<CanonicalRelation> loadIncidentRelations(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds,
             int limit) {
         Objects.requireNonNull(scope, "scope");
@@ -126,7 +126,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized Map<UUID, Long> loadVisibleEntityDegrees(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> entityIds) {
         Objects.requireNonNull(scope, "scope");
         Set<UUID> requestedIds = Set.copyOf(Objects.requireNonNull(entityIds, "entityIds"));
@@ -144,7 +144,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized Map<UUID, Double> loadVisibleRelationWeights(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Collection<UUID> relationIds) {
         Objects.requireNonNull(scope, "scope");
         Set<UUID> requestedIds = Set.copyOf(Objects.requireNonNull(relationIds, "relationIds"));
@@ -165,7 +165,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized List<RankedItem<CanonicalEntity>> searchEntities(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             String query,
             int limit) {
         Objects.requireNonNull(scope, "scope");
@@ -193,7 +193,7 @@ public final class InMemoryGraphProjection
 
     @Override
     public synchronized List<RankedItem<CanonicalRelation>> searchRelations(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             String query,
             int limit) {
         Objects.requireNonNull(scope, "scope");
@@ -220,14 +220,14 @@ public final class InMemoryGraphProjection
         return DeterministicRanker.rank(matches.values(), limit);
     }
 
-    private static boolean visible(AuthorizedGraphScope scope, EntityContribution contribution) {
+    private static boolean visible(AuthorizedEvidenceScope scope, EntityContribution contribution) {
         return scope.includes(
                 contribution.provenance().organizationId(),
                 contribution.provenance().knowledgeAssetId());
     }
 
     private boolean visibleRelation(
-            AuthorizedGraphScope scope,
+            AuthorizedEvidenceScope scope,
             Set<UUID> visibleEntityIds,
             RelationContribution contribution) {
         if (!scope.includes(
@@ -240,7 +240,7 @@ public final class InMemoryGraphProjection
                 && visibleEntityIds.contains(relation.targetEntityId());
     }
 
-    private Set<UUID> visibleEntityIds(AuthorizedGraphScope scope) {
+    private Set<UUID> visibleEntityIds(AuthorizedEvidenceScope scope) {
         return entityContributions.values().stream()
                 .filter(entityContribution -> visible(scope, entityContribution))
                 .map(entityContribution -> entityContribution.entity().id())

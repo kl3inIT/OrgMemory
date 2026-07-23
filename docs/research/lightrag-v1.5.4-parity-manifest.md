@@ -30,13 +30,13 @@ exists.
 
 | Area | Required semantic capability | Current evidence | State | Closing PR |
 | --- | --- | --- | --- | --- |
-| Core | Framework-neutral engine and storage/model ports | `components/graph-rag-core` | partial | 2 |
-| Core | Shared adapter conformance suite | `components/graph-rag-testkit` covers graph security | partial | 2 |
-| Storage | KV/content storage lifecycle, batch commit/abort, drop | Canonical source ledger exists; no LightRAG-compatible port | partial | 2, 8 |
-| Storage | Processing/doc-status queries and recovery | Durable jobs exist; no portable state-store contract | partial | 2, 6, 8 |
-| Storage | Lexical index port | PostgreSQL search is a concrete core store | partial | 2, 8 |
-| Storage | Vector index port for chunks/entities/relations | Graph vector ports exist; chunk path is concrete | partial | 2, 8 |
-| Storage | Graph node/edge/degree/adjacency/batch contract | Graph projection ports exist | implemented | 2 hardening |
+| Core | Framework-neutral engine and storage/model ports | Pure-Java authorization, evidence, projection, cache and telemetry boundaries exist | partial | 2 |
+| Core | Shared adapter conformance suite | Graph security plus in-memory publication/cache/content fixtures | partial | 2 |
+| Storage | KV/content storage lifecycle, batch commit/abort, drop | Capability-specific staged content store and atomic generation-head contract | partial | 2, 8 |
+| Storage | Processing/doc-status queries and recovery | OrgMemory durable worker jobs own lease/retry semantics; portable engine status is deliberately not duplicated | partial | 6, 8 |
+| Storage | Lexical index port | Staged, permission-scoped lexical contract; production adapter remains pending | partial | 2, 8 |
+| Storage | Vector index port for chunks/entities/relations | Primitive-vector, staged, permission-scoped contract plus existing graph vector ports | partial | 2, 8 |
+| Storage | Graph node/edge/degree/adjacency/batch contract | Specialized graph ports exist; shared namespace snapshot migration remains | partial | 8 |
 | Storage | OpenSearch unified KV/vector/graph/status backend | None | missing | 9 |
 | Storage | Neo4j graph backend | None | missing | 10 |
 | Parsing | Parser registry and runtime routing | Tika/PDF reader is worker-local | partial | 3 |
