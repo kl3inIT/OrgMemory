@@ -44,8 +44,15 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     private static final Logger log = LoggerFactory.getLogger(SlackConnectorBatchSource.class);
     private static final String ALL_CHANNEL_TYPES = "public_channel,private_channel";
     private static final String PUBLIC_CHANNELS_ONLY = "public_channel";
-    private static final Set<String> IGNORED_SUBTYPES =
-            Set.of("channel_join", "channel_leave", "channel_topic", "channel_purpose", "channel_name");
+    /** Housekeeping events Slack records as messages. They say nothing about the work. */
+    private static final Set<String> IGNORED_SUBTYPES = Set.of(
+            "channel_join", "channel_leave", "channel_topic", "channel_purpose", "channel_name",
+            "channel_archive", "channel_unarchive", "channel_posting_permissions",
+            "group_join", "group_leave", "group_archive", "group_unarchive",
+            "pinned_item", "unpinned_item", "ekm_access_denied");
+
+    /** Above this share of unreadable channels the run is a failure, not a crawl. */
+    private static final double FAILED_CHANNEL_ABORT_SHARE = 0.5;
 
     private final SlackConnectorProperties properties;
     private final SlackCredentialProvider credentials;
@@ -71,20 +78,24 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     }
 
     private ConnectorCrawlBatch crawl(SlackWebApiClient client) {
+        requireWorkingCredential(client);
         Crawl crawl = new Crawl();
         Map<String, SlackUser> usersById = users(client);
         List<JsonNode> channels = channels(client, crawl);
 
+        int failed = 0;
         for (JsonNode channel : channels) {
             try {
                 crawlChannel(client, channel, usersById, crawl);
             } catch (SlackApiException failure) {
-                // A channel the bot cannot read is not a channel that vanished. Losing it costs
+                // A channel the bot cannot read is not a channel that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the workspace its index.
                 log.warn("Slack channel {} was skipped: {}", channel.path("id").asString(""), failure.getMessage());
                 crawl.incomplete();
+                failed++;
             }
         }
+        abortIfMostlyFailed(failed, channels.size());
 
         return new ConnectorCrawlBatch(
                 properties.organizationId(),
@@ -102,6 +113,37 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     }
 
     /**
+     * Checks the token before the crawl spends anything on it. A dead credential otherwise shows
+     * up as every channel failing at once, which reads like a workspace problem; {@code auth.test}
+     * costs one call and says plainly which it is.
+     */
+    private void requireWorkingCredential(SlackWebApiClient client) {
+        try {
+            client.call("auth.test", Map.of());
+        } catch (SlackApiException refused) {
+            String error = refused.errorCode() == null ? "" : refused.errorCode();
+            throw new SlackCredentialUnavailableException(
+                    "The Slack bot token for connection " + properties.connectionKey()
+                            + " was rejected (" + error + ")");
+        }
+    }
+
+    /**
+     * Stops a run in which most channels failed rather than reporting it as a crawl.
+     *
+     * <p>Nothing is destroyed by carrying on — the completeness claim is already withdrawn, so
+     * pruning cannot fire — but a batch would be checkpointed and the connection would look
+     * healthy while its index quietly went stale. Failing instead sends the driver down its
+     * transient path, which retries and then leaves the work for the next poll.
+     */
+    private static void abortIfMostlyFailed(int failed, int total) {
+        if (failed > 0 && failed >= total * FAILED_CHANNEL_ABORT_SHARE) {
+            throw new SlackApiException(
+                    "Slack crawl abandoned: " + failed + " of " + total + " channels could not be read");
+        }
+    }
+
+    /**
      * Every human account in the workspace, indexed by id. Bots and deactivated accounts are
      * dropped: neither can be a person to map to, and a bot has no address to map by.
      */
@@ -110,6 +152,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         for (JsonNode member : client.collectPaged("users.list", Map.of(), "members")) {
             if (member.path("deleted").asBoolean(false)
                     || member.path("is_bot").asBoolean(false)
+                    || member.path("is_app_user").asBoolean(false)
                     || "USLACKBOT".equals(member.path("id").asString(""))) {
                 continue;
             }
@@ -190,22 +233,34 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
     }
 
-    /** A thread's messages: the root alone, or the root plus its replies when it has any. */
-    private List<JsonNode> thread(SlackWebApiClient client, String channelId, JsonNode root) {
-        if (root.path("reply_count").asInt(0) <= 0) {
-            return List.of(root);
+    /**
+     * The whole thread a history entry belongs to, or the message alone when it starts no thread.
+     *
+     * <p>{@code thread_ts} is present both on a thread's parent and on a reply broadcast back to
+     * the channel, and in either case it names the root. Resolving through it rather than through
+     * the entry's own timestamp matters because history returns newest first, so a broadcast
+     * reply is seen before its parent — keying off the entry itself would index the reply alone
+     * and then discard the real thread as a duplicate.
+     */
+    private List<JsonNode> thread(SlackWebApiClient client, String channelId, JsonNode entry) {
+        String threadTs = entry.path("thread_ts").asString("");
+        if (threadTs.isBlank() && entry.path("reply_count").asInt(0) <= 0) {
+            return List.of(entry);
         }
+        String rootTs = threadTs.isBlank() ? entry.path("ts").asString("") : threadTs;
         return client.collectPaged(
-                "conversations.replies",
-                Map.of("channel", channelId, "ts", root.path("ts").asString("")),
-                "messages");
+                "conversations.replies", Map.of("channel", channelId, "ts", rootTs), "messages");
     }
 
-    /** Joins, leaves, and channel housekeeping say nothing about the work and only add noise. */
+    /**
+     * Joins, leaves, and channel housekeeping say nothing about the work. Automated posts are
+     * dropped too, and an app can announce itself through either {@code bot_id} or {@code app_id}
+     * — checking only the first lets integration chatter into the index.
+     */
     private static boolean isIgnorable(JsonNode message) {
-        String subtype = message.path("subtype").asString("");
-        return IGNORED_SUBTYPES.contains(subtype)
-                || message.path("bot_id").asString("").length() > 0
+        return IGNORED_SUBTYPES.contains(message.path("subtype").asString(""))
+                || !message.path("bot_id").asString("").isEmpty()
+                || !message.path("app_id").asString("").isEmpty()
                 || message.path("text").asString("").isBlank();
     }
 
@@ -250,6 +305,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         private final Map<String, ChannelIdentity> observedChannels = new LinkedHashMap<>();
         private final List<ConnectorContentItem> contents = new ArrayList<>();
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
+        private final Set<String> seenObjectIds = new LinkedHashSet<>();
         private boolean complete = true;
 
         private void incomplete() {
@@ -269,11 +325,17 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             if (messages.isEmpty()) {
                 return;
             }
-            String threadTs = messages.getFirst().path("thread_ts").asString("")
-                    .isBlank()
-                    ? messages.getFirst().path("ts").asString("")
-                    : messages.getFirst().path("thread_ts").asString("");
+            JsonNode root = messages.getFirst();
+            String threadTs = root.path("thread_ts").asString("").isBlank()
+                    ? root.path("ts").asString("")
+                    : root.path("thread_ts").asString("");
             String externalObjectId = channelId + "__" + threadTs;
+            // A reply broadcast back to the channel appears in history alongside its own thread
+            // root, and resolving either one yields the same thread. Without this the batch would
+            // carry the same object twice.
+            if (!seenObjectIds.add(externalObjectId)) {
+                return;
+            }
             String body = render(messages, usersById);
             if (body.isBlank()) {
                 return;
@@ -286,10 +348,20 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                             SourcePrincipalKind.SOURCE_GROUP, channelId, AccessGate.ALLOW))));
         }
 
+        /**
+         * The thread as a reader would see it. Mentions and links are resolved out of Slack's
+         * markup first: {@code <@U024BE7LH>} is noise in a full-text index and worse in an
+         * embedding, where an opaque id cannot match the name somebody would actually ask about.
+         */
         private String render(List<JsonNode> messages, Map<String, SlackUser> usersById) {
+            Map<String, String> displayNames = new LinkedHashMap<>();
+            usersById.forEach((id, user) -> displayNames.put(id, user.displayName()));
             StringBuilder rendered = new StringBuilder();
             for (JsonNode message : messages) {
-                String text = message.path("text").asString("");
+                if (isIgnorable(message)) {
+                    continue;
+                }
+                String text = SlackTextCleaner.clean(message.path("text").asString(""), displayNames);
                 if (text.isBlank()) {
                     continue;
                 }

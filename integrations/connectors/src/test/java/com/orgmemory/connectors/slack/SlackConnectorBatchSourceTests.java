@@ -46,6 +46,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void turnsAWorkspaceIntoTheCrawlContract() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -71,6 +72,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void reportsMembersAsUsersAndTheChannelAsTheirGroup() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -96,6 +98,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void dropsBotsDeactivatedAccountsAndChannelNoise() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -114,6 +117,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -124,6 +128,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void withdrawsTheCompletenessClaimWhenOnlySomeChannelsWereAskedFor() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -138,19 +143,57 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void withdrawsTheCompletenessClaimWhenAChannelCouldNotBeRead() {
+        expectAuth();
         expectUsers();
-        expectChannels();
+        server.expect(requestTo("https://slack.com/api/conversations.list"))
+                .andRespond(withSuccess(THREE_CHANNELS_JSON, MediaType.APPLICATION_JSON));
         server.expect(requestTo("https://slack.com/api/conversations.members"))
                 .andRespond(withSuccess("{\"ok\":false,\"error\":\"not_in_channel\"}", MediaType.APPLICATION_JSON));
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.members"))
+                .andRespond(withSuccess(MEMBERS_JSON, MediaType.APPLICATION_JSON));
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.history"))
+                .andRespond(withSuccess(HISTORY_JSON, MediaType.APPLICATION_JSON));
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.replies"))
+                .andRespond(withSuccess(REPLIES_JSON, MediaType.APPLICATION_JSON));
 
         ConnectorCrawlBatch batch = crawl(List.of());
 
         assertFalse(batch.crawlComplete(), "a channel that could not be read is not a channel that vanished");
-        assertTrue(batch.contents().isEmpty());
+        assertFalse(batch.contents().isEmpty(), "the readable channels still arrive");
+    }
+
+    @Test
+    void abandonsARunInWhichMostChannelsCouldNotBeRead() {
+        expectAuth();
+        expectUsers();
+        server.expect(requestTo("https://slack.com/api/conversations.list"))
+                .andRespond(withSuccess(THREE_CHANNELS_JSON, MediaType.APPLICATION_JSON));
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.members"))
+                .andRespond(withSuccess("{\"ok\":false,\"error\":\"not_in_channel\"}", MediaType.APPLICATION_JSON));
+
+        SlackApiException abandoned = org.junit.jupiter.api.Assertions.assertThrows(
+                SlackApiException.class, () -> crawl(List.of()));
+
+        assertTrue(
+                abandoned.getMessage().contains("3 of 3"),
+                () -> "unexpected message: " + abandoned.getMessage());
+    }
+
+    @Test
+    void refusesToCrawlWithACredentialSlackRejects() {
+        server.expect(requestTo("https://slack.com/api/auth.test"))
+                .andRespond(withSuccess("{\"ok\":false,\"error\":\"invalid_auth\"}", MediaType.APPLICATION_JSON));
+
+        SlackCredentialUnavailableException rejected = org.junit.jupiter.api.Assertions.assertThrows(
+                SlackCredentialUnavailableException.class, () -> crawl(List.of()));
+
+        assertTrue(rejected.getMessage().contains("invalid_auth"));
+        assertFalse(rejected.getMessage().contains("xoxb-"), "a failure must not carry the token");
     }
 
     @Test
     void withdrawsTheCompletenessClaimWhenPrivateChannelsAreOutOfScope() {
+        expectAuth();
         expectUsers();
         server.expect(requestTo("https://slack.com/api/conversations.list"))
                 .andRespond(withSuccess("{\"ok\":false,\"error\":\"missing_scope\"}", MediaType.APPLICATION_JSON));
@@ -167,6 +210,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void producesTheSameCursorForAnUnchangedWorkspaceAndADifferentOneAfterAnEdit() {
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -174,6 +218,7 @@ class SlackConnectorBatchSourceTests {
         String first = crawl(List.of()).crawlCursor();
 
         setUp();
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -181,6 +226,7 @@ class SlackConnectorBatchSourceTests {
         assertEquals(first, crawl(List.of()).crawlCursor(), "an unchanged workspace is not new work");
 
         setUp();
+        expectAuth();
         expectUsers();
         expectChannels();
         expectMembers();
@@ -190,6 +236,43 @@ class SlackConnectorBatchSourceTests {
                 .andRespond(withSuccess(REPLIES_JSON.replace("Thursday", "Friday"), MediaType.APPLICATION_JSON));
 
         assertNotEquals(first, crawl(List.of()).crawlCursor(), "an edit is new work");
+    }
+
+    @Test
+    void indexesAThreadOnceWhenAReplyWasBroadcastBackToTheChannel() {
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        // Slack returns newest first, so the broadcast reply arrives before the parent it belongs to.
+        server.expect(requestTo("https://slack.com/api/conversations.history"))
+                .andRespond(withSuccess(BROADCAST_HISTORY_JSON, MediaType.APPLICATION_JSON));
+        server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.replies"))
+                .andRespond(withSuccess(REPLIES_JSON, MediaType.APPLICATION_JSON));
+
+        ConnectorCrawlBatch batch = crawl(List.of());
+
+        assertEquals(1, batch.contents().size(), "one thread is one object however often it surfaces");
+        assertEquals("C-eng__1700000001.000100", batch.contents().getFirst().externalObjectId());
+        assertTrue(
+                batch.contents().getFirst().body().contains("Mai: The deploy window is Thursday"),
+                "resolving through thread_ts keeps the whole thread, not the broadcast reply alone");
+    }
+
+    @Test
+    void resolvesMentionsAndLinksOutOfTheIndexedBody() {
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        server.expect(requestTo("https://slack.com/api/conversations.history"))
+                .andRespond(withSuccess(MARKUP_HISTORY_JSON, MediaType.APPLICATION_JSON));
+
+        String body = crawl(List.of()).contents().getFirst().body();
+
+        assertTrue(body.contains("@Lan"), () -> "a mention should read as a name: " + body);
+        assertFalse(body.contains("<@U-lan>"), () -> "raw markup reached the index: " + body);
+        assertFalse(body.contains("U-lan"), () -> "an opaque id reached the index: " + body);
     }
 
     @Test
@@ -206,6 +289,7 @@ class SlackConnectorBatchSourceTests {
 
     @Test
     void surfacesARateLimitedWorkspaceRatherThanCrawlingPartially() {
+        expectAuth();
         for (int attempt = 0; attempt < 4; attempt++) {
             server.expect(requestTo("https://slack.com/api/users.list"))
                     .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", "0"));
@@ -224,6 +308,11 @@ class SlackConnectorBatchSourceTests {
                 new SlackConnectorBatchSource(properties, key -> "xoxb-not-a-real-token", builder).pendingBatches();
         assertEquals(1, batches.size());
         return batches.getFirst();
+    }
+
+    private void expectAuth() {
+        server.expect(requestTo("https://slack.com/api/auth.test"))
+                .andRespond(withSuccess("{\"ok\":true,\"team_id\":\"T-workspace\"}", MediaType.APPLICATION_JSON));
     }
 
     private void expectUsers() {
@@ -262,6 +351,14 @@ class SlackConnectorBatchSourceTests {
             ]}
             """;
 
+    private static final String THREE_CHANNELS_JSON =
+            """
+            {"ok":true,"channels":[
+              {"id":"C-eng","name":"engineering","is_private":false},
+              {"id":"C-ops","name":"operations","is_private":false},
+              {"id":"C-sales","name":"sales","is_private":false}]}
+            """;
+
     private static final String CHANNELS_JSON =
             """
             {"ok":true,"channels":[{"id":"C-eng","name":"engineering","is_private":false}]}
@@ -279,6 +376,25 @@ class SlackConnectorBatchSourceTests {
                "text":"The deploy window is Thursday and the rollback owner is the platform team"},
               {"type":"message","subtype":"channel_join","user":"U-lan","ts":"1700000000.000100",
                "text":"<@U-lan> has joined the channel"}
+            ]}
+            """;
+
+    private static final String BROADCAST_HISTORY_JSON =
+            """
+            {"ok":true,"messages":[
+              {"type":"message","subtype":"thread_broadcast","user":"U-lan","ts":"1700000002.000100",
+               "thread_ts":"1700000001.000100","text":"Confirmed, I will run the rollback drill"},
+              {"type":"message","user":"U-mai","ts":"1700000001.000100","thread_ts":"1700000001.000100",
+               "reply_count":1,
+               "text":"The deploy window is Thursday and the rollback owner is the platform team"}
+            ]}
+            """;
+
+    private static final String MARKUP_HISTORY_JSON =
+            """
+            {"ok":true,"messages":[
+              {"type":"message","user":"U-mai","ts":"1700000003.000100",
+               "text":"<@U-lan> please read <https://wiki.example/rb|the runbook> in <#C-eng|engineering>"}
             ]}
             """;
 
