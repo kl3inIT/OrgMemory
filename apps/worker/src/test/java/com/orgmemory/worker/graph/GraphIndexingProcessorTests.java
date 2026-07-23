@@ -1,11 +1,16 @@
 package com.orgmemory.worker.graph;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +32,9 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.document.Document;
@@ -149,6 +157,138 @@ class GraphIndexingProcessorTests {
                 "Graph extraction or publication failed; retry is scheduled");
     }
 
+    @Test
+    void refreshesTheLeaseWhileAChunkExtractionIsStillRunning() throws Exception {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphPublicationCommitter publications = mock(GraphPublicationCommitter.class);
+        GraphExtractorFactory extractors = mock(GraphExtractorFactory.class);
+        AiRouteResolver routes = mock(AiRouteResolver.class);
+        GraphIndexingProperties properties = properties(Duration.ofMillis(90));
+        CountDownLatch extractionStarted = new CountDownLatch(1);
+        CountDownLatch releaseExtraction = new CountDownLatch(1);
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.of(claim()));
+        when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
+                .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
+        when(routes.resolve(AiWorkload.DOCUMENT_EMBEDDING))
+                .thenReturn(new AiRoute("openai", "text-embedding-3-large"));
+        when(extractors.create(any())).thenReturn(request -> {
+            extractionStarted.countDown();
+            try {
+                if (!releaseExtraction.await(5, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("test extraction was not released");
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("test extraction interrupted", interrupted);
+            }
+            return new ExtractionResult(request.profile(), List.of(), List.of());
+        });
+        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+                coordinator,
+                publications,
+                extractors,
+                new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
+                routes,
+                properties);
+
+        Thread worker = Thread.ofVirtual().start(processor::processNext);
+        try {
+            assertTrue(extractionStarted.await(1, TimeUnit.SECONDS));
+            verify(coordinator, timeout(1_000).atLeastOnce())
+                    .refreshLease(
+                            JOB_ID,
+                            properties.workerId(),
+                            properties.leaseDuration());
+        } finally {
+            releaseExtraction.countDown();
+            worker.join(5_000);
+        }
+
+        assertFalse(worker.isAlive());
+        verify(publications).commit(any(), any(), any(), any());
+    }
+
+    @Test
+    void interruptionLeavesTheClaimedJobForLeaseBasedRetry() throws Exception {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphPublicationCommitter publications = mock(GraphPublicationCommitter.class);
+        GraphExtractorFactory extractors = mock(GraphExtractorFactory.class);
+        AiRouteResolver routes = mock(AiRouteResolver.class);
+        GraphIndexingProperties properties = properties(Duration.ofMinutes(5));
+        CountDownLatch extractionStarted = new CountDownLatch(1);
+        CountDownLatch releaseExtraction = new CountDownLatch(1);
+        AtomicBoolean interruptRestored = new AtomicBoolean();
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.of(claim()));
+        when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
+                .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
+        when(extractors.create(any())).thenReturn(request -> {
+            extractionStarted.countDown();
+            try {
+                releaseExtraction.await();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+            return new ExtractionResult(request.profile(), List.of(), List.of());
+        });
+        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+                coordinator,
+                publications,
+                extractors,
+                new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
+                routes,
+                properties);
+
+        Thread worker = Thread.ofVirtual().start(() -> {
+            processor.processNext();
+            interruptRestored.set(Thread.currentThread().isInterrupted());
+        });
+        try {
+            assertTrue(extractionStarted.await(1, TimeUnit.SECONDS));
+            worker.interrupt();
+            worker.join(5_000);
+        } finally {
+            releaseExtraction.countDown();
+        }
+
+        assertFalse(worker.isAlive());
+        assertTrue(interruptRestored.get());
+        verify(publications, never()).commit(any(), any(), any(), any());
+        verify(coordinator, never()).fail(any(), any(), any(), any());
+    }
+
+    @Test
+    void lostLeaseDoesNotRaiseASecondFailureWhileRecordingRetry() {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphPublicationCommitter publications = mock(GraphPublicationCommitter.class);
+        GraphExtractorFactory extractors = mock(GraphExtractorFactory.class);
+        AiRouteResolver routes = mock(AiRouteResolver.class);
+        GraphIndexingProperties properties = properties();
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.of(claim()));
+        when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
+                .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
+        when(routes.resolve(AiWorkload.DOCUMENT_EMBEDDING))
+                .thenReturn(new AiRoute("openai", "different-embedding-model"));
+        when(extractors.create(any())).thenReturn(request ->
+                new ExtractionResult(request.profile(), List.of(), List.of()));
+        doThrow(new IllegalStateException("lease expired"))
+                .when(coordinator)
+                .fail(any(), any(), any(), any());
+        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+                coordinator,
+                publications,
+                extractors,
+                new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
+                routes,
+                properties);
+
+        assertDoesNotThrow(processor::processNext);
+
+        verify(publications, never()).commit(any(), any(), any(), any());
+    }
+
     private static ClaimedGraphIndex claim() {
         return new ClaimedGraphIndex(
                 JOB_ID,
@@ -173,11 +313,15 @@ class GraphIndexingProcessorTests {
     }
 
     private static GraphIndexingProperties properties() {
+        return properties(Duration.ofMinutes(5));
+    }
+
+    private static GraphIndexingProperties properties(Duration leaseDuration) {
         return new GraphIndexingProperties(
                 false,
                 Duration.ofSeconds(3),
                 "graph-worker-test",
-                Duration.ofMinutes(5),
+                leaseDuration,
                 2,
                 40,
                 60);

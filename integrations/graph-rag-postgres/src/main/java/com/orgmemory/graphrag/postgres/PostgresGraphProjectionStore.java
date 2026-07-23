@@ -589,21 +589,17 @@ public final class PostgresGraphProjectionStore
         String queryCast = vectorCast(":queryEmbedding", embeddingDimensions);
         String distanceExpression = vectorExpression + " <=> " + queryCast;
         return jdbc.query("""
-                WITH visible_embeddings AS (
+                WITH %s,
+                     visible_embeddings AS (
                     SELECT
                         entity.id,
                         entity.normalized_name,
                         entity.entity_type,
                         %s AS distance
                     FROM graph_entity_embeddings embedding
-                    JOIN graph_entity_contributions contribution
+                    JOIN visible_entity_contributions contribution
                       ON contribution.organization_id = embedding.organization_id
                      AND contribution.id = embedding.entity_contribution_id
-                    JOIN graph_projection_heads head
-                      ON head.organization_id = contribution.organization_id
-                     AND head.source_revision_id = contribution.source_revision_id
-                     AND head.knowledge_asset_id = contribution.knowledge_asset_id
-                     AND head.projection_generation = contribution.projection_generation
                     JOIN graph_entities entity
                       ON entity.organization_id = contribution.organization_id
                      AND entity.id = contribution.entity_id
@@ -626,7 +622,7 @@ public final class PostgresGraphProjectionStore
                 FROM scored_entities
                 ORDER BY distance, id
                 LIMIT :limit
-                """.formatted(distanceExpression),
+                """.formatted(VISIBLE_ENTITY_CONTRIBUTIONS, distanceExpression),
                 vectorQuery.parameters(),
                 (resultSet, rowNumber) -> {
                     CanonicalEntity entity = new CanonicalEntity(
@@ -664,58 +660,54 @@ public final class PostgresGraphProjectionStore
         String distanceExpression = vectorExpression + " <=> " + queryCast;
         return jdbc.query("""
                 WITH %s,
+                     %s,
                      visible_embeddings AS (
-                         SELECT
-                             relation.id,
-                             relation.source_entity_id,
-                             relation.target_entity_id,
-                             relation.relation_type,
-                             relation.orientation,
-                             %s AS distance
-                         FROM graph_relation_embeddings embedding
-                         JOIN graph_relation_contributions contribution
-                           ON contribution.organization_id = embedding.organization_id
-                          AND contribution.id = embedding.relation_contribution_id
-                         JOIN graph_projection_heads head
-                           ON head.organization_id = contribution.organization_id
-                          AND head.source_revision_id = contribution.source_revision_id
-                          AND head.knowledge_asset_id = contribution.knowledge_asset_id
-                          AND head.projection_generation = contribution.projection_generation
-                         JOIN graph_relations relation
-                           ON relation.organization_id = contribution.organization_id
-                          AND relation.id = contribution.relation_id
-                         WHERE embedding.organization_id = :organizationId
-                           AND embedding.knowledge_asset_id IN (:authorizedAssetIds)
-                           AND embedding.embedding_profile_id = :embeddingProfileId
-                           AND embedding.embedding_dimensions = :embeddingDimensions
-                           AND EXISTS (
-                               SELECT 1
-                               FROM visible_entity_contributions source_evidence
-                               WHERE source_evidence.entity_id = relation.source_entity_id
-                           )
-                           AND EXISTS (
-                               SELECT 1
-                               FROM visible_entity_contributions target_evidence
-                               WHERE target_evidence.entity_id = relation.target_entity_id
-                           )
-                     ),
-                     scored_relations AS (
-                         SELECT
-                             id,
-                             source_entity_id,
-                             target_entity_id,
-                             relation_type,
-                             orientation,
-                             min(distance) AS distance
-                         FROM visible_embeddings
-                         WHERE distance <= :maximumCosineDistance
-                         GROUP BY
-                             id,
-                             source_entity_id,
-                             target_entity_id,
-                             relation_type,
-                             orientation
-                     )
+                        SELECT
+                            relation.id,
+                            relation.source_entity_id,
+                            relation.target_entity_id,
+                            relation.relation_type,
+                            relation.orientation,
+                            %s AS distance
+                        FROM graph_relation_embeddings embedding
+                        JOIN visible_relation_contributions contribution
+                          ON contribution.organization_id = embedding.organization_id
+                         AND contribution.id = embedding.relation_contribution_id
+                        JOIN graph_relations relation
+                          ON relation.organization_id = contribution.organization_id
+                         AND relation.id = contribution.relation_id
+                        WHERE embedding.organization_id = :organizationId
+                          AND embedding.knowledge_asset_id IN (:authorizedAssetIds)
+                          AND embedding.embedding_profile_id = :embeddingProfileId
+                          AND embedding.embedding_dimensions = :embeddingDimensions
+                          AND EXISTS (
+                              SELECT 1
+                              FROM visible_entity_contributions source_evidence
+                              WHERE source_evidence.entity_id = relation.source_entity_id
+                          )
+                          AND EXISTS (
+                              SELECT 1
+                              FROM visible_entity_contributions target_evidence
+                              WHERE target_evidence.entity_id = relation.target_entity_id
+                          )
+                    ),
+                    scored_relations AS (
+                        SELECT
+                            id,
+                            source_entity_id,
+                            target_entity_id,
+                            relation_type,
+                            orientation,
+                            min(distance) AS distance
+                        FROM visible_embeddings
+                        WHERE distance <= :maximumCosineDistance
+                        GROUP BY
+                            id,
+                            source_entity_id,
+                            target_entity_id,
+                            relation_type,
+                            orientation
+                    )
                 SELECT
                     id AS relation_id,
                     source_entity_id,
@@ -726,7 +718,10 @@ public final class PostgresGraphProjectionStore
                 FROM scored_relations
                 ORDER BY distance, id
                 LIMIT :limit
-                """.formatted(VISIBLE_ENTITY_CONTRIBUTIONS, distanceExpression),
+                """.formatted(
+                        VISIBLE_ENTITY_CONTRIBUTIONS,
+                        VISIBLE_RELATION_CONTRIBUTIONS,
+                        distanceExpression),
                 vectorQuery.parameters(),
                 (resultSet, rowNumber) -> {
                     CanonicalRelation relation = mapCanonicalRelation(resultSet);

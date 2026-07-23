@@ -24,6 +24,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
@@ -96,17 +98,18 @@ class GraphIndexingProcessor {
                     claim.knowledgeAssetVersionId(),
                     contributions.entities().size(),
                     contributions.relations().size());
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            log.warn(
+                    "Graph indexing interrupted for job {}; leaving its lease to expire for retry",
+                    claim.jobId());
         } catch (Exception failure) {
             log.error(
                     "Graph indexing failed for Knowledge Asset version {} on attempt {}",
                     claim.knowledgeAssetVersionId(),
                     claim.attempt(),
                     failure);
-            coordinator.fail(
-                    claim.jobId(),
-                    properties.workerId(),
-                    "GRAPH_INDEX_FAILED",
-                    "Graph extraction or publication failed; retry is scheduled");
+            recordFailure(claim);
         }
     }
 
@@ -125,9 +128,9 @@ class GraphIndexingProcessor {
                         .toList();
                 try {
                     for (Future<ExtractedChunk> future : futures) {
-                        extracted.add(future.get());
+                        extracted.add(awaitWithLeaseHeartbeat(claim, future));
                     }
-                } catch (ExecutionException | InterruptedException failure) {
+                } catch (ExecutionException | InterruptedException | RuntimeException failure) {
                     futures.forEach(future -> future.cancel(true));
                     throw failure;
                 }
@@ -139,6 +142,36 @@ class GraphIndexingProcessor {
             throw interrupted;
         }
         return List.copyOf(extracted);
+    }
+
+    private ExtractedChunk awaitWithLeaseHeartbeat(
+            ClaimedGraphIndex claim, Future<ExtractedChunk> future)
+            throws ExecutionException, InterruptedException {
+        long heartbeatMillis =
+                Math.max(1, properties.leaseDuration().dividedBy(3).toMillis());
+        while (true) {
+            try {
+                return future.get(heartbeatMillis, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException timeout) {
+                coordinator.refreshLease(
+                        claim.jobId(), properties.workerId(), properties.leaseDuration());
+            }
+        }
+    }
+
+    private void recordFailure(ClaimedGraphIndex claim) {
+        try {
+            coordinator.fail(
+                    claim.jobId(),
+                    properties.workerId(),
+                    "GRAPH_INDEX_FAILED",
+                    "Graph extraction or publication failed; retry is scheduled");
+        } catch (IllegalStateException lostLease) {
+            log.warn(
+                    "Graph indexing job {} lost its lease before failure could be recorded; "
+                            + "the durable lease timeout will make it retryable",
+                    claim.jobId());
+        }
     }
 
     private static ExtractedChunk extract(

@@ -183,6 +183,62 @@ class PostgresGraphProjectionStoreIntegrationTests {
     }
 
     @Test
+    void vectorSearchRejectsAnArchivedAssetEvenWhenItsProjectionHeadRemains() {
+        AssetFixture archivedAsset = seedAsset(primaryOrganization, "archived-vector");
+        store.replaceRevision(
+                publicProjection(archivedAsset, 1, archivedAsset.chunkId()));
+        store.replaceRevisionEmbeddings(publicEmbeddings(archivedAsset, 1));
+        AuthorizedGraphScope archivedScope = scope(
+                primaryOrganization, Set.of(archivedAsset.knowledgeAssetId()));
+
+        assertEquals(
+                1,
+                store.searchEntitiesByVector(
+                                archivedScope,
+                                primaryOrganization.embeddingProfileId(),
+                                3,
+                                List.of(1.0f, 0.0f, 0.0f),
+                                0.1,
+                                10)
+                        .size());
+        assertEquals(
+                1,
+                store.searchRelationsByVector(
+                                archivedScope,
+                                primaryOrganization.embeddingProfileId(),
+                                3,
+                                List.of(1.0f, 0.0f, 0.0f),
+                                0.1,
+                                10)
+                        .size());
+
+        jdbc.update(
+                """
+                UPDATE knowledge_assets
+                SET archived_at = now(), current_version_id = NULL
+                WHERE id = ?
+                """,
+                archivedAsset.knowledgeAssetId());
+
+        assertTrue(store.searchEntitiesByVector(
+                        archivedScope,
+                        primaryOrganization.embeddingProfileId(),
+                        3,
+                        List.of(1.0f, 0.0f, 0.0f),
+                        0.1,
+                        10)
+                .isEmpty());
+        assertTrue(store.searchRelationsByVector(
+                        archivedScope,
+                        primaryOrganization.embeddingProfileId(),
+                        3,
+                        List.of(1.0f, 0.0f, 0.0f),
+                        0.1,
+                        10)
+                .isEmpty());
+    }
+
+    @Test
     void provisionsReplaceableVectorIndexStrategiesAndRejectsUnsupportedDimensions() {
         PostgresGraphVectorIndexManager indexManager =
                 new PostgresGraphVectorIndexManager(jdbc);

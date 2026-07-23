@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -116,6 +117,26 @@ class GraphIndexingCoordinatorTests {
 
         assertEquals(GraphIndexJobStatus.PENDING, job.getStatus());
         assertEquals(1, job.getAttemptCount());
+    }
+
+    @Test
+    void refreshesTheLeaseHeldByTheCurrentWorker() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+        Instant originalLeaseUntil = job.getLeaseUntil();
+
+        coordinator.refreshLease(job.getId(), "worker-a", Duration.ofHours(1));
+
+        assertTrue(job.getLeaseUntil().isAfter(originalLeaseUntil));
+    }
+
+    @Test
+    void rejectsLeaseRefreshFromAnotherWorker() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.refreshLease(
+                        job.getId(), "worker-b", Duration.ofHours(1)));
     }
 
     @Test

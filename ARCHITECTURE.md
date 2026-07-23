@@ -143,10 +143,13 @@ tuples.
 
 ## Current AI And Graph Behavior
 
-API directly wires the Spring AI OpenAI starter. The application can boot without
-a model key and uses local fallback behavior for prototype normalization/chat.
-There is no provider-neutral runtime AI gateway or persistent agent conversation
-model yet.
+API and worker resolve workload-specific gateway/model routes through the
+provider-neutral runtime AI gateway, whose current production adapter uses Spring
+AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
+embedding have independent configured routes; immutable Knowledge Asset embedding
+profiles still pin the provider/model used by derived indexes. The application can
+boot without a model key and uses local fallback behavior for prototype
+normalization/chat. A persistent agent conversation model does not exist yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
