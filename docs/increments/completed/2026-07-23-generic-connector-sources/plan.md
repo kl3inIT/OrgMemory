@@ -64,10 +64,22 @@ Gate: `pnpm lint`, `typecheck`, `build` in `web/`.
   revoked credential — is invisible, because it produces no batch to fail at.
 - [x] A connection detail page: objects retrievable and retired, last crawl, last
   change, and the recent attempts with their outcomes.
-- [ ] Consolidate into the specs, `ARCHITECTURE.md`, and docs/tests; move the
+- [x] Consolidate into the specs, `ARCHITECTURE.md`, and docs/tests; move the
   increment to `completed`.
 
-Gate: `.\gradlew.bat clean test`, then `pnpm lint`, `typecheck`, `build`.
+Gate: `.\gradlew.bat clean test` green, then `pnpm lint`, `typecheck`, `build`
+green. V23 through V25 additionally applied to the development database, which
+holds real rows — the condition under which V23 turned out to be broken.
+
+## What this increment got wrong
+
+V23 shipped in Phase 1 with its old check constraint dropped after the UPDATE
+that violates it. Every gate passed, because every suite migrates an empty schema
+and an UPDATE over no rows satisfies any constraint. It failed on the first
+database that had a row in it. `SourceObjectAclAuthorityMigrationTests` now
+migrates to the version before, seeds rows, and migrates the rest of the way;
+only that migration is covered this way, and the rest are still proved against an
+empty schema.
 
 ## Proof the separation worked
 
