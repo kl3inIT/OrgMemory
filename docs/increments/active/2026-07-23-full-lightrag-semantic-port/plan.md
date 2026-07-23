@@ -28,14 +28,14 @@
 
 ## PR 3 — Executable Parser And Chunker Strategies
 
-- [ ] Add parser, tokenizer, embedding and chunker ports only where they cross
+- [x] Add parser, tokenizer, embedding and chunker ports only where they cross
   an effect or provider boundary.
-- [ ] Add parser registry, routing, capability validation, passthrough, and
+- [x] Add parser registry, routing, capability validation, passthrough, and
   third-party registration.
-- [ ] Implement fixed-token, recursive-character, semantic-vector, and
+- [x] Implement fixed-token, recursive-character, semantic-vector, and
   paragraph-semantic chunking.
-- [ ] Persist per-document parser/chunker profile and positional provenance.
-- [ ] Run golden fixtures against the pinned upstream behavior; do not close a
+- [x] Persist per-document parser/chunker profile and positional provenance.
+- [x] Run golden fixtures against the pinned upstream behavior; do not close a
   row with interfaces alone.
 
 ## PR 4 — Multimodal Sidecar And VLM
