@@ -36,6 +36,7 @@ reviews:
     - "!contracts/openapi.json"
     - "!ai_workspace_dataset_vietnamese_participants.xlsx"
     - "!.codex/skills/openfga/**"
+    - "!docs/**"
 
   path_instructions:
     - path: "apps/api/src/main/java/**/*.java"
@@ -78,13 +79,6 @@ reviews:
         timeouts, concurrency cancellation, frozen lockfiles, and no secrets in
         pull-request workflows. Keep Dependabot comments beside pinned action
         SHAs so action updates remain discoverable.
-
-    - path: "docs/**/*.md"
-      instructions: |
-        Preserve the thin-map documentation harness. Current facts belong in
-        architecture, specs, and tests only after implementation; future intent
-        belongs in vision, roadmap, or one active increment. Flag duplicated or
-        contradictory sources of truth.
 
   tools:
     github-checks:

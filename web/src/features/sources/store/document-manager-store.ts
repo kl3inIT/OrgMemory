@@ -4,18 +4,14 @@ import { createJSONStorage, persist } from "zustand/middleware"
 import type { SourceStatusFilter } from "@/features/sources/source-status"
 
 type DocumentManagerState = {
-  search: string
   statusFilter: SourceStatusFilter
-  setSearch: (search: string) => void
   setStatusFilter: (statusFilter: SourceStatusFilter) => void
 }
 
 export const useDocumentManagerStore = create<DocumentManagerState>()(
   persist(
     (set) => ({
-      search: "",
       statusFilter: "ALL",
-      setSearch: (search) => set({ search }),
       setStatusFilter: (statusFilter) => set({ statusFilter }),
     }),
     {

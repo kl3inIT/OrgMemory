@@ -1,6 +1,13 @@
 :root {
   color-scheme: light;
 
+  --font-interface:
+    "Hanken Grotesk Variable", "Segoe UI Variable", "Segoe UI", ui-sans-serif,
+    system-ui, sans-serif;
+  --font-metadata:
+    ui-monospace, "Cascadia Code", "SFMono-Regular", consolas, "Liberation Mono",
+    monospace;
+
   /* Primitive palette. Components consume semantic aliases below. */
   --neutral-00: oklch(1 0 0);
   --neutral-25: oklch(0.985 0.003 260);
@@ -119,7 +126,7 @@
   --chart-4: oklch(0.61 0.18 305);
   --chart-5: oklch(0.61 0.19 25);
 
-  --sidebar: var(--surface-base);
+  --sidebar: var(--surface-canvas);
   --sidebar-foreground: var(--content-primary);
   --sidebar-primary: var(--action-primary);
   --sidebar-primary-foreground: var(--action-primary-foreground);

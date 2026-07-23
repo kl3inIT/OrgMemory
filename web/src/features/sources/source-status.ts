@@ -11,11 +11,15 @@ export const ACTIVE_SOURCE_STATUSES = new Set([
 
 export type SourceStatusFilter = "ALL" | "PROCESSING" | "READY" | "ATTENTION"
 
-export const SOURCE_STATUS_FILTERS: Array<{ label: string; value: SourceStatusFilter }> = [
-  { label: "All documents", value: "ALL" },
+export const SOURCE_STATUS_FILTERS: Array<{
+  label: string
+  compactLabel?: string
+  value: SourceStatusFilter
+}> = [
+  { label: "All documents", compactLabel: "All docs", value: "ALL" },
   { label: "Processing", value: "PROCESSING" },
   { label: "Ready", value: "READY" },
-  { label: "Needs attention", value: "ATTENTION" },
+  { label: "Needs attention", compactLabel: "Attention", value: "ATTENTION" },
 ]
 
 export function matchesSourceStatus(source: SourceResponse, filter: SourceStatusFilter) {
