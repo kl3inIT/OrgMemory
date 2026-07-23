@@ -47,11 +47,11 @@
 
 ## PR 5 — Extraction And Indexing Parity
 
-- [ ] Implement continuation/gleaning, configurable entity guidance, relation
+- [x] Implement continuation/gleaning, configurable entity guidance, relation
   weights, profiling, summarization, and permission-scoped merge.
-- [ ] Complete incremental canonicalization and entity/relation/chunk
+- [x] Complete incremental canonicalization and entity/relation/chunk
   embeddings.
-- [ ] Preserve atomic generation publication and bounded concurrency.
+- [x] Preserve atomic generation publication and bounded concurrency.
 
 ## PR 6 — Lifecycle, Recovery And Cache
 

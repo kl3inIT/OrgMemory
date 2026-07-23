@@ -84,6 +84,10 @@ orgmemory:
       maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
       maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
+      entity-type-guidance: ${ORGMEMORY_GRAPH_ENTITY_TYPES:PERSON,ORGANIZATION,TEAM,ROLE,POLICY,PROCESS,SYSTEM,PRODUCT,DOCUMENT,LOCATION,EVENT,CONCEPT,OTHER}
+      maximum-gleaning-rounds: ${ORGMEMORY_GRAPH_MAX_GLEANING_ROUNDS:1}
+      maximum-gleaning-input-tokens: ${ORGMEMORY_GRAPH_MAX_GLEANING_INPUT_TOKENS:24000}
+      maximum-section-context-tokens: ${ORGMEMORY_GRAPH_MAX_SECTION_CONTEXT_TOKENS:256}
   storage:
     object:
       endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}

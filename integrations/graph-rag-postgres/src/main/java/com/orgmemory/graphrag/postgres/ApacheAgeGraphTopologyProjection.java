@@ -242,13 +242,11 @@ public final class ApacheAgeGraphTopologyProjection {
     private void upsertEntity(String graphName, CanonicalEntity entity) {
         String cypher = """
                 MERGE (entity:base {entity_id: %s})
-                SET entity.normalized_name = %s,
-                    entity.entity_type = %s
+                SET entity.normalized_name = %s
                 RETURN entity
                 """.formatted(
                 cypherString(entity.id().toString()),
-                cypherString(entity.normalizedName()),
-                cypherString(entity.type()));
+                cypherString(entity.normalizedName()));
         executeCypher(graphName, cypher, "entity agtype");
     }
 
@@ -263,7 +261,8 @@ public final class ApacheAgeGraphTopologyProjection {
                     relation.knowledge_asset_id = %s,
                     relation.projection_generation = %d,
                     relation.relation_type = %s,
-                    relation.orientation = %s
+                    relation.orientation = %s,
+                    relation.weight = %s
                 RETURN relation
                 """.formatted(
                 cypherString(relation.sourceEntityId().toString()),
@@ -273,8 +272,9 @@ public final class ApacheAgeGraphTopologyProjection {
                 cypherString(contribution.provenance().sourceRevisionId().toString()),
                 cypherString(contribution.provenance().knowledgeAssetId().toString()),
                 contribution.provenance().projectionGeneration(),
-                cypherString(relation.type()),
-                cypherString(relation.orientation().name()));
+                cypherString(contribution.type()),
+                cypherString(relation.orientation().name()),
+                Double.toString(contribution.weight()));
         executeCypher(graphName, cypher, "relation agtype");
     }
 

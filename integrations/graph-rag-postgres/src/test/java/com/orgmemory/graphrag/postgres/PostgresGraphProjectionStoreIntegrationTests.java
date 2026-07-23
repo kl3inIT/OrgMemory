@@ -70,9 +70,21 @@ class PostgresGraphProjectionStoreIntegrationTests {
         Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")
+                .target("31")
                 .load()
                 .migrate();
         jdbc = new JdbcTemplate(dataSource);
+        OrganizationFixture migrationOrganization = seedOrganization("migration");
+        AssetFixture migrationAsset = seedAsset(migrationOrganization, "migration");
+        seedPreV32GraphProjection(migrationAsset);
+
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+        assertEvidenceScopedGraphMigration(migrationAsset);
+
         store = new PostgresGraphProjectionStore(
                 new NamedParameterJdbcTemplate(dataSource),
                 new DataSourceTransactionManager(dataSource),
@@ -99,6 +111,141 @@ class PostgresGraphProjectionStoreIntegrationTests {
         store.replaceRevisionEmbeddings(publicEmbeddings(otherTenantAsset, 1));
     }
 
+    private static void seedPreV32GraphProjection(AssetFixture fixture) {
+        UUID sourceEntityId = id("migration-source-entity");
+        UUID targetEntityId = id("migration-target-entity");
+        UUID relationId = id("migration-relation");
+        jdbc.update("""
+                INSERT INTO graph_entities (
+                    organization_id, id, normalized_name, entity_type,
+                    created_at, updated_at)
+                VALUES
+                    (?, ?, 'Legacy Source', 'SYSTEM', now(), now()),
+                    (?, ?, 'Legacy Target', 'POLICY', now(), now())
+                """,
+                fixture.organizationId(),
+                sourceEntityId,
+                fixture.organizationId(),
+                targetEntityId);
+        jdbc.update("""
+                INSERT INTO graph_relations (
+                    organization_id, id, source_entity_id, target_entity_id,
+                    relation_type, orientation, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'GOVERNS', 'DIRECTED', now(), now())
+                """,
+                fixture.organizationId(),
+                relationId,
+                sourceEntityId,
+                targetEntityId);
+        jdbc.update("""
+                INSERT INTO graph_projection_heads (
+                    organization_id, source_revision_id, knowledge_asset_id,
+                    projection_generation, published_at)
+                VALUES (?, ?, ?, 1, now())
+                """,
+                fixture.organizationId(),
+                fixture.sourceRevisionId(),
+                fixture.knowledgeAssetId());
+        jdbc.update("""
+                INSERT INTO graph_entity_contributions (
+                    organization_id, id, entity_id, knowledge_asset_id,
+                    source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
+                    projection_generation, description, extractor_provider,
+                    extractor_model, prompt_version, confidence, extracted_at)
+                VALUES
+                    (?, ?, ?, ?, ?, ?, ?, 1, 1, 'Legacy source evidence',
+                        'openai', 'gpt-5.6-sol', 'legacy-v1', 0.9, now()),
+                    (?, ?, ?, ?, ?, ?, ?, 1, 1, 'Legacy target evidence',
+                        'openai', 'gpt-5.6-sol', 'legacy-v1', 0.8, now())
+                """,
+                fixture.organizationId(),
+                id("migration-source-contribution"),
+                sourceEntityId,
+                fixture.knowledgeAssetId(),
+                fixture.sourceRevisionId(),
+                fixture.chunkId(),
+                fixture.aclSnapshotId(),
+                fixture.organizationId(),
+                id("migration-target-contribution"),
+                targetEntityId,
+                fixture.knowledgeAssetId(),
+                fixture.sourceRevisionId(),
+                fixture.chunkId(),
+                fixture.aclSnapshotId());
+        jdbc.update("""
+                INSERT INTO graph_relation_contributions (
+                    organization_id, id, relation_id, knowledge_asset_id,
+                    source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
+                    projection_generation, keywords, description, search_content,
+                    extractor_provider, extractor_model, prompt_version,
+                    confidence, extracted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ARRAY['governance'],
+                    'Legacy relationship evidence',
+                    'governance Legacy relationship evidence',
+                    'openai', 'gpt-5.6-sol', 'legacy-v1', 0.7, now())
+                """,
+                fixture.organizationId(),
+                id("migration-relation-contribution"),
+                relationId,
+                fixture.knowledgeAssetId(),
+                fixture.sourceRevisionId(),
+                fixture.chunkId(),
+                fixture.aclSnapshotId());
+    }
+
+    private static void assertEvidenceScopedGraphMigration(AssetFixture fixture) {
+        assertEquals(
+                List.of("POLICY", "SYSTEM"),
+                jdbc.queryForList(
+                        """
+                        SELECT entity_type
+                        FROM graph_entity_contributions
+                        WHERE organization_id = ?
+                        ORDER BY entity_type
+                        """,
+                        String.class,
+                        fixture.organizationId()));
+        assertEquals(
+                "GOVERNS",
+                jdbc.queryForObject(
+                        """
+                        SELECT relation_type
+                        FROM graph_relation_contributions
+                        WHERE organization_id = ?
+                        """,
+                        String.class,
+                        fixture.organizationId()));
+        assertEquals(
+                1.0,
+                jdbc.queryForObject(
+                        """
+                        SELECT weight
+                        FROM graph_relation_contributions
+                        WHERE organization_id = ?
+                        """,
+                        Double.class,
+                        fixture.organizationId()));
+        assertEquals(
+                3,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM (
+                            SELECT search_vector
+                            FROM graph_entity_contributions
+                            WHERE organization_id = ?
+                            UNION ALL
+                            SELECT search_vector
+                            FROM graph_relation_contributions
+                            WHERE organization_id = ?
+                        ) migrated
+                        WHERE search_vector IS NOT NULL
+                        """,
+                        Integer.class,
+                        fixture.organizationId(),
+                        fixture.organizationId()));
+    }
+
     @Test
     void filtersEvidenceBeforeTextVectorAndGraphAggregation() {
         AuthorizedEvidenceScope allowedOnly = scope(
@@ -116,6 +263,18 @@ class PostgresGraphProjectionStoreIntegrationTests {
                         .toList());
         assertTrue(store.searchEntities(allowedOnly, "nightfall", 10).isEmpty());
         assertTrue(store.searchRelations(allowedOnly, "acquisition", 10).isEmpty());
+        assertEquals(
+                List.of(PUBLIC_RELATION_ID),
+                store.searchRelations(allowedOnly, "builds", 10).stream()
+                        .map(result -> result.value().id())
+                        .toList());
+        assertEquals(
+                List.of("BUILDS"),
+                store.loadRelationContributions(
+                                allowedOnly, List.of(PUBLIC_RELATION_ID))
+                        .stream()
+                        .map(RelationContribution::type)
+                        .toList());
         assertEquals(
                 List.of(PUBLIC_RELATION_ID),
                 store.loadIncidentRelations(allowedOnly, List.of(SHARED_ENTITY_ID), 10)
@@ -136,6 +295,11 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 2L,
                 store.loadVisibleEntityDegrees(allPrimaryEvidence, List.of(SHARED_ENTITY_ID))
                         .get(SHARED_ENTITY_ID));
+        assertEquals(
+                1.0,
+                store.loadVisibleRelationWeights(
+                                allowedOnly, List.of(PUBLIC_RELATION_ID))
+                        .get(PUBLIC_RELATION_ID));
 
         assertEquals(
                 List.of(SHARED_ENTITY_ID),
@@ -333,7 +497,8 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
         EntityContribution conflictingIdentity = new EntityContribution(
                 id("conflicting-replacement"),
-                new CanonicalEntity(SHARED_ENTITY_ID, "Different identity", "PRODUCT"),
+                new CanonicalEntity(SHARED_ENTITY_ID, "Different identity"),
+                "PRODUCT",
                 "Must be rejected before replacing the current generation.",
                 provenance(
                         replacementAsset,
@@ -446,14 +611,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
             long generation,
             UUID chunkId) {
         CanonicalEntity shared = new CanonicalEntity(
-                SHARED_ENTITY_ID, "OrgMemory", "PRODUCT");
+                SHARED_ENTITY_ID, "OrgMemory");
         CanonicalEntity neighbor = new CanonicalEntity(
-                PUBLIC_NEIGHBOR_ID, "Secure Search", "CAPABILITY");
+                PUBLIC_NEIGHBOR_ID, "Secure Search");
         CanonicalRelation relation = new CanonicalRelation(
                 PUBLIC_RELATION_ID,
                 SHARED_ENTITY_ID,
                 PUBLIC_NEIGHBOR_ID,
-                "BUILDS",
                 RelationOrientation.DIRECTED);
         return new GraphRevisionContributions(
                 fixture.organizationId(),
@@ -490,14 +654,13 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     private static GraphRevisionContributions restrictedProjection(AssetFixture fixture) {
         CanonicalEntity shared = new CanonicalEntity(
-                SHARED_ENTITY_ID, "OrgMemory", "PRODUCT");
+                SHARED_ENTITY_ID, "OrgMemory");
         CanonicalEntity neighbor = new CanonicalEntity(
-                SECRET_NEIGHBOR_ID, "Project Nightfall", "INITIATIVE");
+                SECRET_NEIGHBOR_ID, "Project Nightfall");
         CanonicalRelation relation = new CanonicalRelation(
                 SECRET_RELATION_ID,
                 SHARED_ENTITY_ID,
                 SECRET_NEIGHBOR_ID,
-                "ACQUIRES",
                 RelationOrientation.DIRECTED);
         return new GraphRevisionContributions(
                 fixture.organizationId(),
@@ -585,8 +748,19 @@ class PostgresGraphProjectionStoreIntegrationTests {
         return new EntityContribution(
                 id(key),
                 entity,
+                entityType(entity),
                 description,
                 provenance(fixture, chunkId, generation, confidence));
+    }
+
+    private static String entityType(CanonicalEntity entity) {
+        if (SHARED_ENTITY_ID.equals(entity.id())) {
+            return "PRODUCT";
+        }
+        if (PUBLIC_NEIGHBOR_ID.equals(entity.id())) {
+            return "CAPABILITY";
+        }
+        return "INITIATIVE";
     }
 
     private static RelationContribution relationContribution(
@@ -601,8 +775,10 @@ class PostgresGraphProjectionStoreIntegrationTests {
         return new RelationContribution(
                 id(key),
                 relation,
+                PUBLIC_RELATION_ID.equals(relation.id()) ? "BUILDS" : "ACQUIRES",
                 keywords,
                 description,
+                1.0,
                 provenance(fixture, chunkId, generation, confidence));
     }
 

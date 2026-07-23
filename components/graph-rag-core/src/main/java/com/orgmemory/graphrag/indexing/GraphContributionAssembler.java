@@ -148,10 +148,8 @@ public final class GraphContributionAssembler {
     private static CanonicalEntity canonicalEntity(
             UUID organizationId, ExtractedEntity extracted) {
         String normalizedName = normalizeName(extracted.name());
-        String normalizedType = normalizeType(extracted.type());
-        UUID id = deterministicId(
-                organizationId + "|entity|" + normalizedType + "|" + normalizedName);
-        return new CanonicalEntity(id, normalizedName, normalizedType);
+        UUID id = deterministicId(organizationId + "|entity|" + normalizedName);
+        return new CanonicalEntity(id, normalizedName);
     }
 
     private static CanonicalRelation canonicalRelation(
@@ -159,7 +157,6 @@ public final class GraphContributionAssembler {
             UUID sourceEntityId,
             UUID targetEntityId,
             ExtractedRelation extracted) {
-        String normalizedType = normalizeType(extracted.type());
         UUID canonicalSource = sourceEntityId;
         UUID canonicalTarget = targetEntityId;
         if (extracted.orientation() == RelationOrientation.UNDIRECTED
@@ -171,8 +168,6 @@ public final class GraphContributionAssembler {
                 + "|relation|"
                 + extracted.orientation()
                 + "|"
-                + normalizedType
-                + "|"
                 + canonicalSource
                 + "|"
                 + canonicalTarget);
@@ -180,7 +175,6 @@ public final class GraphContributionAssembler {
                 id,
                 canonicalSource,
                 canonicalTarget,
-                normalizedType,
                 extracted.orientation());
     }
 
@@ -265,6 +259,7 @@ public final class GraphContributionAssembler {
                     profile.provider(),
                     profile.model(),
                     profile.promptVersion(),
+                    profile.fingerprint(),
                     confidence,
                     extractedAt);
         }
@@ -278,6 +273,7 @@ public final class GraphContributionAssembler {
 
         private final CanonicalEntity entity;
         private final LinkedHashSet<String> descriptions = new LinkedHashSet<>();
+        private final Map<String, Integer> typeCounts = new LinkedHashMap<>();
         private double confidence;
 
         private EntityAccumulator(CanonicalEntity entity) {
@@ -286,6 +282,7 @@ public final class GraphContributionAssembler {
 
         private void add(ExtractedEntity extracted) {
             descriptions.add(normalizeText(extracted.description()));
+            typeCounts.merge(normalizeType(extracted.type()), 1, Integer::sum);
             confidence = Math.max(confidence, extracted.confidence());
         }
 
@@ -293,6 +290,13 @@ public final class GraphContributionAssembler {
             return new EntityContribution(
                     context.contributionId("entity", entity.id()),
                     entity,
+                    typeCounts.entrySet().stream()
+                            .sorted(Map.Entry.<String, Integer>comparingByValue()
+                                    .reversed()
+                                    .thenComparing(Map.Entry.comparingByKey()))
+                            .map(Map.Entry::getKey)
+                            .findFirst()
+                            .orElseThrow(),
                     String.join("\n", descriptions.stream().sorted().toList()),
                     context.provenance(confidence));
         }
@@ -301,28 +305,40 @@ public final class GraphContributionAssembler {
     private static final class RelationAccumulator {
 
         private final CanonicalRelation relation;
+        private final Map<String, Integer> typeCounts = new LinkedHashMap<>();
         private final LinkedHashSet<String> descriptions = new LinkedHashSet<>();
         private final LinkedHashSet<String> keywords = new LinkedHashSet<>();
         private double confidence;
+        private double weight;
 
         private RelationAccumulator(CanonicalRelation relation) {
             this.relation = relation;
         }
 
         private void add(ExtractedRelation extracted) {
+            typeCounts.merge(normalizeType(extracted.type()), 1, Integer::sum);
             descriptions.add(normalizeText(extracted.description()));
             extracted.keywords().stream()
                     .map(GraphContributionAssembler::normalizeText)
                     .forEach(keywords::add);
             confidence = Math.max(confidence, extracted.confidence());
+            weight = Math.max(weight, extracted.weight());
         }
 
         private RelationContribution toContribution(EvidenceContext context) {
             return new RelationContribution(
                     context.contributionId("relation", relation.id()),
                     relation,
+                    typeCounts.entrySet().stream()
+                            .sorted(Map.Entry.<String, Integer>comparingByValue()
+                                    .reversed()
+                                    .thenComparing(Map.Entry.comparingByKey()))
+                            .map(Map.Entry::getKey)
+                            .findFirst()
+                            .orElseThrow(),
                     keywords.stream().sorted().toList(),
                     String.join("\n", descriptions.stream().sorted().toList()),
+                    weight,
                     context.provenance(confidence));
         }
     }

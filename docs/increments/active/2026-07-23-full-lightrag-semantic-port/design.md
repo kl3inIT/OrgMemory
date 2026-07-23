@@ -84,6 +84,52 @@ conformance gets exactly one retry. Provider failures remain failures.
 Runtime worker wiring and durable outcome/cache persistence stay in PR 11 and
 PR 6/8 respectively; PR 4 exposes no silent no-op runtime configuration.
 
+## PR 5 Extraction And Indexing Boundary
+
+The pinned LightRAG `v1.5.4` implementation is the semantic oracle for prompt
+shape, one continuation/gleaning pass, token guarding, longer-description
+replacement, relation support weights, and entity/relation embedding payloads.
+Persisted chunk headings flow into the prompt as token-bounded, untrusted
+section context and may disambiguate evidence but may not create facts.
+OrgMemory intentionally tightens two boundaries:
+
+- a malformed final relation whose endpoints cannot be resolved after all
+  extraction rounds fails the chunk instead of manufacturing an ungrounded
+  global entity;
+- descriptions are never merged into a globally visible canonical summary.
+
+`graph-rag-core` owns the extraction prompt, conversation plan, gleaning token
+guard, deterministic cross-round merge, final endpoint validation, canonical
+identity, relation-support aggregation, and permission-scoped summary input.
+The Spring AI adapter owns only model invocation, structured-response parsing,
+and provider usage metadata. The worker owns bounded virtual-thread execution,
+lease heartbeats, embedding effects, profiling telemetry, and the existing
+atomic publication transaction.
+
+Canonical entity and relation rows remain identity-only. An entity identity is
+its organization-scoped normalized name. A relation identity is its
+organization-scoped endpoint pair plus orientation; relation type does not
+split an otherwise identical edge. Every entity/relation type, description,
+keyword, confidence, support weight, ACL snapshot, and extractor identity stays
+on an evidence contribution. A query may merge or summarize only contributions
+already filtered by one `AuthorizedEvidenceScope`. A reusable summary cache is
+therefore keyed by canonical identity, authorization fingerprint, and a
+content-derived projection fingerprint; durable cache wiring belongs to PR 6.
+
+LightRAG's three vector surfaces remain distinct. OrgMemory's existing
+`knowledge_chunks` projection owns chunk vectors, while graph publication owns
+entity- and relation-contribution vectors. All three must use the immutable
+embedding profile pinned to the Knowledge Asset version. PR 5 makes the
+extraction/indexing semantics complete without folding chunk vectors into the
+graph-specific storage contract; PR 8 migrates all projection kinds to the
+shared namespace snapshot.
+
+This boundary was reviewed with Fable 5. The accepted decision is functional
+pure-Java semantics plus Spring AI effect adapters and a Spring Boot runtime
+shell. The rejected alternative was persisting one global LightRAG-style
+summary or weight on canonical graph identities, because that would combine
+text and support from differently authorized evidence.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the

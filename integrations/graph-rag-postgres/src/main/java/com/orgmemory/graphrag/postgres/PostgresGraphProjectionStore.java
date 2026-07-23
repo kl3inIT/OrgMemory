@@ -138,7 +138,7 @@ public final class PostgresGraphProjectionStore
             ec.id AS contribution_id,
             entity.id AS entity_id,
             entity.normalized_name,
-            entity.entity_type,
+            ec.entity_type,
             ec.description,
             ec.organization_id,
             ec.knowledge_asset_id,
@@ -150,6 +150,7 @@ public final class PostgresGraphProjectionStore
             ec.extractor_provider,
             ec.extractor_model,
             ec.prompt_version,
+            ec.extraction_profile_fingerprint,
             ec.confidence,
             ec.extracted_at
             """;
@@ -159,10 +160,11 @@ public final class PostgresGraphProjectionStore
             relation.id AS relation_id,
             relation.source_entity_id,
             relation.target_entity_id,
-            relation.relation_type,
             relation.orientation,
+            rc.relation_type,
             rc.keywords,
             rc.description,
+            rc.weight,
             rc.organization_id,
             rc.knowledge_asset_id,
             rc.source_revision_id,
@@ -173,6 +175,7 @@ public final class PostgresGraphProjectionStore
             rc.extractor_provider,
             rc.extractor_model,
             rc.prompt_version,
+            rc.extraction_profile_fingerprint,
             rc.confidence,
             rc.extracted_at
             """;
@@ -335,7 +338,6 @@ public final class PostgresGraphProjectionStore
                        relation.id AS relation_id,
                        relation.source_entity_id,
                        relation.target_entity_id,
-                       relation.relation_type,
                        relation.orientation
                 FROM visible_relation_contributions rc
                 JOIN graph_relations relation
@@ -419,7 +421,7 @@ public final class PostgresGraphProjectionStore
         jdbc.query("""
                 WITH %s,
                      %s
-                SELECT relation_id, sum(confidence) AS weight
+                SELECT relation_id, sum(weight) AS weight
                 FROM visible_relation_contributions
                 WHERE relation_id IN (:relationIds)
                 GROUP BY relation_id
@@ -452,7 +454,6 @@ public final class PostgresGraphProjectionStore
                      scored_entities AS (
                          SELECT entity.id,
                                 entity.normalized_name,
-                                entity.entity_type,
                                 max(
                                     greatest(
                                         ts_rank(entity.search_vector, search_query.value),
@@ -474,9 +475,9 @@ public final class PostgresGraphProjectionStore
                             OR ec.search_vector @@ search_query.value
                             OR lower(entity.normalized_name) LIKE
                                '%%' || lower(:query) || '%%'
-                         GROUP BY entity.id, entity.normalized_name, entity.entity_type
+                         GROUP BY entity.id, entity.normalized_name
                      )
-                SELECT id, normalized_name, entity_type, score
+                SELECT id, normalized_name, score
                 FROM scored_entities
                 ORDER BY score DESC, id
                 LIMIT :limit
@@ -485,8 +486,7 @@ public final class PostgresGraphProjectionStore
                 (resultSet, rowNumber) -> {
                     CanonicalEntity entity = new CanonicalEntity(
                             resultSet.getObject("id", UUID.class),
-                            resultSet.getString("normalized_name"),
-                            resultSet.getString("entity_type"));
+                            resultSet.getString("normalized_name"));
                     return new RankedItem<>(
                             entity.id().toString(),
                             entity,
@@ -517,16 +517,12 @@ public final class PostgresGraphProjectionStore
                          SELECT relation.id,
                                 relation.source_entity_id,
                                 relation.target_entity_id,
-                                relation.relation_type,
                                 relation.orientation,
                                 max(
-                                    greatest(
-                                        ts_rank(relation.search_vector, search_query.value),
-                                        ts_rank(rc.search_vector, search_query.value)
-                                    )
+                                    ts_rank(rc.search_vector, search_query.value)
                                     + CASE
-                                        WHEN lower(relation.relation_type) = lower(:query) THEN 2.0
-                                        WHEN lower(relation.relation_type) LIKE
+                                        WHEN lower(rc.relation_type) = lower(:query) THEN 2.0
+                                        WHEN lower(rc.relation_type) LIKE
                                              '%%' || lower(:query) || '%%' THEN 1.0
                                         ELSE 0.0
                                       END
@@ -536,22 +532,19 @@ public final class PostgresGraphProjectionStore
                            ON relation.organization_id = rc.organization_id
                           AND relation.id = rc.relation_id
                          CROSS JOIN search_query
-                         WHERE relation.search_vector @@ search_query.value
-                            OR rc.search_vector @@ search_query.value
-                            OR lower(relation.relation_type) LIKE
+                         WHERE rc.search_vector @@ search_query.value
+                            OR lower(rc.relation_type) LIKE
                                '%%' || lower(:query) || '%%'
                          GROUP BY
                              relation.id,
                              relation.source_entity_id,
                              relation.target_entity_id,
-                             relation.relation_type,
                              relation.orientation
                      )
                 SELECT
                     id AS relation_id,
                     source_entity_id,
                     target_entity_id,
-                    relation_type,
                     orientation,
                     score
                 FROM scored_relations
@@ -596,7 +589,6 @@ public final class PostgresGraphProjectionStore
                     SELECT
                         entity.id,
                         entity.normalized_name,
-                        entity.entity_type,
                         %s AS distance
                     FROM graph_entity_embeddings embedding
                     JOIN visible_entity_contributions contribution
@@ -614,13 +606,12 @@ public final class PostgresGraphProjectionStore
                     SELECT
                         id,
                         normalized_name,
-                        entity_type,
                         min(distance) AS distance
                     FROM visible_embeddings
                     WHERE distance <= :maximumCosineDistance
-                    GROUP BY id, normalized_name, entity_type
+                    GROUP BY id, normalized_name
                 )
-                SELECT id, normalized_name, entity_type, 1.0 - distance AS score
+                SELECT id, normalized_name, 1.0 - distance AS score
                 FROM scored_entities
                 ORDER BY distance, id
                 LIMIT :limit
@@ -629,8 +620,7 @@ public final class PostgresGraphProjectionStore
                 (resultSet, rowNumber) -> {
                     CanonicalEntity entity = new CanonicalEntity(
                             resultSet.getObject("id", UUID.class),
-                            resultSet.getString("normalized_name"),
-                            resultSet.getString("entity_type"));
+                            resultSet.getString("normalized_name"));
                     return new RankedItem<>(
                             entity.id().toString(),
                             entity,
@@ -668,7 +658,6 @@ public final class PostgresGraphProjectionStore
                             relation.id,
                             relation.source_entity_id,
                             relation.target_entity_id,
-                            relation.relation_type,
                             relation.orientation,
                             %s AS distance
                         FROM graph_relation_embeddings embedding
@@ -698,7 +687,6 @@ public final class PostgresGraphProjectionStore
                             id,
                             source_entity_id,
                             target_entity_id,
-                            relation_type,
                             orientation,
                             min(distance) AS distance
                         FROM visible_embeddings
@@ -707,14 +695,12 @@ public final class PostgresGraphProjectionStore
                             id,
                             source_entity_id,
                             target_entity_id,
-                            relation_type,
                             orientation
                     )
                 SELECT
                     id AS relation_id,
                     source_entity_id,
                     target_entity_id,
-                    relation_type,
                     orientation,
                     1.0 - distance AS score
                 FROM scored_relations
@@ -1163,7 +1149,7 @@ public final class PostgresGraphProjectionStore
                     .addValue("organizationId", contributions.organizationId())
                     .addValue("entityIds", expectedEntities.keySet());
             jdbc.query("""
-                    SELECT id, normalized_name, entity_type
+                    SELECT id, normalized_name
                     FROM graph_entities
                     WHERE organization_id = :organizationId
                       AND id IN (:entityIds)
@@ -1172,8 +1158,7 @@ public final class PostgresGraphProjectionStore
                     (RowCallbackHandler) resultSet -> {
                         CanonicalEntity actual = new CanonicalEntity(
                                 resultSet.getObject("id", UUID.class),
-                                resultSet.getString("normalized_name"),
-                                resultSet.getString("entity_type"));
+                                resultSet.getString("normalized_name"));
                         if (!actual.equals(expectedEntities.get(actual.id()))) {
                             throw new IllegalArgumentException(
                                     "entity id already resolves to another canonical identity: "
@@ -1200,7 +1185,6 @@ public final class PostgresGraphProjectionStore
                         id AS relation_id,
                         source_entity_id,
                         target_entity_id,
-                        relation_type,
                         orientation
                     FROM graph_relations
                     WHERE organization_id = :organizationId
@@ -1232,14 +1216,13 @@ public final class PostgresGraphProjectionStore
                 entities,
                 options.maxBatchRecords(),
                 options.maxBatchPayloadBytes(),
-                entity -> 128L + utf8Bytes(entity.normalizedName()) + utf8Bytes(entity.type()),
+                entity -> 128L + utf8Bytes(entity.normalizedName()),
                 batch -> {
                     MapSqlParameterSource[] parameters = batch.stream()
                             .map(entity -> new MapSqlParameterSource()
                                     .addValue("organizationId", contributions.organizationId())
                                     .addValue("id", entity.id())
                                     .addValue("normalizedName", entity.normalizedName())
-                                    .addValue("entityType", entity.type())
                                     .addValue("now", Timestamp.from(now)))
                             .toArray(MapSqlParameterSource[]::new);
                     jdbc.batchUpdate("""
@@ -1247,7 +1230,6 @@ public final class PostgresGraphProjectionStore
                                 organization_id,
                                 id,
                                 normalized_name,
-                                entity_type,
                                 created_at,
                                 updated_at
                             )
@@ -1255,7 +1237,6 @@ public final class PostgresGraphProjectionStore
                                 :organizationId,
                                 :id,
                                 :normalizedName,
-                                :entityType,
                                 :now,
                                 :now
                             )
@@ -1278,7 +1259,7 @@ public final class PostgresGraphProjectionStore
                 relations,
                 options.maxBatchRecords(),
                 options.maxBatchPayloadBytes(),
-                relation -> 192L + utf8Bytes(relation.type()),
+                relation -> 192L,
                 batch -> {
                     MapSqlParameterSource[] parameters = batch.stream()
                             .map(relation -> new MapSqlParameterSource()
@@ -1286,7 +1267,6 @@ public final class PostgresGraphProjectionStore
                                     .addValue("id", relation.id())
                                     .addValue("sourceEntityId", relation.sourceEntityId())
                                     .addValue("targetEntityId", relation.targetEntityId())
-                                    .addValue("relationType", relation.type())
                                     .addValue("orientation", relation.orientation().name())
                                     .addValue("now", Timestamp.from(now)))
                             .toArray(MapSqlParameterSource[]::new);
@@ -1296,7 +1276,6 @@ public final class PostgresGraphProjectionStore
                                 id,
                                 source_entity_id,
                                 target_entity_id,
-                                relation_type,
                                 orientation,
                                 created_at,
                                 updated_at
@@ -1306,7 +1285,6 @@ public final class PostgresGraphProjectionStore
                                 :id,
                                 :sourceEntityId,
                                 :targetEntityId,
-                                :relationType,
                                 :orientation,
                                 :now,
                                 :now
@@ -1331,14 +1309,16 @@ public final class PostgresGraphProjectionStore
                     acl_snapshot_id,
                     acl_generation,
                     projection_generation,
+                    entity_type,
                     description,
                     extractor_provider,
                     extractor_model,
                     prompt_version,
+                    extraction_profile_fingerprint,
                     confidence,
                     extracted_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         BoundedBatcher.forEachBatch(
                 contributions,
@@ -1346,7 +1326,7 @@ public final class PostgresGraphProjectionStore
                 options.maxBatchPayloadBytes(),
                 contribution -> 320L
                         + utf8Bytes(contribution.entity().normalizedName())
-                        + utf8Bytes(contribution.entity().type())
+                        + utf8Bytes(contribution.type())
                         + utf8Bytes(contribution.description()),
                 batch -> insertEntityContributionBatch(sql, batch));
     }
@@ -1363,8 +1343,9 @@ public final class PostgresGraphProjectionStore
                 statement.setObject(2, contribution.id(), Types.OTHER);
                 statement.setObject(3, contribution.entity().id(), Types.OTHER);
                 setProvenance(statement, 4, provenance);
-                statement.setString(10, contribution.description());
-                setExtractor(statement, 11, provenance);
+                statement.setString(10, contribution.type());
+                statement.setString(11, contribution.description());
+                setExtractor(statement, 12, provenance);
             }
 
             @Override
@@ -1389,23 +1370,26 @@ public final class PostgresGraphProjectionStore
                     acl_snapshot_id,
                     acl_generation,
                     projection_generation,
+                    relation_type,
                     keywords,
                     description,
+                    weight,
                     search_content,
                     extractor_provider,
                     extractor_model,
                     prompt_version,
+                    extraction_profile_fingerprint,
                     confidence,
                     extracted_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         BoundedBatcher.forEachBatch(
                 contributions,
                 options.maxBatchRecords(),
                 options.maxBatchPayloadBytes(),
                 contribution -> 448L
-                        + utf8Bytes(contribution.relation().type())
+                        + utf8Bytes(contribution.type())
                         + utf8Bytes(contribution.description())
                         + contribution.keywords().stream()
                                 .mapToLong(PostgresGraphProjectionStore::utf8Bytes)
@@ -1425,12 +1409,14 @@ public final class PostgresGraphProjectionStore
                 statement.setObject(2, contribution.id(), Types.OTHER);
                 statement.setObject(3, contribution.relation().id(), Types.OTHER);
                 setProvenance(statement, 4, provenance);
+                statement.setString(10, contribution.type());
                 Array keywords = statement.getConnection()
                         .createArrayOf("varchar", contribution.keywords().toArray(String[]::new));
-                statement.setArray(10, keywords);
-                statement.setString(11, contribution.description());
-                statement.setString(12, relationSearchContent(contribution));
-                setExtractor(statement, 13, provenance);
+                statement.setArray(11, keywords);
+                statement.setString(12, contribution.description());
+                statement.setDouble(13, contribution.weight());
+                statement.setString(14, relationSearchContent(contribution));
+                setExtractor(statement, 15, provenance);
             }
 
             @Override
@@ -1468,8 +1454,9 @@ public final class PostgresGraphProjectionStore
         statement.setString(startIndex, provenance.extractorProvider());
         statement.setString(startIndex + 1, provenance.extractorModel());
         statement.setString(startIndex + 2, provenance.promptVersion());
-        statement.setDouble(startIndex + 3, provenance.confidence());
-        statement.setTimestamp(startIndex + 4, Timestamp.from(provenance.extractedAt()));
+        statement.setString(startIndex + 3, provenance.extractionProfileFingerprint());
+        statement.setDouble(startIndex + 4, provenance.confidence());
+        statement.setTimestamp(startIndex + 5, Timestamp.from(provenance.extractedAt()));
     }
 
     private void removeOrphanIdentities(UUID organizationId) {
@@ -1510,11 +1497,11 @@ public final class PostgresGraphProjectionStore
             throws SQLException {
         CanonicalEntity entity = new CanonicalEntity(
                 resultSet.getObject("entity_id", UUID.class),
-                resultSet.getString("normalized_name"),
-                resultSet.getString("entity_type"));
+                resultSet.getString("normalized_name"));
         return new EntityContribution(
                 resultSet.getObject("contribution_id", UUID.class),
                 entity,
+                resultSet.getString("entity_type"),
                 resultSet.getString("description"),
                 mapProvenance(resultSet));
     }
@@ -1524,8 +1511,10 @@ public final class PostgresGraphProjectionStore
         return new RelationContribution(
                 resultSet.getObject("contribution_id", UUID.class),
                 mapCanonicalRelation(resultSet),
+                resultSet.getString("relation_type"),
                 readKeywords(resultSet.getArray("keywords")),
                 resultSet.getString("description"),
+                resultSet.getDouble("weight"),
                 mapProvenance(resultSet));
     }
 
@@ -1535,7 +1524,6 @@ public final class PostgresGraphProjectionStore
                 resultSet.getObject("relation_id", UUID.class),
                 resultSet.getObject("source_entity_id", UUID.class),
                 resultSet.getObject("target_entity_id", UUID.class),
-                resultSet.getString("relation_type"),
                 RelationOrientation.valueOf(resultSet.getString("orientation")));
     }
 
@@ -1569,6 +1557,7 @@ public final class PostgresGraphProjectionStore
                 resultSet.getString("extractor_provider"),
                 resultSet.getString("extractor_model"),
                 resultSet.getString("prompt_version"),
+                resultSet.getString("extraction_profile_fingerprint"),
                 resultSet.getDouble("confidence"),
                 resultSet.getTimestamp("extracted_at").toInstant());
     }
@@ -1680,7 +1669,8 @@ public final class PostgresGraphProjectionStore
 
     private static String relationSearchContent(RelationContribution contribution) {
         return java.util.stream.Stream.concat(
-                        java.util.stream.Stream.of(contribution.description()),
+                        java.util.stream.Stream.of(
+                                contribution.type(), contribution.description()),
                         contribution.keywords().stream())
                 .collect(Collectors.joining(" "));
     }
