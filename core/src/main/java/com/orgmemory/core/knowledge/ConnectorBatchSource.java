@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge;
 
-import java.util.List;
-
 /**
  * Produces the crawl batches a connector driver should ingest, in order. This is the seam
  * between a source-specific adapter and the governed use case: an adapter reads whatever its
@@ -10,8 +8,12 @@ import java.util.List;
  * know about a source is the {@link ConnectorSourceProfile} that adapter contributed.
  * Re-ingesting a batch is safe: the ledger is idempotent (content materializes once, ACL
  * generations reconcile deterministically), so a driver may re-offer a batch without harm.
+ *
+ * <p>A poll reports the connections it could not reach as well as the batches it produced. An
+ * adapter that swallowed those would leave the driver unable to tell "nothing changed" from
+ * "nothing could be read", which are the two answers an administrator most needs separated.
  */
 public interface ConnectorBatchSource {
 
-    List<ConnectorCrawlBatch> pendingBatches();
+    ConnectorPoll pendingBatches();
 }

@@ -20,6 +20,7 @@ import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
+import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
@@ -311,7 +312,7 @@ class SlackConnectorBatchSourceTests {
         expectChannels();
         expectMembers();
         expectHistory();
-        assertTrue(source.pendingBatches().getFirst().crawlComplete());
+        assertTrue(source.pendingBatches().batches().getFirst().crawlComplete());
         server.verify();
 
         // Ten minutes later the interval has not elapsed, so only access is re-read.
@@ -322,7 +323,7 @@ class SlackConnectorBatchSourceTests {
         expectChannels();
         expectMembers();
 
-        ConnectorCrawlBatch permissions = source.pendingBatches().getFirst();
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
 
         // No history or replies expectation was registered, so asking for either would have failed.
         server.verify();
@@ -357,7 +358,7 @@ class SlackConnectorBatchSourceTests {
         expectMembers();
 
         assertFalse(
-                source.pendingBatches().getFirst().crawlComplete(),
+                source.pendingBatches().batches().getFirst().crawlComplete(),
                 "its object list is our own record, so claiming completeness would confirm itself");
     }
 
@@ -381,7 +382,7 @@ class SlackConnectorBatchSourceTests {
         expectChannels();
         expectMembers();
 
-        ConnectorCrawlBatch permissions = source.pendingBatches().getFirst();
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
 
         assertEquals(
                 List.of("C-eng__1700000001.000100"),
@@ -408,7 +409,7 @@ class SlackConnectorBatchSourceTests {
         expectMembers();
         expectHistory();
 
-        ConnectorCrawlBatch again = source.pendingBatches().getFirst();
+        ConnectorCrawlBatch again = source.pendingBatches().batches().getFirst();
 
         server.verify();
         assertFalse(again.contents().isEmpty(), "content is re-read once its interval has elapsed");
@@ -419,19 +420,30 @@ class SlackConnectorBatchSourceTests {
         when(connections.enabledCrawls("slack")).thenReturn(List.of());
 
         assertTrue(
-                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches().isEmpty(),
+                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches().batches().isEmpty(),
                 "with nothing enabled the adapter contacts Slack not at all");
         server.verify();
     }
 
+    /**
+     * The connection produces nothing, and says so. Reporting the reason is the difference
+     * between a screen that can explain why a workspace is indexing nothing and one that shows
+     * an enabled crawl beside an empty ledger and leaves the operator guessing.
+     */
     @Test
-    void producesNothingForAConnectionWithNoStoredCredential() {
+    void reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently() {
         when(connections.enabledCrawls("slack")).thenReturn(List.of(configuration(List.of())));
         when(connections.resolveCredential(ORG, "slack", CONNECTION)).thenReturn(Optional.empty());
 
+        ConnectorPoll poll =
+                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches();
+
         assertTrue(
-                new SlackConnectorBatchSource(connections, directory, builder).pendingBatches().isEmpty(),
+                poll.batches().isEmpty(),
                 "an enabled connection nobody has given a token to is not yet a crawl");
+        assertEquals(1, poll.unavailable().size(), "but it is an attempt worth recording");
+        assertEquals(CONNECTION, poll.unavailable().getFirst().sourceConnectionKey());
+        assertEquals("no_credential", poll.unavailable().getFirst().errorCode());
         server.verify();
     }
 
@@ -446,7 +458,7 @@ class SlackConnectorBatchSourceTests {
         expectMembers();
         expectHistory();
 
-        assertEquals(SPACE, source.pendingBatches().getFirst().knowledgeSpaceId());
+        assertEquals(SPACE, source.pendingBatches().batches().getFirst().knowledgeSpaceId());
 
         // An administrator repoints the connection at another Space. Nothing restarts.
         setUpServerOnly();
@@ -461,7 +473,7 @@ class SlackConnectorBatchSourceTests {
 
         assertEquals(
                 movedTo,
-                source.pendingBatches().getFirst().knowledgeSpaceId(),
+                source.pendingBatches().batches().getFirst().knowledgeSpaceId(),
                 "the next poll reads the connection again rather than what it started with");
     }
 
@@ -476,11 +488,13 @@ class SlackConnectorBatchSourceTests {
         expectMembers();
         expectHistory();
 
-        List<ConnectorCrawlBatch> batches =
+        ConnectorPoll poll =
                 new SlackConnectorBatchSource(connections, directory, builder).pendingBatches();
 
-        assertEquals(1, batches.size(), "the workspace that could be crawled still was");
-        assertEquals(CONNECTION, batches.getFirst().sourceConnectionKey());
+        assertEquals(1, poll.batches().size(), "the workspace that could be crawled still was");
+        assertEquals(CONNECTION, poll.batches().getFirst().sourceConnectionKey());
+        assertEquals(1, poll.unavailable().size(), "and the one that could not is reported, not lost");
+        assertEquals("T-broken", poll.unavailable().getFirst().sourceConnectionKey());
     }
 
     @Test

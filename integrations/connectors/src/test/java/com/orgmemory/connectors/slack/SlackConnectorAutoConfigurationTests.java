@@ -36,7 +36,7 @@ class SlackConnectorAutoConfigurationTests {
     @Test
     void contributesNothingToCrawlUntilAConnectionIsEnabled() {
         runner.run((AssertableApplicationContext context) -> assertTrue(
-                context.getBean(ConnectorBatchSource.class).pendingBatches().isEmpty(),
+                context.getBean(ConnectorBatchSource.class).pendingBatches().batches().isEmpty(),
                 "classpath presence is not consent to crawl"));
     }
 

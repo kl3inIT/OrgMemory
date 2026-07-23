@@ -1,10 +1,12 @@
 package com.orgmemory.worker.connector;
 
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
 import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import java.util.List;
@@ -38,27 +40,34 @@ class ConnectorCrawlRunner {
     private final List<ConnectorBatchSource> sources;
     private final ConnectorIngestionService ingestion;
     private final ConnectorCrawlCheckpointService checkpoints;
+    private final ConnectorCrawlAttemptService attempts;
 
     ConnectorCrawlRunner(
             List<ConnectorBatchSource> sources,
             ConnectorIngestionService ingestion,
-            ConnectorCrawlCheckpointService checkpoints) {
+            ConnectorCrawlCheckpointService checkpoints,
+            ConnectorCrawlAttemptService attempts) {
         this.sources = List.copyOf(sources);
         this.ingestion = ingestion;
         this.checkpoints = checkpoints;
+        this.attempts = attempts;
     }
 
     void runPending() {
         for (ConnectorBatchSource source : sources) {
-            List<ConnectorCrawlBatch> pending;
+            ConnectorPoll poll;
             try {
-                pending = source.pendingBatches();
+                poll = source.pendingBatches();
             } catch (RuntimeException unavailable) {
                 log.warn("Connector source {} could not produce batches this poll: {}",
                         source.getClass().getSimpleName(), unavailable.getMessage());
                 continue;
             }
-            for (ConnectorCrawlBatch batch : pending) {
+            // Recorded before the batches are ingested, so a connection that could not be read
+            // is explained even if ingesting the others takes a while or the process dies part
+            // way through.
+            poll.unavailable().forEach(attempts::recordUnavailable);
+            for (ConnectorCrawlBatch batch : poll.batches()) {
                 if (checkpoints.isCompleted(batch)) {
                     continue;
                 }
@@ -68,24 +77,46 @@ class ConnectorCrawlRunner {
     }
 
     private void ingestWithRetry(ConnectorCrawlBatch batch) {
+        RuntimeException lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                report(batch, ingestion.ingest(batch));
+                ConnectorIngestionResult result = ingestion.ingest(batch);
+                report(batch, result);
+                attempts.recordSucceeded(batch, result);
                 checkpoints.complete(batch);
                 return;
             } catch (UnsupportedConnectorPayloadException | UnsupportedConnectorSourceException
                     | IllegalArgumentException permanent) {
                 log.warn("Connector batch {} was rejected and will not be retried: {}",
                         batch.crawlCursor(), permanent.getMessage());
+                attempts.recordRejected(batch, codeOf(permanent), permanent.getMessage());
                 checkpoints.complete(batch);
                 return;
             } catch (RuntimeException transientFailure) {
                 log.warn("Connector batch {} failed on attempt {} of {}: {}",
                         batch.crawlCursor(), attempt, MAX_ATTEMPTS, transientFailure.getMessage());
+                lastFailure = transientFailure;
             }
         }
         log.warn("Connector batch {} exhausted {} attempts and stays pending for the next poll",
                 batch.crawlCursor(), MAX_ATTEMPTS);
+        // One row per exhausted batch rather than one per attempt. The attempts inside a single
+        // poll fail the same way; what an administrator needs is that this batch is stuck and
+        // what it said, not the same sentence three times.
+        attempts.recordFailed(batch, codeOf(lastFailure), messageOf(lastFailure));
+    }
+
+    /**
+     * A machine-readable label for what went wrong. The exception's simple name is the honest
+     * answer: the driver sees an arbitrary runtime failure and inventing a taxonomy over it
+     * would be a guess, whereas the type is exactly what was thrown.
+     */
+    private static String codeOf(RuntimeException failure) {
+        return failure == null ? null : failure.getClass().getSimpleName();
+    }
+
+    private static String messageOf(RuntimeException failure) {
+        return failure == null ? null : failure.getMessage();
     }
 
     private static void report(ConnectorCrawlBatch batch, ConnectorIngestionResult result) {

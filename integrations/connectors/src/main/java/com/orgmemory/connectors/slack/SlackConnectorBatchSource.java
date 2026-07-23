@@ -2,6 +2,7 @@ package com.orgmemory.connectors.slack;
 
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
@@ -10,6 +11,7 @@ import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
+import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.shared.secret.SecretValue;
@@ -96,19 +98,42 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * workspace being rate limited, missing a token, or refusing a scope says nothing about the
      * others, and because nothing is checkpointed for a connection that produced no batch, the
      * only cost of skipping it is that it is tried again next time.
+     *
+     * <p>Skipped is reported, not swallowed. A missing token and a workspace with nothing new
+     * both produce no batch, and the driver has to be able to tell them apart — that difference
+     * is the whole answer to why a connection is indexing nothing.
      */
     @Override
-    public List<ConnectorCrawlBatch> pendingBatches() {
+    public ConnectorPoll pendingBatches() {
         List<ConnectorCrawlBatch> batches = new ArrayList<>();
+        List<ConnectorConnectionFailure> unavailable = new ArrayList<>();
         for (ConnectorCrawlConfiguration configuration : connections.enabledCrawls(SOURCE_SYSTEM)) {
             try {
                 batches.add(batchFor(configuration));
             } catch (SlackCredentialUnavailableException | SlackApiException failure) {
                 log.warn("Slack connection {} produced no batch this poll: {}",
                         configuration.sourceConnectionKey(), failure.getMessage());
+                unavailable.add(new ConnectorConnectionFailure(
+                        configuration.organizationId(),
+                        SOURCE_SYSTEM,
+                        configuration.sourceConnectionKey(),
+                        errorCodeOf(failure),
+                        failure.getMessage()));
             }
         }
-        return batches;
+        return new ConnectorPoll(batches, unavailable);
+    }
+
+    /**
+     * Slack's own word for what went wrong, where it gave one. A missing credential is this
+     * side's own condition rather than Slack's, so it gets a name in the same shape instead of
+     * borrowing one Slack would never send.
+     */
+    private static String errorCodeOf(RuntimeException failure) {
+        if (failure instanceof SlackApiException refused && refused.errorCode() != null) {
+            return refused.errorCode();
+        }
+        return failure instanceof SlackCredentialUnavailableException ? "no_credential" : "slack_error";
     }
 
     /**

@@ -32,4 +32,23 @@ interface SourceObjectRepository extends JpaRepository<SourceObject, UUID> {
             @Param("organizationId") UUID organizationId,
             @Param("sourceSystem") String sourceSystem,
             @Param("sourceConnectionKey") String sourceConnectionKey);
+
+    /**
+     * What a connection has in the ledger, counted rather than listed. An administration screen
+     * asks how much arrived, not which objects; a connection can hold tens of thousands, and
+     * loading them to call {@code size()} would be the same answer at a much worse price.
+     */
+    @Query("""
+            SELECT new com.orgmemory.core.knowledge.SourceObjectStatusCount(
+                source.status, count(source), max(source.updatedAt))
+            FROM SourceObject source
+            WHERE source.organizationId = :organizationId
+              AND source.sourceSystem = :sourceSystem
+              AND source.sourceConnectionKey = :sourceConnectionKey
+            GROUP BY source.status
+            """)
+    List<SourceObjectStatusCount> countByStatus(
+            @Param("organizationId") UUID organizationId,
+            @Param("sourceSystem") String sourceSystem,
+            @Param("sourceConnectionKey") String sourceConnectionKey);
 }

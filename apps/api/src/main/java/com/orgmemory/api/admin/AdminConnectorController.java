@@ -2,8 +2,11 @@ package com.orgmemory.api.admin;
 
 import com.orgmemory.connectors.slack.SlackCredentialProbe;
 import com.orgmemory.connectors.slack.SlackCredentialProbeResult;
+import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import com.orgmemory.core.knowledge.ConnectorSourceRegistry;
+import com.orgmemory.core.knowledge.SourceConnectionActivityService;
+import com.orgmemory.core.knowledge.SourceConnectionActivityView;
 import com.orgmemory.core.knowledge.SourceConnectionAdminService;
 import com.orgmemory.core.knowledge.SourceConnectionConfigurationView;
 import com.orgmemory.core.knowledge.SourceIdentityTrust;
@@ -53,6 +56,7 @@ class AdminConnectorController {
 
     private final AdminAccessGuard guard;
     private final SourceConnectionAdminService connections;
+    private final SourceConnectionActivityService activity;
     private final ConnectorSourceRegistry sources;
     private final SlackCredentialProbe slackProbe;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -60,10 +64,12 @@ class AdminConnectorController {
     AdminConnectorController(
             AdminAccessGuard guard,
             SourceConnectionAdminService connections,
+            SourceConnectionActivityService activity,
             ConnectorSourceRegistry sources,
             SlackCredentialProbe slackProbe) {
         this.guard = guard;
         this.connections = connections;
+        this.activity = activity;
         this.sources = sources;
         this.slackProbe = slackProbe;
     }
@@ -91,6 +97,48 @@ class AdminConnectorController {
             Instant credentialSetAt,
             UUID configuredByUserId,
             Instant configuredAt) {
+    }
+
+    /** What a connection has in the ledger and how its recent crawls went. */
+    record AdminConnectionActivityResponse(
+            String sourceSystem,
+            String sourceConnectionKey,
+            long objectsTotal,
+            long objectsActive,
+            long objectsArchived,
+            Instant lastObjectAt,
+            Instant lastCrawlAt,
+            List<AdminCrawlAttemptResponse> recentAttempts) {
+    }
+
+    /**
+     * One crawl attempt. {@code outcome} distinguishes a batch that reconciled, one refused for
+     * good, one that will be retried, and a connection that produced no batch at all — which is
+     * what a revoked credential looks like and is the reading an administrator needs most.
+     */
+    record AdminCrawlAttemptResponse(
+            String outcome,
+            int objectsMaterialized,
+            int objectsRotated,
+            int objectsRematerialized,
+            int objectsRetired,
+            int objectsFailed,
+            String errorCode,
+            String errorMessage,
+            Instant attemptedAt) {
+
+        static AdminCrawlAttemptResponse from(ConnectorCrawlAttemptView attempt) {
+            return new AdminCrawlAttemptResponse(
+                    attempt.outcome().name(),
+                    attempt.objectsMaterialized(),
+                    attempt.objectsRotated(),
+                    attempt.objectsRematerialized(),
+                    attempt.objectsRetired(),
+                    attempt.objectsFailed(),
+                    attempt.errorCode(),
+                    attempt.errorMessage(),
+                    attempt.attemptedAt());
+        }
     }
 
     record ConfigureConnectionRequest(
@@ -158,6 +206,33 @@ class AdminConnectorController {
         CurrentActor actor = guard.requireAdministrator(authentication);
         String system = requireInstalled(sourceSystem);
         return connections.list(actor.organizationId(), system).stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * What this connection has done, as against what it was told to do.
+     *
+     * <p>Separate from the configuration it sits beside because it answers the question a
+     * configuration screen cannot: a connection can read as enabled, pointed at a Space and
+     * holding a credential, and still be producing nothing. The attempts say why.
+     */
+    @GetMapping("/{sourceSystem}/{connectionKey}/activity")
+    @Operation(operationId = "getAdminConnectionActivity", summary = "Read what a connection has crawled and what went wrong")
+    AdminConnectionActivityResponse activity(
+            @PathVariable String sourceSystem,
+            @PathVariable String connectionKey,
+            Authentication authentication) {
+        CurrentActor actor = guard.requireAdministrator(authentication);
+        SourceConnectionActivityView view = activity.describe(
+                actor.organizationId(), requireInstalled(sourceSystem), connectionKey);
+        return new AdminConnectionActivityResponse(
+                view.sourceSystem(),
+                view.sourceConnectionKey(),
+                view.objectsTotal(),
+                view.objectsActive(),
+                view.objectsArchived(),
+                view.lastObjectAt(),
+                view.lastCheckpointAt(),
+                view.recentAttempts().stream().map(AdminCrawlAttemptResponse::from).toList());
     }
 
     @PutMapping("/{sourceSystem}/{connectionKey}")

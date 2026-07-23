@@ -9,11 +9,16 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
+import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
+import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
+import com.orgmemory.core.knowledge.ConnectorCrawlOutcome;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -58,6 +63,8 @@ class ConnectorCrawlCheckpointIntegrationTests {
     private static final UUID ACTOR = UUID.fromString("e3000000-0000-4000-8000-000000000004");
     private static final String STEADY_CONNECTION = "T-checkpoint-workspace";
     private static final String FLAKY_CONNECTION = "T-flaky-workspace";
+    private static final String UNREACHABLE_CONNECTION = "T-revoked-workspace";
+    private static final String RECORDED_CONNECTION = "T-recorded-workspace";
 
     @Container
     @ServiceConnection
@@ -85,6 +92,9 @@ class ConnectorCrawlCheckpointIntegrationTests {
     ConnectorCrawlCheckpointService checkpoints;
 
     @Autowired
+    ConnectorCrawlAttemptService attempts;
+
+    @Autowired
     JdbcTemplate jdbc;
 
     @Test
@@ -92,9 +102,10 @@ class ConnectorCrawlCheckpointIntegrationTests {
         seedOrganization();
         List<String> firstRun = new ArrayList<>();
         new ConnectorCrawlRunner(
-                        List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-1"), batch(STEADY_CONNECTION, "cursor-2"))),
+                        producing(batch(STEADY_CONNECTION, "cursor-1"), batch(STEADY_CONNECTION, "cursor-2")),
                         recordingIngestion(firstRun),
-                        checkpoints)
+                        checkpoints,
+                        attempts)
                 .runPending();
 
         assertEquals(List.of("cursor-1", "cursor-2"), firstRun, "a fresh connection ingests both");
@@ -106,9 +117,10 @@ class ConnectorCrawlCheckpointIntegrationTests {
         // A second driver over the same database is what a restart looks like from here.
         List<String> afterRestart = new ArrayList<>();
         new ConnectorCrawlRunner(
-                        List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-2"), batch(STEADY_CONNECTION, "cursor-3"))),
+                        producing(batch(STEADY_CONNECTION, "cursor-2"), batch(STEADY_CONNECTION, "cursor-3")),
                         recordingIngestion(afterRestart),
-                        checkpoints)
+                        checkpoints,
+                        attempts)
                 .runPending();
 
         assertEquals(List.of("cursor-3"), afterRestart, "the completed cursor is not replayed");
@@ -118,33 +130,91 @@ class ConnectorCrawlCheckpointIntegrationTests {
     @Test
     void aRejectedBatchIsCheckpointedPastRatherThanRetriedForever() {
         seedOrganization();
-        int[] attempts = {0};
+        int[] ingestAttempts = {0};
         ConnectorIngestionService poisoned = failingIngestion(
-                attempts,
+                ingestAttempts,
                 () -> new UnsupportedConnectorPayloadException("Unsupported connector content payload version"));
         ConnectorCrawlRunner driver = new ConnectorCrawlRunner(
-                List.of(() -> List.of(batch(STEADY_CONNECTION, "cursor-poison"))), poisoned, checkpoints);
+                producing(batch(STEADY_CONNECTION, "cursor-poison")), poisoned, checkpoints, attempts);
 
         driver.runPending();
-        assertEquals(1, attempts[0], "a rejection that will read the same next time is not retried");
+        assertEquals(1, ingestAttempts[0], "a rejection that will read the same next time is not retried");
 
         driver.runPending();
-        assertEquals(1, attempts[0], "and the next poll does not offer it again");
+        assertEquals(1, ingestAttempts[0], "and the next poll does not offer it again");
     }
 
     @Test
     void aTransientFailureIsRetriedAndStaysPending() {
         seedOrganization();
-        int[] attempts = {0};
+        int[] ingestAttempts = {0};
         ConnectorIngestionService flaky =
-                failingIngestion(attempts, () -> new IllegalStateException("database is unavailable"));
-        new ConnectorCrawlRunner(List.of(() -> List.of(batch(FLAKY_CONNECTION, "cursor-flaky"))), flaky, checkpoints)
+                failingIngestion(ingestAttempts, () -> new IllegalStateException("database is unavailable"));
+        new ConnectorCrawlRunner(
+                        producing(batch(FLAKY_CONNECTION, "cursor-flaky")), flaky, checkpoints, attempts)
                 .runPending();
 
-        assertEquals(3, attempts[0], "a transient failure is retried within the run");
+        assertEquals(3, ingestAttempts[0], "a transient failure is retried within the run");
         assertTrue(
                 checkpoints.lastCompletedCursor(ORG, "slack", FLAKY_CONNECTION).isEmpty(),
                 "nothing is checkpointed, so the next poll tries again");
+    }
+
+    /**
+     * The reading an administrator actually needs. A connection whose credential was revoked
+     * produces no batch at all, so nothing is checkpointed and nothing is ingested — and before
+     * this was recorded, that was indistinguishable on every screen from a workspace where
+     * nothing had been said lately.
+     */
+    @Test
+    void aConnectionThatProducedNoBatchIsRecordedWithItsReason() {
+        seedOrganization();
+        ConnectorConnectionFailure revoked = new ConnectorConnectionFailure(
+                ORG, "slack", UNREACHABLE_CONNECTION, "token_revoked", "Slack refused auth.test: token_revoked");
+        new ConnectorCrawlRunner(
+                        List.of(() -> new ConnectorPoll(List.of(), List.of(revoked))),
+                        recordingIngestion(new ArrayList<>()),
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        List<ConnectorCrawlAttemptView> recorded = attempts.recent(ORG, "slack", UNREACHABLE_CONNECTION);
+        assertEquals(1, recorded.size(), "the connection that produced nothing is still an attempt");
+        assertEquals(ConnectorCrawlOutcome.UNAVAILABLE, recorded.getFirst().outcome());
+        assertEquals("token_revoked", recorded.getFirst().errorCode(), "Slack's own word for it survives");
+        assertTrue(
+                checkpoints.lastCompletedCursor(ORG, "slack", UNREACHABLE_CONNECTION).isEmpty(),
+                "recording the failure does not mark anything as done");
+    }
+
+    /**
+     * A batch that reconciles leaves a row saying so, counts included, so a screen can tell a
+     * crawl that ran and found nothing from a crawl that never ran.
+     */
+    @Test
+    void aSuccessfulBatchIsRecordedWithWhatItChanged() {
+        seedOrganization();
+        ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
+        when(ingestion.ingest(any())).thenReturn(new ConnectorIngestionResult(
+                List.of("thread-a", "thread-b"), List.of(), List.of(), List.of("thread-c"), List.of()));
+        new ConnectorCrawlRunner(
+                        producing(batch(RECORDED_CONNECTION, "cursor-recorded")),
+                        ingestion,
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        ConnectorCrawlAttemptView recorded = attempts.recent(ORG, "slack", RECORDED_CONNECTION).getFirst();
+        assertEquals(ConnectorCrawlOutcome.SUCCEEDED, recorded.outcome());
+        assertEquals(2, recorded.objectsMaterialized());
+        assertEquals(1, recorded.objectsRetired());
+        assertTrue(recorded.changedSomething(), "two arrivals and a retirement is not a quiet poll");
+    }
+
+    /** A source producing exactly these batches and reporting no unreachable connection. */
+    private static List<com.orgmemory.core.knowledge.ConnectorBatchSource> producing(
+            ConnectorCrawlBatch... batches) {
+        return List.of(() -> ConnectorPoll.of(List.of(batches)));
     }
 
     /** Reports every batch as an empty success and records which cursors reached ingestion. */

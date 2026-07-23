@@ -166,6 +166,32 @@ class ConnectorAdminIntegrationTests {
                 "a refused source must not have created a connection row");
     }
 
+    /**
+     * The question a configuration screen cannot answer. A connection reads as enabled, holds a
+     * credential and points at a Space, and still indexes nothing because the token was revoked
+     * — which shows up here as an attempt and nowhere else.
+     */
+    @Test
+    void reportsWhyAConnectionThatLooksHealthyIsProducingNothing() throws Exception {
+        jdbc.update("""
+                INSERT INTO connector_crawl_attempts (
+                    id, organization_id, source_system, source_connection_key, crawl_cursor,
+                    outcome, objects_materialized, objects_rotated, objects_rematerialized,
+                    objects_retired, objects_failed, error_code, error_message, attempted_at,
+                    created_at, updated_at, version)
+                VALUES (gen_random_uuid(), ?, 'slack', ?, NULL, 'UNAVAILABLE', 0, 0, 0, 0, 0,
+                        'token_revoked', 'Slack refused auth.test: token_revoked',
+                        now(), now(), now(), 0)
+                """, ORG, WORKSPACE);
+
+        mvc.perform(get("/api/admin/connectors/slack/{key}/activity", WORKSPACE).with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.objectsTotal").value(0))
+                .andExpect(jsonPath("$.recentAttempts[0].outcome").value("UNAVAILABLE"))
+                .andExpect(jsonPath("$.recentAttempts[0].errorCode").value("token_revoked"))
+                .andExpect(jsonPath("$.lastCrawlAt").doesNotExist());
+    }
+
     @Test
     void aCrawlIsConfiguredAndReadBack() throws Exception {
         mvc.perform(put("/api/admin/connectors/slack/{key}", WORKSPACE)

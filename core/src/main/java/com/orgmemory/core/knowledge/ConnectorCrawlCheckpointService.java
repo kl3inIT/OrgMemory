@@ -45,6 +45,16 @@ public class ConnectorCrawlCheckpointService {
                 .map(ConnectorCrawlCheckpoint::getCrawlCursor);
     }
 
+    /** When a connection last got through a batch, for a screen reporting on it. */
+    @Transactional(readOnly = true)
+    public Optional<Instant> lastCompletedAt(
+            UUID organizationId, String sourceSystem, String sourceConnectionKey) {
+        return checkpoints
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
+                        organizationId, sourceSystem.trim(), sourceConnectionKey.trim())
+                .map(ConnectorCrawlCheckpoint::getCheckpointedAt);
+    }
+
     /**
      * Marks the batch dealt with. Called both when a batch ingested and when it was rejected
      * for a reason retrying cannot change: a poisoned batch that stays unrecorded would be
