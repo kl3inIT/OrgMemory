@@ -42,8 +42,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   `can_manage_members`.
 - `apps/worker`: leased background validation, parse/normalize, chunk/embed,
   fail-closed authorization projection, publication, external
-  permission-workbook validation, and a fixture-driven Slack connector staging
-  driver that ingests a versioned crawl-batch contract into the governed ledger.
+  permission-workbook validation, and a fixture-driven Slack connector driver
+  that ingests a versioned crawl-batch contract into the governed ledger,
+  checkpointing progress per connection so a restart resumes rather than replays.
 - `apps/mcp`: a reserved delivery module with no runtime implementation; the
   legacy scaffold was removed so secure agent tools can be rebuilt on the
   permission-aware retrieval contract.
@@ -70,7 +71,8 @@ ingestion jobs, source-shaped raw and normalized records, Knowledge Assets,
 versioned chunks and embedding profiles, sealed ACL snapshots and entries,
 mutable ACL heads, an observed external source-principal registry with verified
 principal mappings and sealed per-generation group membership, per-connection
-identity trust decisions, publication outbox evidence, and append-only permission
+identity trust decisions consumed by the crawl matcher, durable per-connection
+crawl checkpoints, publication outbox evidence, and append-only permission
 audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, future graph data, and OpenFGA relationships are
 rebuildable projections. A connector staging crawl (`SLACK` source type) produces

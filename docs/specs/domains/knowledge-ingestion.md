@@ -38,12 +38,15 @@ immutable/current source ACL, classification, tenant, and lifecycle state.
 External source principals observed from a source are recorded in a
 `source_principals` registry (observation grants nothing) and resolved to active
 internal users through a verified `source_principal_mappings` ledger. Automatic
-matching runs a trusted issuer/subject IdP join first, then an SSO-verified email
-join gated on the principal's own `sso_verified` flag as the crawl reported it;
-unverified tails use explicit self-claim or admin confirmation. An administrator
-can record a standing per-connection identity trust decision in
-`source_connections` (`UNTRUSTED` by default), but no ingestion path reads it yet;
-it is stored governance intent until the live adapter consumes it. Each
+matching runs a trusted issuer/subject IdP join first, then an email join that
+requires the address to be vouched for by either signal: the principal's own
+`sso_verified` flag as the crawl reported it, or an administrator's standing
+`SSO_VERIFIED` decision for the connection in `source_connections` (`UNTRUSTED` by
+default, and an absent row reads as untrusted). The connection decision widens the
+tier rather than gating it, so a source that confirms address ownership before an
+account can exist keeps matching without a manual step while a source that cannot
+vouch needs an administrator to. The bind records which signal carried it.
+Unverified tails use explicit self-claim or admin confirmation. Each
 mutation keeps at most one active mapping per principal and appends a permission
 audit event. A `SOURCE_USER` ACL entry grants only through an active mapping to
 the querying user; a `SOURCE_GROUP` entry grants only through that snapshot's
@@ -54,7 +57,8 @@ ceiling while upload sources keep the ingestion-current intersection.
 
 A fixture-driven Slack connector ingests a versioned staging contract
 (`contracts/connector/`: three separately-versioned payload kinds — content,
-identity, permissions — plus tombstones and an opaque crawl cursor) through a
+identity, permissions — plus tombstones, an opaque crawl cursor, and a
+completeness claim) through a
 dedicated `ConnectorIngestionService`. It observes and matches external
 principals, then seals ACL generations carrying `SOURCE_GROUP`/`SOURCE_USER`
 evidence and channel membership through package-private connector-aware
@@ -64,16 +68,30 @@ materializes content by reusing the `normalize` and `publish` use cases, with
 chunks embedded through a `ConnectorTextEmbedder` port; a membership re-crawl
 appends a sealed generation and rotates the head without re-materializing content,
 converging grants and revocations under the [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md)
-live-source ceiling; a tombstone retires the `SourceObject` from retrieval. Each
+live-source ceiling; a changed content revision materializes a new current source
+revision on the same object, which leaves the superseded text unanswerable because
+retrieval only serves chunks belonging to the current revision; a tombstone retires
+the `SourceObject` from retrieval, and a retired object refuses a later content
+revision rather than reviving itself. Each
 object reconciles in its own transaction so a per-object failure is isolated, and
 an unknown payload version fails closed. A worker `ConnectorBatchSource` port
 (fixture implementation now) feeds the driver.
 
+Deletions carry no tombstone of their own, so a batch may declare that its content
+and permission payloads enumerate everything the connection currently has; only
+such a batch retires the objects it omitted. The claim is absent-means-no. A
+complete crawl that enumerated nothing at all while the connection has indexed
+objects is refused and reported, because a revoked token is indistinguishable from
+an emptied workspace and retiring a whole connection is the more expensive
+mistake. Driver progress is checkpointed per connection in
+`connector_crawl_checkpoints` so a restart resumes rather than replays; a batch
+rejected for a reason retrying cannot change is checkpointed past, and any other
+failure is retried a bounded number of times and then left for the next poll.
+
 The current path does not yet implement the live Slack Web API adapter
-(credentials, rate limiting, checkpoint/resume, webhooks), connector content-edit
-re-materialization, Airbyte staging, OCR, malware and DLP integrations, entity and
-relationship extraction, graph publication, or hybrid retrieval extensions beyond
-the current secure FTS + pgvector path.
+(credentials, rate limiting, webhooks), Airbyte staging, OCR, malware and DLP
+integrations, entity and relationship extraction, graph publication, or hybrid
+retrieval extensions beyond the current secure FTS + pgvector path.
 
 ## Source Modules
 

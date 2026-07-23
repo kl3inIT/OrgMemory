@@ -6,15 +6,15 @@ leaves the build green.
 
 ## Phase A — Core (no credentials)
 
-- [ ] Consume `identity_trust`: resolve the batch's connection decision once per
+- [x] Consume `identity_trust`: resolve the batch's connection decision once per
   crawl and pass it into automatic matching, so `SSO_EMAIL_JOIN` fires when the
   source vouches for the principal *or* an administrator attested the connection.
-- [ ] Content-edit re-materialization: a changed content revision appends a new
+- [x] Content-edit re-materialization: a changed content revision appends a new
   source revision and re-runs normalize/publish instead of reporting
   `ROTATED_CONTENT_DEFERRED`.
-- [ ] Persisted per-connection crawl checkpoint replacing the in-process cursor
+- [x] Persisted per-connection crawl checkpoint replacing the in-process cursor
   set in `ConnectorCrawlRunner`; bounded per-batch retry.
-- [ ] Deletion detection: diff the indexed set against the crawled set and emit
+- [x] Deletion detection: diff the indexed set against the crawled set and emit
   tombstones, gated on the batch declaring a complete crawl.
 
 Gate: `.\gradlew.bat :core:test` and the worker connector slice, both proved
