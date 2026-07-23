@@ -8,7 +8,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Owns the PostgreSQL phases around connector evidence and source revisions. */
+/**
+ * Owns the PostgreSQL phases around connector evidence and source revisions.
+ *
+ * <p>Every method commits on its own ({@code REQUIRES_NEW}) because publication runs in its own
+ * transaction too and reads what these wrote. A caller that held them all inside one transaction
+ * would publish against rows nothing outside it can see yet.
+ *
+ * <p>Which source an object belongs to comes from the batch's profile rather than from a name
+ * compiled in here: this coordinator is the same for every adapter, and the ledger has no reason
+ * to know which one is calling.
+ */
 @Service
 class ConnectorSourceRevisionCoordinator {
 
@@ -34,9 +44,9 @@ class ConnectorSourceRevisionCoordinator {
             ConnectorContentItem content,
             String contentSha256) {
         return sources
-                .findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
                         ctx.organizationId(),
-                        SlackConnectorProfile.SOURCE_TYPE,
+                        ctx.profile().sourceSystem(),
                         ctx.sourceConnectionKey(),
                         content.externalObjectId())
                 .flatMap(source -> revisions
@@ -53,9 +63,9 @@ class ConnectorSourceRevisionCoordinator {
             UUID blobId,
             StoredObject stored) {
         SourceObject source = sources
-                .findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
                         ctx.organizationId(),
-                        SlackConnectorProfile.SOURCE_TYPE,
+                        ctx.profile().sourceSystem(),
                         ctx.sourceConnectionKey(),
                         content.externalObjectId())
                 .orElseGet(() -> sources.saveAndFlush(SourceObject.connectorObject(
@@ -64,15 +74,20 @@ class ConnectorSourceRevisionCoordinator {
                         ctx.knowledgeSpaceId(),
                         null,
                         ctx.actorUserId(),
-                        SlackConnectorProfile.SOURCE_TYPE,
+                        ctx.profile().aclAuthority(),
+                        ctx.profile().sourceSystem(),
                         ctx.sourceConnectionKey(),
                         content.externalObjectId(),
                         content.title(),
-                        SlackConnectorProfile.CLASSIFICATION,
-                        SlackConnectorProfile.DECLARED_ACCESS)));
+                        ctx.profile().classification(),
+                        ctx.profile().declaredAccess())));
+        // A retired object is not revived here. Whether content reappearing at the source should
+        // resurrect a tombstoned object, and under whose ACL, is a decision this path must not
+        // make silently, so it fails as an isolated per-object error instead.
         if (source.getStatus() != SourceObjectStatus.ACTIVE) {
             throw new KnowledgeIngestionConflictException(
-                    "An archived connector source cannot be resurrected implicitly");
+                    "a retired object cannot take a new content revision: "
+                            + content.externalObjectId());
         }
         var existing = revisions.findBySourceObjectIdAndContentSha256(
                 source.getId(), stored.sha256());
@@ -84,6 +99,8 @@ class ConnectorSourceRevisionCoordinator {
         EvidenceBlob blob = blobs.saveAndFlush(new EvidenceBlob(blobId, ctx.organizationId(), stored));
         SourceRevision revision = revisions.saveAndFlush(new SourceRevision(
                 revisionId, source, blob, content.title(), revisionNumber));
+        // Staged, not current: the object points at this revision as its latest, but retrieval
+        // keeps serving the previous one until the chunks exist. Publication advances it.
         source.stageRevision(revision.getId());
         sources.saveAndFlush(source);
         return draft(source, revision, false);

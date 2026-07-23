@@ -148,7 +148,8 @@ public class SourceQueryService {
         return new SourceSummary(
                 source.getId(),
                 source.getTitle(),
-                source.getSourceType(),
+                source.getSourceSystem(),
+                source.getAclAuthority(),
                 revision.getStatus(),
                 source.getClassification(),
                 revision.getFileName(),

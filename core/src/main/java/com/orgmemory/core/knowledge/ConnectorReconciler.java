@@ -20,15 +20,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
- * Reconciles one crawl object (or tombstone) into the governed ledger. PostgreSQL preparation,
- * OpenFGA publication, and PostgreSQL completion use separate committed phases. Identity
- * observation and matching resolve once per batch; every subsequent object reuses that
- * resolution to translate the permission payload into sealed ACL entries and membership.
+ * Reconciles one crawl object (or tombstone) into the governed ledger. Each entry point must
+ * run inside a caller-supplied transaction ({@link ConnectorIngestionService} wraps each
+ * object in its own so a per-object failure is isolated and atomic — the sealed ACL, head,
+ * and materialized content commit together or not at all). Identity observation and matching
+ * resolve once per batch here too; every subsequent object reuses that resolution to translate
+ * the permission payload into sealed ACL entries and membership.
  */
 @Service
 class ConnectorReconciler {
@@ -36,16 +39,20 @@ class ConnectorReconciler {
     private static final String PIPELINE_VERSION = "connector-pipeline-v1";
     private static final String NORMALIZER_VERSION = "connector-normalizer-v1";
     private static final String PARSER_VERSION = "connector-parser-v1";
+    private static final String CHUNKER_VERSION = "connector-chunker-v1";
     private static final String POLICY_VERSION = "connector-staging-v1";
     private static final Duration ACL_TTL = Duration.ofHours(23);
+    private static final long PROJECTION_GENERATION = 1L;
+    private static final int MAX_CHUNK_CHARS = 4000;
+    private static final int MAX_CHUNKS = 200;
 
     private final KnowledgeIngestionService ingestion;
     private final SourcePrincipalService principals;
     private final SourcePrincipalMappingService mappings;
     private final SourcePrincipalRepository principalRepository;
+    private final SourceConnectionRepository connections;
     private final KnowledgeAssetPublicationService publications;
     private final ObjectProvider<ConnectorTextEmbedder> embedder;
-    private final ObjectProvider<KnowledgeTextChunker> chunker;
     private final ObjectStoragePort objects;
     private final SourceObjectRepository sources;
     private final ConnectorSourceRevisionCoordinator revisionCoordinator;
@@ -56,9 +63,9 @@ class ConnectorReconciler {
             SourcePrincipalService principals,
             SourcePrincipalMappingService mappings,
             SourcePrincipalRepository principalRepository,
+            SourceConnectionRepository connections,
             KnowledgeAssetPublicationService publications,
             ObjectProvider<ConnectorTextEmbedder> embedder,
-            ObjectProvider<KnowledgeTextChunker> chunker,
             ObjectStoragePort objects,
             SourceObjectRepository sources,
             ConnectorSourceRevisionCoordinator revisionCoordinator,
@@ -67,9 +74,9 @@ class ConnectorReconciler {
         this.principals = principals;
         this.mappings = mappings;
         this.principalRepository = principalRepository;
+        this.connections = connections;
         this.publications = publications;
         this.embedder = embedder;
-        this.chunker = chunker;
         this.objects = objects;
         this.sources = sources;
         this.revisionCoordinator = revisionCoordinator;
@@ -83,6 +90,7 @@ class ConnectorReconciler {
      */
     ConnectorIdentityResolution resolveIdentities(ConnectorIngestionContext ctx, ConnectorCrawlBatch batch) {
         Instant now = Instant.now();
+        SourceIdentityTrust connectionTrust = identityTrustOf(ctx);
         Map<String, ResolvedPrincipal> byKey = new LinkedHashMap<>();
         for (ConnectorIdentityItem item : batch.identities()) {
             SourcePrincipal principal = principals.observe(new SourceIdentityObservation(
@@ -99,7 +107,7 @@ class ConnectorReconciler {
                     now));
             byKey.put(item.externalKey(), new ResolvedPrincipal(principal.getId(), principal.getKind()));
             if (item.kind() == SourcePrincipalKind.SOURCE_USER) {
-                mappings.autoMap(principal, item.idpIssuer(), item.idpSubject());
+                mappings.autoMap(principal, item.idpIssuer(), item.idpSubject(), connectionTrust);
             }
         }
         Map<String, List<UUID>> membersByGroup = new LinkedHashMap<>();
@@ -125,8 +133,24 @@ class ConnectorReconciler {
     }
 
     /**
-     * Reconciles one content object. New or changed content creates a new immutable source
-     * revision and Knowledge Asset version; unchanged content rotates only the ACL generation.
+     * The administrator's standing decision for this connection, resolved once per batch rather
+     * than per principal. A connection only has a row here once somebody has ruled on it, so an
+     * absent row is the untrusted default: silence is not an attestation.
+     */
+    private SourceIdentityTrust identityTrustOf(ConnectorIngestionContext ctx) {
+        return connections
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
+                        ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey())
+                .map(SourceConnection::getIdentityTrust)
+                .orElse(SourceIdentityTrust.UNTRUSTED);
+    }
+
+    /**
+     * Reconciles one content object. A new object is materialized (raw + sealed ACL + normalize
+     * + chunks + publish). An existing object whose content revision is unchanged converges its
+     * ACL to a new sealed generation via head rotation. A changed content revision materializes
+     * a new source revision on the same object, which is what makes an edited message stop
+     * being served from the text the crawl first saw.
      */
     ObjectOutcome reconcile(
             ConnectorIngestionContext ctx,
@@ -136,29 +160,48 @@ class ConnectorReconciler {
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
         var head = ingestion.findConnectorHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
-        boolean contentChanged = head.isEmpty()
-                || !content.contentRevision().equals(head.get().currentContentRevision());
-        if (contentChanged) {
-            RawSourceRef raw = ingestion.registerConnectorSource(
-                    registerCommand(
-                            ctx,
-                            content,
-                            plan.entries(),
-                            Instant.now().plus(ACL_TTL),
-                            head.map(ConnectorHeadView::currentSnapshotId).orElse(null)),
-                    plan.membership());
-            NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
-                    ctx.organizationId(),
-                    raw.rawSourceObjectId(),
-                    NORMALIZER_VERSION,
-                    content.title(),
-                    content.body(),
-                    "und"));
-            materializeContent(ctx, content, raw, normalized);
+        if (head.isEmpty()) {
+            // The source object itself is created by the revision coordinator, in the committed
+            // transaction that also stages the revision — publication runs in its own and has to
+            // be able to read both.
+            materializeRevision(ctx, content, UUID.randomUUID(), plan, null);
             audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
             return ObjectOutcome.MATERIALIZED;
         }
-        return rotate(ctx, head.get(), plan, content.externalObjectId());
+        ConnectorHeadView current = head.get();
+        if (content.contentRevision().equals(current.currentContentRevision())) {
+            return rotate(ctx, current, plan, content.externalObjectId());
+        }
+        return rematerialize(ctx, current, content, plan);
+    }
+
+    /**
+     * Materializes a changed content revision onto the object that already exists. Registering
+     * the new revision appends the sealed ACL generation and advances the head to it in one
+     * step, so the edited text and the permissions that came with it commit together. The new
+     * source revision becomes current, and because retrieval only serves chunks belonging to
+     * the current revision, the superseded text leaves the index the moment this commits.
+     *
+     * <p>A retired object is not revived here. Whether content reappearing at the source should
+     * resurrect a tombstoned object, and under whose ACL, is a decision this path should not
+     * make silently, so the revision coordinator refuses it as an isolated per-object error.
+     */
+    private ObjectOutcome rematerialize(
+            ConnectorIngestionContext ctx,
+            ConnectorHeadView current,
+            ConnectorContentItem content,
+            AclPlan plan) {
+        SourceObject source = sources
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+                        ctx.organizationId(),
+                        ctx.profile().sourceSystem(),
+                        ctx.sourceConnectionKey(),
+                        content.externalObjectId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "an ACL head exists without its source object: " + content.externalObjectId()));
+        materializeRevision(ctx, content, source.getId(), plan, current.currentSnapshotId());
+        audit(ctx, "CONNECTOR_REMATERIALIZE", content.externalObjectId(), "CONTENT_REVISION_MATERIALIZED");
+        return ObjectOutcome.REMATERIALIZED;
     }
 
     /**
@@ -231,11 +274,25 @@ class ConnectorReconciler {
     private record AclPlan(List<SourceAclEntryCommand> entries, List<SealedGroupMembership> membership) {
     }
 
+    /**
+     * The connection's active objects that a complete crawl did not mention — the ones deleted
+     * at the source since the last crawl. The caller retires them; this only reports the diff,
+     * and only its caller knows whether the crawl was complete enough to be trusted with it.
+     */
+    List<String> vanishedSince(ConnectorIngestionContext ctx, Set<String> crawledObjectIds) {
+        return sources
+                .findActiveExternalObjectIds(
+                        ctx.organizationId(), ctx.profile().sourceSystem(), ctx.sourceConnectionKey())
+                .stream()
+                .filter(externalObjectId -> !crawledObjectIds.contains(externalObjectId))
+                .toList();
+    }
+
     /** Retires a tombstoned object from retrieval. Returns whether an active object was retired. */
     boolean retire(ConnectorIngestionContext ctx, ConnectorTombstone tombstone) {
-        var existing = sources.findByOrganizationIdAndSourceTypeAndSourceConnectionKeyAndExternalObjectId(
+        var existing = sources.findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
                 ctx.organizationId(),
-                SlackConnectorProfile.SOURCE_TYPE,
+                ctx.profile().sourceSystem(),
                 ctx.sourceConnectionKey(),
                 tombstone.externalObjectId());
         if (existing.isEmpty() || existing.get().getStatus() != SourceObjectStatus.ACTIVE) {
@@ -248,30 +305,49 @@ class ConnectorReconciler {
         return true;
     }
 
-    private void materializeContent(
+    /**
+     * Registers the crawled revision, normalizes it, and materializes it as the current
+     * revision of {@code source}. The same path serves a first crawl and a later edit; the only
+     * difference is whether an ACL head already exists to compare against, which the caller
+     * supplies as {@code expectedCurrentSnapshotId}.
+     */
+    private void materializeRevision(
             ConnectorIngestionContext ctx,
             ConnectorContentItem content,
-            RawSourceRef raw,
-            NormalizedRecordRef normalized) {
+            UUID sourceId,
+            AclPlan plan,
+            UUID expectedCurrentSnapshotId) {
+        RawSourceRef raw = ingestion.registerConnectorSource(
+                registerCommand(
+                        ctx, content, plan.entries(), Instant.now().plus(ACL_TTL), expectedCurrentSnapshotId),
+                plan.membership());
+        NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
+                ctx.organizationId(),
+                raw.rawSourceObjectId(),
+                NORMALIZER_VERSION,
+                content.title(),
+                content.body(),
+                "und"));
         byte[] bytes = content.body().getBytes(StandardCharsets.UTF_8);
         String contentSha256 = sha256(content.body());
-        ConnectorRevisionDraft draft = revisionCoordinator
-                .findExisting(ctx, content, contentSha256)
-                .orElse(null);
         ObjectKey key = new ObjectKey("organizations/" + ctx.organizationId()
                 + "/connector/" + ctx.sourceSystem()
                 + "/" + ctx.sourceConnectionKey()
                 + "/" + content.externalObjectId()
                 + "/" + content.contentRevision());
+
+        // A retry that already stored this exact text reuses the revision it made rather than
+        // storing a second copy of it under a new ordinal.
+        ConnectorRevisionDraft draft = revisionCoordinator
+                .findExisting(ctx, content, contentSha256)
+                .orElse(null);
         if (draft == null) {
-            UUID sourceId = UUID.randomUUID();
             UUID revisionId = UUID.randomUUID();
-            UUID blobId = UUID.randomUUID();
             StoredObject stored = objects.put(
                     new ObjectWriteRequest(
                             key,
                             bytes.length,
-                            SlackConnectorProfile.MEDIA_TYPE,
+                            ctx.profile().mediaType(),
                             Map.of(
                                     "organization-id", ctx.organizationId().toString(),
                                     "source-object-id", sourceId.toString(),
@@ -279,7 +355,7 @@ class ConnectorReconciler {
                     new ByteArrayInputStream(bytes));
             try {
                 draft = revisionCoordinator.stage(
-                        ctx, content, sourceId, revisionId, blobId, stored);
+                        ctx, content, sourceId, revisionId, UUID.randomUUID(), stored);
             } catch (RuntimeException failure) {
                 try {
                     objects.delete(key);
@@ -290,32 +366,45 @@ class ConnectorReconciler {
             }
         }
 
-        KnowledgeTextChunker resolvedChunker = requireChunker();
-        List<KnowledgeTextChunk> chunks = resolvedChunker.split(List.of(
-                new KnowledgeTextDocument(content.body(), null, null)));
-        List<String> texts = chunks.stream().map(KnowledgeTextChunk::content).toList();
-        ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
-        List<KnowledgeChunkDraft> chunkDrafts = KnowledgeChunkDraftAssembler.assemble(
-                chunks, embedding.vectors(), embedding.profile().dimensions());
-        KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
-                ctx.organizationId(),
-                ctx.knowledgeSpaceId(),
-                draft.sourceObjectId(),
-                draft.sourceRevisionId(),
-                normalized.normalizedRecordId(),
-                ctx.actorUserId(),
-                embedding.profile(),
-                PIPELINE_VERSION,
-                chunkDrafts));
-        revisionCoordinator.complete(
-                draft,
-                PIPELINE_VERSION,
-                PARSER_VERSION,
-                resolvedChunker.version(),
-                embedding.profile(),
-                raw,
-                normalized,
-                asset);
+        try {
+            List<String> texts = chunk(content.body());
+            ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
+            List<float[]> vectors = embedding.vectors();
+            if (vectors.size() != texts.size()) {
+                throw new IllegalStateException("connector embedding count did not match the chunk count");
+            }
+            List<KnowledgeChunkDraft> drafts = new ArrayList<>(texts.size());
+            for (int index = 0; index < texts.size(); index++) {
+                drafts.add(new KnowledgeChunkDraft(
+                        index, texts.get(index), sha256(texts.get(index)), null, null, null, null, vectors.get(index)));
+            }
+            KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
+                    ctx.organizationId(),
+                    ctx.knowledgeSpaceId(),
+                    draft.sourceObjectId(),
+                    draft.sourceRevisionId(),
+                    normalized.normalizedRecordId(),
+                    ctx.actorUserId(),
+                    embedding.profile(),
+                    PIPELINE_VERSION,
+                    drafts));
+            revisionCoordinator.complete(
+                    draft,
+                    PIPELINE_VERSION,
+                    PARSER_VERSION,
+                    CHUNKER_VERSION,
+                    embedding.profile(),
+                    raw,
+                    normalized,
+                    asset);
+        } catch (RuntimeException failure) {
+            try {
+                objects.delete(key);
+            } catch (ObjectStorageException cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
+        }
     }
 
     private RegisterRawSourceCommand registerCommand(
@@ -331,13 +420,13 @@ class ConnectorReconciler {
                 ctx.sourceConnectionKey(),
                 content.externalObjectId(),
                 content.contentRevision(),
-                SlackConnectorProfile.OBJECT_TYPE,
+                ctx.profile().objectType(),
                 content.title(),
                 content.body(),
                 null,
                 null,
-                SlackConnectorProfile.CLASSIFICATION,
-                SlackConnectorProfile.DECLARED_ACCESS,
+                ctx.profile().classification(),
+                ctx.profile().declaredAccess(),
                 AclCaptureStatus.COMPLETE,
                 AccessGate.DENY,
                 validUntil,
@@ -374,14 +463,6 @@ class ConnectorReconciler {
         return resolved;
     }
 
-    private KnowledgeTextChunker requireChunker() {
-        KnowledgeTextChunker resolved = chunker.getIfAvailable();
-        if (resolved == null) {
-            throw new IllegalStateException("knowledge text chunker is not configured");
-        }
-        return resolved;
-    }
-
     private void audit(
             ConnectorIngestionContext ctx, String operation, String externalObjectId, String reasonCode) {
         audit.record(new PermissionAuditCommand(
@@ -401,6 +482,26 @@ class ConnectorReconciler {
         return permission == null ? List.of() : permission.grants();
     }
 
+    private static List<String> chunk(String body) {
+        List<String> chunks = new ArrayList<>();
+        for (String paragraph : body.strip().split("\\n\\s*\\n")) {
+            String trimmed = paragraph.strip();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            for (int start = 0; start < trimmed.length(); start += MAX_CHUNK_CHARS) {
+                chunks.add(trimmed.substring(start, Math.min(trimmed.length(), start + MAX_CHUNK_CHARS)));
+                if (chunks.size() >= MAX_CHUNKS) {
+                    return List.copyOf(chunks);
+                }
+            }
+        }
+        if (chunks.isEmpty()) {
+            chunks.add(body.strip());
+        }
+        return List.copyOf(chunks);
+    }
+
     private static String sha256(String value) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -413,6 +514,7 @@ class ConnectorReconciler {
 
     enum ObjectOutcome {
         MATERIALIZED,
-        ROTATED
+        ROTATED,
+        REMATERIALIZED
     }
 }

@@ -48,3 +48,16 @@ export function formatTimestamp(value?: string) {
   const parsed = new Date(value)
   return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleString()
 }
+
+/**
+ * The same instant without the seconds, for a table cell. Nobody reads a row to learn that a
+ * credential was stored at 31 seconds past, and the full form is wide enough to push a table
+ * into scrolling sideways, which costs the reader the columns that did matter.
+ */
+export function formatDay(value?: string) {
+  if (!value) return "—"
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime())
+    ? "—"
+    : parsed.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+}

@@ -11,6 +11,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.knowledge.ConnectorReconciler.ObjectOutcome;
+import com.orgmemory.core.permission.DeclaredAccessScope;
+import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
@@ -39,6 +41,9 @@ class ConnectorIngestionServiceTests {
     @BeforeEach
     void setUp() {
         reconciler = mock(ConnectorReconciler.class);
+        ConnectorSourceRegistry sources = new ConnectorSourceRegistry(List.of(new ConnectorSourceProfile(
+                "slack", "Slack", KnowledgeClassification.INTERNAL,
+                DeclaredAccessScope.ALL_EMPLOYEES, "message", "text/plain")));
         organizations = mock(OrganizationRepository.class);
         users = mock(AppUserRepository.class);
         knowledgeSpaces = mock(KnowledgeSpaceService.class);
@@ -46,7 +51,7 @@ class ConnectorIngestionServiceTests {
         when(transactionManager.getTransaction(any(TransactionDefinition.class)))
                 .thenReturn(new SimpleTransactionStatus());
         service = new ConnectorIngestionService(
-                reconciler, organizations, users, knowledgeSpaces, transactionManager);
+                reconciler, sources, organizations, users, knowledgeSpaces, transactionManager);
     }
 
     @Test
@@ -67,7 +72,7 @@ class ConnectorIngestionServiceTests {
         ConnectorCrawlBatch batch = batch(
                 ConnectorContractVersions.supported(), "teams", List.of(content("C1")), List.of());
 
-        assertThrows(IllegalArgumentException.class, () -> service.ingest(batch));
+        assertThrows(UnsupportedConnectorSourceException.class, () -> service.ingest(batch));
         verify(reconciler, never()).resolveIdentities(any(), any());
     }
 

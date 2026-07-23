@@ -7,7 +7,8 @@ import java.util.UUID;
 public record SourceSummary(
         UUID id,
         String title,
-        SourceType sourceType,
+        String sourceSystem,
+        AclAuthority aclAuthority,
         SourceRevisionStatus status,
         KnowledgeClassification classification,
         String fileName,

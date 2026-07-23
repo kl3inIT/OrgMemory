@@ -5,15 +5,30 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
+import com.orgmemory.core.authorization.RelationshipTuplePage;
+import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
+import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import java.util.Objects;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * A fail-closed stand-in for every authorization port, used when OpenFGA is not configured.
+ *
+ * <p>Every port needs one. A port with no fallback is not simply absent — it silently removes
+ * whatever depends on it, and a component-scanned {@code @ConditionalOnBean} resolves against
+ * whatever happens to have been registered by then, which is scan order rather than
+ * configuration. Answering "unconfigured" is the behaviour the rest of the system already knows
+ * how to read.
+ */
 @Configuration
 public class UnavailableAuthorizationConfiguration {
+
+    private static final String NOT_CONFIGURED = "OPENFGA_NOT_CONFIGURED";
+    private static final String UNCONFIGURED = "openfga-unconfigured";
 
     @Bean
     @ConditionalOnMissingBean(RelationshipAuthorizationPort.class)
@@ -34,6 +49,28 @@ public class UnavailableAuthorizationConfiguration {
             return RelationshipTupleWriteResult.indeterminate(
                     "OPENFGA_NOT_CONFIGURED",
                     "openfga-unconfigured");
+        };
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RelationshipTupleReconciliationPort.class)
+    RelationshipTupleReconciliationPort unavailableRelationshipTupleReconciliationPort() {
+        return new RelationshipTupleReconciliationPort() {
+            @Override
+            public String policyVersion() {
+                return UNCONFIGURED;
+            }
+
+            @Override
+            public RelationshipTuplePage read(int pageSize, String continuationToken) {
+                return RelationshipTuplePage.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
+            }
+
+            @Override
+            public RelationshipTupleWriteResult delete(RelationshipTupleWriteRequest request) {
+                Objects.requireNonNull(request, "request");
+                return RelationshipTupleWriteResult.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
+            }
         };
     }
 

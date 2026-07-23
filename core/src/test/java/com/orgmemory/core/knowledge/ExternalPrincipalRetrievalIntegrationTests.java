@@ -21,7 +21,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
  * Exercises the real {@link SecureKnowledgeRetrievalStore} SQL against PostgreSQL with a
- * Slack-shaped ledger (source_type SLACK, SOURCE_GROUP + SOURCE_USER ACL entries, sealed
+ * Slack-shaped ledger (acl_authority SOURCE, SOURCE_GROUP + SOURCE_USER ACL entries, sealed
  * group membership). Proves external-principal resolution: unmapped denies, a verified
  * mapping grants existing documents without re-ingestion, revocation closes access, direct
  * SOURCE_USER entries resolve, and a mapped non-member is not over-granted.
@@ -245,13 +245,13 @@ class ExternalPrincipalRetrievalIntegrationTests {
                     'INTERNAL', 'ALL_EMPLOYEES', ?, 'PROMOTED', now(), now(), 0)
                 """, NORMALIZED, ORG, RAW, SNAPSHOT, SHA);
 
-        // Source object carries source_type SLACK (drives the ADR 0009 live-source ceiling).
+        // Source object carries acl_authority SOURCE (drives the ADR 0009 live-source ceiling).
         jdbc.update("""
                 INSERT INTO source_objects (
-                    id, organization_id, created_by_user_id, knowledge_space_id, source_type,
+                    id, organization_id, created_by_user_id, knowledge_space_id, acl_authority, source_system,
                     source_connection_key, external_object_id, title, classification, declared_access,
                     status, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, 'SLACK', 'T-workspace', 'C-doc-1', 'Slack doc', 'INTERNAL',
+                VALUES (?, ?, ?, ?, 'SOURCE', 'slack', 'T-workspace', 'C-doc-1', 'Slack doc', 'INTERNAL',
                     'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT, ORG, AN_USER, SPACE);
 
@@ -386,10 +386,10 @@ class ExternalPrincipalRetrievalIntegrationTests {
 
         jdbc.update("""
                 INSERT INTO source_objects (
-                    id, organization_id, created_by_user_id, knowledge_space_id, source_type,
+                    id, organization_id, created_by_user_id, knowledge_space_id, acl_authority, source_system,
                     source_connection_key, external_object_id, title, classification, declared_access,
                     status, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, 'SLACK', 'T-workspace', 'C-doc-2', 'Slack doc 2', 'INTERNAL',
+                VALUES (?, ?, ?, ?, 'SOURCE', 'slack', 'T-workspace', 'C-doc-2', 'Slack doc 2', 'INTERNAL',
                     'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """, OBJECT2, ORG, AN_USER, SPACE);
 

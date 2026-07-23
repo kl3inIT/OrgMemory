@@ -19,7 +19,7 @@ class FileConnectorBatchSourceTests {
         FileConnectorBatchSource source = new FileConnectorBatchSource(
                 new ConnectorCrawlProperties(false, null, ConnectorFixtures.directory().toString()));
 
-        List<ConnectorCrawlBatch> batches = source.pendingBatches();
+        List<ConnectorCrawlBatch> batches = source.pendingBatches().batches();
 
         assertEquals(3, batches.size());
         assertEquals("cursor-01-initial", batches.get(0).crawlCursor());
@@ -48,6 +48,6 @@ class FileConnectorBatchSourceTests {
         FileConnectorBatchSource source = new FileConnectorBatchSource(
                 new ConnectorCrawlProperties(false, null, ""));
 
-        assertTrue(source.pendingBatches().isEmpty());
+        assertTrue(source.pendingBatches().batches().isEmpty());
     }
 }

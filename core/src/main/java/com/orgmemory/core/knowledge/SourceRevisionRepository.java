@@ -13,6 +13,7 @@ interface SourceRevisionRepository extends JpaRepository<SourceRevision, UUID> {
     Optional<SourceRevision> findBySourceObjectIdAndContentSha256(
             UUID sourceObjectId, String contentSha256);
 
+    /** The highest ordinal an object has reached, or zero when it has no revision yet. */
     @Query("""
             select coalesce(max(revision.revisionNumber), 0)
             from SourceRevision revision

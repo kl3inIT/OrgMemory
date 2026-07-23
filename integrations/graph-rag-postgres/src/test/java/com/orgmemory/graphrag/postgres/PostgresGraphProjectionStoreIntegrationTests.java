@@ -760,9 +760,9 @@ class PostgresGraphProjectionStoreIntegrationTests {
         jdbc.update("""
                 INSERT INTO source_objects (
                     id, organization_id, created_by_user_id, knowledge_space_id,
-                    source_type, source_connection_key, external_object_id, title,
+                    acl_authority, source_system, source_connection_key, external_object_id, title,
                     classification, declared_access, status, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, 'UPLOAD', 'graph-tests', ?, ?, 'INTERNAL',
+                VALUES (?, ?, ?, ?, 'ORGMEMORY', 'upload', 'graph-tests', ?, ?, 'INTERNAL',
                     'ALL_EMPLOYEES', 'ACTIVE', now(), now(), 0)
                 """,
                 sourceObjectId,

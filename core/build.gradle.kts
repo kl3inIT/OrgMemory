@@ -9,6 +9,8 @@ dependencies {
     api("org.springframework.ai:spring-ai-client-chat")
 
     implementation("org.springframework.modulith:spring-modulith-starter-jpa")
+    // Vetted AES-GCM rather than hand-rolled: the standalone crypto module, not the web stack.
+    implementation("org.springframework.security:spring-security-crypto")
 
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.junit.jupiter:junit-jupiter")

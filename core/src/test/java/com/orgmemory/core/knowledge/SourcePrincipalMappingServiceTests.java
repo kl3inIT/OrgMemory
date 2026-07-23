@@ -57,7 +57,8 @@ class SourcePrincipalMappingServiceTests {
                 .thenReturn(Optional.of(new ExternalIdentity(IDP_USER_ID, ISSUER, SUBJECT)));
         when(users.findById(IDP_USER_ID)).thenReturn(Optional.of(idpUser));
 
-        Optional<SourcePrincipalMapping> mapping = service.autoMap(principal, ISSUER, SUBJECT);
+        Optional<SourcePrincipalMapping> mapping =
+                service.autoMap(principal, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED);
 
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.IDP_JOIN, mapping.get().getMethod());
@@ -67,34 +68,60 @@ class SourcePrincipalMappingServiceTests {
     }
 
     @Test
-    void emailJoinRequiresSsoVerified() {
+    void emailJoinNeedsSomebodyToVouchForTheAddress() {
         SourcePrincipal principal = userPrincipal(false, EMAIL);
         AppUser emailUser = activeUser(ORGANIZATION_ID);
         when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(emailUser));
 
-        assertTrue(service.autoMap(principal, null, null).isEmpty());
+        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED).isEmpty());
         verify(mappings, never()).save(any());
         verify(audit, never()).record(any());
     }
 
     @Test
-    void emailJoinBindsSsoVerifiedActiveUser() {
+    void emailJoinBindsWhenTheSourceVouchesForThePrincipal() {
         SourcePrincipal principal = userPrincipal(true, EMAIL);
         AppUser user = activeUser(ORGANIZATION_ID);
         when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(user));
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
 
-        Optional<SourcePrincipalMapping> mapping = service.autoMap(principal, null, null);
+        Optional<SourcePrincipalMapping> mapping =
+                service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED);
 
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.SSO_EMAIL_JOIN, mapping.get().getMethod());
+        assertTrue(mapping.get().getEvidence().contains("vouched-by:source"));
+    }
+
+    @Test
+    void emailJoinBindsWhenAnAdministratorAttestedTheConnection() {
+        SourcePrincipal principal = userPrincipal(false, EMAIL);
+        AppUser user = activeUser(ORGANIZATION_ID);
+        when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(user));
+        when(users.findById(user.getId())).thenReturn(Optional.of(user));
+
+        Optional<SourcePrincipalMapping> mapping =
+                service.autoMap(principal, null, null, SourceIdentityTrust.SSO_VERIFIED);
+
+        assertTrue(mapping.isPresent());
+        assertEquals(SourcePrincipalMappingMethod.SSO_EMAIL_JOIN, mapping.get().getMethod());
+        assertTrue(mapping.get().getEvidence().contains("vouched-by:connection-trust"));
+    }
+
+    @Test
+    void connectionTrustDoesNotInventAnEmailToJoinOn() {
+        SourcePrincipal principal = userPrincipal(false, null);
+
+        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.SSO_VERIFIED).isEmpty());
+        verify(users, never()).findByEmailIgnoreCase(any());
+        verify(mappings, never()).save(any());
     }
 
     @Test
     void unmappedWhenNoTierMatches() {
         SourcePrincipal principal = userPrincipal(false, EMAIL);
 
-        assertTrue(service.autoMap(principal, null, null).isEmpty());
+        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED).isEmpty());
         verify(mappings, never()).save(any());
     }
 
@@ -106,7 +133,7 @@ class SourcePrincipalMappingServiceTests {
                 .thenReturn(Optional.of(new ExternalIdentity(IDP_USER_ID, ISSUER, SUBJECT)));
         when(users.findById(IDP_USER_ID)).thenReturn(Optional.of(idpUser));
 
-        assertTrue(service.autoMap(principal, ISSUER, SUBJECT).isEmpty());
+        assertTrue(service.autoMap(principal, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED).isEmpty());
         verify(mappings, never()).save(any());
     }
 
@@ -116,7 +143,7 @@ class SourcePrincipalMappingServiceTests {
                 PRINCIPAL_ID, ORGANIZATION_ID, "slack", "T1", "C1",
                 SourcePrincipalKind.SOURCE_GROUP, null, "general", false, Instant.now());
 
-        assertTrue(service.autoMap(group, ISSUER, SUBJECT).isEmpty());
+        assertTrue(service.autoMap(group, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED).isEmpty());
         assertThrows(IllegalArgumentException.class,
                 () -> service.selfClaim(group, IDP_USER_ID, "claim"));
     }

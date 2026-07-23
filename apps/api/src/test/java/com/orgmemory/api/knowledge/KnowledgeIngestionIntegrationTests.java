@@ -532,10 +532,10 @@ class KnowledgeIngestionIntegrationTests {
                 """
                 INSERT INTO source_objects (
                     id, organization_id, knowledge_space_id, department_id, created_by_user_id,
-                    source_type, source_connection_key, external_object_id, title,
+                    acl_authority, source_system, source_connection_key, external_object_id, title,
                     classification, declared_access, current_revision_id, latest_revision_id,
                     status, created_at, updated_at, version
-                ) VALUES (?, ?, ?, ?, ?, 'UPLOAD', 'test-fixture', ?, ?, ?, ?, NULL, NULL,
+                ) VALUES (?, ?, ?, ?, ?, 'ORGMEMORY', 'upload', 'test-fixture', ?, ?, ?, ?, NULL, NULL,
                           'ACTIVE', now(), now(), 0)
                 """,
                 sourceObjectId,

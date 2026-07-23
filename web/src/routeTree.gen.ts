@@ -19,6 +19,10 @@ import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminConnectorsIndexRouteImport } from './routes/admin/connectors/index'
+import { Route as AdminConnectorsNewRouteImport } from './routes/admin/connectors/new'
+import { Route as AdminConnectorsSourceSystemIndexRouteImport } from './routes/admin/connectors/$sourceSystem.index'
+import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -69,6 +73,28 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminConnectorsIndexRoute = AdminConnectorsIndexRouteImport.update({
+  id: '/connectors/',
+  path: '/connectors/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConnectorsNewRoute = AdminConnectorsNewRouteImport.update({
+  id: '/connectors/new',
+  path: '/connectors/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConnectorsSourceSystemIndexRoute =
+  AdminConnectorsSourceSystemIndexRouteImport.update({
+    id: '/connectors/$sourceSystem/',
+    path: '/connectors/$sourceSystem/',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminConnectorsSourceSystemConnectionKeyRoute =
+  AdminConnectorsSourceSystemConnectionKeyRouteImport.update({
+    id: '/connectors/$sourceSystem/$connectionKey',
+    path: '/connectors/$sourceSystem/$connectionKey',
+    getParentRoute: () => AdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -80,6 +106,10 @@ export interface FileRoutesByFullPath {
   '/admin/scim': typeof AdminScimRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/connectors/new': typeof AdminConnectorsNewRoute
+  '/admin/connectors/': typeof AdminConnectorsIndexRoute
+  '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -90,6 +120,10 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/connectors/new': typeof AdminConnectorsNewRoute
+  '/admin/connectors': typeof AdminConnectorsIndexRoute
+  '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -103,6 +137,10 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/connectors/new': typeof AdminConnectorsNewRoute
+  '/admin/connectors/': typeof AdminConnectorsIndexRoute
+  '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -116,6 +154,10 @@ export interface FileRouteTypes {
     | '/admin/scim'
     | '/admin/users'
     | '/admin/'
+    | '/admin/connectors/new'
+    | '/admin/connectors/'
+    | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/admin/connectors/$sourceSystem/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -126,6 +168,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/'
     | '/admin'
+    | '/admin/connectors/new'
+    | '/admin/connectors'
+    | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/admin/connectors/$sourceSystem'
   id:
     | '__root__'
     | '/_authenticated'
@@ -138,6 +184,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/_authenticated/'
     | '/admin/'
+    | '/admin/connectors/new'
+    | '/admin/connectors/'
+    | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/admin/connectors/$sourceSystem/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -218,6 +268,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/connectors/': {
+      id: '/admin/connectors/'
+      path: '/connectors'
+      fullPath: '/admin/connectors/'
+      preLoaderRoute: typeof AdminConnectorsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/connectors/new': {
+      id: '/admin/connectors/new'
+      path: '/connectors/new'
+      fullPath: '/admin/connectors/new'
+      preLoaderRoute: typeof AdminConnectorsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/connectors/$sourceSystem/': {
+      id: '/admin/connectors/$sourceSystem/'
+      path: '/connectors/$sourceSystem'
+      fullPath: '/admin/connectors/$sourceSystem/'
+      preLoaderRoute: typeof AdminConnectorsSourceSystemIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/connectors/$sourceSystem/$connectionKey': {
+      id: '/admin/connectors/$sourceSystem/$connectionKey'
+      path: '/connectors/$sourceSystem/$connectionKey'
+      fullPath: '/admin/connectors/$sourceSystem/$connectionKey'
+      preLoaderRoute: typeof AdminConnectorsSourceSystemConnectionKeyRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
@@ -241,6 +319,10 @@ interface AdminRouteChildren {
   AdminScimRoute: typeof AdminScimRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminConnectorsNewRoute: typeof AdminConnectorsNewRoute
+  AdminConnectorsIndexRoute: typeof AdminConnectorsIndexRoute
+  AdminConnectorsSourceSystemConnectionKeyRoute: typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  AdminConnectorsSourceSystemIndexRoute: typeof AdminConnectorsSourceSystemIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -249,6 +331,11 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminScimRoute: AdminScimRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminConnectorsNewRoute: AdminConnectorsNewRoute,
+  AdminConnectorsIndexRoute: AdminConnectorsIndexRoute,
+  AdminConnectorsSourceSystemConnectionKeyRoute:
+    AdminConnectorsSourceSystemConnectionKeyRoute,
+  AdminConnectorsSourceSystemIndexRoute: AdminConnectorsSourceSystemIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
