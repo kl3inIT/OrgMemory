@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { formatTimestamp } from "@/features/admin/admin-labels"
+import { formatDay, formatTimestamp } from "@/features/admin/admin-labels"
 import {
   adminConnectionsQueryOptions,
   adminConnectorSourcesQueryOptions,
@@ -193,8 +193,10 @@ export function AdminConnectorsPage() {
                             <Badge variant={state.variant}>{state.label}</Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="min-w-40">
-                              <div className="font-medium">{key}</div>
+                            <div className="max-w-52">
+                              <div className="truncate font-medium" title={key}>
+                                {key}
+                              </div>
                               {result ? (
                                 <div
                                   className={
@@ -213,11 +215,14 @@ export function AdminConnectorsPage() {
                           </TableCell>
                           <TableCell>
                             {connection.credentialSet ? (
-                              <div className="min-w-32">
+                              <div className="flex items-center gap-2 whitespace-nowrap">
                                 <Badge variant="secondary">Stored</Badge>
-                                <div className="mt-0.5 text-xs text-muted-foreground">
-                                  {formatTimestamp(connection.credentialSetAt)}
-                                </div>
+                                <span
+                                  className="text-xs text-muted-foreground"
+                                  title={formatTimestamp(connection.credentialSetAt)}
+                                >
+                                  {formatDay(connection.credentialSetAt)}
+                                </span>
                               </div>
                             ) : (
                               <Badge variant="warning">None</Badge>
