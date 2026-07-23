@@ -1,3 +1,4 @@
+import { ListFilterPlus } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,8 +20,8 @@ export function AdminPage({
   children: ReactNode
 }) {
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-6xl space-y-6 p-4 md:p-8">
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
@@ -30,20 +31,54 @@ export function AdminPage({
         </header>
         {children}
       </div>
-    </main>
+    </div>
   )
 }
 
 /** A row of counts that summarizes what the table below it contains. */
-export function AdminStats({ stats }: { stats: { label: string; value: number | string; hint?: string }[] }) {
+export function AdminStats({
+  stats,
+}: {
+  stats: {
+    label: string
+    value: number | string
+    hint?: string
+    active?: boolean
+    onSelect?: () => void
+  }[]
+}) {
   return (
-    <Card>
-      <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <Card className="overflow-hidden py-0">
+      <CardContent className="grid grid-cols-2 p-0 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none">
         {stats.map((stat) => (
-          <div key={stat.label} className="space-y-0.5">
-            <p className="text-2xl font-semibold tabular-nums">{stat.value}</p>
-            <p className="text-sm font-medium">{stat.label}</p>
-            {stat.hint ? <p className="text-xs text-muted-foreground">{stat.hint}</p> : null}
+          <div
+            key={stat.label}
+            className="group/stat relative border-r border-b border-border-subtle last:border-r-0 sm:border-b-0"
+          >
+            {stat.onSelect ? (
+              <button
+                type="button"
+                className="flex min-h-20 w-full flex-col items-start justify-center gap-0.5 px-4 py-3 text-left outline-none transition-colors hover:bg-surface-subtle focus-visible:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring data-[active=true]:bg-surface-raised"
+                data-active={stat.active}
+                aria-pressed={stat.active}
+                onClick={stat.onSelect}
+              >
+                <span className="text-xl font-semibold tabular-nums">{stat.value}</span>
+                <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
+                <ListFilterPlus
+                  className="absolute right-3 top-3 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/stat:opacity-100 group-focus-within/stat:opacity-100"
+                  aria-hidden="true"
+                />
+              </button>
+            ) : (
+              <div className="flex min-h-20 flex-col items-start justify-center gap-0.5 px-4 py-3">
+                <span className="text-xl font-semibold tabular-nums">{stat.value}</span>
+                <span className="text-xs font-medium text-muted-foreground">{stat.label}</span>
+                {stat.hint ? (
+                  <span className="text-xs text-muted-foreground">{stat.hint}</span>
+                ) : null}
+              </div>
+            )}
           </div>
         ))}
       </CardContent>
@@ -56,11 +91,15 @@ export function AdminSection({
   title,
   description,
   actions,
+  toolbar,
+  footer,
   children,
 }: {
   title: string
   description?: string
   actions?: ReactNode
+  toolbar?: ReactNode
+  footer?: ReactNode
   children: ReactNode
 }) {
   return (
@@ -73,7 +112,17 @@ export function AdminSection({
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
       </div>
       <Card className="overflow-hidden py-0">
+        {toolbar ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-3">
+            {toolbar}
+          </div>
+        ) : null}
         <div className="overflow-x-auto">{children}</div>
+        {footer ? (
+          <div className="flex items-center border-t border-border-subtle px-3 py-2">
+            {footer}
+          </div>
+        ) : null}
       </Card>
     </section>
   )
