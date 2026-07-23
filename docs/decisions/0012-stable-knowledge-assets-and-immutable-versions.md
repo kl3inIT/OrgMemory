@@ -51,6 +51,12 @@ current specs, and forward schema. Historical Flyway migrations remain
 immutable. A future governed workflow product may introduce a new capability
 domain only from a separately approved design.
 
+Because this decision lands before production data migration is required, V22
+deliberately resets pre-versioned Knowledge Asset, upload, chunk, publication,
+and graph-projection rows instead of carrying a compatibility backfill. Existing
+source files must be imported again after the migration. This one-time reset
+keeps the runtime model free of legacy identity rules.
+
 ## Consequences
 
 Authorization relationships survive content updates, while retrieval and

@@ -22,12 +22,19 @@ Test these knowledge lifecycle rules when touched:
 - retrieval pins current source revision, current version, ACL/model/profile,
 - JPA mappings match forward-only Flyway migrations.
 
-Run:
+Select the relevant layered gates from `docs/guidelines/testing-harness.md`.
+For changes spanning ingestion, publication, persistence, worker wiring, or the
+frontend contract, run at least:
 
 ```powershell
-.\gradlew.bat :core:test
-.\gradlew.bat :apps:api:test
+.\gradlew.bat --no-daemon :core:test :apps:api:test :apps:worker:test
+.\gradlew.bat --no-daemon clean test
+corepack pnpm -C web typecheck
+corepack pnpm -C web build
 ```
+
+The terminating `clean test` command is the Spring context gate. Never use
+`bootRun` as verification because it does not terminate on success.
 
 ## Frontend
 

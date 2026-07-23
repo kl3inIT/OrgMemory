@@ -9,7 +9,7 @@ import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.KnowledgeChunkDraft;
+import com.orgmemory.core.knowledge.KnowledgeChunkDraftAssembler;
 import com.orgmemory.core.knowledge.KnowledgeTextChunk;
 import com.orgmemory.core.knowledge.KnowledgeTextChunker;
 import com.orgmemory.core.knowledge.KnowledgeTextDocument;
@@ -36,7 +36,6 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import org.slf4j.Logger;
@@ -150,26 +149,8 @@ class SourceIngestionProcessor {
                     .toList();
             List<float[]> vectors = embeddingModel.embed(
                     embeddingDocuments, null, new TokenCountBatchingStrategy());
-            if (vectors.size() != candidates.size()) {
-                throw new IllegalStateException("embedding response count did not match chunk count");
-            }
-            List<KnowledgeChunkDraft> drafts = new ArrayList<>(candidates.size());
-            for (int index = 0; index < candidates.size(); index++) {
-                KnowledgeTextChunk candidate = candidates.get(index);
-                float[] vector = vectors.get(index);
-                if (vector.length != embeddingProfile.dimensions()) {
-                    throw new IllegalStateException("embedding dimensions did not match configured projection");
-                }
-                drafts.add(new KnowledgeChunkDraft(
-                        index,
-                        candidate.content(),
-                        sha256(candidate.content()),
-                        null,
-                        candidate.startPage(),
-                        candidate.endPage(),
-                        null,
-                        vector));
-            }
+            var drafts = KnowledgeChunkDraftAssembler.assemble(
+                    candidates, vectors, embeddingProfile.dimensions());
 
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.PUBLISHING, properties.leaseDuration());
@@ -301,11 +282,6 @@ class SourceIngestionProcessor {
     private static String fileSuffix(String fileName) {
         int dot = fileName.lastIndexOf('.');
         return dot < 0 ? ".bin" : fileName.substring(dot);
-    }
-
-    private static String sha256(String value) {
-        MessageDigest digest = sha256Digest();
-        return HexFormat.of().formatHex(digest.digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
 
     private static MessageDigest sha256Digest() {

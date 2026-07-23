@@ -8,6 +8,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * Runs safely on every worker replica. OpenFGA writes ignore duplicates, deletes ignore
+ * missing tuples, and PostgreSQL model recording uses a pessimistic row lock, so concurrent
+ * sweeps converge on the same state without requiring a separate leader-election service.
+ */
 @Component
 @ConditionalOnBean(KnowledgeAuthorizationConvergenceService.class)
 @ConditionalOnProperty(

@@ -66,7 +66,11 @@ obsolete authorization model before retrieval can use them.
 
 The Capability Asset MVP is removed from Java, REST/OpenAPI, OpenFGA, demo
 tuples, skills, specs, and current architecture. A forward Flyway migration
-drops its unused tables; historical migrations remain immutable.
+drops its unused tables; historical migrations remain immutable. Because this
+is a development baseline, the same maintenance-window migration resets
+pre-versioned Knowledge Asset and upload projections. Files are re-imported
+through the canonical ingestion API rather than preserved by compatibility
+backfill code.
 
 ## Non-goals
 

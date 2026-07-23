@@ -19,7 +19,9 @@ class SpringAiKnowledgeTextChunker implements KnowledgeTextChunker {
         this.properties = properties;
         this.splitter = TokenTextSplitter.builder()
                 .withChunkSize(properties.chunkSize())
-                .withMaxNumChunks(properties.maximumChunks())
+                // One sentinel chunk is enough to prove that the application cap was
+                // exceeded without fully materializing an unbounded document.
+                .withMaxNumChunks(Math.addExact(properties.maximumChunks(), 1))
                 .build();
     }
 

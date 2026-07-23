@@ -295,23 +295,8 @@ class ConnectorReconciler {
                 new KnowledgeTextDocument(content.body(), null, null)));
         List<String> texts = chunks.stream().map(KnowledgeTextChunk::content).toList();
         ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
-        List<float[]> vectors = embedding.vectors();
-        if (vectors.size() != texts.size()) {
-            throw new IllegalStateException("connector embedding count did not match the chunk count");
-        }
-        List<KnowledgeChunkDraft> chunkDrafts = new ArrayList<>(texts.size());
-        for (int index = 0; index < texts.size(); index++) {
-            KnowledgeTextChunk chunk = chunks.get(index);
-            chunkDrafts.add(new KnowledgeChunkDraft(
-                    index,
-                    chunk.content(),
-                    sha256(chunk.content()),
-                    null,
-                    chunk.startPage(),
-                    chunk.endPage(),
-                    null,
-                    vectors.get(index)));
-        }
+        List<KnowledgeChunkDraft> chunkDrafts = KnowledgeChunkDraftAssembler.assemble(
+                chunks, embedding.vectors(), embedding.profile().dimensions());
         KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
                 ctx.organizationId(),
                 ctx.knowledgeSpaceId(),

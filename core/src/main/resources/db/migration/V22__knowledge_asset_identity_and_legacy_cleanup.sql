@@ -1,6 +1,27 @@
 -- Split the stable OpenFGA resource identity from immutable knowledge content.
--- The previous knowledge_assets rows are content versions; their IDs are reused
--- as the initial stable asset IDs so existing OpenFGA tuples remain valid.
+-- This development baseline intentionally discards the pre-versioned Knowledge
+-- Asset and upload projections. Source files must be imported again after V22;
+-- no compatibility backfill or legacy identity mapping is retained.
+--
+-- Deployment contract: V22 requires a maintenance window. It renames and drops
+-- tables, rebuilds derived graph projections, validates new constraints, and
+-- creates regular indexes inside Flyway's transaction. Large installations must
+-- pause API/worker writes and may pre-stage equivalent concurrent indexes before
+-- enabling this migration.
+
+TRUNCATE TABLE
+    graph_entity_embeddings,
+    graph_relation_embeddings,
+    graph_entity_contributions,
+    graph_relation_contributions,
+    graph_projection_heads,
+    knowledge_chunks,
+    knowledge_asset_publication_outbox,
+    source_ingestion_jobs,
+    source_revisions,
+    source_objects,
+    evidence_blobs,
+    knowledge_assets;
 
 ALTER TABLE graph_entity_contributions
     DROP CONSTRAINT IF EXISTS fk_graph_entity_contribution_asset_acl;
@@ -51,48 +72,6 @@ ALTER TABLE knowledge_asset_versions
     ADD COLUMN version_number bigint,
     ADD COLUMN source_revision_id uuid;
 
-INSERT INTO knowledge_assets (
-    id,
-    organization_id,
-    knowledge_space_id,
-    source_object_id,
-    current_version_id,
-    archived_at,
-    created_at,
-    updated_at,
-    version
-)
-SELECT
-    version_row.id,
-    version_row.organization_id,
-    version_row.knowledge_space_id,
-    (
-        SELECT revision.source_object_id
-        FROM source_revisions revision
-        WHERE revision.knowledge_asset_id = version_row.id
-          AND revision.organization_id = version_row.organization_id
-        ORDER BY revision.revision_number DESC
-        LIMIT 1
-    ),
-    CASE WHEN version_row.status = 'ACTIVE' THEN version_row.id END,
-    CASE WHEN version_row.status = 'RETIRED' THEN version_row.retired_at END,
-    version_row.created_at,
-    version_row.updated_at,
-    0
-FROM knowledge_asset_versions version_row;
-
-UPDATE knowledge_asset_versions
-SET knowledge_asset_id = id,
-    version_number = 1,
-    source_revision_id = (
-        SELECT revision.id
-        FROM source_revisions revision
-        WHERE revision.knowledge_asset_id = knowledge_asset_versions.id
-          AND revision.organization_id = knowledge_asset_versions.organization_id
-        ORDER BY revision.revision_number DESC
-        LIMIT 1
-    );
-
 ALTER TABLE knowledge_asset_versions
     ALTER COLUMN knowledge_asset_id SET NOT NULL,
     ALTER COLUMN version_number SET NOT NULL,
@@ -123,10 +102,6 @@ ALTER TABLE knowledge_assets
 ALTER TABLE source_revisions
     ADD COLUMN knowledge_asset_version_id uuid;
 
-UPDATE source_revisions
-SET knowledge_asset_version_id = knowledge_asset_id
-WHERE knowledge_asset_id IS NOT NULL;
-
 ALTER TABLE source_revisions
     ADD CONSTRAINT fk_source_revision_knowledge_asset
         FOREIGN KEY (knowledge_asset_id, organization_id)
@@ -140,9 +115,6 @@ ALTER TABLE source_revisions
 ALTER TABLE source_objects
     ADD COLUMN latest_revision_id uuid;
 
-UPDATE source_objects
-SET latest_revision_id = current_revision_id;
-
 ALTER TABLE source_objects
     ADD CONSTRAINT fk_source_object_latest_revision
         FOREIGN KEY (latest_revision_id, organization_id, id)
@@ -150,9 +122,6 @@ ALTER TABLE source_objects
 
 ALTER TABLE knowledge_chunks
     ADD COLUMN knowledge_asset_version_id uuid;
-
-UPDATE knowledge_chunks
-SET knowledge_asset_version_id = knowledge_asset_id;
 
 ALTER TABLE knowledge_chunks
     ALTER COLUMN knowledge_asset_version_id SET NOT NULL,
@@ -179,9 +148,6 @@ ALTER TABLE knowledge_chunks
 ALTER TABLE knowledge_asset_publication_outbox
     DROP CONSTRAINT IF EXISTS uq_knowledge_asset_publication_asset,
     ADD COLUMN knowledge_asset_version_id uuid;
-
-UPDATE knowledge_asset_publication_outbox
-SET knowledge_asset_version_id = knowledge_asset_id;
 
 ALTER TABLE knowledge_asset_publication_outbox
     ALTER COLUMN knowledge_asset_version_id SET NOT NULL,
