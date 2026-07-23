@@ -39,6 +39,15 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
 | An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
 
+## Slack Adapter Coverage
+
+Evidence classes under `integrations/connectors/src/test/java/com/orgmemory/connectors/slack/`:
+`SlackWebApiClientTests`, `SlackConnectorBatchSourceTests`, `SlackTextCleanerTests`,
+`ConfiguredSlackCredentialProviderTests`, `SlackConnectorAutoConfigurationTests`.
+All run against recorded Slack responses; none touches the network.
+
+| Behavior | Automated evidence |
+| --- | --- |
 | A refusal inside a 200 response is read as a refusal; pagination ends only on an empty cursor | `readsARefusalOutOfASuccessfulResponse`, `collectsEveryPageUntilTheCursorRunsOut`, `treatsAnAbsentCursorAsTheLastPage` |
 | A rate limit is waited out before the next request, with jitter, and gives up when it outlasts the budget | `waitsOutARateLimitAndRetriesTheCall`, `appliesAWaitEarnedByOneCallToTheNext`, `spreadsResumingRequestsWithJitter`, `givesUpWhenTheRateLimitOutlastsTheRetryBudget` |
 | The token reaches the client and no failure message, properties description, or URI | `refusesAConnectionItHasNoCredentialFor`, `keepsTheTokenOutOfItsOwnDescription` |
