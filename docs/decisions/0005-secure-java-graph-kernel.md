@@ -4,6 +4,10 @@
 
 Accepted on 2026-07-20.
 
+The V1 recursive-CTE retrieval clause was superseded on 2026-07-23 by
+[0010](0010-internal-retrieval-strategies-one-hop-graph.md). The remaining
+decision is unchanged.
+
 ## Context
 
 LightRAG provides useful indexing/query semantics but its Python server, WebUI,

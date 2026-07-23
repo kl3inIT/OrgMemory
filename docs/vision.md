@@ -137,10 +137,18 @@ custom graph retriever.
 
 Implement a LightRAG-inspired secure graph kernel in Java; do not port the
 Python server, WebUI, provider bindings, or storage catalog file by file. V1 uses
-PostgreSQL graph tables, recursive CTEs, and pgvector behind ports. Every entity
-or relation contribution retains source revision, chunk, asset, ACL generation,
-extractor/model/prompt version, confidence, and provenance. Permission filtering
-occurs before seed ranking and at every traversal/citation boundary.
+PostgreSQL graph tables, batched one-hop relational queries, and pgvector behind
+ports. A bounded recursive query is reserved for an explicit graph-explorer or
+measured multi-hop requirement. Every entity or relation contribution retains
+source revision, chunk, asset, ACL generation, extractor/model/prompt version,
+confidence, and provenance. Permission filtering occurs before seed ranking and
+at every traversal/citation boundary.
+
+The product exposes one stable graph-assisted retrieval API. Its internal
+planner can compose chunk-only, entity-only, relation-only, secure-hybrid, and
+secure-mix strategies from chunk, entity, and relation channels. `SECURE_MIX`
+is the default; strategy selection is not a user-controlled request parameter.
+LightRAG's mode names do not become OrgMemory API options.
 
 Neo4j is optional only when measured traversal or algorithm requirements justify
 it. It would be a rebuildable projection, not the canonical ledger.
