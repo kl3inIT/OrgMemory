@@ -147,11 +147,43 @@ class ConnectorAdminIntegrationTests {
                 "A refused request must not have created the connection it named");
     }
 
+    /**
+     * Every adapter on the classpath, and nothing else. Two sources here rather than one is the
+     * measurement the connector work was for: the second arrived as an adapter package, and this
+     * endpoint had no line changed to report it.
+     */
     @Test
     void reportsOnlyTheSourcesThisDeploymentCanActuallyIngest() throws Exception {
         mvc.perform(get("/api/admin/connectors/sources").with(jwtFor(ADMIN_USER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.sourceSystem == 'slack')].displayName").value("Slack"));
+                .andExpect(jsonPath("$[?(@.sourceSystem == 'slack')].displayName").value("Slack"))
+                .andExpect(jsonPath("$[?(@.sourceSystem == 'google_drive')].displayName")
+                        .value("Google Drive"));
+    }
+
+    /** A second source configures over the same endpoints, with no path of its own. */
+    @Test
+    void asecondSourceIsConfiguredOverTheSameEndpoints() throws Exception {
+        mvc.perform(put("/api/admin/connectors/google_drive/{key}", "example.com")
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"crawlEnabled":true,"knowledgeSpaceId":"%s","actorUserId":"%s",
+                                 "sourceConfig":{"folderIds":["1AbC"],"maxFiles":50},
+                                 "contentCrawlIntervalSeconds":1800}
+                                """.formatted(SPACE, ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sourceSystem").value("google_drive"))
+                .andExpect(jsonPath("$.sourceConfig.folderIds[0]").value("1AbC"))
+                .andExpect(jsonPath("$.sourceConfig.maxFiles").value(50));
+
+        assertEquals(
+                "google_drive",
+                jdbc.queryForObject(
+                        "SELECT source_system FROM source_connections WHERE source_connection_key = ?",
+                        String.class,
+                        "example.com"),
+                "the ledger stored it under the source the adapter declared, with no migration for it");
     }
 
     @Test

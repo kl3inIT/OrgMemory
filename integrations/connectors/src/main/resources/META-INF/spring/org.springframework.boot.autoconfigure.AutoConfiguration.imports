@@ -1,1 +1,2 @@
 com.orgmemory.connectors.slack.SlackConnectorAutoConfiguration
+com.orgmemory.connectors.googledrive.GoogleDriveConnectorAutoConfiguration
