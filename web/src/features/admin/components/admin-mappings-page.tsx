@@ -9,12 +9,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { connectionLabel, formatTimestamp, principalName } from "@/features/admin/admin-labels"
+import { pageItems } from "@/features/admin/admin-collection"
 import {
   adminSourceConnectionsQueryOptions,
   adminSourcePrincipalsQueryOptions,
   adminUsersQueryOptions,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
+import {
+  AdminPagination,
+  AdminSearch,
+} from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import { ConfirmMappingDialog } from "@/features/admin/components/confirm-mapping-dialog"
 import { MappingBadge } from "@/features/admin/components/mapping-badge"
@@ -33,6 +38,9 @@ const TRUST_OPTIONS = [
 export function AdminMappingsPage() {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState<AdminSourcePrincipalResponse>()
+  const [principalQuery, setPrincipalQuery] = useState("")
+  const [mappingFilter, setMappingFilter] = useState("all")
+  const [principalPage, setPrincipalPage] = useState(1)
 
   const [principals, connections, users] = useQueries({
     queries: [
@@ -95,6 +103,38 @@ export function AdminMappingsPage() {
   const userRows = users.data ?? []
   const people = principalRows.filter((principal) => principal.kind === "SOURCE_USER")
   const unmapped = people.filter((principal) => !principal.mapping)
+  const normalizedQuery = principalQuery.trim().toLocaleLowerCase()
+  const filteredPrincipals = principalRows.filter((principal) => {
+    const isGroup = principal.kind === "SOURCE_GROUP"
+    const matchesQuery =
+      !normalizedQuery ||
+      [
+        principalName(principal),
+        principal.observedEmail,
+        principal.externalKey,
+        principal.mapping?.appUserName,
+        principal.mapping?.appUserEmail,
+      ]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase().includes(normalizedQuery))
+    const matchesFilter =
+      mappingFilter === "all" ||
+      (mappingFilter === "unmapped" && !isGroup && !principal.mapping) ||
+      (mappingFilter === "mapped" && !isGroup && Boolean(principal.mapping)) ||
+      (mappingFilter === "groups" && isGroup)
+    return matchesQuery && matchesFilter
+  })
+  const visiblePrincipals = pageItems(filteredPrincipals, principalPage)
+
+  function updatePrincipalQuery(value: string) {
+    setPrincipalQuery(value)
+    setPrincipalPage(1)
+  }
+
+  function updateMappingFilter(value: string) {
+    setMappingFilter(value)
+    setPrincipalPage(1)
+  }
 
   return (
     <AdminPage
@@ -190,11 +230,42 @@ export function AdminMappingsPage() {
       <AdminSection
         title="Observed principals"
         description="Unmapped principals are listed first. Confirming one records an administrator-vouched link; revoking closes it without erasing the audit trail."
+        toolbar={
+          <>
+            <AdminSearch
+              value={principalQuery}
+              onChange={updatePrincipalQuery}
+              placeholder="Search observed principals"
+            />
+            <Select value={mappingFilter} onValueChange={updateMappingFilter}>
+              <SelectTrigger className="w-full sm:ml-auto sm:w-44" aria-label="Filter principals">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">All principals</SelectItem>
+                <SelectItem value="unmapped">Unmapped people</SelectItem>
+                <SelectItem value="mapped">Mapped people</SelectItem>
+                <SelectItem value="groups">Groups</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
+        footer={
+          <AdminPagination
+            page={principalPage}
+            total={filteredPrincipals.length}
+            onPageChange={setPrincipalPage}
+          />
+        }
       >
-        {principalRows.length === 0 ? (
+        {filteredPrincipals.length === 0 ? (
           <AdminEmpty
-            title="No principals observed"
-            description="Principals appear after a connector crawl reports the source's identities."
+            title={principalRows.length === 0 ? "No principals observed" : "No principals found"}
+            description={
+              principalRows.length === 0
+                ? "Principals appear after a connector crawl reports the source's identities."
+                : "Try another name, email, external key, or mapping state."
+            }
           />
         ) : (
           <Table>
@@ -208,7 +279,7 @@ export function AdminMappingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {principalRows.map((principal) => {
+              {visiblePrincipals.map((principal) => {
                 const isGroup = principal.kind === "SOURCE_GROUP"
                 const pending = revoke.isPending && revoke.variables?.path.principalId === principal.id
                 return (

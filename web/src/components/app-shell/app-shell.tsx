@@ -1,9 +1,7 @@
 import { type ReactNode, useEffect } from "react"
 import { useMatches } from "@tanstack/react-router"
 
-import { AccountMenu } from "@/components/app-shell/account-menu"
 import { AppSidebar } from "@/components/app-shell/app-sidebar"
-import { ModeToggle } from "@/components/mode-toggle"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import type { SessionResponse } from "@/lib/hey-api"
 
@@ -34,19 +32,13 @@ export function AppShell({
       >
         Skip to content
       </a>
-      {sidebar ?? <AppSidebar />}
+      {sidebar ?? <AppSidebar identity={identity} />}
       <SidebarInset
         className="h-dvh min-w-0 overflow-hidden bg-surface-base md:h-[calc(100dvh-1rem)] md:border md:border-border-subtle"
       >
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-border-subtle bg-surface-base/90 px-3 backdrop-blur-sm md:px-4">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <SidebarTrigger className="text-content-secondary" />
-            <span className="truncate text-label text-content-primary">{pageTitle}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <ModeToggle />
-            <AccountMenu identity={identity} />
-          </div>
+        <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border-subtle bg-surface-base/90 px-3 backdrop-blur-sm md:hidden">
+          <SidebarTrigger className="text-content-secondary" />
+          <span className="truncate text-label text-content-primary">{pageTitle}</span>
         </header>
         <div
           id="main-content"
