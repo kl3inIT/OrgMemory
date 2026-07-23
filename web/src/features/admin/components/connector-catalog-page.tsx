@@ -129,7 +129,7 @@ function SourceTile({
     </CardContent>
   )
 
-  if (availability.state !== "ready" || !entry.to) {
+  if (availability.state !== "ready" || (!entry.to && !entry.sourceSystem)) {
     return (
       <Card className="h-full border-dashed py-0 opacity-70" aria-disabled="true">
         {body}
@@ -137,9 +137,23 @@ function SourceTile({
     )
   }
 
-  return (
-    <Link to={entry.to} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus-ring">
-      <Card className="h-full py-0 transition-colors hover:bg-surface-subtle">{body}</Card>
+  const card = <Card className="h-full py-0 transition-colors hover:bg-surface-subtle">{body}</Card>
+  const focus = "rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+
+  // A connector goes to its own wizard, which is one route for every source. Anything else
+  // says where it goes, because it is not a connection at all.
+  return entry.sourceSystem ? (
+    <Link
+      to="/admin/connectors/$sourceSystem"
+      params={{ sourceSystem: entry.sourceSystem }}
+      search={{}}
+      className={focus}
+    >
+      {card}
+    </Link>
+  ) : (
+    <Link to={entry.to!} className={focus}>
+      {card}
     </Link>
   )
 }

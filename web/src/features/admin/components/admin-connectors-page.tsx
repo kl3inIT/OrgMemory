@@ -22,18 +22,12 @@ import {
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
-import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
+import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
   forgetAdminConnectionCredentialMutation,
   testAdminConnectionMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminConnectionResponse, AdminConnectorProbeResponse } from "@/lib/hey-api"
-
-function probeReason(result: AdminConnectorProbeResponse) {
-  if (result.errorCode && PROBE_REASONS[result.errorCode]) return PROBE_REASONS[result.errorCode]
-  if (result.errorCode) return `The source answered: ${result.errorCode}`
-  return "The credential authenticates and can read what it needs to."
-}
 
 /**
  * What a connection is actually doing, which is not the same as what it was set to.
@@ -209,7 +203,7 @@ export function AdminConnectorsPage() {
                                       : "mt-0.5 text-xs text-destructive"
                                   }
                                 >
-                                  {probeReason(result)}
+                                  {probeReason(group.system, result)}
                                 </div>
                               ) : null}
                             </div>

@@ -1,5 +1,7 @@
 package com.orgmemory.connectors.slack;
 
+import com.orgmemory.core.knowledge.ConnectorCredentialProbe;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.util.Map;
 import java.util.Objects;
@@ -17,10 +19,10 @@ import tools.jackson.databind.JsonNode;
  * connects to the day it was configured. Listing one channel costs one call and moves that
  * discovery to the moment an administrator is looking at the screen.
  *
- * <p>The probe is total: a refusal, a revoked token, and an unreachable Slack are all results
- * rather than exceptions, because the caller asked a question whose negative answer is ordinary.
+ * <p>The workspace id it reports is the connection key, so an administrator pastes a token and
+ * is told the key rather than looking it up in Slack.
  */
-public class SlackCredentialProbe {
+public class SlackCredentialProbe implements ConnectorCredentialProbe {
 
     private final RestClient.Builder restClientBuilder;
 
@@ -28,7 +30,13 @@ public class SlackCredentialProbe {
         this.restClientBuilder = restClientBuilder;
     }
 
-    public SlackCredentialProbeResult probe(SecretValue botToken) {
+    @Override
+    public String sourceSystem() {
+        return SlackSourceProfile.SOURCE_SYSTEM;
+    }
+
+    @Override
+    public ConnectorCredentialProbeResult probe(SecretValue botToken) {
         Objects.requireNonNull(botToken, "botToken");
         SlackWebApiClient client = new SlackWebApiClient(restClientBuilder, botToken.expose());
 
@@ -36,7 +44,7 @@ public class SlackCredentialProbe {
         try {
             auth = client.call("auth.test", Map.of());
         } catch (SlackApiException | RestClientException refused) {
-            return SlackCredentialProbeResult.rejected(errorCodeOf(refused));
+            return ConnectorCredentialProbeResult.rejected(errorCodeOf(refused));
         }
         String workspaceName = auth.path("team").asString("");
         String workspaceId = auth.path("team_id").asString("");
@@ -46,10 +54,10 @@ public class SlackCredentialProbe {
             // limit=1 rather than a page: this asks whether the scope exists, not what is in it.
             client.call("conversations.list", Map.of("types", "public_channel", "limit", "1"));
         } catch (SlackApiException | RestClientException refused) {
-            return SlackCredentialProbeResult.withoutChannelAccess(
-                    workspaceName, workspaceId, botName, errorCodeOf(refused));
+            return ConnectorCredentialProbeResult.withoutContentAccess(
+                    workspaceId, workspaceName, botName, errorCodeOf(refused));
         }
-        return SlackCredentialProbeResult.usable(workspaceName, workspaceId, botName);
+        return ConnectorCredentialProbeResult.usable(workspaceId, workspaceName, botName);
     }
 
     /**

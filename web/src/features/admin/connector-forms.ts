@@ -66,6 +66,43 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
       },
     ],
   },
+  google_drive: {
+    fields: [
+      {
+        type: "list",
+        name: "folderIds",
+        label: "Folders",
+        placeholder: "1AbCdEf…, 1XyZ…",
+        description:
+          "Folder ids, from the end of a folder's URL. Leave empty to read everything the service account can see. A filter also stops the crawl claiming it enumerated the connection, so nothing is retired on its word.",
+      },
+      {
+        type: "text",
+        name: "impersonatedUser",
+        label: "Read as",
+        placeholder: "someone@example.com",
+        description:
+          "Only with domain-wide delegation. Left empty, the service account reads what has been shared with it directly, which is the safer arrangement and usually the one you want first.",
+      },
+    ],
+    advanced: [
+      {
+        type: "checkbox",
+        name: "includeSharedDrives",
+        label: "Include shared drives",
+        default: true,
+        description: "Shared drives the account is a member of, as well as files shared with it.",
+      },
+      {
+        type: "number",
+        name: "maxFiles",
+        label: "Files per crawl",
+        default: 500,
+        min: 1,
+        description: "A bound on one crawl. Hitting it withdraws the completeness claim.",
+      },
+    ],
+  },
 }
 
 /** Every field on a descriptor, in the order they are rendered. */

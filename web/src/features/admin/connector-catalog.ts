@@ -28,10 +28,29 @@ export type ConnectorCatalogEntry = {
    * means nothing is crawled for this source, so there is no adapter to be missing.
    */
   sourceSystem?: string
-  /** Where picking it goes. Absent means it cannot be picked. */
-  to?: "/admin/connectors/slack" | "/sources"
+  /**
+   * How this source's credential is asked for. Present when the source has one — a direct
+   * upload does not — and it is what stops the wizard's first step from being written per
+   * source, the way its configuration step already stopped being.
+   */
+  credential?: ConnectorCredentialDescriptor
+  /** Where picking it goes, when that is not the wizard for this source. */
+  to?: "/sources"
   /** Why it cannot be picked, when the reason is the product rather than the deployment. */
   unavailable?: string
+}
+
+export type ConnectorCredentialDescriptor = {
+  label: string
+  placeholder?: string
+  /** A service account key is a JSON document; a bot token is one line. */
+  multiline?: boolean
+  /** What the credential has to have been granted, in the source's own words. */
+  requirements?: string[]
+  /** What else has to be true at the source before a crawl can read anything. */
+  note?: string
+  /** What the connection will be keyed on, so the probe's answer is recognisable. */
+  keyName: string
 }
 
 export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
@@ -43,7 +62,37 @@ export const CONNECTOR_CATALOG: ConnectorCatalogEntry[] = [
     icon: "slack",
     aclAuthority: "SOURCE",
     sourceSystem: "slack",
-    to: "/admin/connectors/slack",
+    credential: {
+      label: "Bot token",
+      placeholder: "xoxb-…",
+      keyName: "workspace",
+      requirements: [
+        "channels:read",
+        "channels:history",
+        "groups:read",
+        "groups:history",
+        "users:read",
+        "users:read.email",
+      ],
+      note: "The bot also has to be invited to each channel it should read.",
+    },
+  },
+  {
+    id: "google_drive",
+    name: "Google Drive",
+    description:
+      "Crawls documents a service account can see. Each file's own sharing becomes the access rule, so a document is retrievable only by the people it was shared with in Drive.",
+    icon: "google-drive",
+    aclAuthority: "SOURCE",
+    sourceSystem: "google_drive",
+    credential: {
+      label: "Service account key",
+      placeholder: '{ "type": "service_account", … }',
+      multiline: true,
+      keyName: "domain",
+      requirements: ["https://www.googleapis.com/auth/drive.readonly"],
+      note: "Either share the folders to crawl with the service account, or grant it domain-wide delegation and name a user to read as.",
+    },
   },
   {
     id: "upload",

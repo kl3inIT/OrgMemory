@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatTimestamp } from "@/features/admin/admin-labels"
@@ -22,7 +23,8 @@ import {
 } from "@/features/admin/admin-queries"
 import { AdminPage } from "@/features/admin/components/admin-page"
 import { ConnectorFields } from "@/features/admin/components/connector-fields"
-import { SourceIcon } from "@/features/admin/components/source-icon"
+import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
+import { CONNECTOR_CATALOG, type ConnectorCredentialDescriptor } from "@/features/admin/connector-catalog"
 import {
   CONNECTOR_FORMS,
   configFrom,
@@ -30,7 +32,7 @@ import {
   invalidFields,
   type ConnectorFieldDraft,
 } from "@/features/admin/connector-forms"
-import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
+import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
   configureAdminConnectionMutation,
   setAdminConnectionCredentialMutation,
@@ -38,21 +40,8 @@ import {
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminConnectorProbeResponse } from "@/lib/hey-api"
 
-/** The source system this wizard configures. */
-const SLACK = "slack"
-
-/** What the Slack app has to be granted before any of this works. */
-const REQUIRED_SCOPES = [
-  "channels:read",
-  "channels:history",
-  "groups:read",
-  "groups:history",
-  "users:read",
-  "users:read.email",
-]
-
 const STEPS = [
-  { key: "token", label: "Token", hint: "Which workspace" },
+  { key: "credential", label: "Credential", hint: "Which account" },
   { key: "destination", label: "Destination", hint: "Where it lands" },
   { key: "scope", label: "Scope", hint: "How much it reads" },
 ] as const
@@ -62,47 +51,54 @@ type StepKey = (typeof STEPS)[number]["key"]
 const DEFAULT_INTERVAL_MINUTES = 60
 
 /**
- * What Slack itself lets an administrator decide. Read from the descriptor rather than written
- * into this component, so the fields and what the adapter parses stay one statement.
- */
-const SLACK_FORM = CONNECTOR_FORMS[SLACK] ?? { fields: [], advanced: [] }
-
-function probeReason(result: AdminConnectorProbeResponse) {
-  if (result.errorCode && PROBE_REASONS[result.errorCode]) return PROBE_REASONS[result.errorCode]
-  if (result.errorCode) return `Slack answered: ${result.errorCode}`
-  return "The token authenticates and can list channels."
-}
-
-/**
- * Configuring one workspace, in the order the work actually has to happen.
+ * Configuring one connection, in the order the work actually has to happen.
  *
- * <p>The token comes first because it is what reports the workspace id, and the workspace id
- * is the connection key — there is nothing to configure until that is known. After that the
- * two halves Slack has no opinion about: where crawled content lands, and how much of the
- * workspace to read.
+ * <p>The credential comes first because it is what reports the connection key — a Slack
+ * workspace id, a Google Workspace domain — and there is nothing to configure until that is
+ * known. After that come the two halves the source has no opinion about: where crawled content
+ * lands, and how much to read.
+ *
+ * <p>Nothing here names a source. The credential step reads its label, its placeholder and what
+ * has to be granted from the catalogue; the scope step reads its fields from the descriptor;
+ * the destination step is true of every source. That is the whole claim of the last two
+ * increments, and this component is where it either holds or does not.
  *
  * <p>Saving is available from the second step rather than only the last, which is Onyx's
- * arrangement and the right one: the scope step has working defaults, so making somebody walk
- * through it to finish would be ceremony rather than a decision.
+ * arrangement and the right one: the scope step has working defaults, so walking through it to
+ * finish would be ceremony rather than a decision.
  */
-export function SlackConnectionWizard({ connectionKey }: { connectionKey?: string }) {
+export function ConnectionWizard({
+  sourceSystem,
+  connectionKey,
+}: {
+  sourceSystem: string
+  connectionKey?: string
+}) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<StepKey>(connectionKey ? "destination" : "token")
+  const catalogued = CONNECTOR_CATALOG.find((entry) => entry.sourceSystem === sourceSystem)
+  const credentialDescriptor = catalogued?.credential
+  const form = CONNECTOR_FORMS[sourceSystem] ?? { fields: [], advanced: [] }
+
+  const [step, setStep] = useState<StepKey>(connectionKey ? "destination" : "credential")
   const [savedKey, setSavedKey] = useState<string | undefined>(connectionKey)
-  const [botToken, setBotToken] = useState("")
+  const [credential, setCredential] = useState("")
   const [probe, setProbe] = useState<AdminConnectorProbeResponse>()
 
   const [crawlEnabled, setCrawlEnabled] = useState(true)
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string>()
   const [actorUserId, setActorUserId] = useState<string>()
   const [intervalMinutes, setIntervalMinutes] = useState(String(DEFAULT_INTERVAL_MINUTES))
-  const [draft, setDraft] = useState<ConnectorFieldDraft>(() => draftFrom(SLACK_FORM, {}))
+  const [draft, setDraft] = useState<ConnectorFieldDraft>(() => draftFrom(form, {}))
   const [loadedFrom, setLoadedFrom] = useState<string>()
 
   const [connections, users, spaces] = useQueries({
-    queries: [adminConnectionsQueryOptions(SLACK), adminUsersQueryOptions(), knowledgeSpacesQueryOptions()],
+    queries: [
+      adminConnectionsQueryOptions(sourceSystem),
+      adminUsersQueryOptions(),
+      knowledgeSpacesQueryOptions(),
+    ],
   })
 
   const existing = (connections.data ?? []).find(
@@ -116,7 +112,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
     setCrawlEnabled(existing.crawlEnabled ?? true)
     setKnowledgeSpaceId(existing.knowledgeSpaceId)
     setActorUserId(existing.actorUserId)
-    setDraft(draftFrom(SLACK_FORM, existing.sourceConfig ?? {}))
+    setDraft(draftFrom(form, existing.sourceConfig ?? {}))
     setIntervalMinutes(
       String(Math.max(1, Math.round((existing.contentCrawlIntervalSeconds ?? 3600) / 60))),
     )
@@ -125,20 +121,20 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   const test = useMutation({
     ...testAdminConnectorCredentialMutation(),
     onSuccess: (result) => setProbe(result),
-    onError: () => toast.error("The token could not be checked."),
+    onError: () => toast.error("The credential could not be checked."),
   })
 
   const store = useMutation({
     ...setAdminConnectionCredentialMutation(),
     onSuccess: async (_result, variables) => {
       setSavedKey(String(variables.path.connectionKey))
-      setBotToken("")
+      setCredential("")
       setProbe(undefined)
       await invalidateAdminData(queryClient)
       setStep("destination")
-      toast.success("Token stored, encrypted. It is never shown again.")
+      toast.success("Credential stored, encrypted. It is never shown again.")
     },
-    onError: () => toast.error("The token could not be stored."),
+    onError: () => toast.error("The credential could not be stored."),
   })
 
   const configure = useMutation({
@@ -161,7 +157,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
       <div className="grid min-h-full flex-1 place-items-center p-6">
         <ErrorState
           title="This connection could not be loaded"
-          description="Administration requires organization administrator permission."
+          description="This deployment may have no adapter for this source, or administration may require organization administrator permission."
           error={failed.error}
           onRetry={() => {
             void connections.refetch()
@@ -173,10 +169,11 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
     )
   }
 
+  const sourceName = catalogued?.name ?? sourceSystem
   const userRows = users.data ?? []
   const spaceRows = spaces.data ?? []
   const parsedInterval = Number.parseInt(intervalMinutes, 10)
-  const invalid = invalidFields(SLACK_FORM, draft)
+  const invalid = invalidFields(form, draft)
   const boundsValid = parsedInterval > 0 && invalid.length === 0
   const targetsChosen = Boolean(knowledgeSpaceId) && Boolean(actorUserId)
   const canSave = Boolean(savedKey) && boundsValid && (!crawlEnabled || targetsChosen)
@@ -185,13 +182,13 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   function save() {
     if (!savedKey) return
     configure.mutate({
-      path: { sourceSystem: SLACK, connectionKey: savedKey },
+      path: { sourceSystem, connectionKey: savedKey },
       body: {
         crawlEnabled,
         knowledgeSpaceId,
         actorUserId,
-        // Everything only Slack understands goes in one document the ledger stores unread.
-        sourceConfig: configFrom(SLACK_FORM, draft),
+        // Everything only this source understands goes in one document the ledger stores unread.
+        sourceConfig: configFrom(form, draft),
         contentCrawlIntervalSeconds: parsedInterval * 60,
       },
     })
@@ -199,13 +196,15 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
 
   return (
     <AdminPage
-      title={connectionKey ? `Slack · ${connectionKey}` : "Connect Slack"}
-      icon={<SourceIcon name="slack" className="size-6" />}
+      title={connectionKey ? `${sourceName} · ${connectionKey}` : `Connect ${sourceName}`}
+      icon={
+        catalogued ? <SourceIcon name={catalogued.icon as SourceIconName} className="size-6" /> : undefined
+      }
       actions={
         <Button variant="outline" asChild>
           <Link to="/admin/connectors">
             <ArrowLeft aria-hidden="true" />
-            Configured sources
+            Sources
           </Link>
         </Button>
       }
@@ -238,24 +237,26 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
 
       <Card className="py-0">
         <CardContent className="space-y-4 p-5">
-          {step === "token" ? (
-            <TokenStep
+          {step === "credential" ? (
+            <CredentialStep
+              sourceSystem={sourceSystem}
+              descriptor={credentialDescriptor}
               existingSetAt={existing?.credentialSet ? existing.credentialSetAt : undefined}
-              botToken={botToken}
+              credential={credential}
               probe={probe}
               checking={test.isPending}
               storing={store.isPending}
-              onTokenChange={(value) => {
-                setBotToken(value)
+              onCredentialChange={(value) => {
+                setCredential(value)
                 setProbe(undefined)
               }}
               onCheck={() =>
-                test.mutate({ path: { sourceSystem: SLACK }, body: { botToken: botToken.trim() } })
+                test.mutate({ path: { sourceSystem }, body: { credential: credential.trim() } })
               }
               onStore={(key) =>
                 store.mutate({
-                  path: { sourceSystem: SLACK, connectionKey: key },
-                  body: { botToken: botToken.trim() },
+                  path: { sourceSystem, connectionKey: key },
+                  body: { credential: credential.trim() },
                 })
               }
             />
@@ -299,15 +300,15 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   Every crawled object is attributed to this user in the audit trail. Access still
-                  comes from Slack channel membership, not from this choice.
+                  comes from what {sourceName} says, not from this choice.
                 </p>
               </div>
 
               <div className="flex items-center justify-between gap-4 rounded-md border p-3">
                 <div className="space-y-0.5">
-                  <Label htmlFor="crawl-enabled">Crawl this workspace</Label>
+                  <Label htmlFor="crawl-enabled">Index this connection</Label>
                   <p className="text-xs text-muted-foreground">
-                    Nothing is read from Slack until this is on.
+                    Nothing is read from {sourceName} until this is on.
                   </p>
                 </div>
                 <Switch id="crawl-enabled" checked={crawlEnabled} onCheckedChange={setCrawlEnabled} />
@@ -323,7 +324,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
 
           {step === "scope" ? (
             <ConnectorFields
-              descriptor={SLACK_FORM}
+              descriptor={form}
               draft={draft}
               invalid={invalid}
               onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
@@ -338,9 +339,10 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
                   onChange={(event) => setIntervalMinutes(event.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Between these, only access is re-read — a call per channel rather than per thread.
-                  This one is not Slack's: every source is crawled on an interval, and it is a
-                  column with a constraint rather than part of the source's own document.
+                  Between these, only access is re-read, which is far cheaper than re-reading
+                  content. This setting is not the source's: every source is indexed on an
+                  interval, and it is a column with a constraint rather than part of the source's
+                  own document.
                 </p>
                 {parsedInterval > 0 ? null : (
                   <p className="text-sm text-destructive">
@@ -386,51 +388,80 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   )
 }
 
-function TokenStep({
+function CredentialStep({
+  sourceSystem,
+  descriptor,
   existingSetAt,
-  botToken,
+  credential,
   probe,
   checking,
   storing,
-  onTokenChange,
+  onCredentialChange,
   onCheck,
   onStore,
 }: {
+  sourceSystem: string
+  descriptor?: ConnectorCredentialDescriptor
   existingSetAt?: string
-  botToken: string
+  credential: string
   probe?: AdminConnectorProbeResponse
   checking: boolean
   storing: boolean
-  onTokenChange: (value: string) => void
+  onCredentialChange: (value: string) => void
   onCheck: () => void
   onStore: (connectionKey: string) => void
 }) {
+  if (!descriptor) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        This source does not take a credential here.
+      </p>
+    )
+  }
+
+  const id = "connector-credential"
   return (
     <div className="space-y-4">
       {existingSetAt ? (
         <div className="flex items-center gap-3 rounded-md border p-3">
-          <Badge variant="secondary">Token stored</Badge>
+          <Badge variant="secondary">Stored</Badge>
           <span className="text-sm text-muted-foreground">
             Set {formatTimestamp(existingSetAt)}. Entering a new one below replaces it.
           </span>
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div
+        className={
+          descriptor.multiline ? "space-y-3" : "flex flex-col gap-3 sm:flex-row sm:items-end"
+        }
+      >
         <div className="flex-1 space-y-2">
-          <Label htmlFor="slack-bot-token">Bot token</Label>
-          <Input
-            id="slack-bot-token"
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            value={botToken}
-            placeholder="xoxb-…"
-            onChange={(event) => onTokenChange(event.target.value)}
-          />
+          <Label htmlFor={id}>{descriptor.label}</Label>
+          {descriptor.multiline ? (
+            <Textarea
+              id={id}
+              rows={8}
+              spellCheck={false}
+              className="font-mono text-xs"
+              value={credential}
+              placeholder={descriptor.placeholder}
+              onChange={(event) => onCredentialChange(event.target.value)}
+            />
+          ) : (
+            <Input
+              id={id}
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={credential}
+              placeholder={descriptor.placeholder}
+              onChange={(event) => onCredentialChange(event.target.value)}
+            />
+          )}
         </div>
-        <Button variant="outline" disabled={!botToken.trim() || checking} onClick={onCheck}>
-          {checking ? "Checking…" : "Check token"}
+        <Button variant="outline" disabled={!credential.trim() || checking} onClick={onCheck}>
+          {checking ? "Checking…" : "Check"}
         </Button>
       </div>
 
@@ -439,18 +470,19 @@ function TokenStep({
         response, not masked, not to you.
       </p>
 
-      <p className="text-xs text-muted-foreground">
-        The Slack app needs{" "}
-        {REQUIRED_SCOPES.map((scope, index) => (
-          <span key={scope}>
-            {index > 0 ? ", " : ""}
-            <code className="rounded bg-muted px-1 py-0.5">{scope}</code>
-          </span>
-        ))}
-        , and the bot has to be invited to each channel it should read. Checking here confirms both
-        that the token authenticates and that it was granted the scope to list channels — which
-        authentication alone does not.
-      </p>
+      {descriptor.requirements?.length ? (
+        <p className="text-xs text-muted-foreground">
+          It has to have been granted{" "}
+          {descriptor.requirements.map((requirement, index) => (
+            <span key={requirement}>
+              {index > 0 ? ", " : ""}
+              <code className="rounded bg-muted px-1 py-0.5">{requirement}</code>
+            </span>
+          ))}
+          . {descriptor.note} Checking here confirms both that it authenticates and that it can
+          actually read something — which authentication alone does not.
+        </p>
+      ) : null}
 
       {probe ? (
         <Card className="py-0">
@@ -469,17 +501,19 @@ function TokenStep({
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-sm font-medium">
                 {probe.authenticated
-                  ? `${probe.workspaceName || "Workspace"} · ${probe.workspaceId}`
-                  : "Slack refused this token"}
+                  ? `${probe.accountName || descriptor.keyName} · ${probe.connectionKey}`
+                  : "The credential was refused"}
               </p>
-              <p className="text-sm text-muted-foreground">{probeReason(probe)}</p>
-              {probe.authenticated && probe.botName ? (
-                <p className="text-xs text-muted-foreground">Authenticated as {probe.botName}.</p>
+              <p className="text-sm text-muted-foreground">{probeReason(sourceSystem, probe)}</p>
+              {probe.authenticated && probe.identityName ? (
+                <p className="text-xs text-muted-foreground">
+                  Authenticated as {probe.identityName}.
+                </p>
               ) : null}
             </div>
-            {probe.authenticated && probe.workspaceId ? (
-              <Button disabled={storing} onClick={() => onStore(probe.workspaceId!)}>
-                {storing ? "Saving…" : "Save token"}
+            {probe.authenticated && probe.connectionKey ? (
+              <Button disabled={storing} onClick={() => onStore(probe.connectionKey!)}>
+                {storing ? "Saving…" : "Save credential"}
                 <ArrowRight aria-hidden="true" />
               </Button>
             ) : null}

@@ -1,7 +1,7 @@
 package com.orgmemory.api.admin;
 
-import com.orgmemory.connectors.slack.SlackCredentialProbe;
-import com.orgmemory.connectors.slack.SlackCredentialProbeResult;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import com.orgmemory.core.knowledge.ConnectorSourceRegistry;
@@ -52,13 +52,12 @@ import tools.jackson.databind.ObjectMapper;
 class AdminConnectorController {
 
     private static final long DEFAULT_CONTENT_CRAWL_INTERVAL_SECONDS = 3600;
-    private static final String SLACK = "slack";
 
     private final AdminAccessGuard guard;
     private final SourceConnectionAdminService connections;
     private final SourceConnectionActivityService activity;
     private final ConnectorSourceRegistry sources;
-    private final SlackCredentialProbe slackProbe;
+    private final ConnectorCredentialProbeRegistry probes;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     AdminConnectorController(
@@ -66,12 +65,12 @@ class AdminConnectorController {
             SourceConnectionAdminService connections,
             SourceConnectionActivityService activity,
             ConnectorSourceRegistry sources,
-            SlackCredentialProbe slackProbe) {
+            ConnectorCredentialProbeRegistry probes) {
         this.guard = guard;
         this.connections = connections;
         this.activity = activity;
         this.sources = sources;
-        this.slackProbe = slackProbe;
+        this.probes = probes;
     }
 
     /** A source this deployment can actually ingest, as reported by the adapters installed. */
@@ -157,11 +156,11 @@ class AdminConnectorController {
      * failure, a filter that traces payloads, a debugger left on. Onyx guards the same edge by
      * raising on {@code str()} of a sensitive value.
      */
-    record ConnectorCredentialRequest(String botToken) {
+    record ConnectorCredentialRequest(String credential) {
 
         @Override
         public String toString() {
-            return "ConnectorCredentialRequest[botToken=<redacted>]";
+            return "ConnectorCredentialRequest[credential=<redacted>]";
         }
     }
 
@@ -169,27 +168,31 @@ class AdminConnectorController {
      * What a credential turned out to be. {@code errorCode} is the source's own vocabulary
      * ({@code invalid_auth}, {@code missing_scope}, {@code token_revoked}), plus
      * {@code no_credential} when this connection has nothing stored to test.
+     *
+     * <p>{@code connectionKey} is what the connection will be keyed on — a Slack workspace id, a
+     * Google Workspace domain — so an administrator pastes a credential and is told the key
+     * rather than asked to find it.
      */
     record AdminConnectorProbeResponse(
             boolean authenticated,
-            String workspaceName,
-            String workspaceId,
-            String botName,
-            boolean canListChannels,
+            String connectionKey,
+            String accountName,
+            String identityName,
+            boolean canReadContent,
             String errorCode) {
 
-        static AdminConnectorProbeResponse from(SlackCredentialProbeResult result) {
+        static AdminConnectorProbeResponse from(ConnectorCredentialProbeResult result) {
             return new AdminConnectorProbeResponse(
                     result.authenticated(),
-                    result.workspaceName(),
-                    result.workspaceId(),
-                    result.botName(),
-                    result.canListChannels(),
+                    result.connectionKey(),
+                    result.accountName(),
+                    result.identityName(),
+                    result.canReadContent(),
                     result.errorCode());
         }
 
         static AdminConnectorProbeResponse noCredential() {
-            return new AdminConnectorProbeResponse(false, null, null, null, false, "no_credential");
+            return from(ConnectorCredentialProbeResult.noCredential());
         }
     }
 
@@ -272,7 +275,7 @@ class AdminConnectorController {
                 actor.organizationId(),
                 requireInstalled(sourceSystem),
                 connectionKey,
-                SecretValue.of(request.botToken()),
+                SecretValue.of(request.credential()),
                 actor.userId());
     }
 
@@ -289,9 +292,9 @@ class AdminConnectorController {
     }
 
     /**
-     * Checks a credential that has not been stored, which is how a Slack connection gets
-     * configured at all: the workspace id this returns is the connection key, so an
-     * administrator pastes a token and gets the key rather than looking it up in Slack.
+     * Checks a credential that has not been stored, which is how a connection gets configured at
+     * all: the connection key this returns is the one the connection will use, so an
+     * administrator pastes a credential and is told the key rather than looking it up.
      */
     @PostMapping("/{sourceSystem}/test")
     @Operation(operationId = "testAdminConnectorCredential", summary = "Check a credential without storing it")
@@ -301,7 +304,7 @@ class AdminConnectorController {
             Authentication authentication) {
         guard.requireAdministrator(authentication);
         return AdminConnectorProbeResponse.from(
-                probe(requireInstalled(sourceSystem), SecretValue.of(request.botToken())));
+                probes.probe(requireInstalled(sourceSystem), SecretValue.of(request.credential())));
     }
 
     /**
@@ -319,22 +322,8 @@ class AdminConnectorController {
         String system = requireInstalled(sourceSystem);
         Optional<SecretValue> stored =
                 connections.resolveCredential(actor.organizationId(), system, connectionKey);
-        return stored.map(token -> AdminConnectorProbeResponse.from(probe(system, token)))
+        return stored.map(credential -> AdminConnectorProbeResponse.from(probes.probe(system, credential)))
                 .orElseGet(AdminConnectorProbeResponse::noCredential);
-    }
-
-    /**
-     * Only Slack can be probed today, because only Slack has an adapter. The generic answer is a
-     * probe port each adapter contributes alongside its profile; that is worth building when a
-     * second source needs it, and pretending it exists now would be one indirection over one
-     * implementation.
-     */
-    private SlackCredentialProbeResult probe(String sourceSystem, SecretValue credential) {
-        if (!SLACK.equals(sourceSystem)) {
-            throw new IllegalArgumentException(
-                    "Checking a credential is not implemented for the source system " + sourceSystem);
-        }
-        return slackProbe.probe(credential);
     }
 
     /** A source no adapter contributed has nothing to configure, so naming it is a request error. */

@@ -20,8 +20,8 @@ import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminConnectorsIndexRouteImport } from './routes/admin/connectors/index'
+import { Route as AdminConnectorsSourceSystemRouteImport } from './routes/admin/connectors/$sourceSystem'
 import { Route as AdminConnectorsNewRouteImport } from './routes/admin/connectors/new'
-import { Route as AdminConnectorsSlackRouteImport } from './routes/admin/connectors/slack'
 import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -78,21 +78,22 @@ const AdminConnectorsIndexRoute = AdminConnectorsIndexRouteImport.update({
   path: '/connectors/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminConnectorsSourceSystemRoute =
+  AdminConnectorsSourceSystemRouteImport.update({
+    id: '/connectors/$sourceSystem',
+    path: '/connectors/$sourceSystem',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminConnectorsNewRoute = AdminConnectorsNewRouteImport.update({
   id: '/connectors/new',
   path: '/connectors/new',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminConnectorsSlackRoute = AdminConnectorsSlackRouteImport.update({
-  id: '/connectors/slack',
-  path: '/connectors/slack',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminConnectorsSourceSystemConnectionKeyRoute =
   AdminConnectorsSourceSystemConnectionKeyRouteImport.update({
-    id: '/connectors/$sourceSystem/$connectionKey',
-    path: '/connectors/$sourceSystem/$connectionKey',
-    getParentRoute: () => AdminRoute,
+    id: '/$connectionKey',
+    path: '/$connectionKey',
+    getParentRoute: () => AdminConnectorsSourceSystemRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -105,8 +106,8 @@ export interface FileRoutesByFullPath {
   '/admin/scim': typeof AdminScimRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemRouteWithChildren
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
-  '/admin/connectors/slack': typeof AdminConnectorsSlackRoute
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
 }
@@ -119,8 +120,8 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemRouteWithChildren
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
-  '/admin/connectors/slack': typeof AdminConnectorsSlackRoute
   '/admin/connectors': typeof AdminConnectorsIndexRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
 }
@@ -136,8 +137,8 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemRouteWithChildren
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
-  '/admin/connectors/slack': typeof AdminConnectorsSlackRoute
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
 }
@@ -153,8 +154,8 @@ export interface FileRouteTypes {
     | '/admin/scim'
     | '/admin/users'
     | '/admin/'
+    | '/admin/connectors/$sourceSystem'
     | '/admin/connectors/new'
-    | '/admin/connectors/slack'
     | '/admin/connectors/'
     | '/admin/connectors/$sourceSystem/$connectionKey'
   fileRoutesByTo: FileRoutesByTo
@@ -167,8 +168,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/'
     | '/admin'
+    | '/admin/connectors/$sourceSystem'
     | '/admin/connectors/new'
-    | '/admin/connectors/slack'
     | '/admin/connectors'
     | '/admin/connectors/$sourceSystem/$connectionKey'
   id:
@@ -183,8 +184,8 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/_authenticated/'
     | '/admin/'
+    | '/admin/connectors/$sourceSystem'
     | '/admin/connectors/new'
-    | '/admin/connectors/slack'
     | '/admin/connectors/'
     | '/admin/connectors/$sourceSystem/$connectionKey'
   fileRoutesById: FileRoutesById
@@ -274,6 +275,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConnectorsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/connectors/$sourceSystem': {
+      id: '/admin/connectors/$sourceSystem'
+      path: '/connectors/$sourceSystem'
+      fullPath: '/admin/connectors/$sourceSystem'
+      preLoaderRoute: typeof AdminConnectorsSourceSystemRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/connectors/new': {
       id: '/admin/connectors/new'
       path: '/connectors/new'
@@ -281,19 +289,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConnectorsNewRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/connectors/slack': {
-      id: '/admin/connectors/slack'
-      path: '/connectors/slack'
-      fullPath: '/admin/connectors/slack'
-      preLoaderRoute: typeof AdminConnectorsSlackRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/connectors/$sourceSystem/$connectionKey': {
       id: '/admin/connectors/$sourceSystem/$connectionKey'
-      path: '/connectors/$sourceSystem/$connectionKey'
+      path: '/$connectionKey'
       fullPath: '/admin/connectors/$sourceSystem/$connectionKey'
       preLoaderRoute: typeof AdminConnectorsSourceSystemConnectionKeyRouteImport
-      parentRoute: typeof AdminRoute
+      parentRoute: typeof AdminConnectorsSourceSystemRoute
     }
   }
 }
@@ -312,16 +313,30 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface AdminConnectorsSourceSystemRouteChildren {
+  AdminConnectorsSourceSystemConnectionKeyRoute: typeof AdminConnectorsSourceSystemConnectionKeyRoute
+}
+
+const AdminConnectorsSourceSystemRouteChildren: AdminConnectorsSourceSystemRouteChildren =
+  {
+    AdminConnectorsSourceSystemConnectionKeyRoute:
+      AdminConnectorsSourceSystemConnectionKeyRoute,
+  }
+
+const AdminConnectorsSourceSystemRouteWithChildren =
+  AdminConnectorsSourceSystemRoute._addFileChildren(
+    AdminConnectorsSourceSystemRouteChildren,
+  )
+
 interface AdminRouteChildren {
   AdminGroupsRoute: typeof AdminGroupsRoute
   AdminMappingsRoute: typeof AdminMappingsRoute
   AdminScimRoute: typeof AdminScimRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminConnectorsSourceSystemRoute: typeof AdminConnectorsSourceSystemRouteWithChildren
   AdminConnectorsNewRoute: typeof AdminConnectorsNewRoute
-  AdminConnectorsSlackRoute: typeof AdminConnectorsSlackRoute
   AdminConnectorsIndexRoute: typeof AdminConnectorsIndexRoute
-  AdminConnectorsSourceSystemConnectionKeyRoute: typeof AdminConnectorsSourceSystemConnectionKeyRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -330,11 +345,10 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminScimRoute: AdminScimRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminConnectorsSourceSystemRoute:
+    AdminConnectorsSourceSystemRouteWithChildren,
   AdminConnectorsNewRoute: AdminConnectorsNewRoute,
-  AdminConnectorsSlackRoute: AdminConnectorsSlackRoute,
   AdminConnectorsIndexRoute: AdminConnectorsIndexRoute,
-  AdminConnectorsSourceSystemConnectionKeyRoute:
-    AdminConnectorsSourceSystemConnectionKeyRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

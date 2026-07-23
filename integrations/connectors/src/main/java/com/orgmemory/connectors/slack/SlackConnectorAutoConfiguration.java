@@ -2,6 +2,7 @@ package com.orgmemory.connectors.slack;
 
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbe;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -36,5 +37,11 @@ public class SlackConnectorAutoConfiguration {
             ConnectorObjectDirectory objects,
             RestClient.Builder restClientBuilder) {
         return new SlackConnectorBatchSource(connections, objects, restClientBuilder);
+    }
+
+    /** Reaching Slack to check a token is a listed decision, not something the classpath arranged. */
+    @Bean
+    ConnectorCredentialProbe slackCredentialProbe(RestClient.Builder restClientBuilder) {
+        return new SlackCredentialProbe(restClientBuilder);
     }
 }

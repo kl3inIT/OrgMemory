@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -16,8 +17,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.orgmemory.connectors.slack.SlackCredentialProbe;
-import com.orgmemory.connectors.slack.SlackCredentialProbeResult;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
@@ -79,8 +80,13 @@ class ConnectorAdminIntegrationTests {
     @Autowired
     JdbcTemplate jdbc;
 
+    /**
+     * The registry rather than Slack's probe. Which adapter answers for a source system is the
+     * registry's decision and is proved in its own suite; what this suite is about is that the
+     * controller hands the credential over and shapes what comes back, for any source.
+     */
     @MockitoBean
-    SlackCredentialProbe probe;
+    ConnectorCredentialProbeRegistry probes;
 
     @MockitoBean
     RelationshipAuthorizationPort entryAuthorization;
@@ -105,8 +111,8 @@ class ConnectorAdminIntegrationTests {
                     ? AuthorizationDecision.allow(MODEL_ID)
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID);
         });
-        when(probe.probe(any())).thenReturn(
-                new SlackCredentialProbeResult(true, "Slack Test", WORKSPACE, "orgmemory", true, null));
+        when(probes.probe(any(), any())).thenReturn(
+                ConnectorCredentialProbeResult.usable(WORKSPACE, "Slack Test", "orgmemory"));
     }
 
     @Test
@@ -123,14 +129,14 @@ class ConnectorAdminIntegrationTests {
         mvc.perform(put("/api/admin/connectors/slack/{key}/credential", WORKSPACE)
                         .with(employee)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/api/admin/connectors/slack/{key}/credential", WORKSPACE).with(employee))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/admin/connectors/slack/test")
                         .with(employee)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/admin/connectors/slack/{key}/test", WORKSPACE).with(employee))
                 .andExpect(status().isForbidden());
@@ -157,7 +163,7 @@ class ConnectorAdminIntegrationTests {
         mvc.perform(put("/api/admin/connectors/teams/{key}/credential", WORKSPACE)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isBadRequest());
 
         assertEquals(
@@ -230,7 +236,7 @@ class ConnectorAdminIntegrationTests {
         mvc.perform(put("/api/admin/connectors/slack/{key}/credential", WORKSPACE)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isNoContent());
 
         String stored = jdbc.queryForObject(
@@ -271,18 +277,18 @@ class ConnectorAdminIntegrationTests {
         String response = mvc.perform(post("/api/admin/connectors/slack/test")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true))
-                .andExpect(jsonPath("$.workspaceId").value(WORKSPACE))
-                .andExpect(jsonPath("$.canListChannels").value(true))
+                .andExpect(jsonPath("$.connectionKey").value(WORKSPACE))
+                .andExpect(jsonPath("$.canReadContent").value(true))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         assertFalse(response.contains(BOT_TOKEN), "A probe result must describe the token, not repeat it");
 
         ArgumentCaptor<SecretValue> submitted = ArgumentCaptor.forClass(SecretValue.class);
-        verify(probe).probe(submitted.capture());
+        verify(probes).probe(eq("slack"), submitted.capture());
         assertEquals(BOT_TOKEN, submitted.getValue().expose(), "Slack must be asked about the token that was sent");
     }
 
@@ -291,15 +297,15 @@ class ConnectorAdminIntegrationTests {
         mvc.perform(put("/api/admin/connectors/slack/{key}/credential", WORKSPACE)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isNoContent());
 
         mvc.perform(post("/api/admin/connectors/slack/{key}/test", WORKSPACE).with(jwtFor(ADMIN_USER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.workspaceId").value(WORKSPACE));
+                .andExpect(jsonPath("$.connectionKey").value(WORKSPACE));
 
         ArgumentCaptor<SecretValue> resolved = ArgumentCaptor.forClass(SecretValue.class);
-        verify(probe).probe(resolved.capture());
+        verify(probes).probe(eq("slack"), resolved.capture());
         assertEquals(
                 BOT_TOKEN,
                 resolved.getValue().expose(),
@@ -313,7 +319,7 @@ class ConnectorAdminIntegrationTests {
                 .andExpect(jsonPath("$.authenticated").value(false))
                 .andExpect(jsonPath("$.errorCode").value("no_credential"));
 
-        verifyNoInteractions(probe);
+        verifyNoInteractions(probes);
     }
 
     @Test
@@ -321,7 +327,7 @@ class ConnectorAdminIntegrationTests {
         mvc.perform(put("/api/admin/connectors/slack/{key}/credential", WORKSPACE)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                        .content("{\"credential\":\"" + BOT_TOKEN + "\"}"))
                 .andExpect(status().isNoContent());
 
         List<String> reasons = jdbc.queryForList("""

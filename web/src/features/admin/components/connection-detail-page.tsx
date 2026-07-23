@@ -134,13 +134,15 @@ export function ConnectionDetailPage({
               Sources
             </Link>
           </Button>
-          {sourceSystem === "slack" ? (
-            <Button asChild>
-              <Link to="/admin/connectors/slack" search={{ connection: connectionKey }}>
-                Configure
-              </Link>
-            </Button>
-          ) : null}
+          <Button asChild>
+            <Link
+              to="/admin/connectors/$sourceSystem"
+              params={{ sourceSystem }}
+              search={{ connection: connectionKey }}
+            >
+              Configure
+            </Link>
+          </Button>
         </>
       }
     >
