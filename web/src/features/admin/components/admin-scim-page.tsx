@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { AdminPage } from "@/features/admin/components/admin-page"
 
 /**
@@ -12,23 +13,34 @@ export function AdminScimPage() {
       title="SCIM"
       description="Automatic provisioning from the identity provider is not enabled for this deployment."
     >
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Provisioning
+            Provisioning status
             <Badge variant="outline">Not configured</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <p>
-            Users are created in the identity provider and become usable in OrgMemory once their account is
-            linked to an organization member. There is no in-application invitation or registration, so the
-            directory can never disagree with the identity provider.
-          </p>
-          <p>
-            Until SCIM is available, an administrator confirms an external identity on the{" "}
-            <span className="font-medium text-foreground">Source mappings</span> screen, or marks a whole
-            connection SSO verified so its identities resolve on their own.
+        <CardContent className="space-y-4 text-sm">
+          <dl className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Account authority</dt>
+              <dd className="font-medium">Identity provider</dd>
+            </div>
+            <Separator />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Automatic user and group sync</dt>
+              <dd className="font-medium">Not enabled</dd>
+            </div>
+            <Separator />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <dt className="text-muted-foreground">In-app registration</dt>
+              <dd className="font-medium">Disabled</dd>
+            </div>
+          </dl>
+          <p className="rounded-lg bg-surface-subtle p-3 text-muted-foreground">
+            Until SCIM is available, resolve external people through{" "}
+            <span className="font-medium text-foreground">Source mappings</span>. Unresolved identities
+            remain denied.
           </p>
         </CardContent>
       </Card>

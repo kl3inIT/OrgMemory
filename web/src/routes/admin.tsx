@@ -22,7 +22,7 @@ export const Route = createFileRoute("/admin")({
 function AdminLayout() {
   const { session } = Route.useRouteContext()
   return (
-    <AppShell identity={session} sidebar={<AdminSidebar />}>
+    <AppShell identity={session} sidebar={<AdminSidebar identity={session} />}>
       <Outlet />
     </AppShell>
   )
