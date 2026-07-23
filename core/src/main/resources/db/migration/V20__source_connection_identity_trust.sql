@@ -28,10 +28,15 @@ CREATE TABLE source_connections (
         btrim(source_system) <> ''
         AND btrim(source_connection_key) <> ''
     ),
-    -- A non-default trust level is an accountable decision: it records who made
-    -- it and when, so the ledger can explain why a tier was allowed to fire.
+    -- Trust is an accountable decision: raising it records who made it and when, and
+    -- lowering it back to the default clears that attribution rather than leaving
+    -- stale evidence behind claiming somebody still vouches for the connection.
     CONSTRAINT chk_source_connection_trust_attribution CHECK (
-        identity_trust = 'UNTRUSTED'
-        OR (trust_decided_by_user_id IS NOT NULL AND trust_decided_at IS NOT NULL)
+        (identity_trust = 'UNTRUSTED'
+            AND trust_decided_by_user_id IS NULL
+            AND trust_decided_at IS NULL)
+        OR (identity_trust <> 'UNTRUSTED'
+            AND trust_decided_by_user_id IS NOT NULL
+            AND trust_decided_at IS NOT NULL)
     )
 );
