@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.extraction;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.model.RelationOrientation;
 import java.util.List;
 import java.util.Objects;
@@ -32,11 +34,4 @@ public record ExtractionCandidateRelation(
         }
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

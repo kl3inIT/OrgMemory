@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.model;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -118,22 +120,16 @@ public record ExtractionProfile(
         update(digest, promptVersion);
         update(digest, Integer.toString(maxEntities));
         update(digest, Integer.toString(maxRelations));
+        update(digest, "entityTypeGuidance");
+        update(digest, Integer.toString(entityTypeGuidance.size()));
         entityTypeGuidance.forEach(value -> update(digest, value));
         update(digest, "examples");
+        update(digest, Integer.toString(examples.size()));
         examples.forEach(value -> update(digest, value));
         update(digest, Integer.toString(maxGleaningRounds));
         update(digest, Integer.toString(maxGleaningInputTokens));
         update(digest, Integer.toString(maxSectionContextTokens));
         return HexFormat.of().formatHex(digest.digest());
-    }
-
-    private static String requireText(String value, String field) {
-        Objects.requireNonNull(value, field);
-        String normalized = value.strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     private static List<String> normalizedValues(List<String> values, String field) {

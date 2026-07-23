@@ -50,6 +50,35 @@ class IterativeDescriptionSummarizerTests {
                 "auth-fingerprint".equals(request.authorizationFingerprint())
                         && "projection-fingerprint".equals(
                                 request.projectionFingerprint())));
+        assertTrue(model.requests.stream()
+                .allMatch(request -> request.descriptions().stream()
+                                .mapToInt(String::length)
+                                .sum()
+                        + Math.max(0, request.descriptions().size() - 1)
+                        <= 12));
+    }
+
+    @Test
+    void splitsOversizedFragmentsBeforeAnyModelInvocation() {
+        RecordingSummaryModel model = new RecordingSummaryModel();
+        IterativeDescriptionSummarizer summarizer =
+                new IterativeDescriptionSummarizer(new CodePointTokenizer(), model);
+
+        DescriptionSummaryResult result = summarizer.summarize(
+                scoped(List.of("abcdefghijklmnopqrst")),
+                new DescriptionSummaryOptions(10, 8, 2, "\n", Locale.ENGLISH));
+
+        assertTrue(result.modelUsed());
+        assertTrue(model.requests.stream()
+                .allMatch(request -> request.descriptions().stream()
+                                .mapToInt(String::length)
+                                .sum()
+                        + Math.max(0, request.descriptions().size() - 1)
+                        <= 10));
+        assertEquals(
+                "abcdefghijklmnopqrst",
+                model.requests.get(0).descriptions().getFirst()
+                        + model.requests.get(1).descriptions().getFirst());
     }
 
     private static ScopedDescriptionSet scoped(List<String> descriptions) {
@@ -69,7 +98,7 @@ class IterativeDescriptionSummarizerTests {
         @Override
         public String summarize(DescriptionSummaryRequest request) {
             requests.add(request);
-            return "summary-" + requests.size();
+            return "x";
         }
     }
 }

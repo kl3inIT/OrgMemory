@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.springai;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.extraction.ExtractionCandidateEntity;
 import com.orgmemory.graphrag.extraction.ExtractionCandidateRelation;
 import com.orgmemory.graphrag.extraction.ExtractionConversationMessage;
@@ -59,7 +61,14 @@ final class SpringAiExtractionModel implements ExtractionModel {
             throw new GraphExtractionException("Extraction model returned no assistant response");
         }
         String assistantMessage = chatResponse.getResult().getOutput().getText();
-        StructuredExtractionResponse structured = converter.convert(assistantMessage);
+        StructuredExtractionResponse structured;
+        try {
+            structured = converter.convert(assistantMessage);
+        } catch (RuntimeException exception) {
+            throw new GraphExtractionException(
+                    "Extraction model returned malformed structured output",
+                    exception);
+        }
         if (structured == null
                 || structured.entities() == null
                 || structured.relationships() == null) {
@@ -90,32 +99,54 @@ final class SpringAiExtractionModel implements ExtractionModel {
 
     private static ExtractionCandidateEntity mapEntity(
             StructuredExtractionResponse.EntityItem entity) {
-        Objects.requireNonNull(entity, "entity");
-        return new ExtractionCandidateEntity(
-                entity.name(),
-                entity.type(),
-                entity.description(),
-                requireConfidence(entity.confidence()));
+        if (entity == null) {
+            throw new GraphExtractionException(
+                    "Structured extraction response contained a null entity");
+        }
+        try {
+            return new ExtractionCandidateEntity(
+                    entity.name(),
+                    entity.type(),
+                    entity.description(),
+                    requireConfidence(entity.confidence()));
+        } catch (GraphExtractionException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new GraphExtractionException(
+                    "Structured extraction response contained an invalid entity",
+                    exception);
+        }
     }
 
     private static ExtractionCandidateRelation mapRelation(
             StructuredExtractionResponse.RelationItem relation) {
-        Objects.requireNonNull(relation, "relation");
-        List<String> keywords = Objects.requireNonNull(
-                        relation.keywords(), "keywords")
-                .stream()
-                .map(keyword -> requireText(keyword, "keyword"))
-                .distinct()
-                .toList();
-        return new ExtractionCandidateRelation(
-                relation.source(),
-                relation.target(),
-                relation.type(),
-                keywords,
-                relation.description(),
-                parseOrientation(relation.orientation()),
-                1.0,
-                requireConfidence(relation.confidence()));
+        if (relation == null) {
+            throw new GraphExtractionException(
+                    "Structured extraction response contained a null relationship");
+        }
+        try {
+            List<String> keywords = Objects.requireNonNull(
+                            relation.keywords(), "keywords")
+                    .stream()
+                    .map(keyword -> requireText(keyword, "keyword"))
+                    .distinct()
+                    .toList();
+            return new ExtractionCandidateRelation(
+                    relation.source(),
+                    relation.target(),
+                    relation.type(),
+                    keywords,
+                    relation.description(),
+                    parseOrientation(relation.orientation()),
+                    1.0,
+                    requireConfidence(relation.confidence()));
+        } catch (GraphExtractionException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new GraphExtractionException(
+                    "Structured extraction response contained an invalid relationship",
+                    exception);
+        }
     }
 
     private static RelationOrientation parseOrientation(String value) {
@@ -123,7 +154,7 @@ final class SpringAiExtractionModel implements ExtractionModel {
         try {
             return RelationOrientation.valueOf(normalized);
         } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException(
+            throw new GraphExtractionException(
                     "orientation must be DIRECTED or UNDIRECTED",
                     exception);
         }
@@ -134,14 +165,11 @@ final class SpringAiExtractionModel implements ExtractionModel {
     }
 
     private static double requireConfidence(Double value) {
-        return Objects.requireNonNull(value, "confidence");
+        if (value == null) {
+            throw new GraphExtractionException(
+                    "Structured extraction response is missing a confidence value");
+        }
+        return value;
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

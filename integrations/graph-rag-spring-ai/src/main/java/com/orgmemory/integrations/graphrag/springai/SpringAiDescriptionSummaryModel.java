@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.springai;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.port.DescriptionSummaryModel;
 import com.orgmemory.graphrag.summarization.DescriptionSummaryRequest;
 import java.util.Objects;
@@ -66,11 +68,4 @@ public final class SpringAiDescriptionSummaryModel implements DescriptionSummary
         return summary.strip();
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

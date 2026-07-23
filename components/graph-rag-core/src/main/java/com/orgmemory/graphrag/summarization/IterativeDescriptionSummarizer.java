@@ -1,5 +1,6 @@
 package com.orgmemory.graphrag.summarization;
 
+import com.orgmemory.graphrag.chunking.EncodedText;
 import com.orgmemory.graphrag.chunking.TextTokenizer;
 import com.orgmemory.graphrag.port.DescriptionSummaryModel;
 import java.util.ArrayList;
@@ -25,10 +26,12 @@ public final class IterativeDescriptionSummarizer {
             DescriptionSummaryOptions options) {
         Objects.requireNonNull(scopedDescriptions, "scopedDescriptions");
         Objects.requireNonNull(options, "options");
-        List<String> current = scopedDescriptions.descriptions().stream()
+        List<String> sanitized = scopedDescriptions.descriptions().stream()
                 .map(IterativeDescriptionSummarizer::sanitize)
                 .distinct()
                 .toList();
+        List<String> current =
+                splitOversized(sanitized, options.contextTokenLimit());
         if (current.size() == 1) {
             return new DescriptionSummaryResult(current.getFirst(), false, 0);
         }
@@ -41,8 +44,8 @@ public final class IterativeDescriptionSummarizer {
                         invocations > 0,
                         invocations);
             }
-            int totalTokens = tokenCount(current);
-            if (totalTokens <= options.contextTokenLimit() || current.size() <= 2) {
+            int totalTokens = tokenCount(current, options.separator());
+            if (totalTokens <= options.contextTokenLimit()) {
                 if (current.size() < options.forceModelAtFragmentCount()
                         && totalTokens < options.maximumOutputTokens()) {
                     return new DescriptionSummaryResult(
@@ -58,16 +61,19 @@ public final class IterativeDescriptionSummarizer {
             }
 
             List<List<String>> groups =
-                    groups(current, options.contextTokenLimit());
+                    groups(current, options.contextTokenLimit(), options.separator());
+            boolean everyGroupIsSingleton =
+                    groups.stream().allMatch(group -> group.size() == 1);
             List<String> reduced = new ArrayList<>(groups.size());
             for (List<String> group : groups) {
-                if (group.size() == 1) {
+                if (group.size() == 1 && !everyGroupIsSingleton) {
                     reduced.add(group.getFirst());
                 } else {
                     reduced.add(invoke(scopedDescriptions, options, group));
                     invocations++;
                 }
             }
+            reduced = splitOversized(reduced, options.contextTokenLimit());
             if (reduced.equals(current)) {
                 throw new IllegalStateException(
                         "description summary reduction made no progress");
@@ -81,6 +87,11 @@ public final class IterativeDescriptionSummarizer {
             ScopedDescriptionSet scopedDescriptions,
             DescriptionSummaryOptions options,
             List<String> descriptions) {
+        if (tokenCount(descriptions, options.separator())
+                > options.contextTokenLimit()) {
+            throw new IllegalArgumentException(
+                    "description summary input exceeds the context token limit");
+        }
         String summary = model.summarize(new DescriptionSummaryRequest(
                 scopedDescriptions.subjectKind(),
                 scopedDescriptions.subjectName(),
@@ -92,39 +103,69 @@ public final class IterativeDescriptionSummarizer {
         return sanitize(summary);
     }
 
-    private List<List<String>> groups(List<String> descriptions, int tokenLimit) {
+    private List<List<String>> groups(
+            List<String> descriptions,
+            int tokenLimit,
+            String separator) {
         List<List<String>> groups = new ArrayList<>();
         List<String> current = new ArrayList<>();
         int currentTokens = 0;
+        int separatorTokens = tokenizer.count(separator);
         for (String description : descriptions) {
             int descriptionTokens = tokenizer.count(description);
+            int additionalTokens = current.isEmpty()
+                    ? descriptionTokens
+                    : Math.addExact(separatorTokens, descriptionTokens);
             if (!current.isEmpty()
-                    && currentTokens + descriptionTokens > tokenLimit) {
-                if (current.size() == 1 && !groups.isEmpty()) {
-                    groups.getLast().addAll(current);
-                } else {
-                    groups.add(current);
-                }
+                    && Math.addExact(currentTokens, additionalTokens) > tokenLimit) {
+                groups.add(current);
                 current = new ArrayList<>();
                 currentTokens = 0;
+                additionalTokens = descriptionTokens;
             }
             current.add(description);
-            currentTokens = Math.addExact(currentTokens, descriptionTokens);
+            currentTokens = Math.addExact(currentTokens, additionalTokens);
         }
         if (!current.isEmpty()) {
-            if (current.size() == 1 && !groups.isEmpty()) {
-                groups.getLast().addAll(current);
-            } else {
-                groups.add(current);
-            }
+            groups.add(current);
         }
         return groups.stream().map(List::copyOf).toList();
     }
 
-    private int tokenCount(List<String> descriptions) {
-        int total = 0;
+    private List<String> splitOversized(
+            List<String> descriptions,
+            int tokenLimit) {
+        List<String> bounded = new ArrayList<>();
         for (String description : descriptions) {
-            total = Math.addExact(total, tokenizer.count(description));
+            EncodedText encoded = tokenizer.encode(description);
+            if (encoded.size() <= tokenLimit) {
+                bounded.add(description);
+                continue;
+            }
+            for (int start = 0; start < encoded.size(); start += tokenLimit) {
+                int end = Math.min(encoded.size(), Math.addExact(start, tokenLimit));
+                int startChar = start == 0
+                        ? 0
+                        : encoded.sourceSpan(start, start + 1).startChar();
+                int endChar = end == encoded.size()
+                        ? description.length()
+                        : encoded.sourceSpan(end, end + 1).startChar();
+                bounded.add(sanitize(description.substring(startChar, endChar)));
+            }
+        }
+        return List.copyOf(bounded);
+    }
+
+    private int tokenCount(
+            List<String> descriptions,
+            String separator) {
+        int total = 0;
+        int separatorTokens = tokenizer.count(separator);
+        for (int index = 0; index < descriptions.size(); index++) {
+            if (index > 0) {
+                total = Math.addExact(total, separatorTokens);
+            }
+            total = Math.addExact(total, tokenizer.count(descriptions.get(index)));
         }
         return total;
     }

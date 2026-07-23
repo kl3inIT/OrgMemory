@@ -1,6 +1,6 @@
 package com.orgmemory.graphrag.extraction;
 
-import java.util.Objects;
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
 
 public record ExtractionCandidateEntity(
         String name,
@@ -17,11 +17,4 @@ public record ExtractionCandidateEntity(
         }
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

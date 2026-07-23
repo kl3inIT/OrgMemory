@@ -142,6 +142,36 @@ class SpringAiEntityRelationExtractorTests {
         assertFalse(exception.getMessage().contains("OrgMemory uses OpenFGA"));
     }
 
+    @Test
+    void wrapsMalformedStructuredOutputInTheDomainException() {
+        SpringAiEntityRelationExtractor extractor =
+                new SpringAiEntityRelationExtractor(
+                        "openai",
+                        new RecordingChatModel("{not-json"));
+
+        GraphExtractionException exception =
+                assertThrows(GraphExtractionException.class, () -> extractor.extract(request()));
+
+        assertTrue(exception.getMessage().contains("malformed structured output"));
+        assertTrue(exception.getCause() != null);
+    }
+
+    @Test
+    void rejectsMissingConfidenceWithoutLeakingANullPointerException() {
+        String missingConfidence = RESPONSE.replace(
+                "\"confidence\": 0.98",
+                "\"confidence\": null");
+        SpringAiEntityRelationExtractor extractor =
+                new SpringAiEntityRelationExtractor(
+                        "openai",
+                        new RecordingChatModel(missingConfidence));
+
+        GraphExtractionException exception =
+                assertThrows(GraphExtractionException.class, () -> extractor.extract(request()));
+
+        assertTrue(exception.getMessage().contains("missing a confidence"));
+    }
+
     private static ExtractionRequest request() {
         return request(new ExtractionProfile(
                 "openai",

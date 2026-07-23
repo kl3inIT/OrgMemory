@@ -86,7 +86,9 @@ public final class PermissionScopedGraphMerger {
                         .toList(),
                 relations.values().stream()
                         .map(accumulator -> accumulator.view(
-                                authorizationFingerprint, projectionFingerprint))
+                                entities,
+                                authorizationFingerprint,
+                                projectionFingerprint))
                         .sorted(Comparator.comparing(view -> view.relation().id()))
                         .toList());
     }
@@ -253,10 +255,19 @@ public final class PermissionScopedGraphMerger {
         }
 
         private PermissionScopedGraphView.RelationView view(
+                Map<UUID, EntityAccumulator> entities,
                 String authorizationFingerprint,
                 String projectionFingerprint) {
+            EntityAccumulator source = Objects.requireNonNull(
+                    entities.get(relation.sourceEntityId()),
+                    "visible relation source entity");
+            EntityAccumulator target = Objects.requireNonNull(
+                    entities.get(relation.targetEntityId()),
+                    "visible relation target entity");
             return new PermissionScopedGraphView.RelationView(
                     relation,
+                    source.entity.normalizedName(),
+                    target.entity.normalizedName(),
                     types.stream().sorted().toList(),
                     keywords.stream().sorted().toList(),
                     descriptions.stream().sorted().toList(),

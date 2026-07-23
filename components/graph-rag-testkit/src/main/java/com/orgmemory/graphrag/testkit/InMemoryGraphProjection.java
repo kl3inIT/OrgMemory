@@ -155,7 +155,7 @@ public final class InMemoryGraphProjection
                 .filter(contribution -> visibleRelation(scope, visibleEntityIds, contribution))
                 .forEach(contribution -> weights.merge(
                         contribution.relation().id(),
-                        contribution.provenance().confidence(),
+                        contribution.weight(),
                         Double::sum));
         Map<UUID, Double> ordered = new LinkedHashMap<>();
         requestedIds.stream().sorted().forEach(relationId ->

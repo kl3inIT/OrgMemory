@@ -76,6 +76,9 @@ class PermissionScopedGraphMergerTests {
         assertEquals(
                 publicScope.authorizationFingerprint(),
                 view.relations().getFirst().summaryInput().authorizationFingerprint());
+        assertEquals(
+                "orgmemory -> openfga",
+                view.relations().getFirst().summaryInput().subjectName());
     }
 
     @Test

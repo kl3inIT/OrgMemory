@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.summarization;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,11 +31,4 @@ public record ScopedDescriptionSet(
                 requireText(projectionFingerprint, "projectionFingerprint");
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

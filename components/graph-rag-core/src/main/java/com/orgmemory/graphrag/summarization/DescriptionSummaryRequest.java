@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.summarization;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -19,9 +21,9 @@ public record DescriptionSummaryRequest(
         descriptions = Objects.requireNonNull(descriptions, "descriptions").stream()
                 .map(description -> requireText(description, "description"))
                 .toList();
-        if (descriptions.size() < 2) {
+        if (descriptions.isEmpty()) {
             throw new IllegalArgumentException(
-                    "model summary requests require at least two descriptions");
+                    "model summary requests require at least one description");
         }
         Objects.requireNonNull(language, "language");
         if (maximumOutputTokens <= 0) {
@@ -33,11 +35,4 @@ public record DescriptionSummaryRequest(
                 requireText(projectionFingerprint, "projectionFingerprint");
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

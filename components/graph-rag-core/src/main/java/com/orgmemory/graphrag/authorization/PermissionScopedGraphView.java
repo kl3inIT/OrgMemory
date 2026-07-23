@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.authorization;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EvidenceReference;
@@ -60,6 +62,8 @@ public record PermissionScopedGraphView(
 
     public record RelationView(
             CanonicalRelation relation,
+            String sourceEntityName,
+            String targetEntityName,
             List<String> types,
             List<String> keywords,
             List<String> descriptions,
@@ -71,6 +75,8 @@ public record PermissionScopedGraphView(
 
         public RelationView {
             Objects.requireNonNull(relation, "relation");
+            sourceEntityName = requireText(sourceEntityName, "sourceEntityName");
+            targetEntityName = requireText(targetEntityName, "targetEntityName");
             types = List.copyOf(Objects.requireNonNull(types, "types"));
             keywords = List.copyOf(Objects.requireNonNull(keywords, "keywords"));
             descriptions = List.copyOf(Objects.requireNonNull(descriptions, "descriptions"));
@@ -93,7 +99,7 @@ public record PermissionScopedGraphView(
             return new ScopedDescriptionSet(
                     relation.id(),
                     "Relation",
-                    relation.sourceEntityId() + " -> " + relation.targetEntityId(),
+                    sourceEntityName + " -> " + targetEntityName,
                     descriptions,
                     authorizationFingerprint,
                     projectionFingerprint);
@@ -106,11 +112,4 @@ public record PermissionScopedGraphView(
         }
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }
