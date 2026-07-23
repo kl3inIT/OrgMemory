@@ -49,6 +49,7 @@ class ConnectorReconciler {
     private final SourcePrincipalService principals;
     private final SourcePrincipalMappingService mappings;
     private final SourcePrincipalRepository principalRepository;
+    private final SourceConnectionRepository connections;
     private final KnowledgeAssetPublicationService publications;
     private final ObjectProvider<ConnectorTextEmbedder> embedder;
     private final ObjectStoragePort objects;
@@ -62,6 +63,7 @@ class ConnectorReconciler {
             SourcePrincipalService principals,
             SourcePrincipalMappingService mappings,
             SourcePrincipalRepository principalRepository,
+            SourceConnectionRepository connections,
             KnowledgeAssetPublicationService publications,
             ObjectProvider<ConnectorTextEmbedder> embedder,
             ObjectStoragePort objects,
@@ -73,6 +75,7 @@ class ConnectorReconciler {
         this.principals = principals;
         this.mappings = mappings;
         this.principalRepository = principalRepository;
+        this.connections = connections;
         this.publications = publications;
         this.embedder = embedder;
         this.objects = objects;
@@ -89,6 +92,7 @@ class ConnectorReconciler {
      */
     ConnectorIdentityResolution resolveIdentities(ConnectorIngestionContext ctx, ConnectorCrawlBatch batch) {
         Instant now = Instant.now();
+        SourceIdentityTrust connectionTrust = identityTrustOf(ctx);
         Map<String, ResolvedPrincipal> byKey = new LinkedHashMap<>();
         for (ConnectorIdentityItem item : batch.identities()) {
             SourcePrincipal principal = principals.observe(new SourceIdentityObservation(
@@ -105,7 +109,7 @@ class ConnectorReconciler {
                     now));
             byKey.put(item.externalKey(), new ResolvedPrincipal(principal.getId(), principal.getKind()));
             if (item.kind() == SourcePrincipalKind.SOURCE_USER) {
-                mappings.autoMap(principal, item.idpIssuer(), item.idpSubject());
+                mappings.autoMap(principal, item.idpIssuer(), item.idpSubject(), connectionTrust);
             }
         }
         Map<String, List<UUID>> membersByGroup = new LinkedHashMap<>();
@@ -128,6 +132,19 @@ class ConnectorReconciler {
             membersByGroup.put(item.externalKey(), List.copyOf(memberIds));
         }
         return new ConnectorIdentityResolution(byKey, membersByGroup);
+    }
+
+    /**
+     * The administrator's standing decision for this connection, resolved once per batch rather
+     * than per principal. A connection only has a row here once somebody has ruled on it, so an
+     * absent row is the untrusted default: silence is not an attestation.
+     */
+    private SourceIdentityTrust identityTrustOf(ConnectorIngestionContext ctx) {
+        return connections
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
+                        ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey())
+                .map(SourceConnection::getIdentityTrust)
+                .orElse(SourceIdentityTrust.UNTRUSTED);
     }
 
     /**
