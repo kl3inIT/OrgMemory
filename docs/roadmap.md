@@ -25,6 +25,9 @@ belongs in one active increment.
   variables: an encrypted write-only credential, a source catalogue showing what
   this deployment can ingest, one endpoint per operation rather than per source,
   and a per-connection page reporting what each crawl actually did.
+- Two source adapters — Slack and Google Drive — proving the connector shape
+  holds: an adapter contributes a profile, a batch source and a credential probe,
+  and nothing in `core`, the API or the schema learns its name.
 
 ## Active — Secure Hybrid Retrieval
 

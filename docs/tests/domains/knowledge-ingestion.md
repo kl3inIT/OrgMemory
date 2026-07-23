@@ -39,6 +39,7 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | A batch that reconciled leaves a row with what it changed | `aSuccessfulBatchIsRecordedWithWhatItChanged` |
 | A connection that produced no batch is recorded with the source's own reason, and nothing is marked done | `aConnectionThatProducedNoBatchIsRecordedWithItsReason` |
 | Only what an adapter contributed is governed: an uncontributed source is refused, and two adapters cannot claim one name | `ConnectorSourceRegistryTests` |
+| A credential is checked by the adapter that claimed its source, a source with no probe is refused rather than answered, and two adapters cannot both probe one source | `ConnectorCredentialProbeRegistryTests` |
 | A database that already holds evidence survives the split of `source_type` into `acl_authority` and `source_system` | `SourceObjectAclAuthorityMigrationTests.anExistingObjectKeepsItsSystemAndGainsTheRightAuthority` |
 | A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
 | An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
@@ -67,6 +68,23 @@ All run against recorded Slack responses; none touches the network.
 | A configuration change is picked up on the next poll, without a restart | `picksUpAConfigurationChangeWithoutARestart` |
 | One unusable workspace does not cost the others their poll, and is still reported | `oneUnusableWorkspaceDoesNotCostTheOthersTheirPoll` |
 
+## Google Drive Adapter Coverage
+
+Evidence class: `integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveConnectorBatchSourceTests.java`.
+Run against recorded Drive responses with a service account key generated in the
+test, so the RS256 signing path executes for real and no credential from anywhere
+real exists in the repository. Nothing touches the network.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| A Drive becomes files, owners and per-file grants on the crawl contract | `turnsADriveIntoTheCrawlContract`, `observesOwnersAndSharedUsersAsVerifiedPeople` |
+| A user, a group and a domain grant; an anyone-with-the-link permission grants nothing | `grantsUsersGroupsAndDomainsButNeverAPublicLink` |
+| A domain group's membership is the users the crawl actually saw, and a group address is not one of them | `aDomainGroupIsMadeOfTheUsersTheCrawlActuallySaw` |
+| Completeness is claimed only by an unfiltered, uninterrupted crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeFoldersWereAskedFor`, `withdrawsTheCompletenessClaimWhenAFileCouldNotBeRead` |
+| Between content crawls no document body is read, and that pass never claims completeness | `readsNoDocumentBodiesBetweenContentCrawls`, `reissuesAContentCrawlOnceTheIntervalElapses` |
+| The content revision is the text, so an unchanged document costs nothing and an edit is a new revision | `anEditedDocumentGetsANewContentRevisionAndAnUnchangedOneDoesNot` |
+| A missing credential and a credential that is not a service account key are reported, and the refusal describes the credential rather than repeating any of it | `reportsAConnectionWithNoStoredCredentialRatherThanSkippingItSilently`, `reportsACredentialThatIsNotAServiceAccountKey` |
+
 ## Connection Administration Coverage
 
 Evidence classes: `core/src/test/java/com/orgmemory/core/shared/secret/SecretCipherTests.java`,
@@ -86,11 +104,13 @@ the API boundary, which is the only way it is reached.
 | Every mutation leaves an audit event recording that a token was set, not the token | `everyMutationLeavesAnAuditEvent` |
 | Only the sources this deployment installed are offered, and naming another is a request error rather than an empty list | `reportsOnlyTheSourcesThisDeploymentCanActuallyIngest`, `refusesASourceNoAdapterInstalled` |
 | A connection that looks healthy reports why it is producing nothing | `reportsWhyAConnectionThatLooksHealthyIsProducingNothing` |
+| A second source is configured over the same endpoints and stored under the name its adapter declared | `asecondSourceIsConfiguredOverTheSameEndpoints` |
 
 Gaps: there is no real blob-store/scan/parser integration test yet (the connector
 proofs mock object storage and OpenFGA). The Slack adapter is proved against
-recorded responses only — no run against a real workspace has happened yet, which
-is the remaining `slack-connector-live` work. The administration screens have no
+recorded responses only, and so is the Google Drive adapter — no run against a
+real workspace or a real Drive has happened yet, which is the remaining
+`slack-connector-live` work. The administration screens have no
 browser test; their proofs are at the API boundary, and the catalogue, the field
 descriptor and the connection detail page have no automated proof at all — they
 are covered by lint, typecheck and build only. Only one migration is proved

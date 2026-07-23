@@ -85,7 +85,9 @@ uploads, with source ACL evidence resolved through the principal mappings. Each
 object records `source_system` (which system it came from, governed by the
 connector registry rather than a check constraint) separately from `acl_authority`
 (`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
-rules applies), so adding a connector needs no migration. Source connection rows
+rules applies), so adding a connector needs no migration — Slack and Google Drive
+are both adapters contributing a profile, a batch source and a credential probe,
+with no source named in `core` or in the API. Source connection rows
 carry the configuration every source shares as columns and whatever only one
 source understands as an opaque `source_config` document, plus an encrypted
 credential in `source_connection_credentials`; the ciphertext is

@@ -168,12 +168,21 @@ have no connections". `GET /api/admin/connectors/sources` reports what this
 deployment can actually ingest, and
 `GET /api/admin/connectors/{sourceSystem}/{connectionKey}/activity` reports what a
 connection has done — objects retrievable and retired, last checkpoint, and recent
-attempts. The credential is write-only: it is submitted, and no endpoint returns
-it in any form, masked or otherwise. `POST /test` checks a token before it is stored — reporting
-the workspace it authenticated as, which is the connection key — and follows
-`auth.test` with a one-channel `conversations.list`, because authentication cannot
-fail for a missing scope and a token without `channels:read` would otherwise look
-healthy until the first crawl. The adapter reads connections and credentials on
+attempts. Checking a credential is a `ConnectorCredentialProbe` each adapter
+contributes beside its profile, resolved by registry, so the API selects nothing
+by name; probing is a separate registry from the source one because a source can
+be ingestible without being checkable. The credential is write-only: it is
+submitted, and no endpoint returns it in any form, masked or otherwise.
+`POST /test` checks a credential before it is stored, reporting what the
+connection will be keyed on — a Slack workspace id, a Google Workspace domain — so
+an administrator is told the key rather than asked to find it. Every probe answers
+"does it authenticate" and "can it read" separately, because the second cannot be
+inferred from the first: Slack follows `auth.test` with a one-channel
+`conversations.list`, and Drive follows its token exchange with a one-file
+listing. A Slack app installed without `channels:read`, or a service account
+nobody has shared anything with, authenticates perfectly and then indexes nothing
+— hours later, as a failure nobody connects to the day it was configured. The
+adapters read connections and credentials on
 every poll through `ConnectorConnectionDirectory`, so enabling a workspace,
 repointing it, or replacing its token takes effect on the next poll; the adapter
 bean is present wherever the module is and produces nothing until a connection
@@ -191,12 +200,40 @@ from the summary. Adding a source is an adapter package with a
 `ConnectorSourceProfile` bean, a catalogue entry, and a descriptor: no migration,
 no new endpoint, no change to `core`.
 
+A second adapter, Google Drive, exercises that shape rather than asserting it.
+`core/src/main` names no source, `apps/api/src/main` imports nothing from the
+connector module, no migration made room for it, and no endpoint was added: the
+adapter contributes a profile, a batch source and a credential probe, and
+`GET /api/admin/connectors/sources` reports two because two exist. It differs from
+Slack on every axis the design abstracts over — a signed JWT exchange rather than
+a bearer token, a file tree rather than a message stream, per-object ACLs rather
+than channel membership, and content that has to be converted before it is text.
+
+The Drive adapter reads files a service account can see, keyed on Drive's file id
+with a hash of the extracted text as the content revision — `modifiedTime` moves
+when sharing changes, and re-materializing a document because its permissions
+moved would pay for chunking and embedding to arrive at identical text. One
+listing carries every file's own sharing, so a permissions-only pass costs no
+document read at all. Google's own formats are exported to text and textual files
+are downloaded; everything else is skipped, because extracting text from a PDF is
+a parser concern the ingestion pipeline already owns for uploads. A skipped file
+was never in the adapter's universe and does not withdraw the completeness claim;
+a folder filter, an unreadable file and a hit bound each do.
+
+Its permission mapping is defined by what it refuses. A `user` or `group`
+permission grants to that address; a `domain` permission grants to a group keyed
+on the domain whose membership is the users this crawl observed there, because the
+Drive API cannot enumerate a domain — so it under-grants rather than inventing
+members, and resolves as more of the Drive is crawled. An `anyone` permission
+grants nothing: a public link is a statement about people outside the
+organization, and translating it into an internal grant would widen access on the
+strength of a setting that says nothing about who inside may read.
+
 The current path does not yet implement incremental webhooks or the Events API,
-credential rotation, an adapter for any source other than Slack (credential
-probing is likewise Slack-only, and refuses other sources by name rather than
-pretending to succeed), Airbyte staging, OCR, malware and DLP integrations, entity
-and relationship extraction, graph publication, or hybrid retrieval extensions
-beyond the current secure FTS + pgvector path.
+credential rotation, a run of either adapter against a real workspace, Airbyte
+staging, OCR, malware and DLP integrations, entity and relationship extraction,
+graph publication, or hybrid retrieval extensions beyond the current secure FTS +
+pgvector path.
 
 ## Source Modules
 
