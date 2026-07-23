@@ -8,6 +8,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * An administrator's standing decision about one source connection. Connections
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "source_connections")
 class SourceConnection extends BaseEntity {
+
+    private static final String EMPTY_CONFIG = "{}";
 
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
@@ -46,14 +50,17 @@ class SourceConnection extends BaseEntity {
     @Column(name = "actor_user_id")
     private UUID actorUserId;
 
-    @Column(name = "channel_filter", nullable = false, length = 2048)
-    private String channelFilter;
-
     @Column(name = "content_crawl_interval_seconds", nullable = false)
     private int contentCrawlIntervalSeconds;
 
-    @Column(name = "max_threads_per_channel", nullable = false)
-    private int maxThreadsPerChannel;
+    /**
+     * Settings only this source system understands. Held as the JSON document it arrived as
+     * and never parsed here: the ledger has no basis for an opinion about a channel filter or
+     * a folder filter, and giving it one is what made adding a source a migration.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "source_config", nullable = false)
+    private String sourceConfig;
 
     @Column(name = "crawl_configured_by_user_id")
     private UUID crawlConfiguredByUserId;
@@ -71,9 +78,8 @@ class SourceConnection extends BaseEntity {
         this.sourceConnectionKey = sourceConnectionKey;
         this.identityTrust = SourceIdentityTrust.UNTRUSTED;
         this.crawlEnabled = false;
-        this.channelFilter = "";
         this.contentCrawlIntervalSeconds = 3600;
-        this.maxThreadsPerChannel = 500;
+        this.sourceConfig = EMPTY_CONFIG;
     }
 
     /**
@@ -85,24 +91,22 @@ class SourceConnection extends BaseEntity {
             boolean crawlEnabled,
             UUID knowledgeSpaceId,
             UUID actorUserId,
-            String channelFilter,
+            String sourceConfig,
             int contentCrawlIntervalSeconds,
-            int maxThreadsPerChannel,
             UUID configuredByUserId,
             Instant configuredAt) {
         if (crawlEnabled && (knowledgeSpaceId == null || actorUserId == null)) {
             throw new IllegalArgumentException(
                     "A crawl needs a Knowledge Space to publish into and a user to publish as");
         }
-        if (contentCrawlIntervalSeconds <= 0 || maxThreadsPerChannel <= 0) {
-            throw new IllegalArgumentException("Crawl bounds must be positive");
+        if (contentCrawlIntervalSeconds <= 0) {
+            throw new IllegalArgumentException("The content crawl interval must be positive");
         }
         this.crawlEnabled = crawlEnabled;
         this.knowledgeSpaceId = knowledgeSpaceId;
         this.actorUserId = actorUserId;
-        this.channelFilter = channelFilter == null ? "" : channelFilter.strip();
+        this.sourceConfig = sourceConfig == null || sourceConfig.isBlank() ? EMPTY_CONFIG : sourceConfig;
         this.contentCrawlIntervalSeconds = contentCrawlIntervalSeconds;
-        this.maxThreadsPerChannel = maxThreadsPerChannel;
         this.crawlConfiguredByUserId = configuredByUserId;
         this.crawlConfiguredAt = configuredAt;
     }
@@ -119,16 +123,12 @@ class SourceConnection extends BaseEntity {
         return actorUserId;
     }
 
-    String getChannelFilter() {
-        return channelFilter;
+    String getSourceConfig() {
+        return sourceConfig;
     }
 
     int getContentCrawlIntervalSeconds() {
         return contentCrawlIntervalSeconds;
-    }
-
-    int getMaxThreadsPerChannel() {
-        return maxThreadsPerChannel;
     }
 
     UUID getCrawlConfiguredByUserId() {

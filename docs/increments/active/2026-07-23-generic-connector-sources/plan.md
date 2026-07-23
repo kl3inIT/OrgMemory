@@ -19,12 +19,12 @@ example, and the applied V15 migration keeps whatever it always said.
 
 ## Phase 2 — Generic connection configuration
 
-- [ ] `V24`: `source_config jsonb` on `source_connections`; `channel_filter` and
+- [x] `V24`: `source_config jsonb` on `source_connections`; `channel_filter` and
   `max_threads_per_channel` move into it. The shared columns and their check
   constraints stay.
-- [ ] `SourceConnectionAdminService` and `ConnectorCrawlConfiguration` carry an
+- [x] `SourceConnectionAdminService` and `ConnectorCrawlConfiguration` carry an
   opaque per-source map; the Slack adapter reads its own keys out of it.
-- [ ] `/api/admin/connectors/{sourceSystem}` replaces the Slack-specific path, and
+- [x] `/api/admin/connectors/{sourceSystem}` replaces the Slack-specific path, and
   `GET /api/admin/connectors/sources` reports the profiles this deployment has.
 
 Gate: `.\gradlew.bat :core:test :apps:api:test`, contract and client regenerated.

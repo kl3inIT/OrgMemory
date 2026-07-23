@@ -158,10 +158,11 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     private ConnectorCrawlBatch permissionsCrawl(
             SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
         requireWorkingCredential(client, configuration);
+        SlackCrawlSettings settings = SlackCrawlSettings.from(configuration.sourceConfig());
         Crawl crawl = new Crawl();
         crawl.incomplete();
         Map<String, SlackUser> usersById = users(client);
-        List<JsonNode> channels = channels(client, configuration, crawl);
+        List<JsonNode> channels = channels(client, settings, crawl);
 
         int failed = 0;
         for (JsonNode channel : channels) {
@@ -196,14 +197,15 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
 
     private ConnectorCrawlBatch crawl(SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
         requireWorkingCredential(client, configuration);
+        SlackCrawlSettings settings = SlackCrawlSettings.from(configuration.sourceConfig());
         Crawl crawl = new Crawl();
         Map<String, SlackUser> usersById = users(client);
-        List<JsonNode> channels = channels(client, configuration, crawl);
+        List<JsonNode> channels = channels(client, settings, crawl);
 
         int failed = 0;
         for (JsonNode channel : channels) {
             try {
-                crawlChannel(client, channel, usersById, configuration, crawl);
+                crawlChannel(client, channel, usersById, settings, crawl);
             } catch (SlackApiException failure) {
                 // A channel the bot cannot read is not a channel that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the workspace its index.
@@ -302,7 +304,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * but the narrower result can no longer speak for the whole connection.
      */
     private static List<JsonNode> channels(
-            SlackWebApiClient client, ConnectorCrawlConfiguration configuration, Crawl crawl) {
+            SlackWebApiClient client, SlackCrawlSettings settings, Crawl crawl) {
         List<JsonNode> channels;
         try {
             channels = client.collectPaged(
@@ -318,12 +320,12 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                     Map.of("types", PUBLIC_CHANNELS_ONLY, "exclude_archived", "true"),
                     "channels");
         }
-        if (configuration.channels().isEmpty()) {
+        if (settings.channels().isEmpty()) {
             return channels;
         }
         // A configured subset cannot speak for what it was never asked to look at.
         crawl.incomplete();
-        Set<String> wanted = Set.copyOf(configuration.channels());
+        Set<String> wanted = Set.copyOf(settings.channels());
         return channels.stream()
                 .filter(channel -> wanted.contains(channel.path("name").asString("")))
                 .toList();
@@ -333,7 +335,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             SlackWebApiClient client,
             JsonNode channel,
             Map<String, SlackUser> usersById,
-            ConnectorCrawlConfiguration configuration,
+            SlackCrawlSettings settings,
             Crawl crawl) {
         String channelId = channel.path("id").asString("");
         String channelName = channel.path("name").asString(channelId);
@@ -354,9 +356,9 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             if (isIgnorable(message)) {
                 continue;
             }
-            if (threads++ >= configuration.maxThreadsPerChannel()) {
+            if (threads++ >= settings.maxThreadsPerChannel()) {
                 log.warn("Slack channel {} exceeded {} threads; the crawl no longer covers it fully",
-                        channelName, configuration.maxThreadsPerChannel());
+                        channelName, settings.maxThreadsPerChannel());
                 crawl.incomplete();
                 break;
             }

@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -451,7 +452,7 @@ class SlackConnectorBatchSourceTests {
         setUpServerOnly();
         clock.advance(Duration.ofHours(2));
         when(connections.enabledCrawls("slack")).thenReturn(List.of(new ConnectorCrawlConfiguration(
-                ORG, "slack", CONNECTION, movedTo, ACTOR, List.of(), Duration.ofHours(1), 500)));
+                ORG, "slack", CONNECTION, movedTo, ACTOR, "{}", Duration.ofHours(1))));
         expectAuth();
         expectUsers();
         expectChannels();
@@ -549,8 +550,14 @@ class SlackConnectorBatchSourceTests {
     }
 
     private static ConnectorCrawlConfiguration configuration(String connectionKey, List<String> channels) {
+        // The settings only Slack understands travel as the opaque document the ledger stores.
+        String sourceConfig = channels.isEmpty()
+                ? "{\"maxThreadsPerChannel\":500}"
+                : "{\"channels\":["
+                        + channels.stream().map(name -> '"' + name + '"').collect(Collectors.joining(","))
+                        + "],\"maxThreadsPerChannel\":500}";
         return new ConnectorCrawlConfiguration(
-                ORG, "slack", connectionKey, SPACE, ACTOR, channels, Duration.ofHours(1), 500);
+                ORG, "slack", connectionKey, SPACE, ACTOR, sourceConfig, Duration.ofHours(1));
     }
 
     private void expectAuth() {

@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -9,7 +8,9 @@ import java.util.UUID;
  * from configuration files. The tenant, the Space, and the actor have no equivalent at the
  * source, so they are decisions somebody made here and this record carries them.
  *
- * @param channels channel names to crawl; empty means every channel the connector can see
+ * @param sourceConfig settings only this source system understands, as a JSON object. The
+ *                     ledger carried it here without reading inside; the adapter that defined
+ *                     its shape is the only thing that should parse it.
  */
 public record ConnectorCrawlConfiguration(
         UUID organizationId,
@@ -17,11 +18,10 @@ public record ConnectorCrawlConfiguration(
         String sourceConnectionKey,
         UUID knowledgeSpaceId,
         UUID actorUserId,
-        List<String> channels,
-        Duration contentCrawlInterval,
-        int maxThreadsPerChannel) {
+        String sourceConfig,
+        Duration contentCrawlInterval) {
 
     public ConnectorCrawlConfiguration {
-        channels = channels == null ? List.of() : List.copyOf(channels);
+        sourceConfig = sourceConfig == null || sourceConfig.isBlank() ? "{}" : sourceConfig;
     }
 }

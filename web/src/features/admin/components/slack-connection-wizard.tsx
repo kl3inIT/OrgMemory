@@ -15,19 +15,22 @@ import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatTimestamp } from "@/features/admin/admin-labels"
 import {
-  adminSlackConnectionsQueryOptions,
+  adminConnectionsQueryOptions,
   adminUsersQueryOptions,
   invalidateAdminData,
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminPage } from "@/features/admin/components/admin-page"
-import { PROBE_REASONS, probeIsGood } from "@/features/admin/slack-probe"
+import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
 import {
-  configureAdminSlackConnectionMutation,
-  setAdminSlackCredentialMutation,
-  testAdminSlackTokenMutation,
+  configureAdminConnectionMutation,
+  setAdminConnectionCredentialMutation,
+  testAdminConnectorCredentialMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-import type { AdminSlackProbeResponse } from "@/lib/hey-api"
+import type { AdminConnectorProbeResponse } from "@/lib/hey-api"
+
+/** The source system this wizard configures. */
+const SLACK = "slack"
 
 /** What the Slack app has to be granted before any of this works. */
 const REQUIRED_SCOPES = [
@@ -50,7 +53,7 @@ type StepKey = (typeof STEPS)[number]["key"]
 const DEFAULT_INTERVAL_MINUTES = 60
 const DEFAULT_MAX_THREADS = 500
 
-function probeReason(result: AdminSlackProbeResponse) {
+function probeReason(result: AdminConnectorProbeResponse) {
   if (result.errorCode && PROBE_REASONS[result.errorCode]) return PROBE_REASONS[result.errorCode]
   if (result.errorCode) return `Slack answered: ${result.errorCode}`
   return "The token authenticates and can list channels."
@@ -75,7 +78,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   const [step, setStep] = useState<StepKey>(connectionKey ? "destination" : "token")
   const [savedKey, setSavedKey] = useState<string | undefined>(connectionKey)
   const [botToken, setBotToken] = useState("")
-  const [probe, setProbe] = useState<AdminSlackProbeResponse>()
+  const [probe, setProbe] = useState<AdminConnectorProbeResponse>()
 
   const [crawlEnabled, setCrawlEnabled] = useState(true)
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState<string>()
@@ -86,7 +89,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   const [loadedFrom, setLoadedFrom] = useState<string>()
 
   const [connections, users, spaces] = useQueries({
-    queries: [adminSlackConnectionsQueryOptions(), adminUsersQueryOptions(), knowledgeSpacesQueryOptions()],
+    queries: [adminConnectionsQueryOptions(SLACK), adminUsersQueryOptions(), knowledgeSpacesQueryOptions()],
   })
 
   const existing = (connections.data ?? []).find(
@@ -100,21 +103,29 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
     setCrawlEnabled(existing.crawlEnabled ?? true)
     setKnowledgeSpaceId(existing.knowledgeSpaceId)
     setActorUserId(existing.actorUserId)
-    setChannels((existing.channels ?? []).join(", "))
+    const configured = existing.sourceConfig ?? {}
+    const channelNames = Array.isArray(configured.channels)
+      ? configured.channels.filter((name): name is string => typeof name === "string")
+      : []
+    setChannels(channelNames.join(", "))
     setIntervalMinutes(
       String(Math.max(1, Math.round((existing.contentCrawlIntervalSeconds ?? 3600) / 60))),
     )
-    setMaxThreads(String(existing.maxThreadsPerChannel ?? DEFAULT_MAX_THREADS))
+    setMaxThreads(
+      String(typeof configured.maxThreadsPerChannel === "number"
+        ? configured.maxThreadsPerChannel
+        : DEFAULT_MAX_THREADS),
+    )
   }
 
   const test = useMutation({
-    ...testAdminSlackTokenMutation(),
+    ...testAdminConnectorCredentialMutation(),
     onSuccess: (result) => setProbe(result),
     onError: () => toast.error("The token could not be checked."),
   })
 
   const store = useMutation({
-    ...setAdminSlackCredentialMutation(),
+    ...setAdminConnectionCredentialMutation(),
     onSuccess: async (_result, variables) => {
       setSavedKey(String(variables.path.connectionKey))
       setBotToken("")
@@ -127,7 +138,7 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   })
 
   const configure = useMutation({
-    ...configureAdminSlackConnectionMutation(),
+    ...configureAdminConnectionMutation(),
     onSuccess: async () => {
       await invalidateAdminData(queryClient)
       toast.success("Saved. The worker picks this up on its next poll.")
@@ -170,17 +181,20 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
   function save() {
     if (!savedKey) return
     configure.mutate({
-      path: { connectionKey: savedKey },
+      path: { sourceSystem: SLACK, connectionKey: savedKey },
       body: {
         crawlEnabled,
         knowledgeSpaceId,
         actorUserId,
-        channels: channels
-          .split(",")
-          .map((channel) => channel.trim().replace(/^#/, ""))
-          .filter(Boolean),
+        // Everything only Slack understands goes in one document the ledger stores unread.
+        sourceConfig: {
+          channels: channels
+            .split(",")
+            .map((channel) => channel.trim().replace(/^#/, ""))
+            .filter(Boolean),
+          maxThreadsPerChannel: parsedMaxThreads,
+        },
         contentCrawlIntervalSeconds: parsedInterval * 60,
-        maxThreadsPerChannel: parsedMaxThreads,
       },
     })
   }
@@ -237,9 +251,14 @@ export function SlackConnectionWizard({ connectionKey }: { connectionKey?: strin
                 setBotToken(value)
                 setProbe(undefined)
               }}
-              onCheck={() => test.mutate({ body: { botToken: botToken.trim() } })}
+              onCheck={() =>
+                test.mutate({ path: { sourceSystem: SLACK }, body: { botToken: botToken.trim() } })
+              }
               onStore={(key) =>
-                store.mutate({ path: { connectionKey: key }, body: { botToken: botToken.trim() } })
+                store.mutate({
+                  path: { sourceSystem: SLACK, connectionKey: key },
+                  body: { botToken: botToken.trim() },
+                })
               }
             />
           ) : null}
@@ -400,7 +419,7 @@ function TokenStep({
 }: {
   existingSetAt?: string
   botToken: string
-  probe?: AdminSlackProbeResponse
+  probe?: AdminConnectorProbeResponse
   checking: boolean
   storing: boolean
   onTokenChange: (value: string) => void

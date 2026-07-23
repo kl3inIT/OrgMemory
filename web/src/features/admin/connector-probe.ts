@@ -1,4 +1,4 @@
-import type { AdminSlackProbeResponse } from "@/lib/hey-api"
+import type { AdminConnectorProbeResponse } from "@/lib/hey-api"
 
 /** Slack's own vocabulary, and the one code this application adds to it. */
 export const PROBE_REASONS: Record<string, string> = {
@@ -16,6 +16,6 @@ export const PROBE_REASONS: Record<string, string> = {
  * {@code channels:read} passes authentication cleanly and then fails at the first real
  * request, so both answers have to hold.
  */
-export function probeIsGood(result: AdminSlackProbeResponse) {
+export function probeIsGood(result: AdminConnectorProbeResponse) {
   return Boolean(result.authenticated && result.canListChannels)
 }

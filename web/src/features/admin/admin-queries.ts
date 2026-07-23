@@ -1,8 +1,9 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query"
 
 import {
-  listAdminSlackConnectionsOptions,
-  listAdminSlackConnectionsQueryKey,
+  listAdminConnectionsOptions,
+  listAdminConnectionsQueryKey,
+  listAdminConnectorSourcesOptions,
   listAdminSourceConnectionsOptions,
   listAdminSourceConnectionsQueryKey,
   listAdminSourceGroupsOptions,
@@ -34,8 +35,17 @@ export function adminSourceGroupsQueryOptions() {
   return queryOptions({ ...listAdminSourceGroupsOptions(), staleTime: ADMIN_STALE_TIME })
 }
 
-export function adminSlackConnectionsQueryOptions() {
-  return queryOptions({ ...listAdminSlackConnectionsOptions(), staleTime: ADMIN_STALE_TIME })
+/** A source's connections. The path is the source system, so every source uses this one. */
+export function adminConnectionsQueryOptions(sourceSystem: string) {
+  return queryOptions({
+    ...listAdminConnectionsOptions({ path: { sourceSystem } }),
+    staleTime: ADMIN_STALE_TIME,
+  })
+}
+
+/** Which sources this deployment can actually ingest, from the adapters it has installed. */
+export function adminConnectorSourcesQueryOptions() {
+  return queryOptions({ ...listAdminConnectorSourcesOptions(), staleTime: ADMIN_STALE_TIME })
 }
 
 /** The Spaces a crawl may publish into are the same ones an upload may target. */
@@ -53,6 +63,8 @@ export async function invalidateAdminData(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: listAdminSourcePrincipalsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceConnectionsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceGroupsQueryKey() }),
-    queryClient.invalidateQueries({ queryKey: listAdminSlackConnectionsQueryKey() }),
+    queryClient.invalidateQueries({
+      queryKey: listAdminConnectionsQueryKey({ path: { sourceSystem: "slack" } }),
+    }),
   ])
 }

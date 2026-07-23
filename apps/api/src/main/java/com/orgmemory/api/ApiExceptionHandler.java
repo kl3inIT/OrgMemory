@@ -4,6 +4,7 @@ import com.orgmemory.core.capability.CapabilityAssetNotFoundException;
 import com.orgmemory.core.assistant.AssistantUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
+import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -42,6 +43,15 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail badRequest(IllegalArgumentException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    /**
+     * Naming a source no adapter provides is a request error, not a server fault: the caller
+     * asked about something this deployment does not have.
+     */
+    @ExceptionHandler(UnsupportedConnectorSourceException.class)
+    ProblemDetail unsupportedSource(UnsupportedConnectorSourceException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 

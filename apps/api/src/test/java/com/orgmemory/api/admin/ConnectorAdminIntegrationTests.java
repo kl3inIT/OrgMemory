@@ -56,7 +56,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 @AutoConfigureMockMvc
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class SlackConnectionAdminIntegrationTests {
+class ConnectorAdminIntegrationTests {
 
     private static final String ISSUER = "http://localhost:8180/realms/orgmemory";
     private static final String MODEL_ID = "test-model";
@@ -142,25 +142,51 @@ class SlackConnectionAdminIntegrationTests {
     }
 
     @Test
+    void reportsOnlyTheSourcesThisDeploymentCanActuallyIngest() throws Exception {
+        mvc.perform(get("/api/admin/connectors/sources").with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.sourceSystem == 'slack')].displayName").value("Slack"));
+    }
+
+    @Test
+    void refusesASourceNoAdapterInstalled() throws Exception {
+        // The path is the source system, so an uninstalled one has to be refused rather than
+        // treated as an empty list — otherwise a typo reads as "you have no connections".
+        mvc.perform(get("/api/admin/connectors/teams").with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/admin/connectors/teams/{key}/credential", WORKSPACE)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"botToken\":\"" + BOT_TOKEN + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(
+                0,
+                (int) jdbc.queryForObject("SELECT count(*) FROM source_connections", Integer.class),
+                "a refused source must not have created a connection row");
+    }
+
+    @Test
     void aCrawlIsConfiguredAndReadBack() throws Exception {
         mvc.perform(put("/api/admin/connectors/slack/{key}", WORKSPACE)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"crawlEnabled":true,"knowledgeSpaceId":"%s","actorUserId":"%s",
-                                 "channels":["general","engineering"],
-                                 "contentCrawlIntervalSeconds":900,"maxThreadsPerChannel":50}
+                                 "sourceConfig":{"channels":["general","engineering"],
+                                                 "maxThreadsPerChannel":50},
+                                 "contentCrawlIntervalSeconds":900}
                                 """.formatted(SPACE, ADMIN_USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.crawlEnabled").value(true))
-                .andExpect(jsonPath("$.channels[1]").value("engineering"))
+                .andExpect(jsonPath("$.sourceConfig.channels[1]").value("engineering"))
                 .andExpect(jsonPath("$.contentCrawlIntervalSeconds").value(900))
                 .andExpect(jsonPath("$.credentialSet").value(false));
 
         mvc.perform(get("/api/admin/connectors/slack").with(jwtFor(ADMIN_USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sourceConnectionKey").value(WORKSPACE))
-                .andExpect(jsonPath("$[0].maxThreadsPerChannel").value(50))
+                .andExpect(jsonPath("$[0].sourceConfig.maxThreadsPerChannel").value(50))
                 .andExpect(jsonPath("$[0].configuredByUserId").value(ADMIN_USER.toString()));
     }
 

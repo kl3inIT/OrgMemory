@@ -12,19 +12,32 @@ import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatTimestamp } from "@/features/admin/admin-labels"
 import {
-  adminSlackConnectionsQueryOptions,
+  adminConnectionsQueryOptions,
   invalidateAdminData,
   knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
-import { PROBE_REASONS, probeIsGood } from "@/features/admin/slack-probe"
+import { PROBE_REASONS, probeIsGood } from "@/features/admin/connector-probe"
 import {
-  forgetAdminSlackCredentialMutation,
-  testAdminSlackConnectionMutation,
+  forgetAdminConnectionCredentialMutation,
+  testAdminConnectionMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-import type { AdminSlackConnectionResponse, AdminSlackProbeResponse } from "@/lib/hey-api"
+import type { AdminConnectionResponse, AdminConnectorProbeResponse } from "@/lib/hey-api"
 
-function probeReason(result: AdminSlackProbeResponse) {
+/** The one source with an adapter today. The page is otherwise not Slack-shaped. */
+const SLACK = "slack"
+
+/**
+ * Channels are Slack's word, and they live in the document only Slack understands. Reading
+ * them here is a rendering convenience, so an unexpected shape degrades to "all visible"
+ * rather than breaking the row.
+ */
+function channelsOf(connection: AdminConnectionResponse): string[] {
+  const configured = connection.sourceConfig?.channels
+  return Array.isArray(configured) ? configured.filter((name): name is string => typeof name === "string") : []
+}
+
+function probeReason(result: AdminConnectorProbeResponse) {
   if (result.errorCode && PROBE_REASONS[result.errorCode]) return PROBE_REASONS[result.errorCode]
   if (result.errorCode) return `Slack answered: ${result.errorCode}`
   return "The token authenticates and can list channels."
@@ -39,7 +52,7 @@ function probeReason(result: AdminSlackProbeResponse) {
  * with a standing banner on a connector in an invalid state rather than leaving it to be
  * discovered by whoever wonders why nothing was indexed.
  */
-function connectionState(connection: AdminSlackConnectionResponse) {
+function connectionState(connection: AdminConnectionResponse) {
   if (!connection.crawlEnabled) {
     return { label: "Off", variant: "outline" as const, blocked: false }
   }
@@ -51,14 +64,14 @@ function connectionState(connection: AdminSlackConnectionResponse) {
 
 export function AdminConnectorsPage() {
   const queryClient = useQueryClient()
-  const [checked, setChecked] = useState<{ key: string; result: AdminSlackProbeResponse }>()
+  const [checked, setChecked] = useState<{ key: string; result: AdminConnectorProbeResponse }>()
 
   const [connections, spaces] = useQueries({
-    queries: [adminSlackConnectionsQueryOptions(), knowledgeSpacesQueryOptions()],
+    queries: [adminConnectionsQueryOptions(SLACK), knowledgeSpacesQueryOptions()],
   })
 
   const forget = useMutation({
-    ...forgetAdminSlackCredentialMutation(),
+    ...forgetAdminConnectionCredentialMutation(),
     onSuccess: async () => {
       await invalidateAdminData(queryClient)
       toast.success("Token forgotten. This connection can no longer authenticate.")
@@ -67,7 +80,7 @@ export function AdminConnectorsPage() {
   })
 
   const check = useMutation({
-    ...testAdminSlackConnectionMutation(),
+    ...testAdminConnectionMutation(),
     onSuccess: (result, variables) => setChecked({ key: String(variables.path.connectionKey), result }),
     onError: () => toast.error("The stored token could not be checked."),
   })
@@ -190,7 +203,7 @@ export function AdminConnectorsPage() {
                       {space?.name ?? space?.key ?? "Not set"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {connection.channels?.length ? connection.channels.join(", ") : "All visible"}
+                      {channelsOf(connection).length ? channelsOf(connection).join(", ") : "All visible"}
                     </TableCell>
                     <TableCell>
                       {connection.credentialSet ? (
@@ -215,7 +228,7 @@ export function AdminConnectorsPage() {
                           size="sm"
                           variant="outline"
                           disabled={check.isPending}
-                          onClick={() => check.mutate({ path: { connectionKey: key } })}
+                          onClick={() => check.mutate({ path: { sourceSystem: SLACK, connectionKey: key } })}
                         >
                           Test
                         </Button>
@@ -223,7 +236,7 @@ export function AdminConnectorsPage() {
                           size="sm"
                           variant="outline"
                           disabled={!connection.credentialSet || forget.isPending}
-                          onClick={() => forget.mutate({ path: { connectionKey: key } })}
+                          onClick={() => forget.mutate({ path: { sourceSystem: SLACK, connectionKey: key } })}
                         >
                           Forget token
                         </Button>

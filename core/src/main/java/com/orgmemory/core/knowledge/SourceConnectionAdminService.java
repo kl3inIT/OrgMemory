@@ -7,7 +7,6 @@ import com.orgmemory.core.shared.secret.SecretCipher;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -87,9 +86,8 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
             boolean crawlEnabled,
             UUID knowledgeSpaceId,
             UUID actorUserId,
-            List<String> channels,
+            String sourceConfig,
             Duration contentCrawlInterval,
-            int maxThreadsPerChannel,
             UUID adminUserId) {
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
@@ -102,9 +100,8 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 crawlEnabled,
                 knowledgeSpaceId,
                 actorUserId,
-                String.join(",", channels == null ? List.of() : channels),
+                sourceConfig,
                 (int) requireInterval(contentCrawlInterval).toSeconds(),
-                maxThreadsPerChannel,
                 adminUserId,
                 Instant.now());
         connections.save(connection);
@@ -174,9 +171,8 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                         connection.getSourceConnectionKey(),
                         connection.getKnowledgeSpaceId(),
                         connection.getActorUserId(),
-                        channelsOf(connection),
-                        Duration.ofSeconds(connection.getContentCrawlIntervalSeconds()),
-                        connection.getMaxThreadsPerChannel()))
+                        connection.getSourceConfig(),
+                        Duration.ofSeconds(connection.getContentCrawlIntervalSeconds())))
                 .toList();
     }
 
@@ -196,22 +192,13 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 connection.isCrawlEnabled(),
                 connection.getKnowledgeSpaceId(),
                 connection.getActorUserId(),
-                channelsOf(connection),
+                connection.getSourceConfig(),
                 connection.getContentCrawlIntervalSeconds(),
-                connection.getMaxThreadsPerChannel(),
                 credential.isPresent(),
                 credential.map(SourceConnectionCredential::getSetByUserId).orElse(null),
                 credential.map(SourceConnectionCredential::getSetAt).orElse(null),
                 connection.getCrawlConfiguredByUserId(),
                 connection.getCrawlConfiguredAt());
-    }
-
-    private static List<String> channelsOf(SourceConnection connection) {
-        String filter = connection.getChannelFilter();
-        if (filter == null || filter.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(filter.split(",")).map(String::strip).filter(name -> !name.isEmpty()).toList();
     }
 
     private void record(
