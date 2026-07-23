@@ -85,6 +85,8 @@ public class SourceIngestionCoordinator {
                 normalized,
                 asset,
                 Instant.now());
+        SourceObject source = sources.findById(revision.getSourceObjectId()).orElseThrow();
+        source.publishRevision(revision.getId());
         job.succeed();
     }
 

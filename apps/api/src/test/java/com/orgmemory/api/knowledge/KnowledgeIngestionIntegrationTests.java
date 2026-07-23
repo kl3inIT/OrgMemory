@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.KnowledgeAssetStatus;
+import com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus;
 import com.orgmemory.core.knowledge.KnowledgeIngestionConflictException;
 import com.orgmemory.core.knowledge.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.NormalizationIssue;
@@ -87,10 +87,24 @@ class KnowledgeIngestionIntegrationTests {
                 "Integration document",
                 "Normalized content for the integration document.",
                 "en"));
+        SourceLedgerRef source = createSourceLedger(
+                "integration-doc",
+                KnowledgeClassification.CONFIDENTIAL,
+                DeclaredAccessScope.OWN_DEPARTMENT);
         KnowledgeAssetRef firstAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                ORGANIZATION_ID, SALES_SPACE_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
+                ORGANIZATION_ID,
+                SALES_SPACE_ID,
+                source.sourceObjectId(),
+                source.sourceRevisionId(),
+                firstNormalized.normalizedRecordId(),
+                AccessGate.ALLOW));
         KnowledgeAssetRef repeatedAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
-                ORGANIZATION_ID, SALES_SPACE_ID, firstNormalized.normalizedRecordId(), AccessGate.ALLOW));
+                ORGANIZATION_ID,
+                SALES_SPACE_ID,
+                source.sourceObjectId(),
+                source.sourceRevisionId(),
+                firstNormalized.normalizedRecordId(),
+                AccessGate.ALLOW));
 
         assertEquals(firstRaw.rawSourceObjectId(), repeatedRaw.rawSourceObjectId());
         assertEquals(firstRaw.sourceAclSnapshotId(), repeatedRaw.sourceAclSnapshotId());
@@ -98,15 +112,15 @@ class KnowledgeIngestionIntegrationTests {
         assertEquals(firstAsset.knowledgeAssetId(), repeatedAsset.knowledgeAssetId());
         assertEquals(firstRaw.rawSourceObjectId(), firstAsset.rawSourceObjectId());
         assertEquals(firstRaw.sourceAclSnapshotId(), firstAsset.sourceAclSnapshotId());
-        assertEquals(KnowledgeAssetStatus.PENDING, firstAsset.status());
+        assertEquals(KnowledgeAssetVersionStatus.PENDING, firstAsset.status());
 
         var row = jdbc.queryForMap(
                 """
                 SELECT classification, declared_access, department_id, source_acl_snapshot_id
-                FROM knowledge_assets
+                FROM knowledge_asset_versions
                 WHERE id = ?
                 """,
-                firstAsset.knowledgeAssetId());
+                firstAsset.knowledgeAssetVersionId());
         assertEquals("CONFIDENTIAL", row.get("classification"));
         assertEquals("OWN_DEPARTMENT", row.get("declared_access"));
         assertEquals(SALES_DEPARTMENT_ID, row.get("department_id"));
@@ -195,6 +209,8 @@ class KnowledgeIngestionIntegrationTests {
                 () -> ingestion.promote(new PromoteNormalizedRecordCommand(
                         ORGANIZATION_ID,
                         SALES_SPACE_ID,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
                         unknownNormalized.normalizedRecordId(),
                         AccessGate.ALLOW)));
     }
@@ -476,9 +492,15 @@ class KnowledgeIngestionIntegrationTests {
                         Long.class,
                         rawRefs.getFirst().rawSourceObjectId()));
 
+        SourceLedgerRef source = createSourceLedger(
+                "concurrent-retry-doc",
+                KnowledgeClassification.INTERNAL,
+                DeclaredAccessScope.ALL_EMPLOYEES);
         PromoteNormalizedRecordCommand promote = new PromoteNormalizedRecordCommand(
                 ORGANIZATION_ID,
                 SALES_SPACE_ID,
+                source.sourceObjectId(),
+                source.sourceRevisionId(),
                 normalizedRefs.getFirst().normalizedRecordId(),
                 AccessGate.ALLOW);
         List<KnowledgeAssetRef> assetRefs = runConcurrently(() -> ingestion.promote(promote));
@@ -486,9 +508,85 @@ class KnowledgeIngestionIntegrationTests {
         assertEquals(
                 1L,
                 jdbc.queryForObject(
-                        "SELECT count(*) FROM knowledge_assets WHERE normalized_record_id = ?",
+                        "SELECT count(*) FROM knowledge_asset_versions WHERE normalized_record_id = ?",
                         Long.class,
                         normalizedRefs.getFirst().normalizedRecordId()));
+    }
+
+    private SourceLedgerRef createSourceLedger(
+            String externalObjectId,
+            KnowledgeClassification classification,
+            DeclaredAccessScope declaredAccess) {
+        UUID sourceObjectId = UUID.randomUUID();
+        UUID sourceRevisionId = UUID.randomUUID();
+        UUID evidenceBlobId = UUID.randomUUID();
+        UUID createdByUserId = jdbc.queryForObject(
+                "SELECT id FROM app_users WHERE organization_id = ? ORDER BY id LIMIT 1",
+                UUID.class,
+                ORGANIZATION_ID);
+        String contentSha = "a".repeat(64);
+        UUID departmentId = classification == KnowledgeClassification.CONFIDENTIAL
+                ? SALES_DEPARTMENT_ID
+                : null;
+        jdbc.update(
+                """
+                INSERT INTO source_objects (
+                    id, organization_id, knowledge_space_id, department_id, created_by_user_id,
+                    source_type, source_connection_key, external_object_id, title,
+                    classification, declared_access, current_revision_id, latest_revision_id,
+                    status, created_at, updated_at, version
+                ) VALUES (?, ?, ?, ?, ?, 'UPLOAD', 'test-fixture', ?, ?, ?, ?, NULL, NULL,
+                          'ACTIVE', now(), now(), 0)
+                """,
+                sourceObjectId,
+                ORGANIZATION_ID,
+                SALES_SPACE_ID,
+                departmentId,
+                createdByUserId,
+                externalObjectId,
+                externalObjectId,
+                classification.name(),
+                declaredAccess.name());
+        jdbc.update(
+                """
+                INSERT INTO evidence_blobs (
+                    id, organization_id, object_key, media_type, content_length, content_sha256,
+                    scan_status, created_at, updated_at, version
+                ) VALUES (?, ?, ?, 'text/plain', 1, ?, 'BASIC_VALIDATED', now(), now(), 0)
+                """,
+                evidenceBlobId,
+                ORGANIZATION_ID,
+                "test/" + evidenceBlobId,
+                contentSha);
+        jdbc.update(
+                """
+                INSERT INTO source_revisions (
+                    id, organization_id, knowledge_space_id, source_object_id, evidence_blob_id,
+                    revision_number, file_name, media_type, content_length, content_sha256,
+                    classification, declared_access, department_id, created_by_user_id,
+                    status, created_at, updated_at, version
+                ) VALUES (?, ?, ?, ?, ?, 1, ?, 'text/plain', 1, ?, ?, ?, ?, ?,
+                          'PUBLISHING', now(), now(), 0)
+                """,
+                sourceRevisionId,
+                ORGANIZATION_ID,
+                SALES_SPACE_ID,
+                sourceObjectId,
+                evidenceBlobId,
+                externalObjectId + ".txt",
+                contentSha,
+                classification.name(),
+                declaredAccess.name(),
+                departmentId,
+                createdByUserId);
+        jdbc.update(
+                "UPDATE source_objects SET latest_revision_id = ? WHERE id = ?",
+                sourceRevisionId,
+                sourceObjectId);
+        return new SourceLedgerRef(sourceObjectId, sourceRevisionId);
+    }
+
+    private record SourceLedgerRef(UUID sourceObjectId, UUID sourceRevisionId) {
     }
 
     private Map<String, Object> snapshotEvidence(UUID snapshotId) {

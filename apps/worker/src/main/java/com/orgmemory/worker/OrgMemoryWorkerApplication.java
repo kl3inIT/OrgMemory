@@ -3,6 +3,7 @@ package com.orgmemory.worker;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
+import com.orgmemory.worker.authorization.KnowledgeAuthorizationConvergenceProperties;
 import com.orgmemory.worker.connector.ConnectorCrawlProperties;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import org.springframework.boot.SpringApplication;
@@ -22,7 +23,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         SourceIngestionProperties.class,
         SourceProcessingProperties.class,
         KnowledgeRetrievalProperties.class,
-        ConnectorCrawlProperties.class
+        ConnectorCrawlProperties.class,
+        KnowledgeAuthorizationConvergenceProperties.class
 })
 @ComponentScan(
         basePackages = {

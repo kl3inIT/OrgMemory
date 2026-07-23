@@ -10,6 +10,9 @@ import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.KnowledgeChunkDraft;
+import com.orgmemory.core.knowledge.KnowledgeTextChunk;
+import com.orgmemory.core.knowledge.KnowledgeTextChunker;
+import com.orgmemory.core.knowledge.KnowledgeTextDocument;
 import com.orgmemory.core.knowledge.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.NormalizeRawSourceCommand;
@@ -42,7 +45,6 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -60,7 +62,7 @@ class SourceIngestionProcessor {
     private final AiRouteResolver aiRoutes;
     private final SourceDocumentReader reader;
     private final SourceProcessingProperties properties;
-    private final TokenTextSplitter splitter;
+    private final KnowledgeTextChunker chunker;
 
     SourceIngestionProcessor(
             SourceIngestionCoordinator coordinator,
@@ -71,7 +73,8 @@ class SourceIngestionProcessor {
             ObjectProvider<EmbeddingModel> embeddingModels,
             AiRouteResolver aiRoutes,
             SourceDocumentReader reader,
-            SourceProcessingProperties properties) {
+            SourceProcessingProperties properties,
+            KnowledgeTextChunker chunker) {
         this.coordinator = coordinator;
         this.ingestion = ingestion;
         this.publications = publications;
@@ -81,10 +84,7 @@ class SourceIngestionProcessor {
         this.aiRoutes = aiRoutes;
         this.reader = reader;
         this.properties = properties;
-        this.splitter = TokenTextSplitter.builder()
-                .withChunkSize(properties.chunkSize())
-                .withMaxNumChunks(properties.maximumChunks())
-                .build();
+        this.chunker = chunker;
     }
 
     void processNext() {
@@ -133,7 +133,7 @@ class SourceIngestionProcessor {
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.CHUNKING, properties.leaseDuration());
             failureStage = "CHUNKING";
-            List<ChunkCandidate> candidates = split(parsed.documents());
+            List<KnowledgeTextChunk> candidates = split(parsed.documents());
 
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.EMBEDDING, properties.leaseDuration());
@@ -155,7 +155,7 @@ class SourceIngestionProcessor {
             }
             List<KnowledgeChunkDraft> drafts = new ArrayList<>(candidates.size());
             for (int index = 0; index < candidates.size(); index++) {
-                ChunkCandidate candidate = candidates.get(index);
+                KnowledgeTextChunk candidate = candidates.get(index);
                 float[] vector = vectors.get(index);
                 if (vector.length != embeddingProfile.dimensions()) {
                     throw new IllegalStateException("embedding dimensions did not match configured projection");
@@ -183,7 +183,6 @@ class SourceIngestionProcessor {
                     claim.createdByUserId(),
                     embeddingProfile,
                     properties.pipelineVersion(),
-                    1,
                     drafts));
             coordinator.complete(
                     claim.jobId(),
@@ -285,26 +284,13 @@ class SourceIngestionProcessor {
         };
     }
 
-    private List<ChunkCandidate> split(List<Document> documents) {
-        List<ChunkCandidate> candidates = new ArrayList<>();
-        for (Document source : documents) {
-            for (Document piece : splitter.apply(List.of(source))) {
-                if (piece.getText() == null || piece.getText().isBlank()) {
-                    continue;
-                }
-                Integer startPage = number(source, PagePdfDocumentReader.METADATA_START_PAGE_NUMBER);
-                Integer endPage = number(source, PagePdfDocumentReader.METADATA_END_PAGE_NUMBER);
-                candidates.add(new ChunkCandidate(piece.getText().strip(), startPage, endPage));
-                if (candidates.size() > properties.maximumChunks()) {
-                    throw new RejectedSourceException(
-                            "CHUNK_LIMIT_EXCEEDED", "The document exceeds the configured chunk limit");
-                }
-            }
-        }
-        if (candidates.isEmpty()) {
-            throw new RejectedSourceException("NO_EXTRACTABLE_TEXT", "No extractable text was found");
-        }
-        return List.copyOf(candidates);
+    private List<KnowledgeTextChunk> split(List<Document> documents) {
+        return chunker.split(documents.stream()
+                .map(document -> new KnowledgeTextDocument(
+                        document.getText(),
+                        number(document, PagePdfDocumentReader.METADATA_START_PAGE_NUMBER),
+                        number(document, PagePdfDocumentReader.METADATA_END_PAGE_NUMBER)))
+                .toList());
     }
 
     private static Integer number(Document document, String key) {
@@ -330,6 +316,4 @@ class SourceIngestionProcessor {
         }
     }
 
-    private record ChunkCandidate(String content, Integer startPage, Integer endPage) {
-    }
 }

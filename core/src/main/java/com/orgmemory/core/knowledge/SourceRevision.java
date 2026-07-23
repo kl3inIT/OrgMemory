@@ -90,6 +90,9 @@ class SourceRevision extends BaseEntity {
     @Column(name = "knowledge_asset_id")
     private UUID knowledgeAssetId;
 
+    @Column(name = "knowledge_asset_version_id")
+    private UUID knowledgeAssetVersionId;
+
     @Column(name = "processed_at")
     private Instant processedAt;
 
@@ -100,13 +103,17 @@ class SourceRevision extends BaseEntity {
             UUID id,
             SourceObject source,
             EvidenceBlob blob,
-            String fileName) {
+            String fileName,
+            long revisionNumber) {
         super(id);
+        if (revisionNumber <= 0) {
+            throw new IllegalArgumentException("revisionNumber must be positive");
+        }
         this.organizationId = source.getOrganizationId();
         this.knowledgeSpaceId = source.getKnowledgeSpaceId();
         this.sourceObjectId = source.getId();
         this.evidenceBlobId = blob.getId();
-        this.revisionNumber = 1;
+        this.revisionNumber = revisionNumber;
         this.fileName = fileName;
         this.mediaType = blob.getMediaType();
         this.contentLength = blob.getContentLength();
@@ -162,6 +169,7 @@ class SourceRevision extends BaseEntity {
         this.rawSourceObjectId = raw.rawSourceObjectId();
         this.normalizedRecordId = normalized.normalizedRecordId();
         this.knowledgeAssetId = asset.knowledgeAssetId();
+        this.knowledgeAssetVersionId = asset.knowledgeAssetVersionId();
         this.processedAt = processedAt;
     }
 
@@ -175,6 +183,10 @@ class SourceRevision extends BaseEntity {
 
     UUID getSourceObjectId() {
         return sourceObjectId;
+    }
+
+    long getRevisionNumber() {
+        return revisionNumber;
     }
 
     UUID getEvidenceBlobId() {
@@ -231,5 +243,13 @@ class SourceRevision extends BaseEntity {
 
     Integer getEmbeddingDimensions() {
         return embeddingDimensions;
+    }
+
+    UUID getKnowledgeAssetId() {
+        return knowledgeAssetId;
+    }
+
+    UUID getKnowledgeAssetVersionId() {
+        return knowledgeAssetVersionId;
     }
 }

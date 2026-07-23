@@ -29,6 +29,9 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
     @Column(name = "knowledge_asset_id", nullable = false, updatable = false)
     private UUID knowledgeAssetId;
 
+    @Column(name = "knowledge_asset_version_id", nullable = false, updatable = false)
+    private UUID knowledgeAssetVersionId;
+
     @Column(name = "owner_user_id", nullable = false, updatable = false)
     private UUID ownerUserId;
 
@@ -71,29 +74,40 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
     protected KnowledgeAssetPublicationOutbox() {
     }
 
-    KnowledgeAssetPublicationOutbox(PublishKnowledgeAssetCommand command, UUID knowledgeAssetId) {
+    KnowledgeAssetPublicationOutbox(
+            PublishKnowledgeAssetCommand command,
+            UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
+            long projectionGeneration) {
         super(UUID.randomUUID());
+        if (projectionGeneration <= 0) {
+            throw new IllegalArgumentException("projectionGeneration must be positive");
+        }
         this.organizationId = command.organizationId();
         this.knowledgeSpaceId = command.knowledgeSpaceId();
         this.sourceRevisionId = command.sourceRevisionId();
         this.sourceObjectId = command.sourceObjectId();
         this.knowledgeAssetId = knowledgeAssetId;
+        this.knowledgeAssetVersionId = knowledgeAssetVersionId;
         this.ownerUserId = command.ownerUserId();
-        this.projectionGeneration = command.projectionGeneration();
+        this.projectionGeneration = projectionGeneration;
         this.embeddingProfileId = command.embeddingProfile().id();
         this.embeddingDimensions = command.embeddingProfile().dimensions();
         this.pipelineVersion = command.pipelineVersion();
         this.status = KnowledgeAssetPublicationStatus.PENDING;
     }
 
-    void requireSamePublication(PublishKnowledgeAssetCommand command, UUID expectedAssetId) {
+    void requireSamePublication(
+            PublishKnowledgeAssetCommand command,
+            UUID expectedAssetId,
+            UUID expectedVersionId) {
         if (!organizationId.equals(command.organizationId())
                 || !knowledgeSpaceId.equals(command.knowledgeSpaceId())
                 || !sourceRevisionId.equals(command.sourceRevisionId())
                 || !sourceObjectId.equals(command.sourceObjectId())
                 || !knowledgeAssetId.equals(expectedAssetId)
+                || !knowledgeAssetVersionId.equals(expectedVersionId)
                 || !ownerUserId.equals(command.ownerUserId())
-                || projectionGeneration != command.projectionGeneration()
                 || !embeddingProfileId.equals(command.embeddingProfile().id())
                 || embeddingDimensions != command.embeddingProfile().dimensions()
                 || !pipelineVersion.equals(command.pipelineVersion())) {
@@ -128,6 +142,15 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
         appliedAt = timestamp;
     }
 
+    void recordAuthorizationModel(String modelId) {
+        if (status != KnowledgeAssetPublicationStatus.APPLIED) {
+            throw new IllegalStateException("Only an applied publication can refresh its authorization model");
+        }
+        authorizationModelId = modelId;
+        lastErrorCode = null;
+        lastErrorMessage = null;
+    }
+
     UUID getOrganizationId() {
         return organizationId;
     }
@@ -140,8 +163,16 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
         return sourceRevisionId;
     }
 
+    UUID getSourceObjectId() {
+        return sourceObjectId;
+    }
+
     UUID getKnowledgeAssetId() {
         return knowledgeAssetId;
+    }
+
+    UUID getKnowledgeAssetVersionId() {
+        return knowledgeAssetVersionId;
     }
 
     UUID getOwnerUserId() {
@@ -154,5 +185,9 @@ class KnowledgeAssetPublicationOutbox extends BaseEntity {
 
     KnowledgeAssetPublicationStatus getStatus() {
         return status;
+    }
+
+    String getAuthorizationModelId() {
+        return authorizationModelId;
     }
 }

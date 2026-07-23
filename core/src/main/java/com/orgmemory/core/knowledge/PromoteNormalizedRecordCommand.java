@@ -6,6 +6,8 @@ import java.util.UUID;
 public record PromoteNormalizedRecordCommand(
         UUID organizationId,
         UUID knowledgeSpaceId,
+        UUID sourceObjectId,
+        UUID sourceRevisionId,
         UUID normalizedRecordId,
         AccessGate orgMemoryGate) {
 }

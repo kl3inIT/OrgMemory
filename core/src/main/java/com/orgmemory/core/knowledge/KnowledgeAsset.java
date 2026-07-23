@@ -1,19 +1,17 @@
 package com.orgmemory.core.knowledge;
 
-import com.orgmemory.core.permission.AccessGate;
-import com.orgmemory.core.permission.DeclaredAccessScope;
-import com.orgmemory.core.permission.KnowledgeClassification;
-import com.orgmemory.core.permission.KnowledgeResource;
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Stable governed knowledge identity. OpenFGA relationships target this ID;
+ * immutable content and security provenance live in {@link KnowledgeAssetVersion}.
+ */
 @Entity
 @Table(name = "knowledge_assets")
 public class KnowledgeAsset extends BaseEntity {
@@ -24,100 +22,35 @@ public class KnowledgeAsset extends BaseEntity {
     @Column(name = "knowledge_space_id", nullable = false, updatable = false)
     private UUID knowledgeSpaceId;
 
-    @Column(name = "raw_source_object_id", nullable = false, updatable = false)
-    private UUID rawSourceObjectId;
+    @Column(name = "source_object_id", updatable = false)
+    private UUID sourceObjectId;
 
-    @Column(name = "normalized_record_id", nullable = false, updatable = false)
-    private UUID normalizedRecordId;
+    @Column(name = "current_version_id")
+    private UUID currentVersionId;
 
-    @Column(name = "source_acl_snapshot_id", nullable = false, updatable = false)
-    private UUID sourceAclSnapshotId;
-
-    @Column(name = "department_id", updatable = false)
-    private UUID departmentId;
-
-    @Column(nullable = false, updatable = false)
-    private String title;
-
-    @Column(nullable = false, columnDefinition = "text", updatable = false)
-    private String content;
-
-    @Column(length = 16, updatable = false)
-    private String language;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32, updatable = false)
-    private KnowledgeClassification classification;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "declared_access", nullable = false, length = 32, updatable = false)
-    private DeclaredAccessScope declaredAccess;
-
-    @Column(name = "content_sha256", nullable = false, length = 64, updatable = false)
-    private String contentSha256;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "orgmemory_gate", nullable = false, length = 16, updatable = false)
-    private AccessGate orgMemoryGate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
-    private KnowledgeAssetStatus status;
-
-    @Column(name = "activated_at")
-    private Instant activatedAt;
-
-    @Column(name = "retired_at")
-    private Instant retiredAt;
+    @Column(name = "archived_at")
+    private Instant archivedAt;
 
     protected KnowledgeAsset() {
     }
 
-    KnowledgeAsset(NormalizedRecord normalized, UUID knowledgeSpaceId, AccessGate orgMemoryGate) {
+    KnowledgeAsset(UUID organizationId, UUID knowledgeSpaceId, UUID sourceObjectId) {
         super(UUID.randomUUID());
-        this.organizationId = normalized.getOrganizationId();
+        this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.knowledgeSpaceId = Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
-        this.rawSourceObjectId = normalized.getRawSourceObjectId();
-        this.normalizedRecordId = normalized.getId();
-        this.sourceAclSnapshotId = normalized.getSourceAclSnapshotId();
-        this.departmentId = normalized.getDepartmentId();
-        this.title = normalized.getTitle();
-        this.content = normalized.getNormalizedContent();
-        this.language = normalized.getLanguage();
-        this.classification = normalized.getClassification();
-        this.declaredAccess = normalized.getDeclaredAccess();
-        this.contentSha256 = normalized.getContentSha256();
-        this.orgMemoryGate = orgMemoryGate;
-        this.status = KnowledgeAssetStatus.PENDING;
+        this.sourceObjectId = sourceObjectId;
     }
 
-    void activate(Instant activatedAt) {
-        Instant activationTime = Objects.requireNonNull(activatedAt, "activatedAt");
-        if (status == KnowledgeAssetStatus.ACTIVE) {
-            return;
+    void useVersion(UUID versionId) {
+        if (archivedAt != null) {
+            throw new IllegalStateException("An archived knowledge asset cannot publish a version");
         }
-        if (status != KnowledgeAssetStatus.PENDING) {
-            throw new IllegalStateException("Only a pending knowledge asset can be activated");
-        }
-        status = KnowledgeAssetStatus.ACTIVE;
-        this.activatedAt = activationTime;
+        currentVersionId = Objects.requireNonNull(versionId, "versionId");
     }
 
-    void retire(Instant retiredAt) {
-        if (status != KnowledgeAssetStatus.ACTIVE) {
-            throw new IllegalStateException("Only an active knowledge asset can be retired");
-        }
-        status = KnowledgeAssetStatus.RETIRED;
-        this.retiredAt = retiredAt;
-    }
-
-    KnowledgeResource toPermissionResource() {
-        return new KnowledgeResource(
-                organizationId.toString(),
-                getId().toString(),
-                departmentId == null ? null : departmentId.toString(),
-                classification,
-                declaredAccess);
+    void archive(Instant timestamp) {
+        archivedAt = Objects.requireNonNull(timestamp, "timestamp");
+        currentVersionId = null;
     }
 
     public UUID getOrganizationId() {
@@ -128,59 +61,15 @@ public class KnowledgeAsset extends BaseEntity {
         return knowledgeSpaceId;
     }
 
-    public UUID getRawSourceObjectId() {
-        return rawSourceObjectId;
+    public UUID getSourceObjectId() {
+        return sourceObjectId;
     }
 
-    public UUID getNormalizedRecordId() {
-        return normalizedRecordId;
+    public UUID getCurrentVersionId() {
+        return currentVersionId;
     }
 
-    public UUID getSourceAclSnapshotId() {
-        return sourceAclSnapshotId;
-    }
-
-    public UUID getDepartmentId() {
-        return departmentId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public String getLanguage() {
-        return language;
-    }
-
-    public KnowledgeClassification getClassification() {
-        return classification;
-    }
-
-    public DeclaredAccessScope getDeclaredAccess() {
-        return declaredAccess;
-    }
-
-    public String getContentSha256() {
-        return contentSha256;
-    }
-
-    public AccessGate getOrgMemoryGate() {
-        return orgMemoryGate;
-    }
-
-    public KnowledgeAssetStatus getStatus() {
-        return status;
-    }
-
-    public Instant getActivatedAt() {
-        return activatedAt;
-    }
-
-    public Instant getRetiredAt() {
-        return retiredAt;
+    public Instant getArchivedAt() {
+        return archivedAt;
     }
 }

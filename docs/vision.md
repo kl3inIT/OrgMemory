@@ -11,10 +11,9 @@ capture/import -> stage -> normalize -> ground -> review -> publish
 -> reuse -> measure -> transfer -> retire
 ```
 
-A Knowledge Asset is trusted, citable knowledge. A Capability Asset is reusable
-AI work with inputs, outputs, owner, backup owner, version, approval, risk,
-usage, and handover value. A possible reusable workflow is a candidate until a
-human approves it.
+A Knowledge Asset is trusted, citable knowledge. Reusable workflows, prompts,
+and agent procedures may later become governed capability candidates, but that
+separate product lifecycle is not implemented in the current repository.
 
 ## Product Boundary
 
@@ -82,9 +81,12 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `EvidenceBlob`: object-store binary plus integrity and scan metadata.
 - `NormalizedRecord`: parsed and cleaned content.
 - `GraphCandidate`: extracted facts awaiting validation/publication.
-- `KnowledgeAsset`: approved knowledge with active provenance and ACL state.
+- `KnowledgeAsset`: stable governed identity for approved knowledge.
+- `KnowledgeAssetVersion`: immutable content and security provenance selected
+  by the stable asset's current-version pointer.
 - `CapabilityCandidate`: possible reusable AI workflow.
-- `CapabilityAsset`: approved, versioned, reusable capability.
+- `CapabilityAsset`: possible future approved, versioned reusable capability;
+  not part of the current implementation.
 
 Manual upload is a first-class source and follows the same quarantine, scan,
 parse, ACL, indexing, review, and audit pipeline as connectors.

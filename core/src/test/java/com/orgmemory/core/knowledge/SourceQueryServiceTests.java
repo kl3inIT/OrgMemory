@@ -123,6 +123,7 @@ class SourceQueryServiceTests {
         SourceObject source = mock(SourceObject.class);
         when(source.getId()).thenReturn(sourceId);
         when(source.getCurrentRevisionId()).thenReturn(revisionId);
+        when(source.getLatestRevisionId()).thenReturn(revisionId);
         when(source.getTitle()).thenReturn(title);
         when(source.getSourceType()).thenReturn(SourceType.UPLOAD);
         when(source.getClassification()).thenReturn(KnowledgeClassification.INTERNAL);

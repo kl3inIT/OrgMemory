@@ -13,7 +13,6 @@ public record PublishKnowledgeAssetCommand(
         UUID ownerUserId,
         EmbeddingProfileRef embeddingProfile,
         String pipelineVersion,
-        long projectionGeneration,
         List<KnowledgeChunkDraft> chunks) {
 
     public PublishKnowledgeAssetCommand {
@@ -25,9 +24,6 @@ public record PublishKnowledgeAssetCommand(
         Objects.requireNonNull(ownerUserId, "ownerUserId");
         Objects.requireNonNull(embeddingProfile, "embeddingProfile");
         pipelineVersion = requirePipelineVersion(pipelineVersion);
-        if (projectionGeneration <= 0) {
-            throw new IllegalArgumentException("projectionGeneration must be positive");
-        }
         chunks = List.copyOf(Objects.requireNonNull(chunks, "chunks"));
         if (chunks.isEmpty()) {
             throw new IllegalArgumentException("At least one knowledge chunk is required");
