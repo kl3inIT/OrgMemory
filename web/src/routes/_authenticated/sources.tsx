@@ -7,25 +7,36 @@ export const Route = createFileRoute("/_authenticated/sources")({
   staticData: { title: "Documents" },
   // Annotated so the key reads as optional rather than as one that must be passed holding
   // undefined. A link to this page with no query is the ordinary case.
-  validateSearch: (search: Record<string, unknown>): { q?: string } => {
+  validateSearch: (search: Record<string, unknown>): { q?: string; view?: "graph" } => {
     const q = typeof search.q === "string" ? search.q.trim().slice(0, 200) : ""
-    return { q: q || undefined }
+    const view = search.view === "graph" ? "graph" : undefined
+    return { q: q || undefined, view }
   },
 })
 
 function SourcesRoute() {
-  const { q } = Route.useSearch()
+  const { q, view } = Route.useSearch()
   const navigate = Route.useNavigate()
 
   return (
     <SourcesPage
       search={q ?? ""}
+      view={view ?? "documents"}
       onSearchChange={(nextQuery) => {
         void navigate({
           replace: true,
           search: (previous) => ({
             ...previous,
             q: nextQuery || undefined,
+          }),
+        })
+      }}
+      onViewChange={(nextView) => {
+        void navigate({
+          replace: true,
+          search: (previous) => ({
+            ...previous,
+            view: nextView === "graph" ? "graph" : undefined,
           }),
         })
       }}

@@ -37,6 +37,14 @@ public interface ProjectionPublicationStore {
             ProjectionNamespace namespace,
             long generation);
 
+    /**
+     * Finds a successfully published batch by the producer's stable
+     * idempotency key. Aborted and merely prepared batches are never returned.
+     */
+    Optional<ProjectionSnapshot> published(
+            ProjectionNamespace namespace,
+            String idempotencyKey);
+
     void markPrepared(
             ProjectionBatch batch,
             ProjectionKind projection,

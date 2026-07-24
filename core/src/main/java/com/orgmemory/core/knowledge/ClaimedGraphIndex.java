@@ -14,6 +14,7 @@ public record ClaimedGraphIndex(
         UUID aclSnapshotId,
         long aclGeneration,
         long projectionGeneration,
+        String idempotencyKey,
         EmbeddingProfileRef embeddingProfile,
         String language,
         int attempt,
@@ -27,11 +28,24 @@ public record ClaimedGraphIndex(
         Objects.requireNonNull(knowledgeAssetVersionId, "knowledgeAssetVersionId");
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         Objects.requireNonNull(aclSnapshotId, "aclSnapshotId");
+        idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey").strip();
+        if (idempotencyKey.isEmpty()) {
+            throw new IllegalArgumentException("idempotencyKey must not be blank");
+        }
         Objects.requireNonNull(embeddingProfile, "embeddingProfile");
+        if (!organizationId.equals(embeddingProfile.organizationId())) {
+            throw new IllegalArgumentException(
+                    "embeddingProfile must belong to the claim organization");
+        }
         language = language == null || language.isBlank() ? "und" : language.strip();
         chunks = List.copyOf(Objects.requireNonNull(chunks, "chunks"));
         if (chunks.isEmpty()) {
             throw new IllegalArgumentException("a graph index claim must contain chunks");
+        }
+        if (chunks.stream().anyMatch(
+                chunk -> chunk.embedding().dimensions() != embeddingProfile.dimensions())) {
+            throw new IllegalArgumentException(
+                    "every chunk embedding must match the pinned embedding profile");
         }
     }
 }

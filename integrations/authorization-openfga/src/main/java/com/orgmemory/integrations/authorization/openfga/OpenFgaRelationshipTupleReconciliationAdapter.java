@@ -1,6 +1,7 @@
 package com.orgmemory.integrations.authorization.openfga;
 
 import com.orgmemory.core.authorization.RelationshipTuple;
+import com.orgmemory.core.authorization.RelationshipTupleFilter;
 import com.orgmemory.core.authorization.RelationshipTuplePage;
 import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
@@ -41,6 +42,14 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
 
     @Override
     public RelationshipTuplePage read(int pageSize, String continuationToken) {
+        return read(null, pageSize, continuationToken);
+    }
+
+    @Override
+    public RelationshipTuplePage read(
+            RelationshipTupleFilter filter,
+            int pageSize,
+            String continuationToken) {
         if (pageSize <= 0) {
             throw new IllegalArgumentException("pageSize must be positive");
         }
@@ -48,8 +57,20 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
         if (continuationToken != null && !continuationToken.isBlank()) {
             options.continuationToken(continuationToken.trim());
         }
+        var request = new ClientReadRequest();
+        if (filter != null) {
+            if (filter.user() != null) {
+                request.user(filter.user());
+            }
+            if (filter.relation() != null) {
+                request.relation(filter.relation());
+            }
+            if (filter.object() != null) {
+                request._object(filter.object());
+            }
+        }
         try {
-            var response = client.read(new ClientReadRequest(), options)
+            var response = client.read(request, options)
                     .get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return RelationshipTuplePage.resolved(
                     response.getTuples().stream()

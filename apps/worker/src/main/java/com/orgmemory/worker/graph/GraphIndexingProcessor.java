@@ -75,6 +75,13 @@ class GraphIndexingProcessor {
 
     private void process(ClaimedGraphIndex claim) {
         try {
+            if (publications.completePublished(
+                    claim, properties.workerId(), properties.leaseDuration())) {
+                log.info(
+                        "Completed replayed graph publication for Knowledge Asset version {}",
+                        claim.knowledgeAssetVersionId());
+                return;
+            }
             AiRoute extractionRoute = routes.resolve(AiWorkload.GRAPH_EXTRACTION);
             ExtractionProfile extractionProfile = new ExtractionProfile(
                     extractionRoute.gatewayId(),
@@ -100,10 +107,9 @@ class GraphIndexingProcessor {
                     extracted);
             GraphRevisionEmbeddings embeddings = embed(claim, contributions.entities(), contributions.relations());
             publications.commit(
-                    claim.jobId(),
+                    claim,
                     properties.workerId(),
                     properties.leaseDuration(),
-                    claim.knowledgeSpaceId(),
                     new GraphRevisionProjection(contributions, embeddings));
             log.info(
                     "Published graph generation {} for Knowledge Asset version {} with {} entities and {} relations",
@@ -146,13 +152,14 @@ class GraphIndexingProcessor {
 
     private static GraphExtractionException findExtractionFailure(Throwable failure) {
         Throwable current = failure;
+        GraphExtractionException deepest = null;
         for (int depth = 0; current != null && depth < 8; depth++) {
             if (current instanceof GraphExtractionException extractionFailure) {
-                return extractionFailure;
+                deepest = extractionFailure;
             }
             current = current.getCause();
         }
-        return null;
+        return deepest;
     }
 
     private List<ExtractedChunk> extractChunks(

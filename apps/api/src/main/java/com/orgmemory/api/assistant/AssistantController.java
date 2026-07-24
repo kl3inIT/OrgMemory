@@ -4,6 +4,7 @@ import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -48,8 +49,9 @@ class AssistantController {
             @Valid @RequestBody AssistantChatRequest request,
             Authentication authentication) {
         String requestId = UUID.randomUUID().toString();
+        CurrentActor actor = actors.current(authentication);
         AssistantTurn turn = assistant.startTurn(
-                actors.current(authentication), request.message(), request.limit(), requestId);
+                actor, request.message(), request.limit(), requestId);
         Flux<AssistantStreamPart> parts = parts(turn);
         return ResponseEntity.ok()
                 .header("X-Request-ID", turn.requestId())
@@ -64,18 +66,25 @@ class AssistantController {
                         properties.turnTimeout()));
     }
 
-    private static Flux<AssistantStreamPart> parts(AssistantTurn turn) {
+    Flux<AssistantStreamPart> parts(AssistantTurn turn) {
         Flux<AssistantStreamPart> text = turn.content()
-                .map(token -> (AssistantStreamPart) new AssistantStreamPart.TextDelta(TEXT_PART_ID, token))
-                .switchOnFirst((signal, tokens) -> signal.hasValue()
-                        ? Flux.concat(
-                                Flux.just(new AssistantStreamPart.TextStart(TEXT_PART_ID)),
-                                tokens,
-                                Flux.just(new AssistantStreamPart.TextEnd(TEXT_PART_ID)))
-                        : tokens);
+                .map(token -> (AssistantStreamPart)
+                        new AssistantStreamPart.TextDelta(
+                                TEXT_PART_ID,
+                                token))
+                .switchOnFirst((signal, streamedTokens) ->
+                        signal.hasValue()
+                                ? Flux.concat(
+                                        Flux.just(new AssistantStreamPart
+                                                .TextStart(TEXT_PART_ID)),
+                                        streamedTokens,
+                                        Flux.just(new AssistantStreamPart
+                                                .TextEnd(TEXT_PART_ID)))
+                                : streamedTokens);
         return Flux.concat(
                 Flux.just(new AssistantStreamPart.StartStep()),
-                Flux.fromIterable(turn.evidence()).map(AssistantController::sourcePart),
+                Flux.fromIterable(turn.evidence())
+                        .map(AssistantController::sourcePart),
                 text,
                 Flux.just(new AssistantStreamPart.FinishStep()));
     }
@@ -85,10 +94,9 @@ class AssistantController {
         String title = evidence.startPage() == null
                 ? evidence.title()
                 : evidence.title() + " · page " + evidence.startPage();
-        if (evidence.sourceUri() != null && !evidence.sourceUri().isBlank()) {
-            return new AssistantStreamPart.SourceUrl(sourceId, evidence.sourceUri(), title);
-        }
-        return new AssistantStreamPart.SourceDocument(
-                sourceId, "application/octet-stream", title, evidence.title());
+        return new AssistantStreamPart.SourceUrl(
+                sourceId,
+                "/api/citations/" + evidence.chunkId() + "/content",
+                title);
     }
 }

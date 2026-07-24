@@ -1,6 +1,7 @@
 package com.orgmemory.core.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,11 +14,12 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,7 +27,7 @@ import reactor.core.publisher.Flux;
 
 class AssistantServiceTests {
 
-    private final SecureKnowledgeRetrievalService retrieval = mock(SecureKnowledgeRetrievalService.class);
+    private final CanonicalHybridKnowledgeSearch retrieval = mock(CanonicalHybridKnowledgeSearch.class);
     private final ChatModelPort chat = mock(ChatModelPort.class);
     private final CurrentActor actor = new CurrentActor(
             UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Laura", "laura@example.test");
@@ -57,6 +59,39 @@ class AssistantServiceTests {
     }
 
     @Test
+    void exposesCitationsOnlyForEvidenceIncludedInThePromptBudget() {
+        List<RetrievedKnowledgeEvidence> evidence = IntStream.range(0, 6)
+                .mapToObj(index -> evidence("x".repeat(6_000)))
+                .toList();
+        when(retrieval.search(
+                        actor,
+                        "Summarize the policies",
+                        10,
+                        "request-budget"))
+                .thenReturn(new SecureKnowledgeSearchResult(
+                        "request-budget",
+                        evidence));
+        when(chat.stream(eq(AiWorkload.ASSISTANT_CHAT), any()))
+                .thenReturn(Flux.just("Summary [1]"));
+
+        AssistantTurn turn = service.startTurn(
+                actor,
+                "Summarize the policies",
+                10,
+                "request-budget");
+
+        assertEquals(evidence.subList(0, 5), turn.evidence());
+        ArgumentCaptor<ChatGenerationRequest> request =
+                ArgumentCaptor.forClass(ChatGenerationRequest.class);
+        verify(chat).stream(
+                eq(AiWorkload.ASSISTANT_CHAT),
+                request.capture());
+        assertFalse(request.getValue()
+                .userPrompt()
+                .contains("--- SOURCE 6 BEGIN ---"));
+    }
+
+    @Test
     void doesNotCallTheModelWhenNoAccessibleEvidenceExists() {
         when(retrieval.search(actor, "Show me the financial forecast", 5, "request-2"))
                 .thenReturn(new SecureKnowledgeSearchResult("request-2", List.of()));
@@ -81,13 +116,17 @@ class AssistantServiceTests {
     }
 
     private static RetrievedKnowledgeEvidence evidence() {
+        return evidence("The probation period is 60 days.");
+    }
+
+    private static RetrievedKnowledgeEvidence evidence(String content) {
         return new RetrievedKnowledgeEvidence(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "Employee Handbook",
-                "The probation period is 60 days.",
+                content,
                 "https://example.test/employee-handbook",
                 4,
                 4,

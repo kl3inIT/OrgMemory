@@ -3,7 +3,7 @@ package com.orgmemory.core.assistant;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatModelPort;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import reactor.core.publisher.Flux;
 
@@ -12,10 +12,12 @@ public class AssistantService {
     static final String NO_ACCESSIBLE_EVIDENCE =
             "I could not find enough accessible company knowledge to answer that question.";
 
-    private final SecureKnowledgeRetrievalService retrieval;
+    private final PermissionAwareKnowledgeSearch retrieval;
     private final ChatModelPort chat;
 
-    public AssistantService(SecureKnowledgeRetrievalService retrieval, ChatModelPort chat) {
+    public AssistantService(
+            PermissionAwareKnowledgeSearch retrieval,
+            ChatModelPort chat) {
         this.retrieval = retrieval;
         this.chat = chat;
     }
@@ -30,11 +32,15 @@ public class AssistantService {
             return new AssistantTurn(search.requestId(), search.evidence(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
         }
 
+        AssistantPromptFactory.PreparedPrompt prompt =
+                AssistantPromptFactory.create(
+                        question,
+                        search.evidence());
         Flux<String> content;
         try {
             content = chat.stream(
                             AiWorkload.ASSISTANT_CHAT,
-                            AssistantPromptFactory.create(question, search.evidence()))
+                            prompt.request())
                     .filter(token -> token != null && !token.isEmpty())
                     .switchIfEmpty(Flux.error(new AssistantUnavailableException(
                             "The assistant returned no answer")))
@@ -46,6 +52,9 @@ public class AssistantService {
         } catch (RuntimeException exception) {
             throw new AssistantUnavailableException("The assistant is unavailable", exception);
         }
-        return new AssistantTurn(search.requestId(), search.evidence(), content);
+        return new AssistantTurn(
+                search.requestId(),
+                prompt.evidence(),
+                content);
     }
 }

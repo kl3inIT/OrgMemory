@@ -91,6 +91,16 @@ public final class PostgresProjectionPublicationStore
     }
 
     @Override
+    public Optional<ProjectionSnapshot> published(
+            ProjectionNamespace namespace,
+            String idempotencyKey) {
+        Objects.requireNonNull(namespace, "namespace");
+        return publicationByIdempotency(
+                namespace,
+                requireText(idempotencyKey, "idempotencyKey"));
+    }
+
+    @Override
     public void markPrepared(
             ProjectionBatch batch,
             ProjectionKind projection,

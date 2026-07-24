@@ -166,7 +166,7 @@ class AdminSourceAccessController {
     @GetMapping("/source-connections")
     @Operation(operationId = "listAdminSourceConnections", summary = "List observed connections and their trust level")
     List<AdminSourceConnectionResponse> connections(Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return sourceAdmin.listConnections(actor.organizationId()).stream()
                 .map(AdminSourceConnectionResponse::from)
                 .toList();
@@ -176,7 +176,7 @@ class AdminSourceAccessController {
     @Operation(operationId = "setAdminSourceConnectionTrust", summary = "Record the identity trust for a connection")
     AdminSourceConnectionResponse setIdentityTrust(
             @RequestBody IdentityTrustRequest request, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return AdminSourceConnectionResponse.from(sourceAdmin.setIdentityTrust(
                 actor.organizationId(),
                 request.sourceSystem(),
@@ -188,7 +188,7 @@ class AdminSourceAccessController {
     @GetMapping("/source-principals")
     @Operation(operationId = "listAdminSourcePrincipals", summary = "List observed principals and their mapping")
     List<AdminSourcePrincipalResponse> principals(Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return sourceAdmin.listPrincipals(actor.organizationId()).stream()
                 .map(AdminSourcePrincipalResponse::from)
                 .toList();
@@ -200,7 +200,7 @@ class AdminSourceAccessController {
             @PathVariable UUID principalId,
             @RequestBody ConfirmMappingRequest request,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return AdminSourcePrincipalResponse.from(sourceAdmin.confirmMapping(
                 actor.organizationId(), principalId, request.appUserId(), actor.userId()));
     }
@@ -208,7 +208,7 @@ class AdminSourceAccessController {
     @DeleteMapping("/source-principals/{principalId}/mapping")
     @Operation(operationId = "revokeAdminSourceMapping", summary = "Revoke a principal's active mapping")
     AdminSourcePrincipalResponse revoke(@PathVariable UUID principalId, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return AdminSourcePrincipalResponse.from(
                 sourceAdmin.revokeMapping(actor.organizationId(), principalId, actor.userId()));
     }
@@ -216,7 +216,7 @@ class AdminSourceAccessController {
     @GetMapping("/source-groups")
     @Operation(operationId = "listAdminSourceGroups", summary = "List source groups with their sealed membership")
     List<AdminSourceGroupResponse> groups(Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         return sourceAdmin.listGroups(actor.organizationId()).stream()
                 .map(AdminSourceGroupResponse::from)
                 .toList();

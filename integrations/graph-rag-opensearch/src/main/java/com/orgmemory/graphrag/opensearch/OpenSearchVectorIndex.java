@@ -86,6 +86,22 @@ public final class OpenSearchVectorIndex implements VectorIndex {
     }
 
     @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        ensureCopyForward(batch);
+        Query query = Query.of(candidate -> candidate.bool(bool -> bool.filter(List.of(
+                OpenSearchStagedIndex.term(
+                        OpenSearchProjectionCodec.BATCH_ID,
+                        batch.id().toString()),
+                OpenSearchStagedIndex.term(
+                        OpenSearchProjectionCodec.ASSET_ID,
+                        assetId.toString())))));
+        delete(scanner.scan(indexes.vectorPattern(), query, Integer.MAX_VALUE));
+    }
+
+    @Override
     public List<VectorRecord> get(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

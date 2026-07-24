@@ -2,21 +2,28 @@
 
 ## Current Behavior
 
-The API exposes prototype Spring AI normalization/chat backed directly by the
-OpenAI starter when enabled, with demo-safe local fallback. The registry-based
-Ask flow does not use the permission-aware Knowledge Asset retrieval service.
-Conversation memory, provider-neutral routing, durable turn idempotency, shared
-tool publication, and grounded knowledge citations are not implemented.
+The in-app Assistant routes chat through the provider-neutral AI gateway and
+grounds every answer in `PermissionAwareKnowledgeSearch`. GraphRAG is the
+default retrieval engine; the canonical hybrid engine is an explicit
+configuration choice rather than an implicit fallback. Answers stream with
+permission-verified citations, and citation content is read through an
+authenticated backend endpoint instead of exposing object-storage URLs.
 
-The `apps/mcp` module is reserved, but has no runtime implementation. Its legacy
-scaffold was removed so the future server can publish only production Knowledge
-and Capability tools backed by the shared permission-aware use cases.
+`apps/mcp` runs a stateless Spring AI MCP server with one read-only,
+closed-world `search_knowledge` tool. It validates the caller's bearer token and
+forwards that same token to `/api/knowledge/search`, preserving one retrieval,
+OpenFGA, ACL-recheck, and audit path across the Assistant, REST, and MCP
+surfaces. MCP owns no schema migration or privileged service identity.
+
+Durable conversation memory, turn idempotency, mutation tools, and agent tool
+traces remain unimplemented.
 
 ## Source Modules
 
-- `apps/api.ai`
+- `apps/api.assistant`
+- `core.knowledge`
 - `apps/mcp`
-- Spring AI dependency in `core`
+- Spring AI MCP server in `apps/mcp`
 
 ## Related Decisions
 

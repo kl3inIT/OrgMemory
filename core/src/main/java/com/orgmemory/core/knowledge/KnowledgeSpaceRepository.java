@@ -10,6 +10,8 @@ interface KnowledgeSpaceRepository extends JpaRepository<KnowledgeSpace, UUID> {
 
     Optional<KnowledgeSpace> findByIdAndOrganizationIdAndActiveTrue(UUID id, UUID organizationId);
 
+    boolean existsByIdAndOrganizationId(UUID id, UUID organizationId);
+
     boolean existsByIdAndOrganizationIdAndActiveTrue(UUID id, UUID organizationId);
 
     List<KnowledgeSpace> findByOrganizationIdAndIdInAndActiveTrueOrderByName(

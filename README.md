@@ -22,7 +22,7 @@ CSS 4, shadcn/ui, TanStack Query/Router, and AI SDK UI components.
 core/          domain, application services, JPA, and Flyway
 apps/api/      REST, OIDC, secure search, OpenAPI, migration owner
 apps/worker/   background source ingestion and indexing boundary
-apps/mcp/      reserved MCP delivery boundary; no runtime implementation yet
+apps/mcp/      authenticated read-only MCP delivery adapter
 integrations/  provider adapters, including the official OpenFGA Java SDK
 web/           React app shell, secure search, and document management
 docs/          vision, roadmap, decisions, specs, tests, and increments
@@ -47,7 +47,10 @@ corepack pnpm -C web dev --host 127.0.0.1 --port 5173
 The development path always uses OIDC plus OpenFGA; there is no `permitAll`
 profile. Keycloak authenticates users, explicit issuer/subject bindings map them
 to internal users, and OpenFGA grants application permissions. The API can boot
-without an LLM key, but authorization fails closed when OpenFGA is unavailable.
+without an LLM key only when
+`ORGMEMORY_ASSISTANT_RETRIEVAL_ENGINE=CANONICAL_HYBRID` is selected explicitly.
+The default `GRAPH_RAG` runtime requires configured chat and embedding models;
+authorization fails closed when OpenFGA is unavailable.
 Never commit `.env` or provider secrets.
 
 Production starts with `--spring.profiles.active=prod`. That profile has no

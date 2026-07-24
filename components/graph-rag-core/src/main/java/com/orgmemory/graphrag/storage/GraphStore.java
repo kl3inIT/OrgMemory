@@ -31,6 +31,9 @@ public interface GraphStore extends StagedProjectionWriter {
 
     void stageDeleteRevision(ProjectionBatch batch, UUID sourceRevisionId);
 
+    /** Removes all copied-forward contributions owned by one stable asset. */
+    void stageDeleteAsset(ProjectionBatch batch, UUID knowledgeAssetId);
+
     List<CanonicalEntity> loadEntities(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

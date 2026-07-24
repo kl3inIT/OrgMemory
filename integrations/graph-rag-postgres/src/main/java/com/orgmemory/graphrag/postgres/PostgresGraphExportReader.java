@@ -10,8 +10,10 @@ import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
-import com.orgmemory.graphrag.port.GraphProjectionReader;
+import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -32,15 +34,18 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 public final class PostgresGraphExportReader implements GraphExportReader {
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final GraphProjectionReader projections;
+    private final GraphStore graphs;
+    private final ProjectionPublicationStore publications;
     private final GraphCurationStore curations;
 
     public PostgresGraphExportReader(
             NamedParameterJdbcTemplate jdbc,
-            GraphProjectionReader projections,
+            GraphStore graphs,
+            ProjectionPublicationStore publications,
             GraphCurationStore curations) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
-        this.projections = Objects.requireNonNull(projections, "projections");
+        this.graphs = Objects.requireNonNull(graphs, "graphs");
+        this.publications = Objects.requireNonNull(publications, "publications");
         this.curations = Objects.requireNonNull(curations, "curations");
     }
 
@@ -56,41 +61,48 @@ public final class PostgresGraphExportReader implements GraphExportReader {
         if (scope.authorizedAssetIds().isEmpty()) {
             return new GraphExportDocument(List.of(), List.of());
         }
-        IdentityCatalog catalog = visibleIdentities(scope);
+        ProjectionSnapshot snapshot = publications
+                .current(namespace)
+                .orElse(null);
+        if (snapshot == null) {
+            return new GraphExportDocument(List.of(), List.of());
+        }
+        IdentityCatalog catalog = visibleIdentities(scope, snapshot);
         List<EntityContribution> entityContributions =
-                projections.loadEntityContributions(scope, catalog.entityIds());
+                graphs.loadEntityContributions(scope, snapshot, catalog.entityIds());
         List<RelationContribution> relationContributions =
-                projections.loadRelationContributions(scope, catalog.relationIds());
+                graphs.loadRelationContributions(scope, snapshot, catalog.relationIds());
         EffectiveGraphCuration curation =
-                EffectiveGraphCuration.from(curations.active(scope, namespace));
+                EffectiveGraphCuration.from(
+                        curations.active(scope, namespace, snapshot));
         return aggregate(entityContributions, relationContributions, curation);
     }
 
-    private IdentityCatalog visibleIdentities(AuthorizedEvidenceScope scope) {
-        MapSqlParameterSource parameters =
-                PostgresAuthorizedGraphSql.scopeParameters(scope);
+    private IdentityCatalog visibleIdentities(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot) {
+        MapSqlParameterSource parameters = new MapSqlParameterSource()
+                .addValue("batchId", snapshot.batchId())
+                .addValue("organizationId", scope.organizationId())
+                .addValue("authorizedAssetIds", scope.authorizedAssetIds());
         List<UUID> entityIds = jdbc.queryForList("""
-                WITH %s,
-                     %s
-                SELECT DISTINCT contribution.entity_id
-                FROM visible_entity_contributions contribution
-                ORDER BY contribution.entity_id
-                """.formatted(
-                        PostgresAuthorizedGraphSql.VISIBLE_KNOWLEDGE_CHUNKS,
-                        PostgresAuthorizedGraphSql.VISIBLE_ENTITY_CONTRIBUTIONS),
+                SELECT DISTINCT entity_id
+                FROM projection_graph_entity_contributions
+                WHERE batch_id = :batchId
+                  AND organization_id = :organizationId
+                  AND knowledge_asset_id IN (:authorizedAssetIds)
+                ORDER BY entity_id
+                """,
                 parameters,
                 UUID.class);
         List<UUID> relationIds = jdbc.queryForList("""
-                WITH %s,
-                     %s,
-                     %s
-                SELECT DISTINCT contribution.relation_id
-                FROM visible_relation_contributions contribution
-                ORDER BY contribution.relation_id
-                """.formatted(
-                        PostgresAuthorizedGraphSql.VISIBLE_KNOWLEDGE_CHUNKS,
-                        PostgresAuthorizedGraphSql.VISIBLE_ENTITY_CONTRIBUTIONS,
-                        PostgresAuthorizedGraphSql.VISIBLE_RELATION_CONTRIBUTIONS),
+                SELECT DISTINCT relation_id
+                FROM projection_graph_relation_contributions
+                WHERE batch_id = :batchId
+                  AND organization_id = :organizationId
+                  AND knowledge_asset_id IN (:authorizedAssetIds)
+                ORDER BY relation_id
+                """,
                 parameters,
                 UUID.class);
         return new IdentityCatalog(entityIds, relationIds);

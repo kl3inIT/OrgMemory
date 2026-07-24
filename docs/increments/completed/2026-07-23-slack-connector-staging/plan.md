@@ -60,7 +60,7 @@
   unobserved Chi do not; re-crawl → Chi sees it and An is revoked, content not
   re-ingested (same revision id, same chunk count, ACL generation advances to 2);
   tombstone archives the object out of retrieval. Retrieval runs through the real
-  `SecureKnowledgeRetrievalService` with OpenFGA mocked to allow, so the sealed
+  `CanonicalHybridKnowledgeSearch` with OpenFGA mocked to allow, so the sealed
   source ACL is the deciding gate.
 - [x] Regression: `:core:test`, `:apps:worker:test`, `:apps:api:test`, and the
   OpenFGA authorization model tests all green (`./gradlew test`).

@@ -175,6 +175,7 @@ public class GraphIndexingCoordinator {
                 snapshot.getId(),
                 snapshot.getAclGeneration(),
                 job.getProjectionGeneration(),
+                job.getIdempotencyKey(),
                 embeddingProfile,
                 version.getLanguage(),
                 job.getAttemptCount(),

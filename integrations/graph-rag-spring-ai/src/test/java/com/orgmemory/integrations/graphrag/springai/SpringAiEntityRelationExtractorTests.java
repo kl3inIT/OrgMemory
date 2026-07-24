@@ -18,6 +18,8 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 
 class SpringAiEntityRelationExtractorTests {
 
@@ -71,7 +73,10 @@ class SpringAiEntityRelationExtractorTests {
                 List.of("authorization", "permissions"),
                 result.relations().getFirst().keywords());
         assertEquals("gpt-5.6-sol", model.lastPrompt.getOptions().getModel());
-        assertEquals(0.0, model.lastPrompt.getOptions().getTemperature());
+        assertTrue(model.lastPrompt.getOptions() instanceof StructuredOutputChatOptions);
+        assertTrue(((StructuredOutputChatOptions) model.lastPrompt.getOptions())
+                .getOutputSchema()
+                .contains("\"entities\""));
     }
 
     @Test
@@ -212,6 +217,11 @@ class SpringAiEntityRelationExtractorTests {
             callCount++;
             return new ChatResponse(
                     List.of(new Generation(new AssistantMessage(response))));
+        }
+
+        @Override
+        public ChatOptions getOptions() {
+            return StructuredOutputChatOptions.builder().build();
         }
     }
 }

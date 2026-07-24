@@ -217,11 +217,11 @@ final class PostgresAuthorizedGraphSql {
                           asset_version.classification = 'CONFIDENTIAL'
                           AND asset_version.declared_access =
                                 'OWN_DEPARTMENT'
-                          AND :actorDepartmentId IS NOT NULL
+                          AND CAST(:actorDepartmentId AS uuid) IS NOT NULL
                           AND (
                               :actorExecutive
                               OR asset_version.department_id =
-                                    :actorDepartmentId
+                                    CAST(:actorDepartmentId AS uuid)
                           )
                       )
                       OR (
@@ -237,15 +237,7 @@ final class PostgresAuthorizedGraphSql {
     static final String VISIBLE_ENTITY_CONTRIBUTIONS = """
             visible_entity_contributions AS (
                 SELECT contribution.*
-                FROM graph_entity_contributions contribution
-                JOIN graph_projection_heads head
-                  ON head.organization_id = contribution.organization_id
-                 AND head.source_revision_id =
-                        contribution.source_revision_id
-                 AND head.knowledge_asset_id =
-                        contribution.knowledge_asset_id
-                 AND head.projection_generation =
-                        contribution.projection_generation
+                FROM projection_graph_entity_contributions contribution
                 JOIN visible_knowledge_chunks chunk
                   ON chunk.organization_id = contribution.organization_id
                  AND chunk.knowledge_asset_id =
@@ -259,7 +251,8 @@ final class PostgresAuthorizedGraphSql {
                         contribution.acl_generation
                  AND chunk.projection_generation =
                         contribution.projection_generation
-                WHERE contribution.organization_id = :organizationId
+                WHERE contribution.batch_id = :batchId
+                  AND contribution.organization_id = :organizationId
                   AND contribution.knowledge_asset_id
                         IN (:authorizedAssetIds)
             )
@@ -268,15 +261,7 @@ final class PostgresAuthorizedGraphSql {
     static final String VISIBLE_RELATION_CONTRIBUTIONS = """
             visible_relation_contributions AS (
                 SELECT contribution.*
-                FROM graph_relation_contributions contribution
-                JOIN graph_projection_heads head
-                  ON head.organization_id = contribution.organization_id
-                 AND head.source_revision_id =
-                        contribution.source_revision_id
-                 AND head.knowledge_asset_id =
-                        contribution.knowledge_asset_id
-                 AND head.projection_generation =
-                        contribution.projection_generation
+                FROM projection_graph_relation_contributions contribution
                 JOIN visible_knowledge_chunks chunk
                   ON chunk.organization_id = contribution.organization_id
                  AND chunk.knowledge_asset_id =
@@ -290,11 +275,11 @@ final class PostgresAuthorizedGraphSql {
                         contribution.acl_generation
                  AND chunk.projection_generation =
                         contribution.projection_generation
-                JOIN graph_relations relation
-                  ON relation.organization_id =
-                        contribution.organization_id
-                 AND relation.id = contribution.relation_id
-                WHERE contribution.organization_id = :organizationId
+                JOIN projection_graph_relations relation
+                  ON relation.batch_id = contribution.batch_id
+                 AND relation.relation_id = contribution.relation_id
+                WHERE contribution.batch_id = :batchId
+                  AND contribution.organization_id = :organizationId
                   AND contribution.knowledge_asset_id
                         IN (:authorizedAssetIds)
                   AND EXISTS (

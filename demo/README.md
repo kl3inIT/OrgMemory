@@ -10,7 +10,7 @@ parsing code in a production application.
 - `datasets/` preserves the original workbook and its checksum as source evidence.
 - `fixtures/postgres/directory.sql` seeds organization directory records and
   explicit OIDC identity bindings.
-- `../keycloak/orgmemory-realm.json` provides the native Keycloak realm import.
+- `../infrastructure/keycloak/orgmemory-realm.json` provides the native Keycloak realm import.
 - `fixtures/openfga/dataset-tuples.csv` provides native OpenFGA relationship tuples.
 - `fixtures/documents/` contains Markdown documents plus a manifest for the real
   source-ingestion path.

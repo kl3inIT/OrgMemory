@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
 @Component
 final class DocumentProcessingEngine {
 
-    private static final Set<String> LEGACY_SUFFIXES = Set.of(
+    private static final Set<String> SPRING_AI_READER_SUFFIXES = Set.of(
             "txt", "md", "pdf", "docx", "pptx");
     private final SourceProcessingProperties properties;
     private final ParserRegistrySnapshot parsers;
@@ -46,25 +46,17 @@ final class DocumentProcessingEngine {
 
     DocumentProcessingEngine(
             SourceProcessingProperties properties,
-            SourceDocumentReader legacyParser) {
+            SpringAiDocumentParser documentParser) {
         this.properties = properties;
         ClassLoader classLoader = DocumentProcessingEngine.class.getClassLoader();
-        var nativeParser = new NativeSourceDocumentParser(legacyParser);
         this.parsers = new ParserRegistry()
                 .register(new ParserSpec(
-                        legacyParser.component(),
-                        LEGACY_SUFFIXES,
+                        documentParser.component(),
+                        SPRING_AI_READER_SUFFIXES,
                         true,
                         true,
                         "",
-                        legacyParser))
-                .register(new ParserSpec(
-                        nativeParser.component(),
-                        Set.of("md", "docx"),
-                        true,
-                        true,
-                        "",
-                        nativeParser))
+                        documentParser))
                 .register(new ParserSpec(
                         PassthroughParser.COMPONENT,
                         Set.of("txt", "md"),

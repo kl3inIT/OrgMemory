@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-23. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+2026-07-24. Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
 ## System Shape
@@ -53,9 +53,11 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   connection so a restart resumes rather than replays. Which connections it crawls
   and what it authenticates with come from the ledger on every poll, so an
   administrator's change takes effect on the next one without a restart.
-- `apps/mcp`: a reserved delivery module with no runtime implementation; the
-  legacy scaffold was removed so secure agent tools can be rebuilt on the
-  permission-aware retrieval contract.
+- `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
+  read-only `search_knowledge` tool forwards the caller token to the API search
+  contract, so agents use the same GraphRAG, OpenFGA, canonical ACL recheck, and
+  audit path as the product Assistant without owning database migrations or a
+  second retrieval implementation.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
@@ -99,7 +101,10 @@ carry the configuration every source shares as columns and whatever only one
 source understands as an opaque `source_config` document, plus an encrypted
 credential in `source_connection_credentials`; the ciphertext is
 AES-256-GCM and a row that fails its authentication tag is refused rather than
-decrypted, so a tampered credential cannot be used.
+decrypted, so a tampered credential cannot be used. `user_invitations` records an
+address an administrator expects and the role it arrives as; a partial unique
+index allows one open row per address per organization while accepted and revoked
+rows stay as the audit trail.
 
 ## Current Permission-Aware Retrieval
 
@@ -110,13 +115,18 @@ SourceObject -> SourceRevision -> NormalizedRecord
              -> KnowledgeAsset -> KnowledgeAssetVersion -> chunks
 ```
 
-Secure knowledge search first resolves authorized Knowledge Asset IDs with
-OpenFGA `ListObjects`. SQL then filters organization, lifecycle, immutable and
-current ACL, the stable asset's current-version pointer,
-publication/model/profile state, and classification before ranking PostgreSQL
-FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL recheck
-guard every returned citation. Missing, unknown, stale, unsupported, or denied
-decisions fail closed.
+Secure knowledge search first resolves candidate Knowledge Asset IDs with
+OpenFGA `ListObjects`. Canonical SQL then filters organization, lifecycle,
+immutable and current ACL, the stable asset's current-version pointer,
+publication/model/profile state, and classification before FTS, vector, or graph
+ranking and before evidence can enter model context. OpenFGA `BatchCheck` and a
+canonical SQL recheck guard every selected citation. The verified evidence set
+is immutable for one Assistant request; only evidence included in the prompt is
+emitted as a source, and answer tokens stream without repeating the full
+authorization pipeline after generation. Revocation affects the next request;
+an in-flight turn may finish under its request snapshot and is bounded by the
+configured turn timeout. Missing, unknown, stale, unsupported, changed, or
+denied retrieval decisions fail closed.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
@@ -133,7 +143,8 @@ an administrator governs that ledger from `/api/admin/**`.
 Source ACL evidence accepts namespaced OrgMemory user, department, and
 organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
 principals, the latter resolved through sealed per-generation membership.
-Multi-source derivation and permission-aware MCP delivery are not implemented.
+Permission-aware MCP search is implemented. Multi-source derivation and
+mutation tools are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -166,9 +177,10 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral runtime AI gateway, whose current production adapter uses Spring
 AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
 embedding have independent configured routes; immutable Knowledge Asset embedding
-profiles still pin the provider/model used by derived indexes. The application can
-boot without a model key and uses local fallback behavior for prototype
-normalization/chat. A persistent agent conversation model does not exist yet.
+profiles still pin the provider/model used by derived indexes. The default
+`GRAPH_RAG` runtime requires its configured provider routes and has no implicit
+local retrieval fallback. A persistent agent conversation model does not exist
+yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
@@ -236,11 +248,16 @@ embedding profile, and publish the complete graph generation together with the
 durable job outcome in one PostgreSQL transaction. A stale version is
 superseded and a failed publish leaves the previous generation intact.
 
-Assistant graph retrieval and graph UI wiring are not implemented yet.
+Assistant graph retrieval is the default runtime. The Sources UI exposes a
+bounded permission-scoped Knowledge Graph explorer backed by the current shared
+projection snapshot. Graph curation and export remain curator/admin operations;
+the explorer does not create a second ACL or expose globally merged
+descriptions.
 
-The Sources UI exposes a disabled Knowledge Graph navigation target until worker
-indexing and permission-scoped graph retrieval are wired. There is no legacy
-relational capability graph endpoint.
+Assistant citations use API-owned opaque URLs. The API rechecks the canonical
+evidence boundary, streams original bytes from object storage, and exposes no
+MinIO key or presigned storage URL. The web client opens the authenticated
+response as a short-lived browser blob for PDF, image, and text preview.
 
 ## Current Security And Operations
 
@@ -253,9 +270,29 @@ for CLI, MCP, and integration clients.
 
 Both paths resolve only an explicit `(issuer, subject)` binding to the canonical
 internal actor. Keycloak owns authentication and can broker other identity
-providers, but it does not own OrgMemory resource permissions. Unlinked or
-inactive identities fail closed. There is no no-auth/local bypass. Request
-payloads do not choose the current tenant, creator, reviewer, or usage actor.
+providers, but it does not own OrgMemory resource permissions. Inactive
+identities fail closed. There is no no-auth/local bypass. Request payloads do not
+choose the current tenant, creator, reviewer, or usage actor.
+
+An unlinked identity is refused unless exactly one open `user_invitations` row
+matches the token's email, in which case the first sign-in creates the app user
+and writes the binding. The binding is still `(issuer, subject)`; the address only
+selects which invitation applies and never becomes the identity. Two open
+invitations for one address provision nothing rather than choosing a tenant, and
+an address that already has an account is linked rather than duplicated.
+
+An administrator reads effective access rather than a stored copy. Organization
+`can_*` permissions and a single `(user, permission, resource)` question are
+resolved through the check ports when asked, and `RelationshipExpansionPort` over
+OpenFGA `Expand` supplies the derivation behind the answer — for explanation only;
+enforcement stays with the check ports. A verdict is `ALLOWED`, `DENIED`, or
+`UNKNOWN`, because an expired or undated mirrored ACL is not a denial, and it
+carries the authority, generation, and capture time it was decided from. The
+explanation path reads the relationship port directly so an unanswered check stays
+distinguishable from a refusal; `EffectiveAuthorizationService` continues to
+collapse the two for enforcement. Administrative tuple writes are confined to
+`organization` and `role` objects: Slack and Drive own the ACL for connected
+content, and a second writer would let the two diverge.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API
 is the interactive delivery and migration owner; worker/MCP share and validate
@@ -265,10 +302,10 @@ under the `dev` profile; non-development security chains deny their paths. The
 configuration, and the API rejects known local secrets or invalid production
 identity/AI routes during startup. OIDC logout uses the exact registered
 `/login` redirect. The committed OpenAPI contract generates Fetch, Zod, SDK, and
-TanStack Query artifacts through Hey API. A small legacy feature helper remains
-while the prototype pages are replaced; streaming and browser-navigation logout
-retain thin handwritten transports. There is no durable streaming conversation
-store.
+TanStack Query artifacts through Hey API. Streaming Assistant delivery and
+browser-navigation logout retain thin handwritten transports because they are
+not ordinary request/response contracts. There is no durable streaming
+conversation store.
 
 The repository is a prototype, not an approved production deployment. Backup and
 restore, malware/DLP upload scanning, live Slack credentials/rate-limit handling,

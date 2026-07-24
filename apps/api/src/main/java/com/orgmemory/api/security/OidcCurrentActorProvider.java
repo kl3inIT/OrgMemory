@@ -5,6 +5,7 @@ import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.ExternalIdentityRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.organization.UserProvisioningService;
 import java.net.URL;
 import java.util.UUID;
 import org.springframework.security.core.Authentication;
@@ -20,20 +21,28 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
 
     private final ExternalIdentityRepository identities;
     private final AppUserRepository users;
+    private final UserProvisioningService provisioning;
 
-    OidcCurrentActorProvider(ExternalIdentityRepository identities, AppUserRepository users) {
+    OidcCurrentActorProvider(
+            ExternalIdentityRepository identities,
+            AppUserRepository users,
+            UserProvisioningService provisioning) {
         this.identities = identities;
         this.users = users;
+        this.provisioning = provisioning;
     }
 
     @Override
     @Transactional
     public CurrentActor current(Authentication authentication) {
         ExternalSubject external = externalSubject(authentication);
+        // An unlinked identity is not automatically a stranger: an administrator may have
+        // invited the address in advance. Accepting that invitation writes the
+        // (issuer, subject) binding, so this runs once and every later sign-in takes the
+        // branch above. With no open invitation the refusal is exactly what it was before.
         AppUser user = identities.findByIssuerAndSubject(external.issuer(), external.subject())
                 .map(identity -> findUser(identity.getAppUserId()))
-                .orElseThrow(() -> new OrgMemoryAccessDeniedException(
-                        "The OIDC identity is not linked to an OrgMemory user"));
+                .orElseGet(() -> provisionVerifiedInvitation(external));
         if (!user.isActive()) {
             throw new OrgMemoryAccessDeniedException("The linked OrgMemory user is inactive");
         }
@@ -47,20 +56,48 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
 
     private static ExternalSubject externalSubject(Authentication authentication) {
         if (authentication instanceof JwtAuthenticationToken token) {
-            return externalSubject(token.getToken().getIssuer(), token.getToken().getSubject());
+            return externalSubject(
+                    token.getToken().getIssuer(),
+                    token.getToken().getSubject(),
+                    token.getToken().getClaimAsString("email"),
+                    Boolean.TRUE.equals(token.getToken()
+                            .getClaimAsBoolean("email_verified")));
         }
         if (authentication instanceof OAuth2AuthenticationToken token
                 && token.getPrincipal() instanceof OidcUser user) {
-            return externalSubject(user.getIdToken().getIssuer(), user.getIdToken().getSubject());
+            return externalSubject(
+                    user.getIdToken().getIssuer(),
+                    user.getIdToken().getSubject(),
+                    user.getEmail(),
+                    Boolean.TRUE.equals(user.getEmailVerified()));
         }
         throw new OrgMemoryAccessDeniedException("An OIDC identity is required");
     }
 
-    private static ExternalSubject externalSubject(URL issuerUrl, String subject) {
+    private static ExternalSubject externalSubject(
+            URL issuerUrl,
+            String subject,
+            String email,
+            boolean emailVerified) {
         if (issuerUrl == null || !StringUtils.hasText(subject)) {
             throw new OrgMemoryAccessDeniedException("OIDC issuer and subject are required");
         }
-        return new ExternalSubject(issuerUrl.toString(), subject);
+        return new ExternalSubject(
+                issuerUrl.toString(), subject, email, emailVerified);
+    }
+
+    private AppUser provisionVerifiedInvitation(ExternalSubject external) {
+        if (!external.emailVerified() || !StringUtils.hasText(external.email())) {
+            throw new OrgMemoryAccessDeniedException(
+                    "A verified OIDC email is required to accept an invitation");
+        }
+        return provisioning
+                .provisionFromInvitation(
+                        external.issuer(),
+                        external.subject(),
+                        external.email())
+                .orElseThrow(() -> new OrgMemoryAccessDeniedException(
+                        "The OIDC identity is not linked to an OrgMemory user"));
     }
 
     private AppUser findUser(UUID userId) {
@@ -68,6 +105,11 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
                 .orElseThrow(() -> new OrgMemoryAccessDeniedException("The linked OrgMemory user no longer exists"));
     }
 
-    private record ExternalSubject(String issuer, String subject) {
+    /** The address is only used to find an invitation; the identity is always the subject. */
+    private record ExternalSubject(
+            String issuer,
+            String subject,
+            String email,
+            boolean emailVerified) {
     }
 }

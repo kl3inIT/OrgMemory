@@ -24,16 +24,6 @@ public record DocumentProcessingProfileSnapshot(String canonicalForm, String sha
         return new DocumentProcessingProfileSnapshot(canonicalForm, hash(canonicalForm));
     }
 
-    static DocumentProcessingProfileSnapshot legacy(
-            String parserVersion,
-            String chunkerVersion) {
-        return from("parser.actual="
-                + Objects.requireNonNull(parserVersion, "parserVersion")
-                + "\nchunker.actual="
-                + Objects.requireNonNull(chunkerVersion, "chunkerVersion")
-                + "\n");
-    }
-
     private static String hash(String value) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

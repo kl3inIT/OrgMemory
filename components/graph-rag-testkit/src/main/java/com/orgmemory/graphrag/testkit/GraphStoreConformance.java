@@ -197,6 +197,15 @@ public final class GraphStoreConformance {
                         List.of(REPLACEMENT_NEIGHBOR_ID, SECRET_NEIGHBOR_ID)),
                 Set.of(REPLACEMENT_NEIGHBOR_ID, SECRET_NEIGHBOR_ID),
                 "copy-forward must preserve untouched revisions");
+        require(
+                store.loadEntityContributions(
+                                allScope,
+                                secondSnapshot,
+                                List.of(SECRET_NEIGHBOR_ID))
+                        .stream()
+                        .allMatch(contribution ->
+                                contribution.provenance().projectionGeneration() == 1),
+                "copy-forward must preserve each asset projection generation as provenance");
 
         ProjectionBatch loser = batch("loser", 2, 3);
         store.stageDeleteRevision(loser, SECRET_REVISION_ID);
@@ -238,6 +247,17 @@ public final class GraphStoreConformance {
                         .collect(java.util.stream.Collectors.toSet())
                         .equals(Set.of(REPLACEMENT_RELATION_ID)),
                 "revision deletion must remove orphan topology");
+
+        ProjectionBatch fourth = batch("fourth", 3, 4);
+        store.stageDeleteAsset(fourth, PUBLIC_ASSET_ID);
+        ProjectionSnapshot fourthSnapshot = publish(fourth, publications);
+        require(
+                store.loadEntities(
+                                allScope,
+                                fourthSnapshot,
+                                List.of(SHARED_ENTITY_ID, REPLACEMENT_NEIGHBOR_ID))
+                        .isEmpty(),
+                "asset deletion must remove every contribution and orphan topology");
     }
 
     private static ProjectionSnapshot publish(

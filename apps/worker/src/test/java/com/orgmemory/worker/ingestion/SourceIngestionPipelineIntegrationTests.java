@@ -30,7 +30,7 @@ import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.QueryEmbedding;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -66,6 +66,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.jdbc.Sql;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -81,10 +82,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 @Import({
         SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class,
-        SecureKnowledgeRetrievalService.class
+        CanonicalHybridKnowledgeSearch.class
 })
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
+@Sql("/db/test-foundation.sql")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SourceIngestionPipelineIntegrationTests {
 
@@ -133,7 +135,7 @@ class SourceIngestionPipelineIntegrationTests {
     EmbeddingProfileRegistry embeddingProfiles;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     /**
      * Every test here calls {@code processNext()} expecting to claim the upload it just made,

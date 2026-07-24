@@ -21,6 +21,7 @@ public class KnowledgeSpaceService {
 
     private static final String RESOURCE_TYPE = "knowledge_space";
     private static final PermissionKey CAN_CREATE_ASSET = PermissionKey.of("can_create_asset");
+    private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
 
     private final KnowledgeSpaceRepository spaces;
     private final RelationshipAuthorizationPort authorization;
@@ -37,11 +38,22 @@ public class KnowledgeSpaceService {
 
     @Transactional(readOnly = true)
     public List<KnowledgeSpaceTarget> listUploadTargets(CurrentActor actor) {
+        return listAuthorizedTargets(actor, CAN_CREATE_ASSET);
+    }
+
+    @Transactional(readOnly = true)
+    public List<KnowledgeSpaceTarget> listVisibleTargets(CurrentActor actor) {
+        return listAuthorizedTargets(actor, CAN_VIEW);
+    }
+
+    private List<KnowledgeSpaceTarget> listAuthorizedTargets(
+            CurrentActor actor,
+            PermissionKey permission) {
         Objects.requireNonNull(actor, "actor");
         var result = authorizationSets.listAuthorizedResources(new AuthorizedResourceQuery(
                 actor.organizationId(),
                 actor.principal(),
-                CAN_CREATE_ASSET,
+                permission,
                 RESOURCE_TYPE));
         if (!result.resolved()) {
             throw new KnowledgeSpaceUnavailableException(

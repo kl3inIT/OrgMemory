@@ -25,6 +25,7 @@ import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
 import com.orgmemory.graphrag.model.ExtractedEntity;
 import com.orgmemory.graphrag.model.ExtractedRelation;
 import com.orgmemory.graphrag.model.ExtractionResult;
+import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
@@ -65,12 +66,12 @@ class GraphIndexingProcessorTests {
         AiRouteResolver routes = mock(AiRouteResolver.class);
         GraphIndexingProperties properties = properties();
         ClaimedGraphIndex claim = claim(List.of(
-                new GraphIndexChunk(
+                chunk(
                         CHUNK_ID,
                         0,
                         "OrgMemory builds secure retrieval.",
                         "Engineering > Search"),
-                new GraphIndexChunk(
+                chunk(
                         SECOND_CHUNK_ID,
                         1,
                         "OrgMemory also builds secure retrieval.",
@@ -130,10 +131,9 @@ class GraphIndexingProcessorTests {
         ArgumentCaptor<GraphRevisionProjection> projection =
                 ArgumentCaptor.forClass(GraphRevisionProjection.class);
         verify(publications).commit(
-                org.mockito.ArgumentMatchers.eq(JOB_ID),
+                org.mockito.ArgumentMatchers.eq(claim),
                 org.mockito.ArgumentMatchers.eq(properties.workerId()),
                 org.mockito.ArgumentMatchers.eq(properties.leaseDuration()),
-                org.mockito.ArgumentMatchers.eq(SPACE_ID),
                 projection.capture());
         assertEquals(4, projection.getValue().contributions().entities().size());
         assertEquals(2, projection.getValue().contributions().relations().size());
@@ -169,7 +169,7 @@ class GraphIndexingProcessorTests {
 
         processor.processNext();
 
-        verify(publications, never()).commit(any(), any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any());
         verify(coordinator, never()).complete(any(), any());
         verify(coordinator).fail(
                 JOB_ID,
@@ -227,7 +227,7 @@ class GraphIndexingProcessorTests {
         }
 
         assertFalse(worker.isAlive());
-        verify(publications).commit(any(), any(), any(), any(), any());
+        verify(publications).commit(any(), any(), any(), any());
     }
 
     @Test
@@ -245,7 +245,7 @@ class GraphIndexingProcessorTests {
                 .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
         when(extractors.create(any())).thenReturn(request -> {
             try {
-                Thread.sleep(Duration.ofSeconds(5));
+                new CountDownLatch(1).await();
             } catch (InterruptedException cancellation) {
                 interrupted.set(true);
                 Thread.currentThread().interrupt();
@@ -265,7 +265,7 @@ class GraphIndexingProcessorTests {
         processor.processNext();
 
         assertTrue(interrupted.get());
-        verify(publications, never()).commit(any(), any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any());
         verify(coordinator).fail(
                 JOB_ID,
                 properties.workerId(),
@@ -318,7 +318,7 @@ class GraphIndexingProcessorTests {
 
         assertFalse(worker.isAlive());
         assertTrue(interruptRestored.get());
-        verify(publications, never()).commit(any(), any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any());
         verify(coordinator, never()).fail(any(), any(), any(), any());
     }
 
@@ -350,12 +350,12 @@ class GraphIndexingProcessorTests {
 
         assertDoesNotThrow(processor::processNext);
 
-        verify(publications, never()).commit(any(), any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any());
     }
 
     private static ClaimedGraphIndex claim() {
-        return claim(List.of(new GraphIndexChunk(
-                CHUNK_ID, 0, "OrgMemory builds secure retrieval.")));
+        return claim(List.of(chunk(
+                CHUNK_ID, 0, "OrgMemory builds secure retrieval.", null)));
     }
 
     private static ClaimedGraphIndex claim(List<GraphIndexChunk> chunks) {
@@ -369,6 +369,7 @@ class GraphIndexingProcessorTests {
                 ACL_SNAPSHOT_ID,
                 1,
                 1,
+                "graph:" + ORGANIZATION_ID + ":" + REVISION_ID + ":1",
                 new EmbeddingProfileRef(
                         EMBEDDING_PROFILE_ID,
                         ORGANIZATION_ID,
@@ -380,6 +381,20 @@ class GraphIndexingProcessorTests {
                 "en",
                 1,
                 chunks);
+    }
+
+    private static GraphIndexChunk chunk(
+            UUID id,
+            int index,
+            String content,
+            String heading) {
+        return new GraphIndexChunk(
+                id,
+                index,
+                content,
+                heading,
+                content.split("\\s+").length,
+                new FloatVector(new float[] {1.0f, 0.0f, 0.0f}));
     }
 
     private static GraphIndexingProperties properties() {

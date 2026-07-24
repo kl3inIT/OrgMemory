@@ -97,9 +97,9 @@
 
 ## PR 11 — Runtime And Product Integration
 
-- [ ] Wire worker indexing, API, Assistant, MCP, source/citation streaming, and
+- [x] Wire worker indexing, API, Assistant, MCP, source/citation streaming, and
   the authorized graph explorer.
-- [ ] Keep Assistant and MCP on the same permission-aware application use cases.
+- [x] Keep Assistant and MCP on the same permission-aware application use cases.
 - [ ] Verify real-browser allow, deny, revoke, source preview, and graph flows.
 
 ## PR 12 — Evaluation And Production Hardening

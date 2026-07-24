@@ -1,0 +1,15 @@
+export const PERMISSION_LABELS: Record<string, string> = {
+  can_manage_members: "Administer the organization",
+  can_manage_sources: "Manage connected sources",
+  can_create_knowledge_space: "Create knowledge spaces",
+  can_search_knowledge: "Search knowledge",
+  can_view_directory: "View the directory",
+  can_view_audit: "View the audit trail",
+  can_curate_graph: "Curate the knowledge graph",
+  can_view: "View this resource",
+  can_publish: "Publish to this resource",
+  can_edit: "Edit this resource",
+  can_create_asset: "Add to this resource",
+  can_manage_acl: "Manage access to this resource",
+  can_manage: "Manage this resource",
+}

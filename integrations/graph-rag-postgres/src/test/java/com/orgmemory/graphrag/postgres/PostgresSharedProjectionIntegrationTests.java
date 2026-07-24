@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
+import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
@@ -71,6 +72,7 @@ class PostgresSharedProjectionIntegrationTests {
     private static PostgresLexicalIndex lexical;
     private static PostgresVectorIndex vectors;
     private static PostgresGraphStore graph;
+    private static GraphExportReader graphExport;
 
     @BeforeAll
     static void migrate() {
@@ -103,6 +105,11 @@ class PostgresSharedProjectionIntegrationTests {
         lexical = new PostgresLexicalIndex(jdbc, transactions, publications);
         vectors = new PostgresVectorIndex(jdbc, transactions, publications);
         graph = new PostgresGraphStore(jdbc, transactions, publications);
+        graphExport = new PostgresGraphExportReader(
+                jdbc,
+                graph,
+                publications,
+                new PostgresGraphCurationStore(jdbc, transactions));
     }
 
     @Test
@@ -189,6 +196,13 @@ class PostgresSharedProjectionIntegrationTests {
                         List.of(ENTITY_A_ID),
                         1,
                         10));
+        assertEquals(
+                2,
+                graphExport.read(allowed, NAMESPACE).entities().size(),
+                "graph export must read the same published shared snapshot");
+        assertTrue(
+                graphExport.read(denied, NAMESPACE).entities().isEmpty(),
+                "graph export must preserve the exact authorized asset scope");
         assertTrue(content.get(denied, firstSnapshot, CHUNK_ID.toString()).isEmpty());
         assertTrue(lexical.search(
                         denied,

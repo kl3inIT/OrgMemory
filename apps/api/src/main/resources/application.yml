@@ -18,7 +18,7 @@ spring:
     virtual:
       enabled: true
   datasource:
-    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:55432/orgmemory}
+    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:${ORGMEMORY_POSTGRES_PORT:15432}/orgmemory}
     username: ${ORGMEMORY_DB_USER:orgmemory}
     password: ${ORGMEMORY_DB_PASSWORD:orgmemory}
   jpa:
@@ -61,6 +61,7 @@ orgmemory:
   assistant:
     heartbeat-interval: ${ORGMEMORY_ASSISTANT_HEARTBEAT_INTERVAL:15s}
     turn-timeout: ${ORGMEMORY_ASSISTANT_TURN_TIMEOUT:2m}
+    retrieval-engine: ${ORGMEMORY_ASSISTANT_RETRIEVAL_ENGINE:GRAPH_RAG}
   ai:
     gateways:
       openai:
@@ -88,6 +89,24 @@ orgmemory:
       provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
       model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
+  graph-rag:
+    explorer:
+      default-entity-limit: ${ORGMEMORY_GRAPH_EXPLORER_DEFAULT_ENTITY_LIMIT:200}
+      maximum-entity-limit: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_ENTITY_LIMIT:1000}
+      maximum-relation-limit: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_RELATION_LIMIT:2000}
+      maximum-query-length: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_QUERY_LENGTH:200}
+    query:
+      enabled: ${ORGMEMORY_GRAPH_QUERY_ENABLED:true}
+      language: ${ORGMEMORY_GRAPH_QUERY_LANGUAGE:the same language as the user query}
+      tokenizer-encoding: ${ORGMEMORY_GRAPH_QUERY_TOKENIZER:o200k_base}
+      maximum-embedding-batch-size: ${ORGMEMORY_GRAPH_QUERY_EMBEDDING_BATCH_SIZE:64}
+      maximum-knowledge-spaces: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_SPACES:20}
+      top-k: ${ORGMEMORY_GRAPH_QUERY_TOP_K:60}
+      chunk-top-k: ${ORGMEMORY_GRAPH_QUERY_CHUNK_TOP_K:20}
+      related-chunk-number: ${ORGMEMORY_GRAPH_QUERY_RELATED_CHUNKS:5}
+      maximum-graph-depth: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_DEPTH:1}
+      minimum-vector-similarity: ${ORGMEMORY_GRAPH_QUERY_MINIMUM_SIMILARITY:0.2}
+      include-headings: ${ORGMEMORY_GRAPH_QUERY_INCLUDE_HEADINGS:true}
   ingestion:
     maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
@@ -103,6 +122,7 @@ orgmemory:
       issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
       client-id: ${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}
       client-secret: ${ORGMEMORY_OIDC_CLIENT_SECRET:orgmemory-local-dev-only}
+      audience: ${ORGMEMORY_OIDC_AUDIENCE:${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}}
       web-base-url: ${ORGMEMORY_WEB_BASE_URL:http://localhost:5173}
 
 server:

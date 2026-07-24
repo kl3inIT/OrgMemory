@@ -16,8 +16,13 @@ import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.curation.GraphCurationRecord;
 import com.orgmemory.graphrag.curation.GraphCurationStore;
+import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.EvidenceReference;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,11 @@ class KnowledgeGraphCurationServiceTests {
             mock(KnowledgeAssetRepository.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
+    private final KnowledgeEvidenceScopeResolver evidenceScopes =
+            mock(KnowledgeEvidenceScopeResolver.class);
+    private final SecureKnowledgeRetrievalStore canonicalEvidence =
+            mock(SecureKnowledgeRetrievalStore.class);
+    private final GraphExportReader graphs = mock(GraphExportReader.class);
     private final GraphCurationStore store = mock(GraphCurationStore.class);
     private final ModelInvocationCache modelCache =
             mock(ModelInvocationCache.class);
@@ -49,6 +59,9 @@ class KnowledgeGraphCurationServiceTests {
                     spaces,
                     assets,
                     authorization,
+                    evidenceScopes,
+                    canonicalEvidence,
+                    graphs,
                     store,
                     modelCache,
                     retrievalCache);
@@ -65,6 +78,35 @@ class KnowledgeGraphCurationServiceTests {
                 .thenReturn(Optional.of(asset));
         when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
         when(store.append(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(evidenceScopes.resolve(actor, "model-v1"))
+                .thenReturn(new ResolvedKnowledgeEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(SPACE_ID, Set.of(ASSET_ID)),
+                        Map.of(SPACE_ID, 7L)));
+        when(canonicalEvidence.recheck(any(), any()))
+                .thenReturn(List.of(new SecureRetrievalCandidate(
+                        ORGANIZATION_ID,
+                        CHUNK_ID,
+                        ASSET_ID,
+                        UUID.randomUUID(),
+                        REVISION_ID,
+                        "Policy",
+                        "Approved policy",
+                        "source://policy",
+                        null,
+                        null,
+                        null,
+                        0,
+                        ACL_ID,
+                        ACL_ID,
+                        "model-v1",
+                        UUID.randomUUID(),
+                        1)));
     }
 
     @Test

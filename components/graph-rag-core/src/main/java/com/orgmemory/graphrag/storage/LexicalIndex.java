@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 public interface LexicalIndex extends StagedProjectionWriter {
 
@@ -18,6 +19,9 @@ public interface LexicalIndex extends StagedProjectionWriter {
     void stageUpsert(ProjectionBatch batch, Collection<LexicalDocument> documents);
 
     void stageDelete(ProjectionBatch batch, Collection<String> ids);
+
+    /** Removes every copied-forward document for one stable Knowledge Asset. */
+    void stageDeleteAsset(ProjectionBatch batch, UUID knowledgeAssetId);
 
     SearchPage search(
             AuthorizedEvidenceScope scope,

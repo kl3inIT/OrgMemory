@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ContentStore extends StagedProjectionWriter {
 
@@ -18,6 +19,9 @@ public interface ContentStore extends StagedProjectionWriter {
     void stageUpsert(ProjectionBatch batch, Collection<ContentRecord> records);
 
     void stageDelete(ProjectionBatch batch, Collection<String> ids);
+
+    /** Removes every copied-forward record for one stable Knowledge Asset. */
+    void stageDeleteAsset(ProjectionBatch batch, UUID knowledgeAssetId);
 
     Optional<ContentRecord> get(
             AuthorizedEvidenceScope scope,

@@ -14,14 +14,6 @@ public final class PostgresGraphVectorIndexManager {
 
     private static final TableSpec[] TABLES = {
         new TableSpec(
-                "graph_entity_embeddings",
-                "content_vector",
-                "embedding_dimensions"),
-        new TableSpec(
-                "graph_relation_embeddings",
-                "content_vector",
-                "embedding_dimensions"),
-        new TableSpec(
                 "projection_vector_records",
                 "embedding",
                 "dimensions")

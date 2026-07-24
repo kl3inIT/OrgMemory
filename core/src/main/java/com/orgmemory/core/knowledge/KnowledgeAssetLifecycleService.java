@@ -8,15 +8,16 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
-import com.orgmemory.graphrag.port.GraphProjectionWriter;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Permission-aware delete/rebuild boundary for a stable Knowledge Asset. */
 @Service
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class KnowledgeAssetLifecycleService {
 
     private static final PermissionKey CAN_DELETE = PermissionKey.of("can_delete");
@@ -26,7 +27,6 @@ public class KnowledgeAssetLifecycleService {
     private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeIngestionService ingestion;
     private final RelationshipAuthorizationPort authorization;
-    private final GraphProjectionWriter graph;
     private final ModelInvocationCache modelCache;
     private final RetrievalResultCache retrievalCache;
 
@@ -35,14 +35,12 @@ public class KnowledgeAssetLifecycleService {
             KnowledgeAssetVersionRepository versions,
             KnowledgeIngestionService ingestion,
             RelationshipAuthorizationPort authorization,
-            GraphProjectionWriter graph,
             ModelInvocationCache modelCache,
             RetrievalResultCache retrievalCache) {
         this.assets = assets;
         this.versions = versions;
         this.ingestion = ingestion;
         this.authorization = authorization;
-        this.graph = graph;
         this.modelCache = modelCache;
         this.retrievalCache = retrievalCache;
     }
@@ -72,10 +70,8 @@ public class KnowledgeAssetLifecycleService {
                         currentVersionId, actor.organizationId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Knowledge Asset version is missing"));
-        UUID sourceRevisionId = current.getSourceRevisionId();
         KnowledgeAssetRef retired =
                 ingestion.retire(actor.organizationId(), knowledgeAssetId);
-        graph.removeRevision(actor.organizationId(), sourceRevisionId);
         invalidate(
                 new ProjectionNamespace(
                         actor.organizationId(),
