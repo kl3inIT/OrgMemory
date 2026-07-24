@@ -226,20 +226,34 @@ public class AccessExplanationService {
             int depth) {
         for (String member : members) {
             Optional<UsersetRef> reference = UsersetRef.parse(organizationId, member);
-            if (reference.isEmpty() || !visited.add(reference.get().key())) {
+            if (reference.isEmpty()) {
                 continue;
             }
-            var nested = expansion.expand(
-                    new RelationshipExpansionQuery(reference.get().resource(), reference.get().relation()));
-            if (!nested.resolved()) {
+            String key = reference.get().key();
+            // `visited` guards the branch being followed right now, not everything ever seen.
+            // Kept as a running set, a userset abandoned deep inside one branch would be skipped
+            // in the next one, and a real grant reachable by a shorter route would be reported as
+            // "path unavailable". Unwinding on the way out still breaks cycles, because a repeat
+            // can only be reached while the first visit is still on the stack.
+            if (!visited.add(key)) {
                 continue;
             }
-            var branch = walk(organizationId, nested.root(), principal, visited, depth + 1);
-            if (branch.isPresent()) {
-                List<AccessStep> steps = new ArrayList<>();
-                steps.add(step(name, kind));
-                steps.addAll(branch.get());
-                return Optional.of(List.copyOf(steps));
+            try {
+                var nested = expansion.expand(
+                        new RelationshipExpansionQuery(
+                                reference.get().resource(), reference.get().relation()));
+                if (!nested.resolved()) {
+                    continue;
+                }
+                var branch = walk(organizationId, nested.root(), principal, visited, depth + 1);
+                if (branch.isPresent()) {
+                    List<AccessStep> steps = new ArrayList<>();
+                    steps.add(step(name, kind));
+                    steps.addAll(branch.get());
+                    return Optional.of(List.copyOf(steps));
+                }
+            } finally {
+                visited.remove(key);
             }
         }
         return Optional.empty();

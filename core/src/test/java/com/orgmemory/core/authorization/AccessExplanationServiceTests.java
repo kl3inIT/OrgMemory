@@ -78,6 +78,50 @@ class AccessExplanationServiceTests {
     }
 
     @Test
+    void aUsersetAbandonedInOneBranchIsStillFollowedInTheNext() {
+        allow();
+        String shared = "organizational_unit:" + UNIT_ID + "#manager";
+        expandsTo(space, "can_publish", union(
+                "knowledge_space:" + SPACE_ID + "#can_publish",
+                direct("knowledge_space:" + SPACE_ID + "#reviewer", shared),
+                direct("knowledge_space:" + SPACE_ID + "#administrator", shared)));
+        // The first branch cannot read the shared userset; the second must not inherit that.
+        when(expansion.expand(new RelationshipExpansionQuery(
+                        ResourceRef.of(ORGANIZATION_ID, "organizational_unit", UNIT_ID),
+                        RelationName.of("manager"))))
+                .thenReturn(RelationshipExpansionResult.indeterminate("OPENFGA_TIMEOUT", POLICY))
+                .thenReturn(RelationshipExpansionResult.resolved(
+                        direct("organizational_unit:" + UNIT_ID + "#manager", MINH.openFgaUser()), POLICY));
+
+        var explanation = service.explain(ORGANIZATION_ID, MINH, CAN_PUBLISH, space);
+
+        assertEquals(AccessState.ALLOWED, explanation.state());
+        assertEquals(
+                List.of("administrator", "manager"),
+                explanation.path().stream().map(AccessStep::relation).toList());
+    }
+
+    @Test
+    void aMirroredAclWithNoRecordedValidityIsTreatedAsExpired() {
+        allow();
+        var undated = AclProvenance.source("Drive /Nhan su", 12L, NOW.minusSeconds(600), null, NOW);
+
+        var explanation = service.explain(ORGANIZATION_ID, MINH, CAN_PUBLISH, space, undated);
+
+        assertTrue(undated.expired());
+        assertEquals(AccessState.UNKNOWN, explanation.state());
+        assertEquals("ACL_VALIDITY_EXPIRED", explanation.reasonCode());
+    }
+
+    @Test
+    void theBoundaryInstantOfAMirroredAclHasAlreadyClosed() {
+        assertTrue(AclProvenance.source("Slack #ke-hoach", 18L, NOW.minusSeconds(60), NOW, NOW).expired());
+        assertFalse(
+                AclProvenance.source("Slack #ke-hoach", 18L, NOW.minusSeconds(60), NOW.plusSeconds(1), NOW)
+                        .expired());
+    }
+
+    @Test
     void refusedAccessNamesEveryBranchThatWasEvaluatedAndCarriesNoPath() {
         when(relationships.check(any())).thenReturn(AuthorizationDecision.deny("RELATIONSHIP_DENIED", POLICY));
         expandsTo(space, "can_publish", union(

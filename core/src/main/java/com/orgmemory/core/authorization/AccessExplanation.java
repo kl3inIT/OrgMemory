@@ -27,6 +27,9 @@ public record AccessExplanation(
         reasonCode = requireText(reasonCode, "reasonCode");
         path = List.copyOf(Objects.requireNonNull(path, "path"));
         blockedBy = List.copyOf(Objects.requireNonNull(blockedBy, "blockedBy"));
+        // A verdict without provenance cannot be acted on: nothing tells the reader whether it
+        // is a decision OrgMemory makes or a copy of one Slack or Drive owns.
+        Objects.requireNonNull(provenance, "provenance");
         policyVersion = requireText(policyVersion, "policyVersion");
         Objects.requireNonNull(evaluatedAt, "evaluatedAt");
         if (state != AccessState.ALLOWED && !path.isEmpty()) {

@@ -125,6 +125,9 @@ class AdminPermissionController {
             @RequestBody ExplainAccessRequest request, Authentication authentication) {
         CurrentActor actor = guard.requireAdministrator(authentication);
         AppUser user = requireUserInOrganization(request.userId(), actor);
+        if (request.permission() == null || request.permission().isBlank()) {
+            throw new IllegalArgumentException("A permission is required");
+        }
         if (request.resourceType() == null || !EXPLAINABLE_TYPES.contains(request.resourceType())) {
             throw new IllegalArgumentException("Unsupported resource type for an access explanation");
         }

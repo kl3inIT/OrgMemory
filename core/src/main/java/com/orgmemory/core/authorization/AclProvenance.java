@@ -29,15 +29,24 @@ public record AclProvenance(
         return new AclProvenance("ORGMEMORY", "", null, null, null, false);
     }
 
+    /**
+     * A mirrored ACL with no recorded validity counts as expired.
+     *
+     * <p>Absent validity is missing evidence, not licence to assume the copy is current, and a
+     * mirror OrgMemory cannot date is exactly what {@code UNKNOWN} exists for. The boundary
+     * instant expires with it: at {@code validUntil} the window has closed, so the comparison is
+     * "not before" rather than "after".
+     */
     public static AclProvenance source(
             String origin, long generation, Instant capturedAt, Instant validUntil, Instant now) {
+        Objects.requireNonNull(now, "now");
         return new AclProvenance(
                 "SOURCE",
                 origin,
                 generation,
                 capturedAt,
                 validUntil,
-                validUntil != null && Objects.requireNonNull(now, "now").isAfter(validUntil));
+                validUntil == null || !now.isBefore(validUntil));
     }
 
     public boolean mirrored() {

@@ -142,6 +142,23 @@ tests:
         object: organization:acme
         assertions:
           can_curate_graph: false
+    list_objects:
+      # A correct Check still leaks if the listing over-returns, and the listing is what a
+      # surface enumerating curatable organizations would call.
+      - user: user:orgadmin
+        type: organization
+        assertions:
+          can_curate_graph:
+            - organization:acme
+      - user: user:priya
+        type: organization
+        assertions:
+          can_curate_graph:
+            - organization:acme
+      - user: user:laura
+        type: organization
+        assertions:
+          can_curate_graph: []
 
   - name: Custom roles are tuple data rather than model relations
     check:
