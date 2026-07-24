@@ -32,8 +32,15 @@
 
 ## PostgreSQL Projection
 
-- `graph-rag-postgres` implements the graph projection, seed, embedding, and
-  topology-candidate ports without becoming an authorization authority.
+- `graph-rag-postgres` implements content, FTS lexical, pgvector, graph,
+  publication, seed, embedding, and topology-candidate ports without becoming
+  an authorization authority.
+- Content, lexical, vector, and graph records stage under one immutable batch
+  id. A namespace publication CAS exposes all required projection kinds
+  together; losing and aborted batches never enter read history.
+- New batches copy the exact published predecessor before applying mutations.
+  Old winning batches remain readable, and discard removes unreachable staged
+  data. Reads validate the complete snapshot identity before touching records.
 - Canonical identity, contributions, publication heads, and entity/relation
   embeddings are stored relationally. Every query applies organization and the
   pre-authorized Knowledge Asset set before aggregation, distance threshold, and
@@ -42,8 +49,9 @@
   advisory lock. Contribution and embedding writes are bounded by both record
   count and estimated payload bytes.
 - pgvector supports exact, HNSW, half-vector HNSW, IVFFlat, and optional
-  VChordRQ index strategies. Indexes are rebuildable and embedding profiles
-  remain immutable.
+  VChordRQ index strategies for both legacy contribution embeddings and shared
+  projection vectors. Indexes are rebuildable and embedding profiles remain
+  immutable.
 - Apache AGE stores topology identity and evidence identifiers only. Bounded
   traversal filters every edge by authorized Knowledge Asset; all returned IDs
   remain candidates requiring relational evidence recheck.
@@ -73,6 +81,4 @@
 
 ## Not Implemented
 
-Extraction gleaning, token-aware re-chunking beyond the canonical ingestion
-chunks, runtime Assistant/MCP graph retrieval, and the graph explorer remain
-separate increments.
+Runtime Assistant/MCP wiring and the graph explorer remain separate increments.

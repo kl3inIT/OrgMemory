@@ -16,6 +16,9 @@
   lexical/vector ranking and topology expansion, relation endpoint visibility,
   generation rollback denial, atomic replacement, embedding-profile safety,
   bounded batch partitioning, and replaceable vector index strategies.
+- Shared-snapshot PostgreSQL tests run the reusable publication conformance
+  suite and prove one authorized content/FTS/vector/graph snapshot, historical
+  reads after delete, losing-batch non-disclosure, and staged-row discard.
 - Worker tests prove deterministic assembly, bounded extraction orchestration,
   immutable embedding-route enforcement, durable job creation for both upload
   and connector ingestion, and atomic contribution-plus-embedding publication

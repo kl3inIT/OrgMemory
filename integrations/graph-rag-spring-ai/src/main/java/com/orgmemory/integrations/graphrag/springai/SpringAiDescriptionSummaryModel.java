@@ -9,7 +9,6 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 
 /** Spring AI effect adapter for permission-scoped description summarization. */
@@ -51,7 +50,7 @@ public final class SpringAiDescriptionSummaryModel implements DescriptionSummary
                 java.util.List.of(
                         new SystemMessage(SYSTEM_INSTRUCTION),
                         new UserMessage(userInstruction)),
-                ChatOptions.builder()
+                chatModel.getOptions().mutate()
                         .model(modelId)
                         .temperature(0.0)
                         .maxTokens(request.maximumOutputTokens())

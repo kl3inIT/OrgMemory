@@ -13,6 +13,7 @@ import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import reactor.core.publisher.Flux;
 
@@ -48,6 +49,7 @@ class SpringAiQueryAnswerModelTests {
                         .toList());
         assertEquals("current question", chatModel.prompt.getUserMessage().getText());
         assertEquals("gpt-5.6-sol", chatModel.prompt.getOptions().getModel());
+        assertEquals(0.35, chatModel.prompt.getOptions().getTopP());
     }
 
     @Test
@@ -81,6 +83,8 @@ class SpringAiQueryAnswerModelTests {
         private Prompt prompt;
         private int callCount;
         private int streamCount;
+        private final ChatOptions options =
+                ChatOptions.builder().topP(0.35).build();
 
         @Override
         public ChatResponse call(Prompt prompt) {
@@ -94,6 +98,11 @@ class SpringAiQueryAnswerModelTests {
             this.prompt = prompt;
             streamCount++;
             return Flux.just(response("first "), response(""), response("second"));
+        }
+
+        @Override
+        public ChatOptions getOptions() {
+            return options;
         }
 
         private static ChatResponse response(String content) {

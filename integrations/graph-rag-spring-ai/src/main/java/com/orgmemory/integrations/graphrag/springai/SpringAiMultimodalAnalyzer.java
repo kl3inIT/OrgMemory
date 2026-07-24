@@ -15,7 +15,6 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.converter.BeanOutputConverter;
@@ -168,7 +167,7 @@ public final class SpringAiMultimodalAnalyzer implements MultimodalAnalyzer {
                 List.of(
                         new SystemMessage(promptText.systemInstruction()),
                         user.build()),
-                ChatOptions.builder()
+                chatModel.getOptions().mutate()
                         .model(request.route().model())
                         .temperature(request.route().temperature())
                         .maxTokens(request.route().maxOutputTokens())

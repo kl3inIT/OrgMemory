@@ -51,6 +51,12 @@ public interface ProjectionPublicationStore {
         public PublicationConflictException(String message) {
             super(Objects.requireNonNull(message, "message"));
         }
+
+        public PublicationConflictException(String message, Throwable cause) {
+            super(
+                    Objects.requireNonNull(message, "message"),
+                    Objects.requireNonNull(cause, "cause"));
+        }
     }
 
     final class PublicationNotReadyException extends RuntimeException {

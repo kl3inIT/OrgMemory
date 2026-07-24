@@ -65,7 +65,9 @@ public final class LightRagQueryEngine {
         KeywordPlan keywords = request.options().mode().usesGraph()
                 ? keywordPlanner.plan(request.query(), request.trustedKeywords())
                 : KeywordPlan.empty(KeywordPlan.Source.MODEL);
-        if (request.options().mode().usesGraph() && keywords.empty()) {
+        if (request.options().mode().usesGraph()
+                && !request.options().mode().usesChunkSeeds()
+                && keywords.empty()) {
             return noResults(request, keywords, List.of(), "keywords_empty");
         }
 
@@ -487,11 +489,11 @@ public final class LightRagQueryEngine {
                     Math::max));
             List<ChunkState> reranked = chunks.stream()
                     .map(item -> item.withRerank(byChunk.get(item.chunk().id())))
-                    .filter(item -> item.rerankScore() == null
-                            || item.rerankScore() >= request.options().minimumRerankScore())
+                    .filter(item -> item.rerankScore() != null)
+                    .filter(item -> item.rerankScore()
+                            >= request.options().minimumRerankScore())
                     .sorted(Comparator
-                            .comparingDouble((ChunkState item) ->
-                                    item.rerankScore() == null ? 1.0 : item.rerankScore())
+                            .comparingDouble((ChunkState item) -> item.rerankScore())
                             .reversed()
                             .thenComparingInt(ChunkState::order)
                             .thenComparing(item -> item.chunk().id()))

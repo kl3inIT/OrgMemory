@@ -329,7 +329,8 @@ public final class InMemoryAuthorizedQueryProjection
                         chunk.evidence().organizationId(),
                         chunk.evidence().knowledgeAssetId())
                 && snapshot.namespace().organizationId().equals(
-                        chunk.evidence().organizationId());
+                        chunk.evidence().organizationId())
+                && chunk.projectionGeneration() == snapshot.generation();
     }
 
     private void begin(AuthorizedEvidenceScope scope, ProjectionSnapshot snapshot) {

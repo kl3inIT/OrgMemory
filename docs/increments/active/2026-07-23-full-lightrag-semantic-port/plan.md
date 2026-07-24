@@ -74,13 +74,13 @@
 
 ## PR 8 — PostgreSQL Adapter Parity
 
-- [ ] Implement all first-production storage/index contracts with PostgreSQL,
+- [x] Implement all first-production storage/index contracts with PostgreSQL,
   pgvector, FTS, and AGE where appropriate.
-- [ ] Migrate the existing graph projection ports to the shared namespace
+- [x] Migrate the existing graph projection ports to the shared namespace
   snapshot before production wiring of the PR 7 mixed runtime, then add
   `GRAPH` to `ProjectionKind`.
-- [ ] Remove concrete PostgreSQL retrieval assumptions from core.
-- [ ] Pass the complete adapter conformance suite.
+- [x] Remove concrete PostgreSQL retrieval assumptions from core.
+- [x] Pass the complete adapter conformance suite.
 
 ## PR 9 — Unified OpenSearch Adapter
 
