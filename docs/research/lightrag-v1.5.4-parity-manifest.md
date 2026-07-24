@@ -33,11 +33,11 @@ exists.
 | Core | Framework-neutral engine and storage/model ports | Pure-Java authorization, evidence, projection, cache and telemetry boundaries exist | partial | 2 |
 | Core | Shared adapter conformance suite | Graph security plus in-memory publication/cache/content fixtures | partial | 2 |
 | Storage | KV/content storage lifecycle, batch commit/abort, drop | PostgreSQL staged content snapshots, copy-forward update/delete, durable receipts, CAS publication, abort and discard | implemented | 2, 8 |
-| Storage | Processing/doc-status queries and recovery | OrgMemory durable worker jobs own lease/retry semantics; portable engine status is deliberately not duplicated | partial | 6, 8 |
+| Storage | Processing/doc-status queries and recovery | OrgMemory durable PostgreSQL worker jobs own lease/retry/recovery; OpenSearch adds a rebuildable paginated processing-status read model without becoming lifecycle authority | implemented | 6, 8, 9 |
 | Storage | Lexical index port | PostgreSQL FTS adapter with permission prefilter, deterministic keyset cursor, threshold and stable tie-break | implemented | 2, 8 |
 | Storage | Vector index port for chunks/entities/relations | PostgreSQL pgvector adapter with immutable profile/dimension checks, permission and candidate prefilter, exact scoring plus configurable ANN indexes | implemented | 2, 8 |
 | Storage | Graph node/edge/degree/adjacency/batch contract | Snapshot-pinned graph store covers entities, relations, contributions, incident reads, degree, weight and bounded expansion | implemented | 8 |
-| Storage | OpenSearch unified KV/vector/graph/status backend | None | missing | 9 |
+| Storage | OpenSearch unified KV/vector/graph/status backend | Official Java client adapter implements snapshot-pinned content, isolated BM25, filtered k-NN, evidence-scoped graph, secure PPL plus BFS fallback, status read model, and CAS publication conformance | implemented | 9 |
 | Storage | Neo4j graph backend | None | missing | 10 |
 | Parsing | Parser registry and runtime routing | Immutable registry snapshot, suffix/explicit routing and startup capability validation | implemented | 3 |
 | Parsing | Native, legacy, passthrough and third-party parser SPI | Native/legacy routes, passthrough/reuse parsers and ServiceLoader plugin registration | implemented | 3 |

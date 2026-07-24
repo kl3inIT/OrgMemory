@@ -257,6 +257,55 @@ scope to contributions and requires both relation endpoints to remain visible.
 Apache AGE remains an optional rebuildable topology accelerator; relational
 snapshot reads are authoritative and are the fallback for historical pins.
 
+## PR 9 OpenSearch Projection Boundary
+
+PR 9 implements every production query-store contract with the official
+OpenSearch Java client while retaining the publication and authorization
+semantics established in PR 2 and PR 8. “Unified adapter” means one coherent
+adapter family and publication protocol, not one physical index. The physical
+layout is intentionally separated:
+
+- one control index owns registered batches, preparation receipts, immutable
+  publication history, and the CAS-protected namespace head;
+- content uses a shared batch-addressed index;
+- lexical search uses one physical index per publication batch so staged
+  generations and other tenants cannot pollute a pinned snapshot's BM25 IDF;
+- vectors use k-NN indices partitioned by immutable embedding profile and
+  dimensions, with batch, tenant, candidate, and authorized-asset filters
+  applied inside the query before ranking;
+- graph entity and relation contributions use batch-scoped physical indices;
+- processing status is a rebuildable paginated read model. PostgreSQL worker
+  jobs remain authoritative for lease, retry, cancellation, recovery, and the
+  final pre-publication lifecycle decision.
+
+Staging copies the exact published predecessor, applies deterministic
+overwrites/deletes, and records a per-index copy-forward marker. A projection
+receipt is valid only after every bulk item succeeds under `refresh=wait_for`.
+Publication then claims the batch, persists the prior snapshot in immutable
+history, and advances the complete namespace head with OpenSearch sequence
+number and primary-term compare-and-set. A losing or aborted batch remains
+unreachable and can be discarded idempotently; historical winning snapshots
+remain addressable.
+
+PPL `graphLookup` is an optional accelerator, not a security boundary. It runs
+only against the exact batch-scoped entity and relation indices and repeats
+organization, batch, generation, and authorized-asset constraints in the
+source query and every traversal hop. Candidate identifiers are re-read
+through the authorization-filtered graph store. Unsupported PPL syntax is
+remembered and falls back to deterministic bounded BFS; transient transport or
+server failures fall back only for that request so later calls can probe PPL
+again. Large authorization scopes that cannot be represented safely inline
+also use BFS.
+
+The conformance harness uses OpenSearch Java client `3.9.0` against the
+OpenSearch `3.7.0` container and proves CAS publication, historical reads,
+cross-tenant and denied-scope isolation, copy-forward preservation, lexical
+field routing, vector scoring, PPL per-hop ACL filtering, lifecycle status
+pagination, losing-batch invisibility, and idempotent discard. OpenSearch
+remains a rebuildable projection; canonical evidence, ACL, provenance, worker
+state, and audit remain in PostgreSQL. Runtime adapter selection belongs to
+PR 11.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the
