@@ -64,10 +64,12 @@
 
 ## PR 7 — Full Query Runtime
 
-- [ ] Implement local, global, hybrid, naive, mix, and trusted bypass semantics.
-- [ ] Add high/low keyword planning, entity/relation/chunk seeds, graph
+- [x] Implement local, global, hybrid, naive, mix, and bypass semantics in the
+  pure-Java core with deterministic testkit conformance; keep production mixed
+  graph/chunk activation fail-closed until PR 8 shares one snapshot.
+- [x] Add high/low keyword planning, entity/relation/chunk seeds, graph
   expansion, related-chunk recovery, fusion, rerank, and token budgeting.
-- [ ] Return context, prompt, references, raw retrieval trace, and streaming
+- [x] Return context, prompt, references, raw retrieval trace, and streaming
   results through permission-aware contracts.
 
 ## PR 8 — PostgreSQL Adapter Parity
@@ -75,8 +77,8 @@
 - [ ] Implement all first-production storage/index contracts with PostgreSQL,
   pgvector, FTS, and AGE where appropriate.
 - [ ] Migrate the existing graph projection ports to the shared namespace
-  snapshot before PR 7 wires mixed retrieval, then add `GRAPH` to
-  `ProjectionKind`.
+  snapshot before production wiring of the PR 7 mixed runtime, then add
+  `GRAPH` to `ProjectionKind`.
 - [ ] Remove concrete PostgreSQL retrieval assumptions from core.
 - [ ] Pass the complete adapter conformance suite.
 

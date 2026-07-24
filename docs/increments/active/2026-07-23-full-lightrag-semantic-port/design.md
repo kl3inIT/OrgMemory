@@ -162,6 +162,77 @@ authorization, transactions, audit, and leased runtime jobs. PostgreSQL is the
 first adapter. The PR does not move `GRAPH` into the shared publication head
 early; that migration remains PR 8.
 
+## PR 7 Full Query Runtime Boundary
+
+PR 7 completes the executable query semantics in `graph-rag-core` and proves
+them through deterministic testkit adapters. It does not enable production
+mixed graph and chunk retrieval until PR 8 moves `GRAPH` into the shared
+namespace snapshot. This resolves the ordering constraint without reducing the
+LightRAG capability set: PR 7 owns the algorithm, while PR 8 makes every
+production read tear-free across graph, vector, lexical, and content stores.
+
+Query modes describe seed and expansion behavior, not output-channel filters:
+
+- `LOCAL` seeds entities with low-level keywords, recovers their incident
+  relations and supporting chunks;
+- `GLOBAL` seeds relations with high-level keywords, recovers their endpoint
+  entities and supporting chunks;
+- `HYBRID` runs both graph branches and deterministically interleaves them;
+- `NAIVE` retrieves only chunk vectors from the original query;
+- `MIX` combines the complete hybrid graph branch with original-query chunk
+  retrieval;
+- `BYPASS` performs no retrieval and invokes the answer model directly.
+
+Caller-supplied high/low keywords are a separate trusted-planner input for any
+graph mode, not an alias for `BYPASS`. When they are absent, the keyword model
+uses the pinned LightRAG prompt and normalization rules. If both lists are
+empty, queries shorter than fifty characters fall back to one low-level
+keyword containing the original query; longer queries return a typed
+no-retrieval result.
+
+Embedding work is one batched provider call over distinct texts: original
+query for chunk seeds, joined low-level keywords for entity seeds, and joined
+high-level keywords for relation seeds. One vector is never reused across
+these semantically different inputs.
+
+Related chunks are recovered from authorized contribution evidence. Entity
+chunks are occurrence-counted, stable-deduplicated, and selected by weighted
+polling or vector similarity with deterministic fallback. Relation chunks use
+the same process after removing chunks already selected from entities. The
+trace records `ENTITY`, `RELATION`, or `VECTOR` origin, occurrence frequency,
+and channel order.
+
+Entity seed order follows vector similarity. Incident relations use a stable
+composite order of visible degree, visible support weight, and relation
+identity; no lossy scalar encoding is used. Hybrid entity/relation lists and
+mixed chunk lists use deterministic round-robin interleaving with stable
+deduplication. Reranking is an effect port over chunk candidates, records raw
+and rerank scores, applies the configured minimum score and `chunkTopK` after
+rerank, and falls back to the original authorized order on provider failure
+while emitting a trace event.
+
+Token accounting includes rendered entity/relation/chunk records and the
+context/system-template overhead. Whole evidence items are selected within
+entity, relation, and total budgets; evidence text is never partially cut in a
+way that detaches it from provenance.
+
+The engine returns a sealed result containing context, full prompt when
+requested, authorized references, processing metadata, and an immutable raw
+retrieval trace. Answer results may be complete or streaming through a
+framework-neutral iterator contract; references and trace exist before the
+first answer token. Partial streams are never cached. Conversation history is
+passed only to the answer model and disables completed-answer cache reuse until
+history is included in the exact key. Every delivery shell rechecks citations
+before egress.
+
+This boundary was reviewed with Claude Fable 5. The strongest counterargument
+was that PR 7 and PR 8 previously contradicted each other about when mixed
+retrieval could be wired. The accepted decision is executable core/testkit
+parity in PR 7 plus fail-closed production activation in PR 8. Rejected
+alternatives were enabling mixed PostgreSQL reads before a shared snapshot,
+reducing `MIX` to chunk-only retrieval, treating modes as output filters, and
+reusing one query embedding for all channels.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the

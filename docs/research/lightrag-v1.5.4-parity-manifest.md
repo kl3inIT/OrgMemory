@@ -62,21 +62,22 @@ exists.
 | Lifecycle | Create/edit/delete/merge entity and relation | Append-only curated contributions, reversible aliases and reversible suppressions | implemented | 6 |
 | Lifecycle | Export graph, entities, relations and evidence | Permission-scoped audited JSON, CSV, Markdown and text export with provenance | implemented | 6 |
 | Lifecycle | Query/keyword cache and invalidation | Canonical exact model/query caches bound to namespace, publication and authorization state | implemented | 6 |
-| Query | Local low-level entity retrieval | Ports exist; no runtime orchestration | partial | 7 |
-| Query | Global high-level relation retrieval | Ports exist; no runtime orchestration | partial | 7 |
-| Query | Hybrid entity plus relation retrieval | Strategy record exists; no runtime orchestration | partial | 7 |
-| Query | Naive chunk retrieval | Secure FTS/pgvector retrieval exists | partial | 7 |
-| Query | Mix graph plus chunk retrieval | Plan exists; no runtime orchestration | partial | 7 |
-| Query | Bypass with caller-supplied keywords for trusted use | None | missing | 7 |
-| Query | High-level and low-level keyword extraction | None | missing | 7 |
-| Query | Shared query embedding across all channels | Query embedding exists for chunk path | partial | 7 |
-| Query | One-hop neighbor and high-order relatedness recovery | Storage candidates exist; orchestration missing | partial | 7 |
-| Query | Related original-chunk recovery | None | missing | 7 |
-| Query | Deterministic fusion, deduplication and round-robin merge | Pure-Java primitives exist | partial | 7 |
-| Query | Reranking and score provenance | None | missing | 7 |
-| Query | Entity, relation and total token budgets | Pure-Java budget primitives exist | partial | 7 |
-| Query | Context, prompt, reference and raw-data outputs | Chunk citations exist; graph context is missing | partial | 7 |
-| Query | Streaming answer generation | Assistant stream exists; full engine not wired | partial | 7, 11 |
+| Query | Local low-level entity retrieval | Executable permission-scoped entity seeds, incident relations and evidence chunks | implemented | 7 |
+| Query | Global high-level relation retrieval | Executable permission-scoped relation seeds, endpoint entities and evidence chunks | implemented | 7 |
+| Query | Hybrid entity plus relation retrieval | Both graph branches execute and interleave deterministically | implemented | 7 |
+| Query | Naive chunk retrieval | Executable original-query vector chunk branch | implemented | 7 |
+| Query | Mix graph plus chunk retrieval | Executable hybrid graph plus vector chunk semantics; production projection wiring waits for PR 8 shared snapshot | implemented | 7 |
+| Query | Bypass direct answer without retrieval | Direct answer path proves zero keyword, embedding and projection reads | implemented | 7 |
+| Query | Trusted caller high/low keywords | Separate planner input bypasses keyword generation without changing query mode | implemented | 7 |
+| Query | High-level and low-level keyword extraction | Core-owned LightRAG prompt, fallback rules and Spring AI structured-output adapter | implemented | 7 |
+| Query | One batched embedding call with distinct channel inputs | Raw query, joined low keywords and joined high keywords remain separate vectors | implemented | 7 |
+| Query | One-hop neighbor and configurable higher-order recovery | Snapshot-pinned authorized expansion with stable bounds | implemented | 7 |
+| Query | Related original-chunk recovery | Occurrence counting, stable deduplication, vector selection and weighted fallback | implemented | 7 |
+| Query | Deterministic fusion, deduplication and round-robin merge | Entity, relation and chunk channels interleave with stable identity deduplication | implemented | 7 |
+| Query | Reranking and score provenance | Effect port, post-rerank threshold/top-k and fail-open authorized ordering with trace | implemented | 7 |
+| Query | Entity, relation and total token budgets | Rendered whole-item allocation includes prompt, query and safety overhead | implemented | 7 |
+| Query | Context, prompt, reference and raw-data outputs | Sealed result returns authorized context, prompt, references and immutable trace | implemented | 7 |
+| Query | Streaming answer generation | Framework-neutral iterator and Spring AI streaming adapter; delivery shell wiring remains PR 11 | implemented | 7, 11 |
 | Runtime | Role-specific extraction/query/keyword/VLM/embedding routes | Some AI routes exist | partial | 2, 4, 5, 7 |
 | Runtime | Bounded concurrency and cancellation | Worker uses bounded virtual threads | partial | 5, 6 |
 | Runtime | Worker/API/Assistant/MCP integration | Chunk Assistant exists; graph engine is not wired | partial | 11 |
