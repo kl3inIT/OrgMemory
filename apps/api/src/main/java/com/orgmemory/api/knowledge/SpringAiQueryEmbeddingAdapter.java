@@ -6,6 +6,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
+import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.QueryEmbedding;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import java.util.Optional;
@@ -23,13 +24,13 @@ final class SpringAiQueryEmbeddingAdapter implements QueryEmbeddingPort {
 
     private final ObjectProvider<EmbeddingModel> models;
     private final EmbeddingProfileRegistry profiles;
-    private final QueryEmbeddingProperties properties;
+    private final KnowledgeEmbeddingProperties properties;
     private final AiRouteResolver routes;
 
     SpringAiQueryEmbeddingAdapter(
             ObjectProvider<EmbeddingModel> models,
             EmbeddingProfileRegistry profiles,
-            QueryEmbeddingProperties properties,
+            KnowledgeEmbeddingProperties properties,
             AiRouteResolver routes) {
         this.models = models;
         this.profiles = profiles;

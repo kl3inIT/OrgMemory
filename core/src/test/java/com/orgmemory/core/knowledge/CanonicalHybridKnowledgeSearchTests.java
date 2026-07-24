@@ -8,62 +8,68 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
-import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
-import com.orgmemory.core.organization.UserRole;
 import com.orgmemory.core.permission.PermissionAuditService;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class SecureKnowledgeRetrievalServiceTests {
+class CanonicalHybridKnowledgeSearchTests {
 
     private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID DEPARTMENT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    private static final UUID SPACE_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final String MODEL_ID = "model-1";
 
     private final StubStore store = new StubStore();
-    private final AppUserRepository users = mock(AppUserRepository.class);
+    private final KnowledgeEvidenceScopeResolver evidenceScopes =
+            mock(KnowledgeEvidenceScopeResolver.class);
     private final RelationshipAuthorizationPort entryAuthorization = mock(RelationshipAuthorizationPort.class);
     private final RelationshipAuthorizationSetPort authorization = mock(RelationshipAuthorizationSetPort.class);
     private final QueryEmbeddingPort embeddings = mock(QueryEmbeddingPort.class);
     private final PermissionAuditService audit = mock(PermissionAuditService.class);
-    private SecureKnowledgeRetrievalService service;
+    private CanonicalHybridKnowledgeSearch service;
     private CurrentActor actor;
     private UUID assetId;
 
     @BeforeEach
     void setUp() {
-        AppUser user = new AppUser(
+        actor = new CurrentActor(
+                UUID.randomUUID(),
                 ORGANIZATION_ID,
                 DEPARTMENT_ID,
                 "Laura",
-                "laura@example.test",
-                UserRole.EMPLOYEE);
-        actor = new CurrentActor(
-                user.getId(), ORGANIZATION_ID, DEPARTMENT_ID, user.getName(), user.getEmail());
+                "laura@example.test");
         assetId = UUID.randomUUID();
-        when(users.findById(user.getId())).thenReturn(Optional.of(user));
         when(embeddings.embed(any(), any())).thenReturn(Optional.empty());
         when(entryAuthorization.check(any())).thenReturn(AuthorizationDecision.allow(MODEL_ID));
-        when(authorization.listAuthorizedResources(any())).thenReturn(AuthorizedResourceSetResult.resolved(
-                List.of(ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", assetId)),
-                MODEL_ID));
-        service = new SecureKnowledgeRetrievalService(
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenReturn(
+                new ResolvedKnowledgeEvidenceScope(
+                        ORGANIZATION_ID,
+                        actor.userId(),
+                        DEPARTMENT_ID,
+                        false,
+                        MODEL_ID,
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(SPACE_ID, Set.of(assetId)),
+                        Map.of(SPACE_ID, 1L)));
+        service = new CanonicalHybridKnowledgeSearch(
                 store,
-                users,
-                entryAuthorization,
+                evidenceScopes,
+                new KnowledgeSearchAuthorizationService(
+                        entryAuthorization,
+                        audit),
                 authorization,
                 embeddings,
                 audit,
@@ -83,8 +89,10 @@ class SecureKnowledgeRetrievalServiceTests {
 
     @Test
     void providerOutageFailsClosed() {
-        when(authorization.listAuthorizedResources(any())).thenReturn(
-                AuthorizedResourceSetResult.indeterminate("OPENFGA_TIMEOUT", MODEL_ID));
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenThrow(
+                new KnowledgeEvidenceScopeUnavailableException(
+                        "OPENFGA_TIMEOUT",
+                        MODEL_ID));
 
         assertThrows(KnowledgeRetrievalUnavailableException.class,
                 () -> service.search(actor, "leave policy", 10, "request-2"));
@@ -118,9 +126,10 @@ class SecureKnowledgeRetrievalServiceTests {
 
     @Test
     void authorizationModelMismatchFailsClosed() {
-        when(authorization.listAuthorizedResources(any())).thenReturn(AuthorizedResourceSetResult.resolved(
-                List.of(ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", assetId)),
-                "different-model"));
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenThrow(
+                new KnowledgeEvidenceScopeUnavailableException(
+                        "AUTHORIZATION_MODEL_MISMATCH",
+                        "different-model"));
 
         assertThrows(KnowledgeRetrievalUnavailableException.class,
                 () -> service.search(actor, "leave policy", 10, "request-model-mismatch"));

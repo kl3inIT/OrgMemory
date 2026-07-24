@@ -53,9 +53,11 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   connection so a restart resumes rather than replays. Which connections it crawls
   and what it authenticates with come from the ledger on every poll, so an
   administrator's change takes effect on the next one without a restart.
-- `apps/mcp`: a reserved delivery module with no runtime implementation; the
-  legacy scaffold was removed so secure agent tools can be rebuilt on the
-  permission-aware retrieval contract.
+- `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
+  read-only `search_knowledge` tool forwards the caller token to the API search
+  contract, so agents use the same GraphRAG, OpenFGA, canonical ACL recheck, and
+  audit path as the product Assistant without owning database migrations or a
+  second retrieval implementation.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
@@ -133,7 +135,8 @@ an administrator governs that ledger from `/api/admin/**`.
 Source ACL evidence accepts namespaced OrgMemory user, department, and
 organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
 principals, the latter resolved through sealed per-generation membership.
-Multi-source derivation and permission-aware MCP delivery are not implemented.
+Permission-aware MCP search is implemented. Multi-source derivation and
+mutation tools are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA

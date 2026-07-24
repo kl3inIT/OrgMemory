@@ -30,7 +30,7 @@ import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.QueryEmbedding;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -81,7 +81,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 @Import({
         SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class,
-        SecureKnowledgeRetrievalService.class
+        CanonicalHybridKnowledgeSearch.class
 })
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
@@ -133,7 +133,7 @@ class SourceIngestionPipelineIntegrationTests {
     EmbeddingProfileRegistry embeddingProfiles;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     /**
      * Every test here calls {@code processNext()} expecting to claim the upload it just made,

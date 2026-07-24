@@ -27,4 +27,19 @@ interface KnowledgeAssetRepository extends JpaRepository<KnowledgeAsset, UUID> {
             @Param("organizationId") UUID organizationId,
             @Param("knowledgeSpaceId") UUID knowledgeSpaceId,
             @Param("assetIds") Collection<UUID> assetIds);
+
+    @Query("""
+            select new com.orgmemory.core.knowledge.KnowledgeAssetAuthorizationScope(
+                asset.id,
+                asset.knowledgeSpaceId
+            )
+            from KnowledgeAsset asset
+            where asset.organizationId = :organizationId
+              and asset.archivedAt is null
+              and asset.id in :assetIds
+            order by asset.knowledgeSpaceId, asset.id
+            """)
+    List<KnowledgeAssetAuthorizationScope> findActiveAuthorizationScopes(
+            @Param("organizationId") UUID organizationId,
+            @Param("assetIds") Collection<UUID> assetIds);
 }

@@ -3,28 +3,23 @@ package com.orgmemory.core.knowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
-import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
-import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
-import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.export.GraphExportDocument;
 import com.orgmemory.graphrag.export.GraphExportFormat;
 import com.orgmemory.graphrag.export.GraphExportReader;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,15 +38,10 @@ class KnowledgeGraphExportServiceTests {
 
     private final KnowledgeSpaceRepository spaces =
             mock(KnowledgeSpaceRepository.class);
-    private final KnowledgeAssetRepository assets =
-            mock(KnowledgeAssetRepository.class);
-    private final SourceAclSnapshotRepository aclSnapshots =
-            mock(SourceAclSnapshotRepository.class);
-    private final AppUserRepository users = mock(AppUserRepository.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final RelationshipAuthorizationSetPort authorizationSets =
-            mock(RelationshipAuthorizationSetPort.class);
+    private final KnowledgeEvidenceScopeResolver evidenceScopes =
+            mock(KnowledgeEvidenceScopeResolver.class);
     private final GraphExportReader reader = mock(GraphExportReader.class);
     private final PermissionAuditService audit =
             mock(PermissionAuditService.class);
@@ -60,42 +50,32 @@ class KnowledgeGraphExportServiceTests {
     private final KnowledgeGraphExportService service =
             new KnowledgeGraphExportService(
                     spaces,
-                    assets,
-                    aclSnapshots,
-                    users,
                     authorization,
-                    authorizationSets,
+                    evidenceScopes,
                     reader,
-                    audit,
-                    new KnowledgeRetrievalProperties(20, 5, 2, 1_000));
+                    audit);
 
     @BeforeEach
     void setUpEntryPermission() {
-        AppUser user = mock(AppUser.class);
-        when(users.findById(USER_ID)).thenReturn(java.util.Optional.of(user));
-        when(user.getOrganizationId()).thenReturn(ORGANIZATION_ID);
-        when(user.isActive()).thenReturn(true);
-        when(user.getRole()).thenReturn(UserRole.EMPLOYEE);
         when(spaces.existsByIdAndOrganizationIdAndActiveTrue(
                         SPACE_ID, ORGANIZATION_ID))
                 .thenReturn(true);
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceScopes.resolve(actor, "model-v1")).thenReturn(
+                new ResolvedKnowledgeEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(SPACE_ID, Set.of(ASSET_ID)),
+                        Map.of(SPACE_ID, 9L)));
     }
 
     @Test
     void exportsOnlyTheCurrentAuthorizedEvidenceScopeAndAuditsEgress() {
-        when(authorizationSets.listAuthorizedResources(any()))
-                .thenReturn(AuthorizedResourceSetResult.resolved(
-                        List.of(ResourceRef.of(
-                                ORGANIZATION_ID, "knowledge_asset", ASSET_ID)),
-                        "model-v1"));
-        when(assets.findActiveIdsInKnowledgeSpace(
-                        ORGANIZATION_ID, SPACE_ID, List.of(ASSET_ID)))
-                .thenReturn(List.of(ASSET_ID));
-        when(aclSnapshots.maximumCurrentAclGeneration(
-                        eq(ORGANIZATION_ID), anyCollection()))
-                .thenReturn(9L);
         when(reader.read(any(), any()))
                 .thenReturn(new GraphExportDocument(List.of(), List.of()));
 
@@ -118,10 +98,9 @@ class KnowledgeGraphExportServiceTests {
 
     @Test
     void rejectsUnexpectedOpenFgaObjectTypesBeforeReadingGraphData() {
-        when(authorizationSets.listAuthorizedResources(any()))
-                .thenReturn(AuthorizedResourceSetResult.resolved(
-                        List.of(new ResourceRef(
-                                ORGANIZATION_ID, "knowledge_space", SPACE_ID.toString())),
+        when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
+                new KnowledgeEvidenceScopeUnavailableException(
+                        "AUTHORIZED_OBJECT_SET_INVALID",
                         "model-v1"));
 
         assertThrows(
@@ -135,25 +114,9 @@ class KnowledgeGraphExportServiceTests {
 
     @Test
     void rejectsAnAuthorizedObjectSetAboveTheConfiguredBound() {
-        UUID secondAsset =
-                UUID.fromString("10000000-0000-0000-0000-000000000005");
-        UUID thirdAsset =
-                UUID.fromString("10000000-0000-0000-0000-000000000006");
-        when(authorizationSets.listAuthorizedResources(any()))
-                .thenReturn(AuthorizedResourceSetResult.resolved(
-                        List.of(
-                                ResourceRef.of(
-                                        ORGANIZATION_ID,
-                                        "knowledge_asset",
-                                        ASSET_ID),
-                                ResourceRef.of(
-                                        ORGANIZATION_ID,
-                                        "knowledge_asset",
-                                        secondAsset),
-                                ResourceRef.of(
-                                        ORGANIZATION_ID,
-                                        "knowledge_asset",
-                                        thirdAsset)),
+        when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
+                new KnowledgeEvidenceScopeUnavailableException(
+                        "AUTHORIZED_OBJECT_SET_INVALID",
                         "model-v1"));
 
         assertThrows(

@@ -1,7 +1,7 @@
 package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;
@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/knowledge/search")
 class KnowledgeSearchController {
 
-    private final SecureKnowledgeRetrievalService retrieval;
+    private final PermissionAwareKnowledgeSearch retrieval;
     private final CurrentActorProvider actors;
 
-    KnowledgeSearchController(SecureKnowledgeRetrievalService retrieval, CurrentActorProvider actors) {
+    KnowledgeSearchController(PermissionAwareKnowledgeSearch retrieval, CurrentActorProvider actors) {
         this.retrieval = retrieval;
         this.actors = actors;
     }

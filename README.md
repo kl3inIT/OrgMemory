@@ -22,7 +22,7 @@ CSS 4, shadcn/ui, TanStack Query/Router, and AI SDK UI components.
 core/          domain, application services, JPA, and Flyway
 apps/api/      REST, OIDC, secure search, OpenAPI, migration owner
 apps/worker/   background source ingestion and indexing boundary
-apps/mcp/      reserved MCP delivery boundary; no runtime implementation yet
+apps/mcp/      authenticated read-only MCP delivery adapter
 integrations/  provider adapters, including the official OpenFGA Java SDK
 web/           React app shell, secure search, and document management
 docs/          vision, roadmap, decisions, specs, tests, and increments

@@ -85,10 +85,9 @@ class AssistantController {
         String title = evidence.startPage() == null
                 ? evidence.title()
                 : evidence.title() + " · page " + evidence.startPage();
-        if (evidence.sourceUri() != null && !evidence.sourceUri().isBlank()) {
-            return new AssistantStreamPart.SourceUrl(sourceId, evidence.sourceUri(), title);
-        }
-        return new AssistantStreamPart.SourceDocument(
-                sourceId, "application/octet-stream", title, evidence.title());
+        return new AssistantStreamPart.SourceUrl(
+                sourceId,
+                "/api/citations/" + evidence.chunkId() + "/content",
+                title);
     }
 }

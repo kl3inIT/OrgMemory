@@ -30,4 +30,17 @@ class KnowledgeSpaceController {
                 .map(KnowledgeSpaceResponse::from)
                 .toList();
     }
+
+    @GetMapping("/visible")
+    @Operation(
+            operationId = "listVisibleKnowledgeSpaces",
+            summary = "List Knowledge Spaces visible to the current user")
+    List<KnowledgeSpaceResponse> listVisible(
+            Authentication authentication) {
+        return spaces.listVisibleTargets(
+                        actors.current(authentication))
+                .stream()
+                .map(KnowledgeSpaceResponse::from)
+                .toList();
+    }
 }

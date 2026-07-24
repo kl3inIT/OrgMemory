@@ -1,0 +1,216 @@
+package com.orgmemory.core.knowledge;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
+import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
+import com.orgmemory.graphrag.export.GraphExportDocument;
+import com.orgmemory.graphrag.export.GraphExportReader;
+import com.orgmemory.graphrag.model.EvidenceReference;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+class KnowledgeGraphExplorerServiceTests {
+
+    private static final UUID ORGANIZATION_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000001");
+    private static final UUID USER_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000002");
+    private static final UUID SPACE_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000003");
+    private static final UUID ASSET_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000004");
+    private static final UUID REVISION_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000005");
+    private static final UUID ACL_SNAPSHOT_ID =
+            UUID.fromString("10000000-0000-0000-0000-000000000006");
+    private static final UUID FIRST_ENTITY_ID =
+            UUID.fromString("20000000-0000-0000-0000-000000000001");
+    private static final UUID SECOND_ENTITY_ID =
+            UUID.fromString("20000000-0000-0000-0000-000000000002");
+    private static final UUID RELATION_ID =
+            UUID.fromString("30000000-0000-0000-0000-000000000001");
+    private static final UUID FIRST_CHUNK_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000001");
+    private static final UUID SECOND_CHUNK_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000002");
+
+    private final KnowledgeSpaceRepository spaces =
+            mock(KnowledgeSpaceRepository.class);
+    private final RelationshipAuthorizationPort authorization =
+            mock(RelationshipAuthorizationPort.class);
+    private final KnowledgeEvidenceScopeResolver evidenceScopes =
+            mock(KnowledgeEvidenceScopeResolver.class);
+    private final GraphExportReader reader = mock(GraphExportReader.class);
+    private final PermissionAuditService audit =
+            mock(PermissionAuditService.class);
+    private final CurrentActor actor =
+            new CurrentActor(
+                    USER_ID,
+                    ORGANIZATION_ID,
+                    null,
+                    "User",
+                    "user@example.com");
+    private final GraphExplorerProperties properties =
+            new GraphExplorerProperties(1, 10, 10, 100);
+    private final KnowledgeGraphExplorerService service =
+            new KnowledgeGraphExplorerService(
+                    spaces,
+                    authorization,
+                    evidenceScopes,
+                    reader,
+                    properties,
+                    audit);
+
+    @BeforeEach
+    void setUpEntryPermission() {
+        when(spaces.existsByIdAndOrganizationIdAndActiveTrue(
+                        SPACE_ID, ORGANIZATION_ID))
+                .thenReturn(true);
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceScopes.resolve(actor, "model-v1"))
+                .thenReturn(scope(Set.of(ASSET_ID), 9L));
+        when(reader.read(any(), any())).thenReturn(document());
+    }
+
+    @Test
+    void readsOnlyAuthorizedEvidenceAndReportsBoundedResults() {
+        KnowledgeGraphView view =
+                service.explore(actor, SPACE_ID, "", 1, "request-1");
+
+        assertEquals(1, view.entities().size());
+        assertTrue(view.truncated());
+        assertEquals(
+                List.of(FIRST_CHUNK_ID, SECOND_CHUNK_ID),
+                view.entities().getFirst().citationChunkIds());
+
+        ArgumentCaptor<AuthorizedEvidenceScope> scope =
+                ArgumentCaptor.forClass(AuthorizedEvidenceScope.class);
+        verify(reader).read(scope.capture(), any());
+        assertEquals(Set.of(ASSET_ID), scope.getValue().authorizedAssetIds());
+        assertEquals("model-v1", scope.getValue().authorizationModelId());
+        assertEquals(9L, scope.getValue().aclGeneration());
+        verify(audit).record(any());
+    }
+
+    @Test
+    void searchesEntityAndRelationTextWithoutReadingAnotherScope() {
+        KnowledgeGraphView view = service.explore(
+                actor,
+                SPACE_ID,
+                "approves",
+                10,
+                "request-2");
+
+        assertEquals(2, view.entities().size());
+        assertEquals(1, view.relations().size());
+        assertEquals("APPROVES", view.relations().getFirst().type());
+        verify(reader).read(any(), any());
+    }
+
+    @Test
+    void deniesBeforeReadingWhenTheSpaceIsNotAuthorized() {
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.deny(
+                        "RELATIONSHIP_DENIED",
+                        "model-v1"));
+
+        assertThrows(
+                OrgMemoryAccessDeniedException.class,
+                () -> service.explore(
+                        actor, SPACE_ID, "", 10, "request-3"));
+
+        verify(reader, never()).read(any(), any());
+        verify(audit, never()).record(any());
+    }
+
+    @Test
+    void failsClosedWhenAuthorizationKeepsChangingDuringRead() {
+        when(evidenceScopes.resolve(actor, "model-v1"))
+                .thenReturn(
+                        scope(Set.of(ASSET_ID), 9L),
+                        scope(Set.of(ASSET_ID), 10L),
+                        scope(Set.of(ASSET_ID), 10L),
+                        scope(Set.of(ASSET_ID), 11L));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.explore(
+                        actor, SPACE_ID, "", 10, "request-4"));
+
+        verify(reader, org.mockito.Mockito.times(2)).read(any(), any());
+        verify(audit, never()).record(any());
+    }
+
+    private static ResolvedKnowledgeEvidenceScope scope(
+            Set<UUID> assetIds,
+            long generation) {
+        return new ResolvedKnowledgeEvidenceScope(
+                ORGANIZATION_ID,
+                USER_ID,
+                null,
+                false,
+                "model-v1",
+                Instant.parse("2026-07-24T00:00:00Z"),
+                Map.of(SPACE_ID, assetIds),
+                Map.of(SPACE_ID, generation));
+    }
+
+    private static GraphExportDocument document() {
+        EvidenceReference firstEvidence =
+                evidence(FIRST_CHUNK_ID);
+        EvidenceReference secondEvidence =
+                evidence(SECOND_CHUNK_ID);
+        return new GraphExportDocument(
+                List.of(
+                        new GraphExportDocument.EntityRow(
+                                FIRST_ENTITY_ID,
+                                "Expense claim",
+                                "PROCESS",
+                                "Employee expense reimbursement workflow",
+                                List.of(firstEvidence, secondEvidence)),
+                        new GraphExportDocument.EntityRow(
+                                SECOND_ENTITY_ID,
+                                "Finance manager",
+                                "ROLE",
+                                "Approves expense claims",
+                                List.of(secondEvidence))),
+                List.of(new GraphExportDocument.RelationRow(
+                        RELATION_ID,
+                        SECOND_ENTITY_ID,
+                        FIRST_ENTITY_ID,
+                        "APPROVES",
+                        List.of("finance", "approval"),
+                        "Finance manager approves the expense claim",
+                        1.0,
+                        List.of(secondEvidence))));
+    }
+
+    private static EvidenceReference evidence(UUID chunkId) {
+        return new EvidenceReference(
+                ORGANIZATION_ID,
+                ASSET_ID,
+                REVISION_ID,
+                chunkId,
+                ACL_SNAPSHOT_ID,
+                9L);
+    }
+}

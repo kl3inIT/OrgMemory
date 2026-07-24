@@ -1,6 +1,7 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.assistant.AssistantUnavailableException;
+import com.orgmemory.core.knowledge.CitationNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
 import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
@@ -33,6 +34,11 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OrgMemoryAccessDeniedException.class)
     ProblemDetail accessDenied(OrgMemoryAccessDeniedException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler(CitationNotFoundException.class)
+    ProblemDetail citationNotFound(CitationNotFoundException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -22,7 +22,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
 import java.util.Optional;
@@ -100,7 +100,7 @@ class PermissionsAdminIntegrationTests {
     JdbcTemplate jdbc;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     @MockitoBean
     RelationshipAuthorizationPort entryAuthorization;

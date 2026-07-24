@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { uploadSourceWithCsrf } from "@/features/sources/api/upload-source"
+import { KnowledgeGraphPanel } from "@/features/sources/components/knowledge-graph-panel"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
 import {
@@ -26,10 +27,14 @@ import {
 
 export function SourcesPage({
   search,
+  view,
   onSearchChange,
+  onViewChange,
 }: {
   search: string
+  view: "documents" | "graph"
   onSearchChange: (search: string) => void
+  onViewChange: (view: "documents" | "graph") => void
 }) {
   const queryClient = useQueryClient()
   const statusFilter = useDocumentManagerStore((state) => state.statusFilter)
@@ -65,7 +70,11 @@ export function SourcesPage({
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-        <Tabs value="documents" className="gap-6">
+        <Tabs
+          value={view}
+          onValueChange={(value: string) => onViewChange(value as "documents" | "graph")}
+          className="gap-6"
+        >
           <TabsList aria-label="Knowledge workspace" className="h-10 gap-1">
             <TabsTrigger
               value="documents"
@@ -73,7 +82,7 @@ export function SourcesPage({
             >
               Documents
             </TabsTrigger>
-            <TabsTrigger value="knowledge-graph" className="min-w-36 px-4" disabled>
+            <TabsTrigger value="graph" className="min-w-36 px-4">
               Knowledge graph
             </TabsTrigger>
           </TabsList>
@@ -167,6 +176,9 @@ export function SourcesPage({
               {sources.data?.length === 0 ? <SourcesEmpty /> : null}
               {sources.data && sources.data.length > 0 ? <SourcesTable sources={filteredDocuments} /> : null}
             </section>
+          </TabsContent>
+          <TabsContent value="graph">
+            <KnowledgeGraphPanel />
           </TabsContent>
         </Tabs>
       </div>

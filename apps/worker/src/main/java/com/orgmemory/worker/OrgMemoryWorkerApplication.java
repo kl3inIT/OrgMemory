@@ -1,7 +1,8 @@
 package com.orgmemory.worker;
 
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.KnowledgeGraphExplorerConfiguration;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.worker.authorization.KnowledgeAuthorizationConvergenceProperties;
@@ -41,7 +42,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         },
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
-                classes = SecureKnowledgeRetrievalService.class))
+                classes = {
+                        CanonicalHybridKnowledgeSearch.class,
+                        KnowledgeGraphExplorerConfiguration.class
+                }))
 public class OrgMemoryWorkerApplication {
 
     static void main(String[] args) {

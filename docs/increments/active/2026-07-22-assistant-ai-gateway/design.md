@@ -34,7 +34,7 @@ The downstream UI protocol and upstream provider protocol stay separate:
 ```mermaid
 flowchart LR
     USER[Authenticated user] --> ASSISTANT[AssistantService]
-    ASSISTANT --> RETRIEVAL[SecureKnowledgeRetrievalService]
+    ASSISTANT --> RETRIEVAL[PermissionAwareKnowledgeSearch]
     RETRIEVAL --> FGA[OpenFGA plus canonical SQL recheck]
     FGA --> EVIDENCE[Verified evidence]
     EVIDENCE --> MODEL[ChatModelPort]
@@ -57,6 +57,57 @@ and `[DONE]`.
 
 This read-only POC does not execute mutating tools, so durable Assistant-turn
 idempotency and conversation persistence are deferred to the agent increment.
+
+## Assistant UX Reference Audit
+
+The reference boundary is behavior, not source-code ownership. Onyx uses its
+Opal design system and a packet/message-tree model; Northstar uses AI Elements
+and AI SDK UI message parts. OrgMemory therefore reuses compatible primitives
+and ports the proven interaction contracts without importing either
+application's domain model.
+
+### Adopt in the secure-retrieval slice
+
+- Keep source-panel state tied to the assistant turn that produced the sources.
+  A source action selects that turn and opens a desktop right rail or a mobile
+  sheet, matching Onyx's `selectedNodeIdForDocDisplay` behavior.
+- Preserve citation order, deduplicate by canonical source id, and show the
+  exact permission-verified evidence emitted by the server. Never parse
+  model-authored URLs into trusted citations.
+- Fetch previews through an authenticated OrgMemory endpoint. A permission
+  change returns not-found, MinIO URLs remain private, requests are abortable,
+  and object URLs are revoked.
+- Use AI Elements for conversation, streaming messages, source affordances,
+  composer state, stop generation, and scroll-to-bottom behavior, following
+  Northstar's UI-message-part integration.
+- Keep copy, retry, loading, empty-evidence, provider-failure, and revoked-source
+  states local to the affected turn instead of replacing the whole page.
+- Memoize expensive message/source renderers only after profiling; keep
+  per-turn callbacks and source arrays stable during token streaming.
+
+### Add after retrieval correctness
+
+- Durable conversation history with URL-addressable sessions and restored
+  per-session UI state.
+- Regenerate/edit branching, response feedback, and audit-safe quality signals.
+- Inline citation anchors and hover cards once the answer contract carries
+  server-owned citation spans.
+- MIME-driven preview variants for PDF, image, text/code, CSV, XLSX, DOCX, and
+  unsupported download-only files. Office formats require server-side parsing
+  or a vetted sanitizer before rendering.
+- Source groups for cited evidence, additional retrieved evidence, and
+  user-uploaded files when the retrieval contract exposes those groups.
+- Tool progress cards, approval states, and resumable streams when the
+  Assistant becomes an agent.
+
+### Do not copy into the current product
+
+- Multi-model comparison, model selection, deep-research toggles, TTS, and
+  search/chat mode classification are not part of the current OrgMemory
+  contract.
+- Onyx packet types, message-tree state, Opal-only components, and its broad
+  `/api/chat/file/{id}` authorization path must not cross into OrgMemory.
+- Chain-of-thought presentation is not a user-facing feature.
 
 ## Embedding Invariant
 

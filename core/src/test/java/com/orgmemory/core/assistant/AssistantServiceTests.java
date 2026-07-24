@@ -13,7 +13,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
@@ -25,7 +25,7 @@ import reactor.core.publisher.Flux;
 
 class AssistantServiceTests {
 
-    private final SecureKnowledgeRetrievalService retrieval = mock(SecureKnowledgeRetrievalService.class);
+    private final CanonicalHybridKnowledgeSearch retrieval = mock(CanonicalHybridKnowledgeSearch.class);
     private final ChatModelPort chat = mock(ChatModelPort.class);
     private final CurrentActor actor = new CurrentActor(
             UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Laura", "laura@example.test");

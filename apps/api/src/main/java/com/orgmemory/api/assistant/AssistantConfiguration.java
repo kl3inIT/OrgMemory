@@ -2,18 +2,37 @@ package com.orgmemory.api.assistant;
 
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantService;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AssistantProperties.class)
 class AssistantConfiguration {
 
     @Bean
+    @Primary
+    PermissionAwareKnowledgeSearch permissionAwareKnowledgeSearch(
+            CanonicalHybridKnowledgeSearch canonicalRetrieval,
+            ObjectProvider<GraphRagKnowledgeRetrievalService> graphRetrieval,
+            AssistantProperties properties) {
+        return switch (properties.retrievalEngine()) {
+            case CANONICAL_HYBRID -> canonicalRetrieval;
+            case GRAPH_RAG -> graphRetrieval.getIfAvailable(() -> {
+                throw new IllegalStateException(
+                        "Assistant retrieval engine GRAPH_RAG requires an EmbeddingModel and the GraphRAG query runtime");
+            });
+        };
+    }
+
+    @Bean
     AssistantService assistantService(
-            SecureKnowledgeRetrievalService retrieval,
+            PermissionAwareKnowledgeSearch retrieval,
             ChatModelPort chat) {
         return new AssistantService(retrieval, chat);
     }
