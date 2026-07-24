@@ -55,13 +55,13 @@ exists.
 | Extraction | Relation keywords, weight and binary decomposition | Binary relations, evidence-scoped type/keywords, positive support weight and visible-only aggregation | implemented | 5 |
 | Extraction | Entity/relation profiling and description summarization | Per-round provider/estimated tokens and latency plus executable permission-scoped iterative map/reduce summarization | implemented | 5 |
 | Indexing | Deduplication and canonical merge | Deterministic name/endpoint identities with evidence-scoped semantic contributions and type-drift tests | implemented | 5 |
-| Indexing | Incremental update without full rebuild | Revision replacement exists | partial | 5, 6 |
-| Indexing | Atomic publication and failed-batch abort | Durable PostgreSQL publication | implemented | 6 conformance |
-| Lifecycle | Delete document and rebuild remaining contributions | Revision replacement primitive only | partial | 6 |
-| Lifecycle | Retry, resume, stale-work cancellation and recovery | Durable worker job/lease exists | partial | 6 |
-| Lifecycle | Create/edit/delete/merge entity and relation | None | missing | 6 |
-| Lifecycle | Export graph, entities, relations and evidence | None | missing | 6 |
-| Lifecycle | Query/keyword cache and invalidation | None | missing | 6 |
+| Indexing | Incremental update without full rebuild | Immutable revisions, version-head replacement and manifest-bound graph publication | implemented | 5, 6 |
+| Indexing | Atomic publication and failed-batch abort | Durable PostgreSQL publication, idempotency conflict detection and previous-head preservation | implemented | 6 conformance |
+| Lifecycle | Delete document and rebuild remaining contributions | Fail-closed asset retirement removes only the retired revision and reaggregates surviving evidence | implemented | 6 |
+| Lifecycle | Retry, resume, stale-work cancellation and recovery | Durable retry/resume/cancel/supersede transitions, lease recovery, timeout and pre-publication revalidation | implemented | 6 |
+| Lifecycle | Create/edit/delete/merge entity and relation | Append-only curated contributions, reversible aliases and reversible suppressions | implemented | 6 |
+| Lifecycle | Export graph, entities, relations and evidence | Permission-scoped audited JSON, CSV, Markdown and text export with provenance | implemented | 6 |
+| Lifecycle | Query/keyword cache and invalidation | Canonical exact model/query caches bound to namespace, publication and authorization state | implemented | 6 |
 | Query | Local low-level entity retrieval | Ports exist; no runtime orchestration | partial | 7 |
 | Query | Global high-level relation retrieval | Ports exist; no runtime orchestration | partial | 7 |
 | Query | Hybrid entity plus relation retrieval | Strategy record exists; no runtime orchestration | partial | 7 |

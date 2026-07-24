@@ -20,6 +20,7 @@ import com.orgmemory.graphrag.port.GraphRevisionProjection;
 import com.orgmemory.graphrag.port.GraphSeedIndex;
 import com.orgmemory.graphrag.port.GraphTopologyCandidateIndex;
 import com.orgmemory.graphrag.query.RankedItem;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConflictException;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -61,78 +62,13 @@ public final class PostgresGraphProjectionStore
                 GraphEmbeddingIndex,
                 GraphTopologyCandidateIndex {
 
-    private static final String VISIBLE_ENTITY_CONTRIBUTIONS = """
-            visible_entity_contributions AS (
-                SELECT ec.*
-                FROM graph_entity_contributions ec
-                JOIN graph_projection_heads head
-                  ON head.organization_id = ec.organization_id
-                 AND head.source_revision_id = ec.source_revision_id
-                 AND head.knowledge_asset_id = ec.knowledge_asset_id
-                 AND head.projection_generation = ec.projection_generation
-                JOIN source_revisions revision
-                  ON revision.id = head.source_revision_id
-                 AND revision.organization_id = head.organization_id
-                 AND revision.knowledge_asset_id = head.knowledge_asset_id
-                 AND revision.status = 'READY'
-                JOIN knowledge_assets asset
-                  ON asset.id = revision.knowledge_asset_id
-                 AND asset.organization_id = revision.organization_id
-                 AND asset.current_version_id = revision.knowledge_asset_version_id
-                 AND asset.archived_at IS NULL
-                JOIN knowledge_asset_versions asset_version
-                  ON asset_version.id = asset.current_version_id
-                 AND asset_version.organization_id = asset.organization_id
-                 AND asset_version.knowledge_asset_id = asset.id
-                 AND asset_version.source_revision_id = revision.id
-                 AND asset_version.status = 'ACTIVE'
-                WHERE ec.organization_id = :organizationId
-                  AND ec.knowledge_asset_id IN (:authorizedAssetIds)
-            )
-            """;
+    private static final String VISIBLE_ENTITY_CONTRIBUTIONS =
+            PostgresAuthorizedGraphSql.VISIBLE_KNOWLEDGE_CHUNKS
+                    + ",\n"
+                    + PostgresAuthorizedGraphSql.VISIBLE_ENTITY_CONTRIBUTIONS;
 
-    private static final String VISIBLE_RELATION_CONTRIBUTIONS = """
-            visible_relation_contributions AS (
-                SELECT rc.*
-                FROM graph_relation_contributions rc
-                JOIN graph_projection_heads head
-                  ON head.organization_id = rc.organization_id
-                 AND head.source_revision_id = rc.source_revision_id
-                 AND head.knowledge_asset_id = rc.knowledge_asset_id
-                 AND head.projection_generation = rc.projection_generation
-                JOIN source_revisions revision
-                  ON revision.id = head.source_revision_id
-                 AND revision.organization_id = head.organization_id
-                 AND revision.knowledge_asset_id = head.knowledge_asset_id
-                 AND revision.status = 'READY'
-                JOIN knowledge_assets asset
-                  ON asset.id = revision.knowledge_asset_id
-                 AND asset.organization_id = revision.organization_id
-                 AND asset.current_version_id = revision.knowledge_asset_version_id
-                 AND asset.archived_at IS NULL
-                JOIN knowledge_asset_versions asset_version
-                  ON asset_version.id = asset.current_version_id
-                 AND asset_version.organization_id = asset.organization_id
-                 AND asset_version.knowledge_asset_id = asset.id
-                 AND asset_version.source_revision_id = revision.id
-                 AND asset_version.status = 'ACTIVE'
-                JOIN graph_relations relation
-                  ON relation.organization_id = rc.organization_id
-                 AND relation.id = rc.relation_id
-                WHERE rc.organization_id = :organizationId
-                  AND rc.knowledge_asset_id IN (:authorizedAssetIds)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM visible_entity_contributions source_evidence
-                      WHERE source_evidence.entity_id = relation.source_entity_id
-                  )
-                  AND EXISTS (
-                      SELECT 1
-                      FROM visible_entity_contributions target_evidence
-                      WHERE target_evidence.entity_id = relation.target_entity_id
-                  )
-            )
-            """;
+    private static final String VISIBLE_RELATION_CONTRIBUTIONS =
+            PostgresAuthorizedGraphSql.VISIBLE_RELATION_CONTRIBUTIONS;
 
     private static final String ENTITY_CONTRIBUTION_COLUMNS = """
             ec.id AS contribution_id,
@@ -228,7 +164,8 @@ public final class PostgresGraphProjectionStore
     @Override
     public void replaceRevision(GraphRevisionContributions contributions) {
         Objects.requireNonNull(contributions, "contributions");
-        transactions.executeWithoutResult(status -> replaceRevisionInTransaction(contributions));
+        transactions.executeWithoutResult(
+                status -> replaceRevisionInTransaction(contributions, null, null));
     }
 
     @Override
@@ -238,7 +175,24 @@ public final class PostgresGraphProjectionStore
             GraphRevisionContributions contributions = projection.contributions();
             lockRevision(contributions.organizationId(), contributions.sourceRevisionId());
             verifyCurrentPublicationTarget(contributions);
-            replaceRevisionInTransaction(contributions);
+            ProjectionHead existing = findHead(
+                    contributions.organizationId(), contributions.sourceRevisionId());
+            if (existing != null
+                    && existing.projectionGeneration()
+                            == contributions.projectionGeneration()
+                    && existing.idempotencyKey() != null) {
+                if (existing.idempotencyKey().equals(projection.idempotencyKey())
+                        && existing.manifestFingerprint()
+                                .equals(projection.manifestFingerprint())) {
+                    return;
+                }
+                throw new PublicationConflictException(
+                        "graph publication identity was reused with different content");
+            }
+            replaceRevisionInTransaction(
+                    contributions,
+                    projection.idempotencyKey(),
+                    projection.manifestFingerprint());
             replaceEmbeddingsInTransaction(projection.embeddings());
         });
     }
@@ -816,7 +770,10 @@ public final class PostgresGraphProjectionStore
         return List.copyOf(emitted);
     }
 
-    private void replaceRevisionInTransaction(GraphRevisionContributions contributions) {
+    private void replaceRevisionInTransaction(
+            GraphRevisionContributions contributions,
+            String idempotencyKey,
+            String manifestFingerprint) {
         lockRevision(contributions.organizationId(), contributions.sourceRevisionId());
         ProjectionHead existingHead = findHead(contributions.organizationId(), contributions.sourceRevisionId());
         if (existingHead != null
@@ -855,6 +812,8 @@ public final class PostgresGraphProjectionStore
                 .addValue("sourceRevisionId", contributions.sourceRevisionId())
                 .addValue("knowledgeAssetId", contributions.knowledgeAssetId())
                 .addValue("projectionGeneration", contributions.projectionGeneration())
+                .addValue("idempotencyKey", idempotencyKey)
+                .addValue("manifestFingerprint", manifestFingerprint)
                 .addValue("publishedAt", Timestamp.from(clock.instant()));
         jdbc.update("""
                 INSERT INTO graph_projection_heads (
@@ -862,6 +821,8 @@ public final class PostgresGraphProjectionStore
                     source_revision_id,
                     knowledge_asset_id,
                     projection_generation,
+                    idempotency_key,
+                    manifest_fingerprint,
                     published_at
                 )
                 VALUES (
@@ -869,12 +830,16 @@ public final class PostgresGraphProjectionStore
                     :sourceRevisionId,
                     :knowledgeAssetId,
                     :projectionGeneration,
+                    :idempotencyKey,
+                    :manifestFingerprint,
                     :publishedAt
                 )
                 ON CONFLICT (organization_id, source_revision_id)
                 DO UPDATE SET
                     knowledge_asset_id = excluded.knowledge_asset_id,
                     projection_generation = excluded.projection_generation,
+                    idempotency_key = excluded.idempotency_key,
+                    manifest_fingerprint = excluded.manifest_fingerprint,
                     published_at = excluded.published_at
                 """, head);
 
@@ -1090,7 +1055,10 @@ public final class PostgresGraphProjectionStore
 
     private ProjectionHead findHead(UUID organizationId, UUID sourceRevisionId) {
         List<ProjectionHead> heads = jdbc.query("""
-                SELECT knowledge_asset_id, projection_generation
+                SELECT knowledge_asset_id,
+                       projection_generation,
+                       idempotency_key,
+                       manifest_fingerprint
                 FROM graph_projection_heads
                 WHERE organization_id = :organizationId
                   AND source_revision_id = :sourceRevisionId
@@ -1099,7 +1067,9 @@ public final class PostgresGraphProjectionStore
                 revisionParameters(organizationId, sourceRevisionId),
                 (resultSet, rowNumber) -> new ProjectionHead(
                         resultSet.getObject("knowledge_asset_id", UUID.class),
-                        resultSet.getLong("projection_generation")));
+                        resultSet.getLong("projection_generation"),
+                        resultSet.getString("idempotency_key"),
+                        resultSet.getString("manifest_fingerprint")));
         return heads.isEmpty() ? null : heads.getFirst();
     }
 
@@ -1563,10 +1533,7 @@ public final class PostgresGraphProjectionStore
     }
 
     private static MapSqlParameterSource scopeParameters(AuthorizedEvidenceScope scope) {
-        Objects.requireNonNull(scope, "scope");
-        return new MapSqlParameterSource()
-                .addValue("organizationId", scope.organizationId())
-                .addValue("authorizedAssetIds", scope.authorizedAssetIds());
+        return PostgresAuthorizedGraphSql.scopeParameters(scope);
     }
 
     private static MapSqlParameterSource revisionParameters(
@@ -1675,7 +1642,11 @@ public final class PostgresGraphProjectionStore
                 .collect(Collectors.joining(" "));
     }
 
-    private record ProjectionHead(UUID knowledgeAssetId, long projectionGeneration) {
+    private record ProjectionHead(
+            UUID knowledgeAssetId,
+            long projectionGeneration,
+            String idempotencyKey,
+            String manifestFingerprint) {
     }
 
     private record VectorQuery(boolean empty, MapSqlParameterSource parameters) {

@@ -5,6 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
+import com.orgmemory.graphrag.cache.ModelInvocationCache;
+import com.orgmemory.graphrag.cache.RetrievalResultCache;
+import com.orgmemory.graphrag.curation.CurationProvenance;
+import com.orgmemory.graphrag.curation.GraphCurationRecord;
+import com.orgmemory.graphrag.curation.GraphIdentityRef;
+import com.orgmemory.graphrag.export.GraphExportDocument;
 import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
@@ -17,6 +23,9 @@ import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
+import com.orgmemory.graphrag.storage.ProjectionKind;
+import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -55,6 +64,9 @@ class PostgresGraphProjectionStoreIntegrationTests {
 
     private static JdbcTemplate jdbc;
     private static PostgresGraphProjectionStore store;
+    private static PostgresGraphRagCacheStore cacheStore;
+    private static PostgresGraphCurationStore curationStore;
+    private static PostgresGraphExportReader exportReader;
     private static OrganizationFixture primaryOrganization;
     private static OrganizationFixture otherOrganization;
     private static AssetFixture allowedAsset;
@@ -89,6 +101,16 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 new NamedParameterJdbcTemplate(dataSource),
                 new DataSourceTransactionManager(dataSource),
                 CLOCK);
+        cacheStore = new PostgresGraphRagCacheStore(
+                new NamedParameterJdbcTemplate(dataSource),
+                new DataSourceTransactionManager(dataSource));
+        curationStore = new PostgresGraphCurationStore(
+                new NamedParameterJdbcTemplate(dataSource),
+                new DataSourceTransactionManager(dataSource));
+        exportReader = new PostgresGraphExportReader(
+                new NamedParameterJdbcTemplate(dataSource),
+                store,
+                curationStore);
 
         primaryOrganization = seedOrganization("primary");
         otherOrganization = seedOrganization("other");
@@ -543,6 +565,16 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 publicProjection(atomicPublicationAsset, 2, generationTwoChunk);
         store.publish(new GraphRevisionProjection(
                 generationTwo, publicEmbeddings(atomicPublicationAsset, 2)));
+        GraphRevisionProjection replay = new GraphRevisionProjection(
+                generationTwo, publicEmbeddings(atomicPublicationAsset, 2));
+        store.publish(replay);
+        assertThrows(
+                com.orgmemory.graphrag.storage.ProjectionPublicationStore
+                        .PublicationConflictException.class,
+                () -> store.publish(new GraphRevisionProjection(
+                        generationTwo,
+                        embeddingsWithDifferentValues(
+                                atomicPublicationAsset, generationTwo))));
         assertEquals(
                 2L,
                 jdbc.queryForObject(
@@ -604,6 +636,268 @@ class PostgresGraphProjectionStoreIntegrationTests {
                         Integer.class,
                         atomicPublicationAsset.organizationId(),
                         atomicPublicationAsset.sourceRevisionId()));
+    }
+
+    @Test
+    void exactCachesAreTenantScopedGenerationBoundAndInvalidatable() {
+        ProjectionNamespace namespace = namespace(primaryOrganization);
+        ModelInvocationCache.Key modelKey = new ModelInvocationCache.Key(
+                namespace,
+                "KEYWORDS",
+                "a".repeat(64),
+                "route-v1",
+                "profile-v1");
+        ModelInvocationCache.Entry modelEntry = new ModelInvocationCache.Entry(
+                "application/json",
+                "{\"high\":[]}",
+                NOW,
+                NOW.plusSeconds(60));
+        cacheStore.put(modelKey, modelEntry);
+        assertEquals(
+                modelEntry,
+                cacheStore.get(modelKey, NOW.plusSeconds(1)).orElseThrow());
+
+        AuthorizedEvidenceScope scope =
+                scope(primaryOrganization, Set.of(allowedAsset.knowledgeAssetId()));
+        ProjectionSnapshot generationOne = new ProjectionSnapshot(
+                id("cache-batch-one"),
+                namespace,
+                1,
+                "cache-manifest-one",
+                Set.of(ProjectionKind.CONTENT, ProjectionKind.VECTOR),
+                NOW);
+        RetrievalResultCache.Key retrievalKey = RetrievalResultCache.key(
+                scope,
+                generationOne,
+                "b".repeat(64),
+                "MIX",
+                "route-v1");
+        RetrievalResultCache.Entry retrievalEntry =
+                new RetrievalResultCache.Entry(
+                        "application/json",
+                        "{\"answer\":\"allowed\"}",
+                        List.of(new EvidenceReference(
+                                allowedAsset.organizationId(),
+                                allowedAsset.knowledgeAssetId(),
+                                allowedAsset.sourceRevisionId(),
+                                allowedAsset.chunkId(),
+                                allowedAsset.aclSnapshotId(),
+                                1)),
+                        NOW,
+                        NOW.plusSeconds(60));
+        cacheStore.put(retrievalKey, retrievalEntry);
+        assertEquals(
+                retrievalEntry,
+                cacheStore
+                        .get(retrievalKey, NOW.plusSeconds(1))
+                        .orElseThrow());
+
+        RetrievalResultCache.Key newGeneration = RetrievalResultCache.key(
+                scope,
+                new ProjectionSnapshot(
+                        id("cache-batch-two"),
+                        namespace,
+                        2,
+                        "cache-manifest-two",
+                        Set.of(ProjectionKind.CONTENT, ProjectionKind.VECTOR),
+                        NOW.plusSeconds(2)),
+                "b".repeat(64),
+                "MIX",
+                "route-v1");
+        assertTrue(cacheStore.get(newGeneration, NOW.plusSeconds(2)).isEmpty());
+
+        cacheStore.invalidateAll(namespace);
+        assertTrue(cacheStore.get(modelKey, NOW.plusSeconds(2)).isEmpty());
+        assertTrue(cacheStore.get(retrievalKey, NOW.plusSeconds(2)).isEmpty());
+    }
+
+    @Test
+    void curationIsAppendOnlyIdempotentAndFilteredByVisibleEvidence() {
+        ProjectionNamespace namespace = namespace(primaryOrganization);
+        CurationProvenance provenance = new CurationProvenance(
+                id("curator"),
+                "model-v1",
+                1,
+                NOW,
+                "merge duplicate identities");
+        GraphCurationRecord alias = new GraphCurationRecord.IdentityAlias(
+                id("alias-record"),
+                namespace,
+                GraphIdentityRef.entity(PUBLIC_NEIGHBOR_ID),
+                GraphIdentityRef.entity(SHARED_ENTITY_ID),
+                provenance);
+        assertEquals(alias, curationStore.append("alias-idempotency", alias));
+        assertEquals(alias, curationStore.append("alias-idempotency", alias));
+
+        AuthorizedEvidenceScope allowedScope =
+                scope(primaryOrganization, Set.of(allowedAsset.knowledgeAssetId()));
+        assertTrue(curationStore.active(allowedScope, namespace).contains(alias));
+        assertTrue(curationStore
+                .active(
+                        scope(
+                                otherOrganization,
+                                Set.of(otherTenantAsset.knowledgeAssetId())),
+                        namespace(otherOrganization))
+                .isEmpty());
+
+        curationStore.deactivate(
+                namespace,
+                alias.id(),
+                new CurationProvenance(
+                        id("curator"),
+                        "model-v1",
+                        1,
+                        NOW.plusSeconds(1),
+                        "restore identities"));
+        assertTrue(curationStore.active(allowedScope, namespace).isEmpty());
+    }
+
+    @Test
+    void exportAggregatesOnlyAuthorizedEvidenceAndCarriesProvenance() {
+        AuthorizedEvidenceScope allowedScope =
+                scope(primaryOrganization, Set.of(allowedAsset.knowledgeAssetId()));
+
+        GraphExportDocument export =
+                exportReader.read(allowedScope, namespace(primaryOrganization));
+
+        assertTrue(export.entities().stream()
+                .flatMap(row -> row.evidence().stream())
+                .allMatch(evidence -> evidence
+                        .knowledgeAssetId()
+                        .equals(allowedAsset.knowledgeAssetId())));
+        assertTrue(export.relations().stream()
+                .flatMap(row -> row.evidence().stream())
+                .allMatch(evidence -> evidence
+                        .knowledgeAssetId()
+                        .equals(allowedAsset.knowledgeAssetId())));
+        assertTrue(export.entities().stream()
+                .noneMatch(row -> row.description().contains("restricted")));
+        assertTrue(export.relations().stream()
+                .noneMatch(row -> row.description().contains("restricted")));
+    }
+
+    @Test
+    void currentAclRevocationHidesProjectionCurationAndExport() {
+        AssetFixture fixture = seedAsset(primaryOrganization, "acl-revocation");
+        UUID entityId = id("acl-revocation-entity");
+        store.replaceRevision(singleEntityProjection(
+                fixture,
+                entityId,
+                "Evidence visible before the current source ACL is revoked."));
+        AuthorizedEvidenceScope authorizedScope =
+                scope(primaryOrganization, Set.of(fixture.knowledgeAssetId()));
+        ProjectionNamespace namespace = namespace(primaryOrganization);
+        GraphCurationRecord suppression = new GraphCurationRecord.IdentitySuppression(
+                id("acl-revocation-suppression"),
+                namespace,
+                GraphIdentityRef.entity(entityId),
+                new CurationProvenance(
+                        primaryOrganization.userId(),
+                        "model-v1",
+                        1,
+                        NOW,
+                        "suppress duplicate test identity"));
+        assertEquals(
+                1,
+                store.loadEntityContributions(authorizedScope, List.of(entityId))
+                        .size());
+        assertEquals(1, exportReader.read(authorizedScope, namespace).entities().size());
+        curationStore.append("acl-revocation-suppression", suppression);
+        assertTrue(curationStore.active(authorizedScope, namespace).contains(suppression));
+
+        revokeCurrentAcl(fixture);
+
+        assertTrue(store.loadEntityContributions(authorizedScope, List.of(entityId))
+                .isEmpty());
+        assertTrue(curationStore.active(authorizedScope, namespace).isEmpty());
+        assertTrue(exportReader.read(authorizedScope, namespace).entities().isEmpty());
+    }
+
+    @Test
+    void removingOneRevisionPreservesCanonicalIdentityBackedByAnotherRevision() {
+        AssetFixture first = seedAsset(primaryOrganization, "shared-delete-first");
+        AssetFixture second = seedAsset(primaryOrganization, "shared-delete-second");
+        UUID entityId = id("shared-delete-entity");
+        store.replaceRevision(
+                singleEntityProjection(first, entityId, "First supporting evidence."));
+        store.replaceRevision(
+                singleEntityProjection(second, entityId, "Second supporting evidence."));
+        AuthorizedEvidenceScope authorizedScope = scope(
+                primaryOrganization,
+                Set.of(first.knowledgeAssetId(), second.knowledgeAssetId()));
+
+        assertEquals(
+                Set.of("First supporting evidence.", "Second supporting evidence."),
+                store.loadEntityContributions(authorizedScope, List.of(entityId))
+                        .stream()
+                        .map(EntityContribution::description)
+                        .collect(java.util.stream.Collectors.toSet()));
+
+        store.removeRevision(first.organizationId(), first.sourceRevisionId());
+
+        assertEquals(
+                List.of("Second supporting evidence."),
+                store.loadEntityContributions(authorizedScope, List.of(entityId))
+                        .stream()
+                        .map(EntityContribution::description)
+                        .toList());
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM graph_entities
+                        WHERE organization_id = ?
+                          AND id = ?
+                        """,
+                        Integer.class,
+                        first.organizationId(),
+                        entityId));
+    }
+
+    private static GraphRevisionContributions singleEntityProjection(
+            AssetFixture fixture, UUID entityId, String description) {
+        return new GraphRevisionContributions(
+                fixture.organizationId(),
+                fixture.knowledgeAssetId(),
+                fixture.sourceRevisionId(),
+                1,
+                List.of(entityContribution(
+                        fixture.key() + "-single-entity",
+                        new CanonicalEntity(entityId, "Entity " + entityId),
+                        description,
+                        fixture,
+                        fixture.chunkId(),
+                        1,
+                        1.0)),
+                List.of());
+    }
+
+    private static GraphRevisionEmbeddings embeddingsWithDifferentValues(
+            AssetFixture fixture, GraphRevisionContributions contributions) {
+        return new GraphRevisionEmbeddings(
+                fixture.organizationId(),
+                fixture.knowledgeAssetId(),
+                fixture.sourceRevisionId(),
+                contributions.projectionGeneration(),
+                fixture.embeddingProfileId(),
+                3,
+                contributions.entities().stream()
+                        .map(contribution -> new ContributionEmbedding(
+                                contribution.id(),
+                                vector(0.0f, 1.0f, 0.0f)))
+                        .toList(),
+                contributions.relations().stream()
+                        .map(contribution -> new ContributionEmbedding(
+                                contribution.id(),
+                                vector(0.0f, 1.0f, 0.0f)))
+                        .toList());
+    }
+
+    private static ProjectionNamespace namespace(
+            OrganizationFixture organization) {
+        return new ProjectionNamespace(
+                organization.organizationId(), "default", "knowledge");
     }
 
     private static GraphRevisionContributions publicProjection(
@@ -865,9 +1159,11 @@ class PostgresGraphProjectionStoreIntegrationTests {
         UUID blobId = id(key + "-blob-" + organization.organizationId());
         UUID rawId = id(key + "-raw-" + organization.organizationId());
         UUID snapshotId = id(key + "-snapshot-" + organization.organizationId());
+        UUID aclHeadId = id(key + "-acl-head-" + organization.organizationId());
         UUID normalizedId = id(key + "-normalized-" + organization.organizationId());
         UUID assetId = id(key + "-asset-" + organization.organizationId());
         UUID assetVersionId = id(key + "-asset-version-" + organization.organizationId());
+        UUID publicationId = id(key + "-publication-" + organization.organizationId());
         UUID sourceObjectId = id(key + "-object-" + organization.organizationId());
         UUID revisionId = id(key + "-revision-" + organization.organizationId());
         UUID chunkId = id(key + "-chunk-" + organization.organizationId());
@@ -917,6 +1213,18 @@ class PostgresGraphProjectionStoreIntegrationTests {
                     entries_sha256, sealed_at)
                 VALUES (?, ?, 0, ?, now())
                 """, snapshotId, organization.organizationId(), sha);
+        jdbc.update("""
+                INSERT INTO source_acl_heads (
+                    id, organization_id, source_system, source_connection_key,
+                    external_object_id, current_raw_source_object_id,
+                    current_snapshot_id, acl_generation, created_at, updated_at, version)
+                VALUES (?, ?, 'upload', 'graph-tests', ?, ?, ?, 1, now(), now(), 0)
+                """,
+                aclHeadId,
+                organization.organizationId(),
+                key,
+                rawId,
+                snapshotId);
         jdbc.update("""
                 INSERT INTO normalized_records (
                     id, organization_id, raw_source_object_id, source_acl_snapshot_id,
@@ -1038,10 +1346,31 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 content,
                 sha,
                 organization.embeddingProfileId());
+        jdbc.update("""
+                INSERT INTO knowledge_asset_publication_outbox (
+                    id, organization_id, source_revision_id, source_object_id,
+                    knowledge_asset_id, owner_user_id, projection_generation,
+                    embedding_profile_id, embedding_dimensions, pipeline_version,
+                    status, attempt_count, authorization_model_id, applied_at,
+                    created_at, updated_at, version, knowledge_space_id,
+                    knowledge_asset_version_id)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, 3, 'test-v1',
+                    'APPLIED', 1, 'model-v1', now(), now(), now(), 0, ?, ?)
+                """,
+                publicationId,
+                organization.organizationId(),
+                revisionId,
+                sourceObjectId,
+                assetId,
+                organization.userId(),
+                organization.embeddingProfileId(),
+                organization.knowledgeSpaceId(),
+                assetVersionId);
         return new AssetFixture(
                 key,
                 organization.organizationId(),
                 organization.embeddingProfileId(),
+                rawId,
                 sourceObjectId,
                 revisionId,
                 assetId,
@@ -1077,7 +1406,50 @@ class PostgresGraphProjectionStoreIntegrationTests {
                 sha256(content),
                 fixture.embeddingProfileId(),
                 projectionGeneration);
+        jdbc.update("""
+                UPDATE knowledge_asset_publication_outbox
+                SET projection_generation = ?, updated_at = now(), version = version + 1
+                WHERE organization_id = ?
+                  AND knowledge_asset_version_id = ?
+                """,
+                projectionGeneration,
+                fixture.organizationId(),
+                fixture.knowledgeAssetVersionId());
         return chunkId;
+    }
+
+    private static void revokeCurrentAcl(AssetFixture fixture) {
+        UUID revokedSnapshotId =
+                id(fixture.key() + "-revoked-snapshot-" + fixture.organizationId());
+        String snapshotHash = sha256(fixture.key() + "-revoked");
+        jdbc.update("""
+                INSERT INTO source_acl_snapshots (
+                    id, organization_id, raw_source_object_id, acl_generation,
+                    capture_status, default_gate, acl_sha256, captured_at, valid_until)
+                VALUES (?, ?, ?, 2, 'COMPLETE', 'DENY', ?, ?, ?)
+                """,
+                revokedSnapshotId,
+                fixture.organizationId(),
+                fixture.rawSourceObjectId(),
+                snapshotHash,
+                java.sql.Timestamp.from(NOW.plusSeconds(1)),
+                java.sql.Timestamp.from(NOW.plusSeconds(3600)));
+        jdbc.update("""
+                INSERT INTO source_acl_snapshot_seals (
+                    source_acl_snapshot_id, organization_id, entry_count,
+                    entries_sha256, sealed_at)
+                VALUES (?, ?, 0, ?, now())
+                """, revokedSnapshotId, fixture.organizationId(), snapshotHash);
+        jdbc.update("""
+                UPDATE source_acl_heads
+                SET current_snapshot_id = ?, acl_generation = 2,
+                    updated_at = now(), version = version + 1
+                WHERE organization_id = ?
+                  AND current_raw_source_object_id = ?
+                """,
+                revokedSnapshotId,
+                fixture.organizationId(),
+                fixture.rawSourceObjectId());
     }
 
     private static UUID id(String value) {
@@ -1110,6 +1482,7 @@ class PostgresGraphProjectionStoreIntegrationTests {
             String key,
             UUID organizationId,
             UUID embeddingProfileId,
+            UUID rawSourceObjectId,
             UUID sourceObjectId,
             UUID sourceRevisionId,
             UUID knowledgeAssetId,

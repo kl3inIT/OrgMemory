@@ -26,6 +26,7 @@ public final class InMemoryRetrievalResultCache implements RetrievalResultCache 
 
     @Override
     public synchronized void put(Key key, Entry entry) {
+        RetrievalResultCache.requireValidEntry(key, entry);
         entries.put(
                 Objects.requireNonNull(key, "key"),
                 Objects.requireNonNull(entry, "entry"));

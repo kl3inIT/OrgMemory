@@ -130,6 +130,38 @@ shell. The rejected alternative was persisting one global LightRAG-style
 summary or weight on canonical graph identities, because that would combine
 text and support from differently authorized evidence.
 
+## PR 6 Lifecycle, Curation And Cache Boundary
+
+PR 6 implements the lifecycle and management behavior present in pinned
+LightRAG `v1.5.4`, with security-preserving storage semantics defined by
+[Decision 0014](../../../decisions/0014-lightrag-lifecycle-curation-and-cache.md).
+
+Updates create immutable revisions and atomically move the Knowledge Asset
+head. Delete immediately revokes visibility and removes only the retired
+revision's derived contributions; shared identities survive while authorized
+surviving evidence contributes to them. Retry, resume, expired-lease recovery,
+cancellation, and rebuild are durable job transitions. Every worker rechecks
+current-version and cancellation state immediately before publication.
+
+Graph create/edit/merge/delete is represented by an append-only curation
+overlay rather than destructive mutation. Curated contributions, reversible
+identity aliases, and reversible suppressions carry actor, authorization-model,
+ACL-generation, reason, and time provenance. Overlay application happens only
+after evidence authorization. Export uses the same authorization scope and
+includes provenance; it is explicitly permission checked and audited.
+
+Exact model and keyword caches remain separate from permission-scoped retrieval
+results. Canonical SHA-256 keys include every output-affecting parameter.
+Retrieval keys additionally bind the published snapshot and authorization
+fingerprint, and citations are rechecked on every hit. Namespace invalidation
+runs after publish, abort, delete, and curation; generation-bound keys and TTL
+provide structural and eventual cleanup.
+
+`graph-rag-core` owns these executable semantics without Spring. Spring owns
+authorization, transactions, audit, and leased runtime jobs. PostgreSQL is the
+first adapter. The PR does not move `GRAPH` into the shared publication head
+early; that migration remains PR 8.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the

@@ -1,5 +1,10 @@
 package com.orgmemory.graphrag.postgres;
 
+import com.orgmemory.graphrag.cache.ModelInvocationCache;
+import com.orgmemory.graphrag.cache.RetrievalResultCache;
+import com.orgmemory.graphrag.curation.GraphCurationStore;
+import com.orgmemory.graphrag.export.GraphExportReader;
+import com.orgmemory.graphrag.port.GraphProjectionReader;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
@@ -29,7 +34,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 public class PostgresGraphRagAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(GraphProjectionReader.class)
     @DependsOnDatabaseInitialization
     PostgresGraphProjectionStore postgresGraphProjectionStore(
             NamedParameterJdbcTemplate jdbc,
@@ -41,6 +46,43 @@ public class PostgresGraphRagAutoConfiguration {
                 transactionManager,
                 clockProvider.getIfAvailable(Clock::systemUTC),
                 properties.toStoreOptions());
+    }
+
+    @Bean
+    @DependsOnDatabaseInitialization
+    @ConditionalOnMissingBean(ModelInvocationCache.class)
+    ModelInvocationCache postgresModelInvocationCache(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager) {
+        return new PostgresModelInvocationCache(jdbc, transactionManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RetrievalResultCache.class)
+    @DependsOnDatabaseInitialization
+    RetrievalResultCache postgresRetrievalResultCache(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager) {
+        return new PostgresRetrievalResultCache(jdbc, transactionManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(GraphCurationStore.class)
+    @DependsOnDatabaseInitialization
+    PostgresGraphCurationStore postgresGraphCurationStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager) {
+        return new PostgresGraphCurationStore(jdbc, transactionManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(GraphExportReader.class)
+    @DependsOnDatabaseInitialization
+    PostgresGraphExportReader postgresGraphExportReader(
+            NamedParameterJdbcTemplate jdbc,
+            GraphProjectionReader projections,
+            GraphCurationStore curations) {
+        return new PostgresGraphExportReader(jdbc, projections, curations);
     }
 
     @Bean

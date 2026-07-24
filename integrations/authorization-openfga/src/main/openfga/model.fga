@@ -49,6 +49,8 @@ type knowledge_space
 
     define can_manage_acl: administrator or org_admin
     define can_publish: reviewer or can_manage_acl
+    define can_curate_graph: can_publish
+    define can_export_graph: can_publish
     define can_create_asset: contributor or can_publish
     define can_view: viewer or can_create_asset
 
@@ -62,8 +64,10 @@ type knowledge_asset
     define administrator: [user, group#member, role#assignee]
 
     define can_manage_acl: administrator or can_manage_acl from space
+    define can_delete: owner or can_manage_acl
     define can_publish: reviewer or can_publish from space or can_manage_acl
-    define can_edit: editor or owner or can_manage_acl
+    define can_rebuild: can_publish
+    define can_edit: editor or can_delete
     define can_view: viewer or can_edit or can_publish or can_view from space
 
 type source_connection

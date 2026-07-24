@@ -3,6 +3,7 @@ plugins {
 }
 
 dependencies {
+    api(project(":components:graph-rag-core"))
     api("org.springframework.boot:spring-boot-starter-data-jpa")
     api("org.springframework.boot:spring-boot-starter-validation")
     api("org.springframework.modulith:spring-modulith-starter-core")

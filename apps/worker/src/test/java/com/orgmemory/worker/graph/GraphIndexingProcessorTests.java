@@ -48,6 +48,7 @@ class GraphIndexingProcessorTests {
     private static final UUID JOB_ID = UUID.randomUUID();
     private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final UUID ASSET_ID = UUID.randomUUID();
+    private static final UUID SPACE_ID = UUID.randomUUID();
     private static final UUID VERSION_ID = UUID.randomUUID();
     private static final UUID REVISION_ID = UUID.randomUUID();
     private static final UUID ACL_SNAPSHOT_ID = UUID.randomUUID();
@@ -132,6 +133,7 @@ class GraphIndexingProcessorTests {
                 org.mockito.ArgumentMatchers.eq(JOB_ID),
                 org.mockito.ArgumentMatchers.eq(properties.workerId()),
                 org.mockito.ArgumentMatchers.eq(properties.leaseDuration()),
+                org.mockito.ArgumentMatchers.eq(SPACE_ID),
                 projection.capture());
         assertEquals(4, projection.getValue().contributions().entities().size());
         assertEquals(2, projection.getValue().contributions().relations().size());
@@ -167,7 +169,7 @@ class GraphIndexingProcessorTests {
 
         processor.processNext();
 
-        verify(publications, never()).commit(any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any(), any());
         verify(coordinator, never()).complete(any(), any());
         verify(coordinator).fail(
                 JOB_ID,
@@ -225,7 +227,50 @@ class GraphIndexingProcessorTests {
         }
 
         assertFalse(worker.isAlive());
-        verify(publications).commit(any(), any(), any(), any());
+        verify(publications).commit(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cancelsAnExtractionThatExceedsItsConfiguredDeadline() {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphPublicationCommitter publications = mock(GraphPublicationCommitter.class);
+        GraphExtractorFactory extractors = mock(GraphExtractorFactory.class);
+        AiRouteResolver routes = mock(AiRouteResolver.class);
+        GraphIndexingProperties properties =
+                properties(Duration.ofMillis(90), Duration.ofMillis(45));
+        AtomicBoolean interrupted = new AtomicBoolean();
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.of(claim()));
+        when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
+                .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
+        when(extractors.create(any())).thenReturn(request -> {
+            try {
+                Thread.sleep(Duration.ofSeconds(5));
+            } catch (InterruptedException cancellation) {
+                interrupted.set(true);
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(
+                        "test extraction cancelled", cancellation);
+            }
+            return new ExtractionResult(request.profile(), List.of(), List.of());
+        });
+        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+                coordinator,
+                publications,
+                extractors,
+                new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
+                routes,
+                properties);
+
+        processor.processNext();
+
+        assertTrue(interrupted.get());
+        verify(publications, never()).commit(any(), any(), any(), any(), any());
+        verify(coordinator).fail(
+                JOB_ID,
+                properties.workerId(),
+                "GRAPH_INDEX_FAILED",
+                "Graph extraction or publication failed; retry is scheduled");
     }
 
     @Test
@@ -273,7 +318,7 @@ class GraphIndexingProcessorTests {
 
         assertFalse(worker.isAlive());
         assertTrue(interruptRestored.get());
-        verify(publications, never()).commit(any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any(), any());
         verify(coordinator, never()).fail(any(), any(), any(), any());
     }
 
@@ -305,7 +350,7 @@ class GraphIndexingProcessorTests {
 
         assertDoesNotThrow(processor::processNext);
 
-        verify(publications, never()).commit(any(), any(), any(), any());
+        verify(publications, never()).commit(any(), any(), any(), any(), any());
     }
 
     private static ClaimedGraphIndex claim() {
@@ -318,6 +363,7 @@ class GraphIndexingProcessorTests {
                 JOB_ID,
                 ORGANIZATION_ID,
                 ASSET_ID,
+                SPACE_ID,
                 VERSION_ID,
                 REVISION_ID,
                 ACL_SNAPSHOT_ID,
@@ -341,11 +387,17 @@ class GraphIndexingProcessorTests {
     }
 
     private static GraphIndexingProperties properties(Duration leaseDuration) {
+        return properties(leaseDuration, Duration.ofMinutes(2));
+    }
+
+    private static GraphIndexingProperties properties(
+            Duration leaseDuration, Duration extractionTimeout) {
         return new GraphIndexingProperties(
                 false,
                 Duration.ofSeconds(3),
                 "graph-worker-test",
                 leaseDuration,
+                extractionTimeout,
                 2,
                 40,
                 60,

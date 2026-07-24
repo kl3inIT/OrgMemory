@@ -81,6 +81,7 @@ orgmemory:
       scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
       poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
       lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
+      extraction-timeout: ${ORGMEMORY_GRAPH_EXTRACTION_TIMEOUT:2m}
       maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
       maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}

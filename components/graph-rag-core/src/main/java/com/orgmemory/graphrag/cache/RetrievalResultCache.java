@@ -24,6 +24,18 @@ public interface RetrievalResultCache {
 
     void invalidateNamespace(ProjectionNamespace namespace);
 
+    static void requireValidEntry(Key key, Entry entry) {
+        Objects.requireNonNull(key, "key");
+        Objects.requireNonNull(entry, "entry");
+        var organizationId = key.snapshot().namespace().organizationId();
+        if (entry.evidence().stream()
+                .anyMatch(evidence ->
+                        !organizationId.equals(evidence.organizationId()))) {
+            throw new IllegalArgumentException(
+                    "retrieval cache evidence must belong to the key organization");
+        }
+    }
+
     static Key key(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
@@ -54,8 +66,10 @@ public interface RetrievalResultCache {
         public Key {
             Objects.requireNonNull(snapshot, "snapshot");
             authorizationFingerprint =
-                    requireText(authorizationFingerprint, "authorizationFingerprint");
-            queryHash = requireText(queryHash, "queryHash");
+                    CanonicalCacheKeyHasher.requireSha256(
+                            authorizationFingerprint, "authorizationFingerprint");
+            queryHash =
+                    CanonicalCacheKeyHasher.requireSha256(queryHash, "queryHash");
             strategy = requireText(strategy, "strategy");
             modelRouteFingerprint =
                     requireText(modelRouteFingerprint, "modelRouteFingerprint");

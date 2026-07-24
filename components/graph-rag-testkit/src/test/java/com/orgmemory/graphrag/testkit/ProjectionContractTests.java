@@ -223,19 +223,19 @@ class ProjectionContractTests {
         RetrievalResultCache.Key baseline = RetrievalResultCache.key(
                 scope(Set.of(ALLOWED_ASSET_ID), 7),
                 generationOne,
-                "query-hash",
+                "b".repeat(64),
                 "SECURE_MIX",
                 "route-v1");
         RetrievalResultCache.Key aclChanged = RetrievalResultCache.key(
                 scope(Set.of(ALLOWED_ASSET_ID), 8),
                 generationOne,
-                "query-hash",
+                "b".repeat(64),
                 "SECURE_MIX",
                 "route-v1");
         RetrievalResultCache.Key projectionChanged = RetrievalResultCache.key(
                 scope(Set.of(ALLOWED_ASSET_ID), 7),
                 generationTwo,
-                "query-hash",
+                "b".repeat(64),
                 "SECURE_MIX",
                 "route-v1");
 
@@ -260,7 +260,7 @@ class ProjectionContractTests {
         ModelInvocationCache.Key key = new ModelInvocationCache.Key(
                 NAMESPACE,
                 "KEYWORD_EXTRACTION",
-                "input-hash",
+                "a".repeat(64),
                 "route-v1",
                 "profile-v1");
         ModelInvocationCache.Entry entry = new ModelInvocationCache.Entry(

@@ -11,6 +11,8 @@ interface GraphIndexJobRepository extends JpaRepository<GraphIndexJob, UUID> {
 
     Optional<GraphIndexJob> findByKnowledgeAssetVersionId(UUID knowledgeAssetVersionId);
 
+    Optional<GraphIndexJob> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
     @Query(value = """
             SELECT *
             FROM graph_index_jobs
