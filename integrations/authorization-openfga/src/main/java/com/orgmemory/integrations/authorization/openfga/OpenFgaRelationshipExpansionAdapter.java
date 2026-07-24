@@ -43,7 +43,7 @@ public final class OpenFgaRelationshipExpansionAdapter implements RelationshipEx
         Objects.requireNonNull(query, "query");
         var request = new ClientExpandRequest()
                 ._object(query.resource().openFgaObject())
-                .relation(query.permission().value());
+                .relation(query.relation().value());
         try {
             var response = client.expand(request).get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return RelationshipExpansionResult.resolved(root(response.getTree()), authorizationModelId);
@@ -56,7 +56,7 @@ public final class OpenFgaRelationshipExpansionAdapter implements RelationshipEx
             LOGGER.warn(
                     "OpenFGA Expand failed for object {} and relation {} using model {}",
                     query.resource().openFgaObject(),
-                    query.permission().value(),
+                    query.relation().value(),
                     authorizationModelId,
                     exception);
             return RelationshipExpansionResult.indeterminate("OPENFGA_UNAVAILABLE", authorizationModelId);
