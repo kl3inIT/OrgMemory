@@ -41,6 +41,20 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
 
     @Override
     public RelationshipTuplePage read(int pageSize, String continuationToken) {
+        return read(new ClientReadRequest(), pageSize, continuationToken);
+    }
+
+    @Override
+    public RelationshipTuplePage readObject(String object, int pageSize, String continuationToken) {
+        String normalized = Objects.requireNonNull(object, "object").trim();
+        if (normalized.isEmpty() || normalized.indexOf(':') <= 0) {
+            throw new IllegalArgumentException("object must be a type:id reference");
+        }
+        return read(new ClientReadRequest()._object(normalized), pageSize, continuationToken);
+    }
+
+    private RelationshipTuplePage read(
+            ClientReadRequest request, int pageSize, String continuationToken) {
         if (pageSize <= 0) {
             throw new IllegalArgumentException("pageSize must be positive");
         }
@@ -49,7 +63,7 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
             options.continuationToken(continuationToken.trim());
         }
         try {
-            var response = client.read(new ClientReadRequest(), options)
+            var response = client.read(request, options)
                     .get(requestTimeout.toMillis(), TimeUnit.MILLISECONDS);
             return RelationshipTuplePage.resolved(
                     response.getTuples().stream()

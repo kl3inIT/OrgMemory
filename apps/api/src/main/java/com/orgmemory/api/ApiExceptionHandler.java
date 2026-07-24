@@ -2,6 +2,7 @@ package com.orgmemory.api;
 
 import com.orgmemory.core.assistant.AssistantUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeSpaceKeyConflictException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
 import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
@@ -51,6 +52,16 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ProblemDetail conflict(OptimisticLockingFailureException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * Two Knowledge Space names that derive the same key are usually the same space twice, so this
+     * names the key that is already taken rather than inventing a suffix the creator did not ask
+     * for and would have to discover afterwards.
+     */
+    @ExceptionHandler(KnowledgeSpaceKeyConflictException.class)
+    ProblemDetail knowledgeSpaceKeyConflict(KnowledgeSpaceKeyConflictException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
