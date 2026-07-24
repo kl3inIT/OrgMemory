@@ -251,6 +251,50 @@ class KnowledgeSpaceAdminIntegrationTests {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * The model accepts {@code organizational_unit#manager} for reviewing and {@code #member} for
+     * reading, so a form built from the cross product of relations and subjects offers grants that
+     * can only be refused. The endpoint publishes the combinations that exist instead.
+     */
+    @Test
+    void theGrantOptionsPublishedAreTheOnesTheEndpointAccepts() throws Exception {
+        UUID spaceId = createSpace("Sales Knowledge");
+
+        mvc.perform(get("/api/admin/knowledge-spaces/grant-options").with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.relation == 'viewer')].kinds").value(
+                        org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.hasItem("ORGANIZATION"))))
+                .andExpect(jsonPath("$[?(@.relation == 'reviewer')].kinds").value(
+                        org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.hasItem("DEPARTMENT_MANAGERS"))))
+                .andExpect(jsonPath("$[?(@.relation == 'administrator')].kinds").value(
+                        org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.not(
+                                        org.hamcrest.Matchers.hasItem("ORGANIZATION")))));
+
+        // Reviewing takes a unit's managers, not its members.
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"relation\":\"reviewer\",\"kind\":\"DEPARTMENT\",\"subjectId\":\""
+                                + DEPT + "\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"relation\":\"reviewer\",\"kind\":\"DEPARTMENT_MANAGERS\","
+                                + "\"subjectId\":\"" + DEPT + "\"}"))
+                .andExpect(status().isNoContent());
+
+        assertEquals(
+                Set.of("organizational_unit:" + DEPT + "#manager reviewer"),
+                stored.stream()
+                        .filter(tuple -> "reviewer".equals(tuple.relation()))
+                        .map(tuple -> tuple.user() + " " + tuple.relation())
+                        .collect(java.util.stream.Collectors.toSet()));
+    }
+
     @Test
     void anAdministratorOfAnotherOrganizationCannotReachThisTenantsSpace() throws Exception {
         UUID spaceId = createSpace("Sales Knowledge");

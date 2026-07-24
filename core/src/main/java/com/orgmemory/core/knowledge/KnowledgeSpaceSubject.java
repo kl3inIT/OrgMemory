@@ -22,6 +22,14 @@ public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
         ORGANIZATION,
         /** Everybody in one organizational unit. */
         DEPARTMENT,
+        /**
+         * Whoever manages one organizational unit.
+         *
+         * <p>Separate from {@link #DEPARTMENT} because the model separates them: reviewing accepts
+         * {@code organizational_unit#manager} and not {@code #member}. Without this shape the
+         * product could not express a grant its own bootstrap file already contains.
+         */
+        DEPARTMENT_MANAGERS,
         /** Everybody currently assigned a named role. */
         ROLE,
         /** One named person. */
@@ -31,7 +39,7 @@ public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
     public KnowledgeSpaceSubject {
         Objects.requireNonNull(kind, "kind");
         switch (kind) {
-            case DEPARTMENT, USER -> {
+            case DEPARTMENT, DEPARTMENT_MANAGERS, USER -> {
                 Objects.requireNonNull(id, "id");
                 role = null;
             }
@@ -54,6 +62,10 @@ public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
         return new KnowledgeSpaceSubject(Kind.DEPARTMENT, departmentId, null);
     }
 
+    public static KnowledgeSpaceSubject departmentManagers(UUID departmentId) {
+        return new KnowledgeSpaceSubject(Kind.DEPARTMENT_MANAGERS, departmentId, null);
+    }
+
     public static KnowledgeSpaceSubject role(String role) {
         return new KnowledgeSpaceSubject(Kind.ROLE, null, role);
     }
@@ -73,6 +85,7 @@ public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
         return switch (kind) {
             case ORGANIZATION -> "organization:" + organizationId + "#member";
             case DEPARTMENT -> "organizational_unit:" + id + "#member";
+            case DEPARTMENT_MANAGERS -> "organizational_unit:" + id + "#manager";
             case ROLE -> "role:" + role + "#assignee";
             case USER -> "user:" + id;
         };

@@ -26,8 +26,10 @@ import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.knowledge.KnowledgeSpaceSubject.Kind;
 import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -206,6 +208,66 @@ class KnowledgeSpaceAdministrationServiceTests {
                     relation + " must not be grantable");
         }
         verify(writes, never()).write(any());
+    }
+
+    /**
+     * These are the type restrictions in {@code model.fga}, asserted here so a grant that OpenFGA
+     * would reject is refused before it is attempted. The asymmetry is the point: reading is
+     * something a whole organization can be given and approving is not, and reviewing takes a
+     * unit's managers rather than its members.
+     */
+    @Test
+    void theGrantTableMatchesTheAuthorizationModelsTypeRestrictions() {
+        assertEquals(
+                Map.of(
+                        "viewer", Set.of(Kind.ORGANIZATION, Kind.DEPARTMENT, Kind.ROLE, Kind.USER),
+                        "contributor", Set.of(Kind.DEPARTMENT, Kind.ROLE, Kind.USER),
+                        "reviewer", Set.of(Kind.DEPARTMENT_MANAGERS, Kind.ROLE, Kind.USER),
+                        "administrator", Set.of(Kind.ROLE, Kind.USER)),
+                service.grantOptions());
+    }
+
+    @Test
+    void aSubjectShapeTheRelationDoesNotAcceptIsRefusedBeforeTheStoreSeesIt() {
+        UUID spaceId = givenSpace(null);
+        when(departments.existsByIdAndOrganizationId(DEPT, ORG)).thenReturn(true);
+
+        // The model accepts organizational_unit#manager for reviewer, not #member.
+        var refusal = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.grant(
+                        ACTOR, spaceId, "reviewer", KnowledgeSpaceSubject.department(DEPT), "request-1"));
+        assertTrue(refusal.getMessage().contains("DEPARTMENT_MANAGERS"));
+
+        // And administering is never handed to a whole organization.
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.grant(
+                        ACTOR,
+                        spaceId,
+                        "administrator",
+                        KnowledgeSpaceSubject.organization(),
+                        "request-1"));
+
+        verify(writes, never()).write(any());
+    }
+
+    @Test
+    void aUnitsManagersMayBeMadeReviewers() {
+        UUID spaceId = givenSpace(null);
+        when(departments.existsByIdAndOrganizationId(DEPT, ORG)).thenReturn(true);
+
+        service.grant(
+                ACTOR, spaceId, "reviewer", KnowledgeSpaceSubject.departmentManagers(DEPT), "request-1");
+
+        var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
+        verify(writes).write(captor.capture());
+        assertEquals(
+                List.of(RelationshipTuple.of(
+                        "organizational_unit:" + DEPT + "#manager",
+                        "reviewer",
+                        "knowledge_space:" + spaceId)),
+                captor.getValue().tuples());
     }
 
     /**

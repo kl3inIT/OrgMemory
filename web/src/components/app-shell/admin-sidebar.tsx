@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   KeyRound,
+  Library,
   Link2,
   Plug,
   ScanSearch,
@@ -35,6 +36,7 @@ const GROUPS = [
   {
     label: "Permissions",
     items: [
+      { label: "Knowledge Spaces", to: "/admin/spaces" as const, icon: Library },
       { label: "Users", to: "/admin/users" as const, icon: Users },
       { label: "Access check", to: "/admin/access" as const, icon: ScanSearch },
       { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },

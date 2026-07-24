@@ -21,6 +21,7 @@ import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -45,9 +46,42 @@ public class KnowledgeSpaceAdministrationService {
     private static final PermissionKey CAN_CREATE_SPACE = PermissionKey.of("can_create_knowledge_space");
     private static final PermissionKey CAN_MANAGE_ACL = PermissionKey.of("can_manage_acl");
 
+    /**
+     * Which subject shapes each relation accepts, mirroring the type restrictions in
+     * {@code model.fga}.
+     *
+     * <p>The model does not accept the same subjects for every relation, and the asymmetry is
+     * deliberate: reading is something a whole organization can be given, approving is not.
+     * Reviewing takes {@code organizational_unit#manager} rather than {@code #member} for the same
+     * reason.
+     *
+     * <p>OpenFGA would reject an unlisted combination anyway, so this exists to refuse it here —
+     * with a message naming the shapes that would work — instead of surfacing a store validation
+     * error. It is also what the grant-options endpoint publishes, so the browser offers exactly
+     * the combinations that can succeed rather than discovering the rest by being turned down.
+     */
+    private static final Map<String, Set<KnowledgeSpaceSubject.Kind>> GRANTABLE_SUBJECTS = Map.of(
+            "viewer",
+                    Set.of(
+                            KnowledgeSpaceSubject.Kind.ORGANIZATION,
+                            KnowledgeSpaceSubject.Kind.DEPARTMENT,
+                            KnowledgeSpaceSubject.Kind.ROLE,
+                            KnowledgeSpaceSubject.Kind.USER),
+            "contributor",
+                    Set.of(
+                            KnowledgeSpaceSubject.Kind.DEPARTMENT,
+                            KnowledgeSpaceSubject.Kind.ROLE,
+                            KnowledgeSpaceSubject.Kind.USER),
+            "reviewer",
+                    Set.of(
+                            KnowledgeSpaceSubject.Kind.DEPARTMENT_MANAGERS,
+                            KnowledgeSpaceSubject.Kind.ROLE,
+                            KnowledgeSpaceSubject.Kind.USER),
+            "administrator",
+                    Set.of(KnowledgeSpaceSubject.Kind.ROLE, KnowledgeSpaceSubject.Kind.USER));
+
     /** The relations an administrator may author. Structural links are written at creation only. */
-    private static final Set<String> GRANTABLE_RELATIONS =
-            Set.of("viewer", "contributor", "reviewer", "administrator");
+    private static final Set<String> GRANTABLE_RELATIONS = GRANTABLE_SUBJECTS.keySet();
 
     private static final int GRANT_PAGE_SIZE = 100;
 
@@ -201,7 +235,15 @@ public class KnowledgeSpaceAdministrationService {
                 .orElseThrow(KnowledgeSpaceAdministrationService::accessDenied);
         requireSpacePermission(actor, space.getId());
         requireSubjectInOrganization(actor, subject);
-        return tuple(subject.openFgaUser(actor.organizationId()), requireRelation(relation), space.getId());
+        return tuple(
+                subject.openFgaUser(actor.organizationId()),
+                requireRelationAccepts(relation, subject.kind()),
+                space.getId());
+    }
+
+    /** The subject shapes each relation accepts, for a caller building a grant form. */
+    public Map<String, Set<KnowledgeSpaceSubject.Kind>> grantOptions() {
+        return GRANTABLE_SUBJECTS;
     }
 
     /**
@@ -213,7 +255,7 @@ public class KnowledgeSpaceAdministrationService {
      */
     private void requireSubjectInOrganization(CurrentActor actor, KnowledgeSpaceSubject subject) {
         switch (subject.kind()) {
-            case DEPARTMENT -> {
+            case DEPARTMENT, DEPARTMENT_MANAGERS -> {
                 if (!departments.existsByIdAndOrganizationId(subject.id(), actor.organizationId())) {
                     throw new IllegalArgumentException("Unknown department in this organization");
                 }
@@ -319,11 +361,16 @@ public class KnowledgeSpaceAdministrationService {
                 RelationshipTuple.of(user, relation, RESOURCE_TYPE + ":" + knowledgeSpaceId));
     }
 
-    private static String requireRelation(String value) {
+    private static String requireRelationAccepts(String value, KnowledgeSpaceSubject.Kind kind) {
         String normalized = Objects.requireNonNull(value, "relation").trim();
-        if (!GRANTABLE_RELATIONS.contains(normalized)) {
+        Set<KnowledgeSpaceSubject.Kind> accepted = GRANTABLE_SUBJECTS.get(normalized);
+        if (accepted == null) {
             throw new IllegalArgumentException(
                     "A Knowledge Space grant must be one of " + GRANTABLE_RELATIONS);
+        }
+        if (!accepted.contains(kind)) {
+            throw new IllegalArgumentException(
+                    "A " + normalized + " grant cannot name " + kind + "; it accepts " + accepted);
         }
         return normalized;
     }

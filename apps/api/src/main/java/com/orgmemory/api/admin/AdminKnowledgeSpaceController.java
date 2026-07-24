@@ -77,6 +77,30 @@ class AdminKnowledgeSpaceController {
             String relation, KnowledgeSpaceSubject.Kind kind, UUID subjectId, String role) {
     }
 
+    /** One relation and the subject shapes the authorization model accepts for it. */
+    record KnowledgeSpaceGrantOptionResponse(String relation, List<KnowledgeSpaceSubject.Kind> kinds) {
+    }
+
+    /**
+     * What combinations a grant form may offer.
+     *
+     * <p>The model does not accept every subject for every relation, so a form built from the
+     * cross product offers choices that can only fail. Publishing the table keeps the browser from
+     * holding a second copy that drifts from what is enforced.
+     */
+    @GetMapping("/grant-options")
+    @Operation(
+            operationId = "listAdminKnowledgeSpaceGrantOptions",
+            summary = "List the subject shapes each Knowledge Space relation accepts")
+    List<KnowledgeSpaceGrantOptionResponse> grantOptions(Authentication authentication) {
+        actors.current(authentication);
+        return spaces.grantOptions().entrySet().stream()
+                .map(entry -> new KnowledgeSpaceGrantOptionResponse(
+                        entry.getKey(), entry.getValue().stream().sorted().toList()))
+                .sorted(java.util.Comparator.comparing(KnowledgeSpaceGrantOptionResponse::relation))
+                .toList();
+    }
+
     @GetMapping
     @Operation(
             operationId = "listAdminKnowledgeSpaces",
@@ -146,6 +170,8 @@ class AdminKnowledgeSpaceController {
         return switch (kind) {
             case ORGANIZATION -> KnowledgeSpaceSubject.organization();
             case DEPARTMENT -> KnowledgeSpaceSubject.department(require(subjectId, "A department id"));
+            case DEPARTMENT_MANAGERS ->
+                    KnowledgeSpaceSubject.departmentManagers(require(subjectId, "A department id"));
             case USER -> KnowledgeSpaceSubject.user(require(subjectId, "A user id"));
             case ROLE -> {
                 if (role == null || role.isBlank()) {
