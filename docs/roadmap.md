@@ -5,7 +5,12 @@ belongs in one active increment.
 
 ## Shipped Foundation
 
-- OIDC issuer/subject identity linking with server-derived current actor.
+- OIDC issuer/subject identity linking with server-derived current actor, and
+  invitation-gated provisioning that writes the binding on a first sign-in
+  without letting the address become the identity.
+- An administration surface that reads effective permissions, explains a decision
+  as its decisive derivation, distinguishes an unanswered check from a refusal,
+  and confines administrative tuple writes to organizations and roles.
 - Canonical source ledger with stable Knowledge Asset identities, immutable
   versions, append-only evidence links, and monotonically increasing source
   revisions.
@@ -13,7 +18,8 @@ belongs in one active increment.
   recheck, generic denied resource `404`, and append-only retrieval audit.
 - Knowledge Space-targeted upload with OpenFGA `can_create_asset` pre-write
   authorization and durable Space/owner publication tuples.
-- API, worker, and MCP deployable scaffolds.
+- Deployable API and worker runtimes plus an authenticated stateless MCP server
+  exposing the same permission-aware knowledge search boundary.
 - Northstar-style repository harness and current dependency baseline.
 - Exact OIDC provider logout, dev-only Swagger, production configuration
   fail-fast guards, and explicit issuer/subject identity binding.
@@ -41,6 +47,9 @@ belongs in one active increment.
   recursive fallback, atomic revision replacement, and bounded batches.
 - Independent publication transactions plus worker reconciliation for retry,
   obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
+- Complete LightRAG-compatible parsing, chunking, multimodal extraction,
+  indexing, lifecycle, query modes, PostgreSQL storage, OpenSearch, and Neo4j
+  adapter contracts through PR 10 of the integration program.
 
 ## Active — Full LightRAG Semantic Port
 
@@ -60,14 +69,15 @@ foundation, not the final port.
 
 ## Next — Integration Sequence
 
-- Complete full pure-Java contracts and conformance fixtures.
-- Port parsing/chunking, multimodal, extraction/indexing, lifecycle, and query
-  semantics in dependency order.
-- Complete PostgreSQL parity, then implement unified OpenSearch and Neo4j graph
-  adapters.
-- Wire worker, Assistant, MCP, citations, source preview, and authorized graph
-  explorer.
-- Publish proven read-only in-app tools through MCP with service identity/audit.
+- Finish PR 11 browser evidence for allow, deny, revoke, source preview, and the
+  authorized graph explorer.
+- Finish what the admin permission surface left open: reachable containers with
+  their ACL authority, generation and capture time — which is also what makes the
+  mirrored verdict rendering reachable; a permission audit event per role
+  mutation; resolved names and a resource picker instead of pasted UUIDs; and
+  relabelling `app_users.role`, which still reads as a grant while granting
+  nothing. Listed in
+  [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration

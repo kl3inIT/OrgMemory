@@ -12,6 +12,12 @@ tuples:
   - user: user:evelyn
     relation: member
     object: organization:acme
+  - user: user:orgadmin
+    relation: administrator
+    object: organization:acme
+  - user: user:priya
+    relation: knowledge_curator
+    object: organization:acme
 
   - user: user:laura
     relation: assignee
@@ -123,6 +129,39 @@ tests:
         object: knowledge_asset:employee-handbook
         assertions:
           can_view: false
+
+  - name: Curation is its own permission that the administrator already satisfies
+    check:
+      - user: user:orgadmin
+        object: organization:acme
+        assertions:
+          can_curate_graph: true
+      - user: user:priya
+        object: organization:acme
+        assertions:
+          can_curate_graph: true
+          can_manage_members: false
+      - user: user:laura
+        object: organization:acme
+        assertions:
+          can_curate_graph: false
+    list_objects:
+      # A correct Check still leaks if the listing over-returns, and the listing is what a
+      # surface enumerating curatable organizations would call.
+      - user: user:orgadmin
+        type: organization
+        assertions:
+          can_curate_graph:
+            - organization:acme
+      - user: user:priya
+        type: organization
+        assertions:
+          can_curate_graph:
+            - organization:acme
+      - user: user:laura
+        type: organization
+        assertions:
+          can_curate_graph: []
 
   - name: Custom roles are tuple data rather than model relations
     check:

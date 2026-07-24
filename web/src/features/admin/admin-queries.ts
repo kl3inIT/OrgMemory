@@ -13,6 +13,12 @@ import {
   listAdminSourceGroupsQueryKey,
   listAdminSourcePrincipalsOptions,
   listAdminSourcePrincipalsQueryKey,
+  listAdminInvitationsOptions,
+  listAdminInvitationsQueryKey,
+  listAdminRolesOptions,
+  listAdminRolesQueryKey,
+  listAdminUserPermissionsOptions,
+  listAdminUserPermissionsQueryKey,
   listAdminUsersOptions,
   listAdminUsersQueryKey,
   listKnowledgeSpaceUploadTargetsOptions,
@@ -24,6 +30,27 @@ const ADMIN_STALE_TIME = 15_000
 
 export function adminUsersQueryOptions() {
   return queryOptions({ ...listAdminUsersOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function adminInvitationsQueryOptions() {
+  return queryOptions({ ...listAdminInvitationsOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function adminRolesQueryOptions() {
+  return queryOptions({ ...listAdminRolesOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+/**
+ * A permission is computed when asked, never stored, so a cached copy is a claim about the
+ * past. This holds it only long enough to render the screen once and refetches on return,
+ * because an administrator arriving here is usually checking whether a change took effect.
+ */
+export function adminUserPermissionsQueryOptions(userId: string) {
+  return queryOptions({
+    ...listAdminUserPermissionsOptions({ path: { userId } }),
+    staleTime: 0,
+    refetchOnMount: "always",
+  })
 }
 
 export function adminSourcePrincipalsQueryOptions() {
@@ -110,6 +137,13 @@ function everySourceOf(key: readonly [{ _id: string; baseUrl?: unknown }]) {
 export async function invalidateAdminData(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: listAdminUsersQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listAdminRolesQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listAdminInvitationsQueryKey() }),
+    // A role assignment changes what every user resolves to, and the answer is recomputed
+    // rather than stored, so the whole permission view has to be asked again.
+    queryClient.invalidateQueries({
+      queryKey: listAdminUserPermissionsQueryKey({ path: { userId: "" } }).slice(0, 1),
+    }),
     queryClient.invalidateQueries({ queryKey: listAdminSourcePrincipalsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceConnectionsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceGroupsQueryKey() }),

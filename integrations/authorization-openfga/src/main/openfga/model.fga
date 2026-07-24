@@ -20,6 +20,7 @@ type organization
     define knowledge_reader: [user, group#member, role#assignee]
     define knowledge_contributor: [user, group#member, role#assignee]
     define knowledge_reviewer: [user, group#member, role#assignee]
+    define knowledge_curator: [user, group#member, role#assignee]
     define source_manager: [user, group#member, role#assignee]
     define can_manage_members: administrator
     define can_manage_sources: source_manager or administrator
@@ -27,6 +28,7 @@ type organization
     define can_search_knowledge: knowledge_reader or member or administrator
     define can_view_directory: member
     define can_view_audit: administrator
+    define can_curate_graph: knowledge_curator or administrator
 
 type organizational_unit
   relations

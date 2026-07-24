@@ -1,4 +1,13 @@
-import { ArrowLeft, KeyRound, Link2, Plug, ShieldCheck, UserRoundCog, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  KeyRound,
+  Link2,
+  Plug,
+  ScanSearch,
+  ShieldCheck,
+  UserRoundCog,
+  Users,
+} from "lucide-react"
 import { Link, useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
@@ -27,6 +36,7 @@ const GROUPS = [
     label: "Permissions",
     items: [
       { label: "Users", to: "/admin/users" as const, icon: Users },
+      { label: "Access check", to: "/admin/access" as const, icon: ScanSearch },
       { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },
       { label: "Source groups", to: "/admin/groups" as const, icon: ShieldCheck },
       { label: "SCIM", to: "/admin/scim" as const, icon: KeyRound },
