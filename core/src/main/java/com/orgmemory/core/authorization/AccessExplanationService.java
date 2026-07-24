@@ -11,7 +11,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.stereotype.Service;
 
 /**
  * Answers why a principal holds a permission, for an administrator rather than for enforcement.
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Service;
  * disagreement between the two can never widen access — at worst the explanation is empty and the
  * surface says so.
  */
-@Service
 public class AccessExplanationService {
 
     /**
