@@ -66,6 +66,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--trials must be at least 2 so judge variance is measurable")
     if args.max_workers < 1:
         parser.error("--max-workers must be positive")
+    if args.timeout_seconds < 1:
+        parser.error("--timeout-seconds must be positive")
+    if args.input.resolve() == args.output.resolve():
+        parser.error("--output must not overwrite --input")
     return args
 
 

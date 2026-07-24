@@ -9,6 +9,7 @@ from orgmemory_eval.models import EvaluationDataset
 from orgmemory_eval.ragas_runner import (
     METRIC_NAMES,
     metric_suite,
+    parse_args,
     run_trial,
     summarize_trials,
     validated_score,
@@ -134,3 +135,32 @@ def test_summary_contains_scores_but_no_prompt_or_evidence_text() -> None:
     assert "The standard probation period is 60 days." not in encoded
     assert "Employee Handbook" not in encoded
     assert "opaque-citation" not in encoded
+
+
+def test_rejects_output_that_resolves_to_input(tmp_path) -> None:
+    dataset_path = tmp_path / "dataset.json"
+
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--input",
+                str(dataset_path),
+                "--output",
+                str(tmp_path / "." / "dataset.json"),
+            ]
+        )
+
+
+@pytest.mark.parametrize("timeout_seconds", ["0", "-1"])
+def test_rejects_non_positive_timeout(timeout_seconds: str, tmp_path) -> None:
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--input",
+                str(tmp_path / "input.json"),
+                "--output",
+                str(tmp_path / "output.json"),
+                "--timeout-seconds",
+                timeout_seconds,
+            ]
+        )

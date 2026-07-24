@@ -2,9 +2,8 @@ package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.CitationContentService;
+import com.orgmemory.core.knowledge.KnowledgeContentType;
 import io.swagger.v3.oas.annotations.Operation;
-import java.nio.file.Path;
-import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
@@ -49,16 +48,16 @@ class CitationContentController {
                 citation.stream().transferTo(output);
             }
         };
-        MediaType responseMediaType = safeMediaType(
-                citation.fileName());
+        SafeRepresentation representation =
+                safeRepresentation(citation.fileName());
         return ResponseEntity.ok()
-                .contentType(responseMediaType)
+                .contentType(representation.mediaType())
                 .contentLength(citation.contentLength())
                 .cacheControl(CacheControl.noStore())
                 .header("X-Request-ID", requestId)
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        contentDisposition(responseMediaType)
+                        representation.contentDisposition()
                                 .filename(
                                         citation.fileName(),
                                         java.nio.charset.StandardCharsets.UTF_8)
@@ -68,37 +67,20 @@ class CitationContentController {
                 .body(body);
     }
 
-    private static MediaType safeMediaType(String fileName) {
-        String normalized = Path.of(fileName)
-                .getFileName()
-                .toString();
-        int separator = normalized.lastIndexOf('.');
-        String extension = separator < 0
-                ? ""
-                : normalized.substring(separator + 1)
-                        .toLowerCase(Locale.ROOT);
-        return switch (extension) {
-            case "pdf" -> MediaType.APPLICATION_PDF;
-            case "txt", "md" -> MediaType.TEXT_PLAIN;
-            case "png" -> MediaType.IMAGE_PNG;
-            case "jpg", "jpeg" -> MediaType.IMAGE_JPEG;
-            case "gif" -> MediaType.IMAGE_GIF;
-            case "webp" -> MediaType.parseMediaType("image/webp");
-            case "docx" -> MediaType.parseMediaType(
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-            case "pptx" -> MediaType.parseMediaType(
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-            default -> MediaType.APPLICATION_OCTET_STREAM;
-        };
+    private static SafeRepresentation safeRepresentation(String fileName) {
+        return KnowledgeContentType.fromFileName(fileName)
+                .map(contentType -> new SafeRepresentation(
+                        MediaType.parseMediaType(
+                                contentType.browserSafeMediaType()),
+                        contentType.inlinePreviewAllowed()
+                                ? ContentDisposition.inline()
+                                : ContentDisposition.attachment()))
+                .orElseGet(() -> new SafeRepresentation(
+                        MediaType.APPLICATION_OCTET_STREAM,
+                        ContentDisposition.attachment()));
     }
 
-    private static ContentDisposition.Builder contentDisposition(
-            MediaType mediaType) {
-        if (MediaType.APPLICATION_PDF.equals(mediaType)
-                || MediaType.TEXT_PLAIN.equals(mediaType)
-                || "image".equals(mediaType.getType())) {
-            return ContentDisposition.inline();
-        }
-        return ContentDisposition.attachment();
-    }
+    private record SafeRepresentation(
+            MediaType mediaType,
+            ContentDisposition.Builder contentDisposition) {}
 }

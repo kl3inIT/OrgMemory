@@ -1,32 +1,47 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+Identifier = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=128),
+]
+NonBlankText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1),
+]
+SchemaVersion = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        pattern=r"^orgmemory\.rag-evaluation\.v1$",
+    ),
+]
 
 
 class EvaluationCase(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
-    case_id: str = Field(min_length=1, max_length=128)
-    question: str = Field(min_length=1)
-    reference_answer: str = Field(min_length=1)
-    answer: str = Field(min_length=1)
-    contexts: list[str] = Field(min_length=1)
-    citation_ids: list[str] = Field(default_factory=list)
+    case_id: Identifier
+    question: NonBlankText
+    reference_answer: NonBlankText
+    answer: NonBlankText
+    contexts: list[NonBlankText] = Field(min_length=1)
+    citation_ids: list[Identifier] = Field(default_factory=list)
     latency_ms: float = Field(ge=0)
-
-    @model_validator(mode="after")
-    def reject_blank_contexts(self) -> EvaluationCase:
-        if any(not context.strip() for context in self.contexts):
-            raise ValueError("contexts must not contain blank values")
-        return self
 
 
 class EvaluationDataset(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
-    schema_version: str = Field(pattern=r"^orgmemory\.rag-evaluation\.v1$")
-    dataset_id: str = Field(min_length=1, max_length=128)
-    system_under_test: str = Field(min_length=1, max_length=256)
+    schema_version: SchemaVersion
+    dataset_id: Identifier
+    system_under_test: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
+    ]
     cases: list[EvaluationCase] = Field(min_length=1)
 
     @model_validator(mode="after")

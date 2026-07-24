@@ -84,7 +84,8 @@ public class GraphIndexLifecycleService {
         KnowledgeAsset asset = assets
                 .findByIdAndOrganizationId(assetId, actor.organizationId())
                 .filter(candidate -> candidate.getArchivedAt() == null)
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalStateException(
+                        "Graph indexing requires an active, non-archived Knowledge Asset"));
         KnowledgeAssetVersion version = versions
                 .findByIdAndOrganizationId(
                         Objects.requireNonNull(
@@ -92,7 +93,8 @@ public class GraphIndexLifecycleService {
                         actor.organizationId())
                 .filter(candidate ->
                         candidate.getStatus() == KnowledgeAssetVersionStatus.ACTIVE)
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalStateException(
+                        "Graph indexing requires an active Knowledge Asset version"));
         UUID jobId = queue.enqueue(
                 actor.organizationId(),
                 Objects.requireNonNull(

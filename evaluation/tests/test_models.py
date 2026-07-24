@@ -1,3 +1,5 @@
+import math
+
 import pytest
 from pydantic import ValidationError
 
@@ -41,5 +43,39 @@ def test_rejects_blank_contexts() -> None:
     payload = dataset()
     payload["cases"][0]["contexts"] = [" "]
 
-    with pytest.raises(ValidationError, match="contexts must not contain blank"):
+    with pytest.raises(ValidationError, match="string_too_short"):
+        EvaluationDataset.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("case_id", " "),
+        ("question", "\t"),
+        ("reference_answer", "\n"),
+        ("answer", "  "),
+    ],
+)
+def test_rejects_blank_semantic_case_fields(field: str, value: str) -> None:
+    payload = dataset()
+    payload["cases"][0][field] = value
+
+    with pytest.raises(ValidationError):
+        EvaluationDataset.model_validate(payload)
+
+
+def test_rejects_blank_citation_ids() -> None:
+    payload = dataset()
+    payload["cases"][0]["citation_ids"] = [" "]
+
+    with pytest.raises(ValidationError):
+        EvaluationDataset.model_validate(payload)
+
+
+@pytest.mark.parametrize("latency", [math.nan, math.inf, -math.inf])
+def test_rejects_non_finite_latency(latency: float) -> None:
+    payload = dataset()
+    payload["cases"][0]["latency_ms"] = latency
+
+    with pytest.raises(ValidationError):
         EvaluationDataset.model_validate(payload)

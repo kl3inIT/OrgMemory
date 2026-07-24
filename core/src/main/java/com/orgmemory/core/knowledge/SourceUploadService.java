@@ -11,16 +11,12 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SourceUploadService {
-
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "pptx", "txt", "md");
 
     private final ObjectStoragePort objects;
     private final SourceUploadRegistrationService registrations;
@@ -47,7 +43,7 @@ public class SourceUploadService {
         KnowledgeSpaceTarget targetSpace = knowledgeSpaces.requireUploadTarget(
                 actor, command.knowledgeSpaceId());
         String fileName = safeFileName(command.fileName());
-        String mediaType = canonicalMediaType(fileName);
+        String mediaType = requiredUploadType(fileName).canonicalMediaType();
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
@@ -104,10 +100,7 @@ public class SourceUploadService {
             throw new IllegalArgumentException("file size must be within the configured upload limit");
         }
         String fileName = safeFileName(command.fileName());
-        String extension = extension(fileName);
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            throw new IllegalArgumentException("file type is not supported");
-        }
+        requiredUploadType(fileName);
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
@@ -127,19 +120,10 @@ public class SourceUploadService {
         return fileName.replaceAll("\\p{Cntrl}", "_");
     }
 
-    private static String extension(String fileName) {
-        int dot = fileName.lastIndexOf('.');
-        return dot < 0 ? "" : fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
-    }
-
-    private static String canonicalMediaType(String fileName) {
-        return switch (extension(fileName)) {
-            case "pdf" -> "application/pdf";
-            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-            case "md" -> "text/markdown";
-            case "txt" -> "text/plain";
-            default -> "application/octet-stream";
-        };
+    private static KnowledgeContentType requiredUploadType(String fileName) {
+        return KnowledgeContentType.fromFileName(fileName)
+                .filter(KnowledgeContentType::uploadAllowed)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("file type is not supported"));
     }
 }
