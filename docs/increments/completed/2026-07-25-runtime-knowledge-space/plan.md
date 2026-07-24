@@ -77,7 +77,7 @@
 - [x] Browser pass over create, grant, revoke against the running stack, which is
       what found the grant-options defect.
 - [x] `ARCHITECTURE.md` and `docs/roadmap.md` consolidated.
-- [ ] PR to `main`.
+- [x] PR to `main`.
 
 ## Not attempted
 
