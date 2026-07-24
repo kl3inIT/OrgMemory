@@ -3,6 +3,7 @@ package com.orgmemory.core.authorization;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,6 +101,23 @@ class RoleAdministrationServiceTests {
         assertEquals("organization-admin", listing.roles().getFirst().role());
         assertEquals(2, listing.roles().getFirst().assignees().size());
         assertTrue(listing.complete());
+    }
+
+    /**
+     * The tuple cap does not bound the loop on its own: a page carrying a continuation token but no
+     * tuples advances neither the count nor the cursor, so the listing would spin on it and take an
+     * administrative endpoint with it.
+     */
+    @Test
+    void aStoreThatKeepsHandingBackAnEmptyPageStillTerminates() {
+        when(tuples.read(anyInt(), any()))
+                .thenReturn(RelationshipTuplePage.resolved(List.of(), "same-token-forever", POLICY));
+
+        var listing = assertTimeoutPreemptively(
+                Duration.ofSeconds(5), () -> service.roles(), "the role listing must terminate");
+
+        assertFalse(listing.complete());
+        assertTrue(listing.roles().isEmpty());
     }
 
     @Test
