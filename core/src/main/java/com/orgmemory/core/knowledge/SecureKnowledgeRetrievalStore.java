@@ -164,8 +164,12 @@ class SecureKnowledgeRetrievalStore {
                   OR (
                       kav.classification = 'CONFIDENTIAL'
                       AND kav.declared_access = 'OWN_DEPARTMENT'
-                      AND :actorDepartmentId IS NOT NULL
-                      AND (:actorExecutive OR kav.department_id = :actorDepartmentId)
+                      AND CAST(:actorDepartmentId AS uuid) IS NOT NULL
+                      AND (
+                          :actorExecutive
+                          OR kav.department_id =
+                                CAST(:actorDepartmentId AS uuid)
+                      )
                   )
                   OR (
                       kav.classification = 'RESTRICTED'
@@ -253,6 +257,22 @@ class SecureKnowledgeRetrievalStore {
                 sql,
                 parameters(scope).addValue("chunkIds", chunkIds),
                 SecureKnowledgeRetrievalStore::mapCandidate);
+    }
+
+    List<UUID> visibleKnowledgeAssetIds(RetrievalScope scope) {
+        if (scope.authorizedAssetIds().isEmpty()) {
+            return List.of();
+        }
+        String sql = """
+                SELECT DISTINCT kc.knowledge_asset_id
+                """ + ELIGIBLE_FROM + """
+                ORDER BY kc.knowledge_asset_id
+                """;
+        return jdbc.query(
+                sql,
+                parameters(scope),
+                (result, rowNumber) -> result.getObject(
+                        "knowledge_asset_id", UUID.class));
     }
 
     List<UUID> visibleSourceObjectIds(RetrievalScope scope) {

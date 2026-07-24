@@ -55,8 +55,8 @@ class AdminRoleController {
     @Operation(operationId = "listAdminRoles", summary = "List roles and who is assigned to them")
     @Transactional(readOnly = true)
     AdminRoleListResponse list(Authentication authentication) {
-        guard.requireAdministrator(authentication);
-        var listing = roles.roles();
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
+        var listing = roles.roles(actor.organizationId());
         return new AdminRoleListResponse(
                 listing.roles().stream()
                         .map(role -> new AdminRoleResponse(role.role(), role.assignees()))
@@ -73,9 +73,9 @@ class AdminRoleController {
             @PathVariable String role,
             @RequestBody AssignRoleRequest request,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         AppUser user = requireUserInOrganization(request.userId(), actor);
-        var result = roles.assign(role, user.getId());
+        var result = roles.assign(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "The role assignment was not applied: " + result.reasonCode());
@@ -87,14 +87,14 @@ class AdminRoleController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     void revoke(@PathVariable String role, @PathVariable UUID userId, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         // An administrator removing their own last role can lock the organization out of its own
         // administration, and unlike a role change there is nobody left who could undo it.
         if (actor.userId().equals(userId)) {
             throw new IllegalArgumentException("An administrator cannot revoke their own role");
         }
         AppUser user = requireUserInOrganization(userId, actor);
-        var result = roles.revoke(role, user.getId());
+        var result = roles.revoke(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "The role revocation was not applied: " + result.reasonCode());

@@ -10,6 +10,8 @@ import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.graphrag.processing.ProcessingComponentRef;
+import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
@@ -38,8 +41,12 @@ class ConnectorReconciler {
 
     private static final String PIPELINE_VERSION = "connector-pipeline-v1";
     private static final String NORMALIZER_VERSION = "connector-normalizer-v1";
-    private static final String PARSER_VERSION = "connector-parser-v1";
-    private static final String CHUNKER_VERSION = "connector-chunker-v1";
+    private static final ProcessingComponentRef PARSER =
+            new ProcessingComponentRef("connector-record", "1");
+    private static final ProcessingComponentRef CHUNKER =
+            new ProcessingComponentRef("connector-character-window", "1");
+    private static final ProcessingComponentRef TOKENIZER =
+            new ProcessingComponentRef("unicode-code-point", "1");
     private static final String POLICY_VERSION = "connector-staging-v1";
     private static final Duration ACL_TTL = Duration.ofHours(23);
     private static final long PROJECTION_GENERATION = 1L;
@@ -391,8 +398,9 @@ class ConnectorReconciler {
             revisionCoordinator.complete(
                     draft,
                     PIPELINE_VERSION,
-                    PARSER_VERSION,
-                    CHUNKER_VERSION,
+                    PARSER.toString(),
+                    CHUNKER.toString(),
+                    connectorProcessingProfile(content, embedding.profile()),
                     embedding.profile(),
                     raw,
                     normalized,
@@ -405,6 +413,30 @@ class ConnectorReconciler {
             }
             throw failure;
         }
+    }
+
+    private static DocumentProcessingProfileSnapshot connectorProcessingProfile(
+            ConnectorContentItem content,
+            EmbeddingProfileRef embeddingProfile) {
+        var semanticEmbedding = new ProcessingComponentRef(
+                embeddingProfile.provider(),
+                embeddingProfile.model());
+        var resolved = ResolvedDocumentProcessingProfile.resolve(
+                PARSER,
+                PARSER,
+                CHUNKER,
+                CHUNKER,
+                TOKENIZER,
+                Optional.of(semanticEmbedding),
+                Map.of(
+                        "maximumChunkCharacters", Integer.toString(MAX_CHUNK_CHARS),
+                        "maximumChunks", Integer.toString(MAX_CHUNKS),
+                        "pipeline", PIPELINE_VERSION,
+                        "normalizer", NORMALIZER_VERSION),
+                sha256(content.body()));
+        return new DocumentProcessingProfileSnapshot(
+                resolved.canonicalForm(),
+                resolved.profileSha256());
     }
 
     private RegisterRawSourceCommand registerCommand(

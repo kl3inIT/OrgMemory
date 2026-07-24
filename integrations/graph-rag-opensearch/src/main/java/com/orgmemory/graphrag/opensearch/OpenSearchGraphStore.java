@@ -99,6 +99,19 @@ public final class OpenSearchGraphStore implements GraphStore {
     }
 
     @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        ensureBatchIndices(batch);
+        List<Query> filter = List.of(OpenSearchStagedIndex.term(
+                OpenSearchProjectionCodec.ASSET_ID,
+                assetId.toString()));
+        entities.stageDeleteMatching(batch, filter);
+        relations.stageDeleteMatching(batch, filter);
+    }
+
+    @Override
     public List<CanonicalEntity> loadEntities(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

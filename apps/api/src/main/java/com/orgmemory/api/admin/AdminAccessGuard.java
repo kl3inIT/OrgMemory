@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 class AdminAccessGuard {
 
     private static final PermissionKey CAN_MANAGE_MEMBERS = PermissionKey.of("can_manage_members");
+    private static final PermissionKey CAN_MANAGE_SOURCES = PermissionKey.of("can_manage_sources");
 
     private final CurrentActorProvider actors;
     private final EffectiveAuthorizationService authorization;
@@ -28,16 +29,33 @@ class AdminAccessGuard {
         this.authorization = authorization;
     }
 
-    CurrentActor requireAdministrator(Authentication authentication) {
+    CurrentActor requireMemberAdministrator(Authentication authentication) {
+        return require(
+                authentication,
+                CAN_MANAGE_MEMBERS,
+                "The current user cannot administer organization members");
+    }
+
+    CurrentActor requireSourceManager(Authentication authentication) {
+        return require(
+                authentication,
+                CAN_MANAGE_SOURCES,
+                "The current user cannot administer organization sources");
+    }
+
+    private CurrentActor require(
+            Authentication authentication,
+            PermissionKey permission,
+            String denialMessage) {
         CurrentActor actor = actors.current(authentication);
         boolean allowed = authorization.authorize(
                         actor.organizationId(),
                         actor.principal(),
-                        CAN_MANAGE_MEMBERS,
+                        permission,
                         ResourceRef.of(actor.organizationId(), "organization", actor.organizationId()))
                 .allowed();
         if (!allowed) {
-            throw new OrgMemoryAccessDeniedException("The current user cannot administer this organization");
+            throw new OrgMemoryAccessDeniedException(denialMessage);
         }
         return actor;
     }

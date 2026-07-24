@@ -226,14 +226,14 @@ class AdminConnectorController {
     @GetMapping("/sources")
     @Operation(operationId = "listAdminConnectorSources", summary = "List the sources this deployment can ingest")
     List<AdminConnectorSourceResponse> installedSources(Authentication authentication) {
-        guard.requireAdministrator(authentication);
+        guard.requireSourceManager(authentication);
         return sources.installed().stream().map(AdminConnectorSourceResponse::from).toList();
     }
 
     @GetMapping("/{sourceSystem}")
     @Operation(operationId = "listAdminConnections", summary = "List a source's connections and their crawl settings")
     List<AdminConnectionResponse> connections(@PathVariable String sourceSystem, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         String system = requireInstalled(sourceSystem);
         return connections.list(actor.organizationId(), system).stream().map(this::toResponse).toList();
     }
@@ -251,7 +251,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @PathVariable String connectionKey,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         SourceConnectionActivityView view = activity.describe(
                 actor.organizationId(), requireInstalled(sourceSystem), connectionKey);
         return new AdminConnectionActivityResponse(
@@ -272,7 +272,7 @@ class AdminConnectorController {
             @PathVariable String connectionKey,
             @RequestBody ConfigureConnectionRequest request,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         String system = requireInstalled(sourceSystem);
         return toResponse(connections.configure(
                 actor.organizationId(),
@@ -297,7 +297,7 @@ class AdminConnectorController {
             @PathVariable String connectionKey,
             @RequestBody ConnectorCredentialRequest request,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         connections.setCredential(
                 actor.organizationId(),
                 requireInstalled(sourceSystem),
@@ -313,7 +313,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @PathVariable String connectionKey,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         connections.forgetCredential(
                 actor.organizationId(), requireInstalled(sourceSystem), connectionKey, actor.userId());
     }
@@ -334,7 +334,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @PathVariable String connectionKey,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         connections.requestContentCrawl(
                 actor.organizationId(), requireInstalled(sourceSystem), connectionKey, actor.userId());
     }
@@ -350,7 +350,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @RequestBody ConnectorCredentialRequest request,
             Authentication authentication) {
-        guard.requireAdministrator(authentication);
+        guard.requireSourceManager(authentication);
         return AdminConnectorProbeResponse.from(
                 probes.probe(requireInstalled(sourceSystem), SecretValue.of(request.credential())));
     }
@@ -366,7 +366,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @PathVariable String connectionKey,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         String system = requireInstalled(sourceSystem);
         Optional<SecretValue> stored =
                 connections.resolveCredential(actor.organizationId(), system, connectionKey);
@@ -387,7 +387,7 @@ class AdminConnectorController {
             @PathVariable String sourceSystem,
             @PathVariable String connectionKey,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireSourceManager(authentication);
         String system = requireInstalled(sourceSystem);
         if (!scopeBrowsers.supports(system)) {
             // Nothing to enumerate is not an error. The screen falls back to typing.

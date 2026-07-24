@@ -24,7 +24,8 @@ import {
   adminUsersQueryOptions,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
-import { AccessInspector, PERMISSION_LABELS } from "@/features/admin/components/access-inspector"
+import { PERMISSION_LABELS } from "@/features/admin/access-permission-labels"
+import { AccessInspector } from "@/features/admin/components/access-inspector"
 import { AccessVerdict, type AccessState } from "@/features/admin/components/access-verdict"
 import {
   assignAdminRoleMutation,

@@ -6,7 +6,8 @@ import java.util.Set;
 /**
  * The only objects an administrator may write relationships against.
  *
- * <p>OrgMemory owns organization membership and role assignment, so writing those is safe. It
+ * <p>OrgMemory owns organization membership and organization-scoped functional roles, so writing
+ * those is safe. It
  * does not own the access control of connected content: for a source object whose
  * {@code acl_authority} is {@code SOURCE}, Slack or Drive decides, and OrgMemory mirrors that
  * decision. Adding a second writer would let the two diverge, after which nobody could answer who
@@ -17,7 +18,7 @@ import java.util.Set;
  */
 public final class AdministrativeTupleScope {
 
-    private static final Set<String> WRITABLE_OBJECT_TYPES = Set.of("organization", "role");
+    private static final Set<String> WRITABLE_OBJECT_TYPES = Set.of("organization");
 
     private AdministrativeTupleScope() {
     }
@@ -28,7 +29,7 @@ public final class AdministrativeTupleScope {
         String type = object.substring(0, object.indexOf(':'));
         if (!WRITABLE_OBJECT_TYPES.contains(type)) {
             throw new IllegalArgumentException(
-                    "Administrators may only write organization and role relationships, not " + type);
+                    "Administrators may only write organization relationships, not " + type);
         }
         return tuple;
     }

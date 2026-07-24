@@ -16,11 +16,13 @@ import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Permission-aware bulk graph egress with the same evidence scope as retrieval. */
 @Service
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class KnowledgeGraphExportService {
 
     private static final PermissionKey CAN_EXPORT_GRAPH =
@@ -84,6 +86,17 @@ public class KnowledgeGraphExportService {
         var document = reader.read(
                 resolved.forKnowledgeSpace(knowledgeSpaceId),
                 namespace);
+        ResolvedKnowledgeEvidenceScope current;
+        try {
+            current = evidenceScopes.resolve(actor, entry.policyVersion());
+        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph permissions changed while preparing the export");
+        }
+        if (!sameSpaceScope(resolved, current, knowledgeSpaceId)) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph permissions changed while preparing the export");
+        }
         GraphExportFormatter.Artifact artifact =
                 formatter.format(document, format);
         audit.record(new PermissionAuditCommand(
@@ -98,6 +111,21 @@ public class KnowledgeGraphExportService {
                 requestId,
                 null));
         return artifact;
+    }
+
+    private static boolean sameSpaceScope(
+            ResolvedKnowledgeEvidenceScope first,
+            ResolvedKnowledgeEvidenceScope second,
+            UUID knowledgeSpaceId) {
+        return first.authorizationModelId().equals(second.authorizationModelId())
+                && first.forKnowledgeSpace(knowledgeSpaceId)
+                        .authorizedAssetIds()
+                        .equals(second.forKnowledgeSpace(knowledgeSpaceId)
+                                .authorizedAssetIds())
+                && first.aclGenerationByKnowledgeSpace()
+                        .getOrDefault(knowledgeSpaceId, 0L)
+                        .equals(second.aclGenerationByKnowledgeSpace()
+                                .getOrDefault(knowledgeSpaceId, 0L));
     }
 
     private static OrgMemoryAccessDeniedException accessDenied() {

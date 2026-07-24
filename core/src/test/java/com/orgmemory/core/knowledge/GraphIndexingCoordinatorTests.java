@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.graphrag.model.FloatVector;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -101,7 +102,13 @@ class GraphIndexingCoordinatorTests {
                         ASSET_ID,
                         VERSION_ID,
                         1))
-                .thenReturn(List.of(new GraphIndexChunk(CHUNK_ID, 0, "Current chunk")));
+                .thenReturn(List.of(new GraphIndexChunk(
+                        CHUNK_ID,
+                        0,
+                        "Current chunk",
+                        null,
+                        2,
+                        new FloatVector(new float[1536]))));
     }
 
     @Test

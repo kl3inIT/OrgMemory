@@ -19,13 +19,7 @@ tuples:
     relation: knowledge_curator
     object: organization:acme
 
-  - user: user:laura
-    relation: assignee
-    object: role:finance-manager
   - user: user:evelyn
-    relation: assignee
-    object: role:executive-reader
-  - user: role:executive-reader#assignee
     relation: knowledge_reader
     object: organization:acme
   - user: user:laura
@@ -44,7 +38,7 @@ tuples:
   - user: user:minh
     relation: member
     object: organizational_unit:engineering
-  - user: role:finance-manager#assignee
+  - user: user:laura
     relation: manager
     object: organizational_unit:finance
 
@@ -78,7 +72,7 @@ tuples:
   - user: organization:acme
     relation: organization
     object: knowledge_space:executive
-  - user: role:executive-reader#assignee
+  - user: user:evelyn
     relation: viewer
     object: knowledge_space:executive
 
@@ -163,7 +157,7 @@ tests:
         assertions:
           can_curate_graph: []
 
-  - name: Custom roles are tuple data rather than model relations
+  - name: Organization and unit roles are resource-scoped relations
     check:
       - user: user:laura
         object: organizational_unit:finance

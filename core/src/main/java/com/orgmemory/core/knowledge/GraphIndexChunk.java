@@ -1,9 +1,16 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.graphrag.model.FloatVector;
 import java.util.Objects;
 import java.util.UUID;
 
-public record GraphIndexChunk(UUID id, int index, String content, String heading) {
+public record GraphIndexChunk(
+        UUID id,
+        int index,
+        String content,
+        String heading,
+        int tokenCount,
+        FloatVector embedding) {
 
     public GraphIndexChunk {
         Objects.requireNonNull(id, "id");
@@ -15,9 +22,9 @@ public record GraphIndexChunk(UUID id, int index, String content, String heading
             throw new IllegalArgumentException("content must not be blank");
         }
         heading = heading == null || heading.isBlank() ? null : heading.strip();
-    }
-
-    public GraphIndexChunk(UUID id, int index, String content) {
-        this(id, index, content, null);
+        if (tokenCount < 0) {
+            throw new IllegalArgumentException("tokenCount must be non-negative");
+        }
+        Objects.requireNonNull(embedding, "embedding");
     }
 }

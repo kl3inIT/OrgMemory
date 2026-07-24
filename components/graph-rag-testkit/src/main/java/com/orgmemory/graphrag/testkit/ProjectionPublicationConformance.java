@@ -54,6 +54,11 @@ public final class ProjectionPublicationConformance {
                 store.published(NAMESPACE, 1).orElseThrow().equals(published),
                 "published history must contain the winning snapshot");
         require(
+                store.published(NAMESPACE, "publication-1")
+                        .orElseThrow()
+                        .equals(published),
+                "published idempotency lookup must find the winning snapshot");
+        require(
                 store.publish(first, NOW.plusSeconds(1)).equals(published),
                 "same-batch replay must return the original snapshot");
 
@@ -113,17 +118,37 @@ public final class ProjectionPublicationConformance {
         require(
                 store.published(NAMESPACE, 2).isEmpty(),
                 "aborted generations must not enter publication history");
+        require(
+                store.published(NAMESPACE, "aborted-publication").isEmpty(),
+                "aborted idempotency keys must not look published");
+
+        ProjectionBatch abortedRetry = batch(
+                "aborted-retry",
+                1,
+                2,
+                "aborted-publication",
+                aborted.manifestFingerprint(),
+                aborted.requiredProjections());
+        store.markPrepared(
+                abortedRetry,
+                ProjectionKind.CONTENT,
+                NOW.plusSeconds(2));
+        ProjectionSnapshot retried =
+                store.publish(abortedRetry, NOW.plusSeconds(2));
+        require(
+                retried.generation() == 2,
+                "a new batch may retry an idempotency key after an abort");
 
         ProjectionBatch second = batch(
                 "second",
-                1,
                 2,
+                3,
                 "publication-2",
                 first.manifestFingerprint(),
                 Set.of(ProjectionKind.CONTENT));
         store.markPrepared(second, ProjectionKind.CONTENT, NOW.plusSeconds(3));
         ProjectionSnapshot secondPublished = store.publish(second, NOW.plusSeconds(3));
-        require(secondPublished.generation() == 2, "second generation must publish");
+        require(secondPublished.generation() == 3, "third generation must publish");
         require(
                 secondPublished.manifestFingerprint().equals(first.manifestFingerprint()),
                 "a manifest may be reused by a later publication");

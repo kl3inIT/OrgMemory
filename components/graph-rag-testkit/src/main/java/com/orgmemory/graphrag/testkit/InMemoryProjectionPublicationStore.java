@@ -51,6 +51,16 @@ public final class InMemoryProjectionPublicationStore
     }
 
     @Override
+    public synchronized Optional<ProjectionSnapshot> published(
+            ProjectionNamespace namespace,
+            String idempotencyKey) {
+        return Optional.ofNullable(idempotentPublications.get(
+                new IdempotencyKey(
+                        Objects.requireNonNull(namespace, "namespace"),
+                        requireText(idempotencyKey, "idempotencyKey"))));
+    }
+
+    @Override
     public synchronized void markPrepared(
             ProjectionBatch batch,
             ProjectionKind projection,
@@ -145,6 +155,9 @@ public final class InMemoryProjectionPublicationStore
         }
         register(batch);
         abortedBatches.add(batch.id());
+        registeredIdempotencyKeys.remove(
+                new IdempotencyKey(batch.namespace(), batch.idempotencyKey()),
+                batch.id());
     }
 
     private void register(ProjectionBatch batch) {

@@ -9,6 +9,7 @@ import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.knowledge.AuthorizationResourceDirectory;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -57,12 +58,17 @@ class AdminPermissionController {
     private final AdminAccessGuard guard;
     private final AppUserRepository users;
     private final AccessExplanationService explanations;
+    private final AuthorizationResourceDirectory resources;
 
     AdminPermissionController(
-            AdminAccessGuard guard, AppUserRepository users, AccessExplanationService explanations) {
+            AdminAccessGuard guard,
+            AppUserRepository users,
+            AccessExplanationService explanations,
+            AuthorizationResourceDirectory resources) {
         this.guard = guard;
         this.users = users;
         this.explanations = explanations;
+        this.resources = resources;
     }
 
     record EffectivePermissionResponse(
@@ -98,7 +104,7 @@ class AdminPermissionController {
             summary = "Resolve a user's organization permissions as the engine currently answers them")
     @Transactional(readOnly = true)
     EffectivePermissionResponse permissions(@PathVariable UUID userId, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         AppUser user = requireUserInOrganization(userId, actor);
         var states = explanations.effectivePermissions(
                 actor.organizationId(),
@@ -123,7 +129,7 @@ class AdminPermissionController {
     @Transactional(readOnly = true)
     ExplainAccessResponse explain(
             @RequestBody ExplainAccessRequest request, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         AppUser user = requireUserInOrganization(request.userId(), actor);
         if (request.permission() == null || request.permission().isBlank()) {
             throw new IllegalArgumentException("A permission is required");
@@ -134,11 +140,15 @@ class AdminPermissionController {
         if (request.resourceId() == null) {
             throw new IllegalArgumentException("A resource id is required");
         }
+        ResourceRef resource = resources.require(
+                actor.organizationId(),
+                request.resourceType(),
+                request.resourceId());
         AccessExplanation explanation = explanations.explain(
                 actor.organizationId(),
                 PrincipalRef.user(user.getId()),
                 PermissionKey.of(request.permission()),
-                ResourceRef.of(actor.organizationId(), request.resourceType(), request.resourceId()));
+                resource);
         return response(explanation);
     }
 

@@ -54,7 +54,7 @@ public final class PostgresGraphStore implements GraphStore {
             SELECT
                 :batchId, contribution_id, entity_id, entity_type, description,
                 organization_id, knowledge_asset_id, source_revision_id, chunk_id,
-                acl_snapshot_id, acl_generation, :generation,
+                acl_snapshot_id, acl_generation, projection_generation,
                 extractor_provider, extractor_model, prompt_version,
                 extraction_profile_fingerprint, confidence, extracted_at
             FROM projection_graph_entity_contributions
@@ -71,7 +71,7 @@ public final class PostgresGraphStore implements GraphStore {
                 :batchId, contribution_id, relation_id, relation_type, keywords,
                 description, weight, organization_id, knowledge_asset_id,
                 source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
-                :generation, extractor_provider, extractor_model,
+                projection_generation, extractor_provider, extractor_model,
                 prompt_version, extraction_profile_fingerprint, confidence, extracted_at
             FROM projection_graph_relation_contributions
             WHERE batch_id = :predecessorBatchId
@@ -83,7 +83,6 @@ public final class PostgresGraphStore implements GraphStore {
             WHERE contribution.batch_id = :batchId
               AND contribution.organization_id = :organizationId
               AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
-              AND contribution.projection_generation = :generation
             """;
 
     private static final String VISIBLE_RELATION_CONTRIBUTIONS = """
@@ -92,7 +91,6 @@ public final class PostgresGraphStore implements GraphStore {
             WHERE contribution.batch_id = :batchId
               AND contribution.organization_id = :organizationId
               AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
-              AND contribution.projection_generation = :generation
               AND EXISTS (
                   SELECT 1
                   FROM projection_graph_relations relation
@@ -106,7 +104,6 @@ public final class PostgresGraphStore implements GraphStore {
                           AND source_contribution.organization_id = :organizationId
                           AND source_contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
-                          AND source_contribution.projection_generation = :generation
                     )
                     AND EXISTS (
                         SELECT 1
@@ -116,7 +113,6 @@ public final class PostgresGraphStore implements GraphStore {
                           AND target_contribution.organization_id = :organizationId
                           AND target_contribution.knowledge_asset_id
                               IN (:authorizedAssetIds)
-                          AND target_contribution.projection_generation = :generation
                     )
               )
             """;
@@ -139,11 +135,10 @@ public final class PostgresGraphStore implements GraphStore {
             GraphRevisionContributions contributions) {
         Objects.requireNonNull(contributions, "contributions");
         if (!batch.namespace()
-                        .organizationId()
-                        .equals(contributions.organizationId())
-                || contributions.projectionGeneration() != batch.generation()) {
+                .organizationId()
+                .equals(contributions.organizationId())) {
             throw new IllegalArgumentException(
-                    "graph revision must belong to the batch organization and generation");
+                    "graph revision must belong to the batch organization");
         }
         support.stage(batch, ProjectionKind.GRAPH, COPY_PREDECESSOR, () -> {
             deleteRevision(batch.id(), contributions.sourceRevisionId());
@@ -160,6 +155,38 @@ public final class PostgresGraphStore implements GraphStore {
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         support.stage(batch, ProjectionKind.GRAPH, COPY_PREDECESSOR, () -> {
             deleteRevision(batch.id(), sourceRevisionId);
+            removeOrphans(batch.id());
+        });
+    }
+
+    @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        support.stage(batch, ProjectionKind.GRAPH, COPY_PREDECESSOR, () -> {
+            jdbc.update(
+                    """
+                    DELETE FROM projection_graph_relation_contributions
+                    WHERE batch_id = :batchId
+                      AND organization_id = :organizationId
+                      AND knowledge_asset_id = :knowledgeAssetId
+                    """,
+                    Map.of(
+                            "batchId", batch.id(),
+                            "organizationId", batch.namespace().organizationId(),
+                            "knowledgeAssetId", assetId));
+            jdbc.update(
+                    """
+                    DELETE FROM projection_graph_entity_contributions
+                    WHERE batch_id = :batchId
+                      AND organization_id = :organizationId
+                      AND knowledge_asset_id = :knowledgeAssetId
+                    """,
+                    Map.of(
+                            "batchId", batch.id(),
+                            "organizationId", batch.namespace().organizationId(),
+                            "knowledgeAssetId", assetId));
             removeOrphans(batch.id());
         });
     }

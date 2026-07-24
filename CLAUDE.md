@@ -28,6 +28,10 @@ Before unfamiliar Spring Boot 4, Spring Modulith 2, Spring AI 2, Gradle, React,
 Vite, Tailwind, or TypeScript APIs, use Context7/current official docs and the
 project `orgmemory-*` verification skills.
 
+Project-owned skill bodies are canonical under `.agents/skills`. The `.claude`
+and `.codex` directories contain only discovery wrappers pointing to those
+shared instructions; do not fork their behavior per agent.
+
 ## Safety And Verification
 
 Read [agent safety](docs/guidelines/agent-safety.md) before retrieval, AI, MCP,

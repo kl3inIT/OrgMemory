@@ -89,6 +89,27 @@ public final class OpenSearchLexicalIndex implements LexicalIndex {
     }
 
     @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        ensureCopyForward(batch);
+        String index = indexes.lexical(batch.id());
+        Query query = Query.of(candidate -> candidate.bool(bool -> bool.filter(List.of(
+                OpenSearchStagedIndex.term(
+                        OpenSearchProjectionCodec.BATCH_ID,
+                        batch.id().toString()),
+                OpenSearchStagedIndex.term(
+                        OpenSearchProjectionCodec.ASSET_ID,
+                        assetId.toString())))));
+        operations.bulk(scanner.scan(index, query, Integer.MAX_VALUE).stream()
+                .map(hit -> BulkOperation.of(operation -> operation.delete(delete -> delete
+                        .index(hit.index())
+                        .id(hit.id()))))
+                .toList());
+    }
+
+    @Override
     public SearchPage search(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

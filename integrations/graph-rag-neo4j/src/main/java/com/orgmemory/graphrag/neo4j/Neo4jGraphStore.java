@@ -98,10 +98,9 @@ public final class Neo4jGraphStore implements GraphStore {
             ProjectionBatch batch,
             GraphRevisionContributions contributions) {
         Objects.requireNonNull(contributions, "contributions");
-        if (!batch.namespace().organizationId().equals(contributions.organizationId())
-                || batch.generation() != contributions.projectionGeneration()) {
+        if (!batch.namespace().organizationId().equals(contributions.organizationId())) {
             throw new IllegalArgumentException(
-                    "graph revision must belong to the batch organization and generation");
+                    "graph revision must belong to the batch organization");
         }
         support.stage(batch, () -> {
             deleteRevision(batch, contributions.sourceRevisionId());
@@ -118,6 +117,17 @@ public final class Neo4jGraphStore implements GraphStore {
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         support.stage(batch, () -> {
             deleteRevision(batch, sourceRevisionId);
+            removeOrphans(batch);
+        });
+    }
+
+    @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        support.stage(batch, () -> {
+            deleteAsset(batch, knowledgeAssetId);
             removeOrphans(batch);
         });
     }
@@ -488,6 +498,34 @@ public final class Neo4jGraphStore implements GraphStore {
         });
     }
 
+    private void deleteAsset(ProjectionBatch batch, UUID knowledgeAssetId) {
+        operations.writeWithoutResult(transaction -> {
+            Map<String, Object> parameters = Map.of(
+                    "batchId", batch.id().toString(),
+                    "knowledgeAssetId", knowledgeAssetId.toString());
+            transaction.run(
+                            """
+                            MATCH (contribution:OrgMemoryGraphRelationContribution {
+                                batchId: $batchId,
+                                knowledgeAssetId: $knowledgeAssetId
+                            })
+                            DETACH DELETE contribution
+                            """,
+                            parameters)
+                    .consume();
+            transaction.run(
+                            """
+                            MATCH (contribution:OrgMemoryGraphEntityContribution {
+                                batchId: $batchId,
+                                knowledgeAssetId: $knowledgeAssetId
+                            })
+                            DETACH DELETE contribution
+                            """,
+                            parameters)
+                    .consume();
+        });
+    }
+
     private void removeOrphans(ProjectionBatch batch) {
         operations.writeWithoutResult(transaction -> {
             Map<String, Object> parameters = Map.of("batchId", batch.id().toString());
@@ -582,7 +620,7 @@ public final class Neo4jGraphStore implements GraphStore {
                         chunk == null ? null : UUID.fromString(chunk.toString()),
                         uuid(properties, "aclSnapshotId"),
                         number(properties, "aclGeneration").longValue()),
-                number(properties, "generation").longValue(),
+                number(properties, "projectionGeneration").longValue(),
                 string(properties, "extractorProvider"),
                 string(properties, "extractorModel"),
                 string(properties, "promptVersion"),
@@ -675,6 +713,7 @@ public final class Neo4jGraphStore implements GraphStore {
         }
         properties.put("aclSnapshotId", provenance.aclSnapshotId().toString());
         properties.put("aclGeneration", provenance.aclGeneration());
+        properties.put("projectionGeneration", provenance.projectionGeneration());
         properties.put("extractorProvider", provenance.extractorProvider());
         properties.put("extractorModel", provenance.extractorModel());
         properties.put("promptVersion", provenance.promptVersion());

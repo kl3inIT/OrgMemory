@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -97,6 +98,25 @@ public final class PostgresLexicalIndex implements LexicalIndex {
                         Map.of("batchId", batch.id(), "ids", immutableIds));
             }
         });
+    }
+
+    @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        support.stage(batch, ProjectionKind.LEXICAL, COPY_PREDECESSOR, () ->
+                jdbc.update(
+                        """
+                        DELETE FROM projection_lexical_documents
+                        WHERE batch_id = :batchId
+                          AND organization_id = :organizationId
+                          AND knowledge_asset_id = :knowledgeAssetId
+                        """,
+                        Map.of(
+                                "batchId", batch.id(),
+                                "organizationId", batch.namespace().organizationId(),
+                                "knowledgeAssetId", assetId)));
     }
 
     @Override

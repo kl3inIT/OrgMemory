@@ -13,15 +13,19 @@ import com.orgmemory.graphrag.curation.CurationProvenance;
 import com.orgmemory.graphrag.curation.GraphCurationRecord;
 import com.orgmemory.graphrag.curation.GraphCurationStore;
 import com.orgmemory.graphrag.curation.GraphIdentityRef;
+import com.orgmemory.graphrag.export.GraphExportDocument;
+import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Permission-checked use case for append-only graph create/edit/merge/delete. */
 @Service
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class KnowledgeGraphCurationService {
 
     private static final PermissionKey CAN_CURATE_GRAPH =
@@ -31,6 +35,9 @@ public class KnowledgeGraphCurationService {
     private final KnowledgeSpaceRepository spaces;
     private final KnowledgeAssetRepository assets;
     private final RelationshipAuthorizationPort authorization;
+    private final KnowledgeEvidenceScopeResolver evidenceScopes;
+    private final SecureKnowledgeRetrievalStore canonicalEvidence;
+    private final GraphExportReader graphs;
     private final GraphCurationStore curations;
     private final ModelInvocationCache modelCache;
     private final RetrievalResultCache retrievalCache;
@@ -39,12 +46,18 @@ public class KnowledgeGraphCurationService {
             KnowledgeSpaceRepository spaces,
             KnowledgeAssetRepository assets,
             RelationshipAuthorizationPort authorization,
+            KnowledgeEvidenceScopeResolver evidenceScopes,
+            SecureKnowledgeRetrievalStore canonicalEvidence,
+            GraphExportReader graphs,
             GraphCurationStore curations,
             ModelInvocationCache modelCache,
             RetrievalResultCache retrievalCache) {
         this.spaces = spaces;
         this.assets = assets;
         this.authorization = authorization;
+        this.evidenceScopes = evidenceScopes;
+        this.canonicalEvidence = canonicalEvidence;
+        this.graphs = graphs;
         this.curations = curations;
         this.modelCache = modelCache;
         this.retrievalCache = retrievalCache;
@@ -60,6 +73,9 @@ public class KnowledgeGraphCurationService {
                 actor, command.knowledgeSpaceId());
         ProjectionNamespace namespace =
                 namespace(actor.organizationId(), command.knowledgeSpaceId());
+        ResolvedKnowledgeEvidenceScope resolved =
+                resolve(actor, decision.policyVersion());
+        requireCurrentScope(command, resolved);
         CurationProvenance provenance = new CurationProvenance(
                 actor.userId(),
                 decision.policyVersion(),
@@ -69,7 +85,10 @@ public class KnowledgeGraphCurationService {
         GraphCurationRecord record = switch (command) {
             case KnowledgeGraphCurationCommand.CurateEntity entity -> {
                 requireGoverningEvidence(
-                        actor, command.knowledgeSpaceId(), entity.governingEvidence());
+                        actor,
+                        command.knowledgeSpaceId(),
+                        entity.governingEvidence(),
+                        resolved);
                 yield new GraphCurationRecord.CuratedEntity(
                         UUID.randomUUID(),
                         namespace,
@@ -84,7 +103,18 @@ public class KnowledgeGraphCurationService {
                 requireGoverningEvidence(
                         actor,
                         command.knowledgeSpaceId(),
-                        relation.governingEvidence());
+                        relation.governingEvidence(),
+                        resolved);
+                requireVisibleEntity(
+                        resolved,
+                        namespace,
+                        command.knowledgeSpaceId(),
+                        relation.sourceEntityId());
+                requireVisibleEntity(
+                        resolved,
+                        namespace,
+                        command.knowledgeSpaceId(),
+                        relation.targetEntityId());
                 yield new GraphCurationRecord.CuratedRelation(
                         UUID.randomUUID(),
                         namespace,
@@ -98,8 +128,20 @@ public class KnowledgeGraphCurationService {
                         relation.governingEvidence(),
                         provenance);
             }
-            case KnowledgeGraphCurationCommand.AliasIdentity alias ->
-                    new GraphCurationRecord.IdentityAlias(
+            case KnowledgeGraphCurationCommand.AliasIdentity alias -> {
+                requireVisibleIdentity(
+                        resolved,
+                        namespace,
+                        command.knowledgeSpaceId(),
+                        alias.kind(),
+                        alias.sourceIdentityId());
+                requireVisibleIdentity(
+                        resolved,
+                        namespace,
+                        command.knowledgeSpaceId(),
+                        alias.kind(),
+                        alias.targetIdentityId());
+                yield new GraphCurationRecord.IdentityAlias(
                             UUID.randomUUID(),
                             namespace,
                             new GraphIdentityRef(
@@ -107,17 +149,30 @@ public class KnowledgeGraphCurationService {
                             new GraphIdentityRef(
                                     alias.kind(), alias.targetIdentityId()),
                             provenance);
-            case KnowledgeGraphCurationCommand.SuppressIdentity suppression ->
-                    new GraphCurationRecord.IdentitySuppression(
+            }
+            case KnowledgeGraphCurationCommand.SuppressIdentity suppression -> {
+                requireVisibleIdentity(
+                        resolved,
+                        namespace,
+                        command.knowledgeSpaceId(),
+                        suppression.kind(),
+                        suppression.identityId());
+                yield new GraphCurationRecord.IdentitySuppression(
                             UUID.randomUUID(),
                             namespace,
                             new GraphIdentityRef(
                                     suppression.kind(),
                                     suppression.identityId()),
                             provenance);
+            }
         };
         GraphCurationRecord stored =
                 curations.append(command.idempotencyKey(), record);
+        requireUnchangedScope(
+                actor,
+                command.knowledgeSpaceId(),
+                decision.policyVersion(),
+                resolved);
         invalidate(namespace);
         return stored;
     }
@@ -133,6 +188,14 @@ public class KnowledgeGraphCurationService {
         requireSpace(actor, knowledgeSpaceId);
         AuthorizationDecision decision =
                 requirePermission(actor, knowledgeSpaceId);
+        ResolvedKnowledgeEvidenceScope resolved =
+                resolve(actor, decision.policyVersion());
+        if (resolved.aclGenerationByKnowledgeSpace()
+                        .getOrDefault(knowledgeSpaceId, 0L)
+                != authorizationGeneration) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph authorization changed before curation");
+        }
         ProjectionNamespace namespace =
                 namespace(actor.organizationId(), knowledgeSpaceId);
         curations.deactivate(
@@ -144,13 +207,19 @@ public class KnowledgeGraphCurationService {
                         authorizationGeneration,
                         Instant.now(),
                         reason));
+        requireUnchangedScope(
+                actor,
+                knowledgeSpaceId,
+                decision.policyVersion(),
+                resolved);
         invalidate(namespace);
     }
 
     private void requireGoverningEvidence(
             CurrentActor actor,
             UUID knowledgeSpaceId,
-            com.orgmemory.graphrag.model.EvidenceReference evidence) {
+            com.orgmemory.graphrag.model.EvidenceReference evidence,
+            ResolvedKnowledgeEvidenceScope resolved) {
         if (!actor.organizationId().equals(evidence.organizationId())) {
             throw new IllegalArgumentException(
                     "governing evidence belongs to another organization");
@@ -163,6 +232,117 @@ public class KnowledgeGraphCurationService {
             throw new IllegalArgumentException(
                     "governing evidence belongs to another Knowledge Space");
         }
+        var spaceScope = resolved.forKnowledgeSpace(knowledgeSpaceId);
+        if (!spaceScope.includes(
+                evidence.organizationId(), evidence.knowledgeAssetId())) {
+            throw new OrgMemoryAccessDeniedException(
+                    "Governing evidence is not visible to the current actor");
+        }
+        var candidates = canonicalEvidence.recheck(
+                retrievalScope(resolved),
+                java.util.List.of(Objects.requireNonNull(
+                        evidence.chunkId(), "governing evidence chunkId")));
+        boolean current = candidates.size() == 1
+                && candidates.getFirst().knowledgeAssetId()
+                        .equals(evidence.knowledgeAssetId())
+                && candidates.getFirst().sourceRevisionId()
+                        .equals(evidence.sourceRevisionId())
+                && candidates.getFirst().currentAclSnapshotId()
+                        .equals(evidence.aclSnapshotId());
+        if (!current) {
+            throw new OrgMemoryAccessDeniedException(
+                    "Governing evidence is stale or unavailable");
+        }
+    }
+
+    private void requireCurrentScope(
+            KnowledgeGraphCurationCommand command,
+            ResolvedKnowledgeEvidenceScope resolved) {
+        UUID spaceId = command.knowledgeSpaceId();
+        if (!resolved.knowledgeSpaceIds().contains(spaceId)
+                || resolved.aclGenerationByKnowledgeSpace()
+                                .getOrDefault(spaceId, 0L)
+                        != command.authorizationGeneration()) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph authorization changed before curation");
+        }
+    }
+
+    private void requireVisibleEntity(
+            ResolvedKnowledgeEvidenceScope resolved,
+            ProjectionNamespace namespace,
+            UUID knowledgeSpaceId,
+            UUID entityId) {
+        requireVisibleIdentity(
+                resolved,
+                namespace,
+                knowledgeSpaceId,
+                com.orgmemory.graphrag.curation.GraphIdentityKind.ENTITY,
+                entityId);
+    }
+
+    private void requireVisibleIdentity(
+            ResolvedKnowledgeEvidenceScope resolved,
+            ProjectionNamespace namespace,
+            UUID knowledgeSpaceId,
+            com.orgmemory.graphrag.curation.GraphIdentityKind kind,
+            UUID identityId) {
+        GraphExportDocument document = graphs.read(
+                resolved.forKnowledgeSpace(knowledgeSpaceId),
+                namespace);
+        boolean visible = switch (kind) {
+            case ENTITY -> document.entities().stream()
+                    .anyMatch(entity -> entity.id().equals(identityId));
+            case RELATION -> document.relations().stream()
+                    .anyMatch(relation -> relation.id().equals(identityId));
+        };
+        if (!visible) {
+            throw new OrgMemoryAccessDeniedException(
+                    "Graph identity is not visible to the current actor");
+        }
+    }
+
+    private ResolvedKnowledgeEvidenceScope resolve(
+            CurrentActor actor,
+            String authorizationModelId) {
+        try {
+            return evidenceScopes.resolve(actor, authorizationModelId);
+        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph permissions are temporarily unavailable");
+        }
+    }
+
+    private void requireUnchangedScope(
+            CurrentActor actor,
+            UUID knowledgeSpaceId,
+            String authorizationModelId,
+            ResolvedKnowledgeEvidenceScope initial) {
+        ResolvedKnowledgeEvidenceScope current =
+                resolve(actor, authorizationModelId);
+        if (!initial.forKnowledgeSpace(knowledgeSpaceId)
+                        .authorizedAssetIds()
+                        .equals(current.forKnowledgeSpace(knowledgeSpaceId)
+                                .authorizedAssetIds())
+                || initial.aclGenerationByKnowledgeSpace()
+                                .getOrDefault(knowledgeSpaceId, 0L)
+                        != current.aclGenerationByKnowledgeSpace()
+                                .getOrDefault(knowledgeSpaceId, 0L)) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph authorization changed during curation");
+        }
+    }
+
+    private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
+            ResolvedKnowledgeEvidenceScope scope) {
+        return new SecureKnowledgeRetrievalStore.RetrievalScope(
+                scope.organizationId(),
+                scope.actorUserId(),
+                scope.actorDepartmentId(),
+                scope.actorExecutive(),
+                scope.allAssetIds().stream().sorted().toList(),
+                scope.authorizationModelId(),
+                scope.evaluatedAt());
     }
 
     private void requireSpace(CurrentActor actor, UUID knowledgeSpaceId) {

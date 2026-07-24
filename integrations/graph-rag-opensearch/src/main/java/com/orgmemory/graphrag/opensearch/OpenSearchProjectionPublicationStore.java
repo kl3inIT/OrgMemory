@@ -89,6 +89,22 @@ public final class OpenSearchProjectionPublicationStore
     }
 
     @Override
+    public Optional<ProjectionSnapshot> published(
+            ProjectionNamespace namespace,
+            String idempotencyKey) {
+        Objects.requireNonNull(namespace, "namespace");
+        String key = requireText(idempotencyKey, "idempotencyKey");
+        OpenSearchOperations.VersionedDocument currentHead =
+                operations.get(controlIndex, headId(namespace));
+        if (currentHead != null
+                && key.equals(currentHead.source().get("idempotency_key"))) {
+            return Optional.of(
+                    OpenSearchProjectionCodec.snapshot(currentHead.source()));
+        }
+        return historyByIdempotency(namespace, key);
+    }
+
+    @Override
     public void markPrepared(
             ProjectionBatch batch,
             ProjectionKind projection,
@@ -421,22 +437,15 @@ public final class OpenSearchProjectionPublicationStore
                 requireSamePublication(batch, snapshot);
             }
         }
-        OpenSearchOperations.VersionedDocument currentHead =
-                operations.get(controlIndex, headId(batch.namespace()));
-        if (currentHead != null
-                && batch.idempotencyKey()
-                        .equals(currentHead.source().get("idempotency_key"))) {
-            ProjectionSnapshot snapshot =
-                    OpenSearchProjectionCodec.snapshot(currentHead.source());
-            requireSamePublication(batch, snapshot);
-            return Optional.of(snapshot);
-        }
-        Optional<ProjectionSnapshot> historical = historyByIdempotency(batch);
-        historical.ifPresent(snapshot -> requireSamePublication(batch, snapshot));
-        return historical;
+        Optional<ProjectionSnapshot> idempotent =
+                published(batch.namespace(), batch.idempotencyKey());
+        idempotent.ifPresent(snapshot -> requireSamePublication(batch, snapshot));
+        return idempotent;
     }
 
-    private Optional<ProjectionSnapshot> historyByIdempotency(ProjectionBatch batch) {
+    private Optional<ProjectionSnapshot> historyByIdempotency(
+            ProjectionNamespace namespace,
+            String idempotencyKey) {
         try {
             var response = operations.client().search(
                     request -> request
@@ -448,18 +457,17 @@ public final class OpenSearchProjectionPublicationStore
                                             "HISTORY"))
                                     .filter(term(
                                             OpenSearchProjectionCodec.ORGANIZATION_ID,
-                                            batch.namespace()
-                                                    .organizationId()
+                                            namespace.organizationId()
                                                     .toString()))
                                     .filter(term(
                                             OpenSearchProjectionCodec.WORKSPACE,
-                                            batch.namespace().workspace()))
+                                            namespace.workspace()))
                                     .filter(term(
                                             OpenSearchProjectionCodec.COLLECTION,
-                                            batch.namespace().collection()))
+                                            namespace.collection()))
                                     .filter(term(
                                             "idempotency_key",
-                                            batch.idempotencyKey()))))
+                                            idempotencyKey))))
                             .sort(sort -> sort.field(field -> field
                                     .field(OpenSearchProjectionCodec.GENERATION)
                                     .order(SortOrder.Asc))),

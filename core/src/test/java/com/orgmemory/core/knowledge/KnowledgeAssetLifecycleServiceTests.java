@@ -13,7 +13,6 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
-import com.orgmemory.graphrag.port.GraphProjectionWriter;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +24,6 @@ class KnowledgeAssetLifecycleServiceTests {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID ASSET_ID = UUID.randomUUID();
     private static final UUID VERSION_ID = UUID.randomUUID();
-    private static final UUID REVISION_ID = UUID.randomUUID();
     private static final UUID SPACE_ID = UUID.randomUUID();
 
     private final KnowledgeAssetRepository assets =
@@ -36,8 +34,6 @@ class KnowledgeAssetLifecycleServiceTests {
             mock(KnowledgeIngestionService.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final GraphProjectionWriter graph =
-            mock(GraphProjectionWriter.class);
     private final ModelInvocationCache modelCache =
             mock(ModelInvocationCache.class);
     private final RetrievalResultCache retrievalCache =
@@ -51,7 +47,6 @@ class KnowledgeAssetLifecycleServiceTests {
                     versions,
                     ingestion,
                     authorization,
-                    graph,
                     modelCache,
                     retrievalCache);
 
@@ -65,7 +60,6 @@ class KnowledgeAssetLifecycleServiceTests {
         when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
         when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(version));
-        when(version.getSourceRevisionId()).thenReturn(REVISION_ID);
         when(ingestion.retire(ORGANIZATION_ID, ASSET_ID))
                 .thenReturn(new KnowledgeAssetRef(
                         ASSET_ID,
@@ -77,14 +71,13 @@ class KnowledgeAssetLifecycleServiceTests {
     }
 
     @Test
-    void deleteRetiresCanonicalLedgerThenRemovesDerivedGraphAndCaches() {
+    void deleteRetiresCanonicalLedgerThenInvalidatesCaches() {
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
 
         service.delete(actor, ASSET_ID);
 
         verify(ingestion).retire(ORGANIZATION_ID, ASSET_ID);
-        verify(graph).removeRevision(ORGANIZATION_ID, REVISION_ID);
         verify(modelCache).invalidate(any());
         verify(retrievalCache).invalidateNamespace(any());
     }
@@ -99,6 +92,5 @@ class KnowledgeAssetLifecycleServiceTests {
                 () -> service.delete(actor, ASSET_ID));
 
         verify(ingestion, never()).retire(any(), any());
-        verify(graph, never()).removeRevision(any(), any());
     }
 }

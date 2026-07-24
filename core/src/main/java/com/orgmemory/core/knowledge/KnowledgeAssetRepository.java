@@ -12,6 +12,8 @@ interface KnowledgeAssetRepository extends JpaRepository<KnowledgeAsset, UUID> {
 
     Optional<KnowledgeAsset> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
+    boolean existsByIdAndOrganizationId(UUID id, UUID organizationId);
+
     Optional<KnowledgeAsset> findByOrganizationIdAndSourceObjectId(
             UUID organizationId, UUID sourceObjectId);
 

@@ -58,7 +58,7 @@ class AdminInvitationController {
     @Operation(operationId = "listAdminInvitations", summary = "List invited addresses and their status")
     @Transactional(readOnly = true)
     List<AdminInvitationResponse> list(Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         return provisioning.forOrganization(actor.organizationId()).stream()
                 .map(AdminInvitationController::response)
                 .toList();
@@ -70,7 +70,7 @@ class AdminInvitationController {
     @Transactional
     AdminInvitationResponse create(
             @RequestBody CreateInvitationRequest request, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         if (request.email() == null || request.email().isBlank()) {
             throw new IllegalArgumentException("An email is required");
         }
@@ -90,7 +90,7 @@ class AdminInvitationController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     void revoke(@PathVariable UUID invitationId, Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         provisioning.revoke(actor.organizationId(), invitationId);
     }
 

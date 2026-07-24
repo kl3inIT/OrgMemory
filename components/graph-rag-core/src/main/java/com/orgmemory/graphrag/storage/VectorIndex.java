@@ -21,6 +21,9 @@ public interface VectorIndex extends StagedProjectionWriter {
 
     void stageDelete(ProjectionBatch batch, Collection<String> ids);
 
+    /** Removes every copied-forward vector for one stable Knowledge Asset. */
+    void stageDeleteAsset(ProjectionBatch batch, UUID knowledgeAssetId);
+
     List<VectorRecord> get(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

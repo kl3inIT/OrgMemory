@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
+import org.opensearch.client.opensearch._types.query_dsl.Query;
 
 public final class OpenSearchContentStore implements ContentStore {
 
@@ -47,6 +49,18 @@ public final class OpenSearchContentStore implements ContentStore {
             ProjectionBatch batch,
             Collection<String> ids) {
         staged.stageDelete(batch, OpenSearchStoreSupport.requireIds(ids));
+    }
+
+    @Override
+    public void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        staged.stageDeleteMatching(
+                batch,
+                List.of(Query.of(query -> query.term(term -> term
+                        .field(OpenSearchProjectionCodec.ASSET_ID)
+                        .value(value -> value.stringValue(assetId.toString()))))));
     }
 
     @Override

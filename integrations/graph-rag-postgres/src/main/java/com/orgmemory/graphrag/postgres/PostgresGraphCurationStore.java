@@ -10,6 +10,7 @@ import com.orgmemory.graphrag.curation.GraphIdentityKind;
 import com.orgmemory.graphrag.curation.GraphIdentityRef;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -48,7 +49,6 @@ public final class PostgresGraphCurationStore implements GraphCurationStore {
             if (existing != null) {
                 return existing;
             }
-            validateIdentities(record);
             insert(normalizedKey, fingerprint, record);
             return record;
         });
@@ -88,13 +88,21 @@ public final class PostgresGraphCurationStore implements GraphCurationStore {
 
     @Override
     public List<GraphCurationRecord> active(
-            AuthorizedEvidenceScope scope, ProjectionNamespace namespace) {
+            AuthorizedEvidenceScope scope,
+            ProjectionNamespace namespace,
+            ProjectionSnapshot snapshot) {
         GraphCurationOverlay.requireMatchingScope(scope, namespace);
+        Objects.requireNonNull(snapshot, "snapshot");
+        if (!namespace.equals(snapshot.namespace())) {
+            throw new IllegalArgumentException(
+                    "curation namespace and publication snapshot must match");
+        }
         if (scope.authorizedAssetIds().isEmpty()) {
             return List.of();
         }
         MapSqlParameterSource parameters =
                 PostgresAuthorizedGraphSql.scopeParameters(scope)
+                        .addValue("batchId", snapshot.batchId())
                         .addValue("workspace", namespace.workspace())
                         .addValue("collection", namespace.collection());
         return jdbc.query("""
@@ -288,68 +296,6 @@ public final class PostgresGraphCurationStore implements GraphCurationStore {
                     :contentFingerprint
                 )
                 """, parameters);
-    }
-
-    private void validateIdentities(GraphCurationRecord record) {
-        switch (record) {
-            case GraphCurationRecord.CuratedEntity ignored -> {
-                // Creating a new governed identity is valid.
-            }
-            case GraphCurationRecord.CuratedRelation relation -> {
-                requireIdentityExists(
-                        record.namespace(), relation.sourceEntity());
-                requireIdentityExists(
-                        record.namespace(), relation.targetEntity());
-            }
-            case GraphCurationRecord.IdentityAlias alias -> {
-                requireIdentityExists(record.namespace(), alias.source());
-                requireIdentityExists(record.namespace(), alias.target());
-            }
-            case GraphCurationRecord.IdentitySuppression suppression ->
-                    requireIdentityExists(
-                            record.namespace(), suppression.identity());
-        }
-    }
-
-    private void requireIdentityExists(
-            ProjectionNamespace namespace, GraphIdentityRef identity) {
-        String canonicalTable =
-                identity.kind() == GraphIdentityKind.ENTITY
-                        ? "graph_entities"
-                        : "graph_relations";
-        String curatedKind =
-                identity.kind() == GraphIdentityKind.ENTITY
-                        ? "CURATED_ENTITY"
-                        : "CURATED_RELATION";
-        MapSqlParameterSource parameters = namespaceParameters(namespace)
-                .addValue("identityId", identity.id())
-                .addValue("curatedKind", curatedKind);
-        Boolean exists = jdbc.queryForObject("""
-                SELECT (
-                    EXISTS (
-                        SELECT 1
-                        FROM %s
-                        WHERE organization_id = :organizationId
-                          AND id = :identityId
-                    )
-                    OR EXISTS (
-                        SELECT 1
-                        FROM graph_curation_records
-                        WHERE organization_id = :organizationId
-                          AND workspace = :workspace
-                          AND collection_name = :collection
-                          AND curation_kind = :curatedKind
-                          AND identity_id = :identityId
-                          AND active
-                    )
-                )
-                """.formatted(canonicalTable),
-                parameters,
-                Boolean.class);
-        if (!Boolean.TRUE.equals(exists)) {
-            throw new IllegalArgumentException(
-                    identity.kind() + " identity was not found");
-        }
     }
 
     private boolean exists(ProjectionNamespace namespace, UUID recordId) {

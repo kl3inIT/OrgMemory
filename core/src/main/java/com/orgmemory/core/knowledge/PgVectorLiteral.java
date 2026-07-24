@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.graphrag.model.FloatVector;
+
 final class PgVectorLiteral {
 
     private PgVectorLiteral() {}
@@ -13,5 +15,23 @@ final class PgVectorLiteral {
             value.append(vector[index]);
         }
         return value.append(']').toString();
+    }
+
+    static FloatVector parse(String encoded) {
+        if (encoded == null || encoded.length() < 2
+                || encoded.charAt(0) != '['
+                || encoded.charAt(encoded.length() - 1) != ']') {
+            throw new IllegalArgumentException("invalid pgvector literal");
+        }
+        String body = encoded.substring(1, encoded.length() - 1);
+        if (body.isBlank()) {
+            throw new IllegalArgumentException("pgvector literal must not be empty");
+        }
+        String[] parts = body.split(",");
+        float[] values = new float[parts.length];
+        for (int index = 0; index < parts.length; index++) {
+            values[index] = Float.parseFloat(parts[index]);
+        }
+        return new FloatVector(values);
     }
 }

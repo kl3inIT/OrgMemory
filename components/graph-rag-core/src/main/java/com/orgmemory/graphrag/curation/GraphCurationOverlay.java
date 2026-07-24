@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.curation;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.List;
 import java.util.Objects;
 
@@ -12,7 +13,9 @@ import java.util.Objects;
 public interface GraphCurationOverlay {
 
     List<GraphCurationRecord> load(
-            AuthorizedEvidenceScope scope, ProjectionNamespace namespace);
+            AuthorizedEvidenceScope scope,
+            ProjectionNamespace namespace,
+            ProjectionSnapshot snapshot);
 
     static void requireMatchingScope(
             AuthorizedEvidenceScope scope, ProjectionNamespace namespace) {

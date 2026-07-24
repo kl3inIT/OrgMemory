@@ -21,7 +21,6 @@ import com.orgmemory.integrations.graphrag.springai.SpringAiQueryAnswerModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
 import java.util.List;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -29,10 +28,14 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(
+        prefix = "orgmemory.assistant",
+        name = "retrieval-engine",
+        havingValue = "GRAPH_RAG",
+        matchIfMissing = true)
+@ConditionalOnProperty(
         prefix = "orgmemory.graph-rag.query",
         name = "enabled",
         matchIfMissing = true)
-@ConditionalOnBean(EmbeddingModel.class)
 @EnableConfigurationProperties(GraphRagQueryRuntimeProperties.class)
 class GraphRagRuntimeConfiguration {
 

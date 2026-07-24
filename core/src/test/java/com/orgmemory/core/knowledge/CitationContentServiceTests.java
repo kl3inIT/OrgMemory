@@ -8,20 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.authorization.AuthorizationDecision;
-import com.orgmemory.core.authorization.BatchAuthorizationResult;
-import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
-import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditService;
 import java.io.ByteArrayInputStream;
-import java.time.Instant;
+import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +25,6 @@ class CitationContentServiceTests {
             UUID.fromString("41000000-0000-0000-0000-000000000001");
     private static final UUID USER_ID =
             UUID.fromString("41000000-0000-0000-0000-000000000002");
-    private static final UUID SPACE_ID =
-            UUID.fromString("41000000-0000-0000-0000-000000000003");
     private static final UUID ASSET_ID =
             UUID.fromString("41000000-0000-0000-0000-000000000004");
     private static final UUID REVISION_ID =
@@ -58,9 +50,7 @@ class CitationContentServiceTests {
     @Test
     void streamsOnlyCurrentPermissionVerifiedEvidence() throws Exception {
         Fixture fixture = new Fixture();
-        fixture.authorize();
-        fixture.currentScopes();
-        fixture.canonicalEvidence();
+        fixture.authorizeCitation();
         fixture.revisionAndBlob();
         fixture.objectContent();
 
@@ -70,16 +60,18 @@ class CitationContentServiceTests {
         }
 
         verify(fixture.objects).open(any());
+        verify(fixture.authorization)
+                .verify(any(), any(), any(), any());
         verify(fixture.audit).record(any());
     }
 
     @Test
     void revocationBeforeOpeningTheBlobReturnsTheSameOpaqueNotFound() {
         Fixture fixture = new Fixture();
-        fixture.authorize();
-        when(fixture.scopes.resolve(ACTOR, MODEL_ID))
-                .thenReturn(scope(Set.of(ASSET_ID)), scope(Set.of()));
-        fixture.canonicalEvidence();
+        when(fixture.authorization.verify(any(), any(), any(), any()))
+                .thenThrow(new CanonicalEvidenceAuthorizationException(
+                        "CITATION_AUTHORIZATION_CHANGED",
+                        MODEL_ID));
 
         assertThrows(
                 CitationNotFoundException.class,
@@ -87,22 +79,6 @@ class CitationContentServiceTests {
                         ACTOR, CHUNK_ID, "request-1"));
 
         verify(fixture.objects, never()).open(any());
-    }
-
-    private static ResolvedKnowledgeEvidenceScope scope(Set<UUID> assets) {
-        return new ResolvedKnowledgeEvidenceScope(
-                ORGANIZATION_ID,
-                USER_ID,
-                null,
-                false,
-                MODEL_ID,
-                Instant.parse("2026-07-24T00:00:00Z"),
-                assets.isEmpty()
-                        ? Map.of()
-                        : Map.of(SPACE_ID, assets),
-                assets.isEmpty()
-                        ? Map.of()
-                        : Map.of(SPACE_ID, 1L));
     }
 
     private static SecureRetrievalCandidate candidate() {
@@ -128,14 +104,8 @@ class CitationContentServiceTests {
 
     private static final class Fixture {
 
-        private final KnowledgeSearchAuthorizationService search =
-                mock(KnowledgeSearchAuthorizationService.class);
-        private final KnowledgeEvidenceScopeResolver scopes =
-                mock(KnowledgeEvidenceScopeResolver.class);
-        private final RelationshipAuthorizationSetPort authorization =
-                mock(RelationshipAuthorizationSetPort.class);
-        private final SecureKnowledgeRetrievalStore canonical =
-                mock(SecureKnowledgeRetrievalStore.class);
+        private final CanonicalEvidenceAuthorizationService authorization =
+                mock(CanonicalEvidenceAuthorizationService.class);
         private final SourceRevisionRepository revisions =
                 mock(SourceRevisionRepository.class);
         private final EvidenceBlobRepository blobs =
@@ -146,39 +116,19 @@ class CitationContentServiceTests {
                 mock(PermissionAuditService.class);
         private final CitationContentService service =
                 new CitationContentService(
-                        search,
-                        scopes,
                         authorization,
-                        canonical,
                         revisions,
                         blobs,
                         objects,
                         audit);
 
-        private void authorize() {
-            when(search.require(ACTOR, "request-1", "citation:" + CHUNK_ID))
-                    .thenReturn(MODEL_ID);
-            ResourceRef resource = ResourceRef.of(
-                    ORGANIZATION_ID,
-                    "knowledge_asset",
-                    ASSET_ID);
-            when(authorization.batchCheck(any()))
-                    .thenReturn(BatchAuthorizationResult.resolved(
-                            Map.of(
-                                    resource,
-                                    AuthorizationDecision.allow(
-                                            MODEL_ID)),
-                            MODEL_ID));
-        }
-
-        private void currentScopes() {
-            when(scopes.resolve(ACTOR, MODEL_ID))
-                    .thenReturn(scope(Set.of(ASSET_ID)));
-        }
-
-        private void canonicalEvidence() {
-            when(canonical.recheck(any(), any()))
-                    .thenReturn(List.of(candidate()));
+        private void authorizeCitation() {
+            when(authorization.verify(any(), any(), any(), any()))
+                    .thenReturn(new CanonicalEvidenceAuthorizationService
+                            .Verification(
+                            MODEL_ID,
+                            null,
+                            List.of(candidate())));
         }
 
         private void revisionAndBlob() {
@@ -212,6 +162,10 @@ class CitationContentServiceTests {
         }
 
         private void objectContent() {
+            objectContent(new ByteArrayInputStream(CONTENT));
+        }
+
+        private void objectContent(InputStream stream) {
             StoredObject metadata = new StoredObject(
                     new com.orgmemory.core.knowledge.storage.ObjectKey(
                             "org/policy.txt"),
@@ -222,7 +176,7 @@ class CitationContentServiceTests {
                     null);
             when(objects.open(any()))
                     .thenReturn(new ObjectContent(
-                            new ByteArrayInputStream(CONTENT),
+                            stream,
                             metadata));
         }
     }

@@ -43,6 +43,16 @@ public final class InMemoryContentStore implements ContentStore {
     }
 
     @Override
+    public synchronized void stageDeleteAsset(
+            ProjectionBatch batch,
+            UUID knowledgeAssetId) {
+        BatchState state = stateFor(batch);
+        UUID assetId = Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        state.records().values().removeIf(
+                record -> record.evidence().knowledgeAssetId().equals(assetId));
+    }
+
+    @Override
     public synchronized Optional<ContentRecord> get(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,

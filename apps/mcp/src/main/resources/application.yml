@@ -8,7 +8,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:58080/realms/orgmemory}
+          issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
   ai:
     mcp:
       server:
@@ -29,7 +29,7 @@ spring:
           mcp-endpoint: /mcp
 
 server:
-  port: ${ORGMEMORY_MCP_PORT:8081}
+  port: ${ORGMEMORY_MCP_PORT:8090}
 
 management:
   endpoints:

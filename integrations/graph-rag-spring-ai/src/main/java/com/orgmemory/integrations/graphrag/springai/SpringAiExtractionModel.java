@@ -22,6 +22,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 
 /** Spring AI effect adapter for one core-owned extraction round. */
 final class SpringAiExtractionModel implements ExtractionModel {
@@ -48,11 +49,15 @@ final class SpringAiExtractionModel implements ExtractionModel {
         request.conversation().stream()
                 .map(SpringAiExtractionModel::toMessage)
                 .forEach(messages::add);
+        if (!(chatModel.getOptions() instanceof StructuredOutputChatOptions options)) {
+            throw new GraphExtractionException(
+                    "Configured chat model does not support provider-native structured output");
+        }
         ChatResponse chatResponse = chatModel.call(new Prompt(
                 messages,
-                chatModel.getOptions().mutate()
+                options.mutate()
                         .model(request.profile().model())
-                        .temperature(0.0)
+                        .outputSchema(converter.getJsonSchema())
                         .build()));
         if (chatResponse == null
                 || chatResponse.getResult() == null

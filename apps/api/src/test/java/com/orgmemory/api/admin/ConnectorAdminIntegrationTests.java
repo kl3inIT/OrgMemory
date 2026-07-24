@@ -105,8 +105,7 @@ class ConnectorAdminIntegrationTests {
         jdbc.update("DELETE FROM source_connections");
         when(entryAuthorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
-            boolean allowed = !"can_manage_members".equals(query.permission().value())
-                    || ADMIN_USER.toString().equals(query.principal().id());
+            boolean allowed = ADMIN_USER.toString().equals(query.principal().id());
             return allowed
                     ? AuthorizationDecision.allow(MODEL_ID)
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID);

@@ -34,7 +34,7 @@ class DocumentProcessingEngineTests {
                 0,
                 2,
                 1);
-        var engine = new DocumentProcessingEngine(properties, new SourceDocumentReader());
+        var engine = new DocumentProcessingEngine(properties, new SpringAiDocumentParser());
         var request = new DocumentParseRequest(
                 "large.txt",
                 "text/plain",

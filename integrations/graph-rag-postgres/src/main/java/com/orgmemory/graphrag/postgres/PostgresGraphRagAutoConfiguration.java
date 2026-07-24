@@ -4,20 +4,18 @@ import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.curation.GraphCurationStore;
 import com.orgmemory.graphrag.export.GraphExportReader;
-import com.orgmemory.graphrag.port.GraphProjectionReader;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.VectorIndex;
-import java.time.Clock;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.sql.init.dependency.DependsOnDatabaseInitialization;
 import org.springframework.context.annotation.Bean;
@@ -88,21 +86,6 @@ public class PostgresGraphRagAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(GraphProjectionReader.class)
-    @DependsOnDatabaseInitialization
-    PostgresGraphProjectionStore postgresGraphProjectionStore(
-            NamedParameterJdbcTemplate jdbc,
-            PlatformTransactionManager transactionManager,
-            PostgresGraphRagProperties properties,
-            ObjectProvider<Clock> clockProvider) {
-        return new PostgresGraphProjectionStore(
-                jdbc,
-                transactionManager,
-                clockProvider.getIfAvailable(Clock::systemUTC),
-                properties.toStoreOptions());
-    }
-
-    @Bean
     @DependsOnDatabaseInitialization
     @ConditionalOnMissingBean(ModelInvocationCache.class)
     ModelInvocationCache postgresModelInvocationCache(
@@ -122,6 +105,7 @@ public class PostgresGraphRagAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(GraphCurationStore.class)
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     @DependsOnDatabaseInitialization
     PostgresGraphCurationStore postgresGraphCurationStore(
             NamedParameterJdbcTemplate jdbc,
@@ -131,16 +115,23 @@ public class PostgresGraphRagAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(GraphExportReader.class)
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     @DependsOnDatabaseInitialization
     PostgresGraphExportReader postgresGraphExportReader(
             NamedParameterJdbcTemplate jdbc,
-            GraphProjectionReader projections,
+            GraphStore graphs,
+            ProjectionPublicationStore publications,
             GraphCurationStore curations) {
-        return new PostgresGraphExportReader(jdbc, projections, curations);
+        return new PostgresGraphExportReader(
+                jdbc,
+                graphs,
+                publications,
+                curations);
     }
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     PostgresGraphVectorIndexManager postgresGraphVectorIndexManager(
             NamedParameterJdbcTemplate jdbc) {
         return new PostgresGraphVectorIndexManager(jdbc.getJdbcTemplate());
@@ -148,6 +139,7 @@ public class PostgresGraphRagAutoConfiguration {
 
     @Bean
     @DependsOnDatabaseInitialization
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     ApplicationRunner postgresGraphVectorIndexProvisioner(
             PostgresGraphVectorIndexManager indexManager,
             PostgresGraphRagProperties properties) {

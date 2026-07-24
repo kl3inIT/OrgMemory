@@ -153,7 +153,7 @@ public class KnowledgeChunkProjectionStore {
             long projectionGeneration) {
         return jdbc.query(
                 """
-                SELECT id, chunk_index, content, heading
+                SELECT id, chunk_index, content, heading, token_count, embedding::text
                 FROM knowledge_chunks
                 WHERE organization_id = :organizationId
                   AND source_revision_id = :sourceRevisionId
@@ -173,7 +173,9 @@ public class KnowledgeChunkProjectionStore {
                         resultSet.getObject("id", UUID.class),
                         resultSet.getInt("chunk_index"),
                         resultSet.getString("content"),
-                        resultSet.getString("heading")));
+                        resultSet.getString("heading"),
+                        resultSet.getInt("token_count"),
+                        PgVectorLiteral.parse(resultSet.getString("embedding"))));
     }
 
 }

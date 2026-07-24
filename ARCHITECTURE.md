@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-23. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+2026-07-24. Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
 ## System Shape
@@ -115,13 +115,18 @@ SourceObject -> SourceRevision -> NormalizedRecord
              -> KnowledgeAsset -> KnowledgeAssetVersion -> chunks
 ```
 
-Secure knowledge search first resolves authorized Knowledge Asset IDs with
-OpenFGA `ListObjects`. SQL then filters organization, lifecycle, immutable and
-current ACL, the stable asset's current-version pointer,
-publication/model/profile state, and classification before ranking PostgreSQL
-FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL recheck
-guard every returned citation. Missing, unknown, stale, unsupported, or denied
-decisions fail closed.
+Secure knowledge search first resolves candidate Knowledge Asset IDs with
+OpenFGA `ListObjects`. Canonical SQL then filters organization, lifecycle,
+immutable and current ACL, the stable asset's current-version pointer,
+publication/model/profile state, and classification before FTS, vector, or graph
+ranking and before evidence can enter model context. OpenFGA `BatchCheck` and a
+canonical SQL recheck guard every selected citation. The verified evidence set
+is immutable for one Assistant request; only evidence included in the prompt is
+emitted as a source, and answer tokens stream without repeating the full
+authorization pipeline after generation. Revocation affects the next request;
+an in-flight turn may finish under its request snapshot and is bounded by the
+configured turn timeout. Missing, unknown, stale, unsupported, changed, or
+denied retrieval decisions fail closed.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
@@ -172,9 +177,10 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral runtime AI gateway, whose current production adapter uses Spring
 AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
 embedding have independent configured routes; immutable Knowledge Asset embedding
-profiles still pin the provider/model used by derived indexes. The application can
-boot without a model key and uses local fallback behavior for prototype
-normalization/chat. A persistent agent conversation model does not exist yet.
+profiles still pin the provider/model used by derived indexes. The default
+`GRAPH_RAG` runtime requires its configured provider routes and has no implicit
+local retrieval fallback. A persistent agent conversation model does not exist
+yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
@@ -242,11 +248,16 @@ embedding profile, and publish the complete graph generation together with the
 durable job outcome in one PostgreSQL transaction. A stale version is
 superseded and a failed publish leaves the previous generation intact.
 
-Assistant graph retrieval and graph UI wiring are not implemented yet.
+Assistant graph retrieval is the default runtime. The Sources UI exposes a
+bounded permission-scoped Knowledge Graph explorer backed by the current shared
+projection snapshot. Graph curation and export remain curator/admin operations;
+the explorer does not create a second ACL or expose globally merged
+descriptions.
 
-The Sources UI exposes a disabled Knowledge Graph navigation target until worker
-indexing and permission-scoped graph retrieval are wired. There is no legacy
-relational capability graph endpoint.
+Assistant citations use API-owned opaque URLs. The API rechecks the canonical
+evidence boundary, streams original bytes from object storage, and exposes no
+MinIO key or presigned storage URL. The web client opens the authenticated
+response as a short-lived browser blob for PDF, image, and text preview.
 
 ## Current Security And Operations
 
@@ -291,10 +302,10 @@ under the `dev` profile; non-development security chains deny their paths. The
 configuration, and the API rejects known local secrets or invalid production
 identity/AI routes during startup. OIDC logout uses the exact registered
 `/login` redirect. The committed OpenAPI contract generates Fetch, Zod, SDK, and
-TanStack Query artifacts through Hey API. A small legacy feature helper remains
-while the prototype pages are replaced; streaming and browser-navigation logout
-retain thin handwritten transports. There is no durable streaming conversation
-store.
+TanStack Query artifacts through Hey API. Streaming Assistant delivery and
+browser-navigation logout retain thin handwritten transports because they are
+not ordinary request/response contracts. There is no durable streaming
+conversation store.
 
 The repository is a prototype, not an approved production deployment. Backup and
 restore, malware/DLP upload scanning, live Slack credentials/rate-limit handling,

@@ -32,7 +32,7 @@ public record SourceProcessingProperties(
                 : workerId.strip();
         leaseDuration = leaseDuration == null ? Duration.ofMinutes(5) : leaseDuration;
         pipelineVersion = defaultText(pipelineVersion, "source-pipeline-v1");
-        parserId = defaultText(parserId, "legacy");
+        parserId = defaultText(parserId, SpringAiDocumentParser.COMPONENT.id());
         chunkerId = defaultText(chunkerId, "fixed-token");
         tokenizerEncoding = defaultText(tokenizerEncoding, "o200k_base");
         normalizerVersion = defaultText(normalizerVersion, "source-normalizer-v1");

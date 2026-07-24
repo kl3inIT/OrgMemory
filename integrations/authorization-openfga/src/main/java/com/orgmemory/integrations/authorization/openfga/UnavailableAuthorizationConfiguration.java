@@ -8,6 +8,7 @@ import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipExpansionPort;
 import com.orgmemory.core.authorization.RelationshipExpansionResult;
 import com.orgmemory.core.authorization.RelationshipTuplePage;
+import com.orgmemory.core.authorization.RelationshipTupleFilter;
 import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
@@ -65,6 +66,15 @@ public class UnavailableAuthorizationConfiguration {
 
             @Override
             public RelationshipTuplePage read(int pageSize, String continuationToken) {
+                return RelationshipTuplePage.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
+            }
+
+            @Override
+            public RelationshipTuplePage read(
+                    RelationshipTupleFilter filter,
+                    int pageSize,
+                    String continuationToken) {
+                Objects.requireNonNull(filter, "filter");
                 return RelationshipTuplePage.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
             }
 

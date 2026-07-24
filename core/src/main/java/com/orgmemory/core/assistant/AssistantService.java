@@ -32,11 +32,15 @@ public class AssistantService {
             return new AssistantTurn(search.requestId(), search.evidence(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
         }
 
+        AssistantPromptFactory.PreparedPrompt prompt =
+                AssistantPromptFactory.create(
+                        question,
+                        search.evidence());
         Flux<String> content;
         try {
             content = chat.stream(
                             AiWorkload.ASSISTANT_CHAT,
-                            AssistantPromptFactory.create(question, search.evidence()))
+                            prompt.request())
                     .filter(token -> token != null && !token.isEmpty())
                     .switchIfEmpty(Flux.error(new AssistantUnavailableException(
                             "The assistant returned no answer")))
@@ -48,6 +52,9 @@ public class AssistantService {
         } catch (RuntimeException exception) {
             throw new AssistantUnavailableException("The assistant is unavailable", exception);
         }
-        return new AssistantTurn(search.requestId(), search.evidence(), content);
+        return new AssistantTurn(
+                search.requestId(),
+                prompt.evidence(),
+                content);
     }
 }

@@ -49,9 +49,8 @@
   advisory lock. Contribution and embedding writes are bounded by both record
   count and estimated payload bytes.
 - pgvector supports exact, HNSW, half-vector HNSW, IVFFlat, and optional
-  VChordRQ index strategies for both legacy contribution embeddings and shared
-  projection vectors. Indexes are rebuildable and embedding profiles remain
-  immutable.
+  VChordRQ index strategies for immutable shared-projection vectors. Indexes
+  are rebuildable and embedding profiles remain immutable.
 - Apache AGE stores topology identity and evidence identifiers only. Bounded
   traversal filters every edge by authorized Knowledge Asset; all returned IDs
   remain candidates requiring relational evidence recheck.
@@ -79,6 +78,17 @@
   the graph embedding route must still equal the Knowledge Asset version's
   immutable embedding profile.
 
-## Not Implemented
+## Runtime Delivery
 
-Runtime Assistant/MCP wiring and the graph explorer remain separate increments.
+- Assistant retrieval resolves the full canonical ACL/classification/lifecycle
+  scope before the graph engine or model sees evidence.
+- Selected evidence is BatchChecked and re-read from the canonical ledger after
+  ranking. That verified evidence set is the request authorization snapshot;
+  only sources included in the model prompt are emitted, and answer tokens
+  stream without replaying the full authorization pipeline after generation.
+- Citation URLs point to an authenticated backend endpoint. The endpoint applies
+  the current canonical authorization boundary on each open, streams the
+  original evidence from object storage, and never exposes a MinIO key or
+  presigned storage URL.
+- MCP delivery remains a separate increment. Graph explorer access stays
+  curator/admin-only until its user-facing authorization contract is complete.

@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +37,7 @@ class KnowledgeEvidenceScopeResolver {
     private final RelationshipAuthorizationSetPort authorization;
     private final KnowledgeAssetRepository assets;
     private final SourceAclSnapshotRepository aclSnapshots;
+    private final SecureKnowledgeRetrievalStore canonicalEvidence;
     private final KnowledgeRetrievalProperties properties;
     private final Clock clock;
 
@@ -44,12 +46,14 @@ class KnowledgeEvidenceScopeResolver {
             RelationshipAuthorizationSetPort authorization,
             KnowledgeAssetRepository assets,
             SourceAclSnapshotRepository aclSnapshots,
+            SecureKnowledgeRetrievalStore canonicalEvidence,
             KnowledgeRetrievalProperties properties,
             ObjectProvider<Clock> clockProvider) {
         this.users = users;
         this.authorization = authorization;
         this.assets = assets;
         this.aclSnapshots = aclSnapshots;
+        this.canonicalEvidence = canonicalEvidence;
         this.properties = properties;
         this.clock = clockProvider.getIfAvailable(Clock::systemUTC);
     }
@@ -63,7 +67,6 @@ class KnowledgeEvidenceScopeResolver {
                 .filter(candidate -> candidate.getOrganizationId()
                         .equals(actor.organizationId()))
                 .filter(AppUser::isActive)
-                .filter(candidate -> candidate.getRole() != UserRole.ADMIN)
                 .orElseThrow(() -> unavailable(
                         "INACTIVE_OR_UNSUPPORTED_SUBJECT",
                         expectedAuthorizationModelId));
@@ -124,24 +127,78 @@ class KnowledgeEvidenceScopeResolver {
                         .add(asset.assetId());
             }
         }
+        Instant evaluatedAt = Instant.now(clock);
+        ResolvedKnowledgeEvidenceScope listedScope =
+                resolvedScope(
+                        actor,
+                        subject,
+                        listed.policyVersion(),
+                        evaluatedAt,
+                        bySpace);
+        Set<UUID> visibleAssetIds;
+        try {
+            visibleAssetIds = Set.copyOf(
+                    canonicalEvidence.visibleKnowledgeAssetIds(
+                            retrievalScope(listedScope)));
+        } catch (DataAccessException unavailable) {
+            throw unavailable(
+                    "CANONICAL_AUTHORIZATION_UNAVAILABLE",
+                    listed.policyVersion());
+        }
+        if (!listedScope.allAssetIds().containsAll(visibleAssetIds)) {
+            throw unavailable(
+                    "CANONICAL_AUTHORIZATION_SCOPE_INVALID",
+                    listed.policyVersion());
+        }
+        Map<UUID, Set<UUID>> visibleBySpace = new LinkedHashMap<>();
+        bySpace.forEach((spaceId, assetIds) -> {
+            LinkedHashSet<UUID> visible = new LinkedHashSet<>(assetIds);
+            visible.retainAll(visibleAssetIds);
+            if (!visible.isEmpty()) {
+                visibleBySpace.put(spaceId, visible);
+            }
+        });
+        return resolvedScope(
+                actor,
+                subject,
+                listed.policyVersion(),
+                evaluatedAt,
+                visibleBySpace);
+    }
+
+    private ResolvedKnowledgeEvidenceScope resolvedScope(
+            CurrentActor actor,
+            AppUser subject,
+            String authorizationModelId,
+            Instant evaluatedAt,
+            Map<UUID, Set<UUID>> bySpace) {
         Map<UUID, Long> aclGenerations = new LinkedHashMap<>();
         bySpace.forEach((spaceId, assetIds) -> aclGenerations.put(
                 spaceId,
-                assetIds.isEmpty()
-                        ? 0L
-                        : aclSnapshots.maximumCurrentAclGeneration(
-                                actor.organizationId(),
-                                assetIds)));
-
+                aclSnapshots.maximumCurrentAclGeneration(
+                        actor.organizationId(),
+                        assetIds)));
         return new ResolvedKnowledgeEvidenceScope(
                 actor.organizationId(),
                 actor.userId(),
                 subject.getDepartmentId(),
                 subject.getRole() == UserRole.EXECUTIVE,
-                listed.policyVersion(),
-                Instant.now(clock),
+                authorizationModelId,
+                evaluatedAt,
                 bySpace,
                 aclGenerations);
+    }
+
+    private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
+            ResolvedKnowledgeEvidenceScope scope) {
+        return new SecureKnowledgeRetrievalStore.RetrievalScope(
+                scope.organizationId(),
+                scope.actorUserId(),
+                scope.actorDepartmentId(),
+                scope.actorExecutive(),
+                scope.allAssetIds().stream().sorted().toList(),
+                scope.authorizationModelId(),
+                scope.evaluatedAt());
     }
 
     private static KnowledgeEvidenceScopeUnavailableException unavailable(

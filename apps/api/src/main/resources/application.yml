@@ -18,7 +18,7 @@ spring:
     virtual:
       enabled: true
   datasource:
-    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:55432/orgmemory}
+    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:${ORGMEMORY_POSTGRES_PORT:15432}/orgmemory}
     username: ${ORGMEMORY_DB_USER:orgmemory}
     password: ${ORGMEMORY_DB_PASSWORD:orgmemory}
   jpa:
@@ -122,6 +122,7 @@ orgmemory:
       issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
       client-id: ${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}
       client-secret: ${ORGMEMORY_OIDC_CLIENT_SECRET:orgmemory-local-dev-only}
+      audience: ${ORGMEMORY_OIDC_AUDIENCE:${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}}
       web-base-url: ${ORGMEMORY_WEB_BASE_URL:http://localhost:5173}
 
 server:
