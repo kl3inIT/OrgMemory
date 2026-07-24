@@ -22,6 +22,7 @@ import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConflictException;
 import com.orgmemory.graphrag.storage.VectorIndex;
+import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -87,10 +88,12 @@ class PostgresSharedProjectionIntegrationTests {
                 """
                 INSERT INTO organizations (id, name, created_at, updated_at, version)
                 VALUES (?, 'Projection conformance', now(), now(), 0),
-                       (?, 'Shared snapshot', now(), now(), 0)
+                       (?, 'Shared snapshot', now(), now(), 0),
+                       (?, 'Graph store conformance', now(), now(), 0)
                 """,
                 CONFORMANCE_ORGANIZATION_ID,
-                ORGANIZATION_ID);
+                ORGANIZATION_ID,
+                GraphStoreConformance.organizationId());
         NamedParameterJdbcTemplate jdbc =
                 new NamedParameterJdbcTemplate(dataSource);
         DataSourceTransactionManager transactions =
@@ -105,6 +108,11 @@ class PostgresSharedProjectionIntegrationTests {
     @Test
     void publicationStorePassesSharedConformance() {
         ProjectionPublicationConformance.verify(() -> publications);
+    }
+
+    @Test
+    void graphStorePassesSharedSecurityAndLifecycleConformance() {
+        GraphStoreConformance.verify(graph, publications);
     }
 
     @Test

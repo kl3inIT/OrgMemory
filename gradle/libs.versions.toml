@@ -9,6 +9,7 @@ apachePoi = "5.5.1"
 openfgaSdk = "0.9.9"
 minioSdk = "9.0.3"
 opensearchJava = "3.9.0"
+neo4jJavaDriver = "6.1.0"
 junit = "6.0.3"
 
 [libraries]
@@ -23,6 +24,7 @@ apache-poi-ooxml = { module = "org.apache.poi:poi-ooxml", version.ref = "apacheP
 openfga-sdk = { module = "dev.openfga:openfga-sdk", version.ref = "openfgaSdk" }
 minio-sdk = { module = "io.minio:minio", version.ref = "minioSdk" }
 opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearchJava" }
+neo4j-java-driver = { module = "org.neo4j.driver:neo4j-java-driver", version.ref = "neo4jJavaDriver" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

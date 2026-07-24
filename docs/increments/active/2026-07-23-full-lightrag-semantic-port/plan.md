@@ -91,9 +91,9 @@
 
 ## PR 10 — Neo4j Graph Adapter
 
-- [ ] Implement the complete graph contract without owning ACL or provenance.
-- [ ] Support bounded configurable traversal and batch adjacency.
-- [ ] Pass the same graph conformance and security suite as PostgreSQL.
+- [x] Implement the complete graph contract without owning ACL or provenance.
+- [x] Support bounded configurable traversal and batch adjacency.
+- [x] Pass the same graph conformance and security suite as PostgreSQL.
 
 ## PR 11 — Runtime And Product Integration
 
