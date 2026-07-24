@@ -5,6 +5,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
+import java.util.List;
 import reactor.core.publisher.Flux;
 
 public class AssistantService {
@@ -29,7 +30,7 @@ public class AssistantService {
             String requestId) {
         var search = retrieval.search(actor, question, requestedLimit, requestId);
         if (search.evidence().isEmpty()) {
-            return new AssistantTurn(search.requestId(), search.evidence(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
+            return new AssistantTurn(search.requestId(), List.of(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
         }
 
         AssistantPromptFactory.PreparedPrompt prompt =
@@ -54,7 +55,7 @@ public class AssistantService {
         }
         return new AssistantTurn(
                 search.requestId(),
-                prompt.evidence(),
+                prompt.citations(),
                 content);
     }
 }

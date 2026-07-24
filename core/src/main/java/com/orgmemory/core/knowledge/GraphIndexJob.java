@@ -29,6 +29,9 @@ class GraphIndexJob extends BaseEntity {
     @Column(name = "source_revision_id", nullable = false, updatable = false)
     private UUID sourceRevisionId;
 
+    @Column(name = "graph_processing_profile_id", nullable = false, updatable = false)
+    private UUID graphProcessingProfileId;
+
     @Column(name = "projection_generation", nullable = false, updatable = false)
     private long projectionGeneration;
 
@@ -84,6 +87,7 @@ class GraphIndexJob extends BaseEntity {
             UUID knowledgeAssetVersionId,
             UUID sourceRevisionId,
             long projectionGeneration,
+            GraphProcessingProfileRef graphProcessingProfile,
             int maxAttempts,
             Instant now) {
         super(UUID.randomUUID());
@@ -98,13 +102,18 @@ class GraphIndexJob extends BaseEntity {
         this.knowledgeAssetVersionId =
                 Objects.requireNonNull(knowledgeAssetVersionId, "knowledgeAssetVersionId");
         this.sourceRevisionId = Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
+        this.graphProcessingProfileId =
+                Objects.requireNonNull(graphProcessingProfile, "graphProcessingProfile").id();
         this.projectionGeneration = projectionGeneration;
         this.jobType = TYPE;
         this.status = GraphIndexJobStatus.PENDING;
         this.availableAt = Objects.requireNonNull(now, "now");
         this.maxAttempts = maxAttempts;
         this.idempotencyKey = idempotencyKey(
-                organizationId, sourceRevisionId, projectionGeneration);
+                organizationId,
+                sourceRevisionId,
+                projectionGeneration,
+                graphProcessingProfile.canonicalSha256());
     }
 
     void claim(String workerId, Instant now, Duration leaseDuration) {
@@ -244,6 +253,10 @@ class GraphIndexJob extends BaseEntity {
         return sourceRevisionId;
     }
 
+    UUID getGraphProcessingProfileId() {
+        return graphProcessingProfileId;
+    }
+
     long getProjectionGeneration() {
         return projectionGeneration;
     }
@@ -291,9 +304,25 @@ class GraphIndexJob extends BaseEntity {
                 || status == GraphIndexJobStatus.CANCELLED;
     }
 
-    private static String idempotencyKey(
-            UUID organizationId, UUID sourceRevisionId, long generation) {
-        return "graph:" + organizationId + ":" + sourceRevisionId + ":" + generation;
+    static String idempotencyKey(
+            UUID organizationId,
+            UUID sourceRevisionId,
+            long generation,
+            String graphProcessingProfileSha256) {
+        String profileSha256 = Objects.requireNonNull(
+                graphProcessingProfileSha256, "graphProcessingProfileSha256");
+        if (!profileSha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(
+                    "graphProcessingProfileSha256 must be lowercase SHA-256 hex");
+        }
+        return "graph:"
+                + organizationId
+                + ":"
+                + sourceRevisionId
+                + ":"
+                + generation
+                + ":"
+                + profileSha256;
     }
 
     private static String requireFingerprint(String value) {

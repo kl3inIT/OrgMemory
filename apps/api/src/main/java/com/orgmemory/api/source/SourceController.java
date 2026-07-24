@@ -58,7 +58,6 @@ class SourceController {
                     new CreateUploadSourceCommand(
                             actor,
                             file.getOriginalFilename(),
-                            file.getContentType(),
                             file.getSize(),
                             classification,
                             knowledgeSpaceId),

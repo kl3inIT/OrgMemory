@@ -186,7 +186,7 @@ class GraphPublicationCommitter {
                         ContentStore.ContentKind.CHUNK,
                         chunk.content(),
                         chunk.tokenCount(),
-                        chunkMetadata(chunk)))
+                        chunkMetadata(claim, chunk)))
                 .toList();
     }
 
@@ -197,7 +197,7 @@ class GraphPublicationCommitter {
                         chunk.id().toString(),
                         evidence(claim, chunk.id()),
                         chunk.content(),
-                        chunkMetadata(chunk)))
+                        chunkMetadata(claim, chunk)))
                 .toList();
     }
 
@@ -214,7 +214,7 @@ class GraphPublicationCommitter {
                     claim.embeddingProfile().id(),
                     claim.embeddingProfile().model(),
                     chunk.embedding(),
-                    chunkMetadata(chunk)));
+                    chunkMetadata(claim, chunk)));
         }
 
         Map<UUID, EntityContribution> entities = projection.contributions().entities().stream()
@@ -235,7 +235,10 @@ class GraphPublicationCommitter {
                     embedding.vector(),
                     Map.of(
                             "contributionId", contribution.id().toString(),
-                            "entityType", contribution.type())));
+                            "entityType", contribution.type(),
+                            "graphProcessingProfileSha256",
+                                    claim.graphProcessingProfile()
+                                            .canonicalSha256())));
         }
 
         Map<UUID, RelationContribution> relations =
@@ -259,7 +262,10 @@ class GraphPublicationCommitter {
                     embedding.vector(),
                     Map.of(
                             "contributionId", contribution.id().toString(),
-                            "relationType", contribution.type())));
+                            "relationType", contribution.type(),
+                            "graphProcessingProfileSha256",
+                                    claim.graphProcessingProfile()
+                                            .canonicalSha256())));
         }
         return List.copyOf(records);
     }
@@ -288,9 +294,14 @@ class GraphPublicationCommitter {
                 claim.aclGeneration());
     }
 
-    private static Map<String, String> chunkMetadata(GraphIndexChunk chunk) {
+    private static Map<String, String> chunkMetadata(
+            ClaimedGraphIndex claim,
+            GraphIndexChunk chunk) {
         Map<String, String> metadata = new LinkedHashMap<>();
         metadata.put("chunkIndex", Integer.toString(chunk.index()));
+        metadata.put(
+                "graphProcessingProfileSha256",
+                claim.graphProcessingProfile().canonicalSha256());
         if (chunk.heading() != null) {
             metadata.put("heading", chunk.heading());
         }
@@ -328,7 +339,9 @@ class GraphPublicationCommitter {
                         "embeddingProvider", claim.embeddingProfile().provider(),
                         "embeddingModel", claim.embeddingProfile().model(),
                         "embeddingDimensions",
-                                Integer.toString(claim.embeddingProfile().dimensions())));
+                                Integer.toString(claim.embeddingProfile().dimensions()),
+                        "graphProcessingProfileSha256",
+                                claim.graphProcessingProfile().canonicalSha256()));
     }
 
     private static String vector(FloatVector vector) {

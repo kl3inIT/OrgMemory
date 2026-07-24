@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
@@ -13,6 +14,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.model.EvidenceReference;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
@@ -27,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class GraphRagKnowledgeRetrievalServiceTests {
 
@@ -107,6 +110,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 mock(RelationshipAuthorizationSetPort.class);
         NeverRecheckedStore canonical =
                 new NeverRecheckedStore();
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
 
         var service = new GraphRagKnowledgeRetrievalService(
                 new KnowledgeSearchAuthorizationService(entry, audit),
@@ -126,7 +130,8 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         20,
                         5,
                         5_000,
-                        1_000));
+                        1_000),
+                events);
 
         SecureKnowledgeSearchResult result = service.search(
                 actor,
@@ -138,6 +143,13 @@ class GraphRagKnowledgeRetrievalServiceTests {
         verify(engine).execute(any());
         verify(finalAuthorization, never()).batchCheck(any());
         assertEquals(0, canonical.recheckCount);
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events).emit(captured.capture());
+        assertEquals(GraphRagEventSink.Stage.RETRIEVE, captured.getValue().stage());
+        assertEquals(GraphRagEventSink.Outcome.SUCCEEDED, captured.getValue().outcome());
+        assertEquals(0, captured.getValue().outputCount());
+        assertNotNull(captured.getValue().operationId());
     }
 
     private static ResolvedKnowledgeEvidenceScope scope(

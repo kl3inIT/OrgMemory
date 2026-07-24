@@ -2,6 +2,10 @@ spring:
   application:
     name: orgmemory-api
   ai:
+    chat:
+      observations:
+        log-prompt: false
+        log-completion: false
     model:
       chat: ${ORGMEMORY_AI_MODEL_CHAT:none}
       embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
@@ -90,6 +94,13 @@ orgmemory:
       model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
   graph-rag:
+    processing:
+      maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
+      maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
+      entity-type-guidance: ${ORGMEMORY_GRAPH_ENTITY_TYPES:PERSON,ORGANIZATION,TEAM,ROLE,POLICY,PROCESS,SYSTEM,PRODUCT,DOCUMENT,LOCATION,EVENT,CONCEPT,OTHER}
+      maximum-gleaning-rounds: ${ORGMEMORY_GRAPH_MAX_GLEANING_ROUNDS:1}
+      maximum-gleaning-input-tokens: ${ORGMEMORY_GRAPH_MAX_GLEANING_INPUT_TOKENS:24000}
+      maximum-section-context-tokens: ${ORGMEMORY_GRAPH_MAX_SECTION_CONTEXT_TOKENS:256}
     explorer:
       default-entity-limit: ${ORGMEMORY_GRAPH_EXPLORER_DEFAULT_ENTITY_LIMIT:200}
       maximum-entity-limit: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_ENTITY_LIMIT:1000}
@@ -136,6 +147,9 @@ server:
         same-site: lax
 
 management:
+  tracing:
+    sampling:
+      probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}
   endpoints:
     web:
       exposure:

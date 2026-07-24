@@ -72,4 +72,16 @@ class KnowledgeAssetLifecycleController {
             @PathVariable UUID jobId, Authentication authentication) {
         return graphJobs.resume(actors.current(authentication), jobId);
     }
+
+    @PostMapping("/{knowledgeAssetId}/graph-index")
+    @Operation(
+            operationId = "ensureKnowledgeAssetGraphIndex",
+            summary = "Ensure graph indexing uses the current processing profile")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    GraphIndexJobView ensureGraphIndex(
+            @PathVariable UUID knowledgeAssetId,
+            Authentication authentication) {
+        return graphJobs.ensureCurrentProfile(
+                actors.current(authentication), knowledgeAssetId);
+    }
 }

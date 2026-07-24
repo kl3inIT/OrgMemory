@@ -9,6 +9,8 @@ public record GraphIndexJobView(
         UUID knowledgeAssetVersionId,
         UUID sourceRevisionId,
         long projectionGeneration,
+        UUID graphProcessingProfileId,
+        String graphProcessingProfileSha256,
         String status,
         int attempt,
         boolean cancellationRequested,

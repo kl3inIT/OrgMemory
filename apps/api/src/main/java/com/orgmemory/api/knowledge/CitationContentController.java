@@ -2,6 +2,7 @@ package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.CitationContentService;
+import com.orgmemory.core.knowledge.KnowledgeContentType;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
@@ -47,14 +48,16 @@ class CitationContentController {
                 citation.stream().transferTo(output);
             }
         };
+        SafeRepresentation representation =
+                safeRepresentation(citation.fileName());
         return ResponseEntity.ok()
-                .contentType(safeMediaType(citation.mediaType()))
+                .contentType(representation.mediaType())
                 .contentLength(citation.contentLength())
                 .cacheControl(CacheControl.noStore())
                 .header("X-Request-ID", requestId)
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.inline()
+                        representation.contentDisposition()
                                 .filename(
                                         citation.fileName(),
                                         java.nio.charset.StandardCharsets.UTF_8)
@@ -64,11 +67,20 @@ class CitationContentController {
                 .body(body);
     }
 
-    private static MediaType safeMediaType(String value) {
-        try {
-            return MediaType.parseMediaType(value);
-        } catch (IllegalArgumentException ignored) {
-            return MediaType.APPLICATION_OCTET_STREAM;
-        }
+    private static SafeRepresentation safeRepresentation(String fileName) {
+        return KnowledgeContentType.fromFileName(fileName)
+                .map(contentType -> new SafeRepresentation(
+                        MediaType.parseMediaType(
+                                contentType.browserSafeMediaType()),
+                        contentType.inlinePreviewAllowed()
+                                ? ContentDisposition.inline()
+                                : ContentDisposition.attachment()))
+                .orElseGet(() -> new SafeRepresentation(
+                        MediaType.APPLICATION_OCTET_STREAM,
+                        ContentDisposition.attachment()));
     }
+
+    private record SafeRepresentation(
+            MediaType mediaType,
+            ContentDisposition.Builder contentDisposition) {}
 }

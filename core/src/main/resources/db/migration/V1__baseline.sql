@@ -361,6 +361,20 @@ CREATE TABLE public.graph_curation_records (
 
 
 --
+-- Name: graph_processing_profiles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.graph_processing_profiles (
+    id uuid NOT NULL,
+    canonical_sha256 character varying(64) NOT NULL,
+    canonical_form text NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    CONSTRAINT chk_graph_processing_profile_canonical_nonblank CHECK ((btrim(canonical_form) <> ''::text)),
+    CONSTRAINT chk_graph_processing_profile_sha CHECK (((canonical_sha256)::text ~ '^[0-9a-f]{64}$'::text))
+);
+
+
+--
 -- Name: graph_index_jobs; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -370,6 +384,7 @@ CREATE TABLE public.graph_index_jobs (
     knowledge_asset_id uuid NOT NULL,
     knowledge_asset_version_id uuid NOT NULL,
     source_revision_id uuid NOT NULL,
+    graph_processing_profile_id uuid NOT NULL,
     projection_generation bigint NOT NULL,
     job_type character varying(64) NOT NULL,
     status character varying(32) NOT NULL,
@@ -1459,6 +1474,14 @@ ALTER TABLE ONLY public.graph_curation_records
 
 
 --
+-- Name: graph_processing_profiles graph_processing_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.graph_processing_profiles
+    ADD CONSTRAINT graph_processing_profiles_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: graph_index_jobs graph_index_jobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1851,6 +1874,14 @@ ALTER TABLE ONLY public.embedding_profiles
 
 
 --
+-- Name: graph_processing_profiles uq_graph_processing_profile_sha; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.graph_processing_profiles
+    ADD CONSTRAINT uq_graph_processing_profile_sha UNIQUE (canonical_sha256);
+
+
+--
 -- Name: evidence_blobs uq_evidence_blob_id_organization; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1883,11 +1914,11 @@ ALTER TABLE ONLY public.external_identities
 
 
 --
--- Name: graph_index_jobs uq_graph_index_job_version; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: graph_index_jobs uq_graph_index_job_version_profile; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.graph_index_jobs
-    ADD CONSTRAINT uq_graph_index_job_version UNIQUE (knowledge_asset_version_id);
+    ADD CONSTRAINT uq_graph_index_job_version_profile UNIQUE (knowledge_asset_version_id, graph_processing_profile_id);
 
 
 --
@@ -2818,6 +2849,14 @@ ALTER TABLE ONLY public.graph_index_jobs
 
 
 --
+-- Name: graph_index_jobs fk_graph_index_job_processing_profile; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.graph_index_jobs
+    ADD CONSTRAINT fk_graph_index_job_processing_profile FOREIGN KEY (graph_processing_profile_id) REFERENCES public.graph_processing_profiles(id);
+
+
+--
 -- Name: graph_index_jobs fk_graph_index_job_source_revision; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3684,4 +3723,3 @@ ALTER TABLE ONLY public.user_invitations
 --
 -- PostgreSQL database dump complete
 --
-

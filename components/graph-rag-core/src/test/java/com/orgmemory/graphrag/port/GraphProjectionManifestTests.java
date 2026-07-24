@@ -54,8 +54,30 @@ class GraphProjectionManifestTests {
         assertNotEquals(first.manifestFingerprint(), changed.manifestFingerprint());
     }
 
+    @Test
+    void processingProfileChangeCreatesANewManifestAndJobIdentity() {
+        GraphRevisionProjection first = projection(
+                "Evidence-backed policy",
+                Instant.parse("2026-07-24T00:00:00Z"),
+                "a".repeat(64));
+        GraphRevisionProjection rebuilt = projection(
+                "Evidence-backed policy",
+                Instant.parse("2026-07-24T00:00:00Z"),
+                "b".repeat(64));
+
+        assertNotEquals(first.manifestFingerprint(), rebuilt.manifestFingerprint());
+        assertNotEquals(first.idempotencyKey(), rebuilt.idempotencyKey());
+    }
+
     private static GraphRevisionProjection projection(
             String description, Instant extractedAt) {
+        return projection(description, extractedAt, "a".repeat(64));
+    }
+
+    private static GraphRevisionProjection projection(
+            String description,
+            Instant extractedAt,
+            String graphProcessingProfileSha256) {
         var provenance = new EvidenceProvenance(
                 new EvidenceReference(
                         ORGANIZATION_ID,
@@ -94,6 +116,7 @@ class GraphProjectionManifestTests {
                 List.of(new ContributionEmbedding(
                         CONTRIBUTION_ID, new FloatVector(new float[] {0.1F, 0.2F, 0.3F}))),
                 List.of());
-        return new GraphRevisionProjection(contributions, embeddings);
+        return new GraphRevisionProjection(
+                contributions, embeddings, graphProcessingProfileSha256);
     }
 }

@@ -57,9 +57,11 @@ reviews:
 
     - path: "core/src/main/resources/db/migration/*.sql"
       instructions: |
-        Flyway migrations are immutable after release. Check tenant isolation,
-        foreign keys, uniqueness, indexes, append-only evidence semantics, safe
-        defaults, and compatibility with PostgreSQL 18 plus pgvector.
+        The repository is pre-release: V1 is the intentionally resettable clean
+        baseline and development data carries no migration cost. Once a release
+        baseline is frozen, later Flyway migrations are immutable. Check tenant
+        isolation, foreign keys, uniqueness, indexes, append-only evidence
+        semantics, safe defaults, and PostgreSQL 18 plus pgvector compatibility.
 
     - path: "integrations/authorization-openfga/**/*"
       instructions: |
@@ -77,10 +79,10 @@ reviews:
 
     - path: ".github/**/*.{yml,yaml}"
       instructions: |
-        Require least-privilege permissions, immutable action SHAs, bounded job
-        timeouts, concurrency cancellation, frozen lockfiles, and no secrets in
-        pull-request workflows. Keep Dependabot comments beside pinned action
-        SHAs so action updates remain discoverable.
+        Require least-privilege permissions, explicit release tags for actions,
+        bounded job timeouts, concurrency cancellation, frozen lockfiles, and no
+        secrets in pull-request workflows. GitHub Actions are intentionally not
+        pinned to commit SHAs; Dependabot owns their scheduled version updates.
 
   tools:
     github-checks:

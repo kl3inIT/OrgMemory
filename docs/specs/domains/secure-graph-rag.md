@@ -62,9 +62,18 @@
 
 - A durable graph-index job is inserted only after the canonical source
   revision reaches `READY`. The job is unique per immutable Knowledge Asset
-  version and stores lease, attempts, retry time, and bounded failure evidence.
+  version and immutable `GraphProcessingProfile`, and stores lease, attempts,
+  retry time, and bounded failure evidence.
+- `GraphProcessingProfile` and `EmbeddingProfile` are independent coordinates.
+  The former snapshots algorithm, complete extraction settings, exact prompt
+  templates, merge semantics and embedding-payload format; the latter owns
+  provider/model/vector geometry. Changing either produces a new rebuildable
+  generation without mutating a completed historical job.
 - Claims pin the current asset/version/revision, active chunk generation, ACL
-  snapshot/generation, language, and immutable embedding profile.
+  snapshot/generation, language, immutable embedding profile and exact
+  hash-addressed graph-processing profile. A retry reuses those coordinates;
+  an explicit rebuild resolves the current profile and enqueues a distinct job
+  only when its profile hash differs.
 - Chunk extraction uses bounded virtual-thread concurrency and renews the lease
   between batches. Model output remains untrusted and must satisfy the
   structured extraction contract before assembly.

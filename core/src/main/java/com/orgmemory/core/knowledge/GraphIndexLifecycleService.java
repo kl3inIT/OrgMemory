@@ -15,9 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Authorization boundary around status, cancellation and unfinished-work
  * recovery.
  *
- * <p>A succeeded job is final. Re-extraction requires a new immutable source
- * revision; delete rebuilds the effective graph by removing only the retired
- * revision's contributions.
+ * <p>A succeeded job is final for its immutable graph-processing profile. A new
+ * profile may enqueue a new projection for the same immutable source revision;
+ * delete rebuilds the effective graph by removing only the retired revision's
+ * contributions.
  */
 @Service
 public class GraphIndexLifecycleService {
@@ -27,12 +28,21 @@ public class GraphIndexLifecycleService {
     private static final String RESOURCE_TYPE = "knowledge_asset";
 
     private final GraphIndexingCoordinator coordinator;
+    private final GraphIndexJobQueue queue;
+    private final KnowledgeAssetRepository assets;
+    private final KnowledgeAssetVersionRepository versions;
     private final RelationshipAuthorizationPort authorization;
 
     GraphIndexLifecycleService(
             GraphIndexingCoordinator coordinator,
+            GraphIndexJobQueue queue,
+            KnowledgeAssetRepository assets,
+            KnowledgeAssetVersionRepository versions,
             RelationshipAuthorizationPort authorization) {
         this.coordinator = coordinator;
+        this.queue = queue;
+        this.assets = assets;
+        this.versions = versions;
         this.authorization = authorization;
     }
 
@@ -61,6 +71,43 @@ public class GraphIndexLifecycleService {
                 coordinator.status(actor.organizationId(), jobId);
         require(actor, CAN_REBUILD, view.knowledgeAssetId());
         return coordinator.resume(actor.organizationId(), jobId);
+    }
+
+    @Transactional
+    public GraphIndexJobView ensureCurrentProfile(
+            CurrentActor actor,
+            UUID knowledgeAssetId) {
+        Objects.requireNonNull(actor, "actor");
+        UUID assetId = Objects.requireNonNull(
+                knowledgeAssetId, "knowledgeAssetId");
+        require(actor, CAN_REBUILD, assetId);
+        KnowledgeAsset asset = assets
+                .findByIdAndOrganizationId(assetId, actor.organizationId())
+                .filter(candidate -> candidate.getArchivedAt() == null)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Graph indexing requires an active, non-archived Knowledge Asset"));
+        KnowledgeAssetVersion version = versions
+                .findByIdAndOrganizationId(
+                        Objects.requireNonNull(
+                                asset.getCurrentVersionId(), "currentVersionId"),
+                        actor.organizationId())
+                .filter(candidate ->
+                        candidate.getStatus() == KnowledgeAssetVersionStatus.ACTIVE)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Graph indexing requires an active Knowledge Asset version"));
+        UUID jobId = queue.enqueue(
+                actor.organizationId(),
+                Objects.requireNonNull(
+                        version.getSourceRevisionId(), "sourceRevisionId"),
+                new KnowledgeAssetRef(
+                        assetId,
+                        version.getId(),
+                        version.getNormalizedRecordId(),
+                        version.getRawSourceObjectId(),
+                        version.getSourceAclSnapshotId(),
+                        version.getStatus()),
+                java.time.Instant.now());
+        return coordinator.status(actor.organizationId(), jobId);
     }
 
     private void require(

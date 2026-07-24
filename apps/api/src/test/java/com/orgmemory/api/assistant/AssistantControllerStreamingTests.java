@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
@@ -24,7 +25,7 @@ class AssistantControllerStreamingTests {
                 Sinks.many().unicast().onBackpressureBuffer();
         AssistantTurn turn = new AssistantTurn(
                 "request-1",
-                List.of(evidence),
+                List.of(new AssistantCitation(1, evidence)),
                 model.asFlux());
 
         StepVerifier.create(controller().parts(turn))
@@ -40,6 +41,7 @@ class AssistantControllerStreamingTests {
                                     + evidence.chunkId()
                                     + "/content",
                             source.url());
+                    assertEquals(1, source.citationNumber());
                 })
                 .then(() -> model.tryEmitNext("answer"))
                 .assertNext(part -> assertInstanceOf(

@@ -3,6 +3,7 @@ package com.orgmemory.worker.ingestion;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -184,7 +185,6 @@ class SourceIngestionPipelineIntegrationTests {
                 new CreateUploadSourceCommand(
                         ACTOR,
                         "support-resolution.txt",
-                        "text/plain",
                         content.length,
                         KnowledgeClassification.CONFIDENTIAL,
                         SALES_SPACE_ID),
@@ -230,6 +230,22 @@ class SourceIngestionPipelineIntegrationTests {
                         "SELECT count(*) FROM knowledge_chunks WHERE source_object_id = ?",
                         Integer.class,
                         source.id()));
+        var graphProfile = jdbc.queryForMap(
+                """
+                SELECT profile.canonical_sha256, profile.canonical_form
+                FROM graph_index_jobs job
+                JOIN graph_processing_profiles profile
+                  ON profile.id = job.graph_processing_profile_id
+                JOIN source_revisions revision
+                  ON revision.id = job.source_revision_id
+                 AND revision.organization_id = job.organization_id
+                WHERE revision.source_object_id = ?
+                """,
+                source.id());
+        assertTrue(graphProfile.get("canonical_sha256").toString()
+                .matches("[0-9a-f]{64}"));
+        assertTrue(graphProfile.get("canonical_form").toString()
+                .contains("schemaVersion=1"));
         assertEquals(
                 1,
                 jdbc.queryForObject(
@@ -427,7 +443,6 @@ class SourceIngestionPipelineIntegrationTests {
                 new CreateUploadSourceCommand(
                         ACTOR,
                         "authorization-pending.txt",
-                        "text/plain",
                         content.length,
                         KnowledgeClassification.CONFIDENTIAL,
                         SALES_SPACE_ID),
@@ -554,10 +569,14 @@ class SourceIngestionPipelineIntegrationTests {
         @Primary
         AiRouteResolver testAiRouteResolver() {
             return workload -> {
-                if (workload != AiWorkload.DOCUMENT_EMBEDDING) {
-                    throw new IllegalArgumentException("Unsupported test workload: " + workload);
-                }
-                return new AiRoute("openai", "text-embedding-3-large");
+                return switch (workload) {
+                    case DOCUMENT_EMBEDDING ->
+                            new AiRoute("openai", "text-embedding-3-large");
+                    case GRAPH_EXTRACTION ->
+                            new AiRoute("openai", "gpt-test");
+                    default -> throw new IllegalArgumentException(
+                            "Unsupported test workload: " + workload);
+                };
             };
         }
     }

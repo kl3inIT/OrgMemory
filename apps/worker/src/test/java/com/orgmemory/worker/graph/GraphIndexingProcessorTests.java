@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,13 +23,18 @@ import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.GraphIndexChunk;
 import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.GraphProcessingProfileRef;
+import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
 import com.orgmemory.graphrag.model.ExtractedEntity;
 import com.orgmemory.graphrag.model.ExtractedRelation;
 import com.orgmemory.graphrag.model.ExtractionResult;
+import com.orgmemory.graphrag.model.ExtractionProfile;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationOrientation;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
+import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -65,6 +71,7 @@ class GraphIndexingProcessorTests {
         EmbeddingModel embeddingModel = mock(EmbeddingModel.class);
         AiRouteResolver routes = mock(AiRouteResolver.class);
         GraphIndexingProperties properties = properties();
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
         ClaimedGraphIndex claim = claim(List.of(
                 chunk(
                         CHUNK_ID,
@@ -102,17 +109,28 @@ class GraphIndexingProcessorTests {
                             RelationOrientation.DIRECTED,
                             0.96)));
         };
-        when(extractors.create(new AiRoute("openai", "gpt-5.6-sol")))
+        when(extractors.create(new AiRoute("openai", "gpt-test")))
                 .thenReturn(extractor);
         when(embeddingModel.embed(
                         anyList(), isNull(), any(TokenCountBatchingStrategy.class)))
                 .thenAnswer(invocation -> {
                     List<Document> documents = invocation.getArgument(0);
                     assertEquals(6, documents.size());
-                    assertTrue(documents.getLast().getText().contains("orgmemory"));
-                    assertTrue(documents.getLast().getText().contains("secure search"));
-                    assertTrue(documents.getLast().getText().contains("retrieval"));
-                    assertTrue(documents.getLast().getText().contains("security"));
+                    assertTrue(documents.stream()
+                            .map(Document::getText)
+                            .anyMatch("orgmemory\nEnterprise memory platform"::equals));
+                    assertTrue(documents.stream()
+                            .map(Document::getText)
+                            .anyMatch("secure search\nPermission-aware retrieval"::equals));
+                    assertEquals(
+                            "retrieval, security\torgmemory\nsecure search\n"
+                                    + "OrgMemory builds Secure Search",
+                            documents.getLast().getText());
+                    assertFalse(documents.stream()
+                            .map(Document::getText)
+                            .anyMatch(text -> text.contains("\nproduct\n")
+                                    || text.contains("\ncapability\n")
+                                    || text.contains("\tbuilds\n")));
                     return documents.stream()
                             .map(ignored -> new float[] {1.0f, 0.0f, 0.0f})
                             .toList();
@@ -124,7 +142,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 provider(embeddingModel),
                 routes,
-                properties);
+                properties,
+                events);
 
         processor.processNext();
 
@@ -141,6 +160,18 @@ class GraphIndexingProcessorTests {
         assertEquals(2, projection.getValue().embeddings().relationEmbeddings().size());
         verify(coordinator, never()).complete(any(), any());
         verify(coordinator, never()).fail(any(), any(), any(), any());
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> emitted =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, times(4)).emit(emitted.capture());
+        assertEquals(
+                List.of(
+                        GraphRagEventSink.Stage.EXTRACT,
+                        GraphRagEventSink.Stage.MERGE,
+                        GraphRagEventSink.Stage.EMBED,
+                        GraphRagEventSink.Stage.PUBLISH),
+                emitted.getAllValues().stream()
+                        .map(GraphRagEventSink.GraphRagEvent::stage)
+                        .toList());
     }
 
     @Test
@@ -165,7 +196,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
                 routes,
-                properties);
+                properties,
+                GraphRagEventSink.NO_OP);
 
         processor.processNext();
 
@@ -211,7 +243,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
                 routes,
-                properties);
+                properties,
+                GraphRagEventSink.NO_OP);
 
         Thread worker = Thread.ofVirtual().start(processor::processNext);
         try {
@@ -260,7 +293,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
                 routes,
-                properties);
+                properties,
+                GraphRagEventSink.NO_OP);
 
         processor.processNext();
 
@@ -302,7 +336,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
                 routes,
-                properties);
+                properties,
+                GraphRagEventSink.NO_OP);
 
         Thread worker = Thread.ofVirtual().start(() -> {
             processor.processNext();
@@ -346,7 +381,8 @@ class GraphIndexingProcessorTests {
                 extractors,
                 new StaticListableBeanFactory().getBeanProvider(EmbeddingModel.class),
                 routes,
-                properties);
+                properties,
+                GraphRagEventSink.NO_OP);
 
         assertDoesNotThrow(processor::processNext);
 
@@ -359,6 +395,17 @@ class GraphIndexingProcessorTests {
     }
 
     private static ClaimedGraphIndex claim(List<GraphIndexChunk> chunks) {
+        var graphProcessingProfile =
+                LightRagGraphProcessingProfiles.current(new ExtractionProfile(
+                        "openai",
+                        "gpt-test",
+                        LightRagExtractionPrompt.VERSION,
+                        40,
+                        60));
+        var graphProcessingProfileRef = new GraphProcessingProfileRef(
+                UUID.randomUUID(),
+                graphProcessingProfile.canonicalSha256(),
+                graphProcessingProfile);
         return new ClaimedGraphIndex(
                 JOB_ID,
                 ORGANIZATION_ID,
@@ -369,7 +416,13 @@ class GraphIndexingProcessorTests {
                 ACL_SNAPSHOT_ID,
                 1,
                 1,
-                "graph:" + ORGANIZATION_ID + ":" + REVISION_ID + ":1",
+                graphProcessingProfileRef,
+                "graph:"
+                        + ORGANIZATION_ID
+                        + ":"
+                        + REVISION_ID
+                        + ":1:"
+                        + graphProcessingProfile.canonicalSha256(),
                 new EmbeddingProfileRef(
                         EMBEDDING_PROFILE_ID,
                         ORGANIZATION_ID,
@@ -413,14 +466,7 @@ class GraphIndexingProcessorTests {
                 "graph-worker-test",
                 leaseDuration,
                 extractionTimeout,
-                2,
-                40,
-                60,
-                null,
-                null,
-                1,
-                24_000,
-                256);
+                2);
     }
 
     private static ObjectProvider<EmbeddingModel> provider(EmbeddingModel embeddingModel) {

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query"
 import {
   BookOpen,
   Download,
@@ -21,19 +22,16 @@ import { cn } from "@/lib/utils"
 
 export interface AssistantSourceRef {
   id: string
+  citationNumber: number
   title: string
   url: string
 }
 
-type PreviewState =
-  | { status: "idle" | "loading" }
-  | { status: "error" }
-  | {
-      status: "ready"
-      blobUrl: string
-      mediaType: string
-      text?: string
-    }
+interface PreviewPayload {
+  blob: Blob
+  mediaType: string
+  text?: string
+}
 
 interface AssistantSourcesPanelProps {
   open: boolean
@@ -80,49 +78,48 @@ function SourcesPanelContent({
   onSelect,
 }: AssistantSourcesPanelProps) {
   const selected = sources.find((source) => source.id === selectedSourceId) ?? sources[0] ?? null
-  const [preview, setPreview] = useState<PreviewState>({ status: "idle" })
   const canPreview = selected?.url.startsWith("/api/citations/") ?? false
+  const selectedUrl = canPreview ? selected?.url : undefined
+  const previewQuery = useQuery({
+    queryKey: ["assistant-citation-preview", selectedUrl],
+    enabled: selectedUrl !== undefined,
+    queryFn: async (): Promise<PreviewPayload> => {
+      if (!selectedUrl) throw new Error("Citation URL is unavailable")
+      const response = await fetch(selectedUrl, {
+        credentials: "same-origin",
+      })
+      if (!response.ok) throw new Error("Source is unavailable")
+      const blob = await response.blob()
+      const mediaType = blob.type || "application/octet-stream"
+      const text = isTextPreview(mediaType) ? await blob.text() : undefined
+      return { blob, mediaType, text }
+    },
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  })
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!selected || !canPreview) {
-      setPreview({ status: "idle" })
+    if (!previewQuery.data || previewQuery.isFetching) {
+      setBlobUrl(null)
       return
     }
 
-    const controller = new AbortController()
-    let objectUrl: string | undefined
-    setPreview({ status: "loading" })
-
-    void fetch(selected.url, {
-      credentials: "same-origin",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Source is unavailable")
-        const blob = await response.blob()
-        objectUrl = URL.createObjectURL(blob)
-        const mediaType = blob.type || "application/octet-stream"
-        const text = isTextPreview(mediaType) ? await blob.text() : undefined
-        if (!controller.signal.aborted) {
-          setPreview({ status: "ready", blobUrl: objectUrl, mediaType, text })
-        }
-      })
-      .catch((error: unknown) => {
-        if (
-          !controller.signal.aborted &&
-          !(error instanceof DOMException && error.name === "AbortError")
-        ) {
-          setPreview({ status: "error" })
-        }
-      })
+    const objectUrl = URL.createObjectURL(previewQuery.data.blob)
+    setBlobUrl(objectUrl)
 
     return () => {
-      controller.abort()
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      URL.revokeObjectURL(objectUrl)
     }
-  }, [canPreview, selected])
+  }, [previewQuery.data, previewQuery.isFetching])
 
-  const ready = preview.status === "ready" ? preview : null
+  const ready =
+    previewQuery.data && blobUrl && !previewQuery.isFetching
+      ? { ...previewQuery.data, blobUrl }
+      : null
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -139,7 +136,7 @@ function SourcesPanelContent({
 
       <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)]">
         <div className="max-h-48 overflow-y-auto border-b border-border-subtle p-2">
-          {sources.map((source, index) => (
+          {sources.map((source) => (
             <button
               key={source.id}
               type="button"
@@ -152,7 +149,7 @@ function SourcesPanelContent({
               )}
             >
               <span className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-                {index + 1}
+                {source.citationNumber}
               </span>
               <span className="line-clamp-2 text-sm font-medium">{source.title}</span>
             </button>
@@ -177,13 +174,16 @@ function SourcesPanelContent({
               </Button>
             </div>
           ) : null}
-          {preview.status === "loading" ? (
+          {selected &&
+          canPreview &&
+          !previewQuery.isError &&
+          (previewQuery.isPending || previewQuery.isFetching || !blobUrl) ? (
             <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
               Loading source…
             </div>
           ) : null}
-          {preview.status === "error" ? (
+          {selected && canPreview && previewQuery.isError ? (
             <EmptyPreview message="The source changed or you no longer have access." />
           ) : null}
           {ready && selected ? (
@@ -209,7 +209,7 @@ function CitationPreviewContent({
   preview,
   title,
 }: {
-  preview: Extract<PreviewState, { status: "ready" }>
+  preview: PreviewPayload & { blobUrl: string }
   title: string
 }) {
   if (preview.mediaType === "application/pdf") {

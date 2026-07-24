@@ -14,6 +14,7 @@ public record ClaimedGraphIndex(
         UUID aclSnapshotId,
         long aclGeneration,
         long projectionGeneration,
+        GraphProcessingProfileRef graphProcessingProfile,
         String idempotencyKey,
         EmbeddingProfileRef embeddingProfile,
         String language,
@@ -28,6 +29,7 @@ public record ClaimedGraphIndex(
         Objects.requireNonNull(knowledgeAssetVersionId, "knowledgeAssetVersionId");
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         Objects.requireNonNull(aclSnapshotId, "aclSnapshotId");
+        Objects.requireNonNull(graphProcessingProfile, "graphProcessingProfile");
         idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey").strip();
         if (idempotencyKey.isEmpty()) {
             throw new IllegalArgumentException("idempotencyKey must not be blank");

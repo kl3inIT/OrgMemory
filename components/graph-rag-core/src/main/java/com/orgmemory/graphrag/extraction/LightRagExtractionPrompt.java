@@ -71,6 +71,18 @@ public final class LightRagExtractionPrompt {
     private LightRagExtractionPrompt() {
     }
 
+    /** Exact prompt templates included in immutable graph-processing provenance. */
+    public static String templateSnapshot() {
+        return """
+                [system]
+                %s
+                [initial]
+                %s
+                [continuation]
+                %s
+                """.formatted(SYSTEM_TEMPLATE, INITIAL_TEMPLATE, CONTINUATION_TEMPLATE);
+    }
+
     public static RenderedPrompt render(ExtractionRequest request) {
         return render(request, request.sectionContext());
     }

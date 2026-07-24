@@ -26,6 +26,9 @@ public final class GraphProjectionManifest {
                 "projectionGeneration",
                 Long.toString(contributions.projectionGeneration()));
         fields.put(
+                "graphProcessingProfileSha256",
+                projection.graphProcessingProfileSha256());
+        fields.put(
                 "entities",
                 contributions.entities().stream()
                         .sorted(java.util.Comparator.comparing(EntityContribution::id))
@@ -61,14 +64,27 @@ public final class GraphProjectionManifest {
                 "orgmemory.graph-rag.projection-manifest.v1", fields);
     }
 
-    public static String idempotencyKey(GraphRevisionContributions contributions) {
+    public static String idempotencyKey(
+            GraphRevisionContributions contributions,
+            String graphProcessingProfileSha256) {
         Objects.requireNonNull(contributions, "contributions");
+        String profileSha256 =
+                Objects.requireNonNull(
+                                graphProcessingProfileSha256,
+                                "graphProcessingProfileSha256")
+                        .strip();
+        if (!profileSha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(
+                    "graphProcessingProfileSha256 must be lowercase SHA-256 hex");
+        }
         return "graph:"
                 + contributions.organizationId()
                 + ":"
                 + contributions.sourceRevisionId()
                 + ":"
-                + contributions.projectionGeneration();
+                + contributions.projectionGeneration()
+                + ":"
+                + profileSha256;
     }
 
     private static String entity(EntityContribution contribution) {

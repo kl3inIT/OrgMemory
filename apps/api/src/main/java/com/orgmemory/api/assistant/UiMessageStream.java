@@ -104,7 +104,11 @@ final class UiMessageStream {
                         "type", "source-url",
                         "sourceId", source.sourceId(),
                         "url", source.url(),
-                        "title", source.title());
+                        "title", source.title(),
+                        "providerMetadata", fields(
+                                "orgmemory", fields(
+                                        "citationNumber",
+                                        source.citationNumber())));
                 case AssistantStreamPart.SourceDocument source -> fields(
                         "type", "source-document",
                         "sourceId", source.sourceId(),

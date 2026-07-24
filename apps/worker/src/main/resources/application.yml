@@ -18,6 +18,10 @@ spring:
   flyway:
     enabled: false
   ai:
+    chat:
+      observations:
+        log-prompt: false
+        log-completion: false
     model:
       embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
     openai:
@@ -77,18 +81,19 @@ orgmemory:
       semantic-embedding-batch-size: ${ORGMEMORY_SEMANTIC_EMBEDDING_BATCH_SIZE:64}
       maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
   graph-rag:
-    indexing:
-      scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
-      poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
-      lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
-      extraction-timeout: ${ORGMEMORY_GRAPH_EXTRACTION_TIMEOUT:2m}
-      maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
+    processing:
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
       maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
       entity-type-guidance: ${ORGMEMORY_GRAPH_ENTITY_TYPES:PERSON,ORGANIZATION,TEAM,ROLE,POLICY,PROCESS,SYSTEM,PRODUCT,DOCUMENT,LOCATION,EVENT,CONCEPT,OTHER}
       maximum-gleaning-rounds: ${ORGMEMORY_GRAPH_MAX_GLEANING_ROUNDS:1}
       maximum-gleaning-input-tokens: ${ORGMEMORY_GRAPH_MAX_GLEANING_INPUT_TOKENS:24000}
       maximum-section-context-tokens: ${ORGMEMORY_GRAPH_MAX_SECTION_CONTEXT_TOKENS:256}
+    indexing:
+      scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
+      poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
+      lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
+      extraction-timeout: ${ORGMEMORY_GRAPH_EXTRACTION_TIMEOUT:2m}
+      maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
   storage:
     object:
       endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}
@@ -96,3 +101,8 @@ orgmemory:
       secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY:orgmemory-local-secret}
       bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET:orgmemory-evidence}
       maximum-object-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+
+management:
+  tracing:
+    sampling:
+      probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}

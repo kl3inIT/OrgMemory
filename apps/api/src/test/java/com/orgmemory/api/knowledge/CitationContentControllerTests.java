@@ -87,11 +87,42 @@ class CitationContentControllerTests {
     }
 
     @Test
-    void fallsBackToBinaryForAnUntrustedStoredMediaType() {
+    void ignoresAnUntrustedStoredMediaTypeAndUsesTheSafeFileType() {
         CitationContent citation = citation(
                 new CloseTrackingInputStream(new byte[0]),
                 0,
-                "not a media type");
+                "text/html",
+                "leave-policy.txt");
+        CitationContentService citations =
+                mock(CitationContentService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        when(actors.current(authentication)).thenReturn(ACTOR);
+        when(citations.open(
+                        org.mockito.ArgumentMatchers.eq(ACTOR),
+                        org.mockito.ArgumentMatchers.eq(CHUNK_ID),
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(citation);
+
+        var response =
+                new CitationContentController(citations, actors)
+                        .content(CHUNK_ID, authentication);
+
+        assertEquals(
+                MediaType.TEXT_PLAIN,
+                response.getHeaders().getContentType());
+        assertTrue(response.getHeaders()
+                .getFirst(HttpHeaders.CONTENT_DISPOSITION)
+                .startsWith("inline;"));
+    }
+
+    @Test
+    void forcesUnknownTypesToDownloadAsBinary() {
+        CitationContent citation = citation(
+                new CloseTrackingInputStream(new byte[0]),
+                0,
+                "text/html",
+                "leave-policy.html");
         CitationContentService citations =
                 mock(CitationContentService.class);
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
@@ -110,16 +141,31 @@ class CitationContentControllerTests {
         assertEquals(
                 MediaType.APPLICATION_OCTET_STREAM,
                 response.getHeaders().getContentType());
+        assertTrue(response.getHeaders()
+                .getFirst(HttpHeaders.CONTENT_DISPOSITION)
+                .startsWith("attachment;"));
     }
 
     private static CitationContent citation(
             CloseTrackingInputStream stream,
             long contentLength,
             String mediaType) {
+        return citation(
+                stream,
+                contentLength,
+                mediaType,
+                "leave-policy.txt");
+    }
+
+    private static CitationContent citation(
+            CloseTrackingInputStream stream,
+            long contentLength,
+            String mediaType,
+            String fileName) {
         ObjectKey key = new ObjectKey("private/evidence/object-key");
         return new CitationContent(
                 CHUNK_ID,
-                "leave-policy.txt",
+                fileName,
                 mediaType,
                 contentLength,
                 "sha256",

@@ -1,9 +1,9 @@
 package com.orgmemory.api.assistant;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
-import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -83,20 +83,25 @@ class AssistantController {
                                 : streamedTokens);
         return Flux.concat(
                 Flux.just(new AssistantStreamPart.StartStep()),
-                Flux.fromIterable(turn.evidence())
+                Flux.fromIterable(turn.citations())
                         .map(AssistantController::sourcePart),
                 text,
                 Flux.just(new AssistantStreamPart.FinishStep()));
     }
 
-    private static AssistantStreamPart sourcePart(RetrievedKnowledgeEvidence evidence) {
-        String sourceId = "urn:orgmemory:citation:" + evidence.chunkId();
+    private static AssistantStreamPart sourcePart(AssistantCitation citation) {
+        var evidence = citation.evidence();
+        String sourceId = "urn:orgmemory:citation:"
+                + citation.number()
+                + ":"
+                + evidence.chunkId();
         String title = evidence.startPage() == null
                 ? evidence.title()
                 : evidence.title() + " · page " + evidence.startPage();
         return new AssistantStreamPart.SourceUrl(
                 sourceId,
                 "/api/citations/" + evidence.chunkId() + "/content",
-                title);
+                title,
+                citation.number());
     }
 }

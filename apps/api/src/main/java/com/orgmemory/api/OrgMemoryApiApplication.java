@@ -1,6 +1,7 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.knowledge.GraphExplorerProperties;
+import com.orgmemory.core.knowledge.GraphProcessingProperties;
 import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
@@ -24,7 +25,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         SecretCipherProperties.class,
         KnowledgeRetrievalProperties.class,
         KnowledgeEmbeddingProperties.class,
-        GraphExplorerProperties.class
+        GraphExplorerProperties.class,
+        GraphProcessingProperties.class
 })
 public class OrgMemoryApiApplication {
 

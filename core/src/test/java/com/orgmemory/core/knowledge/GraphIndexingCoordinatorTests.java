@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
+import com.orgmemory.graphrag.model.ExtractionProfile;
 import com.orgmemory.graphrag.model.FloatVector;
+import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -25,6 +28,8 @@ class GraphIndexingCoordinatorTests {
     private static final UUID ACL_SNAPSHOT_ID = UUID.randomUUID();
     private static final UUID EMBEDDING_PROFILE_ID = UUID.randomUUID();
     private static final UUID CHUNK_ID = UUID.randomUUID();
+    private static final GraphProcessingProfileRef GRAPH_PROCESSING_PROFILE =
+            graphProcessingProfile();
 
     private final GraphIndexJobRepository jobs = mock(GraphIndexJobRepository.class);
     private final KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
@@ -35,10 +40,19 @@ class GraphIndexingCoordinatorTests {
             mock(SourceAclSnapshotRepository.class);
     private final EmbeddingProfileRepository embeddingProfiles =
             mock(EmbeddingProfileRepository.class);
+    private final GraphProcessingProfileRegistry graphProcessingProfiles =
+            mock(GraphProcessingProfileRegistry.class);
     private final KnowledgeChunkProjectionStore chunks =
             mock(KnowledgeChunkProjectionStore.class);
     private final GraphIndexingCoordinator coordinator = new GraphIndexingCoordinator(
-            jobs, assets, versions, revisions, aclSnapshots, embeddingProfiles, chunks);
+            jobs,
+            assets,
+            versions,
+            revisions,
+            aclSnapshots,
+            embeddingProfiles,
+            graphProcessingProfiles,
+            chunks);
 
     private GraphIndexJob job;
     private KnowledgeAsset asset;
@@ -51,6 +65,7 @@ class GraphIndexingCoordinatorTests {
                 VERSION_ID,
                 REVISION_ID,
                 1,
+                GRAPH_PROCESSING_PROFILE,
                 5,
                 Instant.parse("2026-07-23T00:00:00Z"));
         asset = mock(KnowledgeAsset.class);
@@ -96,6 +111,8 @@ class GraphIndexingCoordinatorTests {
                 "text-embedding-3-large",
                 1536,
                 EmbeddingDistanceMetric.COSINE));
+        when(graphProcessingProfiles.get(GRAPH_PROCESSING_PROFILE.id()))
+                .thenReturn(GRAPH_PROCESSING_PROFILE);
         when(chunks.loadActive(
                         ORGANIZATION_ID,
                         REVISION_ID,
@@ -277,6 +294,7 @@ class GraphIndexingCoordinatorTests {
                 VERSION_ID,
                 REVISION_ID,
                 1,
+                GRAPH_PROCESSING_PROFILE,
                 1,
                 Instant.parse("2026-07-23T00:00:00Z"));
         job.claim("lost-worker", Instant.parse("2026-07-23T00:00:00Z"), Duration.ofSeconds(1));
@@ -304,5 +322,34 @@ class GraphIndexingCoordinatorTests {
                 .isEmpty());
         assertEquals(GraphIndexJobStatus.PENDING, job.getStatus());
         assertEquals(1, job.getAttemptCount());
+    }
+
+    @Test
+    void processingProfileIsAnIndependentGraphJobIdentityCoordinate() {
+        String current = GraphIndexJob.idempotencyKey(
+                ORGANIZATION_ID,
+                REVISION_ID,
+                1,
+                "a".repeat(64));
+        String rebuilt = GraphIndexJob.idempotencyKey(
+                ORGANIZATION_ID,
+                REVISION_ID,
+                1,
+                "b".repeat(64));
+
+        assertTrue(current.startsWith(
+                "graph:" + ORGANIZATION_ID + ":" + REVISION_ID + ":1:"));
+        assertTrue(!current.equals(rebuilt));
+    }
+
+    private static GraphProcessingProfileRef graphProcessingProfile() {
+        var profile = LightRagGraphProcessingProfiles.current(new ExtractionProfile(
+                "openai",
+                "gpt-test",
+                LightRagExtractionPrompt.VERSION,
+                40,
+                60));
+        return new GraphProcessingProfileRef(
+                UUID.randomUUID(), profile.canonicalSha256(), profile);
     }
 }

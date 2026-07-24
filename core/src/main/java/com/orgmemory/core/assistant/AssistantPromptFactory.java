@@ -39,7 +39,7 @@ final class AssistantPromptFactory {
         StringBuilder value = new StringBuilder("Question:\n")
                 .append(question.strip())
                 .append("\n\nPermission-verified evidence:\n");
-        List<RetrievedKnowledgeEvidence> includedEvidence =
+        List<AssistantCitation> citations =
                 new ArrayList<>();
         int remaining = MAX_EVIDENCE_CHARACTERS;
         for (int index = 0; index < evidence.size() && remaining > 0; index++) {
@@ -47,8 +47,8 @@ final class AssistantPromptFactory {
             String content = truncate(
                     source.content(),
                     Math.min(MAX_EXCERPT_CHARACTERS, remaining));
-            int sourceNumber = includedEvidence.size() + 1;
-            includedEvidence.add(source);
+            int sourceNumber = citations.size() + 1;
+            citations.add(new AssistantCitation(sourceNumber, source));
             value.append("\n--- SOURCE ")
                     .append(sourceNumber)
                     .append(" BEGIN ---\nTitle: ")
@@ -71,7 +71,7 @@ final class AssistantPromptFactory {
                 new ChatGenerationRequest(
                         SYSTEM_INSTRUCTION,
                         value.toString()),
-                includedEvidence);
+                citations);
     }
 
     private static String truncate(String content, int maximumCharacters) {
@@ -90,10 +90,10 @@ final class AssistantPromptFactory {
 
     record PreparedPrompt(
             ChatGenerationRequest request,
-            List<RetrievedKnowledgeEvidence> evidence) {
+            List<AssistantCitation> citations) {
 
         PreparedPrompt {
-            evidence = List.copyOf(evidence);
+            citations = List.copyOf(citations);
         }
     }
 }

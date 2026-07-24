@@ -87,7 +87,6 @@ class SourceUploadIntegrationTests {
                 new CreateUploadSourceCommand(
                         ACTOR,
                         "onboarding.txt",
-                        "text/plain",
                         content.length,
                         KnowledgeClassification.CONFIDENTIAL,
                         SALES_SPACE_ID),
