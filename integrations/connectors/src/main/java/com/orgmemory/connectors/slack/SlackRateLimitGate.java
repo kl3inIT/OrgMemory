@@ -2,6 +2,7 @@ package com.orgmemory.connectors.slack;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.random.RandomGenerator;
 
 /**
@@ -26,19 +27,25 @@ final class SlackRateLimitGate {
     private final AtomicLong openAtMillis = new AtomicLong();
     private final RandomGenerator random;
     private final Sleeper sleeper;
+    private final LongSupplier currentTimeMillis;
 
     SlackRateLimitGate() {
-        this(RandomGenerator.getDefault(), Thread::sleep);
+        this(RandomGenerator.getDefault(), Thread::sleep, System::currentTimeMillis);
     }
 
     SlackRateLimitGate(RandomGenerator random, Sleeper sleeper) {
+        this(random, sleeper, System::currentTimeMillis);
+    }
+
+    SlackRateLimitGate(RandomGenerator random, Sleeper sleeper, LongSupplier currentTimeMillis) {
         this.random = random;
         this.sleeper = sleeper;
+        this.currentTimeMillis = currentTimeMillis;
     }
 
     /** Blocks until any recorded limit has passed. Called before every request. */
     void awaitOpen() {
-        long waitMillis = openAtMillis.get() - System.currentTimeMillis();
+        long waitMillis = openAtMillis.get() - currentTimeMillis.getAsLong();
         if (waitMillis <= 0) {
             return;
         }
@@ -51,7 +58,7 @@ final class SlackRateLimitGate {
      */
     void closeFor(Duration retryAfter) {
         long jittered = (long) (retryAfter.toMillis() * (1 + JITTER_FRACTION * random.nextDouble()));
-        long deadline = System.currentTimeMillis() + Math.min(jittered, MAX_WAIT.toMillis());
+        long deadline = currentTimeMillis.getAsLong() + Math.min(jittered, MAX_WAIT.toMillis());
         openAtMillis.accumulateAndGet(deadline, Math::max);
     }
 

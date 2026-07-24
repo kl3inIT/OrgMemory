@@ -84,10 +84,10 @@
 
 ## PR 9 — Unified OpenSearch Adapter
 
-- [ ] Implement content/KV, processing state, lexical, vector k-NN, and graph
+- [x] Implement content/KV, processing state, lexical, vector k-NN, and graph
   storage.
-- [ ] Use PPL `graphlookup` when available and bounded batched BFS otherwise.
-- [ ] Prove tenant isolation, rebuild, scoring, and lifecycle parity.
+- [x] Use PPL `graphlookup` when available and bounded batched BFS otherwise.
+- [x] Prove tenant isolation, rebuild, scoring, and lifecycle parity.
 
 ## PR 10 — Neo4j Graph Adapter
 

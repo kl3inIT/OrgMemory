@@ -35,6 +35,7 @@ import tools.jackson.databind.JsonNode;
 class SlackWebApiClientTests {
 
     private static final String TOKEN = "xoxb-not-a-real-token";
+    private static final long FIXED_NOW_MILLIS = 1_000_000L;
 
     private RestClient.Builder builder;
     private MockRestServiceServer server;
@@ -48,7 +49,7 @@ class SlackWebApiClientTests {
         sleeps = new ArrayList<>();
         // Records the wait instead of taking it, and removes the jitter so the arithmetic is
         // assertable; the jitter itself is proved separately.
-        gate = new SlackRateLimitGate(fixedRandom(0.0), sleeps::add);
+        gate = new SlackRateLimitGate(fixedRandom(0.0), sleeps::add, () -> FIXED_NOW_MILLIS);
     }
 
     @Test
