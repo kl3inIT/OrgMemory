@@ -567,13 +567,6 @@ class LightRagQueryRuntimeConformanceTests {
     private static EvidenceProvenance provenance(
             String key,
             UUID chunkId,
-            UUID assetId) {
-        return provenance(key, chunkId, assetId, GENERATION);
-    }
-
-    private static EvidenceProvenance provenance(
-            String key,
-            UUID chunkId,
             UUID assetId,
             long projectionGeneration) {
         return new EvidenceProvenance(

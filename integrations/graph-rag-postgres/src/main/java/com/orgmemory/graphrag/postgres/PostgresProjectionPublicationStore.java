@@ -314,7 +314,8 @@ public final class PostgresProjectionPublicationStore
                     batchParameters(batch));
         } catch (DataIntegrityViolationException conflict) {
             throw new PublicationConflictException(
-                    "a batch or idempotency key identifies different publication content");
+                    "a batch or idempotency key identifies different publication content",
+                    conflict);
         }
         return registeredById(batch.id()).orElseThrow();
     }
