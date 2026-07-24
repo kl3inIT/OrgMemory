@@ -54,11 +54,19 @@ flowchart TB
 - **`RelationshipExpansionPort` + OpenFGA adapter**: wraps the `Expand` API for a
   `(object, relation)` pair and returns the userset tree. Core translates that tree
   plus the actor's tuples into one decisive path.
-- **`GET /api/admin/users/{id}/permissions`**: the six organization-level `can_*`
-  permissions from `model.fga`, resolved through `BatchCheck` in one round trip.
-- **`GET /api/admin/users/{id}/containers`**: the knowledge spaces, Slack channels,
-  and Drive folders the user reaches, each carrying `acl_authority`, ACL generation,
-  and last sync time. Containers, not documents — see Decision 5.
+- **`GET /api/admin/users/{id}/permissions`**: the seven organization-level `can_*`
+  permissions from `model.fga`. These are separate checks rather than one batch: a batch
+  fixes a single relation across many objects, and this asks many relations of a single
+  object — the inverse shape. The set is small and fixed by the model, so the cost is
+  bounded.
+- **`GET /api/admin/users/{id}/containers`**: **deferred, not built.** Reaching
+  `acl_authority`, generation, and validity for a container means joining
+  `knowledge_assets` through `source_objects` and `raw_source_objects` to
+  `source_acl_snapshots`, and that join cannot be honestly verified without a live
+  database. The seam is in place — `AclProvenance` is already a parameter of `explain`
+  and every response carries it — so this is wiring rather than redesign. Until it
+  lands, provenance is `ORGMEMORY` and no surface claims a mirrored verdict it has not
+  actually read.
 - **`POST /api/admin/access/explain`**: `(user, permission, resource)` returns
   `ALLOWED` with its decisive path, `DENIED` with the branches evaluated and the
   blocking reason, or `UNKNOWN` when the governing ACL is past TTL.
@@ -68,9 +76,10 @@ flowchart TB
 - **Model addition**: one computed permission,
   `can_curate_graph: knowledge_curator or administrator`, plus the assignable
   `knowledge_curator` noun. Additive; no existing tuple changes meaning.
-- **Web**: users list gains container and warning columns; a user permission profile
-  page; an access inspector route. Three shared components — `AccessVerdict`,
-  `AccessPath`, `AccessDenied`.
+- **Web**: the users list links each name to a permission profile at
+  `/admin/users/$userId` holding the organization permissions, the roles block, and a
+  scoped resource check. Three shared components — `AccessVerdict`, `AccessPath`,
+  `AccessDenied`.
 - **Relabelling `app_users.role`**: the existing PATCH stays, but the control is
   presented as a business attribute, not a grant, because it is not one.
 
@@ -140,6 +149,14 @@ the inspector, inside a scope the administrator names, reported as
 falsehood under a 23-hour TTL: an expired mirrored ACL is not a denial. Every verdict
 carries `acl_authority`, generation, and sync age, and a `SOURCE` verdict is labelled
 a mirror, not the current state at Slack or Drive.
+
+Keeping the third state costs a departure from the enforcement path.
+`EffectiveAuthorizationService` collapses an unanswered check into a denial, which is
+correct for enforcement and wrong here: "no relationship grants this" and "the engine
+did not answer" need different actions, and only one is a permission problem. The
+explanation service therefore checks `RelationshipAuthorizationPort` directly and keeps
+that service's organization guard. Nothing on this path grants access, so preserving the
+outcome costs no safety — but any future caller reusing it for enforcement must not.
 
 **7. OrgMemory never writes a tuple for content whose `acl_authority` is `SOURCE`.**
 Drive and Slack own those. A second writer guarantees divergence, and afterwards no

@@ -238,7 +238,13 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
                             <AvatarFallback>{avatarInitials(user.name, user.email)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <div className="truncate font-medium">{user.name ?? "Unnamed user"}</div>
+                            <Link
+                              to="/admin/users/$userId"
+                              params={{ userId: user.id! }}
+                              className="block truncate font-medium hover:underline"
+                            >
+                              {user.name ?? "Unnamed user"}
+                            </Link>
                             <div className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</div>
                           </div>
                         </div>
