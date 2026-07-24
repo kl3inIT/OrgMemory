@@ -27,6 +27,7 @@ import com.orgmemory.graphrag.storage.ProcessingStatusIndex;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -64,7 +66,11 @@ class OpenSearchProjectionPublicationIntegrationTests {
                     .withEnv("discovery.type", "single-node")
                     .withEnv("DISABLE_SECURITY_PLUGIN", "true")
                     .withEnv("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
-                    .withExposedPorts(9200);
+                    .withExposedPorts(9200)
+                    .waitingFor(Wait.forHttp("/")
+                            .forStatusCodeMatching(
+                                    status -> status == 200 || status == 401)
+                            .withStartupTimeout(Duration.ofMinutes(2)));
 
     private static OpenSearchTestClient testClient;
     private static OpenSearchProjectionPublicationStore publications;

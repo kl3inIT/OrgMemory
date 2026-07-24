@@ -182,37 +182,43 @@ final class OpenSearchStagedIndex {
 
     private void ensureCopyForward(ProjectionBatch batch) {
         String markerId = copyMarkerId(batch);
-        OpenSearchOperations.VersionedDocument marker =
-                operations.get(controlIndex, markerId);
-        if (ready(marker)) {
-            return;
-        }
-        ReentrantLock lock = COPY_LOCKS.computeIfAbsent(markerId, ignored -> new ReentrantLock());
-        lock.lock();
-        try {
-            marker = operations.get(controlIndex, markerId);
-            if (ready(marker)) {
-                return;
-            }
-            String owner = UUID.randomUUID().toString();
-            Map<String, Object> copying = OpenSearchProjectionCodec.batch(batch, "PREPARING");
-            copying.put("document_kind", "COPY_FORWARD");
-            copying.put("projection_kind", kind.name());
-            copying.put("target_index", batchIndex.apply(batch));
-            copying.put("copy_status", "COPYING");
-            copying.put("copy_owner", owner);
-            copying.put("copy_started_at", Instant.now().toString());
-            if (marker == null) {
-                if (!operations.create(controlIndex, markerId, copying)) {
-                    marker = operations.get(controlIndex, markerId);
-                    if (ready(marker)) {
-                        return;
-                    }
-                    throw new OpenSearchProjectionException(
-                            "another process is preparing " + markerId);
+        while (true) {
+            ReentrantLock lock =
+                    COPY_LOCKS.computeIfAbsent(markerId, ignored -> new ReentrantLock());
+            lock.lock();
+            try {
+                // A prior owner can remove its map entry before releasing the
+                // lock. A waiter holding that retired lock must retry against
+                // the current map entry before touching the marker.
+                if (COPY_LOCKS.get(markerId) != lock) {
+                    continue;
                 }
-            } else {
-                if (!operations.compareAndSet(
+                OpenSearchOperations.VersionedDocument marker =
+                        operations.get(controlIndex, markerId);
+                if (ready(marker)) {
+                    COPY_LOCKS.remove(markerId, lock);
+                    return;
+                }
+                String owner = UUID.randomUUID().toString();
+                Map<String, Object> copying =
+                        OpenSearchProjectionCodec.batch(batch, "PREPARING");
+                copying.put("document_kind", "COPY_FORWARD");
+                copying.put("projection_kind", kind.name());
+                copying.put("target_index", batchIndex.apply(batch));
+                copying.put("copy_status", "COPYING");
+                copying.put("copy_owner", owner);
+                copying.put("copy_started_at", Instant.now().toString());
+                if (marker == null) {
+                    if (!operations.create(controlIndex, markerId, copying)) {
+                        marker = operations.get(controlIndex, markerId);
+                        if (ready(marker)) {
+                            COPY_LOCKS.remove(markerId, lock);
+                            return;
+                        }
+                        throw new OpenSearchProjectionException(
+                                "another process is preparing " + markerId);
+                    }
+                } else if (!operations.compareAndSet(
                         controlIndex,
                         markerId,
                         marker,
@@ -220,30 +226,37 @@ final class OpenSearchStagedIndex {
                     throw new OpenSearchProjectionException(
                             "another process is preparing " + markerId);
                 }
-            }
 
-            copyPreviousGeneration(batch);
-            OpenSearchOperations.VersionedDocument owned =
-                    operations.get(controlIndex, markerId);
-            if (owned == null
-                    || !owner.equals(owned.source().get("copy_owner"))) {
-                throw new OpenSearchProjectionException(
-                        "copy-forward ownership changed for " + markerId);
+                copyPreviousGeneration(batch);
+                OpenSearchOperations.VersionedDocument owned =
+                        operations.get(controlIndex, markerId);
+                if (owned == null
+                        || !owner.equals(owned.source().get("copy_owner"))) {
+                    throw new OpenSearchProjectionException(
+                            "copy-forward ownership changed for " + markerId);
+                }
+                Map<String, Object> ready = new LinkedHashMap<>(owned.source());
+                ready.put("copy_status", "READY");
+                ready.put("copy_completed_at", Instant.now().toString());
+                if (!operations.compareAndSet(
+                        controlIndex,
+                        markerId,
+                        owned,
+                        ready)) {
+                    throw new OpenSearchProjectionException(
+                            "could not complete copy-forward marker " + markerId);
+                }
+                OpenSearchOperations.VersionedDocument completed =
+                        operations.get(controlIndex, markerId);
+                if (!ready(completed)) {
+                    throw new OpenSearchProjectionException(
+                            "copy-forward marker is not visible as ready " + markerId);
+                }
+                COPY_LOCKS.remove(markerId, lock);
+                return;
+            } finally {
+                lock.unlock();
             }
-            Map<String, Object> ready = new LinkedHashMap<>(owned.source());
-            ready.put("copy_status", "READY");
-            ready.put("copy_completed_at", Instant.now().toString());
-            if (!operations.compareAndSet(
-                    controlIndex,
-                    markerId,
-                    owned,
-                    ready)) {
-                throw new OpenSearchProjectionException(
-                        "could not complete copy-forward marker " + markerId);
-            }
-        } finally {
-            lock.unlock();
-            COPY_LOCKS.remove(markerId, lock);
         }
     }
 

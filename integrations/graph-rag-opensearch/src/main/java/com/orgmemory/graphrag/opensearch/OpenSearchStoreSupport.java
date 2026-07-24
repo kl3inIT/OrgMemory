@@ -27,12 +27,12 @@ final class OpenSearchStoreSupport {
     }
 
     static List<String> requireIds(Collection<String> ids) {
-        List<String> immutable = List.copyOf(Objects.requireNonNull(ids, "ids"));
-        if (immutable.stream().anyMatch(id -> id == null || id.isBlank())) {
+        Objects.requireNonNull(ids, "ids");
+        if (ids.stream().anyMatch(id -> id == null || id.isBlank())) {
             throw new IllegalArgumentException(
                     "ids must contain only non-blank values");
         }
-        return immutable;
+        return List.copyOf(ids);
     }
 
     static Query anyTerms(

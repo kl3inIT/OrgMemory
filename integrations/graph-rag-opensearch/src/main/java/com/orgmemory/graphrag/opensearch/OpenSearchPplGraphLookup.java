@@ -15,6 +15,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.opensearch.client.opensearch.generic.Requests;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Optional PPL graphLookup accelerator.
@@ -26,6 +28,8 @@ import org.opensearch.client.opensearch.generic.Requests;
  */
 final class OpenSearchPplGraphLookup {
 
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(OpenSearchPplGraphLookup.class);
     private static final int MAXIMUM_INLINE_ASSETS = 1_000;
 
     private final OpenSearchOperations operations;
@@ -127,6 +131,9 @@ final class OpenSearchPplGraphLookup {
             // A transport error or transient server failure must not
             // permanently disable the accelerator. The caller safely falls
             // back to bounded BFS and a later request may probe PPL again.
+            LOGGER.debug(
+                    "OpenSearch PPL accelerator failed; falling back to bounded BFS",
+                    exception);
             return Optional.empty();
         }
     }
