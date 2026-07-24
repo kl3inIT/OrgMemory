@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowLeft, Plus, Search, X } from "lucide-react"
+import { ArrowLeft, Plus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -16,7 +16,6 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -25,35 +24,12 @@ import {
   adminUsersQueryOptions,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
-import { AccessDenied, AccessPath } from "@/features/admin/components/access-path"
+import { AccessInspector, PERMISSION_LABELS } from "@/features/admin/components/access-inspector"
 import { AccessVerdict, type AccessState } from "@/features/admin/components/access-verdict"
 import {
   assignAdminRoleMutation,
-  explainAdminAccessMutation,
   revokeAdminRoleMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-
-/**
- * The permissions worth showing an administrator, in the order they are usually asked
- * about. The model defines more relations than this; these are the ones that answer "what
- * can this person do".
- */
-const PERMISSION_LABELS: Record<string, string> = {
-  can_manage_members: "Administer the organization",
-  can_manage_sources: "Manage connected sources",
-  can_create_knowledge_space: "Create knowledge spaces",
-  can_search_knowledge: "Search knowledge",
-  can_view_directory: "View the directory",
-  can_view_audit: "View the audit trail",
-  can_curate_graph: "Curate the knowledge graph",
-}
-
-const EXPLAINABLE_TYPES = [
-  { value: "organization", label: "Organization" },
-  { value: "knowledge_space", label: "Knowledge space" },
-  { value: "knowledge_asset", label: "Document" },
-  { value: "organizational_unit", label: "Department" },
-] as const
 
 export function AdminUserPermissionsPage({
   userId,
@@ -66,13 +42,9 @@ export function AdminUserPermissionsPage({
   const users = useQuery(adminUsersQueryOptions())
   const roles = useQuery(adminRolesQueryOptions())
   const permissions = useQuery(adminUserPermissionsQueryOptions(userId))
-  const explain = useMutation(explainAdminAccessMutation())
   const assign = useMutation(assignAdminRoleMutation())
   const revoke = useMutation(revokeAdminRoleMutation())
 
-  const [resourceType, setResourceType] = useState<string>("organization")
-  const [resourceId, setResourceId] = useState("")
-  const [permission, setPermission] = useState("can_search_knowledge")
   const [rolePickerOpen, setRolePickerOpen] = useState(false)
 
   const user = users.data?.find((candidate) => candidate.id === userId)
@@ -237,89 +209,8 @@ export function AdminUserPermissionsPage({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Check one resource</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-2">
-            <Select value={permission} onValueChange={setPermission}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(PERMISSION_LABELS)
-                  .concat(["can_view", "can_publish", "can_edit"])
-                  .map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {PERMISSION_LABELS[key] ?? key}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+      <AccessInspector userId={userId} />
 
-            <Select value={resourceType} onValueChange={setResourceType}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EXPLAINABLE_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <input
-              value={resourceId}
-              onChange={(event) => setResourceId(event.target.value)}
-              placeholder="Resource id"
-              className="h-9 min-w-[300px] flex-1 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            />
-
-            <Button
-              disabled={!resourceId || explain.isPending}
-              onClick={() =>
-                explain.mutate({
-                  body: { userId, permission, resourceType, resourceId },
-                })
-              }
-            >
-              <Search className="size-4" aria-hidden />
-              Check
-            </Button>
-          </div>
-
-          {explain.isError ? (
-            <p className="text-sm text-destructive">
-              That resource could not be checked. Confirm the id belongs to this organization.
-            </p>
-          ) : null}
-
-          {explain.data ? (
-            <div className="space-y-4 rounded-lg border p-4">
-              <AccessVerdict
-                state={(explain.data.state ?? "UNKNOWN") as AccessState}
-                provenance={explain.data.provenance}
-              />
-              <Separator />
-              {explain.data.state === "ALLOWED" ? (
-                <AccessPath path={explain.data.path ?? []} />
-              ) : explain.data.state === "DENIED" ? (
-                <AccessDenied blockedBy={explain.data.blockedBy ?? []} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No current answer: {explain.data.reasonCode}. This is not a refusal.
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Model {explain.data.policyVersion}
-              </p>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
     </div>
   )
 }

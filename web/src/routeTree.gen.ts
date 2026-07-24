@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSourcesRouteImport } from './routes/_authenticated/sources'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAccessRouteImport } from './routes/admin/access'
 import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
@@ -52,6 +53,11 @@ const AuthenticatedSourcesRoute = AuthenticatedSourcesRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAccessRoute = AdminAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminGroupsRoute = AdminGroupsRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/sources': typeof AuthenticatedSourcesRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/sources': typeof AuthenticatedSourcesRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/sources': typeof AuthenticatedSourcesRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/sources'
+    | '/admin/access'
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/sources'
+    | '/admin/access'
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/_authenticated/sources'
+    | '/admin/access'
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/access': {
+      id: '/admin/access'
+      path: '/access'
+      fullPath: '/admin/access'
+      preLoaderRoute: typeof AdminAccessRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/groups': {
@@ -333,6 +352,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAccessRoute: typeof AdminAccessRoute
   AdminGroupsRoute: typeof AdminGroupsRoute
   AdminMappingsRoute: typeof AdminMappingsRoute
   AdminScimRoute: typeof AdminScimRoute
@@ -346,6 +366,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccessRoute: AdminAccessRoute,
   AdminGroupsRoute: AdminGroupsRoute,
   AdminMappingsRoute: AdminMappingsRoute,
   AdminScimRoute: AdminScimRoute,
