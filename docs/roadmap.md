@@ -5,7 +5,12 @@ belongs in one active increment.
 
 ## Shipped Foundation
 
-- OIDC issuer/subject identity linking with server-derived current actor.
+- OIDC issuer/subject identity linking with server-derived current actor, and
+  invitation-gated provisioning that writes the binding on a first sign-in
+  without letting the address become the identity.
+- An administration surface that reads effective permissions, explains a decision
+  as its decisive derivation, distinguishes an unanswered check from a refusal,
+  and confines administrative tuple writes to organizations and roles.
 - Canonical source ledger with stable Knowledge Asset identities, immutable
   versions, append-only evidence links, and monotonically increasing source
   revisions.
@@ -52,6 +57,13 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Next — Shared Agent Tools And Secure Graph
 
+- Finish what the admin permission surface left open: reachable containers with
+  their ACL authority, generation and capture time — which is also what makes the
+  mirrored verdict rendering reachable; a permission audit event per role
+  mutation; resolved names and a resource picker instead of pasted UUIDs; and
+  relabelling `app_users.role`, which still reads as a grant while granting
+  nothing. Listed in
+  [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Wire worker extraction/indexing and permission-scoped runtime graph retrieval
   over the shipped graph contracts and PostgreSQL projection.
