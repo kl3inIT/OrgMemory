@@ -20,7 +20,6 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
 
@@ -51,7 +50,7 @@ final class SpringAiExtractionModel implements ExtractionModel {
                 .forEach(messages::add);
         ChatResponse chatResponse = chatModel.call(new Prompt(
                 messages,
-                ChatOptions.builder()
+                chatModel.getOptions().mutate()
                         .model(request.profile().model())
                         .temperature(0.0)
                         .build()));

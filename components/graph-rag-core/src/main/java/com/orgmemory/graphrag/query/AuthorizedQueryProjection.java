@@ -109,6 +109,7 @@ public interface AuthorizedQueryProjection {
     record Chunk(
             UUID id,
             EvidenceReference evidence,
+            long projectionGeneration,
             String content,
             int tokenCount,
             Map<String, String> metadata) {
@@ -118,6 +119,10 @@ public interface AuthorizedQueryProjection {
             Objects.requireNonNull(evidence, "evidence");
             if (!id.equals(evidence.chunkId())) {
                 throw new IllegalArgumentException("chunk identity must match its evidence");
+            }
+            if (projectionGeneration < 0) {
+                throw new IllegalArgumentException(
+                        "projectionGeneration must be non-negative");
             }
             content = Objects.requireNonNull(content, "content");
             if (tokenCount < 0) {

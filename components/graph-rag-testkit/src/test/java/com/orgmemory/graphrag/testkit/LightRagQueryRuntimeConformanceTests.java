@@ -63,6 +63,9 @@ class LightRagQueryRuntimeConformanceTests {
     private static final UUID VECTOR_CHUNK_ID = id("vector-chunk");
     private static final UUID RESTRICTED_CHUNK_ID = id("restricted-chunk");
     private static final UUID CROSS_TENANT_CHUNK_ID = id("cross-tenant-chunk");
+    private static final UUID STALE_ENTITY_ID = id("stale-entity");
+    private static final UUID STALE_RELATION_ID = id("stale-relation");
+    private static final UUID STALE_CHUNK_ID = id("stale-chunk");
     private static final long GENERATION = 7;
 
     private InMemoryAuthorizedQueryProjection projection;
@@ -152,6 +155,46 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void mixFallsBackToChunkSeedsWhenKeywordPlanningReturnsNoGraphKeywords() {
+        RecordingKeywordModel emptyKeywordModel =
+                new RecordingKeywordModel(KeywordPlan.empty(KeywordPlan.Source.MODEL));
+        LightRagQueryEngine fallbackEngine = new LightRagQueryEngine(
+                projection,
+                new LightRagKeywordPlanner(emptyKeywordModel, "Vietnamese"),
+                embeddings,
+                new WordTokenizer(),
+                reranker,
+                answerModel);
+
+        LightRagQueryRequest baseRequest = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                null);
+        LightRagQueryRequest request = new LightRagQueryRequest(
+                baseRequest.scope(),
+                baseRequest.snapshot(),
+                "This deliberately long vague request contains no usable graph keywords "
+                        + "but must still execute the MIX chunk retrieval branch.",
+                baseRequest.options(),
+                baseRequest.embeddingProfileId(),
+                baseRequest.embeddingDimensions(),
+                baseRequest.trustedKeywords(),
+                baseRequest.conversationHistory());
+
+        LightRagQueryResult result = fallbackEngine.execute(request);
+
+        assertEquals(LightRagQueryResult.Status.SUCCESS, result.status());
+        assertEquals(1, emptyKeywordModel.calls);
+        assertEquals(0, result.trace().entitySeedCount());
+        assertEquals(0, result.trace().relationSeedCount());
+        assertTrue(result.trace().vectorChunkCount() > 0);
+        assertFalse(result.references().isEmpty());
+    }
+
+    @Test
     void bypassPerformsNoRetrievalPlanningEmbeddingOrProjectionReads() {
         LightRagQueryResult result = engine.execute(request(
                 LightRagQueryMode.BYPASS,
@@ -194,6 +237,30 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void projectionSnapshotExcludesStaleGraphAndChunkGenerations() {
+        LightRagQueryResult result = engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords()));
+
+        assertTrue(projection
+                .loadEntityContributions(scope(), snapshot(), List.of(STALE_ENTITY_ID))
+                .isEmpty());
+        assertTrue(projection
+                .loadRelationContributions(scope(), snapshot(), List.of(STALE_RELATION_ID))
+                .isEmpty());
+        assertTrue(projection
+                .loadChunks(scope(), snapshot(), List.of(STALE_CHUNK_ID))
+                .isEmpty());
+        assertTrue(result.references().stream().noneMatch(reference ->
+                reference.evidence().chunkId().equals(STALE_CHUNK_ID)));
+        assertFalse(result.context().contains("stale generation"));
+    }
+
+    @Test
     void rerankThresholdAppliesAfterRerankingAndProviderFailureFailsOpen() {
         reranker.scores = Map.of(
                 VECTOR_CHUNK_ID, 0.2,
@@ -225,6 +292,25 @@ class LightRagQueryRuntimeConformanceTests {
         assertTrue(fallback.trace().rerankAttempted());
         assertTrue(fallback.trace().rerankFallback());
         assertFalse(fallback.references().isEmpty());
+    }
+
+    @Test
+    void partialRerankerResponsesCannotPromoteUnscoredChunks() {
+        reranker.scores = Map.of(FIRST_CHUNK_ID, 0.95);
+
+        LightRagQueryResult result = engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                true,
+                true,
+                false,
+                trustedKeywords()));
+
+        assertTrue(result.trace().rerankAttempted());
+        assertFalse(result.trace().rerankFallback());
+        assertFalse(result.references().isEmpty());
+        assertTrue(result.references().stream().allMatch(reference ->
+                reference.evidence().chunkId().equals(FIRST_CHUNK_ID)));
     }
 
     @Test
@@ -292,11 +378,32 @@ class LightRagQueryRuntimeConformanceTests {
                 FIRST_ENTITY_ID,
                 SECOND_ENTITY_ID,
                 RelationOrientation.DIRECTED);
+        CanonicalEntity stale =
+                new CanonicalEntity(STALE_ENTITY_ID, "Stale generation entity");
+        CanonicalRelation staleRelation = new CanonicalRelation(
+                STALE_RELATION_ID,
+                FIRST_ENTITY_ID,
+                SECOND_ENTITY_ID,
+                RelationOrientation.DIRECTED);
 
         projection
                 .add(entityContribution("first", first, FIRST_CHUNK_ID, ALLOWED_ASSET_ID), 0.95)
                 .add(entityContribution("second", second, SECOND_CHUNK_ID, ALLOWED_ASSET_ID), 0.85)
                 .add(relationContribution("relation", relation, RELATION_CHUNK_ID, ALLOWED_ASSET_ID), 0.90)
+                .add(entityContribution(
+                        "stale",
+                        stale,
+                        STALE_CHUNK_ID,
+                        ALLOWED_ASSET_ID,
+                        GENERATION - 1),
+                        1.0)
+                .add(relationContribution(
+                        "stale-relation",
+                        staleRelation,
+                        STALE_CHUNK_ID,
+                        ALLOWED_ASSET_ID,
+                        GENERATION - 1),
+                        1.0)
                 .add(chunk(
                         FIRST_CHUNK_ID,
                         ORGANIZATION_ID,
@@ -338,6 +445,14 @@ class LightRagQueryRuntimeConformanceTests {
                         ALLOWED_ASSET_ID,
                         "cross tenant secret",
                         "Other tenant"),
+                        1.0)
+                .add(chunk(
+                        STALE_CHUNK_ID,
+                        ORGANIZATION_ID,
+                        ALLOWED_ASSET_ID,
+                        "stale generation evidence",
+                        "Stale generation",
+                        GENERATION - 1),
                         1.0);
     }
 
@@ -408,12 +523,21 @@ class LightRagQueryRuntimeConformanceTests {
             CanonicalEntity entity,
             UUID chunkId,
             UUID assetId) {
+        return entityContribution(key, entity, chunkId, assetId, GENERATION);
+    }
+
+    private static EntityContribution entityContribution(
+            String key,
+            CanonicalEntity entity,
+            UUID chunkId,
+            UUID assetId,
+            long projectionGeneration) {
         return new EntityContribution(
                 id(key + "-contribution"),
                 entity,
                 "POLICY",
                 entity.normalizedName() + " description",
-                provenance(key, chunkId, assetId));
+                provenance(key, chunkId, assetId, projectionGeneration));
     }
 
     private static RelationContribution relationContribution(
@@ -421,6 +545,15 @@ class LightRagQueryRuntimeConformanceTests {
             CanonicalRelation relation,
             UUID chunkId,
             UUID assetId) {
+        return relationContribution(key, relation, chunkId, assetId, GENERATION);
+    }
+
+    private static RelationContribution relationContribution(
+            String key,
+            CanonicalRelation relation,
+            UUID chunkId,
+            UUID assetId,
+            long projectionGeneration) {
         return new RelationContribution(
                 id(key + "-contribution"),
                 relation,
@@ -428,16 +561,24 @@ class LightRagQueryRuntimeConformanceTests {
                 List.of("probation", "handbook"),
                 "The employee handbook defines probation.",
                 1.0,
-                provenance(key, chunkId, assetId));
+                provenance(key, chunkId, assetId, projectionGeneration));
     }
 
     private static EvidenceProvenance provenance(
             String key,
             UUID chunkId,
             UUID assetId) {
+        return provenance(key, chunkId, assetId, GENERATION);
+    }
+
+    private static EvidenceProvenance provenance(
+            String key,
+            UUID chunkId,
+            UUID assetId,
+            long projectionGeneration) {
         return new EvidenceProvenance(
                 evidence(key, chunkId, ORGANIZATION_ID, assetId),
-                GENERATION,
+                projectionGeneration,
                 "test",
                 "test-model",
                 "query-pr7",
@@ -451,9 +592,26 @@ class LightRagQueryRuntimeConformanceTests {
             UUID assetId,
             String content,
             String heading) {
+        return chunk(
+                chunkId,
+                organizationId,
+                assetId,
+                content,
+                heading,
+                GENERATION);
+    }
+
+    private static AuthorizedQueryProjection.Chunk chunk(
+            UUID chunkId,
+            UUID organizationId,
+            UUID assetId,
+            String content,
+            String heading,
+            long projectionGeneration) {
         return new AuthorizedQueryProjection.Chunk(
                 chunkId,
                 evidence(chunkId.toString(), chunkId, organizationId, assetId),
+                projectionGeneration,
                 content,
                 content.split("\\s+").length,
                 Map.of(
@@ -571,7 +729,11 @@ class LightRagQueryRuntimeConformanceTests {
             if (failure != null) {
                 throw failure;
             }
-            return candidates.stream()
+            var ranked = candidates.stream();
+            if (!scores.isEmpty()) {
+                ranked = ranked.filter(candidate -> scores.containsKey(candidate.chunkId()));
+            }
+            return ranked
                     .map(candidate -> new Score(
                             candidate.chunkId(),
                             scores.getOrDefault(candidate.chunkId(), 1.0)))

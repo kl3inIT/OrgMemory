@@ -11,7 +11,6 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 
 /** Spring AI effect adapter for complete and streaming grounded answers. */
@@ -65,7 +64,7 @@ public final class SpringAiQueryAnswerModel implements QueryAnswerModel {
         messages.add(new UserMessage(request.query()));
         return new Prompt(
                 messages,
-                ChatOptions.builder()
+                chatModel.getOptions().mutate()
                         .model(modelId)
                         .build());
     }

@@ -10,7 +10,6 @@ import java.util.Objects;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
 
@@ -40,7 +39,7 @@ public final class SpringAiKeywordPlanningModel implements KeywordPlanningModel 
                 + converter.getFormat();
         ChatResponse response = chatModel.call(new Prompt(
                 List.of(new SystemMessage(structuredPrompt)),
-                ChatOptions.builder()
+                chatModel.getOptions().mutate()
                         .model(modelId)
                         .temperature(0.0)
                         .build()));
