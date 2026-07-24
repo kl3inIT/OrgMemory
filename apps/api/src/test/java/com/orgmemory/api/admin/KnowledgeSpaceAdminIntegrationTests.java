@@ -60,14 +60,14 @@ class KnowledgeSpaceAdminIntegrationTests {
     private static final String ISSUER = "http://localhost:8180/realms/orgmemory";
     private static final String MODEL_ID = "test-model";
 
-    private static final UUID ORG = UUID.fromString("d1000000-0000-4000-8000-000000000001");
-    private static final UUID DEPT = UUID.fromString("d1000000-0000-4000-8000-000000000002");
-    private static final UUID ADMIN_USER = UUID.fromString("d1000000-0000-4000-8000-000000000003");
-    private static final UUID AN_USER = UUID.fromString("d1000000-0000-4000-8000-000000000004");
+    private static final UUID ORG = UUID.fromString("e1000000-0000-4000-8000-000000000001");
+    private static final UUID DEPT = UUID.fromString("e1000000-0000-4000-8000-000000000002");
+    private static final UUID ADMIN_USER = UUID.fromString("e1000000-0000-4000-8000-000000000003");
+    private static final UUID AN_USER = UUID.fromString("e1000000-0000-4000-8000-000000000004");
 
-    private static final UUID OTHER_ORG = UUID.fromString("d2000000-0000-4000-8000-000000000001");
-    private static final UUID OTHER_DEPT = UUID.fromString("d2000000-0000-4000-8000-000000000002");
-    private static final UUID OTHER_ADMIN = UUID.fromString("d2000000-0000-4000-8000-000000000003");
+    private static final UUID OTHER_ORG = UUID.fromString("e2000000-0000-4000-8000-000000000001");
+    private static final UUID OTHER_DEPT = UUID.fromString("e2000000-0000-4000-8000-000000000002");
+    private static final UUID OTHER_ADMIN = UUID.fromString("e2000000-0000-4000-8000-000000000003");
 
     @Container
     @ServiceConnection

@@ -61,8 +61,12 @@ function relationLabel(relation: string) {
 /**
  * A stored grant reads back as an OpenFGA reference. Rendering that raw would put an id in front
  * of somebody deciding who sees a body of knowledge, so each known shape resolves to the name the
- * administrator chose it by. Bootstrap grants use shapes the create form does not offer, so an
- * unrecognized reference is shown as it is stored rather than hidden.
+ * administrator chose it by.
+ *
+ * <p>A reference that resolves to nothing falls back to the reference itself rather than a generic
+ * word. A tuple naming a unit the directory does not list is real — the demo dataset contains one
+ * — and "a department" would hide which, leaving somebody auditing access with a subject they
+ * cannot look up. The id is the only useful thing left to show.
  */
 function parseSubject(subject: string) {
   const colon = subject.indexOf(":")
@@ -81,13 +85,15 @@ function subjectLabel(subject: string, directory: Directory) {
 
   if (type === "organization" && relation === "member") return "Everyone in the organization"
   if (type === "organizational_unit" && relation === "member") {
-    return directory.departments.get(id) ?? "A department"
+    const department = directory.departments.get(id)
+    return department ?? subject
   }
   if (type === "organizational_unit" && relation === "manager") {
-    return `${directory.departments.get(id) ?? "A department"} · managers`
+    const department = directory.departments.get(id)
+    return department ? `${department} · managers` : subject
   }
   if (type === "role") return `Role · ${id}`
-  if (type === "user") return directory.users.get(id) ?? "One person"
+  if (type === "user") return directory.users.get(id) ?? subject
   return subject
 }
 
