@@ -1,0 +1,2 @@
+[mcp_servers.jetbrains]
+url = "http://127.0.0.1:65118/stream"
