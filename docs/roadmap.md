@@ -72,7 +72,13 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   source connection.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Wire worker extraction/indexing and permission-scoped runtime graph retrieval
-  over the shipped graph contracts and PostgreSQL projection.
+  over the shipped graph contracts and PostgreSQL projection. Before any of that
+  reaches a non-administrator, close the projection store's authorization gap: it
+  filters on organization and authorized asset id only, which is one of
+  retrieval's five gates, so the source ACL, its DENY entries, snapshot freshness
+  and the classification lattice do not apply to a graph read. Narrow the
+  authorized asset set upstream through the filter retrieval already uses rather
+  than restating those rules beside the projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration

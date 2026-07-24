@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -28,6 +29,7 @@ import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceSubject.Kind;
 import com.orgmemory.core.permission.PermissionAuditService;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class KnowledgeSpaceAdministrationServiceTests {
 
@@ -141,6 +144,41 @@ class KnowledgeSpaceAdministrationServiceTests {
                 () -> service.create(ACTOR, "Sales Knowledge", null, "request-1"));
 
         assertTrue(failure.getMessage().contains("OPENFGA_WRITE_TIMEOUT"));
+    }
+
+    /**
+     * The existence check is a read followed by a write, so two administrators naming the same
+     * space at once both pass it. The unique constraint is what actually decides, and losing that
+     * race is still a conflict rather than a server fault.
+     */
+    @Test
+    void losingTheRaceOnAKeyIsAConflictRatherThanAServerFault() {
+        when(spaces.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("uq_knowledge_space_key"));
+
+        var conflict = assertThrows(
+                KnowledgeSpaceKeyConflictException.class,
+                () -> service.create(ACTOR, "Sales Knowledge", null, "request-1"));
+
+        assertTrue(conflict.getMessage().contains("sales-knowledge"));
+        verify(writes, never()).write(any());
+    }
+
+    /**
+     * A page carrying a continuation token but no tuples advances neither the scan count nor the
+     * cursor. Bounding only on tuples read would spin on it forever.
+     */
+    @Test
+    void aStoreThatKeepsHandingBackAnEmptyPageStillTerminates() {
+        KnowledgeSpace space = new KnowledgeSpace(ORG, null, "sales-knowledge", "Sales Knowledge");
+        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(tuples.readObject(anyString(), anyInt(), any()))
+                .thenReturn(RelationshipTuplePage.resolved(List.of(), "same-token-forever", POLICY));
+
+        var listed = assertTimeoutPreemptively(
+                Duration.ofSeconds(5), () -> service.list(ACTOR), "the grant listing must terminate");
+
+        assertFalse(listed.getFirst().grantsComplete());
     }
 
     @Test

@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipTuple;
@@ -137,7 +138,7 @@ class KnowledgeSpaceAdminIntegrationTests {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        UUID spaceId = UUID.fromString(created.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1"));
+        UUID spaceId = UUID.fromString(JsonPath.read(created, "$.id"));
 
         assertEquals(
                 1,
@@ -339,7 +340,7 @@ class KnowledgeSpaceAdminIntegrationTests {
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        return UUID.fromString(created.replaceAll(".*\"id\":\"([^\"]+)\".*", "$1"));
+        return UUID.fromString(JsonPath.read(created, "$.id"));
     }
 
     private static RequestPostProcessor jwtFor(UUID userId) {

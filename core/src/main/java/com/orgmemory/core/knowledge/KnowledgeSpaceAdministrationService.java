@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -91,6 +92,15 @@ public class KnowledgeSpaceAdministrationService {
      */
     private static final int MAXIMUM_GRANTS_SCANNED = 500;
 
+    /**
+     * How many pages one listing will ask for regardless of what they contain.
+     *
+     * <p>A healthy store answers {@link #MAXIMUM_GRANTS_SCANNED} in five pages. This is the bound
+     * for a store that keeps handing over a continuation token without handing over tuples, which
+     * the tuple count cannot catch.
+     */
+    private static final int MAXIMUM_GRANT_PAGES = 50;
+
     private final KnowledgeSpaceRepository spaces;
     private final DepartmentRepository departments;
     private final AppUserRepository users;
@@ -148,8 +158,18 @@ public class KnowledgeSpaceAdministrationService {
             throw new IllegalArgumentException("Unknown department in this organization");
         }
 
-        KnowledgeSpace space = spaces.saveAndFlush(
-                new KnowledgeSpace(actor.organizationId(), departmentId, key, trimmedName));
+        // The pre-check above answers the ordinary case with the key that is already taken, but it
+        // is a read followed by a write: two administrators naming the same space at once both pass
+        // it. `uq_knowledge_space_key` is what actually decides, so the loser is answered as a
+        // conflict rather than as a server fault.
+        KnowledgeSpace space;
+        try {
+            space = spaces.saveAndFlush(
+                    new KnowledgeSpace(actor.organizationId(), departmentId, key, trimmedName));
+        } catch (DataIntegrityViolationException concurrentCreate) {
+            throw new KnowledgeSpaceKeyConflictException(
+                    "A Knowledge Space with the key '" + key + "' already exists in this organization");
+        }
 
         List<RelationshipTuple> created = new ArrayList<>();
         created.add(tuple(
@@ -276,6 +296,7 @@ public class KnowledgeSpaceAdministrationService {
         String object = RESOURCE_TYPE + ":" + space.getId();
         String continuationToken = null;
         int scanned = 0;
+        int pages = 0;
         boolean complete = true;
         do {
             RelationshipTuplePage page = tuples.readObject(object, GRANT_PAGE_SIZE, continuationToken);
@@ -297,8 +318,13 @@ public class KnowledgeSpaceAdministrationService {
                 }
             }
             scanned += page.tuples().size();
+            pages++;
             continuationToken = page.continuationToken();
-            if (continuationToken != null && scanned >= MAXIMUM_GRANTS_SCANNED) {
+            // Two bounds, because the tuple count alone does not bound the loop: a page that comes
+            // back empty while still handing over a continuation token advances neither `scanned`
+            // nor the cursor, and this would spin on it forever.
+            if (continuationToken != null
+                    && (scanned >= MAXIMUM_GRANTS_SCANNED || pages >= MAXIMUM_GRANT_PAGES)) {
                 complete = false;
                 break;
             }

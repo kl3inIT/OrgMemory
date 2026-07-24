@@ -159,10 +159,18 @@ could never be used without changing this code.
 - **Moving assets between spaces.** `knowledge_space_id` is set at ingestion from
   the source connection and stays there.
 - **Per-asset grants.** `knowledge_asset` remains unwritable.
-- **The graph's authorization gap.** `PostgresGraphProjectionStore` filters by
-  authorized asset id but applies neither the source ACL nor the classification
-  lattice. That is a real gap, contained today because graph export requires
-  `can_export_graph`, and it is a separate increment.
+- **The graph's authorization gap.** `PostgresGraphProjectionStore` filters on
+  `organization_id` and `knowledge_asset_id IN (:authorizedAssetIds)` and nothing
+  else, so it applies one of retrieval's five gates: the OpenFGA grant. The source
+  ACL, its DENY entries, the snapshot's freshness and the classification lattice
+  are all absent, and `AuthorizedEvidenceScope` carries `actorDepartmentId` and
+  `actorExecutive` that the store never reads.
+
+  Nothing on `main` calls that store, and the export service that would is on the
+  unmerged `light-rag` branch, so this is a merge blocker for that branch rather
+  than a live hole. The fix belongs upstream of the store: narrow
+  `authorizedAssetIds` through the same filter retrieval already applies, rather
+  than restating the rules in a second place where the two can drift.
 
 ## Verification
 
