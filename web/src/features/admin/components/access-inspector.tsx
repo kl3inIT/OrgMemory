@@ -28,13 +28,42 @@ export const PERMISSION_LABELS: Record<string, string> = {
   can_view: "View this resource",
   can_publish: "Publish to this resource",
   can_edit: "Edit this resource",
+  can_create_asset: "Add to this resource",
+  can_manage_acl: "Manage access to this resource",
+  can_manage: "Manage this resource",
 }
 
+/**
+ * A relation only exists on the types the model declares it for. Offering every permission
+ * against every type invites questions the engine cannot answer — asking whether someone may
+ * administer the organization *on a knowledge space* comes back UNKNOWN, which reads as "we
+ * could not tell" when the truth is that the question was never meaningful.
+ */
 const RESOURCE_TYPES = [
-  { value: "organization", label: "Organization" },
-  { value: "knowledge_space", label: "Knowledge space" },
-  { value: "knowledge_asset", label: "Document" },
-  { value: "organizational_unit", label: "Department" },
+  {
+    value: "organization",
+    label: "Organization",
+    permissions: [
+      "can_manage_members",
+      "can_manage_sources",
+      "can_create_knowledge_space",
+      "can_search_knowledge",
+      "can_view_directory",
+      "can_view_audit",
+      "can_curate_graph",
+    ],
+  },
+  {
+    value: "knowledge_space",
+    label: "Knowledge space",
+    permissions: ["can_view", "can_create_asset", "can_publish", "can_manage_acl"],
+  },
+  {
+    value: "knowledge_asset",
+    label: "Document",
+    permissions: ["can_view", "can_edit", "can_publish", "can_manage_acl"],
+  },
+  { value: "organizational_unit", label: "Department", permissions: ["can_manage"] },
 ] as const
 
 /**
@@ -50,11 +79,22 @@ export function AccessInspector({ userId }: { userId?: string }) {
   const explain = useMutation(explainAdminAccessMutation())
 
   const [subject, setSubject] = useState(userId ?? "")
+  const [resourceType, setResourceType] = useState<string>("knowledge_space")
   const [permission, setPermission] = useState("can_view")
-  const [resourceType, setResourceType] = useState("knowledge_space")
   const [resourceId, setResourceId] = useState("")
 
   const chosen = userId ?? subject
+  const offered =
+    RESOURCE_TYPES.find((type) => type.value === resourceType)?.permissions ?? []
+
+  /** Changing the resource type can strip the chosen permission, so it moves with it. */
+  function chooseResourceType(next: string) {
+    setResourceType(next)
+    const allowed = RESOURCE_TYPES.find((type) => type.value === next)?.permissions ?? []
+    if (!allowed.includes(permission as never)) {
+      setPermission(allowed[0] ?? "")
+    }
+  }
 
   return (
     <Card>
@@ -78,20 +118,7 @@ export function AccessInspector({ userId }: { userId?: string }) {
             </Select>
           )}
 
-          <Select value={permission} onValueChange={setPermission}>
-            <SelectTrigger className="w-[220px]" aria-label="Permission">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={resourceType} onValueChange={setResourceType}>
+          <Select value={resourceType} onValueChange={chooseResourceType}>
             <SelectTrigger className="w-[180px]" aria-label="Resource type">
               <SelectValue />
             </SelectTrigger>
@@ -99,6 +126,19 @@ export function AccessInspector({ userId }: { userId?: string }) {
               {RESOURCE_TYPES.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={permission} onValueChange={setPermission}>
+            <SelectTrigger className="w-[240px]" aria-label="Permission">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {offered.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {PERMISSION_LABELS[key] ?? key}
                 </SelectItem>
               ))}
             </SelectContent>

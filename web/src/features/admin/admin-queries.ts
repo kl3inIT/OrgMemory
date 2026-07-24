@@ -13,6 +13,8 @@ import {
   listAdminSourceGroupsQueryKey,
   listAdminSourcePrincipalsOptions,
   listAdminSourcePrincipalsQueryKey,
+  listAdminInvitationsOptions,
+  listAdminInvitationsQueryKey,
   listAdminRolesOptions,
   listAdminRolesQueryKey,
   listAdminUserPermissionsOptions,
@@ -28,6 +30,10 @@ const ADMIN_STALE_TIME = 15_000
 
 export function adminUsersQueryOptions() {
   return queryOptions({ ...listAdminUsersOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function adminInvitationsQueryOptions() {
+  return queryOptions({ ...listAdminInvitationsOptions(), staleTime: ADMIN_STALE_TIME })
 }
 
 export function adminRolesQueryOptions() {
@@ -132,6 +138,7 @@ export async function invalidateAdminData(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: listAdminUsersQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminRolesQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listAdminInvitationsQueryKey() }),
     // A role assignment changes what every user resolves to, and the answer is recomputed
     // rather than stored, so the whole permission view has to be asked again.
     queryClient.invalidateQueries({

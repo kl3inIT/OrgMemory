@@ -23,6 +23,7 @@ import {
   AdminPagination,
   AdminSearch,
 } from "@/features/admin/components/admin-collection-controls"
+import { AdminInvitationsCard } from "@/features/admin/components/admin-invitations-card"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { avatarInitials } from "@/lib/avatar"
 import { updateAdminUserMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
@@ -148,6 +149,8 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
           </Button>
         </div>
       </div>
+
+      <AdminInvitationsCard />
 
       <section className="space-y-4" aria-label="Organization directory">
         <AdminSearch value={query} onChange={updateQuery} placeholder="Search users by name or email" />
