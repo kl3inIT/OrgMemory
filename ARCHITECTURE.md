@@ -99,7 +99,10 @@ carry the configuration every source shares as columns and whatever only one
 source understands as an opaque `source_config` document, plus an encrypted
 credential in `source_connection_credentials`; the ciphertext is
 AES-256-GCM and a row that fails its authentication tag is refused rather than
-decrypted, so a tampered credential cannot be used.
+decrypted, so a tampered credential cannot be used. `user_invitations` records an
+address an administrator expects and the role it arrives as; a partial unique
+index allows one open row per address per organization while accepted and revoked
+rows stay as the audit trail.
 
 ## Current Permission-Aware Retrieval
 
@@ -244,9 +247,29 @@ for CLI, MCP, and integration clients.
 
 Both paths resolve only an explicit `(issuer, subject)` binding to the canonical
 internal actor. Keycloak owns authentication and can broker other identity
-providers, but it does not own OrgMemory resource permissions. Unlinked or
-inactive identities fail closed. There is no no-auth/local bypass. Request
-payloads do not choose the current tenant, creator, reviewer, or usage actor.
+providers, but it does not own OrgMemory resource permissions. Inactive
+identities fail closed. There is no no-auth/local bypass. Request payloads do not
+choose the current tenant, creator, reviewer, or usage actor.
+
+An unlinked identity is refused unless exactly one open `user_invitations` row
+matches the token's email, in which case the first sign-in creates the app user
+and writes the binding. The binding is still `(issuer, subject)`; the address only
+selects which invitation applies and never becomes the identity. Two open
+invitations for one address provision nothing rather than choosing a tenant, and
+an address that already has an account is linked rather than duplicated.
+
+An administrator reads effective access rather than a stored copy. Organization
+`can_*` permissions and a single `(user, permission, resource)` question are
+resolved through the check ports when asked, and `RelationshipExpansionPort` over
+OpenFGA `Expand` supplies the derivation behind the answer — for explanation only;
+enforcement stays with the check ports. A verdict is `ALLOWED`, `DENIED`, or
+`UNKNOWN`, because an expired or undated mirrored ACL is not a denial, and it
+carries the authority, generation, and capture time it was decided from. The
+explanation path reads the relationship port directly so an unanswered check stays
+distinguishable from a refusal; `EffectiveAuthorizationService` continues to
+collapse the two for enforcement. Administrative tuple writes are confined to
+`organization` and `role` objects: Slack and Drive own the ACL for connected
+content, and a second writer would let the two diverge.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API
 is the interactive delivery and migration owner; worker/MCP share and validate
