@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":integrations:ai-openai-compatible"))
     implementation(project(":integrations:authorization-openfga"))
     implementation(project(":integrations:connectors"))
+    implementation(project(":integrations:graph-rag-postgres"))
     implementation(project(":integrations:object-storage-minio"))
 
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
@@ -36,4 +37,5 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     systemProperty("spring.session.jdbc.cleanup-cron", "-")
+    systemProperty("orgmemory.graph-rag.postgres.apache-age-mode", "DISABLED")
 }

@@ -28,7 +28,8 @@ public interface ModelInvocationCache {
         public Key {
             Objects.requireNonNull(namespace, "namespace");
             operation = requireText(operation, "operation");
-            inputHash = requireText(inputHash, "inputHash");
+            inputHash =
+                    CanonicalCacheKeyHasher.requireSha256(inputHash, "inputHash");
             modelRouteFingerprint =
                     requireText(modelRouteFingerprint, "modelRouteFingerprint");
             profileFingerprint = requireText(profileFingerprint, "profileFingerprint");

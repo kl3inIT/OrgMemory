@@ -60,6 +60,18 @@ class GraphIndexJob extends BaseEntity {
     @Column(name = "last_error_message", length = 512)
     private String lastErrorMessage;
 
+    @Column(name = "idempotency_key", nullable = false, length = 255, updatable = false)
+    private String idempotencyKey;
+
+    @Column(name = "manifest_fingerprint", length = 64)
+    private String manifestFingerprint;
+
+    @Column(name = "cancellation_requested", nullable = false)
+    private boolean cancellationRequested;
+
+    @Column(name = "cancellation_requested_at")
+    private Instant cancellationRequestedAt;
+
     @Column(name = "completed_at")
     private Instant completedAt;
 
@@ -91,9 +103,14 @@ class GraphIndexJob extends BaseEntity {
         this.status = GraphIndexJobStatus.PENDING;
         this.availableAt = Objects.requireNonNull(now, "now");
         this.maxAttempts = maxAttempts;
+        this.idempotencyKey = idempotencyKey(
+                organizationId, sourceRevisionId, projectionGeneration);
     }
 
     void claim(String workerId, Instant now, Duration leaseDuration) {
+        if (cancellationRequested) {
+            throw new IllegalStateException("a cancelled graph job cannot be claimed");
+        }
         status = GraphIndexJobStatus.PROCESSING;
         leaseOwner = workerId;
         leaseUntil = now.plus(leaseDuration);
@@ -114,6 +131,15 @@ class GraphIndexJob extends BaseEntity {
         leaseUntil = now.plus(leaseDuration);
     }
 
+    void bindManifest(String fingerprint) {
+        String normalized = requireFingerprint(fingerprint);
+        if (manifestFingerprint != null && !manifestFingerprint.equals(normalized)) {
+            throw new IllegalStateException(
+                    "a graph indexing retry produced a different manifest");
+        }
+        manifestFingerprint = normalized;
+    }
+
     void succeed(Instant now) {
         status = GraphIndexJobStatus.SUCCEEDED;
         leaseOwner = null;
@@ -130,6 +156,52 @@ class GraphIndexJob extends BaseEntity {
         lastErrorCode = "VERSION_SUPERSEDED";
         lastErrorMessage = "The Knowledge Asset no longer points at this version";
         completedAt = now;
+    }
+
+    boolean requestCancellation(Instant now) {
+        Objects.requireNonNull(now, "now");
+        if (isTerminal()) {
+            return false;
+        }
+        cancellationRequested = true;
+        cancellationRequestedAt = now;
+        if (status == GraphIndexJobStatus.PENDING) {
+            cancel(now);
+        }
+        return true;
+    }
+
+    boolean cancellationRequested() {
+        return cancellationRequested;
+    }
+
+    void cancel(Instant now) {
+        status = GraphIndexJobStatus.CANCELLED;
+        leaseOwner = null;
+        leaseUntil = null;
+        lastErrorCode = "CANCELLED";
+        lastErrorMessage = "Graph indexing was cancelled";
+        completedAt = Objects.requireNonNull(now, "now");
+    }
+
+    void resume(Instant now) {
+        Objects.requireNonNull(now, "now");
+        if (status != GraphIndexJobStatus.FAILED
+                && status != GraphIndexJobStatus.CANCELLED
+                && status != GraphIndexJobStatus.SUPERSEDED) {
+            throw new IllegalStateException(
+                    "only a failed, cancelled, or superseded graph job can resume");
+        }
+        status = GraphIndexJobStatus.PENDING;
+        availableAt = now;
+        leaseOwner = null;
+        leaseUntil = null;
+        attemptCount = 0;
+        lastErrorCode = null;
+        lastErrorMessage = null;
+        cancellationRequested = false;
+        cancellationRequestedAt = null;
+        completedAt = null;
     }
 
     void failExpiredLease(Instant now) {
@@ -186,5 +258,50 @@ class GraphIndexJob extends BaseEntity {
 
     Instant getLeaseUntil() {
         return leaseUntil;
+    }
+
+    String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    String getManifestFingerprint() {
+        return manifestFingerprint;
+    }
+
+    Instant getCancellationRequestedAt() {
+        return cancellationRequestedAt;
+    }
+
+    String getLastErrorCode() {
+        return lastErrorCode;
+    }
+
+    String getLastErrorMessage() {
+        return lastErrorMessage;
+    }
+
+    Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    private boolean isTerminal() {
+        return status == GraphIndexJobStatus.SUCCEEDED
+                || status == GraphIndexJobStatus.FAILED
+                || status == GraphIndexJobStatus.SUPERSEDED
+                || status == GraphIndexJobStatus.CANCELLED;
+    }
+
+    private static String idempotencyKey(
+            UUID organizationId, UUID sourceRevisionId, long generation) {
+        return "graph:" + organizationId + ":" + sourceRevisionId + ":" + generation;
+    }
+
+    private static String requireFingerprint(String value) {
+        String normalized = Objects.requireNonNull(value, "fingerprint").strip();
+        if (!normalized.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(
+                    "manifest fingerprint must be lowercase SHA-256 hex");
+        }
+        return normalized;
     }
 }

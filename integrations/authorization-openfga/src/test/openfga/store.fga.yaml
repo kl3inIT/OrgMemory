@@ -63,6 +63,9 @@ tuples:
   - user: organizational_unit:finance#member
     relation: contributor
     object: knowledge_space:finance
+  - user: user:laura
+    relation: reviewer
+    object: knowledge_space:finance
   - user: organization:acme#knowledge_reader
     relation: viewer
     object: knowledge_space:finance
@@ -182,6 +185,29 @@ tests:
         type: knowledge_space
         assertions:
           can_create_asset: []
+
+  - name: Graph management is explicit and resource scoped
+    check:
+      - user: user:laura
+        object: knowledge_space:finance
+        assertions:
+          can_curate_graph: true
+          can_export_graph: true
+      - user: user:minh
+        object: knowledge_space:finance
+        assertions:
+          can_curate_graph: false
+          can_export_graph: false
+      - user: user:laura
+        object: knowledge_asset:finance-private-draft
+        assertions:
+          can_delete: true
+          can_rebuild: true
+      - user: user:minh
+        object: knowledge_asset:finance-private-draft
+        assertions:
+          can_delete: false
+          can_rebuild: false
 
   - name: List only knowledge assets visible to each user
     list_objects:

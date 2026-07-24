@@ -55,10 +55,12 @@
 
 ## PR 6 — Lifecycle, Recovery And Cache
 
-- [ ] Implement update, delete/rebuild, retry/resume, cancellation, and failed
+- [x] Challenge and record the lifecycle, curation, export, and cache
+  architecture against pinned LightRAG `v1.5.4` with Fable 5.
+- [x] Implement update, delete/rebuild, retry/resume, cancellation, and failed
   batch abort.
-- [ ] Implement entity/relation create, edit, merge, delete, and export.
-- [ ] Add query/keyword cache contracts, first adapter, and invalidation.
+- [x] Implement entity/relation create, edit, merge, delete, and export.
+- [x] Add query/keyword cache contracts, first adapter, and invalidation.
 
 ## PR 7 — Full Query Runtime
 

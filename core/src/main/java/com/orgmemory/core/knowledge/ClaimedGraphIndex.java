@@ -8,6 +8,7 @@ public record ClaimedGraphIndex(
         UUID jobId,
         UUID organizationId,
         UUID knowledgeAssetId,
+        UUID knowledgeSpaceId,
         UUID knowledgeAssetVersionId,
         UUID sourceRevisionId,
         UUID aclSnapshotId,
@@ -22,6 +23,7 @@ public record ClaimedGraphIndex(
         Objects.requireNonNull(jobId, "jobId");
         Objects.requireNonNull(organizationId, "organizationId");
         Objects.requireNonNull(knowledgeAssetId, "knowledgeAssetId");
+        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         Objects.requireNonNull(knowledgeAssetVersionId, "knowledgeAssetVersionId");
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         Objects.requireNonNull(aclSnapshotId, "aclSnapshotId");

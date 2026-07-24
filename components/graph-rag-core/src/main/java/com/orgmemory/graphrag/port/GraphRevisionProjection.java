@@ -35,4 +35,12 @@ public record GraphRevisionProjection(
                     "every graph contribution must have exactly one embedding");
         }
     }
+
+    public String manifestFingerprint() {
+        return GraphProjectionManifest.fingerprint(this);
+    }
+
+    public String idempotencyKey() {
+        return GraphProjectionManifest.idempotencyKey(contributions);
+    }
 }

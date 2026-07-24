@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -69,17 +70,29 @@ public class GraphIndexingCoordinator {
     @Transactional
     public void refreshLease(UUID jobId, String workerId, Duration leaseDuration) {
         Instant now = Instant.now();
-        claimedJob(jobId, workerId, now).refreshLease(now, leaseDuration);
+        GraphIndexJob job = claimedJob(jobId, workerId, now);
+        requireRunnable(job, now);
+        job.refreshLease(now, leaseDuration);
+    }
+
+    @Transactional
+    public void preparePublication(
+            UUID jobId,
+            String workerId,
+            Duration leaseDuration,
+            String manifestFingerprint) {
+        Instant now = Instant.now();
+        GraphIndexJob job = claimedJob(jobId, workerId, now);
+        requireRunnable(job, now);
+        job.bindManifest(manifestFingerprint);
+        job.refreshLease(now, leaseDuration);
     }
 
     @Transactional
     public void complete(UUID jobId, String workerId) {
         Instant now = Instant.now();
         GraphIndexJob job = claimedJob(jobId, workerId, now);
-        if (!isCurrent(job)) {
-            job.supersede(now);
-            return;
-        }
+        requireRunnable(job, now);
         job.succeed(now);
     }
 
@@ -92,6 +105,29 @@ public class GraphIndexingCoordinator {
             return;
         }
         retry(job, code, message, now);
+    }
+
+    @Transactional
+    public GraphIndexJobView cancel(UUID organizationId, UUID jobId) {
+        GraphIndexJob job = tenantJob(organizationId, jobId);
+        job.requestCancellation(Instant.now());
+        return view(job);
+    }
+
+    @Transactional
+    public GraphIndexJobView resume(UUID organizationId, UUID jobId) {
+        GraphIndexJob job = tenantJob(organizationId, jobId);
+        if (!isCurrent(job)) {
+            throw new IllegalStateException(
+                    "only the current active Knowledge Asset version can rebuild");
+        }
+        job.resume(Instant.now());
+        return view(job);
+    }
+
+    @Transactional(readOnly = true)
+    public GraphIndexJobView status(UUID organizationId, UUID jobId) {
+        return view(tenantJob(organizationId, jobId));
     }
 
     private Optional<ClaimedGraphIndex> currentClaim(GraphIndexJob job) {
@@ -133,6 +169,7 @@ public class GraphIndexingCoordinator {
                 job.getId(),
                 job.getOrganizationId(),
                 job.getKnowledgeAssetId(),
+                asset.getKnowledgeSpaceId(),
                 job.getKnowledgeAssetVersionId(),
                 job.getSourceRevisionId(),
                 snapshot.getId(),
@@ -156,6 +193,21 @@ public class GraphIndexingCoordinator {
                 .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
                 .orElse(null);
         return isCurrent(job, asset, version, revision);
+    }
+
+    private void requireRunnable(GraphIndexJob job, Instant now) {
+        if (job.cancellationRequested()) {
+            job.cancel(now);
+            throw new GraphIndexingStoppedException(
+                    GraphIndexingStoppedException.Reason.CANCELLED,
+                    "graph indexing was cancelled before publication");
+        }
+        if (!isCurrent(job)) {
+            job.supersede(now);
+            throw new GraphIndexingStoppedException(
+                    GraphIndexingStoppedException.Reason.SUPERSEDED,
+                    "graph indexing target is no longer current");
+        }
     }
 
     private static boolean isCurrent(
@@ -186,6 +238,29 @@ public class GraphIndexingCoordinator {
             throw new IllegalStateException("graph index job lease has expired");
         }
         return job;
+    }
+
+    private GraphIndexJob tenantJob(UUID organizationId, UUID jobId) {
+        return jobs.findByIdAndOrganizationId(
+                        Objects.requireNonNull(jobId, "jobId"),
+                        Objects.requireNonNull(organizationId, "organizationId"))
+                .orElseThrow();
+    }
+
+    private static GraphIndexJobView view(GraphIndexJob job) {
+        return new GraphIndexJobView(
+                job.getId(),
+                job.getKnowledgeAssetId(),
+                job.getKnowledgeAssetVersionId(),
+                job.getSourceRevisionId(),
+                job.getProjectionGeneration(),
+                job.getStatus().name(),
+                job.getAttemptCount(),
+                job.cancellationRequested(),
+                job.getCancellationRequestedAt(),
+                job.getLastErrorCode(),
+                job.getLastErrorMessage(),
+                job.getCompletedAt());
     }
 
     private static void retry(

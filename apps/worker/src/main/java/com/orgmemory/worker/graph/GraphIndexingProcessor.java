@@ -6,6 +6,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.ClaimedGraphIndex;
 import com.orgmemory.core.knowledge.GraphIndexChunk;
 import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.GraphIndexingStoppedException;
 import com.orgmemory.graphrag.indexing.ExtractedChunk;
 import com.orgmemory.graphrag.indexing.GraphContributionAssembler;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
@@ -102,6 +103,7 @@ class GraphIndexingProcessor {
                     claim.jobId(),
                     properties.workerId(),
                     properties.leaseDuration(),
+                    claim.knowledgeSpaceId(),
                     new GraphRevisionProjection(contributions, embeddings));
             log.info(
                     "Published graph generation {} for Knowledge Asset version {} with {} entities and {} relations",
@@ -114,6 +116,11 @@ class GraphIndexingProcessor {
             log.warn(
                     "Graph indexing interrupted for job {}; leaving its lease to expire for retry",
                     claim.jobId());
+        } catch (GraphIndexingStoppedException stopped) {
+            log.info(
+                    "Stopped graph indexing job {} because it was {}",
+                    claim.jobId(),
+                    stopped.reason());
         } catch (Exception failure) {
             logFailure(claim, failure);
             recordFailure(claim);
@@ -182,12 +189,29 @@ class GraphIndexingProcessor {
     private ExtractedChunk awaitWithLeaseHeartbeat(
             ClaimedGraphIndex claim, Future<ExtractedChunk> future)
             throws ExecutionException, InterruptedException {
-        long heartbeatMillis =
-                Math.max(1, properties.leaseDuration().dividedBy(3).toMillis());
+        long startedAt = System.nanoTime();
+        long timeoutNanos = properties.extractionTimeout().toNanos();
+        long heartbeatNanos = Math.max(
+                TimeUnit.MILLISECONDS.toNanos(1),
+                properties.leaseDuration().dividedBy(3).toNanos());
         while (true) {
+            long remainingNanos =
+                    timeoutNanos - (System.nanoTime() - startedAt);
+            if (remainingNanos <= 0) {
+                future.cancel(true);
+                throw new GraphExtractionTimeoutException(
+                        properties.extractionTimeout());
+            }
             try {
-                return future.get(heartbeatMillis, TimeUnit.MILLISECONDS);
+                return future.get(
+                        Math.min(heartbeatNanos, remainingNanos),
+                        TimeUnit.NANOSECONDS);
             } catch (TimeoutException timeout) {
+                if (System.nanoTime() - startedAt >= timeoutNanos) {
+                    future.cancel(true);
+                    throw new GraphExtractionTimeoutException(
+                            properties.extractionTimeout());
+                }
                 coordinator.refreshLease(
                         claim.jobId(), properties.workerId(), properties.leaseDuration());
             }
@@ -342,5 +366,13 @@ class GraphIndexingProcessor {
     }
 
     private record EntityContributionKey(UUID entityId, UUID chunkId) {
+    }
+
+    private static final class GraphExtractionTimeoutException
+            extends RuntimeException {
+
+        private GraphExtractionTimeoutException(java.time.Duration timeout) {
+            super("Graph extraction exceeded the configured timeout of " + timeout);
+        }
     }
 }
