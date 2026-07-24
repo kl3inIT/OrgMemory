@@ -5,6 +5,8 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
+import com.orgmemory.core.authorization.RelationshipExpansionPort;
+import com.orgmemory.core.authorization.RelationshipExpansionResult;
 import com.orgmemory.core.authorization.RelationshipTuplePage;
 import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
@@ -71,6 +73,15 @@ public class UnavailableAuthorizationConfiguration {
                 Objects.requireNonNull(request, "request");
                 return RelationshipTupleWriteResult.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
             }
+        };
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(RelationshipExpansionPort.class)
+    RelationshipExpansionPort unavailableRelationshipExpansionPort() {
+        return query -> {
+            Objects.requireNonNull(query, "query");
+            return RelationshipExpansionResult.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
         };
     }
 
