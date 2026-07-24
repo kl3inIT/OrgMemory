@@ -22,53 +22,71 @@ final class Neo4jProjectionSupport {
             """
             MATCH (source:OrgMemoryGraphEntity {batchId: $previousBatchId})
             WITH source ORDER BY source.key SKIP $offset LIMIT $pageSize
-            MERGE (copy:OrgMemoryGraphEntity {
-                key: $batchId + ':' + source.entityId
-            })
-            SET copy = source {
-                .*,
-                key: $batchId + ':' + source.entityId,
-                batchId: $batchId,
-                generation: $generation
+            WITH collect(source) AS page
+            CALL {
+                WITH page
+                UNWIND page AS source
+                MERGE (copy:OrgMemoryGraphEntity {
+                    key: $batchId + ':' + source.entityId
+                })
+                SET copy = source {
+                    .*,
+                    key: $batchId + ':' + source.entityId,
+                    batchId: $batchId,
+                    generation: $generation
+                }
+                RETURN count(copy) AS copied
             }
-            RETURN count(copy) AS copied
+            RETURN size(page) AS consumed, copied
             """,
             """
             MATCH (source:OrgMemoryGraphEntityContribution {
                 batchId: $previousBatchId
             })
             WITH source ORDER BY source.key SKIP $offset LIMIT $pageSize
-            MERGE (copy:OrgMemoryGraphEntityContribution {
-                key: $batchId + ':' + source.contributionId
-            })
-            SET copy = source {
-                .*,
-                key: $batchId + ':' + source.contributionId,
-                batchId: $batchId,
-                generation: $generation
+            WITH collect(source) AS page
+            CALL {
+                WITH page
+                UNWIND page AS source
+                MERGE (copy:OrgMemoryGraphEntityContribution {
+                    key: $batchId + ':' + source.contributionId
+                })
+                SET copy = source {
+                    .*,
+                    key: $batchId + ':' + source.contributionId,
+                    batchId: $batchId,
+                    generation: $generation
+                }
+                WITH source, copy
+                MATCH (entity:OrgMemoryGraphEntity {
+                    key: $batchId + ':' + source.entityId
+                })
+                MERGE (copy)-[:CONTRIBUTES_TO]->(entity)
+                RETURN count(copy) AS copied
             }
-            WITH source, copy
-            MATCH (entity:OrgMemoryGraphEntity {
-                key: $batchId + ':' + source.entityId
-            })
-            MERGE (copy)-[:CONTRIBUTES_TO]->(entity)
-            RETURN count(copy) AS copied
+            RETURN size(page) AS consumed, copied
             """,
             """
             MATCH (source:OrgMemoryGraphRelationContribution {
                 batchId: $previousBatchId
             })
             WITH source ORDER BY source.key SKIP $offset LIMIT $pageSize
-            MERGE (copy:OrgMemoryGraphRelationContribution {
-                key: $batchId + ':' + source.contributionId
-            })
-            SET copy = source {
-                .*,
-                key: $batchId + ':' + source.contributionId,
-                batchId: $batchId,
-                generation: $generation
+            WITH collect(source) AS page
+            CALL {
+                WITH page
+                UNWIND page AS source
+                MERGE (copy:OrgMemoryGraphRelationContribution {
+                    key: $batchId + ':' + source.contributionId
+                })
+                SET copy = source {
+                    .*,
+                    key: $batchId + ':' + source.contributionId,
+                    batchId: $batchId,
+                    generation: $generation
+                }
+                RETURN count(copy) AS copied
             }
-            RETURN count(copy) AS copied
+            RETURN size(page) AS consumed, copied
             """);
 
     private static final String COPY_RELATIONS = """
@@ -77,22 +95,33 @@ final class Neo4jProjectionSupport {
             }]->(target:OrgMemoryGraphEntity)
             WITH source, target, relation
             ORDER BY relation.key SKIP $offset LIMIT $pageSize
-            MATCH (copySource:OrgMemoryGraphEntity {
-                key: $batchId + ':' + source.entityId
-            })
-            MATCH (copyTarget:OrgMemoryGraphEntity {
-                key: $batchId + ':' + target.entityId
-            })
-            MERGE (copySource)-[copy:ORGMEMORY_RELATES {
-                key: $batchId + ':' + relation.relationId
-            }]->(copyTarget)
-            SET copy = relation {
-                .*,
-                key: $batchId + ':' + relation.relationId,
-                batchId: $batchId,
-                generation: $generation
+            WITH collect({
+                sourceEntityId: source.entityId,
+                targetEntityId: target.entityId,
+                relation: relation
+            }) AS page
+            CALL {
+                WITH page
+                UNWIND page AS row
+                WITH row, row.relation AS relation
+                MATCH (copySource:OrgMemoryGraphEntity {
+                    key: $batchId + ':' + row.sourceEntityId
+                })
+                MATCH (copyTarget:OrgMemoryGraphEntity {
+                    key: $batchId + ':' + row.targetEntityId
+                })
+                MERGE (copySource)-[copy:ORGMEMORY_RELATES {
+                    key: $batchId + ':' + relation.relationId
+                }]->(copyTarget)
+                SET copy = relation {
+                    .*,
+                    key: $batchId + ':' + relation.relationId,
+                    batchId: $batchId,
+                    generation: $generation
+                }
+                RETURN count(copy) AS copied
             }
-            RETURN count(copy) AS copied
+            RETURN size(page) AS consumed, copied
             """;
 
     private final Neo4jOperations operations;
@@ -335,15 +364,15 @@ final class Neo4jProjectionSupport {
             Map<String, Object> parameters = new LinkedHashMap<>(baseParameters);
             parameters.put("offset", offset);
             parameters.put("pageSize", copyPageSize);
-            long copied = operations.write(transaction -> transaction.run(query, parameters)
+            long consumed = operations.write(transaction -> transaction.run(query, parameters)
                     .single()
-                    .get("copied")
+                    .get("consumed")
                     .asLong());
             renewLease(batch, owner);
-            if (copied < copyPageSize) {
+            if (consumed < copyPageSize) {
                 return;
             }
-            offset += copied;
+            offset += consumed;
         }
     }
 

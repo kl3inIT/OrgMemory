@@ -161,9 +161,15 @@ public class Neo4jGraphRagProperties {
 
     void validate() {
         String scheme = uri.getScheme();
-        if (!java.util.Set.of(
-                        "neo4j", "neo4j+s", "neo4j+ssc", "bolt", "bolt+s", "bolt+ssc")
-                .contains(scheme)) {
+        if (scheme == null
+                || !java.util.Set.of(
+                                "neo4j",
+                                "neo4j+s",
+                                "neo4j+ssc",
+                                "bolt",
+                                "bolt+s",
+                                "bolt+ssc")
+                        .contains(scheme)) {
             throw new IllegalArgumentException("unsupported Neo4j URI scheme");
         }
         if (uri.getHost() == null || uri.getHost().isBlank()) {

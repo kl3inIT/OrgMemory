@@ -43,6 +43,9 @@ class Neo4jGraphRagPropertiesTests {
 
         properties.setUri(URI.create("http://localhost:7474"));
         assertThrows(IllegalArgumentException.class, properties::validate);
+
+        properties.setUri(URI.create("/graph"));
+        assertThrows(IllegalArgumentException.class, properties::validate);
     }
 
     private static Neo4jGraphRagProperties validProperties() {
