@@ -9,11 +9,14 @@ import java.util.stream.Stream;
 
 public record GraphRevisionProjection(
         GraphRevisionContributions contributions,
-        GraphRevisionEmbeddings embeddings) {
+        GraphRevisionEmbeddings embeddings,
+        String graphProcessingProfileSha256) {
 
     public GraphRevisionProjection {
         Objects.requireNonNull(contributions, "contributions");
         Objects.requireNonNull(embeddings, "embeddings");
+        graphProcessingProfileSha256 =
+                requireSha256(graphProcessingProfileSha256);
         if (!contributions.organizationId().equals(embeddings.organizationId())
                 || !contributions.knowledgeAssetId().equals(embeddings.knowledgeAssetId())
                 || !contributions.sourceRevisionId().equals(embeddings.sourceRevisionId())
@@ -41,6 +44,17 @@ public record GraphRevisionProjection(
     }
 
     public String idempotencyKey() {
-        return GraphProjectionManifest.idempotencyKey(contributions);
+        return GraphProjectionManifest.idempotencyKey(
+                contributions, graphProcessingProfileSha256);
+    }
+
+    private static String requireSha256(String value) {
+        String normalized =
+                Objects.requireNonNull(value, "graphProcessingProfileSha256").strip();
+        if (!normalized.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(
+                    "graphProcessingProfileSha256 must be lowercase SHA-256 hex");
+        }
+        return normalized;
     }
 }

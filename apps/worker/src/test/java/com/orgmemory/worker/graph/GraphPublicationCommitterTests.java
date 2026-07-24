@@ -13,12 +13,15 @@ import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.GraphIndexChunk;
 import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.GraphProcessingProfileRef;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.model.FloatVector;
+import com.orgmemory.graphrag.model.ExtractionProfile;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
+import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
@@ -197,6 +200,20 @@ class GraphPublicationCommitterTests {
                 "text-embedding-3-large",
                 3,
                 EmbeddingDistanceMetric.COSINE);
+        var processingProfile = LightRagGraphProcessingProfiles.current(
+                new ExtractionProfile("openai", "gpt-test", "orgmemory-lightrag-v1.5.4-json-v1", 4, 6));
+        var processingProfileRef = new GraphProcessingProfileRef(
+                UUID.randomUUID(),
+                processingProfile.canonicalSha256(),
+                processingProfile);
+        String idempotencyKey = "graph:"
+                + organizationId
+                + ":"
+                + revisionId
+                + ":"
+                + projectionGeneration
+                + ":"
+                + processingProfile.canonicalSha256();
         ClaimedGraphIndex claim = new ClaimedGraphIndex(
                 UUID.randomUUID(),
                 organizationId,
@@ -207,8 +224,8 @@ class GraphPublicationCommitterTests {
                 UUID.randomUUID(),
                 2,
                 projectionGeneration,
-                "graph:" + organizationId + ":" + revisionId + ":"
-                        + projectionGeneration,
+                processingProfileRef,
+                idempotencyKey,
                 profile,
                 "en",
                 1,
@@ -235,7 +252,8 @@ class GraphPublicationCommitterTests {
                         profileId,
                         3,
                         List.of(),
-                        List.of()));
+                        List.of()),
+                processingProfile.canonicalSha256());
         return new Fixture(claim, projection);
     }
 

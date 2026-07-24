@@ -1,11 +1,7 @@
 import { useChat } from "@ai-sdk/react"
-import {
-  type SourceDocumentUIPart,
-  type SourceUrlUIPart,
-  type UIMessage,
-} from "ai"
+import { type SourceUrlUIPart, type UIMessage } from "ai"
 import { Copy, LoaderCircle, RotateCcw, ShieldCheck } from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -19,7 +15,6 @@ import {
   MessageActions,
   MessageContent,
 } from "@/components/ai-elements/message"
-import { MessageResponse } from "@/components/ai-elements/message-response"
 import {
   PromptInput,
   PromptInputBody,
@@ -33,6 +28,7 @@ import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
+import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
 import {
   type AssistantSourceRef,
   AssistantSourcesPanel,
@@ -44,8 +40,6 @@ const SUGGESTIONS = [
   "What is the product release process?",
 ]
 
-type SourcePart = SourceUrlUIPart | SourceDocumentUIPart
-
 function textFor(message: UIMessage) {
   return message.parts
     .filter((part) => part.type === "text")
@@ -54,37 +48,62 @@ function textFor(message: UIMessage) {
 }
 
 function sourcesFor(message: UIMessage) {
-  const sources = message.parts.filter(
-    (part): part is SourcePart => part.type === "source-url" || part.type === "source-document",
-  )
-  return [...new Map(sources.map((source) => [source.sourceId, source])).values()]
+  const sources: AssistantSourceRef[] = []
+  const seenNumbers = new Set<number>()
+  const seenIds = new Set<string>()
+  for (const part of message.parts) {
+    if (part.type !== "source-url") continue
+    const citationNumber = citationNumberFor(part)
+    const url = citationUrl(part.url)
+    if (
+      citationNumber === null ||
+      url === null ||
+      seenNumbers.has(citationNumber) ||
+      seenIds.has(part.sourceId)
+    ) {
+      continue
+    }
+    seenNumbers.add(citationNumber)
+    seenIds.add(part.sourceId)
+    sources.push({
+      id: part.sourceId,
+      citationNumber,
+      title: part.title ?? "Company knowledge",
+      url,
+    })
+  }
+  return sources.sort((left, right) => left.citationNumber - right.citationNumber)
 }
 
 function hasVisibleOutput(message: UIMessage) {
   return textFor(message).trim().length > 0 || sourcesFor(message).length > 0
 }
 
-function sourceHref(source: SourcePart) {
-  if (source.type === "source-url") return source.url
-  try {
-    const baseUrl = new URL("https://orgmemory.invalid")
-    const sourceUrl = new URL(source.sourceId, baseUrl)
-    if (sourceUrl.origin === baseUrl.origin && sourceUrl.pathname === "/sources") {
-      return `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`
-    }
-  } catch {
-    // Fall through to the validated Documents search route.
-  }
-  const query = source.title?.trim()
-  return query ? `/sources?q=${encodeURIComponent(query)}` : "/sources"
+function citationNumberFor(source: SourceUrlUIPart) {
+  const metadata = source.providerMetadata?.orgmemory
+  if (!metadata || Array.isArray(metadata)) return null
+  const number = metadata.citationNumber
+  return typeof number === "number" && Number.isSafeInteger(number) && number > 0
+    ? number
+    : null
 }
 
-function sourceRefs(sources: SourcePart[]): AssistantSourceRef[] {
-  return sources.map((source) => ({
-    id: source.sourceId,
-    title: source.title ?? "Company knowledge",
-    url: sourceHref(source),
-  }))
+function citationUrl(rawUrl: string) {
+  try {
+    const baseUrl = new URL("https://orgmemory.invalid")
+    const sourceUrl = new URL(rawUrl, baseUrl)
+    if (
+      sourceUrl.origin === baseUrl.origin &&
+      /^\/api\/citations\/[0-9a-f-]{36}\/content$/i.test(sourceUrl.pathname) &&
+      sourceUrl.search === "" &&
+      sourceUrl.hash === ""
+    ) {
+      return sourceUrl.pathname
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 function greeting() {
@@ -115,6 +134,13 @@ export function AssistantPage() {
     (latestMessage === undefined ||
       latestMessage.role === "user" ||
       !hasVisibleOutput(latestMessage))
+  const openSources = useCallback((messageId: string, sources: AssistantSourceRef[], sourceId: string) => {
+    setSourcePanel({
+      messageId,
+      sources,
+      selectedSourceId: sourceId,
+    })
+  }, [])
 
   function send(rawMessage: string) {
     const message = rawMessage.trim()
@@ -201,7 +227,11 @@ export function AssistantPage() {
                 <Message from={message.role} key={message.id}>
                   {content.trim() ? (
                     <MessageContent className="text-body">
-                      <MessageResponse>{content}</MessageResponse>
+                      <AssistantAnswer
+                        content={content}
+                        sources={sources}
+                        onOpenSource={(sourceId) => openSources(message.id, sources, sourceId)}
+                      />
                     </MessageContent>
                   ) : null}
                   {sources.length > 0 ? (
@@ -209,32 +239,25 @@ export function AssistantPage() {
                       <SourcesTrigger
                         count={sources.length}
                         onClick={() => {
-                          const refs = sourceRefs(sources)
-                          setSourcePanel({
-                            messageId: message.id,
-                            sources: refs,
-                            selectedSourceId: refs[0].id,
-                          })
+                          openSources(message.id, sources, sources[0].id)
                         }}
                       />
                       <SourcesContent className="flex-row flex-wrap gap-2">
                         {sources.map((source) => (
                           <Source
-                            key={`${source.type}-${source.sourceId}`}
-                            href={sourceHref(source)}
-                            title={source.title ?? "Company knowledge"}
-                            target={sourceHref(source).startsWith("/") ? "_self" : "_blank"}
+                            key={source.id}
+                            href={source.url}
+                            title={source.title}
+                            target="_self"
                             onClick={(event) => {
-                              const refs = sourceRefs(sources)
                               event.preventDefault()
-                              setSourcePanel({
-                                messageId: message.id,
-                                sources: refs,
-                                selectedSourceId: source.sourceId,
-                              })
+                              openSources(message.id, sources, source.id)
                             }}
                             className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-subtle px-2.5 py-1.5 text-supporting text-content-secondary transition-colors hover:bg-action-ghost-hover hover:text-content-primary"
-                          />
+                          >
+                            <span className="text-xs tabular-nums">{source.citationNumber}</span>
+                            <span className="font-medium">{source.title}</span>
+                          </Source>
                         ))}
                       </SourcesContent>
                     </Sources>

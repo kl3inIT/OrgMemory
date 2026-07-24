@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":integrations:authorization-openfga"))
     implementation(project(":integrations:connectors"))
     implementation(project(":integrations:graph-rag-postgres"))
+    implementation(project(":integrations:graph-rag-observability"))
     implementation(project(":integrations:graph-rag-spring-ai"))
     implementation(project(":integrations:object-storage-minio"))
 
@@ -18,6 +19,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation(libs.springdoc.webmvc)

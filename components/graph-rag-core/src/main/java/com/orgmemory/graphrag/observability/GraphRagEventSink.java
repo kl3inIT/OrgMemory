@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Provider-neutral telemetry boundary. Events intentionally contain no query,
@@ -11,6 +12,9 @@ import java.util.UUID;
  */
 @FunctionalInterface
 public interface GraphRagEventSink {
+
+    Pattern SHA_256 = Pattern.compile("[0-9a-f]{64}");
+    Pattern FAILURE_CODE = Pattern.compile("[a-z0-9_]{1,64}");
 
     GraphRagEventSink NO_OP = event -> { };
 
@@ -42,9 +46,19 @@ public interface GraphRagEventSink {
             }
             modelRouteFingerprint = normalizeOptional(modelRouteFingerprint);
             failureCode = normalizeOptional(failureCode);
+            if (modelRouteFingerprint != null
+                    && !SHA_256.matcher(modelRouteFingerprint).matches()) {
+                throw new IllegalArgumentException(
+                        "modelRouteFingerprint must be a lowercase SHA-256 value");
+            }
             if (outcome == Outcome.FAILED && failureCode == null) {
                 throw new IllegalArgumentException(
                         "failureCode is required for a failed event");
+            }
+            if (failureCode != null
+                    && !FAILURE_CODE.matcher(failureCode).matches()) {
+                throw new IllegalArgumentException(
+                        "failureCode must be a bounded machine code");
             }
             Objects.requireNonNull(occurredAt, "occurredAt");
         }

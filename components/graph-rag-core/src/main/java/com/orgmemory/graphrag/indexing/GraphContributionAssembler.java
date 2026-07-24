@@ -33,6 +33,9 @@ import java.util.UUID;
  */
 public final class GraphContributionAssembler {
 
+    public static final String MERGE_SEMANTICS_VERSION =
+            "orgmemory-evidence-scoped-merge-v1";
+
     private GraphContributionAssembler() {
     }
 

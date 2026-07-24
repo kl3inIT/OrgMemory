@@ -1,6 +1,7 @@
 package com.orgmemory.worker;
 
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.GraphProcessingProperties;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.KnowledgeGraphExplorerConfiguration;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
@@ -29,6 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         KnowledgeRetrievalProperties.class,
         ConnectorCrawlProperties.class,
         GraphIndexingProperties.class,
+        GraphProcessingProperties.class,
         KnowledgeAuthorizationConvergenceProperties.class
 })
 @ComponentScan(

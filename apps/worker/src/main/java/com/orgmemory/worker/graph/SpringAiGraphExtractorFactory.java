@@ -19,6 +19,7 @@ final class SpringAiGraphExtractorFactory implements GraphExtractorFactory {
     @Override
     public EntityRelationExtractor create(AiRoute route) {
         return new SpringAiEntityRelationExtractor(
-                route.gatewayId(), chatModels.resolve(AiWorkload.GRAPH_EXTRACTION));
+                route.gatewayId(),
+                chatModels.resolve(AiWorkload.GRAPH_EXTRACTION, route));
     }
 }

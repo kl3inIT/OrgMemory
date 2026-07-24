@@ -259,9 +259,9 @@ stall.
 
 The current path does not yet implement incremental webhooks or the Events API,
 credential rotation, a run of either adapter against a real workspace, Airbyte
-staging, OCR, malware and DLP integrations, entity and relationship extraction,
-graph publication, or hybrid retrieval extensions beyond the current secure FTS +
-pgvector path.
+staging, OCR, or malware and DLP integrations. Entity/relation extraction,
+profile-versioned graph publication and secure hybrid GraphRAG retrieval are
+implemented as rebuildable projections over this canonical ledger.
 
 ## Source Modules
 

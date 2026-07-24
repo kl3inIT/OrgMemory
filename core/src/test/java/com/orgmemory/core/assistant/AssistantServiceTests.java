@@ -51,7 +51,14 @@ class AssistantServiceTests {
 
         assertEquals(List.of("The probation period ", "is 60 days. [1]"),
                 turn.content().collectList().block());
-        assertEquals(List.of(evidence), turn.evidence());
+        assertEquals(List.of(evidence),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
+        assertEquals(List.of(1),
+                turn.citations().stream()
+                        .map(AssistantCitation::number)
+                        .toList());
         ArgumentCaptor<ChatGenerationRequest> request = ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(eq(AiWorkload.ASSISTANT_CHAT), request.capture());
         assertEquals(true, request.getValue().userPrompt().contains(evidence.content()));
@@ -80,7 +87,14 @@ class AssistantServiceTests {
                 10,
                 "request-budget");
 
-        assertEquals(evidence.subList(0, 5), turn.evidence());
+        assertEquals(evidence.subList(0, 5),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
+        assertEquals(List.of(1, 2, 3, 4, 5),
+                turn.citations().stream()
+                        .map(AssistantCitation::number)
+                        .toList());
         ArgumentCaptor<ChatGenerationRequest> request =
                 ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(

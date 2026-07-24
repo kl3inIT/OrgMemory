@@ -17,7 +17,11 @@ sealed interface AssistantStreamPart {
     record TextEnd(String id) implements AssistantStreamPart {
     }
 
-    record SourceUrl(String sourceId, String url, String title) implements AssistantStreamPart {
+    record SourceUrl(
+            String sourceId,
+            String url,
+            String title,
+            int citationNumber) implements AssistantStreamPart {
     }
 
     record SourceDocument(String sourceId, String mediaType, String title, String filename)

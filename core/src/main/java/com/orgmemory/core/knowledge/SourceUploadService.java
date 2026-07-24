@@ -47,7 +47,7 @@ public class SourceUploadService {
         KnowledgeSpaceTarget targetSpace = knowledgeSpaces.requireUploadTarget(
                 actor, command.knowledgeSpaceId());
         String fileName = safeFileName(command.fileName());
-        String mediaType = normalizedMediaType(command.mediaType(), fileName);
+        String mediaType = canonicalMediaType(fileName);
         KnowledgeClassification classification = command.classification() == null
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
@@ -132,12 +132,7 @@ public class SourceUploadService {
         return dot < 0 ? "" : fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
-    private static String normalizedMediaType(String claimedMediaType, String fileName) {
-        if (claimedMediaType != null
-                && !claimedMediaType.isBlank()
-                && !"application/octet-stream".equalsIgnoreCase(claimedMediaType)) {
-            return claimedMediaType.strip().toLowerCase(Locale.ROOT);
-        }
+    private static String canonicalMediaType(String fileName) {
         return switch (extension(fileName)) {
             case "pdf" -> "application/pdf";
             case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

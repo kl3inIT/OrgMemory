@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "orgmemory.lightrag-oracle.v1",
+  "upstream": {
+    "repository": "https://github.com/HKUDS/LightRAG",
+    "tag": "v1.5.4",
+    "commit": "9a45b64c2ee25b1d806e90db926a8af37480bb16"
+  },
+  "fixtureSha256": "97d9b7f3cbbac619cd6e451c0f0ac38c8802714bd5a47a80b51a484450dd5681",
+  "fixture": {
+    "chunking": {
+      "content": "abcdefghij",
+      "chunkTokenSize": 4,
+      "chunkOverlapTokenSize": 1
+    },
+    "weightedPolling": {
+      "groups": [
+        [
+          "a1",
+          "a2",
+          "a3"
+        ],
+        [
+          "b1"
+        ],
+        [
+          "c1",
+          "c2"
+        ]
+      ],
+      "maximumRelatedChunks": 3,
+      "minimumRelatedChunks": 1
+    },
+    "embeddingPayloads": {
+      "entityName": "LEAVE POLICY",
+      "entityDescription": "Defines annual leave.",
+      "relationKeywords": "governs, leave",
+      "relationSource": "EMPLOYEE HANDBOOK",
+      "relationTarget": "LEAVE POLICY",
+      "relationDescription": "The handbook governs the policy."
+    }
+  },
+  "expected": {
+    "chunks": [
+      {
+        "tokens": 4,
+        "content": "abcd",
+        "chunk_order_index": 0,
+        "_source_span": {
+          "start": 0,
+          "end": 4
+        }
+      },
+      {
+        "tokens": 4,
+        "content": "defg",
+        "chunk_order_index": 1,
+        "_source_span": {
+          "start": 3,
+          "end": 7
+        }
+      },
+      {
+        "tokens": 4,
+        "content": "ghij",
+        "chunk_order_index": 2,
+        "_source_span": {
+          "start": 6,
+          "end": 10
+        }
+      },
+      {
+        "tokens": 1,
+        "content": "j",
+        "chunk_order_index": 3,
+        "_source_span": {
+          "start": 9,
+          "end": 10
+        }
+      }
+    ],
+    "weightedPolling": [
+      "a1",
+      "a2",
+      "a3",
+      "b1",
+      "c1",
+      "c2"
+    ],
+    "entityEmbeddingPayload": "LEAVE POLICY\nDefines annual leave.",
+    "relationEmbeddingPayload": "governs, leave\tEMPLOYEE HANDBOOK\nLEAVE POLICY\nThe handbook governs the policy."
+  }
+}

@@ -6,8 +6,23 @@ The in-app Assistant routes chat through the provider-neutral AI gateway and
 grounds every answer in `PermissionAwareKnowledgeSearch`. GraphRAG is the
 default retrieval engine; the canonical hybrid engine is an explicit
 configuration choice rather than an implicit fallback. Answers stream with
-permission-verified citations, and citation content is read through an
-authenticated backend endpoint instead of exposing object-storage URLs.
+permission-verified citations. The server assigns each citation number at the
+same time it renders the corresponding evidence into the model prompt and
+streams that number as provider metadata. The browser makes only those declared
+markers interactive; an undeclared `[n]` remains literal text. Citation content
+is read through an authenticated backend endpoint instead of exposing
+object-storage URLs. Every open performs one fresh canonical authorization and
+integrity check; missing, changed, and denied citations are wire-equivalent
+opaque `404` responses.
+The citation response derives its media type from a closed extension allowlist,
+never from upload metadata. Text, PDF, and known raster images may render
+inline; Office and unknown formats are forced to download as binary content.
+
+The source panel treats citation content as server state. It deduplicates an
+in-flight open, does not retry an authorization failure, does not show stale
+content during a recheck, and discards the cached blob when the panel releases
+the source. Text, image, and PDF previews use browser-local object URLs; the
+external object-store address never reaches the browser.
 
 `apps/mcp` runs a stateless Spring AI MCP server with one read-only,
 closed-world `search_knowledge` tool. It validates the caller's bearer token and

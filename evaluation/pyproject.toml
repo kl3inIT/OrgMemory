@@ -1,0 +1,41 @@
+[project]
+name = "orgmemory-evaluation"
+version = "0.1.0"
+description = "Reproducible offline quality evaluation for OrgMemory retrieval and Assistant responses"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    # Ragas 0.4.3 imports a VertexAI compatibility module removed from every
+    # current langchain-community release. Keep the latest working 0.3 line
+    # used by pinned LightRAG v1.5.4 until upstream publishes a compatible fix.
+    "instructor==1.15.4",
+    "langchain-community==0.3.31",
+    "openai==2.20.0",
+    "pydantic==2.12.5",
+    "ragas==0.3.9",
+]
+
+[project.scripts]
+orgmemory-ragas = "orgmemory_eval.ragas_runner:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.2",
+    "ruff==0.15.5",
+]
+
+[build-system]
+requires = ["hatchling==1.29.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/orgmemory_eval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

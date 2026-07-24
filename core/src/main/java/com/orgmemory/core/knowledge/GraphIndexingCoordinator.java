@@ -17,6 +17,7 @@ public class GraphIndexingCoordinator {
     private final SourceRevisionRepository revisions;
     private final SourceAclSnapshotRepository aclSnapshots;
     private final EmbeddingProfileRepository embeddingProfiles;
+    private final GraphProcessingProfileRegistry graphProcessingProfiles;
     private final KnowledgeChunkProjectionStore chunks;
 
     GraphIndexingCoordinator(
@@ -26,6 +27,7 @@ public class GraphIndexingCoordinator {
             SourceRevisionRepository revisions,
             SourceAclSnapshotRepository aclSnapshots,
             EmbeddingProfileRepository embeddingProfiles,
+            GraphProcessingProfileRegistry graphProcessingProfiles,
             KnowledgeChunkProjectionStore chunks) {
         this.jobs = jobs;
         this.assets = assets;
@@ -33,6 +35,7 @@ public class GraphIndexingCoordinator {
         this.revisions = revisions;
         this.aclSnapshots = aclSnapshots;
         this.embeddingProfiles = embeddingProfiles;
+        this.graphProcessingProfiles = graphProcessingProfiles;
         this.chunks = chunks;
     }
 
@@ -155,6 +158,8 @@ public class GraphIndexingCoordinator {
                 .map(EmbeddingProfile::toRef)
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index embedding profile is missing"));
+        GraphProcessingProfileRef graphProcessingProfile =
+                graphProcessingProfiles.get(job.getGraphProcessingProfileId());
         var activeChunks = chunks.loadActive(
                 job.getOrganizationId(),
                 job.getSourceRevisionId(),
@@ -175,6 +180,7 @@ public class GraphIndexingCoordinator {
                 snapshot.getId(),
                 snapshot.getAclGeneration(),
                 job.getProjectionGeneration(),
+                graphProcessingProfile,
                 job.getIdempotencyKey(),
                 embeddingProfile,
                 version.getLanguage(),
@@ -248,13 +254,17 @@ public class GraphIndexingCoordinator {
                 .orElseThrow();
     }
 
-    private static GraphIndexJobView view(GraphIndexJob job) {
+    private GraphIndexJobView view(GraphIndexJob job) {
+        GraphProcessingProfileRef profile =
+                graphProcessingProfiles.get(job.getGraphProcessingProfileId());
         return new GraphIndexJobView(
                 job.getId(),
                 job.getKnowledgeAssetId(),
                 job.getKnowledgeAssetVersionId(),
                 job.getSourceRevisionId(),
                 job.getProjectionGeneration(),
+                profile.id(),
+                profile.canonicalSha256(),
                 job.getStatus().name(),
                 job.getAttemptCount(),
                 job.cancellationRequested(),

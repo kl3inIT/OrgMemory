@@ -80,12 +80,12 @@ exists.
 | Query | Streaming answer generation | Framework-neutral iterator and Spring AI streaming adapter; delivery shell wiring remains PR 11 | implemented | 7, 11 |
 | Runtime | Role-specific extraction/query/keyword/VLM/embedding routes | Some AI routes exist | partial | 2, 4, 5, 7 |
 | Runtime | Bounded concurrency and cancellation | Worker uses bounded virtual threads | partial | 5, 6 |
-| Runtime | Worker/API/Assistant/MCP integration | Chunk Assistant exists; graph engine is not wired | partial | 11 |
-| UI | Authorized citations and source preview | Planned source viewer | missing | 11 |
-| UI | Permission-aware graph explorer | Disabled navigation target | missing | 11 |
-| Evaluation | Upstream allow-all golden fixtures | No executable oracle yet | missing | 2, 12 |
-| Evaluation | RAGAS quality evaluation | None | missing | 12 |
-| Observability | Langfuse/OpenTelemetry-compatible tracing | General telemetry foundation only | partial | 12 |
+| Runtime | Worker/API/Assistant/MCP integration | Shared-snapshot GraphRAG is wired through worker, API, Assistant and MCP permission-aware application use cases | implemented | 11 |
+| UI | Authorized citations and source preview | Server-declared citation contract plus protected text/image/PDF preview and opaque revoke handling | implemented | 11, 12 |
+| UI | Permission-aware graph explorer | Authorized read-only graph explorer is wired as a separate product surface | implemented | 11 |
+| Evaluation | Upstream allow-all golden fixtures | Executable pinned-upstream chunking/weighted-polling/payload generator plus Java consumer; full query-channel oracle remains required | partial | 2, 12 |
+| Evaluation | RAGAS quality evaluation | Locked RAGAS runner, strict sanitized dataset contract, repeated-trial variance summary and CI tests; representative live baseline remains required | partial | 12 |
+| Observability | Langfuse/OpenTelemetry-compatible tracing | Payload-free stage events, OTLP adapter, closed attribute allowlist and API/worker runtime wiring; external collector ingestion remains to be verified | partial | 12 |
 | Security | Cross-tenant and denied contribution isolation | Strong graph/retrieval tests exist | implemented | every PR |
 | Performance | PostgreSQL/OpenSearch/Neo4j comparison | None | missing | 12 |
 

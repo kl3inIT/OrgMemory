@@ -9,11 +9,14 @@ import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.model.EvidenceReference;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -50,6 +53,7 @@ public class GraphRagKnowledgeRetrievalService
     private final GraphRagRetrievalPolicy policy;
     private final PermissionAuditService audit;
     private final KnowledgeRetrievalProperties retrievalProperties;
+    private final GraphRagEventSink events;
 
     public GraphRagKnowledgeRetrievalService(
             KnowledgeSearchAuthorizationService searchAuthorization,
@@ -62,7 +66,8 @@ public class GraphRagKnowledgeRetrievalService
             LightRagQueryEngine engine,
             GraphRagRetrievalPolicy policy,
             PermissionAuditService audit,
-            KnowledgeRetrievalProperties retrievalProperties) {
+            KnowledgeRetrievalProperties retrievalProperties,
+            GraphRagEventSink events) {
         this.searchAuthorization = searchAuthorization;
         this.evidenceScopes = evidenceScopes;
         this.authorization = authorization;
@@ -74,6 +79,7 @@ public class GraphRagKnowledgeRetrievalService
         this.policy = policy;
         this.audit = audit;
         this.retrievalProperties = retrievalProperties;
+        this.events = Objects.requireNonNull(events, "events");
     }
 
     @Transactional(readOnly = true)
@@ -83,20 +89,76 @@ public class GraphRagKnowledgeRetrievalService
             String query,
             Integer requestedLimit,
             String suppliedRequestId) {
-        String requestId = requestId(suppliedRequestId);
-        String normalizedQuery = normalizeQuery(query);
-        int limit = validateLimit(requestedLimit);
-        String authorizationModelId = searchAuthorization.require(
-                actor,
-                requestId,
-                normalizedQuery);
-        return search(
-                actor,
-                normalizedQuery,
-                limit,
-                requestId,
-                authorizationModelId,
-                0);
+        Objects.requireNonNull(actor, "actor");
+        UUID operationId = UUID.randomUUID();
+        long startedAt = System.nanoTime();
+        try {
+            String requestId = requestId(suppliedRequestId);
+            String normalizedQuery = normalizeQuery(query);
+            int limit = validateLimit(requestedLimit);
+            String authorizationModelId = searchAuthorization.require(
+                    actor,
+                    requestId,
+                    normalizedQuery);
+            SecureKnowledgeSearchResult result = search(
+                    actor,
+                    normalizedQuery,
+                    limit,
+                    requestId,
+                    authorizationModelId,
+                    0);
+            emit(
+                    operationId,
+                    actor.organizationId(),
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    startedAt,
+                    result.evidence().size(),
+                    null);
+            return result;
+        } catch (RuntimeException failure) {
+            emit(
+                    operationId,
+                    actor.organizationId(),
+                    GraphRagEventSink.Outcome.FAILED,
+                    startedAt,
+                    0,
+                    failureCode(failure));
+            throw failure;
+        }
+    }
+
+    private void emit(
+            UUID operationId,
+            UUID organizationId,
+            GraphRagEventSink.Outcome outcome,
+            long startedAt,
+            int outputCount,
+            String failureCode) {
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    GraphRagEventSink.Stage.RETRIEVE,
+                    outcome,
+                    Duration.ofNanos(Math.max(0, System.nanoTime() - startedAt)),
+                    1,
+                    outputCount,
+                    null,
+                    failureCode,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
+    }
+
+    private static String failureCode(RuntimeException failure) {
+        if (failure instanceof IllegalArgumentException) {
+            return "invalid_request";
+        }
+        if (failure instanceof KnowledgeRetrievalUnavailableException) {
+            return "retrieval_unavailable";
+        }
+        return "retrieval_failed";
     }
 
     private SecureKnowledgeSearchResult search(
