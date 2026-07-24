@@ -38,7 +38,7 @@ exists.
 | Storage | Vector index port for chunks/entities/relations | PostgreSQL pgvector adapter with immutable profile/dimension checks, permission and candidate prefilter, exact scoring plus configurable ANN indexes | implemented | 2, 8 |
 | Storage | Graph node/edge/degree/adjacency/batch contract | Snapshot-pinned graph store covers entities, relations, contributions, incident reads, degree, weight and bounded expansion | implemented | 8 |
 | Storage | OpenSearch unified KV/vector/graph/status backend | Official Java client adapter implements snapshot-pinned content, isolated BM25, filtered k-NN, evidence-scoped graph, secure PPL plus BFS fallback, status read model, and CAS publication conformance | implemented | 9 |
-| Storage | Neo4j graph backend | None | missing | 10 |
+| Storage | Neo4j graph backend | Official Java Driver adapter implements immutable batch copies, evidence-scoped entity/relation reads, bounded traversal, paged discard, Spring Boot configuration, and the same PostgreSQL/Neo4j graph conformance suite | implemented | 10 |
 | Parsing | Parser registry and runtime routing | Immutable registry snapshot, suffix/explicit routing and startup capability validation | implemented | 3 |
 | Parsing | Native, legacy, passthrough and third-party parser SPI | Native/legacy routes, passthrough/reuse parsers and ServiceLoader plugin registration | implemented | 3 |
 | Chunking | Fixed-token strategy | Pure-Java overlapping token windows with exact canonical-text offsets and pinned upstream fixture | implemented | 3 |
