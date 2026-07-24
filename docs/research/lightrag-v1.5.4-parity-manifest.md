@@ -32,11 +32,11 @@ exists.
 | --- | --- | --- | --- | --- |
 | Core | Framework-neutral engine and storage/model ports | Pure-Java authorization, evidence, projection, cache and telemetry boundaries exist | partial | 2 |
 | Core | Shared adapter conformance suite | Graph security plus in-memory publication/cache/content fixtures | partial | 2 |
-| Storage | KV/content storage lifecycle, batch commit/abort, drop | Capability-specific staged content store and atomic generation-head contract | partial | 2, 8 |
+| Storage | KV/content storage lifecycle, batch commit/abort, drop | PostgreSQL staged content snapshots, copy-forward update/delete, durable receipts, CAS publication, abort and discard | implemented | 2, 8 |
 | Storage | Processing/doc-status queries and recovery | OrgMemory durable worker jobs own lease/retry semantics; portable engine status is deliberately not duplicated | partial | 6, 8 |
-| Storage | Lexical index port | Staged, permission-scoped lexical contract; production adapter remains pending | partial | 2, 8 |
-| Storage | Vector index port for chunks/entities/relations | Primitive-vector, staged, permission-scoped contract plus existing graph vector ports | partial | 2, 8 |
-| Storage | Graph node/edge/degree/adjacency/batch contract | Specialized graph ports exist; shared namespace snapshot migration remains | partial | 8 |
+| Storage | Lexical index port | PostgreSQL FTS adapter with permission prefilter, deterministic keyset cursor, threshold and stable tie-break | implemented | 2, 8 |
+| Storage | Vector index port for chunks/entities/relations | PostgreSQL pgvector adapter with immutable profile/dimension checks, permission and candidate prefilter, exact scoring plus configurable ANN indexes | implemented | 2, 8 |
+| Storage | Graph node/edge/degree/adjacency/batch contract | Snapshot-pinned graph store covers entities, relations, contributions, incident reads, degree, weight and bounded expansion | implemented | 8 |
 | Storage | OpenSearch unified KV/vector/graph/status backend | None | missing | 9 |
 | Storage | Neo4j graph backend | None | missing | 10 |
 | Parsing | Parser registry and runtime routing | Immutable registry snapshot, suffix/explicit routing and startup capability validation | implemented | 3 |
@@ -66,7 +66,7 @@ exists.
 | Query | Global high-level relation retrieval | Executable permission-scoped relation seeds, endpoint entities and evidence chunks | implemented | 7 |
 | Query | Hybrid entity plus relation retrieval | Both graph branches execute and interleave deterministically | implemented | 7 |
 | Query | Naive chunk retrieval | Executable original-query vector chunk branch | implemented | 7 |
-| Query | Mix graph plus chunk retrieval | Executable hybrid graph plus vector chunk semantics; production projection wiring waits for PR 8 shared snapshot | implemented | 7 |
+| Query | Mix graph plus chunk retrieval | Executable hybrid graph plus vector chunk semantics and a framework-neutral store-backed projection over one shared publication snapshot | implemented | 7, 8 |
 | Query | Bypass direct answer without retrieval | Direct answer path proves zero keyword, embedding and projection reads | implemented | 7 |
 | Query | Trusted caller high/low keywords | Separate planner input bypasses keyword generation without changing query mode | implemented | 7 |
 | Query | High-level and low-level keyword extraction | Core-owned LightRAG prompt, fallback rules and Spring AI structured-output adapter | implemented | 7 |

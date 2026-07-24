@@ -198,6 +198,15 @@ provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
 relationally rechecked. A globally bounded breadth-first relational traversal
 supplies the same candidate port when AGE is disabled.
 
+The integration also implements the framework-neutral content, lexical,
+vector, graph, and publication contracts over one namespace snapshot. Staged
+records are keyed by publication batch, all required adapters leave durable
+preparation receipts, and a namespace-scoped publication lock exposes exactly
+one winning batch. Content, FTS, pgvector, and graph readers validate that batch
+and prefilter organization plus authorized Knowledge Asset IDs before scoring
+or traversal. Published predecessor batches remain addressable; losing or
+aborted staged records are never selected by a generation-only query.
+
 Vector indexes are rebuildable and operator-selectable: exact, HNSW,
 half-vector HNSW, IVFFlat, or VChordRQ. VChordRQ requires the separately
 installed `vchord` extension and is unavailable in the pinned local image;

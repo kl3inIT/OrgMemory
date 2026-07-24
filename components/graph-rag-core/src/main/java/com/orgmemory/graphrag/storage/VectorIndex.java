@@ -33,6 +33,7 @@ public interface VectorIndex extends StagedProjectionWriter {
 
     record VectorRecord(
             String id,
+            String subjectId,
             EvidenceReference evidence,
             VectorKind kind,
             UUID embeddingProfileId,
@@ -42,6 +43,7 @@ public interface VectorIndex extends StagedProjectionWriter {
 
         public VectorRecord {
             id = requireText(id, "id");
+            subjectId = requireText(subjectId, "subjectId");
             Objects.requireNonNull(evidence, "evidence");
             Objects.requireNonNull(kind, "kind");
             Objects.requireNonNull(embeddingProfileId, "embeddingProfileId");
@@ -54,6 +56,11 @@ public interface VectorIndex extends StagedProjectionWriter {
     record SearchRequest(
             UUID embeddingProfileId,
             Set<VectorKind> kinds,
+            /**
+             * Optional logical subject ids to rank. An empty set means all
+             * authorized subjects in the selected kinds.
+             */
+            Set<String> candidateIds,
             FloatVector queryVector,
             int limit,
             double minimumSimilarity) {
@@ -63,6 +70,11 @@ public interface VectorIndex extends StagedProjectionWriter {
             kinds = Set.copyOf(Objects.requireNonNull(kinds, "kinds"));
             if (kinds.isEmpty()) {
                 throw new IllegalArgumentException("kinds must not be empty");
+            }
+            candidateIds = Set.copyOf(Objects.requireNonNull(candidateIds, "candidateIds"));
+            if (candidateIds.stream().anyMatch(id -> id == null || id.isBlank())) {
+                throw new IllegalArgumentException(
+                        "candidateIds must contain only non-blank values");
             }
             Objects.requireNonNull(queryVector, "queryVector");
             if (limit <= 0) {
@@ -83,12 +95,14 @@ public interface VectorIndex extends StagedProjectionWriter {
 
     record VectorHit(
             String id,
+            String subjectId,
             EvidenceReference evidence,
             VectorKind kind,
             double similarity) {
 
         public VectorHit {
             id = requireText(id, "id");
+            subjectId = requireText(subjectId, "subjectId");
             Objects.requireNonNull(evidence, "evidence");
             Objects.requireNonNull(kind, "kind");
             if (!Double.isFinite(similarity) || similarity < -1.0 || similarity > 1.0) {

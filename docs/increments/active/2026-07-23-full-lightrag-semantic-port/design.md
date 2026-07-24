@@ -233,6 +233,30 @@ alternatives were enabling mixed PostgreSQL reads before a shared snapshot,
 reducing `MIX` to chunk-only retrieval, treating modes as output filters, and
 reusing one query embedding for all channels.
 
+## PR 8 Shared PostgreSQL Snapshot Boundary
+
+PR 8 uses one namespace publication head across content, lexical, vector, and
+graph projections. Competing batches may prepare the same next generation, but
+every staged row is addressed by `batch_id`; publication is serialized per
+namespace and only the winning batch enters immutable publication history.
+Readers pin the exact winning batch rather than selecting staged rows by a
+generation-shaped predicate. An aborted or losing batch therefore cannot leak
+into retrieval.
+
+Each adapter initializes a new batch from the exact published predecessor,
+applies its mutations, and records preparation separately. Publication advances
+the namespace head only when every required receipt exists and the expected
+previous generation still matches. Historical winning batches remain readable,
+while discard removes unreachable staged rows. This correctness-first
+copy-forward representation can later be replaced by ancestry plus compaction
+without changing the core contracts.
+
+PostgreSQL FTS and pgvector apply organization and authorized Knowledge Asset
+filters before scoring and `LIMIT`. The snapshot graph store applies the same
+scope to contributions and requires both relation endpoints to remain visible.
+Apache AGE remains an optional rebuildable topology accelerator; relational
+snapshot reads are authoritative and are the fallback for historical pins.
+
 ## Scope Authority
 
 [Decision 0013](../../../decisions/0013-full-lightrag-semantic-port.md) and the

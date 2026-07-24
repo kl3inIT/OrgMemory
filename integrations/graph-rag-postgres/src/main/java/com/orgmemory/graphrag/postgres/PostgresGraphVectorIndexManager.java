@@ -12,8 +12,19 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 public final class PostgresGraphVectorIndexManager {
 
-    private static final String[] TABLES = {
-        "graph_entity_embeddings", "graph_relation_embeddings"
+    private static final TableSpec[] TABLES = {
+        new TableSpec(
+                "graph_entity_embeddings",
+                "content_vector",
+                "embedding_dimensions"),
+        new TableSpec(
+                "graph_relation_embeddings",
+                "content_vector",
+                "embedding_dimensions"),
+        new TableSpec(
+                "projection_vector_records",
+                "embedding",
+                "dimensions")
     };
 
     private final JdbcTemplate jdbc;
@@ -27,7 +38,7 @@ public final class PostgresGraphVectorIndexManager {
         ensurePgvector();
         if (options.vectorIndexStrategy() == PostgresVectorIndexStrategy.EXACT) {
             for (int dimension : options.indexedVectorDimensions()) {
-                for (String table : TABLES) {
+                for (TableSpec table : TABLES) {
                     dropCompetingIndexes(table, dimension, null);
                 }
             }
@@ -35,8 +46,9 @@ public final class PostgresGraphVectorIndexManager {
         }
         validateStrategySupport(options.vectorIndexStrategy(), options.indexedVectorDimensions());
         for (int dimension : options.indexedVectorDimensions()) {
-            for (String table : TABLES) {
-                String indexName = indexName(table, dimension, options.vectorIndexStrategy());
+            for (TableSpec table : TABLES) {
+                String indexName =
+                        indexName(table.table(), dimension, options.vectorIndexStrategy());
                 dropCompetingIndexes(table, dimension, indexName);
                 createIndex(table, dimension, indexName, options);
             }
@@ -80,7 +92,7 @@ public final class PostgresGraphVectorIndexManager {
     }
 
     private void createIndex(
-            String table,
+            TableSpec table,
             int dimension,
             String indexName,
             PostgresGraphStoreOptions options) {
@@ -90,24 +102,28 @@ public final class PostgresGraphVectorIndexManager {
         switch (options.vectorIndexStrategy()) {
             case HNSW -> {
                 using = "hnsw";
-                expression = "(content_vector::vector(" + dimension + ")) vector_cosine_ops";
+                expression = "(" + table.vectorColumn() + "::vector("
+                        + dimension + ")) vector_cosine_ops";
                 withClause = " WITH (m = " + options.hnswM()
                         + ", ef_construction = " + options.hnswEfConstruction() + ")";
             }
             case HNSW_HALFVEC -> {
                 using = "hnsw";
-                expression = "(content_vector::halfvec(" + dimension + ")) halfvec_cosine_ops";
+                expression = "(" + table.vectorColumn() + "::halfvec("
+                        + dimension + ")) halfvec_cosine_ops";
                 withClause = " WITH (m = " + options.hnswM()
                         + ", ef_construction = " + options.hnswEfConstruction() + ")";
             }
             case IVFFLAT -> {
                 using = "ivfflat";
-                expression = "(content_vector::vector(" + dimension + ")) vector_cosine_ops";
+                expression = "(" + table.vectorColumn() + "::vector("
+                        + dimension + ")) vector_cosine_ops";
                 withClause = " WITH (lists = " + options.ivfFlatLists() + ")";
             }
             case VCHORDRQ -> {
                 using = "vchordrq";
-                expression = "(content_vector::vector(" + dimension + ")) vector_cosine_ops";
+                expression = "(" + table.vectorColumn() + "::vector("
+                        + dimension + ")) vector_cosine_ops";
                 withClause = options.vchordBuildOptions().isBlank()
                         ? ""
                         : " WITH (options = " + quoteLiteral(options.vchordBuildOptions()) + ")";
@@ -117,16 +133,17 @@ public final class PostgresGraphVectorIndexManager {
                     "unsupported vector index strategy " + options.vectorIndexStrategy());
         }
         jdbc.execute("CREATE INDEX CONCURRENTLY IF NOT EXISTS " + indexName
-                + " ON " + table
+                + " ON " + table.table()
                 + " USING " + using
                 + " (" + expression + ")"
                 + withClause
-                + " WHERE embedding_dimensions = " + dimension);
+                + " WHERE " + table.dimensionsColumn() + " = " + dimension);
     }
 
     private void dropCompetingIndexes(
-            String table, int dimension, String retainedIndexName) {
-        String prefix = "idx_" + table.replace("graph_", "") + "_" + dimension + "_";
+            TableSpec table, int dimension, String retainedIndexName) {
+        String prefix =
+                "idx_" + table.table().replace("graph_", "") + "_" + dimension + "_";
         jdbc.queryForList("""
                         SELECT indexname
                         FROM pg_indexes
@@ -135,7 +152,7 @@ public final class PostgresGraphVectorIndexManager {
                           AND indexname LIKE ? ESCAPE '\\'
                         """,
                         String.class,
-                        table,
+                        table.table(),
                         escapeLike(prefix) + "%\\_cosine")
                 .stream()
                 .filter(indexName -> !indexName.equals(retainedIndexName))
@@ -167,4 +184,9 @@ public final class PostgresGraphVectorIndexManager {
     private static String quoteLiteral(String value) {
         return "'" + value.replace("'", "''") + "'";
     }
+
+    private record TableSpec(
+            String table,
+            String vectorColumn,
+            String dimensionsColumn) {}
 }

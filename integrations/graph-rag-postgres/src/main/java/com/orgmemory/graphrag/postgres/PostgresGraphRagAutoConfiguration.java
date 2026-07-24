@@ -5,6 +5,11 @@ import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.curation.GraphCurationStore;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.port.GraphProjectionReader;
+import com.orgmemory.graphrag.storage.ContentStore;
+import com.orgmemory.graphrag.storage.GraphStore;
+import com.orgmemory.graphrag.storage.LexicalIndex;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
+import com.orgmemory.graphrag.storage.VectorIndex;
 import java.time.Clock;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationRunner;
@@ -32,6 +37,55 @@ import org.springframework.transaction.PlatformTransactionManager;
         matchIfMissing = true)
 @EnableConfigurationProperties(PostgresGraphRagProperties.class)
 public class PostgresGraphRagAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(ProjectionPublicationStore.class)
+    @DependsOnDatabaseInitialization
+    PostgresProjectionPublicationStore postgresProjectionPublicationStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager) {
+        return new PostgresProjectionPublicationStore(jdbc, transactionManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ContentStore.class)
+    @DependsOnDatabaseInitialization
+    PostgresContentStore postgresContentStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications) {
+        return new PostgresContentStore(jdbc, transactionManager, publications);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(LexicalIndex.class)
+    @DependsOnDatabaseInitialization
+    PostgresLexicalIndex postgresLexicalIndex(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications) {
+        return new PostgresLexicalIndex(jdbc, transactionManager, publications);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(VectorIndex.class)
+    @DependsOnDatabaseInitialization
+    PostgresVectorIndex postgresVectorIndex(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications) {
+        return new PostgresVectorIndex(jdbc, transactionManager, publications);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(GraphStore.class)
+    @DependsOnDatabaseInitialization
+    PostgresGraphStore postgresSharedSnapshotGraphStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications) {
+        return new PostgresGraphStore(jdbc, transactionManager, publications);
+    }
 
     @Bean
     @ConditionalOnMissingBean(GraphProjectionReader.class)
