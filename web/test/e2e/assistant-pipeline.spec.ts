@@ -63,6 +63,14 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
       return
     }
 
+    if (
+      request.method() === "GET" &&
+      url.pathname === "/api/assistant/conversations"
+    ) {
+      await json(route, [])
+      return
+    }
+
     if (url.pathname === "/api/assistant/chat") {
       if (options.holdChat) await chatRelease
       await route.fulfill({
