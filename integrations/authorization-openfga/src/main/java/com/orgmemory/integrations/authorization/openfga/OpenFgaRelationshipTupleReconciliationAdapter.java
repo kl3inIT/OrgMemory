@@ -42,7 +42,7 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
 
     @Override
     public RelationshipTuplePage read(int pageSize, String continuationToken) {
-        return read(null, pageSize, continuationToken);
+        return read(new ClientReadRequest(), pageSize, continuationToken);
     }
 
     @Override
@@ -50,24 +50,37 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
             RelationshipTupleFilter filter,
             int pageSize,
             String continuationToken) {
+        Objects.requireNonNull(filter, "filter");
+        var request = new ClientReadRequest();
+        if (filter.user() != null) {
+            request.user(filter.user());
+        }
+        if (filter.relation() != null) {
+            request.relation(filter.relation());
+        }
+        if (filter.object() != null) {
+            request._object(filter.object());
+        }
+        return read(request, pageSize, continuationToken);
+    }
+
+    @Override
+    public RelationshipTuplePage readObject(String object, int pageSize, String continuationToken) {
+        String normalized = Objects.requireNonNull(object, "object").trim();
+        if (normalized.isEmpty() || normalized.indexOf(':') <= 0) {
+            throw new IllegalArgumentException("object must be a type:id reference");
+        }
+        return read(new ClientReadRequest()._object(normalized), pageSize, continuationToken);
+    }
+
+    private RelationshipTuplePage read(
+            ClientReadRequest request, int pageSize, String continuationToken) {
         if (pageSize <= 0) {
             throw new IllegalArgumentException("pageSize must be positive");
         }
         var options = new ClientReadOptions().pageSize(pageSize);
         if (continuationToken != null && !continuationToken.isBlank()) {
             options.continuationToken(continuationToken.trim());
-        }
-        var request = new ClientReadRequest();
-        if (filter != null) {
-            if (filter.user() != null) {
-                request.user(filter.user());
-            }
-            if (filter.relation() != null) {
-                request.relation(filter.relation());
-            }
-            if (filter.object() != null) {
-                request._object(filter.object());
-            }
         }
         try {
             var response = client.read(request, options)

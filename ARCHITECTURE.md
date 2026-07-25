@@ -153,6 +153,22 @@ control-plane entry, Knowledge Space administration/upload, and stable
 Knowledge Asset view decisions. Organization membership and role assignments
 are persistent OpenFGA tuples. The versioned model has executable allow/deny
 and list-object tests.
+An administrator creates a Knowledge Space and authors its grants at runtime.
+`AdministrativeTupleScope` admits `organization`, `role` and `knowledge_space`
+and still refuses `knowledge_asset`: `acl_authority` is a column on
+`source_objects`, so a space has no external counterpart to diverge from while an
+asset descends from one that may be `SOURCE`-authoritative. Creation derives the
+immutable `space_key` from the name, writes the structural `organization` link
+that `org_admin` resolves through, and makes the creator the space
+`administrator` — which is the accountability record, so no `created_by_user_id`
+column exists. The row is flushed before the tuples and an unapplied write rolls
+it back. Grants name one of four subject shapes rather than a free-form OpenFGA
+reference, and the relation decides which shapes are accepted, mirroring the type
+restrictions in `model.fga`; that table is published so a grant form offers only
+combinations the store would accept. A space grant satisfies one retrieval gate
+and the mirrored source ACL still caps every read behind it. Space lifecycle
+(deactivation, retention) and moving assets between spaces are not implemented.
+
 Direct upload lists only Knowledge Spaces authorized by OpenFGA
 `can_create_asset`, rechecks the selected parent before any object-store write,
 and carries that Space identity through the immutable source ledger. Publication

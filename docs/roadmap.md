@@ -78,6 +78,13 @@ foundation, not the final port.
   relabelling `app_users.role`, which still reads as a grant while granting
   nothing. Listed in
   [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
+- Give a Knowledge Space a lifecycle. It can now be created and granted at
+  runtime, but never retired: `active` is written true and nothing sets it false,
+  because what happens to the assets already inside a retired space is a
+  retention question rather than a flag. Moving an asset between spaces is
+  likewise unimplemented — `knowledge_space_id` is fixed at ingestion from the
+  source connection.
+- Publish proven read-only in-app tools through MCP with service identity/audit.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration

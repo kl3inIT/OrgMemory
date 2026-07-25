@@ -25,6 +25,16 @@ public class RoleAdministrationService {
      */
     private static final int MAXIMUM_TUPLES_SCANNED = 5_000;
 
+    /**
+     * How many pages the listing will ask for regardless of what they contain.
+     *
+     * <p>{@link #MAXIMUM_TUPLES_SCANNED} does not bound the loop on its own: a page carrying a
+     * continuation token but no tuples advances neither the count nor the cursor, and the listing
+     * would spin on it. A healthy store answers the tuple cap in fifty pages, so this only ever
+     * trips on a store that is handing back nothing.
+     */
+    private static final int MAXIMUM_PAGES_READ = 500;
+
     private static final int PAGE_SIZE = 100;
     private static final Map<String, String> ROLE_RELATIONS = Map.of(
             "organization-member", "member",
@@ -74,6 +84,7 @@ public class RoleAdministrationService {
                 .forEach(role -> assignees.put(role, new java.util.ArrayList<>()));
         String continuationToken = null;
         int scanned = 0;
+        int pages = 0;
         String policyVersion = tuples.policyVersion();
         boolean complete = true;
         do {
@@ -93,8 +104,10 @@ public class RoleAdministrationService {
                 }
             }
             scanned += page.tuples().size();
+            pages++;
             continuationToken = page.continuationToken();
-            if (continuationToken != null && scanned >= MAXIMUM_TUPLES_SCANNED) {
+            if (continuationToken != null
+                    && (scanned >= MAXIMUM_TUPLES_SCANNED || pages >= MAXIMUM_PAGES_READ)) {
                 complete = false;
                 break;
             }
