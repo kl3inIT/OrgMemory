@@ -1,8 +1,18 @@
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${ORGMEMORY_SHUTDOWN_TIMEOUT:30s}
   datasource:
     url: ${ORGMEMORY_DB_URL}
     username: ${ORGMEMORY_DB_USER}
     password: ${ORGMEMORY_DB_PASSWORD}
+    hikari:
+      pool-name: orgmemory-worker
+      maximum-pool-size: ${ORGMEMORY_WORKER_DB_POOL_MAXIMUM_SIZE:8}
+      minimum-idle: ${ORGMEMORY_WORKER_DB_POOL_MINIMUM_IDLE:1}
+      connection-timeout: ${ORGMEMORY_DB_CONNECTION_TIMEOUT_MS:10000}
+      validation-timeout: ${ORGMEMORY_DB_VALIDATION_TIMEOUT_MS:5000}
+      max-lifetime: ${ORGMEMORY_DB_MAX_LIFETIME_MS:1800000}
+      keepalive-time: ${ORGMEMORY_DB_KEEPALIVE_TIME_MS:120000}
   ai:
     openai:
       api-key: ${ORGMEMORY_OPENAI_API_KEY}
@@ -25,7 +35,16 @@ orgmemory:
       bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET}
 
 management:
+  endpoint:
+    health:
+      show-details: ${ORGMEMORY_HEALTH_SHOW_DETAILS:always}
   endpoints:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    root: ${ORGMEMORY_ROOT_LOG_LEVEL:INFO}
+    com.orgmemory: ${ORGMEMORY_APP_LOG_LEVEL:DEBUG}
+    org.hibernate.SQL: ${ORGMEMORY_SQL_LOG_LEVEL:INFO}

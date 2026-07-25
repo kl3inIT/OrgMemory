@@ -1,0 +1,60 @@
+{
+  "realm": "orgmemory",
+  "enabled": true,
+  "displayName": "OrgMemory",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": true,
+  "sslRequired": "external",
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "clients": [
+    {
+      "clientId": "orgmemory-web",
+      "name": "OrgMemory Web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "${ORGMEMORY_OIDC_CLIENT_SECRET}",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "rootUrl": "https://om.kl3in.tech",
+      "baseUrl": "https://om.kl3in.tech",
+      "adminUrl": "https://om.kl3in.tech",
+      "redirectUris": [
+        "https://om.kl3in.tech/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "https://om.kl3in.tech"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "https://om.kl3in.tech/login"
+      },
+      "protocolMappers": [
+        {
+          "name": "orgmemory-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "orgmemory-web",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ]
+}

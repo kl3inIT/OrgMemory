@@ -2,6 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
   "ignorePatterns": [
+    "node_modules",
     "dist",
     "src/components/ui",
     "src/components/ai-elements",

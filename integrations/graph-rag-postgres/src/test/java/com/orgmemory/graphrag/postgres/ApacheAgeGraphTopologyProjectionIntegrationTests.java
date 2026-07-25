@@ -44,11 +44,13 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
     private static final UUID RELATION_CONTRIBUTION_ID = id("age-relation-contribution");
     private static final String GRAPH_NAME =
             "orgmemory_" + ORGANIZATION_ID.toString().replace("-", "");
+    private static final String RUNTIME_USER = "orgmemory_runtime";
+    private static final String RUNTIME_PASSWORD = "orgmemory_runtime_password";
 
     private static final DockerImageName IMAGE = DockerImageName.parse(
                     System.getenv().getOrDefault(
                             "ORGMEMORY_POSTGRES_RAG_TEST_IMAGE",
-                            "orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2"))
+                            "orgmemory/postgres-rag:pg18-age1.8.0-rc0-pgvector0.8.4"))
             .asCompatibleSubstituteFor("postgres");
 
     @Container
@@ -60,12 +62,28 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
 
     @BeforeAll
     static void connect() {
-        DataSource dataSource = new DriverManagerDataSource(
+        DataSource administratorDataSource = new DriverManagerDataSource(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
-        jdbc = new JdbcTemplate(dataSource);
-        transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        jdbc = new JdbcTemplate(administratorDataSource);
+        jdbc.execute("CREATE ROLE " + RUNTIME_USER + " LOGIN PASSWORD '" + RUNTIME_PASSWORD + "'");
+        jdbc.execute("GRANT CONNECT, CREATE ON DATABASE "
+                + quote(postgres.getDatabaseName())
+                + " TO "
+                + RUNTIME_USER);
+        jdbc.execute("GRANT USAGE ON SCHEMA ag_catalog TO " + RUNTIME_USER);
+        jdbc.execute("GRANT SELECT ON TABLE ag_catalog.ag_graph TO " + RUNTIME_USER);
+        jdbc.execute("ALTER ROLE "
+                + RUNTIME_USER
+                + " IN DATABASE "
+                + quote(postgres.getDatabaseName())
+                + " SET session_preload_libraries = 'age'");
+
+        DataSource runtimeDataSource =
+                new DriverManagerDataSource(postgres.getJdbcUrl(), RUNTIME_USER, RUNTIME_PASSWORD);
+        transactions =
+                new TransactionTemplate(new DataSourceTransactionManager(runtimeDataSource));
         projection = new ApacheAgeGraphTopologyProjection(
-                new NamedParameterJdbcTemplate(dataSource),
+                new NamedParameterJdbcTemplate(runtimeDataSource),
                 ApacheAgeMode.REQUIRED);
     }
 

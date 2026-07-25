@@ -1,0 +1,34 @@
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: ${ORGMEMORY_SHUTDOWN_TIMEOUT:30s}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI}
+          jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI}
+
+server:
+  shutdown: graceful
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: ${ORGMEMORY_HEALTH_SHOW_DETAILS:always}
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+orgmemory:
+  mcp:
+    api-base-url: ${ORGMEMORY_API_BASE_URL}
+    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+
+logging:
+  level:
+    root: ${ORGMEMORY_ROOT_LOG_LEVEL:INFO}
+    com.orgmemory: ${ORGMEMORY_APP_LOG_LEVEL:DEBUG}
+    org.springframework.security: ${ORGMEMORY_SECURITY_LOG_LEVEL:INFO}

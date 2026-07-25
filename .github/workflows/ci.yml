@@ -18,8 +18,89 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      openfga: ${{ steps.filter.outputs.openfga }}
+      evaluation: ${{ steps.filter.outputs.evaluation }}
+      postgres: ${{ steps.filter.outputs.postgres }}
+      opensearch: ${{ steps.filter.outputs.opensearch }}
+      neo4j: ${{ steps.filter.outputs.neo4j }}
+      deployment: ${{ steps.filter.outputs.deployment }}
+      all: ${{ steps.filter.outputs.all }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Detect affected verification surfaces
+        id: filter
+        uses: dorny/paths-filter@v4.0.2
+        with:
+          filters: |
+            all:
+              - ".github/workflows/ci.yml"
+              - "build-logic/**"
+              - "gradle/**"
+              - "gradlew"
+              - "gradlew.bat"
+              - "settings.gradle.kts"
+              - "build.gradle.kts"
+            backend:
+              - "apps/**"
+              - "components/**"
+              - "core/**"
+              - "integrations/**"
+              - "!integrations/authorization-openfga/src/test/openfga/**"
+              - "!integrations/graph-rag-postgres/**"
+              - "!integrations/graph-rag-opensearch/**"
+              - "!integrations/graph-rag-neo4j/**"
+            web:
+              - "web/**"
+              - "contracts/**"
+              - "apps/api/src/main/**"
+            openfga:
+              - "integrations/authorization-openfga/**"
+              - "core/src/**/authorization/**"
+            evaluation:
+              - "evaluation/**"
+              - "components/graph-rag-core/**"
+              - "core/src/**/knowledge/**"
+            postgres:
+              - "infrastructure/postgres-rag/**"
+              - "integrations/graph-rag-postgres/**"
+              - "components/graph-rag-core/**"
+              - "components/graph-rag-testkit/**"
+              - "core/src/main/resources/db/migration/**"
+            opensearch:
+              - "integrations/graph-rag-opensearch/**"
+              - "components/graph-rag-core/**"
+              - "components/graph-rag-testkit/**"
+            neo4j:
+              - "integrations/graph-rag-neo4j/**"
+              - "components/graph-rag-core/**"
+              - "components/graph-rag-testkit/**"
+            deployment:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - ".github/workflows/deploy-production.yml"
+              - "compose.yaml"
+              - "infrastructure/deployment/**"
+              - "infrastructure/images/**"
+              - "infrastructure/keycloak/**"
+              - "infrastructure/postgres-rag/**"
+              - "web/Dockerfile"
+              - "web/nginx.conf"
+
   backend:
     name: Backend · Java 25
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,18 +118,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6.2.0
 
-      - name: Build PostgreSQL GraphRAG test image
-        run: >-
-          docker build
-          --file infrastructure/postgres-rag/Dockerfile
-          --tag orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
-          .
-
       - name: Run backend test suite
-        run: ./gradlew --no-daemon clean build
+        run: >-
+          ./gradlew --no-daemon clean build
+          -x :integrations:graph-rag-postgres:test
+          -x :integrations:graph-rag-opensearch:test
+          -x :integrations:graph-rag-neo4j:test
 
   web:
     name: Web · Node 24
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -95,6 +175,8 @@ jobs:
 
   openfga:
     name: OpenFGA model
+    needs: changes
+    if: needs.changes.outputs.openfga == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -116,6 +198,8 @@ jobs:
 
   evaluation:
     name: Evaluation · Python 3.13
+    needs: changes
+    if: needs.changes.outputs.evaluation == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -147,27 +231,204 @@ jobs:
       - name: Test deterministic evaluation contracts
         run: uv run pytest
 
+  postgres:
+    name: PostgreSQL GraphRAG
+    needs: changes
+    if: needs.changes.outputs.postgres == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Build PostgreSQL GraphRAG test image
+        run: >-
+          docker build
+          --file infrastructure/postgres-rag/Dockerfile
+          --tag orgmemory/postgres-rag:pg18-age1.8.0-rc0-pgvector0.8.4
+          .
+
+      - name: Test PostgreSQL GraphRAG adapter
+        env:
+          ORGMEMORY_POSTGRES_RAG_TEST_IMAGE: orgmemory/postgres-rag:pg18-age1.8.0-rc0-pgvector0.8.4
+        run: ./gradlew --no-daemon :integrations:graph-rag-postgres:test
+
+  opensearch:
+    name: OpenSearch adapter
+    needs: changes
+    if: needs.changes.outputs.opensearch == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Test OpenSearch adapter
+        run: ./gradlew --no-daemon :integrations:graph-rag-opensearch:test
+
+  neo4j:
+    name: Neo4j adapter
+    needs: changes
+    if: needs.changes.outputs.neo4j == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+
+      - name: Test Neo4j adapter
+        run: ./gradlew --no-daemon :integrations:graph-rag-neo4j:test
+
+  deployment:
+    name: Deployment contracts
+    needs: changes
+    if: needs.changes.outputs.deployment == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate GitHub Actions workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          "$(go env GOPATH)/bin/actionlint"
+
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' scripts < <(
+            find infrastructure -type f -name '*.sh' -print0
+          )
+          docker run --rm \
+            --volume "$PWD:/repo:ro" \
+            --workdir /repo \
+            koalaman/shellcheck-alpine:v0.11.0 \
+            shellcheck \
+            "${scripts[@]}"
+
+      - name: Validate production Compose interpolation
+        shell: bash
+        env:
+          ORGMEMORY_API_IMAGE: example.invalid/orgmemory-api:sha-ci
+          ORGMEMORY_WORKER_IMAGE: example.invalid/orgmemory-worker:sha-ci
+          ORGMEMORY_MCP_IMAGE: example.invalid/orgmemory-mcp:sha-ci
+          ORGMEMORY_WEB_IMAGE: example.invalid/orgmemory-web:sha-ci
+          ORGMEMORY_KEYCLOAK_IMAGE: example.invalid/orgmemory-keycloak:sha-ci
+          ORGMEMORY_POSTGRES_IMAGE: example.invalid/orgmemory-postgres-rag:sha-ci
+          SHARED_POSTGRES_ADMIN_USER: postgres
+          SHARED_POSTGRES_ADMIN_PASSWORD: ci-only
+          ORGMEMORY_DB_PASSWORD: ci-only
+          OPENFGA_DB_PASSWORD: ci-only
+          OPENFGA_DATASTORE_URI: postgres://openfga:ci-only@postgres:5432/openfga?sslmode=disable
+          KEYCLOAK_DB_PASSWORD: ci-only
+          KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME: ci-admin
+          KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD: ci-only
+          ORGMEMORY_OIDC_CLIENT_SECRET: ci-only
+          ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY: ci-only
+          ORGMEMORY_OBJECT_STORAGE_SECRET_KEY: ci-only
+          ORGMEMORY_OPENAI_API_KEY: ci-only
+          ORGMEMORY_SECRETS_KEY: ci-only
+          ORGMEMORY_SECRETS_SALT: ci-only
+        run: >-
+          docker compose
+          --file infrastructure/deployment/compose.production.yaml
+          --env-file infrastructure/deployment/production.env.example
+          config --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Validate production Dockerfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx build --check \
+            --file infrastructure/images/spring-boot-app.Dockerfile \
+            --build-arg APP_NAME=api \
+            .
+          docker buildx build --check --file web/Dockerfile .
+          docker buildx build --check --file infrastructure/keycloak/Dockerfile .
+          docker buildx build --check --file infrastructure/postgres-rag/Dockerfile .
+
   gate:
     name: CI Gate
     if: always()
     needs:
+      - changes
       - backend
       - web
       - openfga
       - evaluation
+      - postgres
+      - opensearch
+      - neo4j
+      - deployment
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require every verification job to pass
         shell: bash
         env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           WEB_RESULT: ${{ needs.web.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
           EVALUATION_RESULT: ${{ needs.evaluation.result }}
+          POSTGRES_RESULT: ${{ needs.postgres.result }}
+          OPENSEARCH_RESULT: ${{ needs.opensearch.result }}
+          NEO4J_RESULT: ${{ needs.neo4j.result }}
+          DEPLOYMENT_RESULT: ${{ needs.deployment.result }}
         run: |
           set -euo pipefail
-          [[ "$BACKEND_RESULT" == "success" ]]
-          [[ "$WEB_RESULT" == "success" ]]
-          [[ "$OPENFGA_RESULT" == "success" ]]
-          [[ "$EVALUATION_RESULT" == "success" ]]
+          [[ "$CHANGES_RESULT" == "success" ]]
+          for result in \
+            "$BACKEND_RESULT" \
+            "$WEB_RESULT" \
+            "$OPENFGA_RESULT" \
+            "$EVALUATION_RESULT" \
+            "$POSTGRES_RESULT" \
+            "$OPENSEARCH_RESULT" \
+            "$NEO4J_RESULT" \
+            "$DEPLOYMENT_RESULT"
+          do
+            [[ "$result" == "success" || "$result" == "skipped" ]]
+          done
