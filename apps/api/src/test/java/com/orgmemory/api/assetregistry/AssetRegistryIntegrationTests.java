@@ -6,10 +6,24 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.ai.AiRoute;
+import com.orgmemory.core.ai.AiRouteResolver;
+import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.ai.ChatGenerationRequest;
+import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
+import com.orgmemory.core.assetregistry.CapabilityPackService;
+import com.orgmemory.core.assetregistry.PackAssignmentStatus;
+import com.orgmemory.core.assetregistry.PackJourney;
+import com.orgmemory.core.assetregistry.PromptExecutionService;
+import com.orgmemory.core.assetregistry.PromptEvaluationResult;
+import com.orgmemory.core.assetregistry.PromptRunResult;
+import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.assetregistry.AssetConflictException;
 import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetNotFoundException;
@@ -29,13 +43,17 @@ import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -43,6 +61,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import reactor.core.publisher.Flux;
 
 @SpringBootTest
 @Testcontainers
@@ -61,6 +80,8 @@ class AssetRegistryIntegrationTests {
     private static final UUID SPACE_ID =
             UUID.fromString("88888888-8888-4888-8888-888888888802");
     private static final String MODEL_ID = "asset-model-1";
+    private static final AiRoute PROMPT_ROUTE =
+            new AiRoute("test-gateway", "test-model");
 
     private static final CurrentActor AUTHOR = new CurrentActor(
             AUTHOR_ID,
@@ -88,6 +109,15 @@ class AssetRegistryIntegrationTests {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    PromptExecutionService prompts;
+
+    @Autowired
+    WorkInstructionService instructions;
+
+    @Autowired
+    CapabilityPackService packs;
+
     @MockitoBean
     RelationshipAuthorizationPort authorization;
 
@@ -100,6 +130,9 @@ class AssetRegistryIntegrationTests {
     @MockitoBean
     QueryEmbeddingPort queryEmbeddings;
 
+    @MockitoBean
+    ChatModelPort chat;
+
     @BeforeEach
     void prepare() {
         clearAssetRegistry();
@@ -108,6 +141,166 @@ class AssetRegistryIntegrationTests {
                 .thenReturn(AuthorizedResourceSetResult.resolved(List.of(), MODEL_ID));
         when(tupleWrites.write(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
+        when(chat.stream(
+                        eq(AiWorkload.PROMPT_EXECUTION),
+                        eq(PROMPT_ROUTE),
+                        any(ChatGenerationRequest.class)))
+                .thenReturn(Flux.just("{\"category\":\"access\"}"));
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class PromptRouteTestConfiguration {
+
+        @Bean
+        @Primary
+        AiRouteResolver promptTestRouteResolver() {
+            return workload -> PROMPT_ROUTE;
+        }
+    }
+
+    @Test
+    void promptRunPinsReleaseAndRouteWithoutPersistingSensitiveVariables() {
+        AssetView published = createApprovedRelease(
+                AssetType.PROMPT_TEMPLATE,
+                "prompt-run",
+                promptPayloadWithEvaluation(),
+                "1.0.0");
+        AssetView.Release release = published.releases().getFirst();
+
+        PromptRunResult result = prompts.run(
+                AUTHOR,
+                published.id(),
+                release.id(),
+                Map.of("ticket_text", "SECRET customer account detail"),
+                null,
+                "prompt-run-test");
+
+        assertEquals(release.digest(), result.releaseDigest());
+        assertEquals("test-model", result.modelRoute().modelId());
+        Map<String, Object> stored = jdbc.queryForMap(
+                """
+                select release_digest, gateway_id, model_id,
+                       input_shape_digest, citation_refs::text as citations,
+                       sanitized_outcome::text as outcome
+                from prompt_runs
+                where id = ?
+                """,
+                result.runId());
+        assertEquals(release.digest(), stored.get("release_digest"));
+        assertEquals("test-gateway", stored.get("gateway_id"));
+        assertEquals("test-model", stored.get("model_id"));
+        assertFalse(stored.toString().contains("SECRET"));
+        assertFalse(stored.toString().contains("customer account detail"));
+
+        PromptEvaluationResult evaluation = prompts.evaluate(
+                AUTHOR, published.id(), release.id());
+        assertTrue(evaluation.passed());
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "select count(*) from prompt_evaluation_runs where release_id = ?",
+                        Integer.class,
+                        release.id()));
+
+        assets.withdraw(
+                AUTHOR, published.id(), release.id(), "Superseded test release");
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> prompts.run(
+                        AUTHOR,
+                        published.id(),
+                        release.id(),
+                        Map.of("ticket_text", "New ticket"),
+                        null,
+                        "withdrawn-run"));
+    }
+
+    @Test
+    void workInstructionAcknowledgementAndPackProgressAreIdempotentAndPinned() {
+        AssetView prompt = createApprovedRelease(
+                AssetType.PROMPT_TEMPLATE,
+                "pack-prompt",
+                promptPayloadWithoutVariables(),
+                "1.0.0");
+        AssetView instruction = createApprovedRelease(
+                AssetType.WORK_INSTRUCTION,
+                "pack-instruction",
+                workInstructionPayload(),
+                "1.0.0");
+        AssetView.Release promptRelease = prompt.releases().getFirst();
+        AssetView.Release instructionRelease = instruction.releases().getFirst();
+
+        WorkInstructionView firstAcknowledgement = instructions.acknowledge(
+                AUTHOR, instruction.id(), instructionRelease.id());
+        WorkInstructionView secondAcknowledgement = instructions.acknowledge(
+                AUTHOR, instruction.id(), instructionRelease.id());
+        assertTrue(firstAcknowledgement.acknowledged());
+        assertEquals(
+                firstAcknowledgement.acknowledgedAt(),
+                secondAcknowledgement.acknowledgedAt());
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "select count(*) from work_instruction_acknowledgements where release_id = ?",
+                        Integer.class,
+                        instructionRelease.id()));
+
+        AssetView pack = createApprovedRelease(
+                AssetType.CAPABILITY_PACK,
+                "l1-onboarding",
+                packPayload(
+                        prompt.id(),
+                        promptRelease.id(),
+                        instruction.id(),
+                        instructionRelease.id()),
+                "1.0.0");
+        AssetView.Release packRelease = pack.releases().getFirst();
+        PackJourney first = packs.start(AUTHOR, pack.id(), packRelease.id());
+        PackJourney resumed = packs.start(AUTHOR, pack.id(), packRelease.id());
+        assertEquals(first.assignmentId(), resumed.assignmentId());
+        assertFalse(first.accessGap());
+
+        packs.setItemCompleted(
+                AUTHOR, pack.id(), packRelease.id(), "prompt", true);
+        PackJourney completed = packs.setItemCompleted(
+                AUTHOR, pack.id(), packRelease.id(), "instruction", true);
+        assertEquals(PackAssignmentStatus.COMPLETED, completed.status());
+        assertEquals(2, completed.completedAccessibleItems());
+        assertEquals(promptRelease.id(), completed.items().getFirst().pinnedVersionId());
+        assertEquals(
+                2,
+                jdbc.queryForObject(
+                        "select count(*) from pack_progress where assignment_id = ?",
+                        Integer.class,
+                        completed.assignmentId()));
+
+        assets.updateDraft(
+                AUTHOR,
+                prompt.id(),
+                prompt.draft().lockVersion(),
+                new AssetDraftInput(
+                        "Asset pack-prompt",
+                        "Replacement Prompt",
+                        "INTERNAL",
+                        "1",
+                        promptPayloadWithoutVariables().replace(
+                                "Draft an approved response.",
+                                "Draft a revised approved response.")));
+        AssetView replacementSubmission = assets.submit(
+                AUTHOR, prompt.id(), "Replacement Prompt");
+        approve(prompt.id(), replacementSubmission);
+        AssetView replacement = assets.publish(
+                AUTHOR,
+                prompt.id(),
+                replacementSubmission.revisions().getFirst().id(),
+                "2.0.0");
+        assertNotEquals(
+                promptRelease.id(), replacement.releases().getFirst().id());
+        PackJourney unchanged = packs.get(
+                AUTHOR, pack.id(), packRelease.id());
+        assertEquals(
+                promptRelease.id(),
+                unchanged.items().getFirst().pinnedVersionId());
     }
 
     @Test
@@ -353,9 +546,8 @@ class AssetRegistryIntegrationTests {
         assertNotEquals(
                 firstSubmission.revisions().getFirst().digest(),
                 secondSubmission.revisions().getFirst().digest());
-        assertEquals(
-                "{\"priority\":\"changed\",\"task\":\"triage\"}",
-                changed.draft().payload());
+        assertTrue(changed.draft().payload().contains(
+                "\\\"priority\\\":\\\"changed\\\""));
     }
 
     @Test
@@ -372,7 +564,26 @@ class AssetRegistryIntegrationTests {
                         "Follow the escalation procedure",
                         "INTERNAL",
                         "1",
-                        "{\"steps\":[]}"));
+                        """
+                        {
+                          "purpose": "Respond to a support ticket safely",
+                          "audience": "L1 support",
+                          "prerequisites": ["Read the escalation policy"],
+                          "completionOutcome": "The customer receives an approved response",
+                          "responsibleRole": "L1 support agent",
+                          "steps": [{
+                            "key": "respond",
+                            "title": "Draft the response",
+                            "instruction": "Use only verified customer and policy facts.",
+                            "expectedResult": "A clear draft response",
+                            "check": "No unsupported promise is present",
+                            "escalation": "Escalate policy exceptions",
+                            "prohibitedActions": ["Disclose internal-only data"],
+                            "relatedAssetIds": [],
+                            "relatedKnowledgeVersionIds": []
+                          }]
+                        }
+                        """));
         when(authorizationSets.listAuthorizedResources(any()))
                 .thenReturn(AuthorizedResourceSetResult.resolved(
                         List.of(
@@ -433,6 +644,34 @@ class AssetRegistryIntegrationTests {
                 input("{\"task\":\"triage\",\"priority\":\"high\"}"));
     }
 
+    private AssetView createApprovedRelease(
+            AssetType type,
+            String slug,
+            String payload,
+            String versionLabel) {
+        AssetView created = assets.create(
+                AUTHOR,
+                type,
+                "support",
+                slug,
+                SPACE_ID,
+                new AssetDraftInput(
+                        "Asset " + slug,
+                        "Integration fixture " + slug,
+                        "INTERNAL",
+                        "1",
+                        payload));
+        grantWorkflowRoles(created.id());
+        AssetView submitted = assets.submit(
+                AUTHOR, created.id(), "Publish " + slug);
+        approve(created.id(), submitted);
+        return assets.publish(
+                AUTHOR,
+                created.id(),
+                submitted.revisions().getFirst().id(),
+                versionLabel);
+    }
+
     private void grantWorkflowRoles(UUID assetId) {
         assets.assignRole(
                 AUTHOR,
@@ -458,12 +697,158 @@ class AssetRegistryIntegrationTests {
     }
 
     private static AssetDraftInput input(String payload) {
+        String escapedPayload = payload
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
         return new AssetDraftInput(
                 "Triage customer ticket",
                 "Classify and route an L1 support ticket",
                 "INTERNAL",
                 "1",
-                payload);
+                """
+                {
+                  "objective": "Classify and route an L1 support ticket",
+                  "audience": "L1 support",
+                  "useWhen": ["A new customer ticket arrives"],
+                  "doNotUseWhen": ["The ticket contains a legal threat"],
+                  "textTemplate": "%s",
+                  "messages": [],
+                  "variables": [],
+                  "outputContract": {},
+                  "dataPolicy": {
+                    "retainRawVariables": false,
+                    "retainRawOutput": false
+                  },
+                  "compatibility": ["chat"],
+                  "knowledgeRequirements": [],
+                  "evaluationCases": [],
+                  "knownLimitations": "Integration fixture"
+                }
+                """.formatted(escapedPayload));
+    }
+
+    private static String promptPayloadWithEvaluation() {
+        return """
+                {
+                  "objective": "Classify a support ticket",
+                  "audience": "L1 support",
+                  "useWhen": ["A new ticket arrives"],
+                  "doNotUseWhen": ["A legal threat is present"],
+                  "textTemplate": "Classify: {{ticket_text}}",
+                  "messages": [],
+                  "variables": [{
+                    "name": "ticket_text",
+                    "type": "STRING",
+                    "required": true,
+                    "defaultValue": null,
+                    "sensitive": true,
+                    "pattern": "",
+                    "allowedValues": []
+                  }],
+                  "outputContract": {"type":"object","required":["category"]},
+                  "dataPolicy": {
+                    "retainRawVariables": false,
+                    "retainRawOutput": false
+                  },
+                  "compatibility": ["chat"],
+                  "knowledgeRequirements": [],
+                  "evaluationCases": [{
+                    "name": "access ticket",
+                    "variables": {"ticket_text":"Cannot log in"},
+                    "expectedContains": ["access"],
+                    "forbiddenContains": ["secret"]
+                  }],
+                  "knownLimitations": ""
+                }
+                """;
+    }
+
+    private static String promptPayloadWithoutVariables() {
+        return """
+                {
+                  "objective": "Provide a support response",
+                  "audience": "L1 support",
+                  "useWhen": ["A ticket was classified"],
+                  "doNotUseWhen": ["Legal review is required"],
+                  "textTemplate": "Draft an approved response.",
+                  "messages": [],
+                  "variables": [],
+                  "outputContract": {},
+                  "dataPolicy": {
+                    "retainRawVariables": false,
+                    "retainRawOutput": false
+                  },
+                  "compatibility": ["chat"],
+                  "knowledgeRequirements": [],
+                  "evaluationCases": [],
+                  "knownLimitations": ""
+                }
+                """;
+    }
+
+    private static String workInstructionPayload() {
+        return """
+                {
+                  "purpose": "Respond to one support ticket",
+                  "audience": "L1 support",
+                  "prerequisites": ["Ticket is assigned"],
+                  "completionOutcome": "Customer receives a safe response",
+                  "responsibleRole": "L1 support agent",
+                  "steps": [{
+                    "key": "respond",
+                    "title": "Respond",
+                    "instruction": "Use verified facts only.",
+                    "expectedResult": "A response draft",
+                    "check": "No unsupported promise",
+                    "escalation": "Escalate exceptions",
+                    "prohibitedActions": ["Disclose internal data"],
+                    "relatedAssetIds": [],
+                    "relatedKnowledgeVersionIds": []
+                  }]
+                }
+                """;
+    }
+
+    private static String packPayload(
+            UUID promptAssetId,
+            UUID promptReleaseId,
+            UUID instructionAssetId,
+            UUID instructionReleaseId) {
+        return """
+                {
+                  "purpose": "ROLE_ONBOARDING",
+                  "audience": "L1 support",
+                  "prerequisites": ["Active support account"],
+                  "expectedOutcome": "Agent can complete first ticket",
+                  "items": [
+                    {
+                      "key": "prompt",
+                      "required": true,
+                      "kind": "REGISTRY_RELEASE",
+                      "assetId": "%s",
+                      "releaseId": "%s",
+                      "knowledgeAssetId": null,
+                      "knowledgeVersionId": null
+                    },
+                    {
+                      "key": "instruction",
+                      "required": true,
+                      "kind": "REGISTRY_RELEASE",
+                      "assetId": "%s",
+                      "releaseId": "%s",
+                      "knowledgeAssetId": null,
+                      "knowledgeVersionId": null
+                    }
+                  ],
+                  "completionCriteria": ["Required items complete"],
+                  "reviewDate": "2026-12-31",
+                  "owner": "Support operations"
+                }
+                """.formatted(
+                promptAssetId,
+                promptReleaseId,
+                instructionAssetId,
+                instructionReleaseId);
     }
 
     private void clearAssetRegistry() {

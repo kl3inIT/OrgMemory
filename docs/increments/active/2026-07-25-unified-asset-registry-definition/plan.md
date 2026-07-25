@@ -148,43 +148,56 @@ Expected size: 55-90 files.
 
 Scope:
 
-- [ ] Implement the `PROMPT_TEMPLATE` schema and validator.
-- [ ] Support structured messages/text, typed variables, sensitivity, output
+- [x] Implement the `PROMPT_TEMPLATE` schema and validator.
+- [x] Support structured messages/text, typed variables, sensitivity, output
   contract, data policy, compatibility, examples, and bounded evaluation cases.
-- [ ] Add deterministic rendering from an exact Prompt release.
-- [ ] Add in-app execution through the provider-neutral AI gateway.
-- [ ] Add `PromptRun` records that pin release/digest, actor, model route,
+- [x] Add deterministic rendering from an exact Prompt release.
+- [x] Add in-app execution through the provider-neutral AI gateway.
+- [x] Add `PromptRun` records that pin release/digest, actor, model route,
   authorized Knowledge/citations, timing, and sanitized outcome.
-- [ ] Default to not retaining raw sensitive variables/output.
-- [ ] Add bounded evaluation execution and release comparison.
-- [ ] Add fork-release-to-draft without copying review decisions.
-- [ ] Implement the `WORK_INSTRUCTION` schema, validation, rendering,
+- [x] Default to not retaining raw sensitive variables/output.
+- [x] Add bounded evaluation execution and release comparison.
+- [x] Add fork-release-to-draft without copying review decisions.
+- [x] Implement the `WORK_INSTRUCTION` schema, validation, rendering,
   follow, and acknowledgement behavior.
-- [ ] Implement `CAPABILITY_PACK` with purpose, audience, prerequisites,
+- [x] Implement `CAPABILITY_PACK` with purpose, audience, prerequisites,
   outcome, ordered required/optional pins, and completion criteria.
-- [ ] Add `PackAssignment` and idempotent `PackProgress` records.
-- [ ] Add the read-only Knowledge catalog adapter without creating registry
+- [x] Add `PackAssignment` and idempotent `PackProgress` records.
+- [x] Add the read-only Knowledge catalog adapter without creating registry
   Asset rows or copying Knowledge OpenFGA tuples.
-- [ ] Allow Pack items to pin exact registry releases or exact
+- [x] Allow Pack items to pin exact registry releases or exact
   `KnowledgeAssetVersion` references.
-- [ ] Recheck every Pack component independently and expose denied gaps opaquely.
-- [ ] Detect replacement/withdrawal impact without silently changing Pack pins.
+- [x] Recheck every Pack component independently and expose denied gaps opaquely.
+- [x] Detect replacement/withdrawal impact without silently changing Pack pins.
 
 Required gates:
 
-- [ ] Variable validation and deterministic Prompt rendering fixtures.
-- [ ] Prompt injection content remains untrusted input.
-- [ ] Output schema/evaluation pass and failure cases.
-- [ ] Exact release/digest/model route recorded.
-- [ ] Sensitive values absent from logs and default run persistence.
-- [ ] Withdrawn Prompt cannot be newly run.
-- [ ] Network-free model adapter tests.
-- [ ] Pack order and exact pins are immutable per release.
-- [ ] Pack access is the intersection of component permissions.
-- [ ] Denied component title/type/count does not leak.
-- [ ] Knowledge citations still use canonical secure retrieval.
-- [ ] Pack progress is actor-derived and idempotent.
-- [ ] Replacement release leaves an existing Pack unchanged.
+- [x] Variable validation and deterministic Prompt rendering fixtures.
+- [x] Prompt injection content remains untrusted input.
+- [x] Output schema/evaluation pass and failure cases.
+- [x] Exact release/digest/model route recorded.
+- [x] Sensitive values absent from logs and default run persistence.
+- [x] Withdrawn Prompt cannot be newly run.
+- [x] Network-free model adapter tests.
+- [x] Pack order and exact pins are immutable per release.
+- [x] Pack access is the intersection of component permissions.
+- [x] Denied component title/type/count does not leak.
+- [x] Knowledge citations still use canonical secure retrieval.
+- [x] Pack progress is actor-derived and idempotent.
+- [x] Replacement release leaves an existing Pack unchanged.
+
+Verification evidence on 2026-07-26:
+
+- `.\gradlew.bat --no-daemon clean test` — passed all 88 tasks from a clean
+  worktree, including API/worker contexts, PostgreSQL/Testcontainers migration
+  validation, Spring Modulith, and the complete repository test suite.
+- targeted Prompt renderer/execution, profile, Pack, Knowledge catalog, and
+  Asset Registry integration suites — passed.
+- live OpenAPI contract generation plus Hey API client regeneration — passed.
+- `pnpm -C web lint`, `typecheck`, and production `build` — passed.
+- static-analysis mechanical floor, `git diff --check`, and the 56-file PR cap
+  check — passed. JetBrains inspection was unavailable because the IDE project
+  is the main worktree and does not register this Orca worktree.
 
 Explicitly excluded:
 

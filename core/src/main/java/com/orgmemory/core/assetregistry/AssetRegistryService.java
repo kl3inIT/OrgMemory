@@ -29,6 +29,7 @@ public class AssetRegistryService {
     private static final PermissionKey CAN_REVIEW = PermissionKey.of("can_review");
     private static final PermissionKey CAN_PUBLISH = PermissionKey.of("can_publish");
     private static final PermissionKey CAN_WITHDRAW = PermissionKey.of("can_withdraw");
+    private static final PermissionKey CAN_USE = PermissionKey.of("can_use");
     private static final PermissionKey CAN_MANAGE_ROLES =
             PermissionKey.of("can_manage_roles");
 
@@ -97,6 +98,50 @@ public class AssetRegistryService {
     public AssetView get(CurrentActor actor, UUID assetId) {
         require(actor, assetId, CAN_VIEW);
         return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    public AssetConsumptionRelease releaseForUse(
+            CurrentActor actor,
+            UUID assetId,
+            UUID releaseId,
+            AssetType expectedType) {
+        AssetConsumptionRelease release = releaseForUse(actor, assetId, releaseId);
+        if (release.type() != Objects.requireNonNull(expectedType, "expectedType")) {
+            throw new AssetNotFoundException();
+        }
+        return release;
+    }
+
+    public AssetConsumptionRelease releaseForUse(
+            CurrentActor actor,
+            UUID assetId,
+            UUID releaseId) {
+        require(actor, assetId, CAN_USE);
+        return coordinator.consumptionRelease(
+                actor.organizationId(), assetId, releaseId);
+    }
+
+    public AssetView forkRelease(
+            CurrentActor actor,
+            UUID sourceAssetId,
+            UUID sourceReleaseId,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId) {
+        AssetConsumptionRelease source =
+                releaseForUse(actor, sourceAssetId, sourceReleaseId);
+        return create(
+                actor,
+                source.type(),
+                namespace,
+                slug,
+                knowledgeSpaceId,
+                new AssetDraftInput(
+                        source.title(),
+                        source.summary(),
+                        source.classification(),
+                        source.schemaVersion(),
+                        source.payload()));
     }
 
     public AssetView updateDraft(

@@ -1,6 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Component;
@@ -10,11 +11,19 @@ public class AssetTypeProfileRegistry {
 
     private final Map<AssetType, AssetTypeProfile> profiles;
 
-    public AssetTypeProfileRegistry() {
+    public AssetTypeProfileRegistry(List<AssetPayloadProfile> payloadProfiles) {
         EnumMap<AssetType, AssetTypeProfile> registered = new EnumMap<>(AssetType.class);
-        register(registered, new AssetTypeProfile(AssetType.PROMPT_TEMPLATE, Set.of("1")));
-        register(registered, new AssetTypeProfile(AssetType.WORK_INSTRUCTION, Set.of("1")));
-        register(registered, new AssetTypeProfile(AssetType.CAPABILITY_PACK, Set.of("1")));
+        for (AssetPayloadProfile payloadProfile : payloadProfiles) {
+            register(
+                    registered,
+                    new AssetTypeProfile(
+                            payloadProfile.type(),
+                            payloadProfile.schemaVersions(),
+                            payloadProfile));
+        }
+        if (!registered.keySet().equals(Set.of(AssetType.values()))) {
+            throw new IllegalStateException("Every enabled Asset type requires one payload profile");
+        }
         profiles = Map.copyOf(registered);
     }
 
