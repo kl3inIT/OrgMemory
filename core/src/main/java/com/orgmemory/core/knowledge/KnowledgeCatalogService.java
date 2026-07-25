@@ -51,4 +51,17 @@ public class KnowledgeCatalogService {
         return versions.findCurrentCatalogItem(
                 actor.organizationId(), knowledgeAssetId, knowledgeVersionId);
     }
+
+    @Transactional(readOnly = true)
+    public Optional<KnowledgeCatalogItem> findVersionVisible(
+            CurrentActor actor, UUID knowledgeVersionId) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(knowledgeVersionId, "knowledgeVersionId");
+        return versions.findByIdAndOrganizationId(
+                        knowledgeVersionId, actor.organizationId())
+                .flatMap(version -> findExactVisible(
+                        actor,
+                        version.getKnowledgeAssetId(),
+                        knowledgeVersionId));
+    }
 }
