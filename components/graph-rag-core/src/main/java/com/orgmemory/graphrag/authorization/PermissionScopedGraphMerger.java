@@ -197,6 +197,8 @@ public final class PermissionScopedGraphMerger {
         private final Set<String> types = new LinkedHashSet<>();
         private final Set<String> descriptions = new LinkedHashSet<>();
         private final List<EvidenceReference> evidence = new ArrayList<>();
+        private final List<PermissionScopedGraphView.EntityContributionView>
+                contributions = new ArrayList<>();
         private double confidence;
 
         private EntityAccumulator(CanonicalEntity entity) {
@@ -208,6 +210,12 @@ public final class PermissionScopedGraphMerger {
             types.add(contribution.type());
             descriptions.add(contribution.description());
             evidence.add(contribution.provenance().evidence());
+            contributions.add(new PermissionScopedGraphView.EntityContributionView(
+                    contribution.type(),
+                    contribution.description(),
+                    contribution.provenance().evidence(),
+                    contribution.provenance().projectionGeneration(),
+                    contribution.provenance().confidence()));
             confidence = Math.max(confidence, contribution.provenance().confidence());
         }
 
@@ -224,6 +232,18 @@ public final class PermissionScopedGraphMerger {
                                     .thenComparing(reference -> Objects.toString(
                                             reference.chunkId(), "")))
                             .toList(),
+                    contributions.stream()
+                            .sorted(Comparator
+                                    .comparing(
+                                            PermissionScopedGraphView.EntityContributionView::evidence,
+                                            Comparator.comparing(EvidenceReference::sourceRevisionId)
+                                                    .thenComparing(reference -> Objects.toString(
+                                                            reference.chunkId(), "")))
+                                    .thenComparing(
+                                            PermissionScopedGraphView.EntityContributionView::type)
+                                    .thenComparing(
+                                            PermissionScopedGraphView.EntityContributionView::description))
+                            .toList(),
                     confidence,
                     authorizationFingerprint,
                     projectionFingerprint);
@@ -237,6 +257,8 @@ public final class PermissionScopedGraphMerger {
         private final Set<String> keywords = new LinkedHashSet<>();
         private final Set<String> descriptions = new LinkedHashSet<>();
         private final List<EvidenceReference> evidence = new ArrayList<>();
+        private final List<PermissionScopedGraphView.RelationContributionView>
+                contributions = new ArrayList<>();
         private double weight;
         private double confidence;
 
@@ -250,6 +272,14 @@ public final class PermissionScopedGraphMerger {
             keywords.addAll(contribution.keywords());
             descriptions.add(contribution.description());
             evidence.add(contribution.provenance().evidence());
+            contributions.add(new PermissionScopedGraphView.RelationContributionView(
+                    contribution.type(),
+                    contribution.keywords(),
+                    contribution.description(),
+                    contribution.weight(),
+                    contribution.provenance().evidence(),
+                    contribution.provenance().projectionGeneration(),
+                    contribution.provenance().confidence()));
             weight += contribution.weight();
             confidence = Math.max(confidence, contribution.provenance().confidence());
         }
@@ -276,6 +306,18 @@ public final class PermissionScopedGraphMerger {
                             .sorted(Comparator.comparing(EvidenceReference::sourceRevisionId)
                                     .thenComparing(reference -> Objects.toString(
                                             reference.chunkId(), "")))
+                            .toList(),
+                    contributions.stream()
+                            .sorted(Comparator
+                                    .comparing(
+                                            PermissionScopedGraphView.RelationContributionView::evidence,
+                                            Comparator.comparing(EvidenceReference::sourceRevisionId)
+                                                    .thenComparing(reference -> Objects.toString(
+                                                            reference.chunkId(), "")))
+                                    .thenComparing(
+                                            PermissionScopedGraphView.RelationContributionView::type)
+                                    .thenComparing(
+                                            PermissionScopedGraphView.RelationContributionView::description))
                             .toList(),
                     weight,
                     confidence,

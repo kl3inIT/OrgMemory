@@ -5,3 +5,36 @@
 @import "./styles/base.css";
 
 @custom-variant dark (&:is(.dark *));
+
+@keyframes assistant-thinking-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.assistant-thinking-text {
+  animation: assistant-thinking-shimmer 1s ease-out infinite;
+  background-image: linear-gradient(
+    90deg,
+    var(--content-muted) 35%,
+    var(--content-primary) 50%,
+    var(--content-muted) 65%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-thinking-text {
+    animation: none;
+    background: none;
+    color: var(--content-muted);
+  }
+}

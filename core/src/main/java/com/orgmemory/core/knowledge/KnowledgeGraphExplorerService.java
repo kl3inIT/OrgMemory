@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
@@ -28,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class KnowledgeGraphExplorerService {
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
+    private static final PermissionKey CAN_CURATE_GRAPH =
+            PermissionKey.of("can_curate_graph");
 
     private final KnowledgeSpaceRepository spaces;
     private final RelationshipAuthorizationPort authorization;
@@ -57,11 +60,13 @@ public class KnowledgeGraphExplorerService {
             UUID knowledgeSpaceId,
             String query,
             Integer requestedEntityLimit,
+            Integer requestedMaximumDepth,
             String requestId) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         String normalizedQuery = normalizeQuery(query);
         int entityLimit = validateLimit(requestedEntityLimit);
+        int maximumDepth = validateDepth(requestedMaximumDepth);
         String normalizedRequestId = requestId == null || requestId.isBlank()
                 ? UUID.randomUUID().toString()
                 : requestId.strip();
@@ -71,6 +76,7 @@ public class KnowledgeGraphExplorerService {
                 knowledgeSpaceId,
                 normalizedQuery,
                 entityLimit,
+                maximumDepth,
                 normalizedRequestId,
                 policyVersion,
                 0);
@@ -81,6 +87,7 @@ public class KnowledgeGraphExplorerService {
             UUID knowledgeSpaceId,
             String query,
             int entityLimit,
+            int maximumDepth,
             String requestId,
             String policyVersion,
             int attempt) {
@@ -111,6 +118,7 @@ public class KnowledgeGraphExplorerService {
                         knowledgeSpaceId,
                         query,
                         entityLimit,
+                        maximumDepth,
                         requestId,
                         policyVersion,
                         1);
@@ -119,12 +127,31 @@ public class KnowledgeGraphExplorerService {
                     "Knowledge graph authorization changed during the request");
         }
 
+        AuthorizationDecision curationDecision =
+                curationDecision(actor, knowledgeSpaceId);
+        audit.record(new PermissionAuditCommand(
+                actor.organizationId(),
+                actor.userId(),
+                "CHECK_GRAPH_CURATION",
+                "knowledge_space",
+                knowledgeSpaceId.toString(),
+                curationDecision.allowed()
+                        ? PermissionAuditDecision.ALLOW
+                        : PermissionAuditDecision.DENY,
+                curationDecision.reasonCode(),
+                curationDecision.policyVersion(),
+                requestId,
+                null));
         KnowledgeGraphView view = project(
                 knowledgeSpaceId,
                 document,
                 query,
                 entityLimit,
-                properties.maximumRelationLimit());
+                properties.maximumRelationLimit(),
+                maximumDepth,
+                initial.aclGenerationByKnowledgeSpace()
+                        .getOrDefault(knowledgeSpaceId, 0L),
+                curationDecision.allowed());
         audit.record(new PermissionAuditCommand(
                 actor.organizationId(),
                 actor.userId(),
@@ -191,6 +218,8 @@ public class KnowledgeGraphExplorerService {
                 null));
         return new KnowledgeGraphView(
                 knowledgeSpaceId,
+                0L,
+                false,
                 List.of(),
                 List.of(),
                 false);
@@ -201,7 +230,10 @@ public class KnowledgeGraphExplorerService {
             GraphExportDocument document,
             String query,
             int entityLimit,
-            int relationLimit) {
+            int relationLimit,
+            int maximumDepth,
+            long authorizationGeneration,
+            boolean canCurate) {
         String needle = query.toLowerCase(Locale.ROOT);
         Set<UUID> relationMatchedEntities = new LinkedHashSet<>();
         if (!needle.isEmpty()) {
@@ -214,11 +246,15 @@ public class KnowledgeGraphExplorerService {
                                 relation.targetEntityId());
                     });
         }
+        Set<UUID> reachableEntities = reachableEntities(
+                document,
+                needle,
+                relationMatchedEntities,
+                maximumDepth);
         List<GraphExportDocument.EntityRow> rankedEntities =
                 document.entities().stream()
                         .filter(entity -> needle.isEmpty()
-                                || relationMatchedEntities.contains(entity.id())
-                                || matches(entity, needle))
+                                || reachableEntities.contains(entity.id()))
                         .sorted(Comparator
                                 .comparingInt((GraphExportDocument.EntityRow row) ->
                                         row.evidence().size())
@@ -241,12 +277,6 @@ public class KnowledgeGraphExplorerService {
                                         relation.sourceEntityId())
                                 && selectedIds.contains(
                                         relation.targetEntityId()))
-                        .filter(relation -> needle.isEmpty()
-                                || matches(relation, needle)
-                                || relationMatchedEntities.contains(
-                                        relation.sourceEntityId())
-                                || relationMatchedEntities.contains(
-                                        relation.targetEntityId()))
                         .sorted(Comparator
                                 .comparingDouble(
                                         GraphExportDocument.RelationRow::weight)
@@ -260,27 +290,66 @@ public class KnowledgeGraphExplorerService {
                 || rankedRelations.size() > selectedRelations.size();
         return new KnowledgeGraphView(
                 knowledgeSpaceId,
+                authorizationGeneration,
+                canCurate,
                 selectedEntities.stream()
-                        .map(KnowledgeGraphExplorerService::entity)
+                        .map(row -> entity(row, canCurate))
                         .toList(),
                 selectedRelations.stream()
-                        .map(KnowledgeGraphExplorerService::relation)
+                        .map(row -> relation(row, canCurate))
                         .toList(),
                 truncated);
     }
 
+    private static Set<UUID> reachableEntities(
+            GraphExportDocument document,
+            String needle,
+            Set<UUID> relationMatchedEntities,
+            int maximumDepth) {
+        if (needle.isEmpty()) {
+            return Set.of();
+        }
+        Set<UUID> reached = new LinkedHashSet<>(relationMatchedEntities);
+        document.entities().stream()
+                .filter(entity -> matches(entity, needle))
+                .map(GraphExportDocument.EntityRow::id)
+                .forEach(reached::add);
+        Set<UUID> frontier = new LinkedHashSet<>(reached);
+        for (int depth = 0;
+                depth < maximumDepth && !frontier.isEmpty();
+                depth++) {
+            Set<UUID> next = new LinkedHashSet<>();
+            for (GraphExportDocument.RelationRow relation :
+                    document.relations()) {
+                if (frontier.contains(relation.sourceEntityId())
+                        && reached.add(relation.targetEntityId())) {
+                    next.add(relation.targetEntityId());
+                }
+                if (frontier.contains(relation.targetEntityId())
+                        && reached.add(relation.sourceEntityId())) {
+                    next.add(relation.sourceEntityId());
+                }
+            }
+            frontier = next;
+        }
+        return reached;
+    }
+
     private static KnowledgeGraphView.Entity entity(
-            GraphExportDocument.EntityRow row) {
+            GraphExportDocument.EntityRow row,
+            boolean canCurate) {
         return new KnowledgeGraphView.Entity(
                 row.id(),
                 row.name(),
                 row.type(),
                 row.description(),
-                citationIds(row.evidence()));
+                citationIds(row.evidence()),
+                canCurate ? governingEvidence(row.evidence()) : null);
     }
 
     private static KnowledgeGraphView.Relation relation(
-            GraphExportDocument.RelationRow row) {
+            GraphExportDocument.RelationRow row,
+            boolean canCurate) {
         return new KnowledgeGraphView.Relation(
                 row.id(),
                 row.sourceEntityId(),
@@ -288,7 +357,20 @@ public class KnowledgeGraphExplorerService {
                 row.type(),
                 row.description(),
                 row.weight(),
-                citationIds(row.evidence()));
+                row.keywords(),
+                citationIds(row.evidence()),
+                canCurate ? governingEvidence(row.evidence()) : null);
+    }
+
+    private static EvidenceReference governingEvidence(
+            List<EvidenceReference> evidence) {
+        return evidence.stream()
+                .sorted(Comparator
+                        .comparing(EvidenceReference::knowledgeAssetId)
+                        .thenComparing(EvidenceReference::sourceRevisionId)
+                        .thenComparing(EvidenceReference::chunkId))
+                .findFirst()
+                .orElse(null);
     }
 
     private static List<UUID> citationIds(
@@ -357,6 +439,30 @@ public class KnowledgeGraphExplorerService {
                             + properties.maximumEntityLimit());
         }
         return value;
+    }
+
+    private int validateDepth(Integer requested) {
+        int value = requested == null
+                ? properties.defaultMaximumDepth()
+                : requested;
+        if (value < 1 || value > properties.maximumDepth()) {
+            throw new IllegalArgumentException(
+                    "maxDepth must be between 1 and "
+                            + properties.maximumDepth());
+        }
+        return value;
+    }
+
+    private AuthorizationDecision curationDecision(
+            CurrentActor actor,
+            UUID knowledgeSpaceId) {
+        return authorization.check(new RelationshipAuthorizationQuery(
+                        actor.principal(),
+                        CAN_CURATE_GRAPH,
+                        ResourceRef.of(
+                                actor.organizationId(),
+                                "knowledge_space",
+                                knowledgeSpaceId)));
     }
 
     private static OrgMemoryAccessDeniedException accessDenied() {

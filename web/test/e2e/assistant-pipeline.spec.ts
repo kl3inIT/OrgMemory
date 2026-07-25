@@ -117,6 +117,7 @@ test("anchors only server-declared citations and opens the matching source", asy
 
   await page.getByRole("button", { name: "Open source 2: Expense Policy" }).first().click()
   await expect(page.getByRole("complementary", { name: "Answer sources" })).toBeVisible()
+  await page.getByRole("button", { name: "Preview source 2: Expense Policy" }).click()
   await expect(page.getByText("Expense claims require the original receipt.")).toBeVisible()
   expect(harness.requests.filter((request) => request === `GET ${secondPath}`)).toHaveLength(1)
   expect(harness.unexpectedRequests).toEqual([])
@@ -139,6 +140,7 @@ test("shows an opaque citation error after access is revoked", async ({ page }) 
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(
     page.getByText("The source changed or you no longer have access."),
   ).toBeVisible()
@@ -163,6 +165,7 @@ test("previews an authorized PDF through the protected citation endpoint", async
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(page.locator('iframe[title="Employee Handbook"]')).toBeVisible()
   expect(harness.requests.filter((request) => request === `GET ${firstPath}`)).toHaveLength(1)
   expect(harness.unexpectedRequests).toEqual([])

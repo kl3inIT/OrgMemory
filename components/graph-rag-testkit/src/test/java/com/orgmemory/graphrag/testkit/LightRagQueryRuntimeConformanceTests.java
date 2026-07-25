@@ -23,6 +23,8 @@ import com.orgmemory.graphrag.query.AuthorizedQueryProjection;
 import com.orgmemory.graphrag.query.ChunkReranker;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.KeywordPlanningModel;
+import com.orgmemory.graphrag.query.ContextTokenUsage;
+import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagKeywordPlanner;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
@@ -237,6 +239,77 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void structuredGroundingKeepsContributionProvenanceCitable() {
+        LightRagQueryResult result = engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords()));
+
+        Set<UUID> closure = result.grounding()
+                .evidenceClosure()
+                .stream()
+                .map(value -> value.evidence().chunkId())
+                .collect(java.util.stream.Collectors.toSet());
+        Set<UUID> references = result.references()
+                .stream()
+                .map(value -> value.evidence().chunkId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertFalse(result.grounding().entities().isEmpty());
+        assertFalse(result.grounding().relations().isEmpty());
+        assertEquals(closure, references);
+        assertTrue(result.context().contains("\"reference_id\":"));
+    }
+
+    @Test
+    void consolidatedGroundingUsesOneFinalInputBudget() {
+        LightRagQueryRequest base = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+        LightRagQueryResult first = engine.execute(base);
+        SecureContextBudget budget = new SecureContextBudget(
+                120,
+                120,
+                260,
+                20);
+        LightRagQueryRequest.Options options =
+                new LightRagQueryRequest.Options(
+                        base.options().mode(),
+                        base.options().outputMode(),
+                        base.options().responseType(),
+                        base.options().userInstruction(),
+                        base.options().topK(),
+                        base.options().chunkTopK(),
+                        base.options().relatedChunkNumber(),
+                        base.options().maximumGraphDepth(),
+                        base.options().relatedChunkSelection(),
+                        budget,
+                        base.options().rerankEnabled(),
+                        base.options().minimumRerankScore(),
+                        base.options().minimumVectorSimilarity(),
+                        base.options().includeHeadings(),
+                        base.options().streaming());
+
+        var prepared = engine.consolidateGrounding(
+                base.query(),
+                options,
+                List.of(first.grounding(), first.grounding()));
+
+        assertTrue(prepared.inputTokens()
+                <= budget.maxTotalTokens() - budget.safetyBufferTokens());
+        assertEquals(
+                prepared.grounding().evidenceClosure().size(),
+                prepared.references().size());
+    }
+
+    @Test
     void projectionSnapshotExcludesStaleGraphAndChunkGenerations() {
         LightRagQueryResult result = engine.execute(request(
                 LightRagQueryMode.MIX,
@@ -295,6 +368,19 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void disabledRerankingNeverInvokesTheProvider() {
+        engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords()));
+
+        assertEquals(0, reranker.calls);
+    }
+
+    @Test
     void partialRerankerResponsesCannotPromoteUnscoredChunks() {
         reranker.scores = Map.of(FIRST_CHUNK_ID, 0.95);
 
@@ -309,8 +395,44 @@ class LightRagQueryRuntimeConformanceTests {
         assertTrue(result.trace().rerankAttempted());
         assertFalse(result.trace().rerankFallback());
         assertFalse(result.references().isEmpty());
-        assertTrue(result.references().stream().allMatch(reference ->
-                reference.evidence().chunkId().equals(FIRST_CHUNK_ID)));
+        assertFalse(result.grounding().chunks().isEmpty());
+        assertTrue(result.grounding().chunks().stream().allMatch(chunk ->
+                chunk.id().equals(FIRST_CHUNK_ID)));
+    }
+
+    @Test
+    void conflictingContributionAndChunkGenerationsFailClosed() {
+        EvidenceReference evidence =
+                evidence(FIRST_CHUNK_ID, ORGANIZATION_ID, ALLOWED_ASSET_ID);
+        LightRagGrounding grounding = new LightRagGrounding(
+                List.of(new LightRagGrounding.SelectedEntity(
+                        FIRST_ENTITY_ID,
+                        "Probation policy",
+                        List.of(new LightRagGrounding.EntityContribution(
+                                "POLICY",
+                                "A 60-day probation period applies.",
+                                evidence,
+                                GENERATION,
+                                0.95)),
+                        1.0,
+                        1)),
+                List.of(),
+                List.of(new LightRagGrounding.SelectedChunk(
+                        FIRST_CHUNK_ID,
+                        evidence,
+                        GENERATION + 1,
+                        "Full-time employees complete a 60-day probation period.",
+                        Map.of("sourceLabel", "employee-handbook.md"),
+                        LightRagQueryResult.Origin.VECTOR,
+                        1,
+                        1,
+                        1.0,
+                        null)),
+                List.of(),
+                new ContextTokenUsage(0, 0, 0, 0),
+                0);
+
+        assertThrows(IllegalStateException.class, grounding::evidenceClosure);
     }
 
     @Test
@@ -570,7 +692,7 @@ class LightRagQueryRuntimeConformanceTests {
             UUID assetId,
             long projectionGeneration) {
         return new EvidenceProvenance(
-                evidence(key, chunkId, ORGANIZATION_ID, assetId),
+                evidence(chunkId, ORGANIZATION_ID, assetId),
                 projectionGeneration,
                 "test",
                 "test-model",
@@ -603,7 +725,7 @@ class LightRagQueryRuntimeConformanceTests {
             long projectionGeneration) {
         return new AuthorizedQueryProjection.Chunk(
                 chunkId,
-                evidence(chunkId.toString(), chunkId, organizationId, assetId),
+                evidence(chunkId, organizationId, assetId),
                 projectionGeneration,
                 content,
                 content.split("\\s+").length,
@@ -613,16 +735,15 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     private static EvidenceReference evidence(
-            String key,
             UUID chunkId,
             UUID organizationId,
             UUID assetId) {
         return new EvidenceReference(
                 organizationId,
                 assetId,
-                id(key + "-revision"),
+                id(chunkId + "-revision"),
                 chunkId,
-                id(key + "-acl"),
+                id(chunkId + "-acl"),
                 4);
     }
 
@@ -711,6 +832,7 @@ class LightRagQueryRuntimeConformanceTests {
 
         private Map<UUID, Double> scores = Map.of();
         private RuntimeException failure;
+        private int calls;
 
         @Override
         public ProcessingComponentRef component() {
@@ -719,6 +841,7 @@ class LightRagQueryRuntimeConformanceTests {
 
         @Override
         public List<Score> rerank(String query, List<Candidate> candidates, int limit) {
+            calls++;
             if (failure != null) {
                 throw failure;
             }

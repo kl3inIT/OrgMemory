@@ -41,7 +41,6 @@ public final class SpringAiKeywordPlanningModel implements KeywordPlanningModel 
                 List.of(new SystemMessage(structuredPrompt)),
                 chatModel.getOptions().mutate()
                         .model(modelId)
-                        .temperature(0.0)
                         .build()));
         String content = responseText(response, "Keyword model");
         try {

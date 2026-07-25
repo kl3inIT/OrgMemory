@@ -29,6 +29,7 @@ public record PermissionScopedGraphView(
             List<String> types,
             List<String> descriptions,
             List<EvidenceReference> evidence,
+            List<EntityContributionView> contributions,
             double confidence,
             String authorizationFingerprint,
             String projectionFingerprint) {
@@ -38,9 +39,14 @@ public record PermissionScopedGraphView(
             types = List.copyOf(Objects.requireNonNull(types, "types"));
             descriptions = List.copyOf(Objects.requireNonNull(descriptions, "descriptions"));
             evidence = List.copyOf(Objects.requireNonNull(evidence, "evidence"));
-            if (types.isEmpty() || descriptions.isEmpty() || evidence.isEmpty()) {
+            contributions =
+                    List.copyOf(Objects.requireNonNull(contributions, "contributions"));
+            if (types.isEmpty()
+                    || descriptions.isEmpty()
+                    || evidence.isEmpty()
+                    || contributions.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "scoped entity views require types, descriptions and evidence");
+                        "scoped entity views require contributions and derived fields");
             }
             requireConfidence(confidence);
             authorizationFingerprint =
@@ -68,6 +74,7 @@ public record PermissionScopedGraphView(
             List<String> keywords,
             List<String> descriptions,
             List<EvidenceReference> evidence,
+            List<RelationContributionView> contributions,
             double weight,
             double confidence,
             String authorizationFingerprint,
@@ -81,9 +88,14 @@ public record PermissionScopedGraphView(
             keywords = List.copyOf(Objects.requireNonNull(keywords, "keywords"));
             descriptions = List.copyOf(Objects.requireNonNull(descriptions, "descriptions"));
             evidence = List.copyOf(Objects.requireNonNull(evidence, "evidence"));
-            if (types.isEmpty() || descriptions.isEmpty() || evidence.isEmpty()) {
+            contributions =
+                    List.copyOf(Objects.requireNonNull(contributions, "contributions"));
+            if (types.isEmpty()
+                    || descriptions.isEmpty()
+                    || evidence.isEmpty()
+                    || contributions.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "scoped relation views require types, descriptions and evidence");
+                        "scoped relation views require contributions and derived fields");
             }
             if (!Double.isFinite(weight) || weight <= 0.0) {
                 throw new IllegalArgumentException("weight must be finite and positive");
@@ -103,6 +115,55 @@ public record PermissionScopedGraphView(
                     descriptions,
                     authorizationFingerprint,
                     projectionFingerprint);
+        }
+    }
+
+    public record EntityContributionView(
+            String type,
+            String description,
+            EvidenceReference evidence,
+            long projectionGeneration,
+            double confidence) {
+
+        public EntityContributionView {
+            type = requireText(type, "type");
+            description = requireText(description, "description");
+            Objects.requireNonNull(evidence, "evidence");
+            if (projectionGeneration <= 0) {
+                throw new IllegalArgumentException(
+                        "projectionGeneration must be positive");
+            }
+            requireConfidence(confidence);
+        }
+    }
+
+    public record RelationContributionView(
+            String type,
+            List<String> keywords,
+            String description,
+            double weight,
+            EvidenceReference evidence,
+            long projectionGeneration,
+            double confidence) {
+
+        public RelationContributionView {
+            type = requireText(type, "type");
+            keywords = List.copyOf(Objects.requireNonNull(keywords, "keywords"));
+            if (keywords.stream().anyMatch(value -> value == null || value.isBlank())) {
+                throw new IllegalArgumentException(
+                        "keywords must not contain blank values");
+            }
+            description = requireText(description, "description");
+            if (!Double.isFinite(weight) || weight <= 0.0) {
+                throw new IllegalArgumentException(
+                        "weight must be finite and positive");
+            }
+            Objects.requireNonNull(evidence, "evidence");
+            if (projectionGeneration <= 0) {
+                throw new IllegalArgumentException(
+                        "projectionGeneration must be positive");
+            }
+            requireConfidence(confidence);
         }
     }
 

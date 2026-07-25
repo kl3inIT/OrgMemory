@@ -1,6 +1,7 @@
 package com.orgmemory.integrations.graphrag.springai;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,7 +34,7 @@ class SpringAiKeywordPlanningModelTests {
         assertEquals(List.of("probation", "60 days"), result.lowLevel());
         assertEquals(KeywordPlan.Source.MODEL, result.source());
         assertEquals("gpt-5.6-sol", chatModel.prompt.getOptions().getModel());
-        assertEquals(0.0, chatModel.prompt.getOptions().getTemperature());
+        assertNull(chatModel.prompt.getOptions().getTemperature());
         assertEquals(0.35, chatModel.prompt.getOptions().getTopP());
         assertTrue(chatModel.prompt.getSystemMessage().getText().contains("core-owned prompt"));
         assertTrue(chatModel.prompt.getSystemMessage().getText().contains("high_level_keywords"));

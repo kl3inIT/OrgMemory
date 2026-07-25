@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge;
 
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
+import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -8,8 +9,11 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.query.LightRagGrounding;
+import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
@@ -18,12 +22,12 @@ import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -106,6 +110,7 @@ public class GraphRagKnowledgeRetrievalService
                     limit,
                     requestId,
                     authorizationModelId,
+                    operationId,
                     0);
             emit(
                     operationId,
@@ -167,6 +172,7 @@ public class GraphRagKnowledgeRetrievalService
             int limit,
             String requestId,
             String authorizationModelId,
+            UUID operationId,
             int attempt) {
         ResolvedKnowledgeEvidenceScope initial =
                 resolve(actor, authorizationModelId, requestId, query);
@@ -196,15 +202,38 @@ public class GraphRagKnowledgeRetrievalService
                         "EMBEDDING_PROFILE_NOT_INDEXED",
                         initial.authorizationModelId()));
 
-        List<SpaceReference> candidates =
-                queryPublishedSpaces(initial, profile, query, limit);
-        if (candidates.isEmpty()) {
+        LightRagQueryRequest.Options queryOptions =
+                policy.contextOptions(limit);
+        List<LightRagGrounding> spaceGroundings =
+                queryPublishedSpaces(
+                        initial,
+                        profile,
+                        query,
+                        queryOptions,
+                        operationId);
+        if (spaceGroundings.isEmpty()) {
             audit.record(searchAuthorization.command(
                     actor,
                     requestId,
                     query,
                     PermissionAuditDecision.ALLOW,
                     "NO_ELIGIBLE_EVIDENCE",
+                    initial.authorizationModelId()));
+            return new SecureKnowledgeSearchResult(requestId, List.of());
+        }
+        LightRagGroundingAssembler.PreparedGrounding consolidated =
+                engine.consolidateGrounding(
+                        query,
+                        queryOptions,
+                        spaceGroundings);
+        if (consolidated.grounding().empty()
+                || consolidated.grounding().chunks().isEmpty()) {
+            audit.record(searchAuthorization.command(
+                    actor,
+                    requestId,
+                    query,
+                    PermissionAuditDecision.ALLOW,
+                    "NO_CITABLE_GROUNDING",
                     initial.authorizationModelId()));
             return new SecureKnowledgeSearchResult(requestId, List.of());
         }
@@ -218,42 +247,69 @@ public class GraphRagKnowledgeRetrievalService
                     limit,
                     requestId,
                     authorizationModelId,
+                    operationId,
                     attempt,
                     "AUTHORIZATION_SCOPE_CHANGED");
         }
 
-        List<SpaceReference> selected = candidates.stream()
-                .sorted(Comparator.comparingDouble(SpaceReference::score)
-                        .reversed()
-                        .thenComparing(candidate ->
-                                candidate.reference().evidence().chunkId()))
-                .filter(distinctByChunk())
-                .limit(limit)
-                .toList();
+        List<LightRagGrounding.GroundingEvidence> closure =
+                consolidated.grounding().evidenceClosure();
+        if (closure.size() > policy.maximumEvidenceClosure()) {
+            throw searchAuthorization.unavailable(
+                    actor,
+                    requestId,
+                    query,
+                    "GROUNDING_EVIDENCE_CLOSURE_EXCEEDED",
+                    current.authorizationModelId());
+        }
         verifyOpenFga(
                 actor,
                 query,
                 requestId,
                 current.authorizationModelId(),
-                selected);
+                closure);
         List<SecureRetrievalCandidate> verified =
-                recheckCanonical(current, selected);
-        if (!sameEvidence(selected, verified)) {
+                recheckCanonical(current, closure);
+        if (!sameEvidence(closure, verified)) {
             return retryOrFail(
                     actor,
                     query,
                     limit,
                     requestId,
                     authorizationModelId,
+                    operationId,
                     attempt,
                     "CANONICAL_EVIDENCE_CHANGED");
         }
+        LightRagGroundingAssembler.PreparedGrounding rendered =
+                engine.renderGrounding(
+                        query,
+                        queryOptions,
+                        consolidated.grounding());
 
         Map<UUID, SecureRetrievalCandidate> canonicalByChunk = verified.stream()
                 .collect(Collectors.toMap(
                         SecureRetrievalCandidate::chunkId,
                         Function.identity()));
-        List<RetrievedKnowledgeEvidence> evidence = new ArrayList<>();
+        Map<UUID, Double> scoreByChunk = consolidated.grounding()
+                .chunks()
+                .stream()
+                .collect(Collectors.toMap(
+                        LightRagGrounding.SelectedChunk::id,
+                        LightRagGrounding.SelectedChunk::effectiveScore,
+                        Math::max,
+                        LinkedHashMap::new));
+        List<RetrievedKnowledgeEvidence> evidence = rendered.references()
+                .stream()
+                .map(reference -> toEvidence(
+                        Objects.requireNonNull(
+                                canonicalByChunk.get(
+                                        reference.evidence().chunkId()),
+                                "verified citation evidence"),
+                        scoreByChunk.getOrDefault(
+                                reference.evidence().chunkId(),
+                                0.0)))
+                .toList();
         List<PermissionAuditCommand> auditCommands = new ArrayList<>();
         auditCommands.add(searchAuthorization.command(
                 actor,
@@ -262,32 +318,42 @@ public class GraphRagKnowledgeRetrievalService
                 PermissionAuditDecision.ALLOW,
                 "SECURE_GRAPH_RAG_RETRIEVAL_APPLIED",
                 current.authorizationModelId()));
-        for (SpaceReference selectedReference : selected) {
+        for (LightRagGrounding.GroundingEvidence groundingEvidence : closure) {
             SecureRetrievalCandidate canonical = canonicalByChunk.get(
-                    selectedReference.reference().evidence().chunkId());
+                    groundingEvidence.evidence().chunkId());
             auditCommands.add(evidenceAudit(
                     actor,
                     requestId,
                     query,
                     canonical,
-                    current.authorizationModelId()));
-            evidence.add(toEvidence(canonical, selectedReference.score()));
+                    current.authorizationModelId(),
+                    "VERIFIED_GRAPH_RAG_GROUNDING"));
         }
         audit.recordAll(auditCommands);
-        return new SecureKnowledgeSearchResult(requestId, evidence);
+        return new SecureKnowledgeSearchResult(
+                requestId,
+                evidence,
+                Optional.of(new VerifiedKnowledgeGrounding(
+                        new ChatGenerationRequest(
+                                rendered.systemPrompt(),
+                                query),
+                        evidence,
+                        closure.size(),
+                        rendered.inputTokens())));
     }
 
-    private List<SpaceReference> queryPublishedSpaces(
+    private List<LightRagGrounding> queryPublishedSpaces(
             ResolvedKnowledgeEvidenceScope scope,
             EmbeddingProfileRef profile,
             String query,
-            int limit) {
+            LightRagQueryRequest.Options options,
+            UUID operationId) {
         if (scope.knowledgeSpaceIds().size()
                 > policy.maximumKnowledgeSpaces()) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Secure knowledge retrieval is temporarily unavailable");
         }
-        List<SpaceReference> references = new ArrayList<>();
+        List<LightRagGrounding> groundings = new ArrayList<>();
         for (UUID knowledgeSpaceId :
                 scope.knowledgeSpaceIds().stream().sorted().toList()) {
             var evidenceScope = scope.forKnowledgeSpace(knowledgeSpaceId);
@@ -298,34 +364,27 @@ public class GraphRagKnowledgeRetrievalService
             if (snapshot.isEmpty()) {
                 continue;
             }
+            long rerankStartedAt = System.nanoTime();
             LightRagQueryResult result = engine.execute(
                     new LightRagQueryRequest(
                             evidenceScope,
                             snapshot.orElseThrow(),
                             query,
-                            policy.contextOptions(limit),
+                            options,
                             profile.id(),
                             profile.dimensions(),
                             null,
                             List.of()));
-            Map<UUID, Double> scoreByChunk = result.trace()
-                    .chunkSignals()
-                    .stream()
-                    .collect(Collectors.toMap(
-                            LightRagQueryResult.ChunkSignal::chunkId,
-                            signal -> signal.rerankScore() == null
-                                    ? signal.retrievalScore()
-                                    : signal.rerankScore(),
-                            Math::max));
-            result.references().forEach(reference -> references.add(
-                    new SpaceReference(
-                            knowledgeSpaceId,
-                            reference,
-                            scoreByChunk.getOrDefault(
-                                    reference.evidence().chunkId(),
-                                    0.0))));
+            emitRerank(
+                    operationId,
+                    scope.organizationId(),
+                    result,
+                    rerankStartedAt);
+            if (!result.grounding().empty()) {
+                groundings.add(result.grounding());
+            }
         }
-        return List.copyOf(references);
+        return List.copyOf(groundings);
     }
 
     private ResolvedKnowledgeEvidenceScope resolve(
@@ -350,13 +409,12 @@ public class GraphRagKnowledgeRetrievalService
             String query,
             String requestId,
             String authorizationModelId,
-            List<SpaceReference> selected) {
-        List<ResourceRef> resources = selected.stream()
+            List<LightRagGrounding.GroundingEvidence> closure) {
+        List<ResourceRef> resources = closure.stream()
                 .map(candidate -> ResourceRef.of(
                         actor.organizationId(),
                         RESOURCE_TYPE,
-                        candidate.reference()
-                                .evidence()
+                        candidate.evidence()
                                 .knowledgeAssetId()))
                 .distinct()
                 .toList();
@@ -394,7 +452,7 @@ public class GraphRagKnowledgeRetrievalService
 
     private List<SecureRetrievalCandidate> recheckCanonical(
             ResolvedKnowledgeEvidenceScope scope,
-            List<SpaceReference> selected) {
+            List<LightRagGrounding.GroundingEvidence> closure) {
         return canonicalEvidence.recheck(
                 new SecureKnowledgeRetrievalStore.RetrievalScope(
                         scope.organizationId(),
@@ -404,10 +462,8 @@ public class GraphRagKnowledgeRetrievalService
                         scope.allAssetIds().stream().sorted().toList(),
                         scope.authorizationModelId(),
                         scope.evaluatedAt()),
-                selected.stream()
-                        .map(candidate -> candidate.reference()
-                                .evidence()
-                                .chunkId())
+                closure.stream()
+                        .map(candidate -> candidate.evidence().chunkId())
                         .toList());
     }
 
@@ -417,6 +473,7 @@ public class GraphRagKnowledgeRetrievalService
             int limit,
             String requestId,
             String authorizationModelId,
+            UUID operationId,
             int attempt,
             String reason) {
         if (attempt == 0) {
@@ -426,6 +483,7 @@ public class GraphRagKnowledgeRetrievalService
                     limit,
                     requestId,
                     authorizationModelId,
+                    operationId,
                     1);
         }
         throw searchAuthorization.unavailable(
@@ -434,6 +492,42 @@ public class GraphRagKnowledgeRetrievalService
                 query,
                 reason,
                 authorizationModelId);
+    }
+
+    private void emitRerank(
+            UUID operationId,
+            UUID organizationId,
+            LightRagQueryResult result,
+            long startedAt) {
+        if (!result.trace().rerankAttempted()) {
+            return;
+        }
+        GraphRagEventSink.Outcome outcome = result.trace().rerankFallback()
+                ? GraphRagEventSink.Outcome.FAILED
+                : GraphRagEventSink.Outcome.SUCCEEDED;
+        String failureCode = result.trace().rerankFallback()
+                ? "rerank_provider_fallback"
+                : null;
+        String routeFingerprint = CanonicalCacheKeyHasher.sha256(
+                "reranker-route",
+                Map.of("provider", policy.rerank().provider()));
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    GraphRagEventSink.Stage.RERANK,
+                    outcome,
+                    Duration.ofNanos(Math.max(
+                            0,
+                            System.nanoTime() - startedAt)),
+                    result.trace().chunkSignals().size(),
+                    result.grounding().chunks().size(),
+                    routeFingerprint,
+                    failureCode,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
     }
 
     private static boolean sameAuthorizationScope(
@@ -454,7 +548,7 @@ public class GraphRagKnowledgeRetrievalService
     }
 
     private static boolean sameEvidence(
-            List<SpaceReference> selected,
+            List<LightRagGrounding.GroundingEvidence> closure,
             List<SecureRetrievalCandidate> verified) {
         Map<UUID, SecureRetrievalCandidate> byChunk = verified.stream()
                 .collect(Collectors.toMap(
@@ -462,19 +556,25 @@ public class GraphRagKnowledgeRetrievalService
                         Function.identity(),
                         (left, right) -> left,
                         LinkedHashMap::new));
-        if (byChunk.size() != selected.size()) {
+        if (byChunk.size() != closure.size()) {
             return false;
         }
-        return selected.stream().allMatch(candidate -> {
+        return closure.stream().allMatch(candidate -> {
             EvidenceReference reference =
-                    candidate.reference().evidence();
+                    candidate.evidence();
             SecureRetrievalCandidate canonical =
                     byChunk.get(reference.chunkId());
             return canonical != null
+                    && reference.organizationId()
+                            .equals(canonical.organizationId())
                     && reference.knowledgeAssetId()
                             .equals(canonical.knowledgeAssetId())
                     && reference.sourceRevisionId()
-                            .equals(canonical.sourceRevisionId());
+                            .equals(canonical.sourceRevisionId())
+                    && reference.aclSnapshotId()
+                            .equals(canonical.ingestionAclSnapshotId())
+                    && candidate.projectionGeneration()
+                            == canonical.projectionGeneration();
         });
     }
 
@@ -507,7 +607,8 @@ public class GraphRagKnowledgeRetrievalService
             String requestId,
             String query,
             SecureRetrievalCandidate candidate,
-            String authorizationModelId) {
+            String authorizationModelId,
+            String reason) {
         return new PermissionAuditCommand(
                 actor.organizationId(),
                 actor.userId(),
@@ -515,7 +616,7 @@ public class GraphRagKnowledgeRetrievalService
                 "KNOWLEDGE_EVIDENCE",
                 candidate.chunkId().toString(),
                 PermissionAuditDecision.ALLOW,
-                "VERIFIED_GRAPH_RAG_EVIDENCE",
+                reason,
                 authorizationModelId,
                 requestId,
                 query,
@@ -575,27 +676,4 @@ public class GraphRagKnowledgeRetrievalService
                 knowledgeSpaceId.toString());
     }
 
-    private static java.util.function.Predicate<SpaceReference>
-            distinctByChunk() {
-        Set<UUID> seen = new LinkedHashSet<>();
-        return candidate -> seen.add(
-                candidate.reference().evidence().chunkId());
-    }
-
-    private record SpaceReference(
-            UUID knowledgeSpaceId,
-            LightRagQueryResult.Reference reference,
-            double score) {
-
-        private SpaceReference {
-            Objects.requireNonNull(
-                    knowledgeSpaceId,
-                    "knowledgeSpaceId");
-            Objects.requireNonNull(reference, "reference");
-            if (!Double.isFinite(score)) {
-                throw new IllegalArgumentException(
-                        "score must be finite");
-            }
-        }
-    }
 }

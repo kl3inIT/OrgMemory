@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-24. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+2026-07-25. Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
 ## System Shape
@@ -119,11 +119,16 @@ Secure knowledge search first resolves candidate Knowledge Asset IDs with
 OpenFGA `ListObjects`. Canonical SQL then filters organization, lifecycle,
 immutable and current ACL, the stable asset's current-version pointer,
 publication/model/profile state, and classification before FTS, vector, or graph
-ranking and before evidence can enter model context. OpenFGA `BatchCheck` and a
-canonical SQL recheck guard every selected citation. The verified evidence set
-is immutable for one Assistant request; only evidence included in the prompt is
-emitted as a source, and answer tokens stream without repeating the full
-authorization pipeline after generation. Revocation affects the next request;
+ranking and before evidence can enter model context. LightRAG returns structured
+entity, relation, and chunk selections with contribution-level provenance. One
+global token budget is applied across every authorized Knowledge Space.
+OpenFGA `BatchCheck` and a canonical SQL recheck guard the complete selected
+evidence closure, including graph contributions that are not direct chunk
+seeds. The pure-Java renderer numbers that same verified closure and produces
+the final model instruction; the Assistant does not rebuild a second
+chunk-only prompt. The verified evidence set is immutable for one Assistant
+request, and answer tokens stream without repeating the full authorization
+pipeline after generation. Revocation affects the next request;
 an in-flight turn may finish under its request snapshot and is bounded by the
 configured turn timeout. Missing, unknown, stale, unsupported, changed, or
 denied retrieval decisions fail closed.
@@ -203,8 +208,9 @@ evidence-level contributions and provenance, structured extraction contracts,
 authorization-scoped graph read ports, atomic revision replacement, one internal
 retrieval-plan contract with chunk-only, entity-only, relation-only,
 secure-hybrid, and secure-mix strategies, deterministic ranking and round-robin
-merge, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is the
-default plan; strategy selection is not exposed as a public request option. Its
+merge, structured grounding, deterministic contribution-level citation
+numbering, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is
+the default plan; strategy selection is not exposed as a public request option. Its
 testkit provides a permission-scoped in-memory reference projection and proves
 that restricted contribution text, seeds, neighbors, degrees, and weights do
 not affect visible results. Neither module has Spring on its runtime classpath.
@@ -264,7 +270,13 @@ embedding profile, and publish the complete graph generation together with the
 durable job outcome in one PostgreSQL transaction. A stale version is
 superseded and a failed publish leaves the previous generation intact.
 
-Assistant graph retrieval is the default runtime. The Sources UI exposes a
+Assistant graph retrieval is the default runtime. The application verifies the
+complete entity/relation/chunk evidence closure before asking the core renderer
+for the final prompt, then sends that prompt through the existing
+provider-neutral `ChatModelPort`. Reranking is an operator policy, defaults off,
+fails startup when enabled without an adapter, and records a sanitized fallback
+event while preserving the already-authorized retrieval order on transient
+provider failure. The Sources UI exposes a
 bounded permission-scoped Knowledge Graph explorer backed by the current shared
 projection snapshot. Graph curation and export remain curator/admin operations;
 the explorer does not create a second ACL or expose globally merged

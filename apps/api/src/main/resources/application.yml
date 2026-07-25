@@ -8,7 +8,7 @@ spring:
         log-completion: false
     model:
       chat: ${ORGMEMORY_AI_MODEL_CHAT:none}
-      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
+      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:openai}
     openai:
       api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
       chat:
@@ -106,6 +106,8 @@ orgmemory:
       maximum-entity-limit: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_ENTITY_LIMIT:1000}
       maximum-relation-limit: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_RELATION_LIMIT:2000}
       maximum-query-length: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_QUERY_LENGTH:200}
+      default-maximum-depth: ${ORGMEMORY_GRAPH_EXPLORER_DEFAULT_MAXIMUM_DEPTH:3}
+      maximum-depth: ${ORGMEMORY_GRAPH_EXPLORER_MAXIMUM_DEPTH:8}
     query:
       enabled: ${ORGMEMORY_GRAPH_QUERY_ENABLED:true}
       language: ${ORGMEMORY_GRAPH_QUERY_LANGUAGE:the same language as the user query}
@@ -116,8 +118,12 @@ orgmemory:
       chunk-top-k: ${ORGMEMORY_GRAPH_QUERY_CHUNK_TOP_K:20}
       related-chunk-number: ${ORGMEMORY_GRAPH_QUERY_RELATED_CHUNKS:5}
       maximum-graph-depth: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_DEPTH:1}
+      maximum-evidence-closure: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_EVIDENCE_CLOSURE:2000}
       minimum-vector-similarity: ${ORGMEMORY_GRAPH_QUERY_MINIMUM_SIMILARITY:0.2}
       include-headings: ${ORGMEMORY_GRAPH_QUERY_INCLUDE_HEADINGS:true}
+      rerank-enabled: ${ORGMEMORY_GRAPH_QUERY_RERANK_ENABLED:false}
+      rerank-provider: ${ORGMEMORY_GRAPH_QUERY_RERANK_PROVIDER:none}
+      minimum-rerank-score: ${ORGMEMORY_GRAPH_QUERY_MINIMUM_RERANK_SCORE:0.0}
   ingestion:
     maximum-upload-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}

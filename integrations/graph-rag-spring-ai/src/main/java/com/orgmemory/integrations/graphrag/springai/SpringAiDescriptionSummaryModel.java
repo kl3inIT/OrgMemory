@@ -52,7 +52,6 @@ public final class SpringAiDescriptionSummaryModel implements DescriptionSummary
                         new UserMessage(userInstruction)),
                 chatModel.getOptions().mutate()
                         .model(modelId)
-                        .temperature(0.0)
                         .maxTokens(request.maximumOutputTokens())
                         .build()));
         if (response == null

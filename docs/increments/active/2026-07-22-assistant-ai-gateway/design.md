@@ -84,6 +84,15 @@ application's domain model.
   states local to the affected turn instead of replacing the whole page.
 - Memoize expensive message/source renderers only after profiling; keep
   per-turn callbacks and source arrays stable during token streaming.
+- Keep AI Elements responsible for the inline source disclosure. Its trigger
+  expands the turn-local source list; selecting one source opens the
+  authenticated preview instead of coupling disclosure and navigation.
+- Map Onyx's source-sidebar anatomy onto the existing shadcn/Radix primitives:
+  one narrow cited-source rail with source icon, title, origin, and selection;
+  the document body belongs in a separate MIME-aware preview dialog.
+- Map Onyx's agent-timeline waiting state onto an OrgMemory-branded status row:
+  a stable 24 px agent mark, shimmer activity text, reduced-motion fallback,
+  and a 500 ms minimum display interval to avoid flashing.
 
 ### Add after retrieval correctness
 
@@ -92,9 +101,9 @@ application's domain model.
 - Regenerate/edit branching, response feedback, and audit-safe quality signals.
 - Inline citation anchors and hover cards once the answer contract carries
   server-owned citation spans.
-- MIME-driven preview variants for PDF, image, text/code, CSV, XLSX, DOCX, and
-  unsupported download-only files. Office formats require server-side parsing
-  or a vetted sanitizer before rendering.
+- Expand the current MIME-driven PDF, image, text/code, and unsupported
+  download-only preview variants to CSV, XLSX, and DOCX. Office formats require
+  server-side parsing or a vetted sanitizer before rendering.
 - Source groups for cited evidence, additional retrieved evidence, and
   user-uploaded files when the retrieval contract exposes those groups.
 - Tool progress cards, approval states, and resumable streams when the

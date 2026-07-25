@@ -35,6 +35,7 @@ class KnowledgeGraphExplorerController {
             @PathVariable UUID knowledgeSpaceId,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Integer entityLimit,
+            @RequestParam(required = false) Integer maxDepth,
             Authentication authentication,
             HttpServletResponse response) {
         String requestId = UUID.randomUUID().toString();
@@ -44,6 +45,7 @@ class KnowledgeGraphExplorerController {
                 knowledgeSpaceId,
                 q,
                 entityLimit,
+                maxDepth,
                 requestId);
     }
 }

@@ -21,6 +21,7 @@ import com.orgmemory.integrations.graphrag.springai.SpringAiQueryAnswerModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
 import java.util.List;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +55,7 @@ class GraphRagRuntimeConfiguration {
             AiRouteResolver routes,
             EmbeddingModel embeddingModel,
             KnowledgeEmbeddingProperties embedding,
+            ObjectProvider<ChunkReranker> rerankers,
             GraphRagQueryRuntimeProperties properties) {
         var projection = new StoreBackedAuthorizedQueryProjection(
                 content,
@@ -80,8 +82,24 @@ class GraphRagRuntimeConfiguration {
                 embeddings,
                 new JtokkitTextTokenizer(
                         properties.tokenizerEncoding()),
-                unavailableReranker(),
+                configuredReranker(rerankers, properties),
                 answerModel);
+    }
+
+    private static ChunkReranker configuredReranker(
+            ObjectProvider<ChunkReranker> rerankers,
+            GraphRagQueryRuntimeProperties properties) {
+        if (!properties.rerankEnabled()) {
+            return unavailableReranker();
+        }
+        ChunkReranker configured = rerankers.getIfAvailable();
+        if (configured == null) {
+            throw new IllegalStateException(
+                    "GraphRAG reranking is enabled for provider '"
+                            + properties.rerankProvider()
+                            + "' but no ChunkReranker adapter is configured");
+        }
+        return configured;
     }
 
     private static ChunkReranker unavailableReranker() {
