@@ -1,0 +1,623 @@
+package com.orgmemory.core.assetregistry;
+
+import com.orgmemory.core.authorization.PrincipalRef;
+import com.orgmemory.core.authorization.RelationshipTuple;
+import com.orgmemory.core.organization.CurrentActor;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+class AssetRegistryCoordinator {
+
+    static final String REVIEW_POLICY_VERSION = "asset-review-v1";
+
+    private final AssetRepository assets;
+    private final AssetDraftRepository drafts;
+    private final AssetRevisionRepository revisions;
+    private final AssetReviewCaseRepository reviews;
+    private final AssetReviewDecisionRepository decisions;
+    private final AssetReleaseRepository releases;
+    private final AssetReleaseAvailabilityRepository availability;
+    private final AssetRoleAssignmentRepository roles;
+    private final AssetAuthorizationOutboxRepository outbox;
+    private final AssetAuditEventRepository audit;
+    private final AssetTypeProfileRegistry profiles;
+    private final AssetPayloadDigester digester;
+
+    AssetRegistryCoordinator(
+            AssetRepository assets,
+            AssetDraftRepository drafts,
+            AssetRevisionRepository revisions,
+            AssetReviewCaseRepository reviews,
+            AssetReviewDecisionRepository decisions,
+            AssetReleaseRepository releases,
+            AssetReleaseAvailabilityRepository availability,
+            AssetRoleAssignmentRepository roles,
+            AssetAuthorizationOutboxRepository outbox,
+            AssetAuditEventRepository audit,
+            AssetTypeProfileRegistry profiles,
+            AssetPayloadDigester digester) {
+        this.assets = assets;
+        this.drafts = drafts;
+        this.revisions = revisions;
+        this.reviews = reviews;
+        this.decisions = decisions;
+        this.releases = releases;
+        this.availability = availability;
+        this.roles = roles;
+        this.outbox = outbox;
+        this.audit = audit;
+        this.profiles = profiles;
+        this.digester = digester;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    UUID create(
+            CurrentActor actor,
+            AssetType type,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId,
+            AssetDraftInput input) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(input, "input");
+        AssetTypeProfile profile = profiles.require(type);
+        profile.requireSupported(input.schemaVersion());
+        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
+                input.title(),
+                input.summary(),
+                input.classification(),
+                input.schemaVersion(),
+                input.payload());
+
+        Asset asset = new Asset(
+                actor.organizationId(), type, namespace, slug, knowledgeSpaceId);
+        try {
+            assets.saveAndFlush(asset);
+        } catch (DataIntegrityViolationException duplicate) {
+            throw new AssetConflictException(
+                    "An Asset already uses this namespace and slug, or the Space is unavailable");
+        }
+        AssetDraft draft = drafts.saveAndFlush(new AssetDraft(
+                actor.organizationId(),
+                asset.getId(),
+                input.title(),
+                input.summary(),
+                input.classification(),
+                input.schemaVersion(),
+                canonical.payload(),
+                actor.userId()));
+        Instant now = Instant.now();
+        AssetRoleAssignment owner = roles.saveAndFlush(new AssetRoleAssignment(
+                actor.organizationId(),
+                asset.getId(),
+                actor.principal(),
+                AssetRole.OWNER,
+                actor.userId(),
+                now));
+        String object = "asset:" + asset.getId();
+        outbox.saveAllAndFlush(List.of(
+                new AssetAuthorizationOutbox(
+                        actor.organizationId(),
+                        asset.getId(),
+                        null,
+                        RelationshipTuple.of(
+                                "organization:" + actor.organizationId(),
+                                "organization",
+                                object)),
+                new AssetAuthorizationOutbox(
+                        actor.organizationId(),
+                        asset.getId(),
+                        null,
+                        RelationshipTuple.of(
+                                "knowledge_space:" + knowledgeSpaceId,
+                                "space",
+                                object)),
+                new AssetAuthorizationOutbox(
+                        actor.organizationId(),
+                        asset.getId(),
+                        owner.getId(),
+                        RelationshipTuple.of(
+                                actor.principal().openFgaUser(),
+                                AssetRole.OWNER.relation(),
+                                object))));
+        recordAudit(
+                actor,
+                asset.getId(),
+                "ASSET_CREATED",
+                "DRAFT",
+                draft.getId(),
+                "{\"permission\":\"can_create_asset\"}");
+        return asset.getId();
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    Optional<AssetAuthorizationTarget> target(UUID organizationId, UUID assetId) {
+        return assets.findByIdAndOrganizationId(assetId, organizationId)
+                .map(asset -> new AssetAuthorizationTarget(
+                        asset.getOrganizationId(),
+                        asset.getId(),
+                        asset.getKnowledgeSpaceId(),
+                        asset.isAuthorizationReady()));
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    List<AssetSummary> summaries(
+            UUID organizationId,
+            Collection<UUID> ids,
+            String query,
+            AssetType type) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        String normalizedQuery = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        return assets
+                .findByOrganizationIdAndIdInAndAuthorizationReadyTrueOrderByNamespaceAscSlugAsc(
+                        organizationId, ids)
+                .stream()
+                .filter(asset -> type == null || asset.getType() == type)
+                .map(asset -> summary(
+                        asset, requiredDraft(organizationId, asset.getId())))
+                .filter(summary -> normalizedQuery.isEmpty()
+                        || searchable(summary).contains(normalizedQuery))
+                .toList();
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetView view(UUID organizationId, UUID assetId) {
+        Asset asset = requiredAsset(organizationId, assetId);
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView updateDraft(
+            CurrentActor actor,
+            UUID assetId,
+            long expectedLockVersion,
+            AssetDraftInput input) {
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
+        if (draft.getVersion() != expectedLockVersion) {
+            throw new AssetConflictException(
+                    "The Asset draft changed; reload it before saving");
+        }
+        AssetTypeProfile profile = profiles.require(asset.getType());
+        profile.requireSupported(input.schemaVersion());
+        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
+                input.title(),
+                input.summary(),
+                input.classification(),
+                input.schemaVersion(),
+                input.payload());
+        draft.update(
+                input.title(),
+                input.summary(),
+                input.classification(),
+                input.schemaVersion(),
+                canonical.payload(),
+                actor.userId());
+        drafts.saveAndFlush(draft);
+        recordAudit(
+                actor,
+                assetId,
+                "DRAFT_UPDATED",
+                "DRAFT",
+                draft.getId(),
+                "{\"permission\":\"can_edit\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView submit(CurrentActor actor, UUID assetId, String changeNote) {
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        if (reviews.existsByAssetIdAndOrganizationIdAndState(
+                assetId, actor.organizationId(), AssetReviewState.IN_REVIEW)) {
+            throw new AssetConflictException("This Asset already has a revision in review");
+        }
+        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
+        profiles.require(asset.getType()).requireSupported(draft.getSchemaVersion());
+        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
+                draft.getTitle(),
+                draft.getSummary(),
+                draft.getClassification(),
+                draft.getSchemaVersion(),
+                draft.getPayload());
+        AssetRevision revision = revisions.saveAndFlush(new AssetRevision(
+                draft,
+                revisions.maxSequence(assetId, actor.organizationId()) + 1,
+                canonical.payload(),
+                canonical.digest(),
+                changeNote,
+                actor.userId()));
+        AssetReviewCase review = reviews.saveAndFlush(new AssetReviewCase(
+                revision, REVIEW_POLICY_VERSION, actor.userId()));
+        recordAudit(
+                actor,
+                assetId,
+                "REVISION_SUBMITTED",
+                "REVIEW_CASE",
+                review.getId(),
+                "{\"digest\":\"" + revision.getDigest() + "\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView decide(
+            CurrentActor actor,
+            UUID assetId,
+            UUID reviewCaseId,
+            AssetReviewDecisionType decision,
+            String comment) {
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetReviewCase review = reviews.findByIdAndAssetIdAndOrganizationId(
+                        reviewCaseId, assetId, actor.organizationId())
+                .orElseThrow(AssetNotFoundException::new);
+        AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
+                        review.getRevisionId(), assetId, actor.organizationId())
+                .orElseThrow(AssetNotFoundException::new);
+        if (!review.getRevisionDigest().equals(revision.getDigest())) {
+            throw new AssetConflictException("Review digest no longer matches its revision");
+        }
+        if (decision == AssetReviewDecisionType.APPROVE
+                && revision.getCreatedByUserId().equals(actor.userId())) {
+            throw new AssetConflictException("A revision author cannot approve their own revision");
+        }
+        if (decision == AssetReviewDecisionType.CANCEL
+                && !review.getRequestedByUserId().equals(actor.userId())) {
+            throw new AssetConflictException("Only the review requester may cancel this review");
+        }
+        Instant now = Instant.now();
+        review.decide(decision, now);
+        AssetReviewDecision recorded = new AssetReviewDecision(
+                review, actor.userId(), decision, comment, now);
+        decisions.save(recorded);
+        reviews.saveAndFlush(review);
+        recordAudit(
+                actor,
+                assetId,
+                "REVIEW_" + decision,
+                "REVIEW_CASE",
+                review.getId(),
+                "{\"digest\":\"" + review.getRevisionDigest() + "\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView publish(
+            CurrentActor actor,
+            UUID assetId,
+            UUID revisionId,
+            String versionLabel) {
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
+                        revisionId, assetId, actor.organizationId())
+                .orElseThrow(AssetNotFoundException::new);
+        AssetReviewCase review = reviews.findByRevisionIdAndOrganizationId(
+                        revisionId, actor.organizationId())
+                .filter(candidate -> candidate.getAssetId().equals(assetId))
+                .orElseThrow(() -> new AssetConflictException(
+                        "The revision has not completed review"));
+        if (review.getState() != AssetReviewState.APPROVED
+                || !review.getRevisionDigest().equals(revision.getDigest())) {
+            throw new AssetConflictException(
+                    "Only the exact approved revision digest may be released");
+        }
+        if (releases.findByRevisionIdAndOrganizationId(
+                        revisionId, actor.organizationId()).isPresent()) {
+            throw new AssetConflictException("This revision already has a release");
+        }
+        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
+                revision.getTitle(),
+                revision.getSummary(),
+                revision.getClassification(),
+                revision.getSchemaVersion(),
+                revision.getPayload());
+        if (!canonical.digest().equals(revision.getDigest())) {
+            throw new AssetConflictException("Revision bytes no longer match the approved digest");
+        }
+        Instant now = Instant.now();
+        AssetRelease release;
+        try {
+            release = releases.saveAndFlush(new AssetRelease(
+                    revision,
+                    releases.maxSequence(assetId, actor.organizationId()) + 1,
+                    versionLabel,
+                    actor.userId(),
+                    now));
+        } catch (DataIntegrityViolationException duplicate) {
+            throw new AssetConflictException(
+                    "The release coordinate is already used by different content");
+        }
+        availability.save(new AssetReleaseAvailabilityEvent(
+                release,
+                AssetAvailability.AVAILABLE,
+                "Initial release",
+                actor.userId(),
+                now));
+        asset.activate();
+        assets.save(asset);
+        recordAudit(
+                actor,
+                assetId,
+                "RELEASE_PUBLISHED",
+                "RELEASE",
+                release.getId(),
+                "{\"digest\":\"" + release.getDigest() + "\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView changeAvailability(
+            CurrentActor actor,
+            UUID assetId,
+            UUID releaseId,
+            AssetAvailability next,
+            String reason) {
+        if (next == AssetAvailability.AVAILABLE) {
+            throw new IllegalArgumentException("A release cannot be made available again");
+        }
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetRelease release = releases.findByIdAndAssetIdAndOrganizationId(
+                        releaseId, assetId, actor.organizationId())
+                .orElseThrow(AssetNotFoundException::new);
+        AssetAvailability current = currentAvailability(releaseId);
+        if (current == AssetAvailability.WITHDRAWN
+                || (current == AssetAvailability.DEPRECATED
+                        && next == AssetAvailability.DEPRECATED)) {
+            throw new AssetConflictException("The requested availability transition is invalid");
+        }
+        Instant now = Instant.now();
+        availability.saveAndFlush(new AssetReleaseAvailabilityEvent(
+                release, next, requireReason(reason), actor.userId(), now));
+        if (next == AssetAvailability.DEPRECATED) {
+            asset.startSunsetting();
+        } else if (allReleasesWithdrawn(asset, releaseId)) {
+            asset.retire();
+        } else {
+            asset.startSunsetting();
+        }
+        assets.save(asset);
+        recordAudit(
+                actor,
+                assetId,
+                "RELEASE_" + next,
+                "RELEASE",
+                releaseId,
+                "{\"previous\":\"" + current + "\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    UUID assignRole(
+            CurrentActor actor,
+            UUID assetId,
+            PrincipalRef principal,
+            AssetRole role) {
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        if (roles.findByAssetIdAndPrincipalTypeAndPrincipalIdAndRoleAndValidUntilIsNull(
+                        assetId, principal.type(), principal.id(), role)
+                .isPresent()) {
+            throw new AssetConflictException("This active Asset role assignment already exists");
+        }
+        Instant now = Instant.now();
+        AssetRoleAssignment assignment = roles.saveAndFlush(new AssetRoleAssignment(
+                actor.organizationId(),
+                assetId,
+                principal,
+                role,
+                actor.userId(),
+                now));
+        outbox.saveAndFlush(new AssetAuthorizationOutbox(
+                actor.organizationId(),
+                assetId,
+                assignment.getId(),
+                RelationshipTuple.of(
+                        principal.openFgaUser(),
+                        role.relation(),
+                        "asset:" + assetId)));
+        recordAudit(
+                actor,
+                assetId,
+                "ROLE_ASSIGNED",
+                "ROLE_ASSIGNMENT",
+                assignment.getId(),
+                "{\"role\":\"" + role + "\"}");
+        return asset.getId();
+    }
+
+    private Asset requiredAsset(UUID organizationId, UUID assetId) {
+        return assets.findByIdAndOrganizationId(assetId, organizationId)
+                .orElseThrow(AssetNotFoundException::new);
+    }
+
+    private AssetDraft requiredDraft(UUID organizationId, UUID assetId) {
+        return drafts.findByAssetIdAndOrganizationId(assetId, organizationId)
+                .orElseThrow(AssetNotFoundException::new);
+    }
+
+    private boolean allReleasesWithdrawn(Asset asset, UUID releaseBeingWithdrawn) {
+        return releases.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
+                        asset.getId(), asset.getOrganizationId())
+                .stream()
+                .allMatch(release -> release.getId().equals(releaseBeingWithdrawn)
+                        || currentAvailability(release.getId()) == AssetAvailability.WITHDRAWN);
+    }
+
+    private AssetAvailability currentAvailability(UUID releaseId) {
+        return availability
+                .findFirstByReleaseIdOrderByEffectiveAtDescCreatedAtDesc(releaseId)
+                .map(AssetReleaseAvailabilityEvent::getAvailability)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Asset release is missing availability history"));
+    }
+
+    private AssetView view(Asset asset) {
+        AssetDraft draft = requiredDraft(asset.getOrganizationId(), asset.getId());
+        List<AssetRevision> assetRevisions =
+                revisions.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
+                        asset.getId(), asset.getOrganizationId());
+        List<AssetReviewCase> assetReviews =
+                reviews.findByAssetIdAndOrganizationIdOrderByCreatedAtDesc(
+                        asset.getId(), asset.getOrganizationId());
+        List<AssetRelease> assetReleases =
+                releases.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
+                        asset.getId(), asset.getOrganizationId());
+        List<AssetRoleAssignment> assignments =
+                roles.findByAssetIdOrderByValidFromAsc(asset.getId());
+        return new AssetView(
+                asset.getId(),
+                asset.getType(),
+                asset.getNamespace(),
+                asset.getSlug(),
+                asset.getKnowledgeSpaceId(),
+                asset.getPortfolioState(),
+                asset.isAuthorizationReady(),
+                new AssetView.Draft(
+                        draft.getId(),
+                        draft.getVersion(),
+                        draft.getTitle(),
+                        draft.getSummary(),
+                        draft.getClassification(),
+                        draft.getSchemaVersion(),
+                        draft.getPayload(),
+                        draft.getEditedByUserId(),
+                        draft.getUpdatedAt()),
+                assetRevisions.stream().map(AssetRegistryCoordinator::revisionView).toList(),
+                assetReviews.stream().map(this::reviewView).toList(),
+                assetReleases.stream().map(this::releaseView).toList(),
+                assignments.stream().map(AssetRegistryCoordinator::roleView).toList());
+    }
+
+    private AssetView.Review reviewView(AssetReviewCase review) {
+        return new AssetView.Review(
+                review.getId(),
+                review.getRevisionId(),
+                review.getRevisionDigest(),
+                review.getState(),
+                review.getPolicyVersion(),
+                review.getRequestedByUserId(),
+                review.getCreatedAt(),
+                review.getResolvedAt(),
+                decisions.findByReviewCaseIdOrderByDecidedAtAsc(review.getId())
+                        .stream()
+                        .map(decision -> new AssetView.Decision(
+                                decision.getReviewerUserId(),
+                                decision.getDecision(),
+                                decision.getComment(),
+                                decision.getDecidedAt()))
+                        .toList());
+    }
+
+    private AssetView.Release releaseView(AssetRelease release) {
+        List<AssetView.AvailabilityEvent> history = availability
+                .findByReleaseIdOrderByEffectiveAtAscCreatedAtAsc(release.getId())
+                .stream()
+                .map(event -> new AssetView.AvailabilityEvent(
+                        event.getAvailability(),
+                        event.getReason(),
+                        event.getChangedByUserId(),
+                        event.getEffectiveAt()))
+                .toList();
+        AssetAvailability current = history.isEmpty()
+                ? AssetAvailability.AVAILABLE
+                : history.getLast().availability();
+        return new AssetView.Release(
+                release.getId(),
+                release.getRevisionId(),
+                release.getSequence(),
+                release.getVersionLabel(),
+                release.getTitle(),
+                release.getSummary(),
+                release.getClassification(),
+                release.getSchemaVersion(),
+                release.getPayload(),
+                release.getDigest(),
+                release.getReleasedByUserId(),
+                release.getReleasedAt(),
+                current,
+                history);
+    }
+
+    private void recordAudit(
+            CurrentActor actor,
+            UUID assetId,
+            String eventType,
+            String subjectType,
+            UUID subjectId,
+            String context) {
+        audit.save(new AssetAuditEvent(
+                actor.organizationId(),
+                assetId,
+                actor.userId(),
+                eventType,
+                subjectType,
+                subjectId,
+                context,
+                Instant.now()));
+    }
+
+    private static AssetSummary summary(Asset asset, AssetDraft draft) {
+        return new AssetSummary(
+                asset.getId(),
+                asset.getType(),
+                asset.getNamespace(),
+                asset.getSlug(),
+                draft.getTitle(),
+                draft.getSummary(),
+                asset.getKnowledgeSpaceId(),
+                asset.getPortfolioState());
+    }
+
+    private static String searchable(AssetSummary summary) {
+        return String.join(
+                        " ",
+                        summary.namespace(),
+                        summary.slug(),
+                        summary.title(),
+                        summary.summary())
+                .toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static AssetView.Revision revisionView(AssetRevision revision) {
+        return new AssetView.Revision(
+                revision.getId(),
+                revision.getSequence(),
+                revision.getTitle(),
+                revision.getSummary(),
+                revision.getClassification(),
+                revision.getSchemaVersion(),
+                revision.getPayload(),
+                revision.getDigest(),
+                revision.getChangeNote(),
+                revision.getCreatedByUserId(),
+                revision.getCreatedAt());
+    }
+
+    private static AssetView.RoleAssignment roleView(AssetRoleAssignment assignment) {
+        return new AssetView.RoleAssignment(
+                assignment.getId(),
+                assignment.getPrincipalType(),
+                assignment.getPrincipalId(),
+                assignment.getRole(),
+                assignment.getValidFrom(),
+                assignment.getValidUntil(),
+                assignment.getAssignedByUserId(),
+                assignment.getProjectedAt());
+    }
+
+    private static String requireReason(String reason) {
+        String normalized = Objects.requireNonNull(reason, "reason").trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("An availability change needs a reason");
+        }
+        return normalized;
+    }
+}

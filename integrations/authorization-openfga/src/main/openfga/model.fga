@@ -68,6 +68,28 @@ type knowledge_asset
     define can_edit: editor or can_delete
     define can_view: viewer or can_edit or can_publish or can_view from space
 
+type asset
+  relations
+    define organization: [organization]
+    define space: [knowledge_space]
+    define owner: [user]
+    define backup_owner: [user]
+    define steward: [user, group#member]
+    define viewer: [user, group#member]
+    define editor: [user, group#member]
+    define reviewer: [user, group#member]
+    define publisher: [user, group#member]
+    define org_admin: administrator from organization
+
+    define can_manage_roles: owner or backup_owner or steward or org_admin
+    define can_edit: editor or steward or owner or backup_owner or org_admin
+    define can_submit_review: can_edit
+    define can_review: reviewer or org_admin
+    define can_publish: publisher or org_admin
+    define can_withdraw: publisher or owner or backup_owner or org_admin
+    define can_view: viewer or can_edit or can_review or can_publish
+    define can_use: can_view
+
 type source_connection
   relations
     define organization: [organization]

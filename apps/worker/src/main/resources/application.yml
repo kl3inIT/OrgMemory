@@ -33,6 +33,11 @@ spring:
     import: optional:file:.env[.properties],optional:file:../../.env[.properties],optional:file:.openfga.local.properties,optional:file:../../.openfga.local.properties
 
 orgmemory:
+  asset-registry:
+    authorization-convergence:
+      scheduling-enabled: ${ORGMEMORY_ASSET_AUTHORIZATION_CONVERGENCE_ENABLED:true}
+      poll-interval: ${ORGMEMORY_ASSET_AUTHORIZATION_CONVERGENCE_POLL_INTERVAL:1m}
+      batch-size: ${ORGMEMORY_ASSET_AUTHORIZATION_CONVERGENCE_BATCH_SIZE:50}
   secrets:
     key: ${ORGMEMORY_SECRETS_KEY:orgmemory-local-dev-only-secret-key}
     salt: ${ORGMEMORY_SECRETS_SALT:6f72676d656d6f7279736563726574}

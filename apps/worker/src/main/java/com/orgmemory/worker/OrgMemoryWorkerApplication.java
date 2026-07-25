@@ -1,11 +1,12 @@
 package com.orgmemory.worker;
 
-import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.GraphProcessingProperties;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.GraphProcessingProperties;
 import com.orgmemory.core.knowledge.KnowledgeGraphExplorerConfiguration;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.SourceIngestionProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
+import com.orgmemory.worker.authorization.AssetAuthorizationConvergenceProperties;
 import com.orgmemory.worker.authorization.KnowledgeAuthorizationConvergenceProperties;
 import com.orgmemory.worker.connector.ConnectorCrawlProperties;
 import com.orgmemory.worker.graph.GraphIndexingProperties;
@@ -31,12 +32,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         ConnectorCrawlProperties.class,
         GraphIndexingProperties.class,
         GraphProcessingProperties.class,
-        KnowledgeAuthorizationConvergenceProperties.class
+        KnowledgeAuthorizationConvergenceProperties.class,
+        AssetAuthorizationConvergenceProperties.class
 })
 @ComponentScan(
         basePackages = {
                 "com.orgmemory.worker",
                 "com.orgmemory.core.knowledge",
+                "com.orgmemory.core.assetregistry",
                 "com.orgmemory.core.permission",
                 "com.orgmemory.core.shared",
                 "com.orgmemory.integrations.ai.openai",

@@ -38,18 +38,21 @@ invariants, and their integration tests merely to reduce the file count.
 
 ## Gate Before Implementation
 
-- [ ] Run the repository-required independent Claude Fable 5 architecture debate
-  over the proposal, counterargument, repository evidence, final decision, and
-  rejected alternatives recorded in `design.md`.
+- [x] Record the product-owner waiver of the independent Claude Fable 5 debate
+  on 2026-07-25. This is an explicit exception, not a claim that the review ran.
 - [ ] Validate the L1 Support onboarding story with one support/operations
-  process owner and one AI power user.
-- [ ] Freeze a small demo-safe fixture: authorized Knowledge, one Work
+  process owner and one AI power user. Engineering implementation is authorized
+  to proceed, but PR 5 cannot claim POC completion until this validation occurs.
+- [x] Freeze a small demo-safe fixture: authorized Knowledge, one Work
   Instruction, one Prompt Template, one Pack, five to ten mock tickets, and one
-  evaluation rubric.
-- [ ] Record the accepted transition table, permission matrix, separation-of-duty
-  matrix, retention defaults, and OAuth protected-resource/audience decision.
+  evaluation rubric in `gate-decisions.md`.
+- [x] Record the accepted transition table, permission matrix, separation-of-duty
+  matrix, retention defaults, and OAuth protected-resource/audience decision in
+  `gate-decisions.md`.
 
-No schema or OpenFGA implementation PR starts before these gates are complete.
+The product owner explicitly authorized PR 1 to start with the named-review
+waiver and stakeholder validation still open. That validation remains a hard
+completion gate for PR 5.
 
 ## PR Dependency Graph
 
@@ -72,42 +75,54 @@ Expected size: 50-85 files.
 
 Scope:
 
-- [ ] Add the `core.assetregistry` Spring Modulith package.
-- [ ] Add Flyway tables for Assets, role-assignment history, mutable drafts,
+- [x] Add the `core.assetregistry` Spring Modulith package.
+- [x] Add Flyway tables for Assets, role-assignment history, mutable drafts,
   immutable revisions, review cases/decisions, immutable releases, release
   availability, relations, payload/blob references, and append-only audit.
-- [ ] Implement optimistic draft concurrency and canonical payload digests.
-- [ ] Implement submit, request changes, approve/reject/cancel, publish,
+- [x] Implement optimistic draft concurrency and canonical payload digests.
+- [x] Implement submit, request changes, approve/reject/cancel, publish,
   deprecate, and withdraw transitions bound to exact revision digests.
-- [ ] Implement portfolio and release-availability invariants.
-- [ ] Add `AssetTypeProfile` registration and reject unknown/unavailable profiles.
-- [ ] Enable only `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and
+- [x] Implement portfolio and release-availability invariants.
+- [x] Add `AssetTypeProfile` registration and reject unknown/unavailable profiles.
+- [x] Enable only `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and
   `CAPABILITY_PACK`; do not add type-specific columns to the shared tables.
-- [ ] Add the OpenFGA `asset` type, assignable relations, and computed `can_*`
+- [x] Add the OpenFGA `asset` type, assignable relations, and computed `can_*`
   permissions.
-- [ ] Add executable allow/deny/list-object model tests.
-- [ ] Add the narrow Asset authorization outbox and convergence worker path.
-- [ ] Add actor-derived application use cases and REST endpoints.
-- [ ] Add owner, backup owner, steward, viewer, editor, reviewer, and publisher
+- [x] Add executable allow/deny/list-object model tests.
+- [x] Add the narrow Asset authorization outbox and convergence worker path.
+- [x] Add actor-derived application use cases and REST endpoints.
+- [x] Add owner, backup owner, steward, viewer, editor, reviewer, and publisher
   role assignments.
-- [ ] Enforce separation of duties outside OpenFGA.
-- [ ] Publish OpenAPI and regenerate web clients/Zod/query options.
-- [ ] Return opaque denial for unauthorized IDs and list/search metadata.
+- [x] Enforce separation of duties outside OpenFGA.
+- [x] Publish OpenAPI and regenerate web clients/Zod/query options.
+- [x] Return opaque denial for unauthorized IDs and list/search metadata.
 
 Required gates:
 
-- [ ] Spring Modulith boundary verification.
-- [ ] Flyway clean-install and existing-schema validation.
-- [ ] Draft optimistic-lock conflict.
-- [ ] One-byte change after submission cannot use the old approval.
-- [ ] One revision cannot create two releases.
-- [ ] Same release coordinate cannot accept a different digest.
-- [ ] Released payload and pins remain immutable.
-- [ ] OpenFGA model validate and model tests.
-- [ ] PostgreSQL/Testcontainers outbox retry and convergence.
-- [ ] Two-user and cross-tenant list/detail/payload/review denial tests.
-- [ ] Author cannot self-approve when policy forbids it.
-- [ ] Generated OpenAPI drift gate.
+- [x] Spring Modulith boundary verification.
+- [x] Flyway clean-install and existing-schema validation.
+- [x] Draft optimistic-lock conflict.
+- [x] One-byte change after submission cannot use the old approval.
+- [x] One revision cannot create two releases.
+- [x] Same release coordinate cannot accept a different digest.
+- [x] Released payload and pins remain immutable.
+- [x] OpenFGA model validate and model tests.
+- [x] PostgreSQL/Testcontainers outbox retry and convergence.
+- [x] Two-user and cross-tenant list/detail/payload/review denial tests.
+- [x] Author cannot self-approve when policy forbids it.
+- [x] Generated OpenAPI drift gate.
+
+Verification evidence on 2026-07-25:
+
+- `.\gradlew.bat --no-daemon test` — passed all 81 tasks after building the
+  repository's CI-defined local PostgreSQL/AGE image prerequisite.
+- targeted Asset Registry PostgreSQL/Testcontainers, context-load, canonical
+  digest, lifecycle, immutable-table, outbox-convergence, and Modulith tests —
+  passed.
+- `fga model validate` plus `fga model test` — valid model, 8/8 tests, 56/56
+  checks, and 12/12 ListObjects assertions.
+- live OpenAPI drift test plus Hey API client regeneration — passed.
+- `pnpm -C web lint`, `typecheck`, and production `build` — passed.
 
 Explicitly excluded:
 
