@@ -16,10 +16,12 @@ they pin version, chunks, ACL generation, embedding profile, extractor route,
 and prompt version. Replay is deterministic, stale versions are superseded, and
 an embedding or publication failure cannot expose a partial generation.
 
-The Assistant does not yet select graph retrieval, and the Sources UI keeps the
-Knowledge Graph tab disabled. No graph data is exposed to users until secure
-retrieval can prefilter the authorized stable asset set and canonically recheck
-every returned citation.
+The Assistant selects permission-scoped `MIX` retrieval by default. It closes
+and rechecks every selected entity, relation, and chunk contribution before the
+final prompt is rendered. The Sources UI exposes a bounded Knowledge Graph
+explorer to the curator/admin authorization boundary; it reads the same
+published projection and does not create node-owned ACLs or persist a global
+permission-independent merged description.
 
 ## Source Modules
 

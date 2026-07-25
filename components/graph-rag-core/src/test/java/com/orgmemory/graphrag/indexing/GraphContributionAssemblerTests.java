@@ -43,6 +43,10 @@ class GraphContributionAssemblerTests {
         assertEquals(first, replay);
         assertEquals(4, first.entities().size());
         assertEquals(2, first.relations().size());
+        assertEquals(2.5, first.relations().getFirst().weight());
+        assertEquals(
+                PROFILE.fingerprint(),
+                first.relations().getFirst().provenance().extractionProfileFingerprint());
         assertEquals(
                 first.entities().get(0).entity().id(),
                 first.entities().stream()
@@ -72,6 +76,58 @@ class GraphContributionAssemblerTests {
                 () -> assemble(List.of(new ExtractedChunk(CHUNK_ONE, result("A", "A")), mixed)));
     }
 
+    @Test
+    void canonicalIdentitySurvivesEvidenceScopedTypeDrift() {
+        ExtractionResult product = result("OrgMemory", "Product description");
+        ExtractionResult system = new ExtractionResult(
+                PROFILE,
+                List.of(
+                        new ExtractedEntity(
+                                "product",
+                                "OrgMemory",
+                                "SYSTEM",
+                                "System description",
+                                0.9),
+                        new ExtractedEntity(
+                                "capability",
+                                "Secure Search",
+                                "CAPABILITY",
+                                "Permission-aware search",
+                                0.8)),
+                List.of());
+
+        var assembled = assemble(List.of(
+                new ExtractedChunk(CHUNK_ONE, product),
+                new ExtractedChunk(CHUNK_TWO, system)));
+        var orgMemory = assembled.entities().stream()
+                .filter(contribution ->
+                        contribution.entity().normalizedName().equals("orgmemory"))
+                .toList();
+
+        assertEquals(2, orgMemory.size());
+        assertEquals(orgMemory.getFirst().entity().id(), orgMemory.getLast().entity().id());
+        assertNotEquals(orgMemory.getFirst().type(), orgMemory.getLast().type());
+    }
+
+    @Test
+    void canonicalRelationIdentitySurvivesEvidenceScopedTypeDrift() {
+        var assembled = assemble(List.of(
+                new ExtractedChunk(
+                        CHUNK_ONE,
+                        result("OrgMemory", "First description", "PROVIDES")),
+                new ExtractedChunk(
+                        CHUNK_TWO,
+                        result("OrgMemory", "Second description", "ENABLES"))));
+
+        assertEquals(2, assembled.relations().size());
+        assertEquals(
+                assembled.relations().getFirst().relation().id(),
+                assembled.relations().getLast().relation().id());
+        assertNotEquals(
+                assembled.relations().getFirst().type(),
+                assembled.relations().getLast().type());
+    }
+
     private static com.orgmemory.graphrag.port.GraphRevisionContributions assemble(
             List<ExtractedChunk> chunks) {
         return GraphContributionAssembler.assemble(
@@ -86,6 +142,13 @@ class GraphContributionAssemblerTests {
     }
 
     private static ExtractionResult result(String productName, String description) {
+        return result(productName, description, "provides");
+    }
+
+    private static ExtractionResult result(
+            String productName,
+            String description,
+            String relationType) {
         return new ExtractionResult(
                 PROFILE,
                 List.of(
@@ -95,10 +158,11 @@ class GraphContributionAssemblerTests {
                 List.of(new ExtractedRelation(
                         "product",
                         "capability",
-                        "provides",
+                        relationType,
                         List.of("security", "search"),
                         "The product provides secure search",
                         RelationOrientation.DIRECTED,
+                        2.5,
                         0.85)));
     }
 }

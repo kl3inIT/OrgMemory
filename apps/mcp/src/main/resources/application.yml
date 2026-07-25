@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: orgmemory-mcp
+  threads:
+    virtual:
+      enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
+  ai:
+    mcp:
+      server:
+        name: orgmemory
+        version: 0.1.0
+        protocol: STATELESS
+        type: SYNC
+        request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+        instructions: >-
+          OrgMemory exposes read-only, permission-aware organization knowledge.
+          Every result is constrained to the authenticated user's current access.
+        capabilities:
+          resource: false
+          prompt: false
+          completion: false
+          tool: true
+        streamable-http:
+          mcp-endpoint: /mcp
+
+server:
+  port: ${ORGMEMORY_MCP_PORT:8090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+orgmemory:
+  mcp:
+    api-base-url: ${ORGMEMORY_API_BASE_URL:http://localhost:8080}
+    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}

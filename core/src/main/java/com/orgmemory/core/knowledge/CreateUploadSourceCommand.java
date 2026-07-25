@@ -7,7 +7,6 @@ import java.util.UUID;
 public record CreateUploadSourceCommand(
         CurrentActor actor,
         String fileName,
-        String mediaType,
         long contentLength,
         KnowledgeClassification classification,
         UUID knowledgeSpaceId) {

@@ -28,7 +28,7 @@ import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -80,7 +80,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.connector.scheduling-enabled=false"
 })
-@Import(SecureKnowledgeRetrievalService.class)
+@Import(CanonicalHybridKnowledgeSearch.class)
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -123,7 +123,7 @@ class ConnectorIdentityTrustIntegrationTests {
     ConnectorIngestionService connector;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     @Autowired
     JdbcTemplate jdbc;

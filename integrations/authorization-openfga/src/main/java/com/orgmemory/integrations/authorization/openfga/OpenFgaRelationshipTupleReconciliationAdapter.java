@@ -1,6 +1,7 @@
 package com.orgmemory.integrations.authorization.openfga;
 
 import com.orgmemory.core.authorization.RelationshipTuple;
+import com.orgmemory.core.authorization.RelationshipTupleFilter;
 import com.orgmemory.core.authorization.RelationshipTuplePage;
 import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
@@ -42,6 +43,25 @@ public final class OpenFgaRelationshipTupleReconciliationAdapter
     @Override
     public RelationshipTuplePage read(int pageSize, String continuationToken) {
         return read(new ClientReadRequest(), pageSize, continuationToken);
+    }
+
+    @Override
+    public RelationshipTuplePage read(
+            RelationshipTupleFilter filter,
+            int pageSize,
+            String continuationToken) {
+        Objects.requireNonNull(filter, "filter");
+        var request = new ClientReadRequest();
+        if (filter.user() != null) {
+            request.user(filter.user());
+        }
+        if (filter.relation() != null) {
+            request.relation(filter.relation());
+        }
+        if (filter.object() != null) {
+            request._object(filter.object());
+        }
+        return read(request, pageSize, continuationToken);
     }
 
     @Override

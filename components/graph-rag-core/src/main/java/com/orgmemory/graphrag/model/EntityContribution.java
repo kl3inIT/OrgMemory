@@ -6,12 +6,14 @@ import java.util.UUID;
 public record EntityContribution(
         UUID id,
         CanonicalEntity entity,
+        String type,
         String description,
         EvidenceProvenance provenance) {
 
     public EntityContribution {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(entity, "entity");
+        type = requireText(type, "type");
         description = requireText(description, "description");
         Objects.requireNonNull(provenance, "provenance");
     }

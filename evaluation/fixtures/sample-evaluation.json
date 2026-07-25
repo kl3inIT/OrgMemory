@@ -1,0 +1,20 @@
+{
+  "schema_version": "orgmemory.rag-evaluation.v1",
+  "dataset_id": "synthetic-employee-policy-v1",
+  "system_under_test": "synthetic-contract-fixture",
+  "cases": [
+    {
+      "case_id": "probation-policy",
+      "question": "What is the probation policy?",
+      "reference_answer": "The standard probation period is 60 days.",
+      "answer": "The standard probation period is 60 days. [1]",
+      "contexts": [
+        "Employee Handbook: The standard probation period is 60 days."
+      ],
+      "citation_ids": [
+        "synthetic-citation-1"
+      ],
+      "latency_ms": 120.5
+    }
+  ]
+}

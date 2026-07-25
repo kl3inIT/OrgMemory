@@ -22,7 +22,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
 import java.util.Optional;
@@ -100,7 +100,7 @@ class PermissionsAdminIntegrationTests {
     JdbcTemplate jdbc;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     @MockitoBean
     RelationshipAuthorizationPort entryAuthorization;
@@ -277,7 +277,10 @@ class PermissionsAdminIntegrationTests {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             // The foreign administrator passes the gate too, so cross-tenant refusal has to
             // come from the ledger scoping rather than from the permission check.
-            boolean allowed = !"can_manage_members".equals(query.permission().value())
+            boolean administrativePermission =
+                    "can_manage_members".equals(query.permission().value())
+                            || "can_manage_sources".equals(query.permission().value());
+            boolean allowed = !administrativePermission
                     || ADMIN_USER.toString().equals(query.principal().id())
                     || OTHER_ADMIN.toString().equals(query.principal().id());
             return allowed

@@ -6,31 +6,47 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.ClaimedGraphIndex;
 import com.orgmemory.core.knowledge.GraphIndexChunk;
 import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.GraphIndexingStoppedException;
 import com.orgmemory.graphrag.indexing.ExtractedChunk;
 import com.orgmemory.graphrag.indexing.GraphContributionAssembler;
+import com.orgmemory.graphrag.indexing.LightRagEmbeddingPayloads;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.ExtractionProfile;
+import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
+import com.orgmemory.graphrag.processing.GraphProcessingProfile;
+import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
+import com.orgmemory.integrations.graphrag.springai.GraphExtractionException;
 import com.orgmemory.integrations.graphrag.springai.SpringAiEntityRelationExtractor;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -45,6 +61,26 @@ class GraphIndexingProcessor {
     private final ObjectProvider<EmbeddingModel> embeddingModels;
     private final AiRouteResolver routes;
     private final GraphIndexingProperties properties;
+    private final GraphRagEventSink events;
+
+    @Autowired
+    GraphIndexingProcessor(
+            GraphIndexingCoordinator coordinator,
+            GraphPublicationCommitter publications,
+            GraphExtractorFactory extractors,
+            ObjectProvider<EmbeddingModel> embeddingModels,
+            AiRouteResolver routes,
+            GraphIndexingProperties properties,
+            ObjectProvider<GraphRagEventSink> eventSinks) {
+        this(
+                coordinator,
+                publications,
+                extractors,
+                embeddingModels,
+                routes,
+                properties,
+                eventSinks.getIfAvailable(() -> GraphRagEventSink.NO_OP));
+    }
 
     GraphIndexingProcessor(
             GraphIndexingCoordinator coordinator,
@@ -52,13 +88,15 @@ class GraphIndexingProcessor {
             GraphExtractorFactory extractors,
             ObjectProvider<EmbeddingModel> embeddingModels,
             AiRouteResolver routes,
-            GraphIndexingProperties properties) {
+            GraphIndexingProperties properties,
+            GraphRagEventSink events) {
         this.coordinator = coordinator;
         this.publications = publications;
         this.extractors = extractors;
         this.embeddingModels = embeddingModels;
         this.routes = routes;
         this.properties = properties;
+        this.events = Objects.requireNonNull(events, "events");
     }
 
     void processNext() {
@@ -68,30 +106,68 @@ class GraphIndexingProcessor {
 
     private void process(ClaimedGraphIndex claim) {
         try {
-            AiRoute extractionRoute = routes.resolve(AiWorkload.GRAPH_EXTRACTION);
-            ExtractionProfile extractionProfile = new ExtractionProfile(
-                    extractionRoute.gatewayId(),
-                    extractionRoute.modelId(),
-                    SpringAiEntityRelationExtractor.PROMPT_VERSION,
-                    properties.maximumEntitiesPerChunk(),
-                    properties.maximumRelationsPerChunk());
+            if (publications.completePublished(
+                    claim, properties.workerId(), properties.leaseDuration())) {
+                log.info(
+                        "Completed replayed graph publication for Knowledge Asset version {}",
+                        claim.knowledgeAssetVersionId());
+                return;
+            }
+            GraphProcessingProfile processingProfile =
+                    claim.graphProcessingProfile().profile();
+            ExtractionProfile extractionProfile =
+                    processingProfile.extractionProfile();
+            requireSupported(processingProfile);
+            AiRoute extractionRoute = new AiRoute(
+                    extractionProfile.provider(), extractionProfile.model());
             EntityRelationExtractor extractor = extractors.create(extractionRoute);
-            List<ExtractedChunk> extracted = extractChunks(claim, extractionProfile, extractor);
-            var contributions = GraphContributionAssembler.assemble(
-                    claim.organizationId(),
-                    claim.knowledgeAssetId(),
-                    claim.sourceRevisionId(),
-                    claim.aclSnapshotId(),
-                    claim.aclGeneration(),
-                    claim.projectionGeneration(),
-                    Instant.now(),
-                    extracted);
-            GraphRevisionEmbeddings embeddings = embed(claim, contributions.entities(), contributions.relations());
-            publications.commit(
-                    claim.jobId(),
-                    properties.workerId(),
-                    properties.leaseDuration(),
-                    new GraphRevisionProjection(contributions, embeddings));
+            List<ExtractedChunk> extracted = observed(
+                    claim,
+                    GraphRagEventSink.Stage.EXTRACT,
+                    claim.chunks().size(),
+                    () -> extractChunks(claim, extractionProfile, extractor),
+                    List::size);
+            var contributions = observed(
+                    claim,
+                    GraphRagEventSink.Stage.MERGE,
+                    extracted.size(),
+                    () -> GraphContributionAssembler.assemble(
+                            claim.organizationId(),
+                            claim.knowledgeAssetId(),
+                            claim.sourceRevisionId(),
+                            claim.aclSnapshotId(),
+                            claim.aclGeneration(),
+                            claim.projectionGeneration(),
+                            Instant.now(),
+                            extracted),
+                    value -> value.entities().size() + value.relations().size());
+            GraphRevisionEmbeddings embeddings = observed(
+                    claim,
+                    GraphRagEventSink.Stage.EMBED,
+                    contributions.entities().size() + contributions.relations().size(),
+                    () -> embed(
+                            claim,
+                            contributions.entities(),
+                            contributions.relations()),
+                    value -> value.entityEmbeddings().size()
+                            + value.relationEmbeddings().size());
+            observed(
+                    claim,
+                    GraphRagEventSink.Stage.PUBLISH,
+                    contributions.entities().size() + contributions.relations().size(),
+                    () -> {
+                        publications.commit(
+                                claim,
+                                properties.workerId(),
+                                properties.leaseDuration(),
+                                new GraphRevisionProjection(
+                                        contributions,
+                                        embeddings,
+                                        claim.graphProcessingProfile()
+                                                .canonicalSha256()));
+                        return Boolean.TRUE;
+                    },
+                    ignored -> 1);
             log.info(
                     "Published graph generation {} for Knowledge Asset version {} with {} entities and {} relations",
                     claim.projectionGeneration(),
@@ -103,14 +179,117 @@ class GraphIndexingProcessor {
             log.warn(
                     "Graph indexing interrupted for job {}; leaving its lease to expire for retry",
                     claim.jobId());
+        } catch (GraphIndexingStoppedException stopped) {
+            log.info(
+                    "Stopped graph indexing job {} because it was {}",
+                    claim.jobId(),
+                    stopped.reason());
         } catch (Exception failure) {
-            log.error(
-                    "Graph indexing failed for Knowledge Asset version {} on attempt {}",
-                    claim.knowledgeAssetVersionId(),
-                    claim.attempt(),
-                    failure);
+            logFailure(claim, failure);
             recordFailure(claim);
         }
+    }
+
+    private static void requireSupported(GraphProcessingProfile profile) {
+        GraphProcessingProfile supported = LightRagGraphProcessingProfiles.current(
+                profile.extractionProfile());
+        if (!supported.equals(profile)) {
+            throw new GraphExtractionException(
+                    "The pinned graph processing profile is not supported by this worker");
+        }
+    }
+
+    private <T> T observed(
+            ClaimedGraphIndex claim,
+            GraphRagEventSink.Stage stage,
+            int inputCount,
+            Callable<T> action,
+            ToIntFunction<T> outputCount)
+            throws Exception {
+        long startedAt = System.nanoTime();
+        try {
+            T result = action.call();
+            emit(
+                    claim,
+                    stage,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    startedAt,
+                    inputCount,
+                    outputCount.applyAsInt(result),
+                    null);
+            return result;
+        } catch (Exception failure) {
+            GraphRagEventSink.Outcome outcome =
+                    failure instanceof InterruptedException
+                                    || failure instanceof GraphIndexingStoppedException
+                            ? GraphRagEventSink.Outcome.CANCELLED
+                            : GraphRagEventSink.Outcome.FAILED;
+            emit(
+                    claim,
+                    stage,
+                    outcome,
+                    startedAt,
+                    inputCount,
+                    0,
+                    outcome == GraphRagEventSink.Outcome.FAILED
+                            ? stage.name().toLowerCase(Locale.ROOT) + "_failed"
+                            : null);
+            throw failure;
+        }
+    }
+
+    private void emit(
+            ClaimedGraphIndex claim,
+            GraphRagEventSink.Stage stage,
+            GraphRagEventSink.Outcome outcome,
+            long startedAt,
+            int inputCount,
+            int outputCount,
+            String failureCode) {
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    claim.jobId(),
+                    claim.organizationId(),
+                    stage,
+                    outcome,
+                    Duration.ofNanos(Math.max(0, System.nanoTime() - startedAt)),
+                    inputCount,
+                    outputCount,
+                    null,
+                    failureCode,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never control indexing availability or retries.
+        }
+    }
+
+    private static void logFailure(ClaimedGraphIndex claim, Exception failure) {
+        GraphExtractionException extractionFailure = findExtractionFailure(failure);
+        if (extractionFailure != null) {
+            log.error(
+                    "Graph extraction failed for Knowledge Asset version {} on attempt {}: {}",
+                    claim.knowledgeAssetVersionId(),
+                    claim.attempt(),
+                    extractionFailure.getMessage());
+            return;
+        }
+        log.error(
+                "Graph indexing failed for Knowledge Asset version {} on attempt {}",
+                claim.knowledgeAssetVersionId(),
+                claim.attempt(),
+                failure);
+    }
+
+    private static GraphExtractionException findExtractionFailure(Throwable failure) {
+        Throwable current = failure;
+        GraphExtractionException deepest = null;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            if (current instanceof GraphExtractionException extractionFailure) {
+                deepest = extractionFailure;
+            }
+            current = current.getCause();
+        }
+        return deepest;
     }
 
     private List<ExtractedChunk> extractChunks(
@@ -147,12 +326,29 @@ class GraphIndexingProcessor {
     private ExtractedChunk awaitWithLeaseHeartbeat(
             ClaimedGraphIndex claim, Future<ExtractedChunk> future)
             throws ExecutionException, InterruptedException {
-        long heartbeatMillis =
-                Math.max(1, properties.leaseDuration().dividedBy(3).toMillis());
+        long startedAt = System.nanoTime();
+        long timeoutNanos = properties.extractionTimeout().toNanos();
+        long heartbeatNanos = Math.max(
+                TimeUnit.MILLISECONDS.toNanos(1),
+                properties.leaseDuration().dividedBy(3).toNanos());
         while (true) {
+            long remainingNanos =
+                    timeoutNanos - (System.nanoTime() - startedAt);
+            if (remainingNanos <= 0) {
+                future.cancel(true);
+                throw new GraphExtractionTimeoutException(
+                        properties.extractionTimeout());
+            }
             try {
-                return future.get(heartbeatMillis, TimeUnit.MILLISECONDS);
+                return future.get(
+                        Math.min(heartbeatNanos, remainingNanos),
+                        TimeUnit.NANOSECONDS);
             } catch (TimeoutException timeout) {
+                if (System.nanoTime() - startedAt >= timeoutNanos) {
+                    future.cancel(true);
+                    throw new GraphExtractionTimeoutException(
+                            properties.extractionTimeout());
+                }
                 coordinator.refreshLease(
                         claim.jobId(), properties.workerId(), properties.leaseDuration());
             }
@@ -185,8 +381,23 @@ class GraphIndexingProcessor {
                 claim.sourceRevisionId(),
                 chunk.id(),
                 chunk.content(),
+                chunk.heading(),
                 Locale.forLanguageTag(claim.language()),
                 profile));
+        int estimatedInputTokens = result.diagnostics().rounds().stream()
+                .mapToInt(round -> round.estimatedInputTokens())
+                .sum();
+        long elapsedMillis = result.diagnostics().rounds().stream()
+                .map(round -> round.elapsed())
+                .reduce(java.time.Duration.ZERO, java.time.Duration::plus)
+                .toMillis();
+        log.debug(
+                "Extracted graph chunk {} in {} round(s), {} estimated input tokens, {} ms, gleaning={}",
+                chunk.id(),
+                result.diagnostics().rounds().size(),
+                estimatedInputTokens,
+                elapsedMillis,
+                result.diagnostics().gleaningOutcome());
         return new ExtractedChunk(chunk.id(), result);
     }
 
@@ -201,11 +412,17 @@ class GraphIndexingProcessor {
                     "Graph embeddings must use the immutable Knowledge Asset embedding profile");
         }
         List<Document> documents = new ArrayList<>(entities.size() + relations.size());
+        Map<EntityContributionKey, EntityContribution> entitiesByEvidence = entities.stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        entity -> new EntityContributionKey(
+                                entity.entity().id(),
+                                entity.provenance().chunkId()),
+                        Function.identity()));
         entities.stream()
                 .map(GraphIndexingProcessor::embeddingDocument)
                 .forEach(documents::add);
         relations.stream()
-                .map(GraphIndexingProcessor::embeddingDocument)
+                .map(relation -> embeddingDocument(relation, entitiesByEvidence))
                 .forEach(documents::add);
         List<float[]> vectors;
         if (documents.isEmpty()) {
@@ -243,24 +460,54 @@ class GraphIndexingProcessor {
     }
 
     private static Document embeddingDocument(EntityContribution contribution) {
-        return new Document("%s\n%s\n%s".formatted(
+        return new Document(LightRagEmbeddingPayloads.entity(
                 contribution.entity().normalizedName(),
-                contribution.entity().type(),
                 contribution.description()));
     }
 
-    private static Document embeddingDocument(RelationContribution contribution) {
-        return new Document("%s\n%s\n%s".formatted(
-                contribution.relation().type(),
-                String.join(", ", contribution.keywords()),
+    private static Document embeddingDocument(
+            RelationContribution contribution,
+            Map<EntityContributionKey, EntityContribution> entitiesByEvidence) {
+        EntityContribution source = requiredEntity(
+                entitiesByEvidence,
+                contribution.relation().sourceEntityId(),
+                contribution.provenance().chunkId());
+        EntityContribution target = requiredEntity(
+                entitiesByEvidence,
+                contribution.relation().targetEntityId(),
+                contribution.provenance().chunkId());
+        return new Document(LightRagEmbeddingPayloads.relation(
+                contribution.keywords(),
+                source.entity().normalizedName(),
+                target.entity().normalizedName(),
                 contribution.description()));
     }
 
-    private static List<Float> vector(float[] values) {
-        List<Float> result = new ArrayList<>(values.length);
-        for (float value : values) {
-            result.add(value);
+    private static EntityContribution requiredEntity(
+            Map<EntityContributionKey, EntityContribution> entitiesByEvidence,
+            UUID entityId,
+            UUID chunkId) {
+        EntityContribution contribution =
+                entitiesByEvidence.get(new EntityContributionKey(entityId, chunkId));
+        if (contribution == null) {
+            throw new IllegalStateException(
+                    "relation embedding endpoint has no contribution in the same evidence chunk");
         }
-        return List.copyOf(result);
+        return contribution;
+    }
+
+    private static FloatVector vector(float[] values) {
+        return new FloatVector(values);
+    }
+
+    private record EntityContributionKey(UUID entityId, UUID chunkId) {
+    }
+
+    private static final class GraphExtractionTimeoutException
+            extends RuntimeException {
+
+        private GraphExtractionTimeoutException(java.time.Duration timeout) {
+            super("Graph extraction exceeded the configured timeout of " + timeout);
+        }
     }
 }

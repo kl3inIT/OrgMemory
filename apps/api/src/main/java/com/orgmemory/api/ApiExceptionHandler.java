@@ -1,11 +1,15 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.assistant.AssistantUnavailableException;
+import com.orgmemory.core.knowledge.CitationNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceKeyConflictException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
 import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -27,13 +31,35 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
-class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
+    private static final URI OPAQUE_CITATION_INSTANCE =
+            URI.create("/api/citations");
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(OrgMemoryAccessDeniedException.class)
     ProblemDetail accessDenied(OrgMemoryAccessDeniedException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+
+    @ExceptionHandler(CitationNotFoundException.class)
+    ProblemDetail citationNotFound(CitationNotFoundException e) {
+        ProblemDetail detail =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.NOT_FOUND,
+                        e.getMessage());
+        detail.setInstance(OPAQUE_CITATION_INSTANCE);
+        return detail;
+    }
+
+    @ExceptionHandler({
+        KnowledgeAssetNotFoundException.class,
+        KnowledgeResourceNotFoundException.class
+    })
+    ProblemDetail knowledgeResourceNotFound(RuntimeException e) {
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                "The requested knowledge resource is not available");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

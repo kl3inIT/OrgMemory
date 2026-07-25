@@ -4,6 +4,11 @@
 
 Accepted on 2026-07-23.
 
+The requirement for a new measured-need architecture decision before
+implementing Neo4j or OpenSearch was superseded on 2026-07-23 by
+[0013](0013-full-lightrag-semantic-port.md). PostgreSQL remains the first
+production adapter and canonical evidence ledger.
+
 ## Context
 
 The pure-Java graph kernel needs production storage for canonical identity,
@@ -49,10 +54,11 @@ The first deployment has one backup/HA boundary and no cross-database graph
 projection lag. AGE failure can be configured as required and fail startup, or
 disabled with the relational topology fallback.
 
-A future Neo4j adapter may implement the same topology-candidate port and rebuild
-from published relational contributions. It becomes justified only by measured
-multi-hop latency, graph-algorithm, or operational requirements; it never owns
-ACL, source truth, or citations.
+Neo4j and OpenSearch adapters implement the shared graph contract and rebuild
+from published relational contributions. Their implementations are part of the
+full semantic-port program; production selection still follows measured
+latency, graph-algorithm, and operational requirements. They never own ACL,
+source truth, or citations.
 
 VChordRQ is supported as an optional strategy but is not installed in the pinned
 default image. Selecting it without the extension fails fast.

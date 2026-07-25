@@ -8,11 +8,10 @@ import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
+import com.orgmemory.core.knowledge.DocumentProcessingProfileSnapshot;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.KnowledgeChunkDraftAssembler;
 import com.orgmemory.core.knowledge.KnowledgeTextChunk;
-import com.orgmemory.core.knowledge.KnowledgeTextChunker;
-import com.orgmemory.core.knowledge.KnowledgeTextDocument;
 import com.orgmemory.core.knowledge.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.NormalizeRawSourceCommand;
@@ -27,6 +26,8 @@ import com.orgmemory.core.knowledge.SourceRevisionStatus;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.permission.AccessGate;
+import com.orgmemory.graphrag.parsing.DocumentParseRequest;
+import com.orgmemory.graphrag.parsing.DocumentParseResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -38,12 +39,12 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
-import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
@@ -59,9 +60,8 @@ class SourceIngestionProcessor {
     private final ObjectStoragePort objects;
     private final ObjectProvider<EmbeddingModel> embeddingModels;
     private final AiRouteResolver aiRoutes;
-    private final SourceDocumentReader reader;
     private final SourceProcessingProperties properties;
-    private final KnowledgeTextChunker chunker;
+    private final DocumentProcessingEngine processingEngine;
 
     SourceIngestionProcessor(
             SourceIngestionCoordinator coordinator,
@@ -71,9 +71,8 @@ class SourceIngestionProcessor {
             ObjectStoragePort objects,
             ObjectProvider<EmbeddingModel> embeddingModels,
             AiRouteResolver aiRoutes,
-            SourceDocumentReader reader,
             SourceProcessingProperties properties,
-            KnowledgeTextChunker chunker) {
+            DocumentProcessingEngine processingEngine) {
         this.coordinator = coordinator;
         this.ingestion = ingestion;
         this.publications = publications;
@@ -81,9 +80,8 @@ class SourceIngestionProcessor {
         this.objects = objects;
         this.embeddingModels = embeddingModels;
         this.aiRoutes = aiRoutes;
-        this.reader = reader;
         this.properties = properties;
-        this.chunker = chunker;
+        this.processingEngine = processingEngine;
     }
 
     void processNext() {
@@ -119,20 +117,38 @@ class SourceIngestionProcessor {
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.PARSING, properties.leaseDuration());
 
             failureStage = "PARSING";
-            ParsedSource parsed = reader.read(temporaryFile, claim.fileName());
+            ProcessedSourceDocument processed = processingEngine.process(
+                    new DocumentParseRequest(
+                            claim.fileName(),
+                            claim.mediaType(),
+                            Files.readAllBytes(temporaryFile),
+                            Optional.empty()),
+                    embeddingModel);
+            DocumentParseResult parsed = processed.parseResult();
             RawSourceRef raw = registerRawSource(claim, parsed);
             NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
                     claim.organizationId(),
                     raw.rawSourceObjectId(),
                     properties.normalizerVersion(),
                     claim.fileName(),
-                    parsed.normalizedText(),
+                    parsed.document().content(),
                     "und"));
 
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.CHUNKING, properties.leaseDuration());
             failureStage = "CHUNKING";
-            List<KnowledgeTextChunk> candidates = split(parsed.documents());
+            List<KnowledgeTextChunk> candidates = processed.chunks().stream()
+                    .map(chunk -> new KnowledgeTextChunk(
+                            chunk.content(),
+                            chunk.provenance().startPage(),
+                            chunk.provenance().endPage(),
+                            chunk.tokenCount(),
+                            chunk.heading(),
+                            chunk.provenance().startChar(),
+                            chunk.provenance().endChar(),
+                            chunk.provenance().blockIndexes(),
+                            chunk.provenance().canonicalTextSha256()))
+                    .toList();
 
             coordinator.markStage(
                     claim.jobId(), properties.workerId(), SourceRevisionStatus.EMBEDDING, properties.leaseDuration());
@@ -169,8 +185,11 @@ class SourceIngestionProcessor {
                     claim.jobId(),
                     properties.workerId(),
                     properties.pipelineVersion(),
-                    properties.parserVersion(),
-                    properties.chunkerVersion(),
+                    processed.profile().actualParser().toString(),
+                    processed.profile().actualChunker().toString(),
+                    new DocumentProcessingProfileSnapshot(
+                            processed.profile().canonicalForm(),
+                            processed.profile().profileSha256()),
                     embeddingProfile,
                     raw,
                     normalized,
@@ -225,7 +244,9 @@ class SourceIngestionProcessor {
         }
     }
 
-    private RawSourceRef registerRawSource(ClaimedSourceRevision claim, ParsedSource parsed) {
+    private RawSourceRef registerRawSource(
+            ClaimedSourceRevision claim,
+            DocumentParseResult parsed) {
         return ingestion.registerRawSource(new RegisterRawSourceCommand(
                 claim.organizationId(),
                 claim.departmentId(),
@@ -235,7 +256,7 @@ class SourceIngestionProcessor {
                 "1",
                 parsed.detectedMediaType(),
                 claim.fileName(),
-                parsed.normalizedText(),
+                parsed.document().content(),
                 null,
                 claim.createdAt(),
                 claim.classification(),
@@ -263,20 +284,6 @@ class SourceIngestionProcessor {
                         AccessGate.ALLOW));
             }
         };
-    }
-
-    private List<KnowledgeTextChunk> split(List<Document> documents) {
-        return chunker.split(documents.stream()
-                .map(document -> new KnowledgeTextDocument(
-                        document.getText(),
-                        number(document, PagePdfDocumentReader.METADATA_START_PAGE_NUMBER),
-                        number(document, PagePdfDocumentReader.METADATA_END_PAGE_NUMBER)))
-                .toList());
-    }
-
-    private static Integer number(Document document, String key) {
-        Object value = document.getMetadata().get(key);
-        return value instanceof Number number ? number.intValue() : null;
     }
 
     private static String fileSuffix(String fileName) {

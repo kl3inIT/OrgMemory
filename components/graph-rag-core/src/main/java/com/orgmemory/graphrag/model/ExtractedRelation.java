@@ -10,6 +10,7 @@ public record ExtractedRelation(
         List<String> keywords,
         String description,
         RelationOrientation orientation,
+        double weight,
         double confidence) {
 
     public ExtractedRelation {
@@ -22,9 +23,31 @@ public record ExtractedRelation(
         }
         description = requireText(description, "description");
         Objects.requireNonNull(orientation, "orientation");
+        if (!Double.isFinite(weight) || weight <= 0.0) {
+            throw new IllegalArgumentException("weight must be finite and positive");
+        }
         if (!Double.isFinite(confidence) || confidence < 0.0 || confidence > 1.0) {
             throw new IllegalArgumentException("confidence must be between 0 and 1");
         }
+    }
+
+    public ExtractedRelation(
+            String sourceReference,
+            String targetReference,
+            String type,
+            List<String> keywords,
+            String description,
+            RelationOrientation orientation,
+            double confidence) {
+        this(
+                sourceReference,
+                targetReference,
+                type,
+                keywords,
+                description,
+                orientation,
+                1.0,
+                confidence);
     }
 
     private static String requireText(String value, String field) {

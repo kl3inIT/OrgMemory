@@ -12,7 +12,10 @@ Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeR
 | Later expansion cannot exceed ingestion ceiling | `widerCurrentAclCannotOverrideTheIngestionSnapshotDeny` |
 | Refreshed head preserves availability without widening | `refreshedHeadKeepsAssetAvailableAfterHistoricalSnapshotExpiresWithoutWideningIt` |
 | Denial and query/source decisions are audited without raw query | `controlPlaneRoleDenialIsAudited`, `searchAuditsQueryAndEveryReturnedSourceWithoutRawQuery` |
+| Graph entity/relation/chunk evidence closure is rechecked before prompt rendering | `GraphRagKnowledgeRetrievalServiceTests#verifiesTheCompleteGraphGroundingBeforeCreatingTheModelInput` |
+| OpenFGA model mismatch cannot reach the renderer | `GraphRagKnowledgeRetrievalServiceTests#authorizationModelMismatchCannotReachTheVerifiedRenderer` |
+| Authorization scope changing during retrieval retries without egress | `GraphRagKnowledgeRetrievalServiceTests#revocationBetweenRetrievalAndCitationCausesAFullRetryWithoutEgress` |
 
 Request-boundary missing control role/incomplete actor returns `403`; generic
-resource `404` does not claim otherwise. Hybrid/vector, OpenFGA, agent, MCP,
-graph, citation, and export leak tests remain gaps.
+resource `404` does not claim otherwise. Provider-backed evaluation,
+high-concurrency revocation latency, and export leak tests remain gaps.

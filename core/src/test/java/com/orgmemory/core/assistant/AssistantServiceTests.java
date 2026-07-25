@@ -1,6 +1,7 @@
 package com.orgmemory.core.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,12 +13,15 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
+import com.orgmemory.core.knowledge.VerifiedKnowledgeGrounding;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,7 +29,7 @@ import reactor.core.publisher.Flux;
 
 class AssistantServiceTests {
 
-    private final SecureKnowledgeRetrievalService retrieval = mock(SecureKnowledgeRetrievalService.class);
+    private final CanonicalHybridKnowledgeSearch retrieval = mock(CanonicalHybridKnowledgeSearch.class);
     private final ChatModelPort chat = mock(ChatModelPort.class);
     private final CurrentActor actor = new CurrentActor(
             UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "Laura", "laura@example.test");
@@ -49,11 +53,99 @@ class AssistantServiceTests {
 
         assertEquals(List.of("The probation period ", "is 60 days. [1]"),
                 turn.content().collectList().block());
-        assertEquals(List.of(evidence), turn.evidence());
+        assertEquals(List.of(evidence),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
+        assertEquals(List.of(1),
+                turn.citations().stream()
+                        .map(AssistantCitation::number)
+                        .toList());
         ArgumentCaptor<ChatGenerationRequest> request = ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(eq(AiWorkload.ASSISTANT_CHAT), request.capture());
         assertEquals(true, request.getValue().userPrompt().contains(evidence.content()));
         assertEquals(true, request.getValue().systemInstruction().contains("untrusted data"));
+    }
+
+    @Test
+    void exposesCitationsOnlyForEvidenceIncludedInThePromptBudget() {
+        List<RetrievedKnowledgeEvidence> evidence = IntStream.range(0, 6)
+                .mapToObj(index -> evidence("x".repeat(6_000)))
+                .toList();
+        when(retrieval.search(
+                        actor,
+                        "Summarize the policies",
+                        10,
+                        "request-budget"))
+                .thenReturn(new SecureKnowledgeSearchResult(
+                        "request-budget",
+                        evidence));
+        when(chat.stream(eq(AiWorkload.ASSISTANT_CHAT), any()))
+                .thenReturn(Flux.just("Summary [1]"));
+
+        AssistantTurn turn = service.startTurn(
+                actor,
+                "Summarize the policies",
+                10,
+                "request-budget");
+
+        assertEquals(evidence.subList(0, 5),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
+        assertEquals(List.of(1, 2, 3, 4, 5),
+                turn.citations().stream()
+                        .map(AssistantCitation::number)
+                        .toList());
+        ArgumentCaptor<ChatGenerationRequest> request =
+                ArgumentCaptor.forClass(ChatGenerationRequest.class);
+        verify(chat).stream(
+                eq(AiWorkload.ASSISTANT_CHAT),
+                request.capture());
+        assertFalse(request.getValue()
+                .userPrompt()
+                .contains("--- SOURCE 6 BEGIN ---"));
+    }
+
+    @Test
+    void usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt() {
+        RetrievedKnowledgeEvidence evidence = evidence();
+        ChatGenerationRequest verifiedRequest = new ChatGenerationRequest(
+                "verified entity relation and chunk context",
+                "What is the probation policy?");
+        when(retrieval.search(
+                        actor,
+                        "What is the probation policy?",
+                        5,
+                        "request-grounding"))
+                .thenReturn(new SecureKnowledgeSearchResult(
+                        "request-grounding",
+                        List.of(evidence),
+                        Optional.of(new VerifiedKnowledgeGrounding(
+                                verifiedRequest,
+                                List.of(evidence),
+                                3,
+                                120))));
+        when(chat.stream(eq(AiWorkload.ASSISTANT_CHAT), any()))
+                .thenReturn(Flux.just("The probation period is 60 days. [1]"));
+
+        AssistantTurn turn = service.startTurn(
+                actor,
+                "What is the probation policy?",
+                5,
+                "request-grounding");
+
+        assertEquals(
+                List.of("The probation period is 60 days. [1]"),
+                turn.content().collectList().block());
+        verify(chat).stream(
+                AiWorkload.ASSISTANT_CHAT,
+                verifiedRequest);
+        assertEquals(
+                List.of(evidence),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
     }
 
     @Test
@@ -81,13 +173,17 @@ class AssistantServiceTests {
     }
 
     private static RetrievedKnowledgeEvidence evidence() {
+        return evidence("The probation period is 60 days.");
+    }
+
+    private static RetrievedKnowledgeEvidence evidence(String content) {
         return new RetrievedKnowledgeEvidence(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 "Employee Handbook",
-                "The probation period is 60 days.",
+                content,
                 "https://example.test/employee-handbook",
                 4,
                 4,

@@ -7,6 +7,13 @@ record intent. Active increments contain design and execution plans. Decisions
 are append-only; supersede them explicitly instead of silently rewriting history.
 Do not create status-summary documents that duplicate those sources.
 
+Material decisions about domain boundaries, authorization, persistence,
+publication, concurrency, cache isolation, or parity scope require an
+independent Claude Fable 5 architecture debate before implementation. Record
+the proposal, strongest counterargument, repository evidence, final decision,
+and rejected alternative in the active increment or an ADR. Routine local
+implementation choices do not require this review.
+
 ## Backend
 
 - Java package root is `com.orgmemory`.
@@ -16,6 +23,10 @@ Do not create status-summary documents that duplicate those sources.
   or a replaceable external integration.
 - Use ports at external/provider boundaries; avoid generic interfaces around
   every class.
+- For reusable AI engines, prefer an executable functional core and an
+  imperative framework shell. Framework adapters may implement model,
+  persistence, telemetry, and delivery ports; framework types must not leak
+  into deterministic algorithm contracts.
 - Keep `ddl-auto=validate`; pair every persisted model change with Flyway.
 - For populated tables, use expand/bounded-backfill/validate migrations. Do not
   run `CREATE INDEX CONCURRENTLY` inside application-owned Flyway because its

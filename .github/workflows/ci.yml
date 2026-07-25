@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - light-rag
   workflow_dispatch:
 
 permissions:
@@ -83,6 +84,12 @@ jobs:
       - name: Build production bundle
         run: pnpm build
 
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: pnpm test:e2e
+
       - name: Check generated route tree
         run: git diff --exit-code -- src/routeTree.gen.ts
 
@@ -107,6 +114,39 @@ jobs:
         working-directory: integrations/authorization-openfga/src/test/openfga
         run: fga model test --tests store.fga.yaml
 
+  evaluation:
+    name: Evaluation · Python 3.13
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: evaluation
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: evaluation/uv.lock
+
+      - name: Install locked evaluation environment
+        run: uv sync --frozen --dev
+
+      - name: Lint evaluation tooling
+        run: uv run ruff check .
+
+      - name: Test deterministic evaluation contracts
+        run: uv run pytest
+
   gate:
     name: CI Gate
     if: always()
@@ -114,6 +154,7 @@ jobs:
       - backend
       - web
       - openfga
+      - evaluation
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -123,8 +164,10 @@ jobs:
           BACKEND_RESULT: ${{ needs.backend.result }}
           WEB_RESULT: ${{ needs.web.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
+          EVALUATION_RESULT: ${{ needs.evaluation.result }}
         run: |
           set -euo pipefail
           [[ "$BACKEND_RESULT" == "success" ]]
           [[ "$WEB_RESULT" == "success" ]]
           [[ "$OPENFGA_RESULT" == "success" ]]
+          [[ "$EVALUATION_RESULT" == "success" ]]

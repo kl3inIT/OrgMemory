@@ -18,7 +18,8 @@ belongs in one active increment.
   recheck, generic denied resource `404`, and append-only retrieval audit.
 - Knowledge Space-targeted upload with OpenFGA `can_create_asset` pre-write
   authorization and durable Space/owner publication tuples.
-- API, worker, and MCP deployable scaffolds.
+- Deployable API and worker runtimes plus an authenticated stateless MCP server
+  exposing the same permission-aware knowledge search boundary.
 - Northstar-style repository harness and current dependency baseline.
 - Exact OIDC provider logout, dev-only Swagger, production configuration
   fail-fast guards, and explicit issuer/subject identity binding.
@@ -46,17 +47,30 @@ belongs in one active increment.
   recursive fallback, atomic revision replacement, and bounded batches.
 - Independent publication transactions plus worker reconciliation for retry,
   obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
+- Complete LightRAG-compatible parsing, chunking, multimodal extraction,
+  indexing, lifecycle, query modes, PostgreSQL storage, OpenSearch, and Neo4j
+  adapter contracts through PR 10 of the integration program.
 
-## Active — Secure Hybrid Retrieval
+## Active — Full LightRAG Semantic Port
 
-See [active plan](increments/active/2026-07-22-secure-hybrid-retrieval/plan.md).
+See the
+[twelve-PR program](increments/active/2026-07-23-full-lightrag-semantic-port/plan.md)
+and
+[v1.5.4 parity manifest](research/lightrag-v1.5.4-parity-manifest.md).
 
-Outcome: one permission-aware search path uses a pinned OpenFGA model,
-tenant/ACL/lifecycle SQL prefiltering, PostgreSQL FTS + pgvector ranking,
-BatchCheck, citation-time canonical recheck, and append-only audit evidence.
+All program PRs target the `light-rag` integration branch. The program covers
+the complete parser, chunker, multimodal, extraction, indexing, lifecycle,
+query, storage-adapter, runtime, UI, evaluation, and operations capability set.
+Earlier scope exclusions do not remove manifest rows.
 
-## Next — Shared Agent Tools And Secure Graph
+The existing secure hybrid chunk path, OpenFGA boundary, evidence contribution
+model, PostgreSQL graph projection, and durable worker publication are the
+foundation, not the final port.
 
+## Next — Integration Sequence
+
+- Finish PR 11 browser evidence for allow, deny, revoke, source preview, and the
+  authorized graph explorer.
 - Finish what the admin permission surface left open: reachable containers with
   their ACL authority, generation and capture time — which is also what makes the
   mirrored verdict rendering reachable; a permission audit event per role
@@ -71,19 +85,13 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   likewise unimplemented — `knowledge_space_id` is fixed at ingestion from the
   source connection.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
-- Wire worker extraction/indexing and permission-scoped runtime graph retrieval
-  over the shipped graph contracts and PostgreSQL projection. Before any of that
-  reaches a non-administrator, close the projection store's authorization gap: it
-  filters on organization and authorized asset id only, which is one of
-  retrieval's five gates, so the source ACL, its DENY entries, snapshot freshness
-  and the classification lattice do not apply to a graph read. Narrow the
-  authorized asset set upstream through the filter retrieval already uses rather
-  than restating those rules beside the projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration
   and its reporting are built and proved against recorded responses; nothing has
   yet crawled a workspace that exists.
+- Close with RAGAS, observability, security, lifecycle, and load evidence before
+  opening `light-rag -> main`.
 
 ## Pilot Hardening
 
@@ -95,6 +103,8 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
 
 ## Later, Only With Evidence
 
-Neo4j, OpenSearch, Airflow, Kafka, SCIM, more providers/connectors, mutation MCP
-tools, and multi-agent orchestration require measured need. Search and graph
-remain rebuildable projections behind stable ledger/permission contracts.
+Airflow, Kafka, SCIM, more providers/connectors, mutation MCP tools, and
+multi-agent orchestration require measured need. OpenSearch and Neo4j adapters
+are already in the full LightRAG port program; production backend selection is
+still evidence-driven. Search and graph remain rebuildable projections behind
+stable ledger/permission contracts.

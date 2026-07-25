@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ public class GraphIndexingCoordinator {
     private final SourceRevisionRepository revisions;
     private final SourceAclSnapshotRepository aclSnapshots;
     private final EmbeddingProfileRepository embeddingProfiles;
+    private final GraphProcessingProfileRegistry graphProcessingProfiles;
     private final KnowledgeChunkProjectionStore chunks;
 
     GraphIndexingCoordinator(
@@ -25,6 +27,7 @@ public class GraphIndexingCoordinator {
             SourceRevisionRepository revisions,
             SourceAclSnapshotRepository aclSnapshots,
             EmbeddingProfileRepository embeddingProfiles,
+            GraphProcessingProfileRegistry graphProcessingProfiles,
             KnowledgeChunkProjectionStore chunks) {
         this.jobs = jobs;
         this.assets = assets;
@@ -32,6 +35,7 @@ public class GraphIndexingCoordinator {
         this.revisions = revisions;
         this.aclSnapshots = aclSnapshots;
         this.embeddingProfiles = embeddingProfiles;
+        this.graphProcessingProfiles = graphProcessingProfiles;
         this.chunks = chunks;
     }
 
@@ -69,17 +73,29 @@ public class GraphIndexingCoordinator {
     @Transactional
     public void refreshLease(UUID jobId, String workerId, Duration leaseDuration) {
         Instant now = Instant.now();
-        claimedJob(jobId, workerId, now).refreshLease(now, leaseDuration);
+        GraphIndexJob job = claimedJob(jobId, workerId, now);
+        requireRunnable(job, now);
+        job.refreshLease(now, leaseDuration);
+    }
+
+    @Transactional
+    public void preparePublication(
+            UUID jobId,
+            String workerId,
+            Duration leaseDuration,
+            String manifestFingerprint) {
+        Instant now = Instant.now();
+        GraphIndexJob job = claimedJob(jobId, workerId, now);
+        requireRunnable(job, now);
+        job.bindManifest(manifestFingerprint);
+        job.refreshLease(now, leaseDuration);
     }
 
     @Transactional
     public void complete(UUID jobId, String workerId) {
         Instant now = Instant.now();
         GraphIndexJob job = claimedJob(jobId, workerId, now);
-        if (!isCurrent(job)) {
-            job.supersede(now);
-            return;
-        }
+        requireRunnable(job, now);
         job.succeed(now);
     }
 
@@ -92,6 +108,29 @@ public class GraphIndexingCoordinator {
             return;
         }
         retry(job, code, message, now);
+    }
+
+    @Transactional
+    public GraphIndexJobView cancel(UUID organizationId, UUID jobId) {
+        GraphIndexJob job = tenantJob(organizationId, jobId);
+        job.requestCancellation(Instant.now());
+        return view(job);
+    }
+
+    @Transactional
+    public GraphIndexJobView resume(UUID organizationId, UUID jobId) {
+        GraphIndexJob job = tenantJob(organizationId, jobId);
+        if (!isCurrent(job)) {
+            throw new IllegalStateException(
+                    "only the current active Knowledge Asset version can rebuild");
+        }
+        job.resume(Instant.now());
+        return view(job);
+    }
+
+    @Transactional(readOnly = true)
+    public GraphIndexJobView status(UUID organizationId, UUID jobId) {
+        return view(tenantJob(organizationId, jobId));
     }
 
     private Optional<ClaimedGraphIndex> currentClaim(GraphIndexJob job) {
@@ -119,6 +158,8 @@ public class GraphIndexingCoordinator {
                 .map(EmbeddingProfile::toRef)
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index embedding profile is missing"));
+        GraphProcessingProfileRef graphProcessingProfile =
+                graphProcessingProfiles.get(job.getGraphProcessingProfileId());
         var activeChunks = chunks.loadActive(
                 job.getOrganizationId(),
                 job.getSourceRevisionId(),
@@ -133,11 +174,14 @@ public class GraphIndexingCoordinator {
                 job.getId(),
                 job.getOrganizationId(),
                 job.getKnowledgeAssetId(),
+                asset.getKnowledgeSpaceId(),
                 job.getKnowledgeAssetVersionId(),
                 job.getSourceRevisionId(),
                 snapshot.getId(),
                 snapshot.getAclGeneration(),
                 job.getProjectionGeneration(),
+                graphProcessingProfile,
+                job.getIdempotencyKey(),
                 embeddingProfile,
                 version.getLanguage(),
                 job.getAttemptCount(),
@@ -156,6 +200,21 @@ public class GraphIndexingCoordinator {
                 .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
                 .orElse(null);
         return isCurrent(job, asset, version, revision);
+    }
+
+    private void requireRunnable(GraphIndexJob job, Instant now) {
+        if (job.cancellationRequested()) {
+            job.cancel(now);
+            throw new GraphIndexingStoppedException(
+                    GraphIndexingStoppedException.Reason.CANCELLED,
+                    "graph indexing was cancelled before publication");
+        }
+        if (!isCurrent(job)) {
+            job.supersede(now);
+            throw new GraphIndexingStoppedException(
+                    GraphIndexingStoppedException.Reason.SUPERSEDED,
+                    "graph indexing target is no longer current");
+        }
     }
 
     private static boolean isCurrent(
@@ -186,6 +245,33 @@ public class GraphIndexingCoordinator {
             throw new IllegalStateException("graph index job lease has expired");
         }
         return job;
+    }
+
+    private GraphIndexJob tenantJob(UUID organizationId, UUID jobId) {
+        return jobs.findByIdAndOrganizationId(
+                        Objects.requireNonNull(jobId, "jobId"),
+                        Objects.requireNonNull(organizationId, "organizationId"))
+                .orElseThrow();
+    }
+
+    private GraphIndexJobView view(GraphIndexJob job) {
+        GraphProcessingProfileRef profile =
+                graphProcessingProfiles.get(job.getGraphProcessingProfileId());
+        return new GraphIndexJobView(
+                job.getId(),
+                job.getKnowledgeAssetId(),
+                job.getKnowledgeAssetVersionId(),
+                job.getSourceRevisionId(),
+                job.getProjectionGeneration(),
+                profile.id(),
+                profile.canonicalSha256(),
+                job.getStatus().name(),
+                job.getAttemptCount(),
+                job.cancellationRequested(),
+                job.getCancellationRequestedAt(),
+                job.getLastErrorCode(),
+                job.getLastErrorMessage(),
+                job.getCompletedAt());
     }
 
     private static void retry(

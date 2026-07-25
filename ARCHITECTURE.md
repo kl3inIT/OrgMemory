@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure that exist in the repository on
-2026-07-23. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+2026-07-25. Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
 ## System Shape
@@ -53,9 +53,11 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   connection so a restart resumes rather than replays. Which connections it crawls
   and what it authenticates with come from the ledger on every poll, so an
   administrator's change takes effect on the next one without a restart.
-- `apps/mcp`: a reserved delivery module with no runtime implementation; the
-  legacy scaffold was removed so secure agent tools can be rebuilt on the
-  permission-aware retrieval contract.
+- `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
+  read-only `search_knowledge` tool forwards the caller token to the API search
+  contract, so agents use the same GraphRAG, OpenFGA, canonical ACL recheck, and
+  audit path as the product Assistant without owning database migrations or a
+  second retrieval implementation.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, and an
   AI Elements assistant workspace. The protected route layout owns session
@@ -113,13 +115,23 @@ SourceObject -> SourceRevision -> NormalizedRecord
              -> KnowledgeAsset -> KnowledgeAssetVersion -> chunks
 ```
 
-Secure knowledge search first resolves authorized Knowledge Asset IDs with
-OpenFGA `ListObjects`. SQL then filters organization, lifecycle, immutable and
-current ACL, the stable asset's current-version pointer,
-publication/model/profile state, and classification before ranking PostgreSQL
-FTS and pgvector candidates. OpenFGA `BatchCheck` and a canonical SQL recheck
-guard every returned citation. Missing, unknown, stale, unsupported, or denied
-decisions fail closed.
+Secure knowledge search first resolves candidate Knowledge Asset IDs with
+OpenFGA `ListObjects`. Canonical SQL then filters organization, lifecycle,
+immutable and current ACL, the stable asset's current-version pointer,
+publication/model/profile state, and classification before FTS, vector, or graph
+ranking and before evidence can enter model context. LightRAG returns structured
+entity, relation, and chunk selections with contribution-level provenance. One
+global token budget is applied across every authorized Knowledge Space.
+OpenFGA `BatchCheck` and a canonical SQL recheck guard the complete selected
+evidence closure, including graph contributions that are not direct chunk
+seeds. The pure-Java renderer numbers that same verified closure and produces
+the final model instruction; the Assistant does not rebuild a second
+chunk-only prompt. The verified evidence set is immutable for one Assistant
+request, and answer tokens stream without repeating the full authorization
+pipeline after generation. Revocation affects the next request;
+an in-flight turn may finish under its request snapshot and is bounded by the
+configured turn timeout. Missing, unknown, stale, unsupported, changed, or
+denied retrieval decisions fail closed.
 
 ACL evidence is sealed and append-only. ACL rotation appends a new generation
 and compare-and-set advances the current head. The current head has a 24-hour
@@ -136,7 +148,8 @@ an administrator governs that ledger from `/api/admin/**`.
 Source ACL evidence accepts namespaced OrgMemory user, department, and
 organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
 principals, the latter resolved through sealed per-generation membership.
-Multi-source derivation and permission-aware MCP delivery are not implemented.
+Permission-aware MCP search is implemented. Multi-source derivation and
+mutation tools are not implemented.
 
 The provider-neutral authorization contract (`PermissionKey`, `PrincipalRef`,
 `ResourceRef`, and `RelationshipAuthorizationPort`) and the official OpenFGA
@@ -185,17 +198,19 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral runtime AI gateway, whose current production adapter uses Spring
 AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
 embedding have independent configured routes; immutable Knowledge Asset embedding
-profiles still pin the provider/model used by derived indexes. The application can
-boot without a model key and uses local fallback behavior for prototype
-normalization/chat. A persistent agent conversation model does not exist yet.
+profiles still pin the provider/model used by derived indexes. The default
+`GRAPH_RAG` runtime requires its configured provider routes and has no implicit
+local retrieval fallback. A persistent agent conversation model does not exist
+yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
 authorization-scoped graph read ports, atomic revision replacement, one internal
 retrieval-plan contract with chunk-only, entity-only, relation-only,
 secure-hybrid, and secure-mix strategies, deterministic ranking and round-robin
-merge, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is the
-default plan; strategy selection is not exposed as a public request option. Its
+merge, structured grounding, deterministic contribution-level citation
+numbering, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is
+the default plan; strategy selection is not exposed as a public request option. Its
 testkit provides a permission-scoped in-memory reference projection and proves
 that restricted contribution text, seeds, neighbors, degrees, and weights do
 not affect visible results. Neither module has Spring on its runtime classpath.
@@ -216,6 +231,15 @@ identity for bounded candidate traversal; it never owns descriptions, ACL, or
 provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
 relationally rechecked. A globally bounded breadth-first relational traversal
 supplies the same candidate port when AGE is disabled.
+
+The integration also implements the framework-neutral content, lexical,
+vector, graph, and publication contracts over one namespace snapshot. Staged
+records are keyed by publication batch, all required adapters leave durable
+preparation receipts, and a namespace-scoped publication lock exposes exactly
+one winning batch. Content, FTS, pgvector, and graph readers validate that batch
+and prefilter organization plus authorized Knowledge Asset IDs before scoring
+or traversal. Published predecessor batches remain addressable; losing or
+aborted staged records are never selected by a generation-only query.
 
 Vector indexes are rebuildable and operator-selectable: exact, HNSW,
 half-vector HNSW, IVFFlat, or VChordRQ. VChordRQ requires the separately
@@ -246,11 +270,22 @@ embedding profile, and publish the complete graph generation together with the
 durable job outcome in one PostgreSQL transaction. A stale version is
 superseded and a failed publish leaves the previous generation intact.
 
-Assistant graph retrieval and graph UI wiring are not implemented yet.
+Assistant graph retrieval is the default runtime. The application verifies the
+complete entity/relation/chunk evidence closure before asking the core renderer
+for the final prompt, then sends that prompt through the existing
+provider-neutral `ChatModelPort`. Reranking is an operator policy, defaults off,
+fails startup when enabled without an adapter, and records a sanitized fallback
+event while preserving the already-authorized retrieval order on transient
+provider failure. The Sources UI exposes a
+bounded permission-scoped Knowledge Graph explorer backed by the current shared
+projection snapshot. Graph curation and export remain curator/admin operations;
+the explorer does not create a second ACL or expose globally merged
+descriptions.
 
-The Sources UI exposes a disabled Knowledge Graph navigation target until worker
-indexing and permission-scoped graph retrieval are wired. There is no legacy
-relational capability graph endpoint.
+Assistant citations use API-owned opaque URLs. The API rechecks the canonical
+evidence boundary, streams original bytes from object storage, and exposes no
+MinIO key or presigned storage URL. The web client opens the authenticated
+response as a short-lived browser blob for PDF, image, and text preview.
 
 ## Current Security And Operations
 
@@ -295,10 +330,10 @@ under the `dev` profile; non-development security chains deny their paths. The
 configuration, and the API rejects known local secrets or invalid production
 identity/AI routes during startup. OIDC logout uses the exact registered
 `/login` redirect. The committed OpenAPI contract generates Fetch, Zod, SDK, and
-TanStack Query artifacts through Hey API. A small legacy feature helper remains
-while the prototype pages are replaced; streaming and browser-navigation logout
-retain thin handwritten transports. There is no durable streaming conversation
-store.
+TanStack Query artifacts through Hey API. Streaming Assistant delivery and
+browser-navigation logout retain thin handwritten transports because they are
+not ordinary request/response contracts. There is no durable streaming
+conversation store.
 
 The repository is a prototype, not an approved production deployment. Backup and
 restore, malware/DLP upload scanning, live Slack credentials/rate-limit handling,

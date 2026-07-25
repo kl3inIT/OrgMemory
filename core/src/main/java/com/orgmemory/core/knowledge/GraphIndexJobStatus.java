@@ -5,5 +5,6 @@ enum GraphIndexJobStatus {
     PROCESSING,
     SUCCEEDED,
     FAILED,
-    SUPERSEDED
+    SUPERSEDED,
+    CANCELLED
 }

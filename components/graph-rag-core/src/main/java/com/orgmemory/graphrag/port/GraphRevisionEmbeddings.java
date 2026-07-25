@@ -35,7 +35,8 @@ public record GraphRevisionEmbeddings(
                 List.copyOf(Objects.requireNonNull(relationEmbeddings, "relationEmbeddings"));
         boolean dimensionMismatch = java.util.stream.Stream.concat(
                         entityEmbeddings.stream(), relationEmbeddings.stream())
-                .anyMatch(embedding -> embedding.vector().size() != embeddingDimensions);
+                .anyMatch(embedding ->
+                        embedding.vector().dimensions() != embeddingDimensions);
         if (dimensionMismatch) {
             throw new IllegalArgumentException(
                     "every contribution embedding must match embeddingDimensions");

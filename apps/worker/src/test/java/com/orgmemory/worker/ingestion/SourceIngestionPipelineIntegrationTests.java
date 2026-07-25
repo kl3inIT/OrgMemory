@@ -3,6 +3,7 @@ package com.orgmemory.worker.ingestion;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -30,7 +31,7 @@ import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.QueryEmbedding;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -66,6 +67,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.jdbc.Sql;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -81,10 +83,11 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 @Import({
         SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class,
-        SecureKnowledgeRetrievalService.class
+        CanonicalHybridKnowledgeSearch.class
 })
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
+@Sql("/db/test-foundation.sql")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SourceIngestionPipelineIntegrationTests {
 
@@ -133,7 +136,7 @@ class SourceIngestionPipelineIntegrationTests {
     EmbeddingProfileRegistry embeddingProfiles;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     /**
      * Every test here calls {@code processNext()} expecting to claim the upload it just made,
@@ -182,7 +185,6 @@ class SourceIngestionPipelineIntegrationTests {
                 new CreateUploadSourceCommand(
                         ACTOR,
                         "support-resolution.txt",
-                        "text/plain",
                         content.length,
                         KnowledgeClassification.CONFIDENTIAL,
                         SALES_SPACE_ID),
@@ -228,6 +230,22 @@ class SourceIngestionPipelineIntegrationTests {
                         "SELECT count(*) FROM knowledge_chunks WHERE source_object_id = ?",
                         Integer.class,
                         source.id()));
+        var graphProfile = jdbc.queryForMap(
+                """
+                SELECT profile.canonical_sha256, profile.canonical_form
+                FROM graph_index_jobs job
+                JOIN graph_processing_profiles profile
+                  ON profile.id = job.graph_processing_profile_id
+                JOIN source_revisions revision
+                  ON revision.id = job.source_revision_id
+                 AND revision.organization_id = job.organization_id
+                WHERE revision.source_object_id = ?
+                """,
+                source.id());
+        assertTrue(graphProfile.get("canonical_sha256").toString()
+                .matches("[0-9a-f]{64}"));
+        assertTrue(graphProfile.get("canonical_form").toString()
+                .contains("schemaVersion=1"));
         assertEquals(
                 1,
                 jdbc.queryForObject(
@@ -425,7 +443,6 @@ class SourceIngestionPipelineIntegrationTests {
                 new CreateUploadSourceCommand(
                         ACTOR,
                         "authorization-pending.txt",
-                        "text/plain",
                         content.length,
                         KnowledgeClassification.CONFIDENTIAL,
                         SALES_SPACE_ID),
@@ -552,10 +569,14 @@ class SourceIngestionPipelineIntegrationTests {
         @Primary
         AiRouteResolver testAiRouteResolver() {
             return workload -> {
-                if (workload != AiWorkload.DOCUMENT_EMBEDDING) {
-                    throw new IllegalArgumentException("Unsupported test workload: " + workload);
-                }
-                return new AiRoute("openai", "text-embedding-3-large");
+                return switch (workload) {
+                    case DOCUMENT_EMBEDDING ->
+                            new AiRoute("openai", "text-embedding-3-large");
+                    case GRAPH_EXTRACTION ->
+                            new AiRoute("openai", "gpt-test");
+                    default -> throw new IllegalArgumentException(
+                            "Unsupported test workload: " + workload);
+                };
             };
         }
     }

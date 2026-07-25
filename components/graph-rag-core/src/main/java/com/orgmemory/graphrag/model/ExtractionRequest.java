@@ -10,6 +10,7 @@ public record ExtractionRequest(
         UUID sourceRevisionId,
         UUID chunkId,
         String content,
+        String sectionContext,
         Locale language,
         ExtractionProfile profile) {
 
@@ -19,8 +20,30 @@ public record ExtractionRequest(
         Objects.requireNonNull(sourceRevisionId, "sourceRevisionId");
         Objects.requireNonNull(chunkId, "chunkId");
         content = requireText(content, "content");
+        sectionContext = sectionContext == null || sectionContext.isBlank()
+                ? null
+                : sectionContext.strip();
         Objects.requireNonNull(language, "language");
         Objects.requireNonNull(profile, "profile");
+    }
+
+    public ExtractionRequest(
+            UUID organizationId,
+            UUID knowledgeAssetId,
+            UUID sourceRevisionId,
+            UUID chunkId,
+            String content,
+            Locale language,
+            ExtractionProfile profile) {
+        this(
+                organizationId,
+                knowledgeAssetId,
+                sourceRevisionId,
+                chunkId,
+                content,
+                null,
+                language,
+                profile);
     }
 
     private static String requireText(String value, String field) {

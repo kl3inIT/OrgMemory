@@ -2,11 +2,13 @@
 
 ## Status
 
-Accepted on 2026-07-20.
+Superseded on 2026-07-23 by
+[0013](0013-full-lightrag-semantic-port.md).
 
 The V1 recursive-CTE retrieval clause was superseded on 2026-07-23 by
-[0010](0010-internal-retrieval-strategies-one-hop-graph.md). The remaining
-decision is unchanged.
+[0010](0010-internal-retrieval-strategies-one-hop-graph.md). Decision 0013 now
+supersedes the remaining scope limitation while retaining this decision's
+evidence-level authorization model.
 
 ## Context
 

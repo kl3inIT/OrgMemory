@@ -5,12 +5,22 @@
 Knowledge search evaluates tenant, the stable Knowledge Asset's current-version
 pointer, active immutable version, current source revision, ingestion ACL,
 current ACL head, applied publication/model/profile generation, OrgMemory
-policy, and classification. OpenFGA `ListObjects` supplies the authorized stable
-asset IDs. SQL applies every canonical predicate before PostgreSQL FTS +
-pgvector ranking and `LIMIT`; OpenFGA `BatchCheck` and Java canonical rechecks
-guard returned citations. Missing and denied resource reads for an otherwise
-eligible reader return the same generic `404`. A missing control-plane role or
-incomplete current actor is rejected at the request boundary with `403`.
+policy, and classification. OpenFGA `ListObjects` supplies candidate stable
+asset IDs. SQL applies every canonical predicate before PostgreSQL FTS,
+pgvector, or graph ranking and before model context assembly. OpenFGA
+`BatchCheck` and canonical SQL rechecks guard selected evidence. The resulting
+evidence set is the immutable authorization snapshot for one Assistant turn.
+Only evidence that fits the model-context budget is exposed as a citation, and
+answer tokens stream without a post-generation authorization replay. A
+revocation applies to every new turn; an already-started turn may finish under
+its request snapshot and is bounded by the configured two-minute turn timeout.
+
+Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
+the current canonical evidence boundary once, validates the revision and blob
+integrity, and streams the original bytes through the authenticated API with
+`no-store` and `nosniff`. Missing and denied citation reads return the same
+generic `404`. A missing control-plane role or incomplete current actor is
+rejected at the request boundary with `403`.
 
 Control-plane roles (`ADMIN`, `REVIEWER`, `CONTRIBUTOR`, `VIEWER`) are separate
 from knowledge roles (`EMPLOYEE`, `MANAGER`, `DIRECTOR`, `EXECUTIVE`). Admin does
@@ -35,10 +45,11 @@ raw query text is represented only by a hash.
 OIDC identities resolve only through an explicit issuer/subject binding; email
 and identity-provider roles never bootstrap access. Knowledge ACL principals
 include namespaced OrgMemory users, departments, and organizations plus verified
-external source users/groups resolved through the mapping ledger. Hybrid
-FTS/pgvector retrieval and the in-app Assistant are implemented. Graph-assisted
-retrieval, MCP delivery, export, and multi-source derived-permission
-intersection are not yet wired.
+external source users/groups resolved through the mapping ledger. The in-app
+Assistant and read-only MCP tool use the same GraphRAG application service.
+Graph-assisted retrieval, graph exploration, citation streaming, and export all
+reuse the same authorized evidence scope; no graph node or relation owns an
+independent ACL. Multi-source derived-permission intersection remains open.
 
 ## Source Modules
 

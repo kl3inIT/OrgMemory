@@ -8,30 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { adminUsersQueryOptions } from "@/features/admin/admin-queries"
+import { PERMISSION_LABELS } from "@/features/admin/access-permission-labels"
 import { AccessDenied, AccessPath } from "@/features/admin/components/access-path"
 import { AccessVerdict, type AccessState } from "@/features/admin/components/access-verdict"
 import { explainAdminAccessMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
-
-/**
- * Permissions worth asking about, labelled for someone who did not write the model.
- * The `can_view`/`can_publish`/`can_edit` group is not organization-level, so it only
- * answers against a space or a document.
- */
-export const PERMISSION_LABELS: Record<string, string> = {
-  can_manage_members: "Administer the organization",
-  can_manage_sources: "Manage connected sources",
-  can_create_knowledge_space: "Create knowledge spaces",
-  can_search_knowledge: "Search knowledge",
-  can_view_directory: "View the directory",
-  can_view_audit: "View the audit trail",
-  can_curate_graph: "Curate the knowledge graph",
-  can_view: "View this resource",
-  can_publish: "Publish to this resource",
-  can_edit: "Edit this resource",
-  can_create_asset: "Add to this resource",
-  can_manage_acl: "Manage access to this resource",
-  can_manage: "Manage this resource",
-}
 
 /**
  * A relation only exists on the types the model declares it for. Offering every permission

@@ -1,11 +1,7 @@
 import { useChat } from "@ai-sdk/react"
-import {
-  type SourceDocumentUIPart,
-  type SourceUrlUIPart,
-  type UIMessage,
-} from "ai"
-import { Copy, LoaderCircle, ShieldCheck } from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { type SourceUrlUIPart, type UIMessage } from "ai"
+import { Copy, RotateCcw, ShieldCheck } from "lucide-react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -19,7 +15,6 @@ import {
   MessageActions,
   MessageContent,
 } from "@/components/ai-elements/message"
-import { MessageResponse } from "@/components/ai-elements/message-response"
 import {
   PromptInput,
   PromptInputBody,
@@ -31,15 +26,21 @@ import {
 } from "@/components/ai-elements/prompt-input"
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources"
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
+import { Button } from "@/components/ui/button"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
+import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
+import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
+import {
+  type AssistantSourceRef,
+  AssistantSourcesPanel,
+} from "@/features/assistant/components/assistant-sources-panel"
+import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
 
 const SUGGESTIONS = [
   "What is the probation policy?",
   "How do I submit a travel expense claim?",
   "What is the product release process?",
 ]
-
-type SourcePart = SourceUrlUIPart | SourceDocumentUIPart
 
 function textFor(message: UIMessage) {
   return message.parts
@@ -49,29 +50,62 @@ function textFor(message: UIMessage) {
 }
 
 function sourcesFor(message: UIMessage) {
-  const sources = message.parts.filter(
-    (part): part is SourcePart => part.type === "source-url" || part.type === "source-document",
-  )
-  return [...new Map(sources.map((source) => [source.sourceId, source])).values()]
+  const sources: AssistantSourceRef[] = []
+  const seenNumbers = new Set<number>()
+  const seenIds = new Set<string>()
+  for (const part of message.parts) {
+    if (part.type !== "source-url") continue
+    const citationNumber = citationNumberFor(part)
+    const url = citationUrl(part.url)
+    if (
+      citationNumber === null ||
+      url === null ||
+      seenNumbers.has(citationNumber) ||
+      seenIds.has(part.sourceId)
+    ) {
+      continue
+    }
+    seenNumbers.add(citationNumber)
+    seenIds.add(part.sourceId)
+    sources.push({
+      id: part.sourceId,
+      citationNumber,
+      title: part.title ?? "Company knowledge",
+      url,
+    })
+  }
+  return sources.sort((left, right) => left.citationNumber - right.citationNumber)
 }
 
 function hasVisibleOutput(message: UIMessage) {
   return textFor(message).trim().length > 0 || sourcesFor(message).length > 0
 }
 
-function sourceHref(source: SourcePart) {
-  if (source.type === "source-url") return source.url
+function citationNumberFor(source: SourceUrlUIPart) {
+  const metadata = source.providerMetadata?.orgmemory
+  if (!metadata || Array.isArray(metadata)) return null
+  const number = metadata.citationNumber
+  return typeof number === "number" && Number.isSafeInteger(number) && number > 0
+    ? number
+    : null
+}
+
+function citationUrl(rawUrl: string) {
   try {
     const baseUrl = new URL("https://orgmemory.invalid")
-    const sourceUrl = new URL(source.sourceId, baseUrl)
-    if (sourceUrl.origin === baseUrl.origin && sourceUrl.pathname === "/sources") {
-      return `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`
+    const sourceUrl = new URL(rawUrl, baseUrl)
+    if (
+      sourceUrl.origin === baseUrl.origin &&
+      /^\/api\/citations\/[0-9a-f-]{36}\/content$/i.test(sourceUrl.pathname) &&
+      sourceUrl.search === "" &&
+      sourceUrl.hash === ""
+    ) {
+      return sourceUrl.pathname
     }
   } catch {
-    // Fall through to the validated Documents search route.
+    return null
   }
-  const query = source.title?.trim()
-  return query ? `/sources?q=${encodeURIComponent(query)}` : "/sources"
+  return null
 }
 
 function greeting() {
@@ -84,15 +118,32 @@ function greeting() {
 export function AssistantPage() {
   const transport = useMemo(() => createAssistantTransport(), [])
   const [text, setText] = useState("")
+  const [sourcePanel, setSourcePanel] = useState<{
+    messageId: string
+    sources: AssistantSourceRef[]
+    selectedSourceId: string
+  } | null>(null)
   const submitLock = useRef(false)
   const { messages, sendMessage, status, stop, error, clearError } = useChat({ transport })
   const busy = status === "submitted" || status === "streaming"
   const latestMessage = messages.at(-1)
+  const retryText = [...messages]
+    .reverse()
+    .find((message) => message.role === "user")
+  const retryMessage = retryText ? textFor(retryText) : ""
   const showWaiting =
     busy &&
     (latestMessage === undefined ||
       latestMessage.role === "user" ||
       !hasVisibleOutput(latestMessage))
+  const showThinking = useAssistantThinkingVisibility(showWaiting)
+  const openSources = useCallback((messageId: string, sources: AssistantSourceRef[], sourceId: string) => {
+    setSourcePanel({
+      messageId,
+      sources,
+      selectedSourceId: sourceId,
+    })
+  }, [])
 
   function send(rawMessage: string) {
     const message = rawMessage.trim()
@@ -166,73 +217,106 @@ export function AssistantPage() {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-      <Conversation className="min-h-0 flex-1">
-        <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
-          {messages.map((message) => {
-            const content = textFor(message)
-            const sources = sourcesFor(message)
-            if (!content.trim() && sources.length === 0) return null
+    <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Conversation className="min-h-0 flex-1">
+          <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
+            {messages.map((message) => {
+              const content = textFor(message)
+              const sources = sourcesFor(message)
+              if (!content.trim() && sources.length === 0) return null
 
-            return (
-              <Message from={message.role} key={message.id}>
-                {content.trim() ? (
-                  <MessageContent className="text-body">
-                    <MessageResponse>{content}</MessageResponse>
-                  </MessageContent>
-                ) : null}
-                {sources.length > 0 ? (
-                  <Sources className="mb-0 text-content-secondary">
-                    <SourcesTrigger count={sources.length} />
-                    <SourcesContent className="flex-row flex-wrap gap-2">
-                      {sources.map((source) => (
-                        <Source
-                          key={`${source.type}-${source.sourceId}`}
-                          href={sourceHref(source)}
-                          title={source.title ?? "Company knowledge"}
-                          target={sourceHref(source).startsWith("/") ? "_self" : "_blank"}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-subtle px-2.5 py-1.5 text-supporting text-content-secondary transition-colors hover:bg-action-ghost-hover hover:text-content-primary"
-                        />
-                      ))}
-                    </SourcesContent>
-                  </Sources>
-                ) : null}
-                {content.trim() ? (
-                  <MessageActions className={message.role === "user" ? "justify-end" : undefined}>
-                    <MessageAction
-                      label="Copy message"
-                      tooltip="Copy message"
-                      onClick={() =>
-                        navigator.clipboard
-                          .writeText(content)
-                          .then(() => toast.success("Message copied"))
-                          .catch(() => toast.error("Could not copy message"))
-                      }
-                    >
-                      <Copy className="size-4" />
-                    </MessageAction>
-                  </MessageActions>
-                ) : null}
+              return (
+                <Message from={message.role} key={message.id}>
+                  {content.trim() ? (
+                    <MessageContent className="text-body">
+                      <AssistantAnswer
+                        content={content}
+                        sources={sources}
+                        onOpenSource={(sourceId) => openSources(message.id, sources, sourceId)}
+                      />
+                    </MessageContent>
+                  ) : null}
+                  {sources.length > 0 ? (
+                    <Sources>
+                      <SourcesTrigger count={sources.length} />
+                      <SourcesContent>
+                        {sources.map((source) => (
+                          <Source
+                            key={source.id}
+                            href={source.url}
+                            title={source.title}
+                            target="_self"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              openSources(message.id, sources, source.id)
+                            }}
+                          />
+                        ))}
+                      </SourcesContent>
+                    </Sources>
+                  ) : null}
+                  {content.trim() ? (
+                    <MessageActions className={message.role === "user" ? "justify-end" : undefined}>
+                      <MessageAction
+                        label="Copy message"
+                        tooltip="Copy message"
+                        onClick={() =>
+                          navigator.clipboard
+                            .writeText(content)
+                            .then(() => toast.success("Message copied"))
+                            .catch(() => toast.error("Could not copy message"))
+                        }
+                      >
+                        <Copy className="size-4" />
+                      </MessageAction>
+                    </MessageActions>
+                  ) : null}
+                </Message>
+              )
+            })}
+            {showThinking ? (
+              <Message from="assistant">
+                <MessageContent>
+                  <AssistantThinkingIndicator />
+                </MessageContent>
               </Message>
-            )
-          })}
-          {showWaiting ? (
-            <Message from="assistant">
-              <MessageContent className="flex-row items-center gap-2 text-body text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                <span>Searching permitted knowledge…</span>
-              </MessageContent>
-            </Message>
-          ) : null}
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              OrgMemory could not complete this turn. Please try again.
-            </p>
-          ) : null}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-6">{composer}</div>
+            ) : null}
+            {error ? (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3"
+              >
+                <p className="text-sm text-destructive">
+                  OrgMemory could not complete this turn.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!retryMessage || busy}
+                  onClick={() => {
+                    void send(retryMessage)?.catch(() => undefined)
+                  }}
+                >
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                  Retry
+                </Button>
+              </div>
+            ) : null}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+        <div className="mx-auto w-full max-w-3xl px-4 pb-6">{composer}</div>
+      </div>
+      <AssistantSourcesPanel
+        open={sourcePanel !== null}
+        sources={sourcePanel?.sources ?? []}
+        selectedSourceId={sourcePanel?.selectedSourceId ?? null}
+        onClose={() => setSourcePanel(null)}
+        onSelect={(selectedSourceId) =>
+          setSourcePanel((current) => (current ? { ...current, selectedSourceId } : current))
+        }
+      />
     </div>
   )
 }

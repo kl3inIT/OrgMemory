@@ -132,6 +132,31 @@ class OidcCurrentActorProviderTests {
         verify(provisioning).provisionFromInvitation(ISSUER, "fresh-subject", "newcomer@example.test");
     }
 
+    @Test
+    void anUnverifiedAddressCannotAcceptAnInvitation() {
+        ExternalIdentityRepository identities = mock(ExternalIdentityRepository.class);
+        AppUserRepository users = mock(AppUserRepository.class);
+        UserProvisioningService provisioning = mock(UserProvisioningService.class);
+        when(identities.findByIssuerAndSubject(ISSUER, "fresh-subject"))
+                .thenReturn(Optional.empty());
+        Jwt unverified = Jwt.withTokenValue("test-token")
+                .header("alg", "none")
+                .issuer(ISSUER)
+                .subject("fresh-subject")
+                .claim("email", "newcomer@example.test")
+                .claim("email_verified", false)
+                .build();
+
+        assertThrows(
+                OrgMemoryAccessDeniedException.class,
+                () -> new OidcCurrentActorProvider(
+                                identities, users, provisioning)
+                        .current(new JwtAuthenticationToken(unverified)));
+
+        verify(provisioning, org.mockito.Mockito.never())
+                .provisionFromInvitation(any(), any(), any());
+    }
+
     private static JwtAuthenticationToken jwt(String subject, String email, String authority) {
         Jwt jwt = Jwt.withTokenValue("test-token")
                 .header("alg", "none")

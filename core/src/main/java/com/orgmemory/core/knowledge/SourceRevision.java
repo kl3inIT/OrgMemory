@@ -75,6 +75,12 @@ class SourceRevision extends BaseEntity {
     @Column(name = "chunker_version", length = 64)
     private String chunkerVersion;
 
+    @Column(name = "processing_profile", columnDefinition = "text")
+    private String processingProfile;
+
+    @Column(name = "processing_profile_sha256", length = 64)
+    private String processingProfileSha256;
+
     @Column(name = "embedding_profile_id")
     private UUID embeddingProfileId;
 
@@ -159,6 +165,7 @@ class SourceRevision extends BaseEntity {
             String pipelineVersion,
             String parserVersion,
             String chunkerVersion,
+            DocumentProcessingProfileSnapshot processingProfile,
             EmbeddingProfileRef embeddingProfile,
             RawSourceRef raw,
             NormalizedRecordRef normalized,
@@ -170,6 +177,8 @@ class SourceRevision extends BaseEntity {
         this.pipelineVersion = pipelineVersion;
         this.parserVersion = parserVersion;
         this.chunkerVersion = chunkerVersion;
+        this.processingProfile = processingProfile.canonicalForm();
+        this.processingProfileSha256 = processingProfile.sha256();
         this.embeddingProfileId = embeddingProfile.id();
         this.embeddingDimensions = embeddingProfile.dimensions();
         this.rawSourceObjectId = raw.rawSourceObjectId();
@@ -257,5 +266,13 @@ class SourceRevision extends BaseEntity {
 
     UUID getKnowledgeAssetVersionId() {
         return knowledgeAssetVersionId;
+    }
+
+    String getProcessingProfile() {
+        return processingProfile;
+    }
+
+    String getProcessingProfileSha256() {
+        return processingProfileSha256;
     }
 }

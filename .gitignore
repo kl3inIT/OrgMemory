@@ -36,6 +36,9 @@ tmp/
 output/
 test-results/
 .tools/
+.venv/
+__pycache__/
+*.py[cod]
 
 # --- OS ---
 .DS_Store

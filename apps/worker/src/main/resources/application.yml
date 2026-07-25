@@ -8,7 +8,7 @@ spring:
     virtual:
       enabled: true
   datasource:
-    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:55432/orgmemory}
+    url: ${ORGMEMORY_DB_URL:jdbc:postgresql://localhost:${ORGMEMORY_POSTGRES_PORT:15432}/orgmemory}
     username: ${ORGMEMORY_DB_USER:orgmemory}
     password: ${ORGMEMORY_DB_PASSWORD:orgmemory}
   jpa:
@@ -18,8 +18,12 @@ spring:
   flyway:
     enabled: false
   ai:
+    chat:
+      observations:
+        log-prompt: false
+        log-completion: false
     model:
-      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
+      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:openai}
     openai:
       api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
       embedding:
@@ -65,22 +69,31 @@ orgmemory:
       poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
       lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
       pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
-      parser-version: ${ORGMEMORY_INGESTION_PARSER_VERSION:spring-ai-etl-v1}
-      chunker-version: ${ORGMEMORY_INGESTION_CHUNKER_VERSION:token-800-v1}
+      parser-id: ${ORGMEMORY_INGESTION_PARSER:spring-ai-document-reader}
+      chunker-id: ${ORGMEMORY_INGESTION_CHUNKER:fixed-token}
+      tokenizer-encoding: ${ORGMEMORY_INGESTION_TOKENIZER:o200k_base}
       normalizer-version: ${ORGMEMORY_INGESTION_NORMALIZER_VERSION:source-normalizer-v1}
       embedding-provider: ${ORGMEMORY_EMBEDDING_PROVIDER:openai}
       embedding-model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       embedding-dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
       chunk-size: ${ORGMEMORY_INGESTION_CHUNK_SIZE:800}
+      chunk-overlap: ${ORGMEMORY_INGESTION_CHUNK_OVERLAP:100}
+      semantic-embedding-batch-size: ${ORGMEMORY_SEMANTIC_EMBEDDING_BATCH_SIZE:64}
       maximum-chunks: ${ORGMEMORY_INGESTION_MAX_CHUNKS:500}
   graph-rag:
+    processing:
+      maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
+      maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
+      entity-type-guidance: ${ORGMEMORY_GRAPH_ENTITY_TYPES:PERSON,ORGANIZATION,TEAM,ROLE,POLICY,PROCESS,SYSTEM,PRODUCT,DOCUMENT,LOCATION,EVENT,CONCEPT,OTHER}
+      maximum-gleaning-rounds: ${ORGMEMORY_GRAPH_MAX_GLEANING_ROUNDS:1}
+      maximum-gleaning-input-tokens: ${ORGMEMORY_GRAPH_MAX_GLEANING_INPUT_TOKENS:24000}
+      maximum-section-context-tokens: ${ORGMEMORY_GRAPH_MAX_SECTION_CONTEXT_TOKENS:256}
     indexing:
       scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
       poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
       lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
+      extraction-timeout: ${ORGMEMORY_GRAPH_EXTRACTION_TIMEOUT:2m}
       maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}
-      maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
-      maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
   storage:
     object:
       endpoint: ${ORGMEMORY_OBJECT_STORAGE_ENDPOINT:http://localhost:9000}
@@ -88,3 +101,8 @@ orgmemory:
       secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY:orgmemory-local-secret}
       bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET:orgmemory-evidence}
       maximum-object-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
+
+management:
+  tracing:
+    sampling:
+      probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}

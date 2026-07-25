@@ -20,7 +20,10 @@ class UiMessageStreamTests {
                         Flux.just(
                                 new AssistantStreamPart.StartStep(),
                                 new AssistantStreamPart.SourceUrl(
-                                        "citation-1", "https://example.test/handbook", "Employee Handbook"),
+                                        "citation-1",
+                                        "https://example.test/handbook",
+                                        "Employee Handbook",
+                                        1),
                                 new AssistantStreamPart.TextStart("answer"),
                                 new AssistantStreamPart.TextDelta("answer", "Sixty days. [1]"),
                                 new AssistantStreamPart.TextEnd("answer"),
@@ -36,7 +39,7 @@ class UiMessageStreamTests {
         assertThat(data.getFirst()).contains("\"type\":\"start\"").contains("\"messageId\":");
         assertThat(data.subList(1, data.size())).containsExactly(
                 "{\"type\":\"start-step\"}",
-                "{\"type\":\"source-url\",\"sourceId\":\"citation-1\",\"url\":\"https://example.test/handbook\",\"title\":\"Employee Handbook\"}",
+                "{\"type\":\"source-url\",\"sourceId\":\"citation-1\",\"url\":\"https://example.test/handbook\",\"title\":\"Employee Handbook\",\"providerMetadata\":{\"orgmemory\":{\"citationNumber\":1}}}",
                 "{\"type\":\"text-start\",\"id\":\"answer\"}",
                 "{\"type\":\"text-delta\",\"id\":\"answer\",\"delta\":\"Sixty days. [1]\"}",
                 "{\"type\":\"text-end\",\"id\":\"answer\"}",

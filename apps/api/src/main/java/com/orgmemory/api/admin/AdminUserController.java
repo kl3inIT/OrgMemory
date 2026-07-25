@@ -65,7 +65,7 @@ class AdminUserController {
     @Operation(operationId = "listAdminUsers", summary = "List internal users with their sign-in and mapping status")
     @Transactional(readOnly = true)
     List<AdminUserResponse> list(Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         List<AppUser> organizationUsers = users.findByOrganizationIdOrderByName(actor.organizationId());
         Set<UUID> linked = identities
                 .findByAppUserIdIn(organizationUsers.stream().map(AppUser::getId).toList())
@@ -94,7 +94,7 @@ class AdminUserController {
             @PathVariable UUID userId,
             @RequestBody UpdateAdminUserRequest request,
             Authentication authentication) {
-        CurrentActor actor = guard.requireAdministrator(authentication);
+        CurrentActor actor = guard.requireMemberAdministrator(authentication);
         // Self-edits are the one way an administrator can lock the organization out of
         // its own administration surface, so they are refused rather than confirmed.
         if (actor.userId().equals(userId)) {

@@ -1,19 +1,18 @@
 package com.orgmemory.core.authorization;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Assigning and revoking the roles OrgMemory owns.
  *
- * <p>A role is tuple data, not a model relation, so granting one is a single tuple and revoking it
- * is a single deletion — neither needs a deploy. That is the whole reason {@code type role} exists
- * in the model, and it is what lets an administrator change access at runtime without touching the
- * authorization model, which is a versioned artifact.
+ * <p>Organization roles are direct organization relations. This keeps every assignment
+ * tenant-scoped by construction: a user assigned in one organization cannot become an assignee
+ * of a globally shared role object.
  */
 public class RoleAdministrationService {
 
@@ -37,7 +36,18 @@ public class RoleAdministrationService {
     private static final int MAXIMUM_PAGES_READ = 500;
 
     private static final int PAGE_SIZE = 100;
-    private static final String ASSIGNEE = "assignee";
+    private static final Map<String, String> ROLE_RELATIONS = Map.of(
+            "organization-member", "member",
+            "organization-admin", "administrator",
+            "knowledge-reader", "knowledge_reader",
+            "knowledge-contributor", "knowledge_contributor",
+            "knowledge-reviewer", "knowledge_reviewer",
+            "knowledge-curator", "knowledge_curator",
+            "source-manager", "source_manager");
+    private static final Map<String, String> RELATION_ROLES = ROLE_RELATIONS.entrySet().stream()
+            .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                    Map.Entry::getValue, Map.Entry::getKey));
+    private static final Set<String> MANAGED_RELATIONS = Set.copyOf(RELATION_ROLES.keySet());
 
     private final RelationshipTupleWritePort writes;
     private final RelationshipTupleReconciliationPort tuples;
@@ -66,24 +76,31 @@ public class RoleAdministrationService {
         }
     }
 
-    public RoleListing roles() {
+    public RoleListing roles(UUID organizationId) {
+        Objects.requireNonNull(organizationId, "organizationId");
         Map<String, List<String>> assignees = new LinkedHashMap<>();
+        ROLE_RELATIONS.keySet().stream()
+                .sorted()
+                .forEach(role -> assignees.put(role, new java.util.ArrayList<>()));
         String continuationToken = null;
         int scanned = 0;
         int pages = 0;
         String policyVersion = tuples.policyVersion();
         boolean complete = true;
         do {
-            RelationshipTuplePage page = tuples.read(PAGE_SIZE, continuationToken);
+            RelationshipTuplePage page = tuples.read(
+                    RelationshipTupleFilter.object("organization:" + organizationId),
+                    PAGE_SIZE,
+                    continuationToken);
             if (!page.resolved()) {
                 return new RoleListing(List.of(), false, page.policyVersion());
             }
             policyVersion = page.policyVersion();
             for (RelationshipTuple tuple : page.tuples()) {
-                if (tuple.object().startsWith("role:") && ASSIGNEE.equals(tuple.relation())) {
-                    assignees
-                            .computeIfAbsent(tuple.object().substring("role:".length()), key -> new ArrayList<>())
-                            .add(tuple.user());
+                String role = RELATION_ROLES.get(tuple.relation());
+                if (role != null
+                        && tuple.object().equals("organization:" + organizationId)) {
+                    assignees.get(role).add(tuple.user());
                 }
             }
             scanned += page.tuples().size();
@@ -104,26 +121,38 @@ public class RoleAdministrationService {
                 policyVersion);
     }
 
-    public RelationshipTupleWriteResult assign(String role, UUID userId) {
-        return writes.write(new RelationshipTupleWriteRequest(List.of(assignment(role, userId))));
+    public RelationshipTupleWriteResult assign(
+            UUID organizationId,
+            String role,
+            UUID userId) {
+        return writes.write(new RelationshipTupleWriteRequest(
+                List.of(assignment(organizationId, role, userId))));
     }
 
-    public RelationshipTupleWriteResult revoke(String role, UUID userId) {
-        return tuples.delete(new RelationshipTupleWriteRequest(List.of(assignment(role, userId))));
+    public RelationshipTupleWriteResult revoke(
+            UUID organizationId,
+            String role,
+            UUID userId) {
+        return tuples.delete(new RelationshipTupleWriteRequest(
+                List.of(assignment(organizationId, role, userId))));
     }
 
-    private static RelationshipTuple assignment(String role, UUID userId) {
+    private static RelationshipTuple assignment(
+            UUID organizationId,
+            String role,
+            UUID userId) {
         return AdministrativeTupleScope.require(RelationshipTuple.of(
                 PrincipalRef.user(Objects.requireNonNull(userId, "userId")).openFgaUser(),
-                ASSIGNEE,
-                "role:" + requireRole(role)));
+                relation(role),
+                "organization:" + Objects.requireNonNull(organizationId, "organizationId")));
     }
 
-    private static String requireRole(String value) {
+    private static String relation(String value) {
         String normalized = Objects.requireNonNull(value, "role").trim();
-        if (normalized.isEmpty() || normalized.indexOf(':') >= 0 || normalized.indexOf('#') >= 0) {
-            throw new IllegalArgumentException("Role must be non-empty and must not contain ':' or '#'");
+        String relation = ROLE_RELATIONS.get(normalized);
+        if (relation == null || !MANAGED_RELATIONS.contains(relation)) {
+            throw new IllegalArgumentException("Unknown organization role");
         }
-        return normalized;
+        return relation;
     }
 }

@@ -4,10 +4,9 @@ import java.util.List;
 
 record StructuredExtractionResponse(
         List<EntityItem> entities,
-        List<RelationItem> relations) {
+        List<RelationItem> relationships) {
 
     record EntityItem(
-            String reference,
             String name,
             String type,
             String description,
@@ -15,8 +14,8 @@ record StructuredExtractionResponse(
     }
 
     record RelationItem(
-            String sourceReference,
-            String targetReference,
+            String source,
+            String target,
             String type,
             List<String> keywords,
             String description,

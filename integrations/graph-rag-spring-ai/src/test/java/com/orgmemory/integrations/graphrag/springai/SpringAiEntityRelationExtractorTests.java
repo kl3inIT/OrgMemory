@@ -18,6 +18,8 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 
 class SpringAiEntityRelationExtractorTests {
 
@@ -25,24 +27,22 @@ class SpringAiEntityRelationExtractorTests {
             {
               "entities": [
                 {
-                  "reference": "e1",
                   "name": "OrgMemory",
                   "type": "SYSTEM",
                   "description": "OrgMemory stores governed organizational knowledge.",
                   "confidence": 0.98
                 },
                 {
-                  "reference": "e2",
                   "name": "OpenFGA",
                   "type": "SYSTEM",
                   "description": "OpenFGA evaluates relationship permissions.",
                   "confidence": 0.97
                 }
               ],
-              "relations": [
+              "relationships": [
                 {
-                  "sourceReference": "e1",
-                  "targetReference": "e2",
+                  "source": "OrgMemory",
+                  "target": "OpenFGA",
                   "type": "USES_FOR_AUTHORIZATION",
                   "keywords": ["authorization", "permissions", "authorization"],
                   "description": "OrgMemory uses OpenFGA to evaluate relationship permissions.",
@@ -63,7 +63,8 @@ class SpringAiEntityRelationExtractorTests {
 
         assertEquals(request().profile(), result.profile());
         assertEquals(2, result.entities().size());
-        assertEquals("OrgMemory", result.entities().getFirst().name());
+        assertTrue(result.entities().stream().anyMatch(entity ->
+                "OrgMemory".equals(entity.name())));
         assertEquals(1, result.relations().size());
         assertEquals(
                 RelationOrientation.DIRECTED,
@@ -72,7 +73,10 @@ class SpringAiEntityRelationExtractorTests {
                 List.of("authorization", "permissions"),
                 result.relations().getFirst().keywords());
         assertEquals("gpt-5.6-sol", model.lastPrompt.getOptions().getModel());
-        assertEquals(0.0, model.lastPrompt.getOptions().getTemperature());
+        assertTrue(model.lastPrompt.getOptions() instanceof StructuredOutputChatOptions);
+        assertTrue(((StructuredOutputChatOptions) model.lastPrompt.getOptions())
+                .getOutputSchema()
+                .contains("\"entities\""));
     }
 
     @Test
@@ -85,11 +89,11 @@ class SpringAiEntityRelationExtractorTests {
 
         String system = model.lastPrompt.getSystemMessage().getText();
         String user = model.lastPrompt.getUserMessage().getText();
-        assertTrue(system.contains("untrusted text chunk"));
+        assertTrue(system.contains("untrusted input text"));
         assertFalse(system.contains("OrgMemory uses OpenFGA"));
         assertTrue(user.contains("Required output language: vi-VN"));
-        assertTrue(user.contains("Maximum entities: 10"));
-        assertTrue(user.contains("Maximum relationships: 12"));
+        assertTrue(user.contains("Maximum entities in this response: 10"));
+        assertTrue(user.contains("Maximum relationships in this response: 12"));
         assertTrue(user.contains("---BEGIN UNTRUSTED EVIDENCE---"));
         assertTrue(user.contains("OrgMemory uses OpenFGA"));
     }
@@ -129,8 +133,8 @@ class SpringAiEntityRelationExtractorTests {
     @Test
     void failsClosedWhenRelationEndpointsAreNotPresent() {
         String unresolvedRelation = RESPONSE.replace(
-                "\"targetReference\": \"e2\"",
-                "\"targetReference\": \"missing\"");
+                "\"target\": \"OpenFGA\"",
+                "\"target\": \"missing\"");
         SpringAiEntityRelationExtractor extractor =
                 new SpringAiEntityRelationExtractor(
                         "openai",
@@ -143,13 +147,47 @@ class SpringAiEntityRelationExtractorTests {
         assertFalse(exception.getMessage().contains("OrgMemory uses OpenFGA"));
     }
 
+    @Test
+    void wrapsMalformedStructuredOutputInTheDomainException() {
+        SpringAiEntityRelationExtractor extractor =
+                new SpringAiEntityRelationExtractor(
+                        "openai",
+                        new RecordingChatModel("{not-json"));
+
+        GraphExtractionException exception =
+                assertThrows(GraphExtractionException.class, () -> extractor.extract(request()));
+
+        assertTrue(exception.getMessage().contains("malformed structured output"));
+        assertTrue(exception.getCause() != null);
+    }
+
+    @Test
+    void rejectsMissingConfidenceWithoutLeakingANullPointerException() {
+        String missingConfidence = RESPONSE.replace(
+                "\"confidence\": 0.98",
+                "\"confidence\": null");
+        SpringAiEntityRelationExtractor extractor =
+                new SpringAiEntityRelationExtractor(
+                        "openai",
+                        new RecordingChatModel(missingConfidence));
+
+        GraphExtractionException exception =
+                assertThrows(GraphExtractionException.class, () -> extractor.extract(request()));
+
+        assertTrue(exception.getMessage().contains("missing a confidence"));
+    }
+
     private static ExtractionRequest request() {
         return request(new ExtractionProfile(
                 "openai",
                 "gpt-5.6-sol",
                 SpringAiEntityRelationExtractor.PROMPT_VERSION,
                 10,
-                12));
+                12,
+                List.of("SYSTEM", "ORGANIZATION"),
+                List.of(),
+                0,
+                24_000));
     }
 
     private static ExtractionRequest request(ExtractionProfile profile) {
@@ -179,6 +217,11 @@ class SpringAiEntityRelationExtractorTests {
             callCount++;
             return new ChatResponse(
                     List.of(new Generation(new AssistantMessage(response))));
+        }
+
+        @Override
+        public ChatOptions getOptions() {
+            return StructuredOutputChatOptions.builder().build();
         }
     }
 }

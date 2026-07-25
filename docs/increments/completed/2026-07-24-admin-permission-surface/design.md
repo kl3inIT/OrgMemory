@@ -111,8 +111,9 @@ it does not own.
 `graph_relation_contributions` hold evidence and carry `knowledge_asset_id`. Node
 visibility is the result of a join against the actor's authorized asset set, not a
 check. This is why `model.fga` has no `graph_entity` type and must not gain one.
-Reuse the `authorizedAssetIds` set that `SecureKnowledgeRetrievalService` already
-computes.
+Reuse the canonical evidence scope produced by `KnowledgeEvidenceScopeResolver`;
+retrieval, graph exploration, export, and citation reads must not derive their own
+asset visibility rules.
 
 **2. `can_curate_graph` is `knowledge_curator or administrator`.** For the POC no
 principal holds `knowledge_curator`; the administrator satisfies the permission

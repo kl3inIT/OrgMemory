@@ -9,7 +9,7 @@ services:
     ports:
       - "8180:8080"
     volumes:
-      - ./keycloak/orgmemory-realm.json:/opt/keycloak/data/import/orgmemory-realm.json:ro
+      - ./infrastructure/keycloak/orgmemory-realm.json:/opt/keycloak/data/import/orgmemory-realm.json:ro
 
   postgres:
     image: orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
@@ -24,7 +24,7 @@ services:
       OPENFGA_POSTGRES_USER: openfga
       OPENFGA_POSTGRES_PASSWORD: openfga
     ports:
-      - "55432:5432"
+      - "${ORGMEMORY_POSTGRES_PORT:-15432}:5432"
     volumes:
       - orgmemory_pg:/var/lib/postgresql
     healthcheck:

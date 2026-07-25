@@ -2,6 +2,7 @@ package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
+import java.util.ArrayList;
 import java.util.List;
 
 final class AssistantPromptFactory {
@@ -20,26 +21,36 @@ final class AssistantPromptFactory {
     private AssistantPromptFactory() {
     }
 
-    static ChatGenerationRequest create(String question, List<RetrievedKnowledgeEvidence> evidence) {
+    static PreparedPrompt create(
+            String question,
+            List<RetrievedKnowledgeEvidence> evidence) {
         if (question == null || question.isBlank()) {
             throw new IllegalArgumentException("question is required");
         }
         if (evidence == null || evidence.isEmpty()) {
             throw new IllegalArgumentException("verified evidence is required");
         }
-        return new ChatGenerationRequest(SYSTEM_INSTRUCTION, renderUserPrompt(question, evidence));
+        return render(question, evidence);
     }
 
-    private static String renderUserPrompt(String question, List<RetrievedKnowledgeEvidence> evidence) {
+    private static PreparedPrompt render(
+            String question,
+            List<RetrievedKnowledgeEvidence> evidence) {
         StringBuilder value = new StringBuilder("Question:\n")
                 .append(question.strip())
                 .append("\n\nPermission-verified evidence:\n");
+        List<AssistantCitation> citations =
+                new ArrayList<>();
         int remaining = MAX_EVIDENCE_CHARACTERS;
         for (int index = 0; index < evidence.size() && remaining > 0; index++) {
             RetrievedKnowledgeEvidence source = evidence.get(index);
-            String content = truncate(source.content(), Math.min(MAX_EXCERPT_CHARACTERS, remaining));
+            String content = truncate(
+                    source.content(),
+                    Math.min(MAX_EXCERPT_CHARACTERS, remaining));
+            int sourceNumber = citations.size() + 1;
+            citations.add(new AssistantCitation(sourceNumber, source));
             value.append("\n--- SOURCE ")
-                    .append(index + 1)
+                    .append(sourceNumber)
                     .append(" BEGIN ---\nTitle: ")
                     .append(source.title())
                     .append('\n');
@@ -52,17 +63,37 @@ final class AssistantPromptFactory {
             value.append("Excerpt:\n")
                     .append(content)
                     .append("\n--- SOURCE ")
-                    .append(index + 1)
+                    .append(sourceNumber)
                     .append(" END ---\n");
             remaining -= content.length();
         }
-        return value.toString();
+        return new PreparedPrompt(
+                new ChatGenerationRequest(
+                        SYSTEM_INSTRUCTION,
+                        value.toString()),
+                citations);
     }
 
     private static String truncate(String content, int maximumCharacters) {
         if (content.length() <= maximumCharacters) {
             return content;
         }
-        return content.substring(0, maximumCharacters) + "\n[excerpt truncated]";
+        String marker = "\n[excerpt truncated]";
+        if (maximumCharacters <= marker.length()) {
+            return content.substring(0, maximumCharacters);
+        }
+        return content.substring(
+                        0,
+                        maximumCharacters - marker.length())
+                + marker;
+    }
+
+    record PreparedPrompt(
+            ChatGenerationRequest request,
+            List<AssistantCitation> citations) {
+
+        PreparedPrompt {
+            citations = List.copyOf(citations);
+        }
     }
 }

@@ -24,7 +24,7 @@ import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;
@@ -58,7 +58,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * PostgreSQL and asserts the governed convergence contract end to end: an initial crawl makes
  * a channel searchable only to its mapped members, a permissions-only re-crawl converges a
  * membership change (An leaves, Chi joins) without re-materializing content, and a tombstone
- * retires the object. Retrieval runs through the real SecureKnowledgeRetrievalService with
+ * retires the object. Retrieval runs through the real CanonicalHybridKnowledgeSearch with
  * OpenFGA policy mocked to allow, so the sealed source ACL is the deciding gate.
  */
 @SpringBootTest(properties = {
@@ -72,7 +72,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.connector.scheduling-enabled=false"
 })
-@Import(SecureKnowledgeRetrievalService.class)
+@Import(CanonicalHybridKnowledgeSearch.class)
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -113,7 +113,7 @@ class ConnectorStagingIngestionIntegrationTests {
     ConnectorIngestionService connector;
 
     @Autowired
-    SecureKnowledgeRetrievalService retrieval;
+    CanonicalHybridKnowledgeSearch retrieval;
 
     @Autowired
     JdbcTemplate jdbc;

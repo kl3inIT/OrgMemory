@@ -1,5 +1,6 @@
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.Exec
+import java.io.File
 
 // Root build. Shared configuration lives in build-logic convention plugins.
 
@@ -16,8 +17,16 @@ fun Exec.demoPowerShell(scriptName: String) {
             )
         }
     }
+    val powerShell = System.getenv("PATH")
+        .orEmpty()
+        .split(File.pathSeparator)
+        .asSequence()
+        .map { File(it, "pwsh.exe") }
+        .firstOrNull(File::isFile)
+        ?.absolutePath
+        ?: "powershell.exe"
     commandLine(
-        "powershell.exe",
+        powerShell,
         "-NoLogo",
         "-NoProfile",
         "-ExecutionPolicy",

@@ -6,6 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
+import com.orgmemory.graphrag.model.ExtractionProfile;
+import com.orgmemory.graphrag.model.FloatVector;
+import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -18,11 +22,14 @@ class GraphIndexingCoordinatorTests {
 
     private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final UUID ASSET_ID = UUID.randomUUID();
+    private static final UUID SPACE_ID = UUID.randomUUID();
     private static final UUID VERSION_ID = UUID.randomUUID();
     private static final UUID REVISION_ID = UUID.randomUUID();
     private static final UUID ACL_SNAPSHOT_ID = UUID.randomUUID();
     private static final UUID EMBEDDING_PROFILE_ID = UUID.randomUUID();
     private static final UUID CHUNK_ID = UUID.randomUUID();
+    private static final GraphProcessingProfileRef GRAPH_PROCESSING_PROFILE =
+            graphProcessingProfile();
 
     private final GraphIndexJobRepository jobs = mock(GraphIndexJobRepository.class);
     private final KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
@@ -33,10 +40,19 @@ class GraphIndexingCoordinatorTests {
             mock(SourceAclSnapshotRepository.class);
     private final EmbeddingProfileRepository embeddingProfiles =
             mock(EmbeddingProfileRepository.class);
+    private final GraphProcessingProfileRegistry graphProcessingProfiles =
+            mock(GraphProcessingProfileRegistry.class);
     private final KnowledgeChunkProjectionStore chunks =
             mock(KnowledgeChunkProjectionStore.class);
     private final GraphIndexingCoordinator coordinator = new GraphIndexingCoordinator(
-            jobs, assets, versions, revisions, aclSnapshots, embeddingProfiles, chunks);
+            jobs,
+            assets,
+            versions,
+            revisions,
+            aclSnapshots,
+            embeddingProfiles,
+            graphProcessingProfiles,
+            chunks);
 
     private GraphIndexJob job;
     private KnowledgeAsset asset;
@@ -49,6 +65,7 @@ class GraphIndexingCoordinatorTests {
                 VERSION_ID,
                 REVISION_ID,
                 1,
+                GRAPH_PROCESSING_PROFILE,
                 5,
                 Instant.parse("2026-07-23T00:00:00Z"));
         asset = mock(KnowledgeAsset.class);
@@ -60,9 +77,12 @@ class GraphIndexingCoordinatorTests {
         when(jobs.lockNextAvailable(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(Optional.of(job));
         when(jobs.findById(job.getId())).thenReturn(Optional.of(job));
+        when(jobs.findByIdAndOrganizationId(job.getId(), ORGANIZATION_ID))
+                .thenReturn(Optional.of(job));
         when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(asset));
         when(asset.getCurrentVersionId()).thenReturn(VERSION_ID);
+        when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
         when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(version));
         when(version.getStatus()).thenReturn(KnowledgeAssetVersionStatus.ACTIVE);
@@ -91,13 +111,21 @@ class GraphIndexingCoordinatorTests {
                 "text-embedding-3-large",
                 1536,
                 EmbeddingDistanceMetric.COSINE));
+        when(graphProcessingProfiles.get(GRAPH_PROCESSING_PROFILE.id()))
+                .thenReturn(GRAPH_PROCESSING_PROFILE);
         when(chunks.loadActive(
                         ORGANIZATION_ID,
                         REVISION_ID,
                         ASSET_ID,
                         VERSION_ID,
                         1))
-                .thenReturn(List.of(new GraphIndexChunk(CHUNK_ID, 0, "Current chunk")));
+                .thenReturn(List.of(new GraphIndexChunk(
+                        CHUNK_ID,
+                        0,
+                        "Current chunk",
+                        null,
+                        2,
+                        new FloatVector(new float[1536]))));
     }
 
     @Test
@@ -144,9 +172,107 @@ class GraphIndexingCoordinatorTests {
         coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
         when(asset.getCurrentVersionId()).thenReturn(UUID.randomUUID());
 
-        coordinator.complete(job.getId(), "worker-a");
+        GraphIndexingStoppedException stopped = assertThrows(
+                GraphIndexingStoppedException.class,
+                () -> coordinator.complete(job.getId(), "worker-a"));
 
+        assertEquals(
+                GraphIndexingStoppedException.Reason.SUPERSEDED,
+                stopped.reason());
         assertEquals(GraphIndexJobStatus.SUPERSEDED, job.getStatus());
+    }
+
+    @Test
+    void heartbeatStopsAndSupersedesBeforeStalePublication() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+        when(asset.getCurrentVersionId()).thenReturn(UUID.randomUUID());
+
+        GraphIndexingStoppedException stopped = assertThrows(
+                GraphIndexingStoppedException.class,
+                () -> coordinator.refreshLease(
+                        job.getId(), "worker-a", Duration.ofMinutes(5)));
+
+        assertEquals(
+                GraphIndexingStoppedException.Reason.SUPERSEDED,
+                stopped.reason());
+        assertEquals(GraphIndexJobStatus.SUPERSEDED, job.getStatus());
+    }
+
+    @Test
+    void queuedCancellationIsTerminalAndIdempotent() {
+        GraphIndexJobView cancelled =
+                coordinator.cancel(ORGANIZATION_ID, job.getId());
+        GraphIndexJobView replay =
+                coordinator.cancel(ORGANIZATION_ID, job.getId());
+
+        assertEquals("CANCELLED", cancelled.status());
+        assertEquals(cancelled, replay);
+        assertTrue(cancelled.cancellationRequested());
+    }
+
+    @Test
+    void inFlightCancellationIsAcknowledgedByHeartbeatBeforePublication() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+        GraphIndexJobView requested =
+                coordinator.cancel(ORGANIZATION_ID, job.getId());
+
+        assertEquals("PROCESSING", requested.status());
+        assertTrue(requested.cancellationRequested());
+        GraphIndexingStoppedException stopped = assertThrows(
+                GraphIndexingStoppedException.class,
+                () -> coordinator.preparePublication(
+                        job.getId(),
+                        "worker-a",
+                        Duration.ofMinutes(5),
+                        "a".repeat(64)));
+
+        assertEquals(
+                GraphIndexingStoppedException.Reason.CANCELLED,
+                stopped.reason());
+        assertEquals(GraphIndexJobStatus.CANCELLED, job.getStatus());
+    }
+
+    @Test
+    void failedCurrentJobCanResumeWithFreshRetryBudget() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+        while (job.getStatus() != GraphIndexJobStatus.FAILED) {
+            coordinator.fail(
+                    job.getId(),
+                    "worker-a",
+                    "TRANSIENT",
+                    "failure");
+            if (job.getStatus() == GraphIndexJobStatus.PENDING) {
+                job.claim(
+                        "worker-a",
+                        Instant.now(),
+                        Duration.ofMinutes(5));
+            }
+        }
+
+        GraphIndexJobView resumed =
+                coordinator.resume(ORGANIZATION_ID, job.getId());
+
+        assertEquals("PENDING", resumed.status());
+        assertEquals(0, resumed.attempt());
+        assertTrue(!resumed.cancellationRequested());
+    }
+
+    @Test
+    void manifestDriftOnRetryFailsClosed() {
+        coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
+        coordinator.preparePublication(
+                job.getId(),
+                "worker-a",
+                Duration.ofMinutes(5),
+                "a".repeat(64));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.preparePublication(
+                        job.getId(),
+                        "worker-a",
+                        Duration.ofMinutes(5),
+                        "b".repeat(64)));
     }
 
     @Test
@@ -168,6 +294,7 @@ class GraphIndexingCoordinatorTests {
                 VERSION_ID,
                 REVISION_ID,
                 1,
+                GRAPH_PROCESSING_PROFILE,
                 1,
                 Instant.parse("2026-07-23T00:00:00Z"));
         job.claim("lost-worker", Instant.parse("2026-07-23T00:00:00Z"), Duration.ofSeconds(1));
@@ -195,5 +322,34 @@ class GraphIndexingCoordinatorTests {
                 .isEmpty());
         assertEquals(GraphIndexJobStatus.PENDING, job.getStatus());
         assertEquals(1, job.getAttemptCount());
+    }
+
+    @Test
+    void processingProfileIsAnIndependentGraphJobIdentityCoordinate() {
+        String current = GraphIndexJob.idempotencyKey(
+                ORGANIZATION_ID,
+                REVISION_ID,
+                1,
+                "a".repeat(64));
+        String rebuilt = GraphIndexJob.idempotencyKey(
+                ORGANIZATION_ID,
+                REVISION_ID,
+                1,
+                "b".repeat(64));
+
+        assertTrue(current.startsWith(
+                "graph:" + ORGANIZATION_ID + ":" + REVISION_ID + ":1:"));
+        assertTrue(!current.equals(rebuilt));
+    }
+
+    private static GraphProcessingProfileRef graphProcessingProfile() {
+        var profile = LightRagGraphProcessingProfiles.current(new ExtractionProfile(
+                "openai",
+                "gpt-test",
+                LightRagExtractionPrompt.VERSION,
+                40,
+                60));
+        return new GraphProcessingProfileRef(
+                UUID.randomUUID(), profile.canonicalSha256(), profile);
     }
 }

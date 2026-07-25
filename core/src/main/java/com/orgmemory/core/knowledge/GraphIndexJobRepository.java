@@ -9,7 +9,11 @@ import org.springframework.data.repository.query.Param;
 
 interface GraphIndexJobRepository extends JpaRepository<GraphIndexJob, UUID> {
 
-    Optional<GraphIndexJob> findByKnowledgeAssetVersionId(UUID knowledgeAssetVersionId);
+    Optional<GraphIndexJob> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    Optional<GraphIndexJob> findByKnowledgeAssetVersionIdAndGraphProcessingProfileId(
+            UUID knowledgeAssetVersionId,
+            UUID graphProcessingProfileId);
 
     @Query(value = """
             SELECT *

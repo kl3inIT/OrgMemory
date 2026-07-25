@@ -21,7 +21,10 @@ public final class OpenAiCompatibleChatModelProvider {
     }
 
     public ChatModel resolve(AiWorkload workload) {
-        AiRoute route = gateways.resolve(workload);
+        return resolve(workload, gateways.resolve(workload));
+    }
+
+    public ChatModel resolve(AiWorkload workload, AiRoute route) {
         return models.computeIfAbsent(route, ignored -> {
             AiGatewayProperties.Gateway gateway = gateways.definition(workload, route);
             return OpenAiChatModel.builder()

@@ -8,6 +8,7 @@ import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.EvidenceProvenance;
+import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
@@ -117,21 +118,21 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
     }
 
     private static GraphRevisionContributions projectionBatch() {
-        CanonicalEntity source = new CanonicalEntity(SOURCE_ID, "OrgMemory", "PRODUCT");
-        CanonicalEntity target = new CanonicalEntity(TARGET_ID, "Secure Search", "CAPABILITY");
+        CanonicalEntity source = new CanonicalEntity(SOURCE_ID, "OrgMemory");
+        CanonicalEntity target = new CanonicalEntity(TARGET_ID, "Secure Search");
         CanonicalRelation relation = new CanonicalRelation(
                 RELATION_ID,
                 SOURCE_ID,
                 TARGET_ID,
-                "BUILDS",
                 RelationOrientation.DIRECTED);
         EvidenceProvenance provenance = new EvidenceProvenance(
-                ORGANIZATION_ID,
-                ASSET_ID,
-                REVISION_ID,
-                CHUNK_ID,
-                ACL_ID,
-                1,
+                new EvidenceReference(
+                        ORGANIZATION_ID,
+                        ASSET_ID,
+                        REVISION_ID,
+                        CHUNK_ID,
+                        ACL_ID,
+                        1),
                 1,
                 "openai",
                 "gpt-5.6-sol",
@@ -147,18 +148,22 @@ class ApacheAgeGraphTopologyProjectionIntegrationTests {
                         new EntityContribution(
                                 id("age-source-contribution"),
                                 source,
+                                "PRODUCT",
                                 "sensitive evidence description",
                                 provenance),
                         new EntityContribution(
                                 id("age-target-contribution"),
                                 target,
+                                "CAPABILITY",
                                 "another sensitive description",
                                 provenance)),
                 List.of(new RelationContribution(
                         RELATION_CONTRIBUTION_ID,
                         relation,
+                        "BUILDS",
                         List.of("sensitive"),
                         "sensitive evidence description",
+                        1.0,
                         provenance)));
     }
 

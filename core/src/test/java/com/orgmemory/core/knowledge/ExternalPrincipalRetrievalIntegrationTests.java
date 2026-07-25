@@ -1,9 +1,22 @@
 package com.orgmemory.core.knowledge;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
+import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
+import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.organization.AppUser;
+import com.orgmemory.core.organization.AppUserRepository;
+import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.UserRole;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +25,7 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -142,6 +156,31 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 "A live-source ceiling must use the current generation, not the deny-all ingestion snapshot");
     }
 
+    @Test
+    void graphScopeIsCanonicalAclFilteredBeforeAnyDerivedStoreOrModel() {
+        KnowledgeEvidenceScopeResolver resolver = resolverFor(CHARLIE_USER);
+        CurrentActor charlie = actor(
+                CHARLIE_USER,
+                "charlie@slacktest.example");
+
+        assertTrue(
+                resolver.resolve(charlie, MODEL_ID)
+                        .allAssetIds()
+                        .isEmpty(),
+                "OpenFGA candidates must be removed before GraphRAG when canonical source ACL denies them");
+
+        mapActive(AN_PRINCIPAL, AN_USER);
+        KnowledgeEvidenceScopeResolver allowedResolver =
+                resolverFor(AN_USER);
+        assertEquals(
+                java.util.Set.of(ASSET, ASSET2),
+                allowedResolver.resolve(
+                                actor(AN_USER, "an@slacktest.example"),
+                                MODEL_ID)
+                        .allAssetIds(),
+                "Only the canonical five-gate evidence set may reach graph projections or a model");
+    }
+
     private boolean visibleAs(UUID userId) {
         return visible(userId, ASSET, OBJECT);
     }
@@ -150,6 +189,69 @@ class ExternalPrincipalRetrievalIntegrationTests {
         List<UUID> visible = store.visibleSourceObjectIds(new SecureKnowledgeRetrievalStore.RetrievalScope(
                 ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, EVALUATED_AT));
         return visible.contains(objectId);
+    }
+
+    private static KnowledgeEvidenceScopeResolver resolverFor(UUID userId) {
+        AppUserRepository users = mock(AppUserRepository.class);
+        RelationshipAuthorizationSetPort authorization =
+                mock(RelationshipAuthorizationSetPort.class);
+        KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
+        SourceAclSnapshotRepository snapshots =
+                mock(SourceAclSnapshotRepository.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Clock> clocks = mock(ObjectProvider.class);
+
+        AppUser user = new AppUser(
+                ORG,
+                DEPT,
+                userId.toString(),
+                userId + "@example.test",
+                UserRole.EMPLOYEE);
+        when(users.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(authorization.listAuthorizedResources(any()))
+                .thenReturn(AuthorizedResourceSetResult.resolved(
+                        List.of(
+                                ResourceRef.of(
+                                        ORG,
+                                        "knowledge_asset",
+                                        ASSET),
+                                ResourceRef.of(
+                                        ORG,
+                                        "knowledge_asset",
+                                        ASSET2)),
+                        MODEL_ID));
+        when(assets.findActiveAuthorizationScopes(
+                        ORG,
+                        List.of(ASSET, ASSET2)))
+                .thenReturn(List.of(
+                        new KnowledgeAssetAuthorizationScope(
+                                ASSET,
+                                SPACE),
+                        new KnowledgeAssetAuthorizationScope(
+                                ASSET2,
+                                SPACE)));
+        when(snapshots.maximumCurrentAclGeneration(any(), any()))
+                .thenReturn(2L);
+        when(clocks.getIfAvailable(any())).thenReturn(Clock.fixed(
+                EVALUATED_AT,
+                ZoneOffset.UTC));
+        return new KnowledgeEvidenceScopeResolver(
+                users,
+                authorization,
+                assets,
+                snapshots,
+                store,
+                new KnowledgeRetrievalProperties(null, null, null, null),
+                clocks);
+    }
+
+    private static CurrentActor actor(UUID userId, String email) {
+        return new CurrentActor(
+                userId,
+                ORG,
+                DEPT,
+                email,
+                email);
     }
 
     private void mapActive(UUID principalId, UUID userId) {

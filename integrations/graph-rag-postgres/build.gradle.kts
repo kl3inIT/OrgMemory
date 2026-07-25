@@ -11,6 +11,7 @@ dependencies {
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation(project(":core"))
+    testImplementation(project(":components:graph-rag-testkit"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.flywaydb:flyway-core")
     testImplementation("org.flywaydb:flyway-database-postgresql")
