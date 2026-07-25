@@ -46,7 +46,8 @@ jobs:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          base_sha="$(
+          base_sha=""
+          candidates="$(
             gh run list \
               --workflow "Build production images" \
               --branch main \
@@ -55,9 +56,16 @@ jobs:
               --json conclusion,headSha \
               --jq ".[] |
                 select(.conclusion == \"success\" and .headSha != \"$HEAD_SHA\") |
-                .headSha" |
-              head -n 1
+                .headSha"
           )"
+          while IFS= read -r candidate; do
+            [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || continue
+            if git cat-file -e "$candidate^{commit}" 2>/dev/null &&
+              git merge-base --is-ancestor "$candidate" "$HEAD_SHA"; then
+              base_sha="$candidate"
+              break
+            fi
+          done <<< "$candidates"
           printf 'base_sha=%s\n' "$base_sha" >> "$GITHUB_OUTPUT"
 
       - name: Detect image dependency changes
@@ -361,6 +369,17 @@ jobs:
             else
               source_sha="$BASE_SHA"
               built=false
+              source_reference="ghcr.io/kl3init/orgmemory-${image}:sha-${BASE_SHA}"
+              source_digest="$(
+                docker buildx imagetools inspect "$source_reference" \
+                  --format '{{json .Manifest.Digest}}' |
+                jq -r .
+              )"
+              if [[ "$source_digest" != "$digest" ]]; then
+                printf 'Carried-forward digest mismatch for %s: %s != %s\n' \
+                  "$image" "$source_digest" "$digest" >&2
+                exit 65
+              fi
             fi
             printf '%s' "$separator" >> release-images.json
             jq -cn \
