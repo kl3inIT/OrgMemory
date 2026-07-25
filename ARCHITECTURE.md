@@ -9,7 +9,7 @@ This document records behavior and structure that exist in the repository on
 ```mermaid
 flowchart LR
     WEB[web React SPA] --> API[apps/api]
-    MCP[apps/mcp] --> CORE[core]
+    MCP[apps/mcp] -->|bearer-forwarded delivery API| API
     API --> CORE
     WORKER[apps/worker] --> CORE
     CORE --> PG[(PostgreSQL 18<br/>pgvector + AGE)]
@@ -39,8 +39,8 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 
 ## Current Runtime Responsibilities
 
-- `core`: organization, permission, assistant, AI, and knowledge domain packages;
-  JPA repositories; application services; Flyway migrations.
+- `core`: organization, permission, assistant, AI, knowledge, and Asset Registry
+  domain packages; JPA repositories; application services; Flyway migrations.
 - `apps/api`: REST endpoints, OIDC bearer-token boundary, server-derived actor,
   optional Spring AI normalization/chat, OpenAPI, health, and an `/api/admin/**`
   administration surface over the identity ledger and the source connections,
@@ -54,13 +54,15 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   and what it authenticates with come from the ledger on every poll, so an
   administrator's change takes effect on the next one without a restart.
 - `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
-  read-only `search_knowledge` tool forwards the caller token to the API search
-  contract, so agents use the same GraphRAG, OpenFGA, canonical ACL recheck, and
-  audit path as the product Assistant without owning database migrations or a
-  second retrieval implementation.
+  read-only Knowledge and Asset tools, Asset resources, and released Prompt
+  adapter forward the caller token to canonical API contracts, so agents use
+  the same GraphRAG, OpenFGA, live object authorization, and audit paths as the
+  product without owning repositories, database migrations, or a second
+  delivery implementation.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
-  sidebar shell, generated Hey API clients for ordinary REST contracts, and an
-  AI Elements assistant workspace. The protected route layout owns session
+  sidebar shell, generated Hey API clients for ordinary REST contracts, an AI
+  Elements assistant workspace, and generic Asset catalog, detail/use, Pack
+  journey, and governance surfaces. The protected route layout owns session
   restoration and passes the verified identity into the shell; feature code
   does not repeat authentication gates. A separate `/admin` area reuses the same
   shell with a Permissions sidebar and is hidden from non-administrators by the
@@ -70,6 +72,24 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 database jobs carry ingestion work across processes. A specific Knowledge Asset
 publication outbox records direct-upload authorization projection attempts and
 the pinned OpenFGA model; no generic event framework has been introduced.
+
+## Governed Asset Registry
+
+The side-by-side `core.assetregistry` module owns stable Asset identity,
+accountable roles, mutable drafts, immutable digest-pinned revisions, distinct
+review decisions, immutable releases, append-only availability history, and
+actor-scoped consumption evidence. Prompt Template, Work Instruction, and
+Capability Pack are code-owned profiles over this common kernel. Existing
+Knowledge remains in its canonical ledger and is federated by exact visible
+version; it is not copied into registry tables.
+
+All REST, Assistant, web, and MCP consumption resolves an exact released
+version and live actor authorization. Capability Packs pin exact component
+releases and independently authorize every item, so a replacement cannot
+silently mutate an assigned journey and a denied component collapses to an
+opaque access gap. Ownership health is derived from active owner and backup
+owner assignments and exposes explicit orphaned/continuity-risk states without
+changing the immutable release.
 
 ## Persisted Model
 
