@@ -27,11 +27,22 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
 
     @Override
     public Flux<String> stream(AiWorkload workload, ChatGenerationRequest request) {
+        return Flux.defer(() -> {
+            AiRoute route = gateways.resolve(workload);
+            return stream(workload, route, request);
+        });
+    }
+
+    @Override
+    public Flux<String> stream(
+            AiWorkload workload,
+            AiRoute route,
+            ChatGenerationRequest request) {
         if (workload.requiredCapability() != com.orgmemory.core.ai.AiGatewayCapability.CHAT) {
             return Flux.error(new IllegalArgumentException("ChatModelPort requires a CHAT workload"));
         }
         return Flux.defer(() -> {
-            AiRoute route = gateways.resolve(workload);
+            gateways.definition(workload, route);
             return client(workload, route)
                     .prompt()
                     .options(OpenAiChatOptions.builder().model(route.modelId()))
