@@ -98,6 +98,11 @@ class KnowledgeSearchApiClientTests {
                 builder,
                 new McpGatewayProperties(
                         URI.create("https://api.example.test"),
-                        Duration.ofSeconds(5)));
+                        Duration.ofSeconds(5),
+                        URI.create("https://mcp.example.test/mcp"),
+                        URI.create("https://id.example.test/realms/orgmemory"),
+                        URI.create("https://id.example.test/realms/orgmemory/protocol/openid-connect/certs"),
+                        "https://mcp.example.test/mcp",
+                        120));
     }
 }
