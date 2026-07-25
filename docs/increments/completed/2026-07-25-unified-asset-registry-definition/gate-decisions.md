@@ -17,11 +17,11 @@ The fixture is synthetic and contains no customer or employee data.
 | Capability Pack | `support.l1-onboarding@1.0.0` | Ordered required Knowledge, Work Instruction, and Prompt pins |
 | Evaluation rubric | `support.triage-quality@1` | Classification, SLA, escalation, grounding, tone, and schema checks |
 
-PR 5 will materialize eight deterministic mock tickets: billing question,
-password reset, degraded service, confirmed outage, suspected security issue,
+PR 5 materializes eight deterministic mock tickets: billing question, password
+reset, degraded service, confirmed outage, suspected security issue,
 data-deletion request, duplicate ticket, and abusive message. Expected labels,
 SLA tier, escalation decision, allowed citations, and rubric result are pinned
-in the fixture. Until then this table is the frozen semantic contract.
+under `demo/fixtures/asset-registry`.
 
 Two actors prove the flow:
 
@@ -110,3 +110,13 @@ token exchange/on-behalf-of; the gateway must not reinterpret the API token as
 an MCP token. Object authorization remains OpenFGA-backed and cannot be
 replaced by OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
 review, publication, withdrawal, permission change, or installation.
+
+## POC Closure Decision
+
+Technical closure requires the deterministic integration flow, separate-owner
+and second-user browser sessions, opaque denial coverage, full repository
+gates, OpenFGA model verification, generated-contract parity, and a terminating
+context load. Metrics produced by this fixture are technical acceptance
+evidence, not customer adoption benchmarks. Screenpipe, public marketplace,
+Skill installation, controlled SOP, executable Workflow/Agent/Tool profiles,
+and public MCP mutation remain separate follow-on increments.

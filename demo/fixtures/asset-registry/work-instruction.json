@@ -1,0 +1,56 @@
+{
+  "purpose": "Classify and respond to one L1 support ticket",
+  "audience": "L1 support agent",
+  "prerequisites": [
+    "The ticket is assigned to the current agent",
+    "The agent can access support.sla-and-escalation@1"
+  ],
+  "completionOutcome": "The ticket has an approved category, SLA tier, escalation decision, grounded response draft, and audit trace",
+  "responsibleRole": "L1 support agent",
+  "steps": [
+    {
+      "key": "inspect",
+      "title": "Inspect the ticket",
+      "instruction": "Read only the minimum content needed and identify security, privacy, outage, and abuse signals.",
+      "expectedResult": "A bounded problem statement without copied secrets",
+      "check": "No password, token, payment-card number, or unnecessary personal data is copied",
+      "escalation": "Stop and notify security when credentials or active compromise are present",
+      "prohibitedActions": ["Request a password", "Paste a token into the Prompt"],
+      "relatedAssetIds": [],
+      "relatedKnowledgeVersionIds": []
+    },
+    {
+      "key": "ground",
+      "title": "Check SLA and escalation policy",
+      "instruction": "Use support.sla-and-escalation@1 to determine the response tier and accountable team.",
+      "expectedResult": "A P0, P1, or P2 decision with one allowed citation",
+      "check": "The selected tier and escalation match the approved Knowledge release",
+      "escalation": "Ask the support operations lead when the policy does not cover the case",
+      "prohibitedActions": ["Invent an SLA", "Promise an unconfirmed outcome"],
+      "relatedAssetIds": [],
+      "relatedKnowledgeVersionIds": []
+    },
+    {
+      "key": "draft",
+      "title": "Render and run the approved Prompt",
+      "instruction": "Use the exact support.triage-customer-ticket release pinned by the Pack.",
+      "expectedResult": "A JSON result matching the approved output contract",
+      "check": "Category, SLA tier, escalation, and response are present",
+      "escalation": "Do not send output that fails the rubric",
+      "prohibitedActions": ["Use a draft Prompt", "Silently switch to a newer release"],
+      "relatedAssetIds": [],
+      "relatedKnowledgeVersionIds": []
+    },
+    {
+      "key": "verify",
+      "title": "Verify and acknowledge",
+      "instruction": "Apply support.triage-quality@1, correct any failure, record the final decision, and acknowledge this instruction.",
+      "expectedResult": "The ticket passes the rubric and the Pack item is complete",
+      "check": "All required checklist items pass",
+      "escalation": "Route failed or ambiguous cases to the support operations lead",
+      "prohibitedActions": ["Hide an evaluation failure", "Mark an inaccessible item complete"],
+      "relatedAssetIds": [],
+      "relatedKnowledgeVersionIds": []
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "objective": "Classify and draft a safe first response for one L1 support ticket",
+  "audience": "L1 support agent",
+  "useWhen": [
+    "A new synthetic or customer support ticket is ready for first triage"
+  ],
+  "doNotUseWhen": [
+    "The ticket contains a legal threat requiring counsel",
+    "The actor cannot access the approved SLA and escalation source"
+  ],
+  "textTemplate": "Using only approved support policy, classify this ticket and return the required JSON object. Ticket: {{ticket_text}}",
+  "messages": [],
+  "variables": [
+    {
+      "name": "ticket_text",
+      "type": "STRING",
+      "required": true,
+      "defaultValue": null,
+      "sensitive": true,
+      "pattern": "^TICKET-[0-9]{3}: .{3,500}$",
+      "allowedValues": []
+    }
+  ],
+  "outputContract": {
+    "type": "object",
+    "required": [
+      "category",
+      "slaTier",
+      "escalate",
+      "response"
+    ]
+  },
+  "dataPolicy": {
+    "retainRawVariables": false,
+    "retainRawOutput": false
+  },
+  "compatibility": [
+    "chat"
+  ],
+  "knowledgeRequirements": [
+    "support.sla-and-escalation@1"
+  ],
+  "evaluationCases": [
+    {
+      "name": "billing question",
+      "variables": {
+        "ticket_text": "TICKET-001: Why is my monthly invoice higher than last month?"
+      },
+      "expectedContains": ["billing", "P2", "false"],
+      "forbiddenContains": ["password", "secret"]
+    },
+    {
+      "name": "password reset",
+      "variables": {
+        "ticket_text": "TICKET-002: I cannot sign in and need a password reset."
+      },
+      "expectedContains": ["access", "P2", "false"],
+      "forbiddenContains": ["send your password", "secret"]
+    },
+    {
+      "name": "degraded service",
+      "variables": {
+        "ticket_text": "TICKET-003: Reports take ten minutes to load for every user."
+      },
+      "expectedContains": ["degraded_service", "P1", "true"],
+      "forbiddenContains": ["guarantee"]
+    },
+    {
+      "name": "confirmed outage",
+      "variables": {
+        "ticket_text": "TICKET-004: The production API is unavailable in all regions."
+      },
+      "expectedContains": ["outage", "P0", "true"],
+      "forbiddenContains": ["root cause is"]
+    },
+    {
+      "name": "suspected security issue",
+      "variables": {
+        "ticket_text": "TICKET-005: I saw an unknown login and possible account takeover."
+      },
+      "expectedContains": ["security", "P0", "true"],
+      "forbiddenContains": ["share your token"]
+    },
+    {
+      "name": "data deletion request",
+      "variables": {
+        "ticket_text": "TICKET-006: Please permanently delete my account data."
+      },
+      "expectedContains": ["privacy", "P1", "true"],
+      "forbiddenContains": ["already deleted"]
+    },
+    {
+      "name": "duplicate ticket",
+      "variables": {
+        "ticket_text": "TICKET-007: This repeats my open ticket number 4312."
+      },
+      "expectedContains": ["duplicate", "P2", "false"],
+      "forbiddenContains": ["closed"]
+    },
+    {
+      "name": "abusive message",
+      "variables": {
+        "ticket_text": "TICKET-008: Your service is useless and your staff are idiots."
+      },
+      "expectedContains": ["abuse", "P2", "true"],
+      "forbiddenContains": ["insult"]
+    }
+  ],
+  "knownLimitations": "The POC produces a first-response draft only. Refunds, deletion, incident declarations, and security remediation require accountable human approval."
+}
