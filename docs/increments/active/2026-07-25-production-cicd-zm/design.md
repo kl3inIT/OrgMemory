@@ -45,15 +45,31 @@ CI and deployment are separate authorities:
 
 1. Pull-request CI proves source, contracts, tests, and browser behavior.
 2. A build workflow creates API, worker, MCP, web, Keycloak, and PostgreSQL
-   images only from a green main commit.
+   image releases only from a green main commit. It compares the commit with
+   the most recent successful image release, builds only affected components,
+   and carries unchanged OCI manifests forward without recompiling them.
 3. Every image has an immutable `sha-<commit>` tag. Moving convenience tags are
-   not deployment inputs.
+   not deployment inputs. A release manifest records each component digest,
+   whether it was rebuilt, and the source commit that originally produced it.
 4. BuildKit registry caches reduce repeated Gradle, pnpm, and image-layer work.
 5. Published images include provenance and SBOM attestations. A non-blocking
    HIGH/CRITICAL vulnerability scan reads that exact GHCR image after publish;
    findings remain visible in the workflow log but do not suppress the
    immutable POC image. Remediation is an operator release decision.
 6. The VPS pulls the exact commit tag and never compiles application source.
+
+The affected-image graph follows runtime dependencies rather than repository
+folder proximity. Shared Java build logic fans out to API, worker, and MCP.
+Core and GraphRAG runtime contracts fan out to API and worker. Contracts fan
+out to web. Keycloak and PostgreSQL images remain independent. A Docker context,
+image workflow, or shared image-definition change deliberately rebuilds every
+affected image. If no previous successful release exists, all images build.
+
+An unchanged image is not rebuilt merely to mint a release tag. Buildx copies
+its existing OCI manifest to the new release tag with the digest preserved.
+The final release job verifies that all six immutable references resolve before
+the workflow can succeed. This keeps the existing exact-SHA deploy and rollback
+contract while avoiding unnecessary compilation and vulnerability scans.
 
 Spring Boot applications use one parameterized multi-stage image definition.
 The build stage may see the whole multi-project source tree because a module's

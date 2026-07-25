@@ -28,6 +28,8 @@
 - [x] Cache Gradle, pnpm, BuildKit, and evaluation dependencies.
 - [x] Add image builds with immutable SHA tags, registry cache, SBOM,
   provenance, and vulnerability scanning.
+- [x] Build only dependency-affected production images, carry unchanged OCI
+  digests forward, and emit one complete release manifest.
 - [x] Add a protected, single-flight production deployment workflow with exact
   commit selection, health checks, and rollback.
 - [x] Update delivery/testing documentation to match implemented behavior.

@@ -10,6 +10,7 @@ on:
       - main
 
 permissions:
+  actions: read
   contents: read
   packages: write
   attestations: write
@@ -20,36 +21,176 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    name: Plan affected images
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      base_sha: ${{ steps.plan.outputs.base_sha }}
+      changed: ${{ steps.plan.outputs.changed }}
+      unchanged: ${{ steps.plan.outputs.unchanged }}
+    steps:
+      - name: Check out verified source
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Find previous successful image set
+        id: base
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          base_sha="$(
+            gh run list \
+              --workflow "Build production images" \
+              --branch main \
+              --status success \
+              --limit 50 \
+              --json conclusion,headSha \
+              --jq ".[] |
+                select(.conclusion == \"success\" and .headSha != \"$HEAD_SHA\") |
+                .headSha" |
+              head -n 1
+          )"
+          printf 'base_sha=%s\n' "$base_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Detect image dependency changes
+        id: filter
+        if: steps.base.outputs.base_sha != ''
+        uses: dorny/paths-filter@v4.0.2
+        with:
+          base: ${{ steps.base.outputs.base_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+          filters: |
+            api:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "build.gradle.kts"
+              - "settings.gradle.kts"
+              - "gradle/**"
+              - "gradlew"
+              - "gradlew.bat"
+              - "build-logic/**"
+              - "infrastructure/images/spring-boot-app.Dockerfile"
+              - "apps/api/**"
+              - "core/**"
+              - "components/graph-rag-core/**"
+              - "integrations/ai-openai-compatible/**"
+              - "integrations/authorization-openfga/**"
+              - "integrations/connectors/**"
+              - "integrations/graph-rag-observability/**"
+              - "integrations/graph-rag-postgres/**"
+              - "integrations/graph-rag-spring-ai/**"
+              - "integrations/object-storage-minio/**"
+            worker:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "build.gradle.kts"
+              - "settings.gradle.kts"
+              - "gradle/**"
+              - "gradlew"
+              - "gradlew.bat"
+              - "build-logic/**"
+              - "infrastructure/images/spring-boot-app.Dockerfile"
+              - "apps/worker/**"
+              - "core/**"
+              - "components/graph-rag-core/**"
+              - "integrations/ai-openai-compatible/**"
+              - "integrations/authorization-openfga/**"
+              - "integrations/connectors/**"
+              - "integrations/graph-rag-observability/**"
+              - "integrations/graph-rag-postgres/**"
+              - "integrations/graph-rag-spring-ai/**"
+              - "integrations/object-storage-minio/**"
+            mcp:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "build.gradle.kts"
+              - "settings.gradle.kts"
+              - "gradle/**"
+              - "gradlew"
+              - "gradlew.bat"
+              - "build-logic/**"
+              - "infrastructure/images/spring-boot-app.Dockerfile"
+              - "apps/mcp/**"
+            web:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "contracts/**"
+              - "web/**"
+            keycloak:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "infrastructure/keycloak/**"
+            postgres_rag:
+              - ".dockerignore"
+              - ".github/workflows/build-images.yml"
+              - "infrastructure/postgres-rag/**"
+
+      - name: Assemble immutable image-set plan
+        id: plan
+        shell: bash
+        env:
+          BASE_SHA: ${{ steps.base.outputs.base_sha }}
+          API_CHANGED: ${{ steps.filter.outputs.api }}
+          WORKER_CHANGED: ${{ steps.filter.outputs.worker }}
+          MCP_CHANGED: ${{ steps.filter.outputs.mcp }}
+          WEB_CHANGED: ${{ steps.filter.outputs.web }}
+          KEYCLOAK_CHANGED: ${{ steps.filter.outputs.keycloak }}
+          POSTGRES_CHANGED: ${{ steps.filter.outputs.postgres_rag }}
+        run: |
+          set -euo pipefail
+          all='["api","worker","mcp","web","keycloak","postgres-rag"]'
+          if [[ -z "$BASE_SHA" ]]; then
+            changed="$all"
+          else
+            changed="$(
+              jq -cn \
+                --arg api "$API_CHANGED" \
+                --arg worker "$WORKER_CHANGED" \
+                --arg mcp "$MCP_CHANGED" \
+                --arg web "$WEB_CHANGED" \
+                --arg keycloak "$KEYCLOAK_CHANGED" \
+                --arg postgres "$POSTGRES_CHANGED" \
+                '[
+                  ["api", $api],
+                  ["worker", $worker],
+                  ["mcp", $mcp],
+                  ["web", $web],
+                  ["keycloak", $keycloak],
+                  ["postgres-rag", $postgres]
+                ] |
+                map(select(.[1] == "true") | .[0])'
+            )"
+          fi
+          unchanged="$(
+            jq -cn \
+              --argjson all "$all" \
+              --argjson changed "$changed" \
+              '$all - $changed'
+          )"
+          printf 'base_sha=%s\n' "$BASE_SHA" >> "$GITHUB_OUTPUT"
+          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+          printf 'unchanged=%s\n' "$unchanged" >> "$GITHUB_OUTPUT"
+          printf 'Changed images: %s\n' "$changed"
+          printf 'Carried-forward images: %s\n' "$unchanged"
+
   images:
     name: Image · ${{ matrix.name }}
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: plan
+    if: needs.plan.outputs.changed != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: api
-            file: infrastructure/images/spring-boot-app.Dockerfile
-            build-args: |
-              APP_NAME=api
-          - name: worker
-            file: infrastructure/images/spring-boot-app.Dockerfile
-            build-args: |
-              APP_NAME=worker
-          - name: mcp
-            file: infrastructure/images/spring-boot-app.Dockerfile
-            build-args: |
-              APP_NAME=mcp
-          - name: web
-            file: web/Dockerfile
-            build-args: ""
-          - name: keycloak
-            file: infrastructure/keycloak/Dockerfile
-            build-args: ""
-          - name: postgres-rag
-            file: infrastructure/postgres-rag/Dockerfile
-            build-args: ""
+        name: ${{ fromJSON(needs.plan.outputs.changed) }}
     steps:
       - name: Check out verified source
         uses: actions/checkout@v7.0.1
@@ -67,18 +208,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve image build contract
+        id: contract
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          case "$IMAGE_NAME" in
+            api|worker|mcp)
+              file="infrastructure/images/spring-boot-app.Dockerfile"
+              build_args="APP_NAME=$IMAGE_NAME"
+              ;;
+            web)
+              file="web/Dockerfile"
+              build_args=""
+              ;;
+            keycloak)
+              file="infrastructure/keycloak/Dockerfile"
+              build_args=""
+              ;;
+            postgres-rag)
+              file="infrastructure/postgres-rag/Dockerfile"
+              build_args=""
+              ;;
+            *)
+              printf 'Unknown production image: %s\n' "$IMAGE_NAME" >&2
+              exit 64
+              ;;
+          esac
+          printf 'file=%s\n' "$file" >> "$GITHUB_OUTPUT"
+          {
+            printf 'build_args<<EOF\n'
+            printf '%s\n' "$build_args"
+            printf 'EOF\n'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and publish immutable image
         id: build
         uses: docker/build-push-action@v7.3.0
         with:
           context: .
-          file: ${{ matrix.file }}
+          file: ${{ steps.contract.outputs.file }}
           push: true
           tags: ghcr.io/kl3init/orgmemory-${{ matrix.name }}:sha-${{ github.event.workflow_run.head_sha }}
           build-args: |
             VCS_REF=${{ github.event.workflow_run.head_sha }}
             BUILD_DATE=${{ github.event.workflow_run.updated_at }}
-            ${{ matrix.build-args }}
+            ${{ steps.contract.outputs.build_args }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
           provenance: mode=max
@@ -96,3 +273,116 @@ jobs:
           ignore-unfixed: true
           severity: CRITICAL,HIGH
           exit-code: "0"
+
+  carry-forward:
+    name: Carry forward unchanged image digests
+    needs: plan
+    if: needs.plan.outputs.unchanged != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.5.1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy unchanged manifests without rebuilding
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          UNCHANGED: ${{ needs.plan.outputs.unchanged }}
+        run: |
+          set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          while IFS= read -r image; do
+            source="ghcr.io/kl3init/orgmemory-${image}:sha-${BASE_SHA}"
+            target="ghcr.io/kl3init/orgmemory-${image}:sha-${HEAD_SHA}"
+            docker buildx imagetools create \
+              --prefer-index=false \
+              --tag "$target" \
+              "$source"
+          done < <(jq -r '.[]' <<< "$UNCHANGED")
+
+  release:
+    name: Verify immutable image set
+    if: >-
+      always() &&
+      needs.plan.result == 'success' &&
+      (needs.images.result == 'success' || needs.images.result == 'skipped') &&
+      (needs.carry-forward.result == 'success' || needs.carry-forward.result == 'skipped')
+    needs:
+      - plan
+      - images
+      - carry-forward
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.5.1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify and record the complete release
+        shell: bash
+        env:
+          BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+          CHANGED: ${{ needs.plan.outputs.changed }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          printf '{"commitSha":"%s","images":[' "$HEAD_SHA" > release-images.json
+          separator=""
+          for image in api worker mcp web keycloak postgres-rag; do
+            reference="ghcr.io/kl3init/orgmemory-${image}:sha-${HEAD_SHA}"
+            digest="$(
+              docker buildx imagetools inspect "$reference" \
+                --format '{{json .Manifest.Digest}}' |
+              jq -r .
+            )"
+            jq -e --arg digest "$digest" \
+              '$digest | test("^sha256:[0-9a-f]{64}$")' >/dev/null
+            if jq -e --arg image "$image" \
+              'index($image) != null' <<< "$CHANGED" >/dev/null; then
+              source_sha="$HEAD_SHA"
+              built=true
+            else
+              source_sha="$BASE_SHA"
+              built=false
+            fi
+            printf '%s' "$separator" >> release-images.json
+            jq -cn \
+              --arg component "$image" \
+              --arg reference "$reference" \
+              --arg digest "$digest" \
+              --arg sourceSha "$source_sha" \
+              --argjson built "$built" \
+              '{
+                component: $component,
+                reference: $reference,
+                digest: $digest,
+                sourceSha: $sourceSha,
+                built: $built
+              }' >> release-images.json
+            separator=","
+          done
+          printf ']}\n' >> release-images.json
+          jq . release-images.json
+
+      - name: Upload release image manifest
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: production-image-set-${{ github.event.workflow_run.head_sha }}
+          path: release-images.json
+          if-no-files-found: error
+          retention-days: 30
