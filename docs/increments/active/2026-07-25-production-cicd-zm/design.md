@@ -50,9 +50,9 @@ CI and deployment are separate authorities:
    not deployment inputs.
 4. BuildKit registry caches reduce repeated Gradle, pnpm, and image-layer work.
 5. Published images include provenance and SBOM attestations. A non-blocking
-   HIGH/CRITICAL vulnerability scan runs before publishing; findings remain
-   visible in the workflow log but do not suppress the immutable POC image.
-   Remediation is an operator release decision.
+   HIGH/CRITICAL vulnerability scan reads that exact GHCR image after publish;
+   findings remain visible in the workflow log but do not suppress the
+   immutable POC image. Remediation is an operator release decision.
 6. The VPS pulls the exact commit tag and never compiles application source.
 
 Spring Boot applications use one parameterized multi-stage image definition.
