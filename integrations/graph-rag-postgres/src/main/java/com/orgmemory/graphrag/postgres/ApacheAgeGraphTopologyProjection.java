@@ -140,7 +140,6 @@ public final class ApacheAgeGraphTopologyProjection {
     }
 
     private void configureSession() {
-        jdbc.getJdbcTemplate().execute("LOAD 'age'");
         jdbc.getJdbcTemplate()
                 .execute("SET LOCAL search_path = ag_catalog, \"$user\", public");
     }

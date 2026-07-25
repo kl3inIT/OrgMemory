@@ -1,0 +1,77 @@
+# Version-control and agent metadata
+.git
+.github
+.agents
+.claude
+.codex
+.mcp.json
+
+# IDE and local tooling
+.idea
+.vscode
+.settings
+.classpath
+.project
+.factorypath
+.tools
+.playwright-cli
+.playwright-mcp
+**/*.iml
+**/*.ipr
+**/*.iws
+
+# Build outputs and dependency caches
+.gradle
+**/.gradle
+**/build
+**/bin
+**/dist
+**/node_modules
+**/.vite
+**/.turbo
+**/.next
+**/coverage
+**/test-results
+
+# Runtime output and local scratch data
+*.log
+**/runtime.err.log
+**/runtime.out.log
+backups
+output
+tmp
+.venv
+**/__pycache__
+**/*.py[cod]
+
+# Local secrets and machine-specific configuration
+.env
+.env.*
+**/.env
+**/.env.*
+.openfga.local.properties
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Source material that is not needed by any production image
+docs
+evaluation
+demo
+graph-viewer-parity.png
+*.docx
+*.pptx
+*.xlsx
+*.pdf
+
+# OS/editor residue
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo

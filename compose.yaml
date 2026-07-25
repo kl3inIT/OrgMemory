@@ -1,6 +1,6 @@
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:26.6.4
+    image: quay.io/keycloak/keycloak:26.7.0
     command: start-dev --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -12,7 +12,7 @@ services:
       - ./infrastructure/keycloak/orgmemory-realm.json:/opt/keycloak/data/import/orgmemory-realm.json:ro
 
   postgres:
-    image: orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
+    image: orgmemory/postgres-rag:pg18-age1.8.0-rc0-pgvector0.8.4
     build:
       context: .
       dockerfile: infrastructure/postgres-rag/Dockerfile
@@ -58,7 +58,7 @@ services:
       - orgmemory_minio:/data
 
   postgres-openfga-bootstrap:
-    image: orgmemory/postgres-rag:pg18-age1.7.0-pgvector0.8.2
+    image: orgmemory/postgres-rag:pg18-age1.8.0-rc0-pgvector0.8.4
     entrypoint: ["/docker-entrypoint-initdb.d/01-create-openfga-database.sh"]
     environment:
       POSTGRES_DB: orgmemory

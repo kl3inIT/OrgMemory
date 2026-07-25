@@ -1,0 +1,112 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full green main commit SHA whose production images exist
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  packages: read
+
+concurrency:
+  group: orgmemory-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact image set
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://om.kl3in.tech
+    steps:
+      - name: Check out main history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate commit input
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$COMMIT_SHA^{commit}"
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+
+      - name: Require a green production image set
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          successful_runs="$(
+            gh run list \
+              --workflow "Build production images" \
+              --commit "$COMMIT_SHA" \
+              --limit 20 \
+              --json conclusion \
+              --jq '[.[] | select(.conclusion == "success")] | length'
+          )"
+          [[ "$successful_runs" -gt 0 ]]
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 0700 ~/.ssh
+          install -m 0600 /dev/null ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          install -m 0600 /dev/null ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Authenticate server to GHCR for this deployment
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" |
+            ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+              "docker login ghcr.io --username '${{ github.actor }}' --password-stdin"
+
+      - name: Deploy and verify
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+            "cd /apps/orgmemory &&
+             git fetch --no-tags origin '$COMMIT_SHA' &&
+             git checkout --detach '$COMMIT_SHA' &&
+             ./infrastructure/deployment/scripts/deploy.sh '$COMMIT_SHA'"
+
+      - name: Remove temporary registry credentials
+        if: always()
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+            "docker logout ghcr.io >/dev/null 2>&1 || true"
