@@ -40,6 +40,12 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 class SecurityConfig {
 
     private static final String REGISTRATION_ID = "keycloak";
+    private static final String[] PUBLIC_HEALTH_ENDPOINTS = {
+        "/api/health",
+        "/actuator/health",
+        "/actuator/health/liveness",
+        "/actuator/health/readiness"
+    };
 
     @Bean
     @Order(1)
@@ -49,7 +55,7 @@ class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/health", "/actuator/health").permitAll()
+                        .requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();
@@ -83,7 +89,7 @@ class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .sessionFixation(fixation -> fixation.changeSessionId()))
                 .authorizeHttpRequests(authorize -> {
-                    authorize.requestMatchers("/api/health", "/actuator/health").permitAll();
+                    authorize.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll();
                     if (isSwaggerPermitted(environment)) {
                         authorize.requestMatchers(
                                         "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
