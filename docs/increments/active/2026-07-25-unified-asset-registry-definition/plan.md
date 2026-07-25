@@ -230,11 +230,14 @@ Assistant scope:
 - [x] Recommend Assets by role/task without leaking denied candidates.
 - [x] Record traces pinning Asset releases, Knowledge/citations, model route,
   tool calls, authorization decision context, and sanitized outcome.
-- [x] Ask for missing Prompt variables and confirm external-provider or state
-  changing actions.
+- [x] Ask for missing Prompt variables and confirm Assistant-proposed
+  external-provider or state-changing actions once.
 - [x] Allow explicit draft fork and feedback submission.
 - [x] Prevent Assistant approval, publication, withdrawal, permission changes,
   silent Pack updates, and arbitrary code/tool execution.
+- [x] Add tenant/user-owned full transcripts plus bounded multi-turn model
+  memory; retrieve with current authorization on every new turn and recheck
+  citations when opened.
 
 Web scope:
 
@@ -249,6 +252,8 @@ Web scope:
   justified local Zustand state.
 - [x] Preserve themes, keyboard access, narrow layouts, and explicit
   loading/error/denial states.
+- [x] Add Onyx-inspired recent conversations with optimistic creation,
+  replay, inline rename, explicit delete, and URL-selected state.
 
 Required gates:
 
@@ -270,7 +275,7 @@ Explicitly excluded:
 - HRIS/LMS;
 - Skill install/invoke;
 - Screenpipe UI;
-- persistent general conversation history;
+- general chat-turn idempotency and compliance purge-on-revocation;
 - external MCP mutations.
 
 Split trigger:

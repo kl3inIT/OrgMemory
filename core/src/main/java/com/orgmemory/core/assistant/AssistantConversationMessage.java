@@ -1,0 +1,73 @@
+package com.orgmemory.core.assistant;
+
+import com.orgmemory.core.shared.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+@Entity
+@Table(name = "assistant_conversation_messages")
+class AssistantConversationMessage extends BaseEntity {
+
+    @Column(name = "conversation_id", nullable = false, updatable = false)
+    private UUID conversationId;
+
+    @Column(name = "organization_id", nullable = false, updatable = false)
+    private UUID organizationId;
+
+    @Column(name = "actor_user_id", nullable = false, updatable = false)
+    private UUID actorUserId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16, updatable = false)
+    private AssistantConversationRole role;
+
+    @Column(nullable = false, columnDefinition = "text", updatable = false)
+    private String content;
+
+    @Column(name = "sequence_id", insertable = false, updatable = false)
+    private long sequenceId;
+
+    @Column(name = "occurred_at", nullable = false, updatable = false)
+    private Instant occurredAt;
+
+    protected AssistantConversationMessage() {
+    }
+
+    AssistantConversationMessage(
+            UUID conversationId,
+            UUID organizationId,
+            UUID actorUserId,
+            AssistantConversationRole role,
+            String content,
+            Instant occurredAt) {
+        super(UUID.randomUUID());
+        this.conversationId = Objects.requireNonNull(conversationId, "conversationId");
+        this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
+        this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId");
+        this.role = Objects.requireNonNull(role, "role");
+        this.content = requireContent(content);
+        this.occurredAt = Objects.requireNonNull(occurredAt, "occurredAt");
+    }
+
+    AssistantConversationMessageView view() {
+        return new AssistantConversationMessageView(
+                getId(), role, content, sequenceId, occurredAt);
+    }
+
+    private static String requireContent(String value) {
+        String normalized = Objects.requireNonNull(value, "content").strip();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("Conversation message content is required");
+        }
+        if (normalized.length() > 200_000) {
+            throw new IllegalArgumentException("Conversation message content is too long");
+        }
+        return normalized;
+    }
+}

@@ -1,19 +1,23 @@
 package com.orgmemory.api.assistant;
 
-import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.ai.AiRouteResolver;
-import com.orgmemory.core.assistant.AssistantService;
+import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
+import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
 import com.orgmemory.core.assetregistry.PromptRunCoordinator;
 import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
-import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import java.time.Clock;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +27,19 @@ import org.springframework.context.annotation.Primary;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AssistantProperties.class)
 class AssistantConfiguration {
+
+    @Bean
+    Clock assistantClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    ChatMemory assistantChatMemory(ChatMemoryRepository repository) {
+        return MessageWindowChatMemory.builder()
+                .chatMemoryRepository(repository)
+                .maxMessages(20)
+                .build();
+    }
 
     @Bean
     @Primary

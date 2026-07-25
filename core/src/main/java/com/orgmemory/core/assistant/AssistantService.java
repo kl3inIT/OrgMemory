@@ -30,7 +30,8 @@ public class AssistantService {
             CurrentActor actor,
             String question,
             Integer requestedLimit,
-            String requestId) {
+            String requestId,
+            String conversationId) {
         var search = retrieval.search(actor, question, requestedLimit, requestId);
         if (search.evidence().isEmpty()) {
             return new AssistantTurn(search.requestId(), List.of(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
@@ -38,13 +39,16 @@ public class AssistantService {
 
         PreparedTurn prepared = search.grounding()
                 .map(grounding -> new PreparedTurn(
-                        grounding.generationRequest(),
+                        AssistantPromptFactory.addUserContext(
+                                grounding.generationRequest(),
+                                actor),
                         numbered(grounding.citations())))
                 .orElseGet(() -> {
                     AssistantPromptFactory.PreparedPrompt prompt =
                             AssistantPromptFactory.create(
                                     question,
-                                    search.evidence());
+                                    search.evidence(),
+                                    actor);
                     return new PreparedTurn(
                             prompt.request(),
                             prompt.citations());
@@ -53,7 +57,8 @@ public class AssistantService {
         try {
             content = chat.stream(
                             AiWorkload.ASSISTANT_CHAT,
-                            prepared.request())
+                            prepared.request(),
+                            conversationId)
                     .filter(token -> token != null && !token.isEmpty())
                     .switchIfEmpty(Flux.error(new AssistantUnavailableException(
                             "The assistant returned no answer")))

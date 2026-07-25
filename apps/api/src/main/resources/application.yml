@@ -3,6 +3,11 @@ spring:
     name: orgmemory-api
   ai:
     chat:
+      memory:
+        repository:
+          jdbc:
+            # Flyway owns the Spring AI 2.0 schema in V5.
+            initialize-schema: never
       observations:
         log-prompt: false
         log-completion: false

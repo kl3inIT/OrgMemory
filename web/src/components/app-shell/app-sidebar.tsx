@@ -2,6 +2,8 @@ import { Boxes, Files, MessageSquareText, Network, UserRoundCog } from "lucide-r
 import { Link, useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
+import { AssistantConversationList } from "@/features/assistant/components/assistant-conversation-list"
+import { sessionActorKey } from "@/features/session/actor-cache-key"
 import { isAdministrator } from "@/features/session/require-session"
 import type { SessionResponse } from "@/lib/hey-api"
 import {
@@ -28,7 +30,12 @@ const ITEM_CLASSES =
   "h-9 rounded-lg px-2.5 text-content-secondary data-[active=true]:bg-surface-raised data-[active=true]:text-content-primary data-[active=true]:shadow-xs"
 
 export function AppSidebar({ identity }: { identity: SessionResponse }) {
-  const pathname = useLocation({ select: (location) => location.pathname })
+  const location = useLocation()
+  const pathname = location.pathname
+  const activeConversationId =
+    typeof (location.search as { chat?: unknown }).chat === "string"
+      ? (location.search as { chat: string }).chat
+      : undefined
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -69,6 +76,12 @@ export function AppSidebar({ identity }: { identity: SessionResponse }) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {pathname === "/" ? (
+          <AssistantConversationList
+            activeConversationId={activeConversationId}
+            actorKey={sessionActorKey(identity)}
+          />
+        ) : null}
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu className="gap-1">

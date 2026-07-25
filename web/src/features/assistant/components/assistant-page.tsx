@@ -1,7 +1,8 @@
 import { useChat } from "@ai-sdk/react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
-import { Copy, RotateCcw, ShieldCheck } from "lucide-react"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { Copy, LoaderCircle, RotateCcw, ShieldCheck } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
@@ -35,6 +36,15 @@ import {
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
 import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
+import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
+import {
+  getAssistantConversationHistoryOptions,
+  listAssistantConversationsQueryKey,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
+import type {
+  AssistantConversationMessageView,
+  AssistantConversationSummary,
+} from "@/lib/hey-api"
 
 const SUGGESTIONS = [
   "What is the probation policy?",
@@ -131,8 +141,75 @@ function greeting() {
   return "Good evening"
 }
 
-export function AssistantPage() {
-  const transport = useMemo(() => createAssistantTransport(), [])
+function historyMessage(
+  conversationId: string,
+  message: AssistantConversationMessageView,
+  index: number,
+): UIMessage {
+  return {
+    id: message.id ?? `${conversationId}-${index}`,
+    role: message.role === "ASSISTANT" ? "assistant" : "user",
+    parts: [{ type: "text", text: message.content ?? "" }],
+  }
+}
+
+export function AssistantPage({
+  conversationId,
+  actorKey,
+  onConversationIdChange,
+}: {
+  conversationId?: string
+  actorKey: string
+  onConversationIdChange: (conversationId: string) => void
+}) {
+  const queryClient = useQueryClient()
+  const conversationListQueryKey = useMemo(
+    () => scopeActorQueryKey(listAssistantConversationsQueryKey(), actorKey),
+    [actorKey],
+  )
+  const conversationIdRef = useRef(conversationId)
+  const locallyCreatedConversationRef = useRef<string | undefined>(undefined)
+  const nextTitleRef = useRef("New conversation")
+  const onConversationIdChangeRef = useRef(onConversationIdChange)
+  useEffect(() => {
+    onConversationIdChangeRef.current = onConversationIdChange
+  }, [onConversationIdChange])
+  const transport = useMemo(
+    () =>
+      createAssistantTransport({
+        conversationId: () => conversationIdRef.current,
+        onConversationId: (nextConversationId) => {
+          if (!conversationIdRef.current) {
+            locallyCreatedConversationRef.current = nextConversationId
+            queryClient.setQueryData<AssistantConversationSummary[]>(
+              conversationListQueryKey,
+              (current = []) => {
+                const conversations = current
+                if (
+                  conversations.some(
+                    (item) => item.id === nextConversationId,
+                  )
+                ) {
+                  return conversations
+                }
+                return [
+                  {
+                    id: nextConversationId,
+                    title: nextTitleRef.current,
+                    lastActivityAt: new Date().toISOString(),
+                    messageCount: 1,
+                  },
+                  ...conversations,
+                ]
+              },
+            )
+          }
+          conversationIdRef.current = nextConversationId
+          onConversationIdChangeRef.current(nextConversationId)
+        },
+      }),
+    [conversationListQueryKey, queryClient],
+  )
   const [text, setText] = useState("")
   const [sourcePanel, setSourcePanel] = useState<{
     messageId: string
@@ -141,7 +218,71 @@ export function AssistantPage() {
     selectedSourceId: string
   } | null>(null)
   const submitLock = useRef(false)
-  const { messages, sendMessage, status, stop, error, clearError } = useChat({ transport })
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    status,
+    stop,
+    error,
+    clearError,
+  } = useChat({
+    transport,
+    onFinish: () => {
+      const invalidations = [
+        queryClient.invalidateQueries({
+          queryKey: conversationListQueryKey,
+        }),
+      ]
+      const completedConversationId = conversationIdRef.current
+      if (completedConversationId) {
+        const completedHistoryOptions = getAssistantConversationHistoryOptions({
+          path: { conversationId: completedConversationId },
+        })
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: scopeActorQueryKey(
+              completedHistoryOptions.queryKey,
+              actorKey,
+            ),
+          }),
+        )
+      }
+      void Promise.all(invalidations)
+    },
+  })
+  const historyOptions = getAssistantConversationHistoryOptions({
+    path: { conversationId: conversationId ?? "00000000-0000-0000-0000-000000000000" },
+  })
+  const history = useQuery({
+    ...historyOptions,
+    queryKey: scopeActorQueryKey(historyOptions.queryKey, actorKey),
+    enabled: Boolean(conversationId),
+  })
+
+  useEffect(() => {
+    if (conversationIdRef.current === conversationId) return
+    stop()
+    conversationIdRef.current = conversationId
+    locallyCreatedConversationRef.current = undefined
+    setSourcePanel(null)
+    setMessages([])
+  }, [conversationId, setMessages, stop])
+
+  useEffect(() => {
+    if (
+      !conversationId ||
+      !history.data ||
+      locallyCreatedConversationRef.current === conversationId
+    ) {
+      return
+    }
+    setMessages(
+      history.data.map((message, index) =>
+        historyMessage(conversationId, message, index),
+      ),
+    )
+  }, [conversationId, history.data, setMessages])
   const busy = status === "submitted" || status === "streaming"
   const latestMessage = messages.at(-1)
   const retryText = [...messages]
@@ -176,6 +317,8 @@ export function AssistantPage() {
     if (!message || busy || submitLock.current) return
 
     submitLock.current = true
+    nextTitleRef.current =
+      message.length <= 80 ? message : `${message.slice(0, 77)}...`
     clearError()
     const turn = sendMessage({ text: message })
     setText("")
@@ -220,6 +363,47 @@ export function AssistantPage() {
       </PromptInputFooter>
     </PromptInput>
   )
+
+  const isSwitchingConversation =
+    conversationId !== undefined && conversationIdRef.current !== conversationId
+
+  if (
+    conversationId &&
+    (isSwitchingConversation || (history.isPending && messages.length === 0))
+  ) {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-w-0 flex-1 items-center justify-center gap-2 text-sm text-content-secondary"
+      >
+        <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+        Loading conversation…
+      </div>
+    )
+  }
+
+  if (
+    conversationId &&
+    !isSwitchingConversation &&
+    history.isError &&
+    messages.length === 0
+  ) {
+    return (
+      <div
+        role="alert"
+        className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center"
+      >
+        <p className="text-body text-content-secondary">
+          This conversation could not be loaded.
+        </p>
+        <Button variant="outline" onClick={() => void history.refetch()}>
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Try again
+        </Button>
+      </div>
+    )
+  }
 
   if (messages.length === 0) {
     return (

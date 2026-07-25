@@ -2,11 +2,22 @@ import { DefaultChatTransport, type UIMessage } from "ai"
 
 import { csrfFetch } from "@/features/session/csrf-fetch"
 
-export function createAssistantTransport() {
+export function createAssistantTransport({
+  conversationId,
+  onConversationId,
+}: {
+  conversationId: () => string | undefined
+  onConversationId: (conversationId: string) => void
+}) {
   return new DefaultChatTransport({
     api: "/api/assistant/chat",
     credentials: "same-origin",
-    fetch: csrfFetch,
+    fetch: async (input, init) => {
+      const response = await csrfFetch(input, init)
+      const nextConversationId = response.headers.get("X-Conversation-ID")
+      if (nextConversationId) onConversationId(nextConversationId)
+      return response
+    },
     prepareSendMessagesRequest: ({ messages }) => {
       const latest = messages.at(-1)
       const message = (latest?.parts ?? [])
@@ -18,6 +29,7 @@ export function createAssistantTransport() {
         body: {
           message,
           limit: 5,
+          conversationId: conversationId(),
         },
       }
     },

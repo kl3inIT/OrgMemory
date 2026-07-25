@@ -8,6 +8,13 @@ public interface ChatModelPort {
 
     default Flux<String> stream(
             AiWorkload workload,
+            ChatGenerationRequest request,
+            String conversationId) {
+        return stream(workload, request);
+    }
+
+    default Flux<String> stream(
+            AiWorkload workload,
             AiRoute route,
             ChatGenerationRequest request) {
         return stream(workload, request);

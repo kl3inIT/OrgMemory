@@ -415,6 +415,16 @@ It may prepare diffs, evaluation summaries, release notes, and review requests.
 It may not approve, publish, withdraw, change permissions, silently update Pack
 pins, install executable code, or execute arbitrary Tool packages.
 
+Conversation history follows the same practical split used by mature assistant
+products: a tenant/user-owned full transcript for product history and a bounded
+recent window for model context. Each new turn retrieves with current
+authorization. The current system message carries freshly authorized evidence
+and response-personalization context, so the memory window retains the raw user
+question and assistant answer instead of replaying copied evidence. Historical
+answers remain a user-owned snapshot; citation content is still opened through
+the current authorization check. Purge-on-revocation is deferred unless an
+explicit compliance retention policy requires it.
+
 ## MCP Boundary
 
 The public POC MCP remains a stateless delivery adapter over API/application use

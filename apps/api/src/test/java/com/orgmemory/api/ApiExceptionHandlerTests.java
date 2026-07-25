@@ -2,10 +2,12 @@ package com.orgmemory.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.orgmemory.core.assistant.AssistantConversationNotFoundException;
 import com.orgmemory.core.assetregistry.AssetConflictException;
 import com.orgmemory.core.assetregistry.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.knowledge.CitationNotFoundException;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -30,6 +32,19 @@ class ApiExceptionHandlerTests {
         assertEquals(HttpStatus.NOT_FOUND.value(), response.getStatus());
         assertEquals(
                 "The requested knowledge resource is not available",
+                response.getDetail());
+    }
+
+    @Test
+    void conversationNotFoundUsesAnAccurateResponse() {
+        UUID conversationId = UUID.randomUUID();
+        var response = new ApiExceptionHandler()
+                .assistantConversationNotFound(
+                        new AssistantConversationNotFoundException(conversationId));
+
+        assertEquals(HttpStatus.NOT_FOUND.value(), response.getStatus());
+        assertEquals(
+                "Assistant conversation not found: " + conversationId,
                 response.getDetail());
     }
 

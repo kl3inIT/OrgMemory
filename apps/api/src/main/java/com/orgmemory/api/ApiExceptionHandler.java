@@ -1,12 +1,13 @@
 package com.orgmemory.api;
 
+import com.orgmemory.core.assistant.AssistantConversationNotFoundException;
 import com.orgmemory.core.assistant.AssistantUnavailableException;
 import com.orgmemory.core.assetregistry.AssetConflictException;
 import com.orgmemory.core.assetregistry.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.knowledge.CitationNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceKeyConflictException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
@@ -64,6 +65,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(
                 HttpStatus.NOT_FOUND,
                 "The requested knowledge resource is not available");
+    }
+
+    @ExceptionHandler(AssistantConversationNotFoundException.class)
+    ProblemDetail assistantConversationNotFound(AssistantConversationNotFoundException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
