@@ -302,6 +302,9 @@ class GraphPublicationCommitter {
         metadata.put(
                 "graphProcessingProfileSha256",
                 claim.graphProcessingProfile().canonicalSha256());
+        metadata.put(
+                ContentStore.ASSET_PROJECTION_GENERATION_METADATA_KEY,
+                Long.toString(claim.projectionGeneration()));
         if (chunk.heading() != null) {
             metadata.put("heading", chunk.heading());
         }

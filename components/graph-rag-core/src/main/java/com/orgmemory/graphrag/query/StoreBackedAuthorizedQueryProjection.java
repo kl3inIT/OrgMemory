@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -172,7 +171,7 @@ public final class StoreBackedAuthorizedQueryProjection
                 .toList();
         return content.get(scope, snapshot, ids).stream()
                 .filter(record -> record.kind() == ContentStore.ContentKind.CHUNK)
-                .map(record -> chunk(record, snapshot))
+                .map(StoreBackedAuthorizedQueryProjection::chunk)
                 .toList();
     }
 
@@ -208,19 +207,17 @@ public final class StoreBackedAuthorizedQueryProjection
                 .filter(record -> scores.containsKey(record.id()))
                 .map(record -> new RankedItem<>(
                         record.id(),
-                        chunk(record, snapshot),
+                        chunk(record),
                         scores.get(record.id())))
                 .sorted(rankedOrder())
                 .toList();
     }
 
-    private static Chunk chunk(
-            ContentStore.ContentRecord record,
-            ProjectionSnapshot snapshot) {
+    static Chunk chunk(ContentStore.ContentRecord record) {
         return new Chunk(
                 record.evidence().chunkId(),
                 record.evidence(),
-                snapshot.generation(),
+                record.assetProjectionGeneration(),
                 record.content(),
                 record.tokenCount(),
                 record.metadata());

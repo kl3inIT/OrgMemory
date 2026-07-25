@@ -3,6 +3,7 @@ package com.orgmemory.worker.graph;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -160,7 +161,14 @@ class GraphPublicationCommitterTests {
                 batch.getValue().manifestFingerprint());
         order.verify(content).stageDeleteAsset(any(), org.mockito.ArgumentMatchers.eq(
                 fixture.claim().knowledgeAssetId()));
-        order.verify(content).stageUpsert(any(), any());
+        order.verify(content).stageUpsert(
+                any(),
+                argThat(records -> records.size() == fixture.claim().chunks().size()
+                        && records.stream().allMatch(record -> Long.toString(
+                                        fixture.claim().projectionGeneration())
+                                .equals(record.metadata().get(
+                                        ContentStore
+                                                .ASSET_PROJECTION_GENERATION_METADATA_KEY)))));
         order.verify(publications).markPrepared(
                 any(), org.mockito.ArgumentMatchers.eq(ProjectionKind.CONTENT), any());
         order.verify(lexical).stageDeleteAsset(any(), org.mockito.ArgumentMatchers.eq(

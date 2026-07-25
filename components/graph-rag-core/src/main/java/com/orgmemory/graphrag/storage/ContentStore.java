@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.storage;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.util.Collection;
@@ -10,6 +12,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ContentStore extends StagedProjectionWriter {
+
+    String ASSET_PROJECTION_GENERATION_METADATA_KEY =
+            "assetProjectionGeneration";
 
     @Override
     default ProjectionKind projectionKind() {
@@ -51,6 +56,32 @@ public interface ContentStore extends StagedProjectionWriter {
             }
             metadata = Map.copyOf(Objects.requireNonNull(metadata, "metadata"));
         }
+
+        /**
+         * Returns the immutable Knowledge Asset version generation represented
+         * by this record. This is intentionally distinct from the projection
+         * snapshot generation that copied the record forward.
+         */
+        public long assetProjectionGeneration() {
+            String raw = metadata.get(ASSET_PROJECTION_GENERATION_METADATA_KEY);
+            if (raw == null || raw.isBlank()) {
+                throw new IllegalStateException(
+                        "content record is missing asset projection generation");
+            }
+            final long generation;
+            try {
+                generation = Long.parseLong(raw);
+            } catch (NumberFormatException exception) {
+                throw new IllegalStateException(
+                        "content record has an invalid asset projection generation",
+                        exception);
+            }
+            if (generation <= 0) {
+                throw new IllegalStateException(
+                        "content record has a non-positive asset projection generation");
+            }
+            return generation;
+        }
     }
 
     enum ContentKind {
@@ -61,11 +92,4 @@ public interface ContentStore extends StagedProjectionWriter {
         MULTIMODAL_ANALYSIS
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }
