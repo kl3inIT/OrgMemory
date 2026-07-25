@@ -1,7 +1,12 @@
 package com.orgmemory.api.assistant;
 
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.assistant.AssistantService;
+import com.orgmemory.core.assetregistry.AssetRegistryService;
+import com.orgmemory.core.assetregistry.PromptExecutionService;
+import com.orgmemory.core.assetregistry.PromptRunCoordinator;
+import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
@@ -35,5 +40,17 @@ class AssistantConfiguration {
             PermissionAwareKnowledgeSearch retrieval,
             ChatModelPort chat) {
         return new AssistantService(retrieval, chat);
+    }
+
+    @Bean
+    PromptExecutionService promptExecutionService(
+            AssetRegistryService assets,
+            PromptTemplateRenderer renderer,
+            PermissionAwareKnowledgeSearch retrieval,
+            ChatModelPort chat,
+            AiRouteResolver routes,
+            PromptRunCoordinator runs) {
+        return new PromptExecutionService(
+                assets, renderer, retrieval, chat, routes, runs);
     }
 }

@@ -103,7 +103,7 @@ public record AiGatewayProperties(Map<String, Gateway> gateways, Routes routes) 
 
         Route forWorkload(AiWorkload workload) {
             return switch (workload) {
-                case ASSISTANT_CHAT -> assistantChat;
+                case ASSISTANT_CHAT, PROMPT_EXECUTION -> assistantChat;
                 case GRAPH_EXTRACTION -> graphExtraction;
                 case QUERY_EMBEDDING, DOCUMENT_EMBEDDING -> embedding;
             };

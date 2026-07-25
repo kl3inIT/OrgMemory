@@ -71,7 +71,7 @@ class AssetRegistryCoordinator {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(input, "input");
         AssetTypeProfile profile = profiles.require(type);
-        profile.requireSupported(input.schemaVersion());
+        profile.validate(input.schemaVersion(), input.payload());
         AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
                 input.title(),
                 input.summary(),
@@ -175,6 +175,39 @@ class AssetRegistryCoordinator {
         return view(asset);
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetConsumptionRelease consumptionRelease(
+            UUID organizationId,
+            UUID assetId,
+            UUID releaseId) {
+        Asset asset = requiredAsset(organizationId, assetId);
+        AssetRelease release = releases
+                .findByIdAndAssetIdAndOrganizationId(
+                        releaseId, assetId, organizationId)
+                .orElseThrow(AssetNotFoundException::new);
+        AssetAvailability releaseAvailability = currentAvailability(releaseId);
+        if (releaseAvailability == AssetAvailability.WITHDRAWN) {
+            throw new AssetUnavailableException(
+                    "The requested Asset release is not available for new use");
+        }
+        return new AssetConsumptionRelease(
+                asset.getId(),
+                release.getId(),
+                release.getRevisionId(),
+                asset.getType(),
+                asset.getNamespace(),
+                asset.getSlug(),
+                release.getVersionLabel(),
+                release.getTitle(),
+                release.getSummary(),
+                release.getClassification(),
+                release.getSchemaVersion(),
+                release.getPayload(),
+                release.getDigest(),
+                releaseAvailability,
+                release.getReleasedAt());
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView updateDraft(
             CurrentActor actor,
@@ -188,7 +221,7 @@ class AssetRegistryCoordinator {
                     "The Asset draft changed; reload it before saving");
         }
         AssetTypeProfile profile = profiles.require(asset.getType());
-        profile.requireSupported(input.schemaVersion());
+        profile.validate(input.schemaVersion(), input.payload());
         AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
                 input.title(),
                 input.summary(),
