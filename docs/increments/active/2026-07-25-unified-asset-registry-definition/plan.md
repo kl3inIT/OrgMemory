@@ -40,10 +40,9 @@ invariants, and their integration tests merely to reduce the file count.
 
 - [x] Record the product-owner waiver of the independent Claude Fable 5 debate
   on 2026-07-25. This is an explicit exception, not a claim that the review ran.
-- [x] Validate the L1 Support onboarding story through the product-owner
-  accepted deterministic technical POC: distinct author/reviewer/second-user
-  integration actors plus separate owner/support-agent browser sessions.
-  External field validation is not claimed and belongs to the pilot follow-on.
+- [ ] Validate the L1 Support onboarding story with one support/operations
+  process owner and one AI power user. Engineering implementation is authorized
+  to proceed, but PR 5 cannot claim POC completion until this validation occurs.
 - [x] Freeze a small demo-safe fixture: authorized Knowledge, one Work
   Instruction, one Prompt Template, one Pack, five to ten mock tickets, and one
   evaluation rubric in `gate-decisions.md`.
@@ -51,10 +50,9 @@ invariants, and their integration tests merely to reduce the file count.
   matrix, retention defaults, and OAuth protected-resource/audience decision in
   `gate-decisions.md`.
 
-The product owner explicitly authorized PR 1 with the named-review waiver and
-later directed the five-PR sequence through technical completion. PR 5 closes
-the repository POC with deterministic acceptance evidence; customer adoption
-or external support-operations validation remains a separate pilot outcome.
+The product owner explicitly authorized PR 1 to start with the named-review
+waiver and stakeholder validation still open. That validation remains a hard
+completion gate for PR 5.
 
 ## PR Dependency Graph
 
@@ -261,7 +259,7 @@ Required gates:
 
 - [x] Tool descriptions do not grant authority.
 - [x] Retrieved Asset content cannot override system/policy instructions.
-- [x] Two-user tests cover recommendation, Pack, Prompt, Knowledge, and
+- [ ] Two-user tests cover recommendation, Pack, Prompt, Knowledge, and
   citations.
 - [x] Every applicable trace contains exact releases without raw secrets.
 - [x] Assistant has no hidden governance tool path.
@@ -269,8 +267,7 @@ Required gates:
 - [x] Generic detail renders every POC profile without Prompt-specific routing.
 - [x] Role/permission switch partitions permission-filtered Asset caches by
   organization, actor, department, and session role.
-- [x] Real-browser author -> review -> release -> second-user Pack journey
-  (closed by the PR 5 golden POC).
+- [ ] Real-browser author -> review -> release -> second-user Pack journey.
 
 Explicitly excluded:
 
@@ -341,33 +338,31 @@ Expected size: 20-50 files.
 
 Scope:
 
-- [x] Add demo-safe L1 Support Knowledge, Work Instruction, Prompt, checklist,
+- [ ] Add demo-safe L1 Support Knowledge, Work Instruction, Prompt, checklist,
   mock tickets, rubric, and Pack fixtures.
-- [x] Prove author -> review -> release -> second-user discovery -> Prompt run
+- [ ] Prove author -> review -> release -> second-user discovery -> Prompt run
   -> Work Instruction/Pack completion.
-- [x] Prove one Prompt replacement without silent Pack mutation.
-- [x] Prove withdrawal blocks new use and remains auditable.
-- [x] Prove owner/backup-owner handover and flag orphaned Assets.
-- [x] Capture time-to-first-correct-task, first-time-right, second-user reuse,
+- [ ] Prove one Prompt replacement without silent Pack mutation.
+- [ ] Prove withdrawal blocks new use and remains auditable.
+- [ ] Prove owner/backup-owner handover and flag orphaned Assets.
+- [ ] Capture time-to-first-correct-task, first-time-right, second-user reuse,
   view-to-use, evaluation pass, reviewer correction, and owner coverage.
-- [x] Run static, domain, integration, OpenFGA, frontend, browser, MCP, and
+- [ ] Run static, domain, integration, OpenFGA, frontend, browser, MCP, and
   two-user security gates.
-- [x] Consolidate implemented facts into architecture/spec/test/decision docs.
-- [x] Move this increment to `completed` only when every required POC gate has
+- [ ] Consolidate implemented facts into architecture/spec/test/decision docs.
+- [ ] Move this increment to `completed` only when every required POC gate has
   evidence.
 
 Required gates:
 
-- [x] `.\gradlew.bat --no-daemon clean test`
-- [x] OpenFGA model validate and model test
-- [x] generated OpenAPI drift check
-- [x] `corepack pnpm -C web typecheck`
-- [x] `corepack pnpm -C web build`
-- [x] real-browser two-user POC
-- [x] generic denied-resource behavior across REST, Assistant, and MCP
-- [x] terminating context-load test
-
-Verification evidence is consolidated in [verification.md](verification.md).
+- [ ] `.\gradlew.bat --no-daemon clean test`
+- [ ] OpenFGA model validate and model test
+- [ ] generated OpenAPI drift check
+- [ ] `corepack pnpm -C web typecheck`
+- [ ] `corepack pnpm -C web build`
+- [ ] real-browser two-user POC
+- [ ] generic denied-resource behavior across REST, Assistant, and MCP
+- [ ] terminating context-load test
 
 ## Follow-On Increments, Not Hidden PRs
 

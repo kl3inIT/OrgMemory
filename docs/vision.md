@@ -187,15 +187,16 @@ bypass authorization.
 
 ## Web Direction
 
-The POC implements an agent-first workspace centered on one Asset Registry with
-four generic surfaces: **For you / Asset catalog**, **Asset detail / use**,
-**Pack journey**, and **Governance workspace**. Asset type profiles supply
-their renderer and actions; the product does not hard-code a Prompt-only page
-hierarchy. Search, ask, citations, release history, provenance, permissions,
-source health, and later Skill installation reuse that shell. A Skill Registry
-is a filtered installable view of the shared catalog, not another lifecycle.
-Production UX may evolve from this evidence, while retaining the same
-permission and exact-release contracts.
+The current registry UI is disposable prototype evidence. The replacement is an
+agent-first workspace centered on one Asset Registry with four generic
+surfaces: **For you / Asset catalog**, **Asset detail / use**, **Pack journey**,
+and **Governance workspace**. Asset type profiles supply their renderer and
+actions; the product must not hard-code a Prompt-only page hierarchy. Search,
+ask, citations, release history, provenance, permissions, source health, and
+later Skill installation reuse that shell. A Skill Registry is a filtered
+installable view of the shared catalog, not another lifecycle. Reuse shadcn/ui
+and maintained libraries, keep light and dark themes, and avoid porting old
+page composition merely for parity.
 
 ## Non-Goals For The First Pilot
 
