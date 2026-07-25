@@ -147,7 +147,11 @@ compose=(
 "${compose[@]}" pull
 "${compose[@]}" run --rm postgres-bootstrap
 "${compose[@]}" --profile ops run --rm postgres-backup
-"${compose[@]}" up -d --remove-orphans
+"${compose[@]}" up \
+  -d \
+  --wait \
+  --wait-timeout 240 \
+  --remove-orphans
 
 ORGMEMORY_ENV_FILE="$environment_file" \
 ORGMEMORY_REQUIRE_PUBLIC_SMOKE="${public_smoke:-true}" \

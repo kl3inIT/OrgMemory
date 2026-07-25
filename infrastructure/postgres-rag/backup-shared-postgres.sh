@@ -6,6 +6,9 @@ set -eu
 : "${PGPASSWORD:?PGPASSWORD is required}"
 : "${BACKUP_DATABASES:=orgmemory openfga keycloak}"
 
+# Retention is intentionally external to this transactional backup command.
+# Follow docs/runbooks/production-zm-deployment.md and prune only after a
+# restore-verification job has accepted a newer backup set.
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 destination="/backup/${timestamp}"
 mkdir -p "${destination}"

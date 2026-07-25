@@ -49,8 +49,10 @@ CI and deployment are separate authorities:
 3. Every image has an immutable `sha-<commit>` tag. Moving convenience tags are
    not deployment inputs.
 4. BuildKit registry caches reduce repeated Gradle, pnpm, and image-layer work.
-5. Published images include provenance and SBOM attestations and pass a
-   vulnerability scan before deployment.
+5. Published images include provenance and SBOM attestations. A non-blocking
+   HIGH/CRITICAL vulnerability scan runs before publishing; findings remain
+   visible in the workflow log but do not suppress the immutable POC image.
+   Remediation is an operator release decision.
 6. The VPS pulls the exact commit tag and never compiles application source.
 
 Spring Boot applications use one parameterized multi-stage image definition.

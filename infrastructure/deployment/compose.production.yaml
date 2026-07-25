@@ -13,13 +13,16 @@ x-service-defaults: &service-defaults
       max-size: 10m
       max-file: "5"
 
+x-oidc-environment: &oidc-environment
+  ORGMEMORY_OIDC_ISSUER_URI: https://auth.kl3in.tech/realms/orgmemory
+  ORGMEMORY_OIDC_JWK_SET_URI: http://keycloak:8080/realms/orgmemory/protocol/openid-connect/certs
+
 x-spring-environment: &spring-environment
+  <<: *oidc-environment
   SPRING_PROFILES_ACTIVE: prod
   ORGMEMORY_DB_URL: jdbc:postgresql://postgres:5432/${ORGMEMORY_DB_NAME:-orgmemory}
   ORGMEMORY_DB_USER: ${ORGMEMORY_DB_USER:-orgmemory}
   ORGMEMORY_DB_PASSWORD: ${ORGMEMORY_DB_PASSWORD:?Set ORGMEMORY_DB_PASSWORD}
-  ORGMEMORY_OIDC_ISSUER_URI: https://auth.kl3in.tech/realms/orgmemory
-  ORGMEMORY_OIDC_JWK_SET_URI: http://keycloak:8080/realms/orgmemory/protocol/openid-connect/certs
   ORGMEMORY_OIDC_CLIENT_ID: orgmemory-web
   ORGMEMORY_OIDC_CLIENT_SECRET: ${ORGMEMORY_OIDC_CLIENT_SECRET:?Set ORGMEMORY_OIDC_CLIENT_SECRET}
   ORGMEMORY_WEB_BASE_URL: https://om.kl3in.tech
@@ -172,7 +175,7 @@ services:
     networks:
       - orgmemory-internal
     volumes:
-      - ../../integrations/authorization-openfga/src/test/openfga/model.fga:/model/model.fga:ro
+      - ../../integrations/authorization-openfga/src/main/openfga/model.fga:/model/model.fga:ro
     restart: "no"
     read_only: true
     security_opt:
@@ -363,9 +366,8 @@ services:
     <<: *service-defaults
     image: ${ORGMEMORY_MCP_IMAGE:?Set ORGMEMORY_MCP_IMAGE}
     environment:
+      <<: *oidc-environment
       SPRING_PROFILES_ACTIVE: prod
-      ORGMEMORY_OIDC_ISSUER_URI: https://auth.kl3in.tech/realms/orgmemory
-      ORGMEMORY_OIDC_JWK_SET_URI: http://keycloak:8080/realms/orgmemory/protocol/openid-connect/certs
       ORGMEMORY_API_BASE_URL: http://api:8080
       ORGMEMORY_ROOT_LOG_LEVEL: ${ORGMEMORY_ROOT_LOG_LEVEL:-INFO}
       ORGMEMORY_APP_LOG_LEVEL: ${ORGMEMORY_APP_LOG_LEVEL:-DEBUG}

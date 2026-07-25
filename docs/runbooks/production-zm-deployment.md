@@ -155,6 +155,12 @@ Database migrations must remain backward compatible with the immediately
 previous application image. The rollback does not reverse a committed database
 migration.
 
+Logical backup rotation is an operator responsibility, not part of the
+transactional deployment script. A scheduled retention job may prune old
+timestamped directories only after a newer `SHA256SUMS` set has passed a restore
+verification. Keep at least the last two verified deployment backups and one
+off-host copy; do not delete the only known-good pre-cutover backup.
+
 ## POC Performance Budget
 
 The current profile prioritizes interactive traffic:
