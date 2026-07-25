@@ -29,6 +29,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { readCitationContent } from "@/lib/hey-api"
 import { cn } from "@/lib/utils"
 
 export interface AssistantSourceRef {
@@ -90,18 +91,20 @@ function SourcesPanelContent({
 }: AssistantSourcesPanelProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const selected = sources.find((source) => source.id === selectedSourceId) ?? sources[0] ?? null
-  const canPreview = selected?.url.startsWith("/api/citations/") ?? false
-  const selectedUrl = canPreview ? selected?.url : undefined
+  const selectedCitationId = selected ? citationChunkId(selected.url) : undefined
+  const canPreview = selectedCitationId !== undefined
   const previewQuery = useQuery({
-    queryKey: ["assistant-citation-preview", selectedUrl],
-    enabled: selectedUrl !== undefined && previewOpen,
+    queryKey: ["assistant-citation-preview", selectedCitationId],
+    enabled: selectedCitationId !== undefined && previewOpen,
     queryFn: async (): Promise<PreviewPayload> => {
-      if (!selectedUrl) throw new Error("Citation URL is unavailable")
-      const response = await fetch(selectedUrl, {
-        credentials: "same-origin",
+      if (!selectedCitationId) throw new Error("Citation is unavailable")
+      const { data } = await readCitationContent({
+        path: { chunkId: selectedCitationId },
+        parseAs: "blob",
+        throwOnError: true,
       })
-      if (!response.ok) throw new Error("Source is unavailable")
-      const blob = await response.blob()
+      if (!(data instanceof Blob)) throw new Error("Source is unavailable")
+      const blob = data
       const mediaType = blob.type || "application/octet-stream"
       const text = isTextPreview(mediaType) ? await blob.text() : undefined
       return { blob, mediaType, text }
@@ -353,6 +356,11 @@ function isTextPreview(mediaType: string) {
     mediaType.endsWith("+json") ||
     mediaType.endsWith("+xml")
   )
+}
+
+function citationChunkId(url: string): string | undefined {
+  const match = /^\/api\/citations\/([^/]+)\/content$/.exec(url)
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined
 }
 
 function previewMetadata(preview: PreviewPayload) {

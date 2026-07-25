@@ -127,16 +127,28 @@ public final class LightRagGroundingAssembler {
         SecureContextBudget budget = options.contextBudget();
         int maximumInputTokens =
                 budget.maxTotalTokens() - budget.safetyBufferTokens();
+        TokenMeasurements measurements =
+                measureTokens(query, options, grounding);
         LightRagGrounding candidate =
-                withMeasuredUsage(query, options, grounding);
+                withMeasuredUsage(grounding, measurements);
         PreparedGrounding prepared =
                 renderUnchecked(query, options, candidate);
+        int renderingOverhead = Math.max(
+                0,
+                prepared.inputTokens() - measuredInputTokens(candidate));
+        while (measuredInputTokens(candidate) + renderingOverhead
+                        > maximumInputTokens
+                && !candidate.empty()) {
+            candidate = withMeasuredUsage(
+                    removeLowestPriority(candidate),
+                    measurements);
+        }
+        prepared = renderUnchecked(query, options, candidate);
         while (prepared.inputTokens() > maximumInputTokens
                 && !candidate.empty()) {
             candidate = withMeasuredUsage(
-                    query,
-                    options,
-                    removeLowestPriority(candidate));
+                    removeLowestPriority(candidate),
+                    measurements);
             prepared = renderUnchecked(query, options, candidate);
         }
         if (prepared.inputTokens() > maximumInputTokens) {
@@ -146,25 +158,54 @@ public final class LightRagGroundingAssembler {
         return prepared;
     }
 
-    private LightRagGrounding withMeasuredUsage(
+    private TokenMeasurements measureTokens(
             String query,
             LightRagQueryRequest.Options options,
             LightRagGrounding grounding) {
+        Map<UUID, Integer> entityTokens = grounding.entities().stream()
+                .collect(Collectors.toMap(
+                        LightRagGrounding.SelectedEntity::id,
+                        item -> tokenizer.count(renderEntity(
+                                item,
+                                ignored -> BUDGET_REFERENCE_ID)),
+                        Math::max,
+                        LinkedHashMap::new));
+        Map<UUID, Integer> relationTokens = grounding.relations().stream()
+                .collect(Collectors.toMap(
+                        LightRagGrounding.SelectedRelation::id,
+                        item -> tokenizer.count(renderRelation(
+                                item,
+                                ignored -> BUDGET_REFERENCE_ID)),
+                        Math::max,
+                        LinkedHashMap::new));
+        Map<UUID, Integer> chunkTokens = grounding.chunks().stream()
+                .collect(Collectors.toMap(
+                        LightRagGrounding.SelectedChunk::id,
+                        item -> tokenizer.count(renderChunk(
+                                item,
+                                BUDGET_REFERENCE_ID,
+                                options.includeHeadings())),
+                        Math::max,
+                        LinkedHashMap::new));
+        return new TokenMeasurements(
+                tokenizer.count(systemPrompt(options, "")),
+                tokenizer.count(query),
+                entityTokens,
+                relationTokens,
+                chunkTokens);
+    }
+
+    private static LightRagGrounding withMeasuredUsage(
+            LightRagGrounding grounding,
+            TokenMeasurements measurements) {
         int entityTokens = grounding.entities().stream()
-                .mapToInt(item -> tokenizer.count(renderEntity(
-                        item,
-                        ignored -> BUDGET_REFERENCE_ID)))
+                .mapToInt(item -> measurements.entityTokens().get(item.id()))
                 .sum();
         int relationTokens = grounding.relations().stream()
-                .mapToInt(item -> tokenizer.count(renderRelation(
-                        item,
-                        ignored -> BUDGET_REFERENCE_ID)))
+                .mapToInt(item -> measurements.relationTokens().get(item.id()))
                 .sum();
         int chunkTokens = grounding.chunks().stream()
-                .mapToInt(item -> tokenizer.count(renderChunk(
-                        item,
-                        BUDGET_REFERENCE_ID,
-                        options.includeHeadings())))
+                .mapToInt(item -> measurements.chunkTokens().get(item.id()))
                 .sum();
         return new LightRagGrounding(
                 grounding.entities(),
@@ -172,11 +213,20 @@ public final class LightRagGroundingAssembler {
                 grounding.chunks(),
                 grounding.scopes(),
                 new ContextTokenUsage(
-                        tokenizer.count(systemPrompt(options, "")),
-                        tokenizer.count(query),
+                        measurements.systemPromptTokens(),
+                        measurements.queryTokens(),
                         entityTokens,
                         relationTokens),
                 chunkTokens);
+    }
+
+    private static int measuredInputTokens(LightRagGrounding grounding) {
+        ContextTokenUsage usage = grounding.tokenUsage();
+        return usage.systemPromptTokens()
+                + usage.queryTokens()
+                + usage.entityTokens()
+                + usage.relationTokens()
+                + grounding.chunkTokens();
     }
 
     private PreparedGrounding renderUnchecked(
@@ -546,6 +596,20 @@ public final class LightRagGroundingAssembler {
                 throw new IllegalArgumentException(
                         "inputTokens must be non-negative");
             }
+        }
+    }
+
+    private record TokenMeasurements(
+            int systemPromptTokens,
+            int queryTokens,
+            Map<UUID, Integer> entityTokens,
+            Map<UUID, Integer> relationTokens,
+            Map<UUID, Integer> chunkTokens) {
+
+        private TokenMeasurements {
+            entityTokens = Map.copyOf(entityTokens);
+            relationTokens = Map.copyOf(relationTokens);
+            chunkTokens = Map.copyOf(chunkTokens);
         }
     }
 }

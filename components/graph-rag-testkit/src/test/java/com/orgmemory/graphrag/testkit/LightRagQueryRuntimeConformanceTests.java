@@ -23,6 +23,8 @@ import com.orgmemory.graphrag.query.AuthorizedQueryProjection;
 import com.orgmemory.graphrag.query.ChunkReranker;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.KeywordPlanningModel;
+import com.orgmemory.graphrag.query.ContextTokenUsage;
+import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagKeywordPlanner;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
@@ -393,8 +395,44 @@ class LightRagQueryRuntimeConformanceTests {
         assertTrue(result.trace().rerankAttempted());
         assertFalse(result.trace().rerankFallback());
         assertFalse(result.references().isEmpty());
+        assertFalse(result.grounding().chunks().isEmpty());
         assertTrue(result.grounding().chunks().stream().allMatch(chunk ->
                 chunk.id().equals(FIRST_CHUNK_ID)));
+    }
+
+    @Test
+    void conflictingContributionAndChunkGenerationsFailClosed() {
+        EvidenceReference evidence =
+                evidence(FIRST_CHUNK_ID, ORGANIZATION_ID, ALLOWED_ASSET_ID);
+        LightRagGrounding grounding = new LightRagGrounding(
+                List.of(new LightRagGrounding.SelectedEntity(
+                        FIRST_ENTITY_ID,
+                        "Probation policy",
+                        List.of(new LightRagGrounding.EntityContribution(
+                                "POLICY",
+                                "A 60-day probation period applies.",
+                                evidence,
+                                GENERATION,
+                                0.95)),
+                        1.0,
+                        1)),
+                List.of(),
+                List.of(new LightRagGrounding.SelectedChunk(
+                        FIRST_CHUNK_ID,
+                        evidence,
+                        GENERATION + 1,
+                        "Full-time employees complete a 60-day probation period.",
+                        Map.of("sourceLabel", "employee-handbook.md"),
+                        LightRagQueryResult.Origin.VECTOR,
+                        1,
+                        1,
+                        1.0,
+                        null)),
+                List.of(),
+                new ContextTokenUsage(0, 0, 0, 0),
+                0);
+
+        assertThrows(IllegalStateException.class, grounding::evidenceClosure);
     }
 
     @Test
@@ -654,7 +692,7 @@ class LightRagQueryRuntimeConformanceTests {
             UUID assetId,
             long projectionGeneration) {
         return new EvidenceProvenance(
-                evidence(key, chunkId, ORGANIZATION_ID, assetId),
+                evidence(chunkId, ORGANIZATION_ID, assetId),
                 projectionGeneration,
                 "test",
                 "test-model",
@@ -687,7 +725,7 @@ class LightRagQueryRuntimeConformanceTests {
             long projectionGeneration) {
         return new AuthorizedQueryProjection.Chunk(
                 chunkId,
-                evidence(chunkId.toString(), chunkId, organizationId, assetId),
+                evidence(chunkId, organizationId, assetId),
                 projectionGeneration,
                 content,
                 content.split("\\s+").length,
@@ -697,7 +735,6 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     private static EvidenceReference evidence(
-            String key,
             UUID chunkId,
             UUID organizationId,
             UUID assetId) {

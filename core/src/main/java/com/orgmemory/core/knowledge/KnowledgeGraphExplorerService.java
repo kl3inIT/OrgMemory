@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
@@ -126,6 +127,21 @@ public class KnowledgeGraphExplorerService {
                     "Knowledge graph authorization changed during the request");
         }
 
+        AuthorizationDecision curationDecision =
+                curationDecision(actor, knowledgeSpaceId);
+        audit.record(new PermissionAuditCommand(
+                actor.organizationId(),
+                actor.userId(),
+                "CHECK_GRAPH_CURATION",
+                "knowledge_space",
+                knowledgeSpaceId.toString(),
+                curationDecision.allowed()
+                        ? PermissionAuditDecision.ALLOW
+                        : PermissionAuditDecision.DENY,
+                curationDecision.reasonCode(),
+                curationDecision.policyVersion(),
+                requestId,
+                null));
         KnowledgeGraphView view = project(
                 knowledgeSpaceId,
                 document,
@@ -135,7 +151,7 @@ public class KnowledgeGraphExplorerService {
                 maximumDepth,
                 initial.aclGenerationByKnowledgeSpace()
                         .getOrDefault(knowledgeSpaceId, 0L),
-                canCurate(actor, knowledgeSpaceId));
+                curationDecision.allowed());
         audit.record(new PermissionAuditCommand(
                 actor.organizationId(),
                 actor.userId(),
@@ -437,7 +453,7 @@ public class KnowledgeGraphExplorerService {
         return value;
     }
 
-    private boolean canCurate(
+    private AuthorizationDecision curationDecision(
             CurrentActor actor,
             UUID knowledgeSpaceId) {
         return authorization.check(new RelationshipAuthorizationQuery(
@@ -446,8 +462,7 @@ public class KnowledgeGraphExplorerService {
                         ResourceRef.of(
                                 actor.organizationId(),
                                 "knowledge_space",
-                                knowledgeSpaceId)))
-                .allowed();
+                                knowledgeSpaceId)));
     }
 
     private static OrgMemoryAccessDeniedException accessDenied() {

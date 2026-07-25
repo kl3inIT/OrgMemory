@@ -180,10 +180,6 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 null,
                 "User",
                 "user@example.test");
-        RelationshipAuthorizationPort entry =
-                mock(RelationshipAuthorizationPort.class);
-        when(entry.check(any()))
-                .thenReturn(AuthorizationDecision.allow(MODEL_ID));
         PermissionAuditService audit =
                 mock(PermissionAuditService.class);
         KnowledgeEvidenceScopeResolver scopes =
@@ -191,10 +187,6 @@ class GraphRagKnowledgeRetrievalServiceTests {
         ResolvedKnowledgeEvidenceScope allowed = scope(Set.of(ASSET_ID), 1L);
         when(scopes.resolve(actor, MODEL_ID))
                 .thenReturn(allowed, allowed);
-        ProjectionPublicationStore publications =
-                mock(ProjectionPublicationStore.class);
-        when(publications.current(any()))
-                .thenReturn(java.util.Optional.of(snapshot()));
         LightRagGrounding grounding = grounding();
         LightRagGroundingAssembler.PreparedGrounding prepared =
                 prepared(grounding);
@@ -209,17 +201,6 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 .thenReturn(prepared);
         when(engine.renderGrounding(any(), any(), any()))
                 .thenReturn(prepared);
-        EmbeddingProfileRegistry profiles =
-                mock(EmbeddingProfileRegistry.class);
-        when(profiles.find(any(), any())).thenReturn(java.util.Optional.of(
-                new EmbeddingProfileRef(
-                        PROFILE_ID,
-                        ORGANIZATION_ID,
-                        "profile",
-                        "openai",
-                        "text-embedding-3-large",
-                        1536,
-                        EmbeddingDistanceMetric.COSINE)));
         RelationshipAuthorizationSetPort finalAuthorization =
                 mock(RelationshipAuthorizationSetPort.class);
         ResourceRef asset = ResourceRef.of(
@@ -239,25 +220,13 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         candidate(CHUNK_ID)));
         GraphRagEventSink events = mock(GraphRagEventSink.class);
 
-        var service = new GraphRagKnowledgeRetrievalService(
-                new KnowledgeSearchAuthorizationService(entry, audit),
+        var service = service(
                 scopes,
                 finalAuthorization,
                 canonical,
-                profiles,
-                new KnowledgeEmbeddingProperties(
-                        "openai",
-                        "text-embedding-3-large",
-                        1536),
-                publications,
                 engine,
                 rerankPolicy(),
                 audit,
-                new KnowledgeRetrievalProperties(
-                        20,
-                        5,
-                        5_000,
-                        1_000),
                 events);
 
         SecureKnowledgeSearchResult result = service.search(

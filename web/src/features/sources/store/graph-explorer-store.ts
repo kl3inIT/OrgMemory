@@ -78,9 +78,13 @@ export const useGraphExplorerStore = create<GraphExplorerState>()(
           Number(state.maximumEdgeSize) >= minimumEdgeSize
             ? Math.min(Number(state.maximumEdgeSize), 10)
             : 5
+        const parsedDepth = Number(state.maximumDepth)
+        const maximumDepth =
+          Number.isInteger(parsedDepth) && parsedDepth >= 1 && parsedDepth <= 8 ? parsedDepth : 3
         return {
           ...state,
           entityLimit,
+          maximumDepth,
           minimumEdgeSize,
           maximumEdgeSize,
         }

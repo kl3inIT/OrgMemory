@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,8 @@ import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.permission.PermissionAuditCommand;
+import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.export.GraphExportDocument;
@@ -114,7 +117,7 @@ class KnowledgeGraphExplorerServiceTests {
         assertEquals(Set.of(ASSET_ID), scope.getValue().authorizedAssetIds());
         assertEquals("model-v1", scope.getValue().authorizationModelId());
         assertEquals(9L, scope.getValue().aclGeneration());
-        verify(audit).record(any());
+        verify(audit, times(2)).record(any());
     }
 
     @Test
@@ -178,6 +181,15 @@ class KnowledgeGraphExplorerServiceTests {
         assertFalse(view.canCurate());
         assertNull(view.entities().getFirst().governingEvidence());
         assertNull(view.relations().getFirst().governingEvidence());
+        ArgumentCaptor<PermissionAuditCommand> auditCommands =
+                ArgumentCaptor.forClass(PermissionAuditCommand.class);
+        verify(audit, times(2)).record(auditCommands.capture());
+        PermissionAuditCommand curationAudit = auditCommands.getAllValues().stream()
+                .filter(command -> command.operation().equals("CHECK_GRAPH_CURATION"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(PermissionAuditDecision.DENY, curationAudit.decision());
+        assertEquals("RELATIONSHIP_DENIED", curationAudit.reasonCode());
     }
 
     @Test

@@ -129,9 +129,9 @@ public record PermissionScopedGraphView(
             type = requireText(type, "type");
             description = requireText(description, "description");
             Objects.requireNonNull(evidence, "evidence");
-            if (projectionGeneration < 0) {
+            if (projectionGeneration <= 0) {
                 throw new IllegalArgumentException(
-                        "projectionGeneration must be non-negative");
+                        "projectionGeneration must be positive");
             }
             requireConfidence(confidence);
         }
@@ -159,9 +159,9 @@ public record PermissionScopedGraphView(
                         "weight must be finite and positive");
             }
             Objects.requireNonNull(evidence, "evidence");
-            if (projectionGeneration < 0) {
+            if (projectionGeneration <= 0) {
                 throw new IllegalArgumentException(
-                        "projectionGeneration must be non-negative");
+                        "projectionGeneration must be positive");
             }
             requireConfidence(confidence);
         }

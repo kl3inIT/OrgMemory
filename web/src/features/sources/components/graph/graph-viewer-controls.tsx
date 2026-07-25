@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import MiniSearch from "minisearch"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -371,9 +372,8 @@ function GraphLayoutControl() {
     [sigma, stop],
   )
 
-  const runLayout = useCallback(
+  const applyLayout = useCallback(
     (name: LayoutName) => {
-      setLayout(name)
       if (WORKER_LAYOUTS.has(name)) {
         startWorker(name)
         return
@@ -400,9 +400,9 @@ function GraphLayoutControl() {
   )
 
   useEffect(() => {
-    const timer = window.setTimeout(() => startWorker("Force Atlas"), 100)
+    const timer = window.setTimeout(() => applyLayout(layout), 100)
     return () => window.clearTimeout(timer)
-  }, [startWorker])
+  }, [applyLayout, layout])
 
   return (
     <>
@@ -428,7 +428,7 @@ function GraphLayoutControl() {
         <DropdownMenuContent side="right" align="start">
           <DropdownMenuLabel>Layout</DropdownMenuLabel>
           {LAYOUT_NAMES.map((name) => (
-            <DropdownMenuItem key={name} onSelect={() => runLayout(name)}>
+            <DropdownMenuItem key={name} onSelect={() => setLayout(name)}>
               <span className={cn("size-1.5 rounded-full", layout === name && "bg-primary")} />
               {name}
             </DropdownMenuItem>
@@ -520,7 +520,21 @@ function GraphLegendControl({
 }
 
 function GraphSettingsControl({ edgeCount }: { edgeCount: number }) {
-  const settings = useGraphExplorerStore()
+  const settings = useGraphExplorerStore(
+    useShallow((state) => ({
+      showPropertyPanel: state.showPropertyPanel,
+      showSearchBar: state.showSearchBar,
+      showNodeLabels: state.showNodeLabels,
+      enableNodeDrag: state.enableNodeDrag,
+      showEdgeLabels: state.showEdgeLabels,
+      hideUnselectedEdges: state.hideUnselectedEdges,
+      enableEdgeEvents: state.enableEdgeEvents,
+      minimumEdgeSize: state.minimumEdgeSize,
+      maximumEdgeSize: state.maximumEdgeSize,
+      setViewerPreference: state.setViewerPreference,
+      setEdgeSizeRange: state.setEdgeSizeRange,
+    })),
+  )
   const booleanSettings = [
     ["showPropertyPanel", "Property panel"],
     ["showSearchBar", "Node search"],

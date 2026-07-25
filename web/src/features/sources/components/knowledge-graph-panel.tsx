@@ -426,11 +426,21 @@ function GraphCanvas({
   const { resolvedTheme } = useTheme()
   const enableEdgeEvents = useGraphExplorerStore((state) => state.enableEdgeEvents)
   const effectiveEdgeEvents = enableEdgeEvents && (graph.relations?.length ?? 0) <= 5_000
-  const revision = useMemo(() => graphRevision(graph), [graph])
   const useCurvedEdges = (graph.relations?.length ?? 0) <= 5_000
+  const searchDocuments = useMemo(
+    () =>
+      (graph.entities ?? [])
+        .filter((entity): entity is Entity & { id: string } => Boolean(entity.id))
+        .map((entity) => ({
+          id: entity.id,
+          label: entity.name ?? "Unnamed entity",
+          entityType: entity.type ?? "unknown",
+        })),
+    [graph.entities],
+  )
   return (
     <SigmaContainer
-      key={`${resolvedTheme}-${effectiveEdgeEvents}-${revision}`}
+      key={`${resolvedTheme}-${effectiveEdgeEvents}`}
       className="h-full w-full bg-background"
       settings={{
         defaultNodeType: "border",
@@ -463,13 +473,7 @@ function GraphCanvas({
       />
       <GraphViewerControls
         entityTypes={entityTypes}
-        searchDocuments={(graph.entities ?? [])
-          .filter((entity): entity is Entity & { id: string } => Boolean(entity.id))
-          .map((entity) => ({
-            id: entity.id,
-            label: entity.name ?? "Unnamed entity",
-            entityType: entity.type ?? "unknown",
-          }))}
+        searchDocuments={searchDocuments}
         selectedTypes={selectedTypes}
         onSelectedTypesChange={onSelectedTypesChange}
         onSelectEntity={onSelectEntity}
@@ -550,30 +554,6 @@ function stableNodePosition(id: string): { x: number; y: number } {
     x: (xHash >>> 0) / 4294967296,
     y: (yHash >>> 0) / 4294967296,
   }
-}
-
-function graphRevision(view: KnowledgeGraphView): string {
-  let hash = 2166136261
-  const update = (value: string | number | undefined) => {
-    const text = String(value ?? "")
-    for (let index = 0; index < text.length; index += 1) {
-      hash ^= text.charCodeAt(index)
-      hash = Math.imul(hash, 16777619)
-    }
-  }
-  update(view.authorizationGeneration)
-  for (const entity of view.entities ?? []) {
-    update(entity.id)
-    update(entity.name)
-    update(entity.type)
-    update(entity.description)
-  }
-  for (const relation of view.relations ?? []) {
-    update(relation.id)
-    update(relation.type)
-    update(relation.weight)
-  }
-  return (hash >>> 0).toString(36)
 }
 
 function GraphInteractions({
@@ -660,8 +640,18 @@ function GraphInteractions({
   ])
 
   useEffect(() => {
-    const activeEntityId = hoveredEntityId ?? selectedEntityId
-    const activeRelationId = hoveredRelationId ?? selectedRelationId
+    const graph = sigma.getGraph()
+    const candidateEntityId = hoveredEntityId ?? selectedEntityId
+    const candidateRelationId = hoveredRelationId ?? selectedRelationId
+    const activeEntityId =
+      candidateEntityId && graph.hasNode(candidateEntityId) ? candidateEntityId : null
+    const activeRelationId =
+      candidateRelationId && graph.hasEdge(candidateRelationId) ? candidateRelationId : null
+    const highlightedNodes = activeRelationId
+      ? new Set(graph.extremities(activeRelationId))
+      : activeEntityId
+        ? new Set([activeEntityId, ...graph.neighbors(activeEntityId)])
+        : null
     setSettings({
       nodeReducer: (node, data) => {
         const entityType = String(data.entityType ?? "unknown")
@@ -669,23 +659,15 @@ function GraphInteractions({
           return { ...data, hidden: true }
         }
         const base = renderNodeLabels ? data : { ...data, label: "" }
-        if (activeRelationId) {
-          const related = sigma.getGraph().extremities(activeRelationId).includes(node)
-          return related
-            ? { ...base, highlighted: true }
-            : { ...base, color: "#cbd5e1", label: "" }
-        }
-        if (!activeEntityId) return base
-        const related =
-          node === activeEntityId || sigma.getGraph().neighbors(activeEntityId).includes(node)
-        return related
+        if (!highlightedNodes) return base
+        return highlightedNodes.has(node)
           ? { ...base, highlighted: true }
           : { ...base, color: "#cbd5e1", label: "" }
       },
       edgeReducer: (edge, data) => {
-        const [source, target] = sigma.getGraph().extremities(edge)
-        const sourceType = String(sigma.getGraph().getNodeAttribute(source, "entityType") ?? "unknown")
-        const targetType = String(sigma.getGraph().getNodeAttribute(target, "entityType") ?? "unknown")
+        const [source, target] = graph.extremities(edge)
+        const sourceType = String(graph.getNodeAttribute(source, "entityType") ?? "unknown")
+        const targetType = String(graph.getNodeAttribute(target, "entityType") ?? "unknown")
         if (
           selectedTypes.size > 0 &&
           (!selectedTypes.has(sourceType) || !selectedTypes.has(targetType))
@@ -705,7 +687,7 @@ function GraphInteractions({
               : base
         }
         if (!activeEntityId) return base
-        return sigma.getGraph().extremities(edge).includes(activeEntityId)
+        return graph.extremities(edge).includes(activeEntityId)
           ? base
           : hideUnselectedEdges
             ? { ...base, hidden: true }

@@ -25,7 +25,9 @@
     var(--content-muted) 65%
   );
   background-size: 300% 100%;
+  -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
 }
 

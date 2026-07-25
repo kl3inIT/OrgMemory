@@ -290,6 +290,7 @@ function PropertyActions({
   return (
     <div className="mt-4 flex flex-wrap gap-2">
       <EditIdentityDialog
+        key={`${kind}-${identity.id}`}
         graph={graph}
         kind={kind}
         identity={identity}
@@ -340,9 +341,19 @@ function EditIdentityDialog({
   const entityMutation = useMutation(curateGraphEntityMutation())
   const relationMutation = useMutation(curateGraphRelationMutation())
   const pending = entityMutation.isPending || relationMutation.isPending
+  const parsedWeight = Number(weight)
+  const validWeight = !relation || (Number.isFinite(parsedWeight) && parsedWeight > 0)
 
   async function submit() {
-    if (!graph.knowledgeSpaceId || !identity.id || !reason.trim() || !type.trim()) return
+    if (
+      !graph.knowledgeSpaceId ||
+      !identity.id ||
+      !reason.trim() ||
+      !type.trim() ||
+      !validWeight
+    ) {
+      return
+    }
     try {
       const common = {
         idempotencyKey: crypto.randomUUID(),
@@ -375,7 +386,7 @@ function EditIdentityDialog({
               .split(",")
               .map((keyword) => keyword.trim())
               .filter(Boolean),
-            weight: Number(weight),
+            weight: parsedWeight,
           },
         })
       }
@@ -417,6 +428,9 @@ function EditIdentityDialog({
             <>
               <Field label="Keywords" value={keywords} onChange={setKeywords} />
               <Field label="Weight" value={weight} onChange={setWeight} type="number" />
+              {!validWeight ? (
+                <p className="text-sm text-destructive">Weight must be a positive number.</p>
+              ) : null}
             </>
           ) : null}
           <Field label="Reason" value={reason} onChange={setReason} />
@@ -427,7 +441,13 @@ function EditIdentityDialog({
           </Button>
           <Button
             onClick={submit}
-            disabled={pending || !reason.trim() || !type.trim() || (entity ? !name.trim() : false)}
+            disabled={
+              pending ||
+              !reason.trim() ||
+              !type.trim() ||
+              !validWeight ||
+              (entity ? !name.trim() : false)
+            }
           >
             Save curation
           </Button>
