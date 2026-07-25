@@ -229,9 +229,26 @@ export function AssistantPage({
   } = useChat({
     transport,
     onFinish: () => {
-      void queryClient.invalidateQueries({
-        queryKey: conversationListQueryKey,
-      })
+      const invalidations = [
+        queryClient.invalidateQueries({
+          queryKey: conversationListQueryKey,
+        }),
+      ]
+      const completedConversationId = conversationIdRef.current
+      if (completedConversationId) {
+        const completedHistoryOptions = getAssistantConversationHistoryOptions({
+          path: { conversationId: completedConversationId },
+        })
+        invalidations.push(
+          queryClient.invalidateQueries({
+            queryKey: scopeActorQueryKey(
+              completedHistoryOptions.queryKey,
+              actorKey,
+            ),
+          }),
+        )
+      }
+      void Promise.all(invalidations)
     },
   })
   const historyOptions = getAssistantConversationHistoryOptions({
@@ -347,18 +364,36 @@ export function AssistantPage({
     </PromptInput>
   )
 
-  if (conversationId && history.isPending && messages.length === 0) {
+  const isSwitchingConversation =
+    conversationId !== undefined && conversationIdRef.current !== conversationId
+
+  if (
+    conversationId &&
+    (isSwitchingConversation || (history.isPending && messages.length === 0))
+  ) {
     return (
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 text-sm text-content-secondary">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-w-0 flex-1 items-center justify-center gap-2 text-sm text-content-secondary"
+      >
         <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
         Loading conversation…
       </div>
     )
   }
 
-  if (conversationId && history.isError && messages.length === 0) {
+  if (
+    conversationId &&
+    !isSwitchingConversation &&
+    history.isError &&
+    messages.length === 0
+  ) {
     return (
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center">
+      <div
+        role="alert"
+        className="flex min-w-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center"
+      >
         <p className="text-body text-content-secondary">
           This conversation could not be loaded.
         </p>

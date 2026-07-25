@@ -57,7 +57,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler({
-        AssistantConversationNotFoundException.class,
         AssetNotFoundException.class,
         KnowledgeAssetNotFoundException.class,
         KnowledgeResourceNotFoundException.class
@@ -66,6 +65,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(
                 HttpStatus.NOT_FOUND,
                 "The requested knowledge resource is not available");
+    }
+
+    @ExceptionHandler(AssistantConversationNotFoundException.class)
+    ProblemDetail assistantConversationNotFound(AssistantConversationNotFoundException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -30,7 +30,9 @@ CREATE TABLE public.assistant_conversations (
         CHECK (length(btrim(title)) BETWEEN 1 AND 120),
     CONSTRAINT fk_assistant_conversation_actor
         FOREIGN KEY (actor_user_id, organization_id)
-        REFERENCES public.app_users(id, organization_id)
+        REFERENCES public.app_users(id, organization_id),
+    CONSTRAINT uq_assistant_conversation_tenant_actor
+        UNIQUE (id, organization_id, actor_user_id)
 );
 
 CREATE INDEX idx_assistant_conversation_actor_activity
@@ -56,8 +58,10 @@ CREATE TABLE public.assistant_conversation_messages (
     CONSTRAINT assistant_conversation_message_content_check
         CHECK (length(content) BETWEEN 1 AND 200000),
     CONSTRAINT fk_assistant_conversation_message_conversation
-        FOREIGN KEY (conversation_id)
-        REFERENCES public.assistant_conversations(id)
+        FOREIGN KEY (conversation_id, organization_id, actor_user_id)
+        REFERENCES public.assistant_conversations(
+            id, organization_id, actor_user_id
+        )
         ON DELETE CASCADE,
     CONSTRAINT fk_assistant_conversation_message_actor
         FOREIGN KEY (actor_user_id, organization_id)

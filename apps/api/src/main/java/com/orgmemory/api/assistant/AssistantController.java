@@ -145,9 +145,8 @@ class AssistantController {
             @PathVariable UUID conversationId,
             Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
-        conversations.requireAccess(actor, conversationId);
-        memory.clear(conversationId.toString());
         conversations.delete(actor, conversationId);
+        memory.clear(conversationId.toString());
     }
 
     Flux<AssistantStreamPart> parts(AssistantTurn turn) {

@@ -4,7 +4,9 @@ import com.orgmemory.core.organization.CurrentActor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,15 +70,26 @@ public class AssistantConversationService {
 
     @Transactional(readOnly = true)
     public List<AssistantConversationSummary> list(CurrentActor actor) {
-        return conversations
+        List<AssistantConversation> recent = conversations
                 .findTop50ByOrganizationIdAndActorUserIdOrderByLastActivityAtDescIdDesc(
-                        actor.organizationId(), actor.userId())
+                        actor.organizationId(), actor.userId());
+        if (recent.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> messageCounts = messages
+                .countByConversationIds(recent.stream()
+                        .map(AssistantConversation::getId)
+                        .toList())
                 .stream()
+                .collect(Collectors.toMap(
+                        AssistantConversationMessageRepository.MessageCount::getConversationId,
+                        AssistantConversationMessageRepository.MessageCount::getMessageCount));
+        return recent.stream()
                 .map(conversation -> new AssistantConversationSummary(
                         conversation.getId(),
                         conversation.title(),
                         conversation.lastActivityAt(),
-                        messages.countByConversationId(conversation.getId())))
+                        messageCounts.getOrDefault(conversation.getId(), 0L)))
                 .toList();
     }
 
@@ -98,11 +111,6 @@ public class AssistantConversationService {
     @Transactional
     public void delete(CurrentActor actor, UUID conversationId) {
         conversations.delete(requireOwned(actor, conversationId));
-    }
-
-    @Transactional(readOnly = true)
-    public void requireAccess(CurrentActor actor, UUID conversationId) {
-        requireOwned(actor, conversationId);
     }
 
     private AssistantConversation requireOwned(CurrentActor actor, UUID conversationId) {

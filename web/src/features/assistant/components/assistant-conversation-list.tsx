@@ -128,7 +128,9 @@ export function AssistantConversationList({
                 Conversation history is unavailable.
               </li>
             ) : null}
-            {!conversations.isPending && visible.length === 0 ? (
+            {!conversations.isPending &&
+            !conversations.isError &&
+            visible.length === 0 ? (
               <li className="px-2 py-3 text-xs text-content-muted">
                 Your recent conversations will appear here.
               </li>

@@ -132,6 +132,31 @@ class AssistantConversationServiceTests {
                         .toList());
     }
 
+    @Test
+    void listsRecentConversationsWithMessageCountsLoadedInOneQuery() {
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+        AssistantConversation first = ownedConversation(firstId);
+        AssistantConversation second = ownedConversation(secondId);
+        AssistantConversationMessageRepository.MessageCount firstCount =
+                mock(AssistantConversationMessageRepository.MessageCount.class);
+        when(firstCount.getConversationId()).thenReturn(firstId);
+        when(firstCount.getMessageCount()).thenReturn(4L);
+        when(conversations
+                        .findTop50ByOrganizationIdAndActorUserIdOrderByLastActivityAtDescIdDesc(
+                                actor.organizationId(), actor.userId()))
+                .thenReturn(List.of(first, second));
+        when(messages.countByConversationIds(List.of(firstId, secondId)))
+                .thenReturn(List.of(firstCount));
+
+        List<AssistantConversationSummary> summaries = service.list(actor);
+
+        assertEquals(List.of(4L, 0L), summaries.stream()
+                .map(AssistantConversationSummary::messageCount)
+                .toList());
+        verify(messages).countByConversationIds(List.of(firstId, secondId));
+    }
+
     private AssistantConversation ownedConversation(UUID conversationId) {
         return new AssistantConversation(
                 conversationId,

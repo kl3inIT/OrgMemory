@@ -2,7 +2,9 @@ package com.orgmemory.api.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assistant.AssistantCitation;
@@ -10,10 +12,13 @@ import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.security.core.Authentication;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 import tools.jackson.databind.ObjectMapper;
@@ -63,6 +68,36 @@ class AssistantControllerStreamingTests {
                         AssistantStreamPart.FinishStep.class,
                         part))
                 .verifyComplete();
+    }
+
+    @Test
+    void deletesTheOwnedTranscriptBeforeClearingBoundedMemory() {
+        AssistantConversationService conversations =
+                mock(AssistantConversationService.class);
+        ChatMemory memory = mock(ChatMemory.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Laura",
+                "laura@example.test");
+        UUID conversationId = UUID.randomUUID();
+        when(actors.current(authentication)).thenReturn(actor);
+        AssistantController controller = new AssistantController(
+                mock(AssistantService.class),
+                conversations,
+                memory,
+                actors,
+                mock(AssistantProperties.class),
+                mock(ObjectMapper.class));
+
+        controller.delete(conversationId, authentication);
+
+        InOrder deletion = inOrder(conversations, memory);
+        deletion.verify(conversations).delete(actor, conversationId);
+        deletion.verify(memory).clear(conversationId.toString());
     }
 
     private static AssistantController controller() {
