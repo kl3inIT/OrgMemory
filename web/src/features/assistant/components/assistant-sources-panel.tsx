@@ -195,6 +195,7 @@ function SourceListItem({
     <button
       type="button"
       onClick={onOpen}
+      aria-label={`Preview source ${source.citationNumber}: ${source.title}`}
       aria-current={selected ? "true" : undefined}
       className={cn(
         "group flex w-full gap-2.5 rounded-xl p-3 text-left transition-colors",
