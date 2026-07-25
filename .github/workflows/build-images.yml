@@ -175,9 +175,11 @@ jobs:
               --argjson changed "$changed" \
               '$all - $changed'
           )"
-          printf 'base_sha=%s\n' "$BASE_SHA" >> "$GITHUB_OUTPUT"
-          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
-          printf 'unchanged=%s\n' "$unchanged" >> "$GITHUB_OUTPUT"
+          {
+            printf 'base_sha=%s\n' "$BASE_SHA"
+            printf 'changed=%s\n' "$changed"
+            printf 'unchanged=%s\n' "$unchanged"
+          } >> "$GITHUB_OUTPUT"
           printf 'Changed images: %s\n' "$changed"
           printf 'Carried-forward images: %s\n' "$unchanged"
 
@@ -237,8 +239,8 @@ jobs:
               exit 64
               ;;
           esac
-          printf 'file=%s\n' "$file" >> "$GITHUB_OUTPUT"
           {
+            printf 'file=%s\n' "$file"
             printf 'build_args<<EOF\n'
             printf '%s\n' "$build_args"
             printf 'EOF\n'
