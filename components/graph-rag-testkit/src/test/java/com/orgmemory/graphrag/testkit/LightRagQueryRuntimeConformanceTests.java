@@ -237,6 +237,77 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void structuredGroundingKeepsContributionProvenanceCitable() {
+        LightRagQueryResult result = engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords()));
+
+        Set<UUID> closure = result.grounding()
+                .evidenceClosure()
+                .stream()
+                .map(value -> value.evidence().chunkId())
+                .collect(java.util.stream.Collectors.toSet());
+        Set<UUID> references = result.references()
+                .stream()
+                .map(value -> value.evidence().chunkId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertFalse(result.grounding().entities().isEmpty());
+        assertFalse(result.grounding().relations().isEmpty());
+        assertEquals(closure, references);
+        assertTrue(result.context().contains("\"reference_id\":"));
+    }
+
+    @Test
+    void consolidatedGroundingUsesOneFinalInputBudget() {
+        LightRagQueryRequest base = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+        LightRagQueryResult first = engine.execute(base);
+        SecureContextBudget budget = new SecureContextBudget(
+                120,
+                120,
+                260,
+                20);
+        LightRagQueryRequest.Options options =
+                new LightRagQueryRequest.Options(
+                        base.options().mode(),
+                        base.options().outputMode(),
+                        base.options().responseType(),
+                        base.options().userInstruction(),
+                        base.options().topK(),
+                        base.options().chunkTopK(),
+                        base.options().relatedChunkNumber(),
+                        base.options().maximumGraphDepth(),
+                        base.options().relatedChunkSelection(),
+                        budget,
+                        base.options().rerankEnabled(),
+                        base.options().minimumRerankScore(),
+                        base.options().minimumVectorSimilarity(),
+                        base.options().includeHeadings(),
+                        base.options().streaming());
+
+        var prepared = engine.consolidateGrounding(
+                base.query(),
+                options,
+                List.of(first.grounding(), first.grounding()));
+
+        assertTrue(prepared.inputTokens()
+                <= budget.maxTotalTokens() - budget.safetyBufferTokens());
+        assertEquals(
+                prepared.grounding().evidenceClosure().size(),
+                prepared.references().size());
+    }
+
+    @Test
     void projectionSnapshotExcludesStaleGraphAndChunkGenerations() {
         LightRagQueryResult result = engine.execute(request(
                 LightRagQueryMode.MIX,
@@ -295,6 +366,19 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void disabledRerankingNeverInvokesTheProvider() {
+        engine.execute(request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords()));
+
+        assertEquals(0, reranker.calls);
+    }
+
+    @Test
     void partialRerankerResponsesCannotPromoteUnscoredChunks() {
         reranker.scores = Map.of(FIRST_CHUNK_ID, 0.95);
 
@@ -309,8 +393,8 @@ class LightRagQueryRuntimeConformanceTests {
         assertTrue(result.trace().rerankAttempted());
         assertFalse(result.trace().rerankFallback());
         assertFalse(result.references().isEmpty());
-        assertTrue(result.references().stream().allMatch(reference ->
-                reference.evidence().chunkId().equals(FIRST_CHUNK_ID)));
+        assertTrue(result.grounding().chunks().stream().allMatch(chunk ->
+                chunk.id().equals(FIRST_CHUNK_ID)));
     }
 
     @Test
@@ -620,9 +704,9 @@ class LightRagQueryRuntimeConformanceTests {
         return new EvidenceReference(
                 organizationId,
                 assetId,
-                id(key + "-revision"),
+                id(chunkId + "-revision"),
                 chunkId,
-                id(key + "-acl"),
+                id(chunkId + "-acl"),
                 4);
     }
 
@@ -711,6 +795,7 @@ class LightRagQueryRuntimeConformanceTests {
 
         private Map<UUID, Double> scores = Map.of();
         private RuntimeException failure;
+        private int calls;
 
         @Override
         public ProcessingComponentRef component() {
@@ -719,6 +804,7 @@ class LightRagQueryRuntimeConformanceTests {
 
         @Override
         public List<Score> rerank(String query, List<Candidate> candidates, int limit) {
+            calls++;
             if (failure != null) {
                 throw failure;
             }

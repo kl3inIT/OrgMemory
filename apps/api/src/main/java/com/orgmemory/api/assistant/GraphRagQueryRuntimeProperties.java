@@ -14,8 +14,12 @@ record GraphRagQueryRuntimeProperties(
         Integer chunkTopK,
         Integer relatedChunkNumber,
         Integer maximumGraphDepth,
+        Integer maximumEvidenceClosure,
         Double minimumVectorSimilarity,
-        Boolean includeHeadings) {
+        Boolean includeHeadings,
+        Boolean rerankEnabled,
+        String rerankProvider,
+        Double minimumRerankScore) {
 
     GraphRagQueryRuntimeProperties {
         language = text(
@@ -40,6 +44,10 @@ record GraphRagQueryRuntimeProperties(
                 maximumGraphDepth,
                 1,
                 "maximumGraphDepth");
+        maximumEvidenceClosure = positive(
+                maximumEvidenceClosure,
+                2_000,
+                "maximumEvidenceClosure");
         minimumVectorSimilarity =
                 minimumVectorSimilarity == null
                         ? 0.2
@@ -52,6 +60,18 @@ record GraphRagQueryRuntimeProperties(
         }
         includeHeadings =
                 includeHeadings == null || includeHeadings;
+        rerankEnabled = rerankEnabled != null && rerankEnabled;
+        rerankProvider = text(rerankProvider, "none");
+        minimumRerankScore =
+                minimumRerankScore == null ? 0.0 : minimumRerankScore;
+        if (!Double.isFinite(minimumRerankScore)) {
+            throw new IllegalArgumentException(
+                    "minimumRerankScore must be finite");
+        }
+        if (rerankEnabled && rerankProvider.equalsIgnoreCase("none")) {
+            throw new IllegalArgumentException(
+                    "enabled reranking requires a provider");
+        }
     }
 
     GraphRagRetrievalPolicy toPolicy() {
@@ -61,8 +81,13 @@ record GraphRagQueryRuntimeProperties(
                 chunkTopK,
                 relatedChunkNumber,
                 maximumGraphDepth,
+                maximumEvidenceClosure,
                 minimumVectorSimilarity,
                 includeHeadings,
+                new GraphRagRetrievalPolicy.RerankPolicy(
+                        rerankEnabled,
+                        rerankProvider,
+                        minimumRerankScore),
                 SecureContextBudget.lightRagCompatibleDefaults());
     }
 

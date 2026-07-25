@@ -13,6 +13,7 @@ public record LightRagQueryResult(
         String prompt,
         Answer answer,
         List<Reference> references,
+        LightRagGrounding grounding,
         Trace trace) {
 
     public LightRagQueryResult {
@@ -21,10 +22,36 @@ public record LightRagQueryResult(
         prompt = Objects.requireNonNull(prompt, "prompt");
         Objects.requireNonNull(answer, "answer");
         references = List.copyOf(Objects.requireNonNull(references, "references"));
+        Objects.requireNonNull(grounding, "grounding");
         Objects.requireNonNull(trace, "trace");
-        if (status == Status.NO_RESULTS && !references.isEmpty()) {
-            throw new IllegalArgumentException("no-result queries cannot expose references");
+        if (status == Status.NO_RESULTS
+                && (!references.isEmpty() || !grounding.empty())) {
+            throw new IllegalArgumentException(
+                    "no-result queries cannot expose grounding");
         }
+    }
+
+    public LightRagQueryResult(
+            Status status,
+            String context,
+            String prompt,
+            Answer answer,
+            List<Reference> references,
+            Trace trace) {
+        this(
+                status,
+                context,
+                prompt,
+                answer,
+                references,
+                new LightRagGrounding(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        new ContextTokenUsage(0, 0, 0, 0),
+                        0),
+                trace);
     }
 
     public enum Status {

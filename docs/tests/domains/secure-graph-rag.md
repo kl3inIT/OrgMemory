@@ -26,6 +26,13 @@
 - The pinned PostgreSQL 18 image test proves real Apache AGE graph creation,
   idempotent replacement, content-free topology properties, authorized
   traversal, denied-edge exclusion, and revision removal.
+- LightRAG runtime conformance tests prove contribution-level references,
+  complete evidence closure, one final input-token budget, disabled reranker
+  non-invocation, threshold behavior, and bounded provider fallback.
+- Application tests prove entity/relation/chunk closure BatchCheck plus
+  canonical recheck, authorization-model mismatch denial before rendering,
+  request-scope revocation retry, exact Assistant handoff, and sanitized rerank
+  fallback telemetry.
 
 ## Verification
 
@@ -43,6 +50,7 @@ starter or Spring Boot runtime.
 
 ## Remaining
 
-Secure Assistant graph retrieval tests must prove authorization prefiltering,
-canonical current-state citation recheck, OpenFGA outage denial, and no
-cross-tenant graph influence before the graph can affect an answer.
+Provider-backed evaluation and load/latency evidence remain operational gaps.
+The deterministic suite requires no provider key and keeps restricted,
+cross-tenant, stale-generation, and model-mismatched evidence out of the final
+grounding.

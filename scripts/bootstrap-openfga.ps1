@@ -40,16 +40,20 @@ foreach ($tupleFile in $tupleFiles) {
         throw "OpenFGA tuple fixture does not exist: $tupleFile"
     }
 
-    & $cli tuple write `
+    $importResult = & $cli tuple write `
         --api-url $ApiUrl `
         --store-id $storeId `
         --model-id $modelId `
         --file $tupleFile `
         --on-duplicate ignore `
-        --hide-imported-tuples
+        --hide-imported-tuples | ConvertFrom-Json
 
-    if ($LASTEXITCODE -ne 0) {
+    if ($LASTEXITCODE -ne 0 -or $null -eq $importResult) {
         throw "OpenFGA relationship import failed for $tupleFile."
+    }
+    if ($importResult.failed_count -ne 0) {
+        $failed = $importResult.failed | ConvertTo-Json -Depth 8 -Compress
+        throw "OpenFGA rejected $($importResult.failed_count) relationship tuple(s) from $tupleFile. $failed"
     }
 }
 

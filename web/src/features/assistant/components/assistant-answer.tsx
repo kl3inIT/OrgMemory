@@ -2,6 +2,18 @@ import type { ReactNode } from "react"
 import { useMemo } from "react"
 import { defaultRemarkPlugins } from "streamdown"
 
+import {
+  InlineCitation,
+  InlineCitationCard,
+  InlineCitationCardBody,
+  InlineCitationCardTrigger,
+  InlineCitationCarousel,
+  InlineCitationCarouselContent,
+  InlineCitationCarouselHeader,
+  InlineCitationCarouselIndex,
+  InlineCitationCarouselItem,
+  InlineCitationSource,
+} from "@/components/ai-elements/inline-citation"
 import { MessageResponse } from "@/components/ai-elements/message-response"
 import type { AssistantSourceRef } from "@/features/assistant/components/assistant-sources-panel"
 
@@ -54,15 +66,40 @@ export function AssistantAnswer({
         if (!source) return <>{children}</>
 
         return (
-          <button
-            type="button"
-            className="mx-0.5 inline-flex min-w-5 items-center justify-center rounded-md bg-accent px-1.5 py-0.5 align-baseline text-xs font-semibold tabular-nums text-accent-foreground transition-colors hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`Open source ${citationNumber}: ${source.title}`}
-            title={source.title}
-            onClick={() => onOpenSource(source.id)}
-          >
-            [{citationNumber}]
-          </button>
+          <InlineCitation>
+            <InlineCitationCard>
+              <InlineCitationCardTrigger
+                sources={[source.url]}
+                label={`OrgMemory ${citationNumber}`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open source ${citationNumber}: ${source.title}`}
+                onClick={() => onOpenSource(source.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    onOpenSource(source.id)
+                  }
+                }}
+              />
+              <InlineCitationCardBody>
+                <InlineCitationCarousel>
+                  <InlineCitationCarouselHeader>
+                    <InlineCitationCarouselIndex />
+                  </InlineCitationCarouselHeader>
+                  <InlineCitationCarouselContent>
+                    <InlineCitationCarouselItem>
+                      <InlineCitationSource
+                        title={source.title}
+                        url="OrgMemory document"
+                        description="Permission-verified evidence used for this answer."
+                      />
+                    </InlineCitationCarouselItem>
+                  </InlineCitationCarouselContent>
+                </InlineCitationCarousel>
+              </InlineCitationCardBody>
+            </InlineCitationCard>
+          </InlineCitation>
         )
       },
     }),

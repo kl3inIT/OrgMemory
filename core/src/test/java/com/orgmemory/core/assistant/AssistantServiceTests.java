@@ -13,11 +13,13 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
-import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
+import com.orgmemory.core.knowledge.VerifiedKnowledgeGrounding;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -103,6 +105,47 @@ class AssistantServiceTests {
         assertFalse(request.getValue()
                 .userPrompt()
                 .contains("--- SOURCE 6 BEGIN ---"));
+    }
+
+    @Test
+    void usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt() {
+        RetrievedKnowledgeEvidence evidence = evidence();
+        ChatGenerationRequest verifiedRequest = new ChatGenerationRequest(
+                "verified entity relation and chunk context",
+                "What is the probation policy?");
+        when(retrieval.search(
+                        actor,
+                        "What is the probation policy?",
+                        5,
+                        "request-grounding"))
+                .thenReturn(new SecureKnowledgeSearchResult(
+                        "request-grounding",
+                        List.of(evidence),
+                        Optional.of(new VerifiedKnowledgeGrounding(
+                                verifiedRequest,
+                                List.of(evidence),
+                                3,
+                                120))));
+        when(chat.stream(eq(AiWorkload.ASSISTANT_CHAT), any()))
+                .thenReturn(Flux.just("The probation period is 60 days. [1]"));
+
+        AssistantTurn turn = service.startTurn(
+                actor,
+                "What is the probation policy?",
+                5,
+                "request-grounding");
+
+        assertEquals(
+                List.of("The probation period is 60 days. [1]"),
+                turn.content().collectList().block());
+        verify(chat).stream(
+                AiWorkload.ASSISTANT_CHAT,
+                verifiedRequest);
+        assertEquals(
+                List.of(evidence),
+                turn.citations().stream()
+                        .map(AssistantCitation::evidence)
+                        .toList());
     }
 
     @Test

@@ -1,6 +1,6 @@
 import { useChat } from "@ai-sdk/react"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
-import { Copy, LoaderCircle, RotateCcw, ShieldCheck } from "lucide-react"
+import { Copy, RotateCcw, ShieldCheck } from "lucide-react"
 import { useCallback, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -29,10 +29,12 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
+import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
 import {
   type AssistantSourceRef,
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
+import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
 
 const SUGGESTIONS = [
   "What is the probation policy?",
@@ -134,6 +136,7 @@ export function AssistantPage() {
     (latestMessage === undefined ||
       latestMessage.role === "user" ||
       !hasVisibleOutput(latestMessage))
+  const showThinking = useAssistantThinkingVisibility(showWaiting)
   const openSources = useCallback((messageId: string, sources: AssistantSourceRef[], sourceId: string) => {
     setSourcePanel({
       messageId,
@@ -235,14 +238,9 @@ export function AssistantPage() {
                     </MessageContent>
                   ) : null}
                   {sources.length > 0 ? (
-                    <Sources className="mb-0 text-content-secondary">
-                      <SourcesTrigger
-                        count={sources.length}
-                        onClick={() => {
-                          openSources(message.id, sources, sources[0].id)
-                        }}
-                      />
-                      <SourcesContent className="flex-row flex-wrap gap-2">
+                    <Sources>
+                      <SourcesTrigger count={sources.length} />
+                      <SourcesContent>
                         {sources.map((source) => (
                           <Source
                             key={source.id}
@@ -253,11 +251,7 @@ export function AssistantPage() {
                               event.preventDefault()
                               openSources(message.id, sources, source.id)
                             }}
-                            className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-surface-subtle px-2.5 py-1.5 text-supporting text-content-secondary transition-colors hover:bg-action-ghost-hover hover:text-content-primary"
-                          >
-                            <span className="text-xs tabular-nums">{source.citationNumber}</span>
-                            <span className="font-medium">{source.title}</span>
-                          </Source>
+                          />
                         ))}
                       </SourcesContent>
                     </Sources>
@@ -281,11 +275,10 @@ export function AssistantPage() {
                 </Message>
               )
             })}
-            {showWaiting ? (
+            {showThinking ? (
               <Message from="assistant">
-                <MessageContent className="flex-row items-center gap-2 text-body text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-                  <span>Searching permitted knowledge…</span>
+                <MessageContent>
+                  <AssistantThinkingIndicator />
                 </MessageContent>
               </Message>
             ) : null}

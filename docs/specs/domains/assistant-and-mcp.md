@@ -6,9 +6,14 @@ The in-app Assistant routes chat through the provider-neutral AI gateway and
 grounds every answer in `PermissionAwareKnowledgeSearch`. GraphRAG is the
 default retrieval engine; the canonical hybrid engine is an explicit
 configuration choice rather than an implicit fallback. Answers stream with
-permission-verified citations. The server assigns each citation number at the
-same time it renders the corresponding evidence into the model prompt and
-streams that number as provider metadata. The browser makes only those declared
+permission-verified citations. GraphRAG supplies one structured, token-bounded
+grounding set containing entity, relation, and chunk contributions. The
+application rechecks its complete evidence closure through OpenFGA and the
+canonical ledger before the pure-Java renderer creates the final model prompt.
+`AssistantService` sends that already-verified prompt through `ChatModelPort`;
+it does not construct a second chunk-only prompt or invoke a Spring AI retrieval
+advisor. The server assigns each citation number while rendering the same
+verified closure and streams that number as provider metadata. The browser makes only those declared
 markers interactive; an undeclared `[n]` remains literal text. Citation content
 is read through an authenticated backend endpoint instead of exposing
 object-storage URLs. Every open performs one fresh canonical authorization and

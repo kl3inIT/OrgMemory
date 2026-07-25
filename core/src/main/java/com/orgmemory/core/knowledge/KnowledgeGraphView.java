@@ -1,17 +1,24 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.graphrag.model.EvidenceReference;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 public record KnowledgeGraphView(
         UUID knowledgeSpaceId,
+        long authorizationGeneration,
+        boolean canCurate,
         List<Entity> entities,
         List<Relation> relations,
         boolean truncated) {
 
     public KnowledgeGraphView {
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        if (authorizationGeneration < 0) {
+            throw new IllegalArgumentException(
+                    "authorizationGeneration must be non-negative");
+        }
         entities = List.copyOf(Objects.requireNonNull(entities, "entities"));
         relations = List.copyOf(Objects.requireNonNull(relations, "relations"));
     }
@@ -21,7 +28,8 @@ public record KnowledgeGraphView(
             String name,
             String type,
             String description,
-            List<UUID> citationChunkIds) {
+            List<UUID> citationChunkIds,
+            EvidenceReference governingEvidence) {
 
         public Entity {
             Objects.requireNonNull(id, "id");
@@ -42,7 +50,9 @@ public record KnowledgeGraphView(
             String type,
             String description,
             double weight,
-            List<UUID> citationChunkIds) {
+            List<String> keywords,
+            List<UUID> citationChunkIds,
+            EvidenceReference governingEvidence) {
 
         public Relation {
             Objects.requireNonNull(id, "id");
@@ -54,6 +64,8 @@ public record KnowledgeGraphView(
                 throw new IllegalArgumentException(
                         "weight must be finite and positive");
             }
+            keywords = List.copyOf(
+                    Objects.requireNonNull(keywords, "keywords"));
             citationChunkIds = List.copyOf(
                     Objects.requireNonNull(
                             citationChunkIds,

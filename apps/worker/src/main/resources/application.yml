@@ -23,7 +23,7 @@ spring:
         log-prompt: false
         log-completion: false
     model:
-      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:none}
+      embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:openai}
     openai:
       api-key: ${OPENAI_API_KEY:${ORGMEMORY_OPENAI_API_KEY:}}
       embedding:

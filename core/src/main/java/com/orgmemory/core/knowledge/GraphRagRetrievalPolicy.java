@@ -14,8 +14,10 @@ public record GraphRagRetrievalPolicy(
         int chunkTopK,
         int relatedChunkNumber,
         int maximumGraphDepth,
+        int maximumEvidenceClosure,
         double minimumVectorSimilarity,
         boolean includeHeadings,
+        RerankPolicy rerank,
         SecureContextBudget contextBudget) {
 
     public GraphRagRetrievalPolicy {
@@ -23,7 +25,8 @@ public record GraphRagRetrievalPolicy(
                 || topK <= 0
                 || chunkTopK <= 0
                 || relatedChunkNumber <= 0
-                || maximumGraphDepth < 0) {
+                || maximumGraphDepth < 0
+                || maximumEvidenceClosure <= 0) {
             throw new IllegalArgumentException(
                     "GraphRAG retrieval limits must be positive and bounded");
         }
@@ -33,6 +36,7 @@ public record GraphRagRetrievalPolicy(
             throw new IllegalArgumentException(
                     "minimumVectorSimilarity must be between -1 and 1");
         }
+        Objects.requireNonNull(rerank, "rerank");
         Objects.requireNonNull(contextBudget, "contextBudget");
     }
 
@@ -51,8 +55,8 @@ public record GraphRagRetrievalPolicy(
                 maximumGraphDepth,
                 LightRagQueryRequest.RelatedChunkSelection.VECTOR,
                 contextBudget,
-                false,
-                0.0,
+                rerank.enabled(),
+                rerank.minimumScore(),
                 minimumVectorSimilarity,
                 includeHeadings,
                 false);
@@ -65,8 +69,34 @@ public record GraphRagRetrievalPolicy(
                 20,
                 5,
                 1,
+                2_000,
                 0.2,
                 true,
+                RerankPolicy.disabled(),
                 SecureContextBudget.lightRagCompatibleDefaults());
+    }
+
+    public record RerankPolicy(
+            boolean enabled,
+            String provider,
+            double minimumScore) {
+
+        public RerankPolicy {
+            provider = provider == null || provider.isBlank()
+                    ? "none"
+                    : provider.strip();
+            if (!Double.isFinite(minimumScore)) {
+                throw new IllegalArgumentException(
+                        "minimumScore must be finite");
+            }
+            if (enabled && provider.equalsIgnoreCase("none")) {
+                throw new IllegalArgumentException(
+                        "enabled reranking requires a provider");
+            }
+        }
+
+        public static RerankPolicy disabled() {
+            return new RerankPolicy(false, "none", 0.0);
+        }
     }
 }
