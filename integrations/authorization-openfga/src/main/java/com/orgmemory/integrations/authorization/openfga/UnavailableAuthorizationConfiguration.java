@@ -69,6 +69,12 @@ public class UnavailableAuthorizationConfiguration {
             }
 
             @Override
+            public RelationshipTuplePage readObject(
+                    String object, int pageSize, String continuationToken) {
+                return RelationshipTuplePage.indeterminate(NOT_CONFIGURED, UNCONFIGURED);
+            }
+
+            @Override
             public RelationshipTupleWriteResult delete(RelationshipTupleWriteRequest request) {
                 Objects.requireNonNull(request, "request");
                 return RelationshipTupleWriteResult.indeterminate(NOT_CONFIGURED, UNCONFIGURED);

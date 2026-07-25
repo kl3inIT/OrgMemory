@@ -3,6 +3,7 @@ package com.orgmemory.core.authorization;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,7 @@ class RoleAdministrationServiceTests {
 
     private static final UUID MINH_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
     private static final UUID ASSET_ID = UUID.fromString("25000000-0000-4000-8000-000000000006");
+    private static final UUID SPACE_ID = UUID.fromString("88888888-8888-4888-8888-888888888801");
     private static final String POLICY = "01KY4JS83SQ11R9RMKAMYCPH2Q";
 
     private RelationshipTupleWritePort writes;
@@ -57,9 +60,21 @@ class RoleAdministrationServiceTests {
 
         assertTrue(refusal.getMessage().contains("knowledge_asset"));
         assertFalse(AdministrativeTupleScope.writable("knowledge_asset"));
-        assertFalse(AdministrativeTupleScope.writable("knowledge_space"));
         assertTrue(AdministrativeTupleScope.writable("role"));
         assertTrue(AdministrativeTupleScope.writable("organization"));
+    }
+
+    /**
+     * A Knowledge Space has no source counterpart to diverge from — {@code acl_authority} is a
+     * column on {@code source_objects}, not on {@code knowledge_spaces} — so OrgMemory is its only
+     * writer and an administrator may author its grants.
+     */
+    @Test
+    void anAdministratorMayWriteAgainstAKnowledgeSpaceOrgMemoryOwns() {
+        var spaceTuple = RelationshipTuple.of("user:" + MINH_ID, "viewer", "knowledge_space:" + SPACE_ID);
+
+        assertEquals(spaceTuple, AdministrativeTupleScope.require(spaceTuple));
+        assertTrue(AdministrativeTupleScope.writable("knowledge_space"));
     }
 
     @Test
@@ -86,6 +101,23 @@ class RoleAdministrationServiceTests {
         assertEquals("organization-admin", listing.roles().getFirst().role());
         assertEquals(2, listing.roles().getFirst().assignees().size());
         assertTrue(listing.complete());
+    }
+
+    /**
+     * The tuple cap does not bound the loop on its own: a page carrying a continuation token but no
+     * tuples advances neither the count nor the cursor, so the listing would spin on it and take an
+     * administrative endpoint with it.
+     */
+    @Test
+    void aStoreThatKeepsHandingBackAnEmptyPageStillTerminates() {
+        when(tuples.read(anyInt(), any()))
+                .thenReturn(RelationshipTuplePage.resolved(List.of(), "same-token-forever", POLICY));
+
+        var listing = assertTimeoutPreemptively(
+                Duration.ofSeconds(5), () -> service.roles(), "the role listing must terminate");
+
+        assertFalse(listing.complete());
+        assertTrue(listing.roles().isEmpty());
     }
 
     @Test

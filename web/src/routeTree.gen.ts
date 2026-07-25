@@ -19,6 +19,7 @@ import { Route as AdminAccessRouteImport } from './routes/admin/access'
 import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
+import { Route as AdminSpacesRouteImport } from './routes/admin/spaces'
 import { Route as AdminConnectorsIndexRouteImport } from './routes/admin/connectors/index'
 import { Route as AdminConnectorsNewRouteImport } from './routes/admin/connectors/new'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users.index'
@@ -75,6 +76,11 @@ const AdminScimRoute = AdminScimRouteImport.update({
   path: '/scim',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSpacesRoute = AdminSpacesRouteImport.update({
+  id: '/spaces',
+  path: '/spaces',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminConnectorsIndexRoute = AdminConnectorsIndexRouteImport.update({
   id: '/connectors/',
   path: '/connectors/',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
+  '/admin/spaces': typeof AdminSpacesRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
+  '/admin/spaces': typeof AdminSpacesRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
+  '/admin/spaces': typeof AdminSpacesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
+    | '/admin/spaces'
     | '/admin/'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
+    | '/admin/spaces'
     | '/'
     | '/admin'
     | '/admin/connectors/new'
@@ -204,6 +215,7 @@ export interface FileRouteTypes {
     | '/admin/groups'
     | '/admin/mappings'
     | '/admin/scim'
+    | '/admin/spaces'
     | '/_authenticated/'
     | '/admin/'
     | '/admin/connectors/new'
@@ -292,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminScimRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/spaces': {
+      id: '/admin/spaces'
+      path: '/spaces'
+      fullPath: '/admin/spaces'
+      preLoaderRoute: typeof AdminSpacesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/connectors/': {
       id: '/admin/connectors/'
       path: '/connectors'
@@ -356,6 +375,7 @@ interface AdminRouteChildren {
   AdminGroupsRoute: typeof AdminGroupsRoute
   AdminMappingsRoute: typeof AdminMappingsRoute
   AdminScimRoute: typeof AdminScimRoute
+  AdminSpacesRoute: typeof AdminSpacesRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminConnectorsNewRoute: typeof AdminConnectorsNewRoute
   AdminUsersUserIdRoute: typeof AdminUsersUserIdRoute
@@ -370,6 +390,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminGroupsRoute: AdminGroupsRoute,
   AdminMappingsRoute: AdminMappingsRoute,
   AdminScimRoute: AdminScimRoute,
+  AdminSpacesRoute: AdminSpacesRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminConnectorsNewRoute: AdminConnectorsNewRoute,
   AdminUsersUserIdRoute: AdminUsersUserIdRoute,

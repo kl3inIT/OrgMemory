@@ -1,6 +1,7 @@
 import { queryOptions, type QueryClient } from "@tanstack/react-query"
 
 import {
+  contextOptions,
   getAdminConnectionActivityOptions,
   listAdminConnectionScopesOptions,
   listAdminConnectionScopesQueryKey,
@@ -15,6 +16,9 @@ import {
   listAdminSourcePrincipalsQueryKey,
   listAdminInvitationsOptions,
   listAdminInvitationsQueryKey,
+  listAdminKnowledgeSpaceGrantOptionsOptions,
+  listAdminKnowledgeSpacesOptions,
+  listAdminKnowledgeSpacesQueryKey,
   listAdminRolesOptions,
   listAdminRolesQueryKey,
   listAdminUserPermissionsOptions,
@@ -38,6 +42,25 @@ export function adminInvitationsQueryOptions() {
 
 export function adminRolesQueryOptions() {
   return queryOptions({ ...listAdminRolesOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function adminKnowledgeSpacesQueryOptions() {
+  return queryOptions({ ...listAdminKnowledgeSpacesOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+/**
+ * Which subject each Knowledge Space relation accepts. It comes from the server rather than a
+ * table held here, because it mirrors type restrictions in the authorization model and a second
+ * copy would drift into offering grants that can only be refused. It changes only with the model,
+ * so it is cached for the session.
+ */
+export function adminKnowledgeSpaceGrantOptionsQueryOptions() {
+  return queryOptions({ ...listAdminKnowledgeSpaceGrantOptionsOptions(), staleTime: Infinity })
+}
+
+/** The organization and its departments, which is where a space's audience is chosen from. */
+export function organizationContextQueryOptions() {
+  return queryOptions({ ...contextOptions(), staleTime: 5 * 60_000 })
 }
 
 /**
@@ -139,6 +162,7 @@ export async function invalidateAdminData(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: listAdminUsersQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminRolesQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminInvitationsQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listAdminKnowledgeSpacesQueryKey() }),
     // A role assignment changes what every user resolves to, and the answer is recomputed
     // rather than stored, so the whole permission view has to be asked again.
     queryClient.invalidateQueries({

@@ -64,9 +64,21 @@ BatchCheck, citation-time canonical recheck, and append-only audit evidence.
   relabelling `app_users.role`, which still reads as a grant while granting
   nothing. Listed in
   [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
+- Give a Knowledge Space a lifecycle. It can now be created and granted at
+  runtime, but never retired: `active` is written true and nothing sets it false,
+  because what happens to the assets already inside a retired space is a
+  retention question rather than a flag. Moving an asset between spaces is
+  likewise unimplemented — `knowledge_space_id` is fixed at ingestion from the
+  source connection.
 - Publish proven read-only in-app tools through MCP with service identity/audit.
 - Wire worker extraction/indexing and permission-scoped runtime graph retrieval
-  over the shipped graph contracts and PostgreSQL projection.
+  over the shipped graph contracts and PostgreSQL projection. Before any of that
+  reaches a non-administrator, close the projection store's authorization gap: it
+  filters on organization and authorized asset id only, which is one of
+  retrieval's five gates, so the source ACL, its DENY entries, snapshot freshness
+  and the classification lattice do not apply to a graph read. Narrow the
+  authorized asset set upstream through the filter retrieval already uses rather
+  than restating those rules beside the projection.
 - Detect Capability Candidates from approved evidence and connect the existing
   review/publish/reuse lifecycle.
 - Run the Slack adapter against a real workspace. The adapter, its administration

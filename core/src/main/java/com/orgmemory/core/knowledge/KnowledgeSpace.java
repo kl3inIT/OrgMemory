@@ -4,6 +4,7 @@ import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -28,6 +29,15 @@ class KnowledgeSpace extends BaseEntity {
     protected KnowledgeSpace() {
     }
 
+    KnowledgeSpace(UUID organizationId, UUID departmentId, String key, String name) {
+        super(UUID.randomUUID());
+        this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
+        this.departmentId = departmentId;
+        this.key = Objects.requireNonNull(key, "key");
+        this.name = Objects.requireNonNull(name, "name");
+        this.active = true;
+    }
+
     UUID getDepartmentId() {
         return departmentId;
     }
@@ -38,6 +48,10 @@ class KnowledgeSpace extends BaseEntity {
 
     String getName() {
         return name;
+    }
+
+    boolean isActive() {
+        return active;
     }
 
 }
