@@ -187,6 +187,7 @@ services:
     image: ${ORGMEMORY_POSTGRES_IMAGE:?Set ORGMEMORY_POSTGRES_IMAGE}
     profiles:
       - ops
+    user: "${ORGMEMORY_BACKUP_UID:-1000}:${ORGMEMORY_BACKUP_GID:-1000}"
     entrypoint:
       - /usr/local/bin/backup-shared-postgres
     environment:
