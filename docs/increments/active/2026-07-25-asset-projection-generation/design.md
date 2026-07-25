@@ -28,7 +28,8 @@ not in the upstream retrieval algorithm.
 - Never fall back to the namespace publication generation.
 - Keep evidence-closure and canonical citation checks strict.
 - Backfill existing PostgreSQL content records from canonical
-  `knowledge_chunks.projection_generation`.
+  `knowledge_chunks.projection_generation` using the adapter's Base64
+  key/value metadata codec.
 
 ## Regression Proof
 
