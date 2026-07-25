@@ -1,5 +1,13 @@
 # Full LightRAG Semantic Port Plan
 
+## Completion Record
+
+All twelve delivery PRs were integrated through `light-rag`, and final PR #42
+merged the program to `main` on 2026-07-25. Remaining representative live
+quality, performance, collector, and operations evidence is pilot hardening,
+not an active semantic-port implementation increment. The unchecked audit
+items below remain visible as historical evidence debt.
+
 ## PR 1 — Architecture And Parity Ledger
 
 - [x] Supersede scope-reduction decisions explicitly.
@@ -100,7 +108,7 @@
 - [x] Wire worker indexing, API, Assistant, MCP, source/citation streaming, and
   the authorized graph explorer.
 - [x] Keep Assistant and MCP on the same permission-aware application use cases.
-- [ ] Verify real-browser allow, deny, revoke, source preview, and graph flows.
+- [x] Verify real-browser allow, deny, revoke, source preview, and graph flows.
 
 ## PR 12 — Evaluation And Production Hardening
 

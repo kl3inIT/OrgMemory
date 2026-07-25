@@ -122,5 +122,5 @@ suite.
 
 ## Program Mapping
 
-The implementation sequence and merge gates are maintained in the
-[active program plan](../increments/active/2026-07-23-full-lightrag-semantic-port/plan.md).
+The implementation sequence and merge gates are preserved in the
+[completed program plan](../increments/completed/2026-07-23-full-lightrag-semantic-port/plan.md).

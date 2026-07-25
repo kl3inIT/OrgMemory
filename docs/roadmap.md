@@ -47,64 +47,72 @@ belongs in one active increment.
   recursive fallback, atomic revision replacement, and bounded batches.
 - Independent publication transactions plus worker reconciliation for retry,
   obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
-- Complete LightRAG-compatible parsing, chunking, multimodal extraction,
-  indexing, lifecycle, query modes, PostgreSQL storage, OpenSearch, and Neo4j
-  adapter contracts through PR 10 of the integration program.
+- The twelve-PR LightRAG `v1.5.4` semantic-port program: parsing, chunking,
+  multimodal extraction, indexing, lifecycle, every query mode, PostgreSQL,
+  OpenSearch and Neo4j adapters, secure Assistant/MCP delivery, server-declared
+  citations, the permission-aware graph explorer, evaluation harness, and
+  OpenTelemetry-compatible events. Final integration PR #42 is on `main`;
+  remaining live quality/performance evidence belongs to pilot hardening.
 
-## Active — Full LightRAG Semantic Port
+## Active Delivery
 
-See the
-[twelve-PR program](increments/active/2026-07-23-full-lightrag-semantic-port/plan.md)
-and
-[v1.5.4 parity manifest](research/lightrag-v1.5.4-parity-manifest.md).
+- [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md):
+  import the synthetic document manifest through the public ingestion API,
+  derive its declared access relationships, and run the permission evaluation
+  suite against the indexed documents.
+- [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md):
+  run the already-tested adapter against a real workspace and prove that the
+  next crawl closes access after membership removal.
+- [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md):
+  PR #44 is merged and its repository/CI scope is shipped; the increment remains
+  active until the guarded shared-PostgreSQL cutover and live runtime gates pass.
 
-All program PRs target the `light-rag` integration branch. The program covers
-the complete parser, chunker, multimodal, extraction, indexing, lifecycle,
-query, storage-adapter, runtime, UI, evaluation, and operations capability set.
-Earlier scope exclusions do not remove manifest rows.
+## Next — Execution Order
 
-The existing secure hybrid chunk path, OpenFGA boundary, evidence contribution
-model, PostgreSQL graph projection, and durable worker publication are the
-foundation, not the final port.
-
-## Next — Integration Sequence
-
-- Finish PR 11 browser evidence for allow, deny, revoke, source preview, and the
-  authorized graph explorer.
-- Finish what the admin permission surface left open: reachable containers with
-  their ACL authority, generation and capture time — which is also what makes the
-  mirrored verdict rendering reachable; a permission audit event per role
-  mutation; resolved names and a resource picker instead of pasted UUIDs; and
-  relabelling `app_users.role`, which still reads as a grant while granting
-  nothing. Listed in
-  [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
-- Give a Knowledge Space a lifecycle. It can now be created and granted at
-  runtime, but never retired: `active` is written true and nothing sets it false,
-  because what happens to the assets already inside a retired space is a
-  retention question rather than a flag. Moving an asset between spaces is
-  likewise unimplemented — `knowledge_space_id` is fixed at ingestion from the
-  source connection.
-- Publish proven read-only in-app tools through MCP with service identity/audit.
-- Detect Capability Candidates from approved evidence and connect the existing
-  review/publish/reuse lifecycle.
-- Run the Slack adapter against a real workspace. The adapter, its administration
-  and its reporting are built and proved against recorded responses; nothing has
-  yet crawled a workspace that exists.
-- Close with RAGAS, observability, security, lifecycle, and load evidence before
-  opening `light-rag -> main`.
+1. Complete the guarded ZM database cutover, runtime health, browser login,
+   upload, GraphRAG, Assistant/citation, backup/rollback, and
+   resource-observation gates. This first requires administrator access to
+   disable the obsolete Zero Mail runner and a bounded writer-stop window.
+2. Complete the reproducible demo's real ingestion and permission-evaluation
+   path. This creates the repeatable dataset needed for later quality and load
+   comparisons.
+3. Run the Slack live proof. Keep live credentials outside the repository and
+   capture only the reusable runbook and redacted evidence.
+4. Finish what the admin permission surface left open: reachable containers
+   with their ACL authority, generation and capture time; a permission audit
+   event per role mutation; resolved names and a resource picker instead of
+   pasted UUIDs; and relabelling `app_users.role`, which still reads as a grant
+   while granting nothing. The gaps are listed in
+   [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
+5. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
+   but not retired, and asset movement still needs an explicit retention and
+   authorization contract.
+6. Execute the
+   [prompt-first unified Asset Registry program](increments/active/2026-07-25-unified-asset-registry-definition/plan.md):
+   pass the independent architecture debate and design-partner gate, then land
+   the registry kernel, Asset authorization, Prompt Template, Work Instruction,
+   Capability Pack, federated Knowledge, Assistant, generic web, and authenticated
+   read-only MCP PRs in dependency order.
+7. Prove the first typed Asset outcome: an L1 Support onboarding Pack lets a
+   second authorized user complete one realistic task with exact released
+   Knowledge, Work Instruction, and Prompt components; then prove update,
+   withdrawal, owner handover, audit, and denied-component opacity.
 
 ## Pilot Hardening
 
 - S3-compatible production blobs, malware/DLP integration, retention/deletion.
 - Backup/restore drill, monitoring, tracing, alerts, and incident runbook.
 - Threat model, ASVS/LLM review, load and tenant-isolation tests.
-- First gate: one or two test machines, one repeated workflow, explicit privacy
-  filters, and rollback plan. Expand to 20-100 users only after this gate passes.
+- First gate: one tenant, one role Pack, two users with different permissions,
+  one realistic task, explicit data-retention policy, and rollback plan. Expand
+  to 20-100 users only after this gate passes.
 
 ## Later, Only With Evidence
 
-Airflow, Kafka, SCIM, more providers/connectors, mutation MCP tools, and
-multi-agent orchestration require measured need. OpenSearch and Neo4j adapters
-are already in the full LightRAG port program; production backend selection is
-still evidence-driven. Search and graph remain rebuildable projections behind
-stable ledger/permission contracts.
+Screenpipe capture, controlled SOP effectivity, Skill installation, executable
+Workflow/Agent/Tool packages, Airflow, Kafka, SCIM, more providers/connectors,
+mutation MCP tools, and multi-agent orchestration require measured need or the
+completed browser-native Asset POC. OpenSearch and Neo4j adapters are already in
+the full LightRAG port program; production backend selection is still
+evidence-driven. Search and graph remain rebuildable projections behind stable
+ledger/permission contracts.
