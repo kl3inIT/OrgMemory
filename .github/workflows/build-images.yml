@@ -360,7 +360,7 @@ jobs:
                 --format '{{json .Manifest.Digest}}' |
               jq -r .
             )"
-            jq -e --arg digest "$digest" \
+            jq -en --arg digest "$digest" \
               '$digest | test("^sha256:[0-9a-f]{64}$")' >/dev/null
             if jq -e --arg image "$image" \
               'index($image) != null' <<< "$CHANGED" >/dev/null; then
