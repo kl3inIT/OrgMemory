@@ -474,9 +474,12 @@ withdrawal and an owner/backup-owner handover.
 
 ## Architecture Debate Record And Gate
 
-Material domain, persistence, authorization, publication, and MCP decisions must
-receive the repository-required independent Claude Fable 5 architecture debate
-before implementation PR 1.
+The product owner explicitly waived the repository's independent Claude Fable
+5 debate for this increment on 2026-07-25. No independent review is claimed.
+The proposal, strongest counterargument, evidence, decision, and rejected
+alternatives remain below as the durable decision record. Accepted transition,
+permission, separation-of-duty, retention, OAuth, and frozen-fixture details
+are recorded in [gate-decisions.md](gate-decisions.md).
 
 Proposal:
 
@@ -521,8 +524,9 @@ Rejected alternatives:
 - expose every application action as an MCP tool;
 - implement a generic BPM or Agent runtime.
 
-The named independent debate remains an unchecked implementation gate in the
-plan; this document does not claim it has occurred.
+The named independent debate did not occur. Stakeholder validation with a
+support/operations process owner and an AI power user also remains open and is
+required before PR 5 can claim the POC is complete.
 
 ## POC Success Gate
 

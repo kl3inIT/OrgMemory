@@ -1,6 +1,9 @@
 package com.orgmemory.api;
 
 import com.orgmemory.core.assistant.AssistantUnavailableException;
+import com.orgmemory.core.assetregistry.AssetConflictException;
+import com.orgmemory.core.assetregistry.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.knowledge.CitationNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
@@ -53,6 +56,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler({
+        AssetNotFoundException.class,
         KnowledgeAssetNotFoundException.class,
         KnowledgeResourceNotFoundException.class
     })
@@ -81,6 +85,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
     }
 
+    @ExceptionHandler(AssetConflictException.class)
+    ProblemDetail assetConflict(AssetConflictException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
     /**
      * Two Knowledge Space names that derive the same key are usually the same space twice, so this
      * names the key that is already taken rather than inventing a suffix the creator did not ask
@@ -103,6 +112,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AssistantUnavailableException.class)
     ProblemDetail assistantUnavailable(AssistantUnavailableException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
+    }
+
+    @ExceptionHandler(AssetUnavailableException.class)
+    ProblemDetail assetUnavailable(AssetUnavailableException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 

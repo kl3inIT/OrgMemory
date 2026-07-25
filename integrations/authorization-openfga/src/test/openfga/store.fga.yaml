@@ -51,6 +51,12 @@ tuples:
   - user: organization:acme#knowledge_contributor
     relation: contributor
     object: knowledge_space:company
+  - user: user:laura
+    relation: reviewer
+    object: knowledge_space:company
+  - user: user:evelyn
+    relation: reviewer
+    object: knowledge_space:company
   - user: organization:acme
     relation: organization
     object: knowledge_space:finance
@@ -91,6 +97,41 @@ tuples:
   - user: knowledge_space:finance
     relation: space
     object: knowledge_asset:finance-private-draft
+
+  - user: organization:acme
+    relation: organization
+    object: asset:support-triage
+  - user: knowledge_space:company
+    relation: space
+    object: asset:support-triage
+  - user: user:laura
+    relation: owner
+    object: asset:support-triage
+  - user: user:evelyn
+    relation: reviewer
+    object: asset:support-triage
+  - user: user:minh
+    relation: viewer
+    object: asset:support-triage
+  - user: user:local-only
+    relation: owner
+    object: asset:support-triage
+  - user: user:local-only
+    relation: reviewer
+    object: asset:support-triage
+  - user: user:local-only
+    relation: publisher
+    object: asset:support-triage
+
+  - user: organization:acme
+    relation: organization
+    object: asset:executive-response
+  - user: knowledge_space:executive
+    relation: space
+    object: asset:executive-response
+  - user: user:evelyn
+    relation: owner
+    object: asset:executive-response
 
 tests:
   - name: Company department and executive access are isolated
@@ -264,3 +305,98 @@ tests:
             - knowledge_asset:expense-policy
             - knowledge_asset:finance-private-draft
             - knowledge_asset:financial-forecast
+
+  - name: Asset roles are explicit and separation of duty stays in application policy
+    check:
+      - user: user:laura
+        object: asset:support-triage
+        assertions:
+          can_manage_roles: true
+          can_edit: true
+          can_submit_review: true
+          can_review: false
+          can_publish: false
+          can_withdraw: true
+          can_view: true
+          can_use: true
+      - user: user:evelyn
+        object: asset:support-triage
+        assertions:
+          can_manage_roles: false
+          can_edit: false
+          can_review: true
+          can_publish: false
+          can_view: true
+      - user: user:minh
+        object: asset:support-triage
+        assertions:
+          can_edit: false
+          can_review: false
+          can_view: true
+          can_use: true
+      - user: user:unknown
+        object: asset:support-triage
+        assertions:
+          can_submit_review: false
+          can_withdraw: false
+          can_view: false
+          can_use: false
+      - user: user:local-only
+        object: asset:support-triage
+        assertions:
+          can_manage_roles: false
+          can_edit: false
+          can_submit_review: false
+          can_review: false
+          can_publish: false
+          can_withdraw: false
+          can_view: false
+          can_use: false
+      - user: user:orgadmin
+        object: asset:support-triage
+        assertions:
+          can_manage_roles: true
+          can_edit: true
+          can_review: true
+          can_publish: true
+          can_withdraw: true
+          can_view: true
+    list_objects:
+      - user: user:laura
+        type: asset
+        assertions:
+          can_view:
+            - asset:support-triage
+      - user: user:minh
+        type: asset
+        assertions:
+          can_view:
+            - asset:support-triage
+      - user: user:evelyn
+        type: asset
+        assertions:
+          can_view:
+            - asset:executive-response
+            - asset:support-triage
+      - user: user:unknown
+        type: asset
+        assertions:
+          can_manage_roles: []
+          can_edit: []
+          can_submit_review: []
+          can_review: []
+          can_publish: []
+          can_withdraw: []
+          can_view: []
+          can_use: []
+      - user: user:local-only
+        type: asset
+        assertions:
+          can_manage_roles: []
+          can_edit: []
+          can_submit_review: []
+          can_review: []
+          can_publish: []
+          can_withdraw: []
+          can_view: []
+          can_use: []
