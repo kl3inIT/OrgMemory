@@ -6,12 +6,14 @@ import static org.mockito.Mockito.mock;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assistant.AssistantCitation;
+import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.memory.ChatMemory;
 import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 import tools.jackson.databind.ObjectMapper;
@@ -66,6 +68,8 @@ class AssistantControllerStreamingTests {
     private static AssistantController controller() {
         return new AssistantController(
                 mock(AssistantService.class),
+                mock(AssistantConversationService.class),
+                mock(ChatMemory.class),
                 mock(CurrentActorProvider.class),
                 mock(AssistantProperties.class),
                 mock(ObjectMapper.class));

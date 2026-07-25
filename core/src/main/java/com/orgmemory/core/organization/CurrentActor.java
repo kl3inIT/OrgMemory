@@ -8,7 +8,17 @@ public record CurrentActor(
         UUID organizationId,
         UUID departmentId,
         String name,
-        String email) {
+        String email,
+        UserRole role) {
+
+    public CurrentActor(
+            UUID userId,
+            UUID organizationId,
+            UUID departmentId,
+            String name,
+            String email) {
+        this(userId, organizationId, departmentId, name, email, null);
+    }
 
     public PrincipalRef principal() {
         return PrincipalRef.user(userId);

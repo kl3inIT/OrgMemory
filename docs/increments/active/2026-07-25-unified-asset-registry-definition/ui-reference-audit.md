@@ -101,10 +101,42 @@ Apply to OrgMemory:
 
 - replace the persistent external-provider switch with **Review and run** then
   **Run once**;
-- Pack start/progress, fork, and feedback confirmations describe the exact
-  release and mutation;
+- request confirmation only when the Assistant proposes an external call or
+  state-changing action; direct user actions such as progress and feedback are
+  already explicit and should not add a second modal;
 - Assistant traces appear as compact action receipts, not raw secret-bearing
   JSON.
+
+### Onyx — conversation history and session controls
+
+Local repository snapshot:
+`tmp/onyx@618b5031bf21`.
+
+Source read:
+
+- `web/src/hooks/useChatSessions.ts`
+- `web/src/sections/sidebar/AppSidebar.tsx`
+- `web/src/sections/sidebar/ChatButton.tsx`
+- `backend/onyx/chat/chat_utils.py`
+- `backend/onyx/db/chat.py`
+
+Learn:
+
+- keep recent sessions server-backed while showing a newly created session
+  optimistically until the next refresh returns it;
+- make the active session URL-addressable and replay its persisted transcript;
+- keep rename inline and lightweight, while delete requires confirmation
+  because it is irreversible;
+- keep the full transcript as product history and send only a bounded recent
+  context to the model.
+
+Apply to OrgMemory:
+
+- show the latest 50 tenant/user-owned conversations in the existing sidebar;
+- add **New conversation**, replay, inline rename, and confirmed delete without
+  creating a separate chat-management screen;
+- treat historical answers as snapshots and perform fresh authorization for
+  every new retrieval and citation open.
 
 ### Open edX Learning — ordered Pack journey
 

@@ -29,12 +29,25 @@ content during a recheck, and discards the cached blob when the panel releases
 the source. Text, image, and PDF previews use browser-local object URLs; the
 external object-store address never reaches the browser.
 
+Assistant conversations have two deliberately separate stores. The
+tenant-and-actor-owned transcript keeps the complete user/assistant history for
+list, replay, rename, and delete. Spring AI `MessageWindowChatMemory` keeps only
+the recent context sent back to the model. Current permission-verified grounding
+and bounded server user context are placed in the current system message; the
+memory advisor persists the raw user question and assistant answer, not copied
+evidence. Every new turn performs a fresh authorized retrieval. Historical
+answers remain a snapshot of what the user received at that time, while opening
+a citation still rechecks current access. A future purge-on-revocation rule is a
+separate retention policy, not a prerequisite for ordinary multi-turn chat.
+
 The in-app Asset Assistant boundary is a separate, closed action allowlist. It
 can recommend authorized exact releases, search canonical Knowledge, prepare,
 render, and run Prompt Templates, guide Work Instructions, start/read/update a
-Pack after confirmation, fork a release after confirmation, and submit
-feedback after confirmation. Tool descriptions are descriptive metadata only;
-service authorization and confirmation checks remain authoritative.
+Pack, fork a release, and submit feedback. Assistant-proposed external calls
+and mutations require one explicit confirmation; a direct user click is already
+the confirmation and does not add another modal. Tool descriptions are
+descriptive metadata only; service authorization and confirmation checks remain
+authoritative.
 
 Every Asset action appends an actor-scoped trace with exact release references,
 citation identifiers, model route where applicable, authorization context, and
@@ -49,15 +62,15 @@ forwards that same token to `/api/knowledge/search`, preserving one retrieval,
 OpenFGA, ACL-recheck, and audit path across the Assistant, REST, and MCP
 surfaces. MCP owns no schema migration or privileged service identity.
 
-Durable conversation memory and general chat-turn idempotency remain
-unimplemented. The public MCP surface still exposes only Knowledge search;
-Asset resources, prompts, and read-only tools are deferred to the authenticated
-public MCP increment.
+General chat-turn idempotency remains unimplemented. The public MCP surface
+still exposes only Knowledge search; Asset resources, prompts, and read-only
+tools are deferred to the authenticated public MCP increment.
 
 ## Source Modules
 
 - `apps/api.assistant`
 - `core.assistant.AssistantAssetToolService`
+- `core.assistant.AssistantConversationService`
 - `core.knowledge`
 - `web.features.assets`
 - `apps/mcp`

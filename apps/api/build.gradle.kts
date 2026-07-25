@@ -24,7 +24,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation(libs.springdoc.webmvc)
     implementation(libs.spring.ai.starter.openai)
-
+    implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
     runtimeOnly("org.springframework.modulith:spring-modulith-runtime")

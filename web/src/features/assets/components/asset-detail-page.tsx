@@ -699,45 +699,20 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
           placeholder="What should the owner know?"
           rows={3}
         />
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!comment.trim() || submit.isPending}
-            >
-              <Send aria-hidden="true" />
-              Review feedback
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Send feedback on this exact release?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Your comment will be stored for the Asset owner against release{" "}
-                <span className="font-mono">{release.versionLabel}</span>. It does not change,
-                approve, or withdraw the release.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="rounded-lg border border-border-default bg-surface-subtle p-4">
-              <p className="text-metadata uppercase tracking-wide text-content-muted">{type}</p>
-              <p className="mt-2 whitespace-pre-wrap text-body text-content-primary">{comment}</p>
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() =>
-                  submit.mutate({
-                    path: { assetId, releaseId: release.id! },
-                    body: { type, comment, confirmed: true },
-                  })
-                }
-              >
-                Send feedback
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={!comment.trim() || submit.isPending}
+          onClick={() =>
+            submit.mutate({
+              path: { assetId, releaseId: release.id! },
+              body: { type, comment, confirmed: true },
+            })
+          }
+        >
+          <Send aria-hidden="true" />
+          {submit.isPending ? "Sending feedback..." : "Send feedback"}
+        </Button>
         {submit.isSuccess ? (
           <AssistantActionReceipt
             action="Submit release feedback"
