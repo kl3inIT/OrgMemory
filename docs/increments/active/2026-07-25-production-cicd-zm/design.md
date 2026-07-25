@@ -176,7 +176,9 @@ and local defaults are allowed only there.
 - API CPU and database capacity are prioritized over background graph
   extraction so 20-30 concurrent POC users do not compete equally with worker
   jobs during an interactive turn;
-- health endpoints are private; detailed actuator surfaces are not exposed.
+- Actuator is not published directly. The API permits unauthenticated access
+  only to the base health endpoint and its liveness/readiness groups so Docker
+  can probe it; other actuator surfaces remain authenticated.
 
 The Compose secret file is created on the server with mode `0600`, is never
 committed, and is checked for required variables before pull or migration.
