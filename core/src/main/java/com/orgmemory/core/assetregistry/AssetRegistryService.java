@@ -71,9 +71,22 @@ public class AssetRegistryService {
 
     public List<AssetSummary> search(
             CurrentActor actor, String query, AssetType type) {
+        Set<UUID> ids = authorizedIds(actor, CAN_VIEW);
+        return coordinator.summaries(actor.organizationId(), ids, query, type);
+    }
+
+    public List<AssetRecommendation> recommend(
+            CurrentActor actor, String query, AssetType type) {
+        Set<UUID> ids = authorizedIds(actor, CAN_USE);
+        return coordinator.recommendations(
+                actor.organizationId(), ids, query, type);
+    }
+
+    private Set<UUID> authorizedIds(
+            CurrentActor actor, PermissionKey permission) {
         Objects.requireNonNull(actor, "actor");
         var result = authorizationSets.listAuthorizedResources(new AuthorizedResourceQuery(
-                actor.organizationId(), actor.principal(), CAN_VIEW, ASSET_RESOURCE));
+                actor.organizationId(), actor.principal(), permission, ASSET_RESOURCE));
         if (!result.resolved()) {
             throw new AssetUnavailableException("Asset permissions are temporarily unavailable");
         }
@@ -92,7 +105,7 @@ public class AssetRegistryService {
                         invalidId);
             }
         }
-        return coordinator.summaries(actor.organizationId(), ids, query, type);
+        return ids;
     }
 
     public AssetView get(CurrentActor actor, UUID assetId) {

@@ -29,19 +29,37 @@ content during a recheck, and discards the cached blob when the panel releases
 the source. Text, image, and PDF previews use browser-local object URLs; the
 external object-store address never reaches the browser.
 
+The in-app Asset Assistant boundary is a separate, closed action allowlist. It
+can recommend authorized exact releases, search canonical Knowledge, prepare,
+render, and run Prompt Templates, guide Work Instructions, start/read/update a
+Pack after confirmation, fork a release after confirmation, and submit
+feedback after confirmation. Tool descriptions are descriptive metadata only;
+service authorization and confirmation checks remain authoritative.
+
+Every Asset action appends an actor-scoped trace with exact release references,
+citation identifiers, model route where applicable, authorization context, and
+sanitized request/outcome metadata. Raw Prompt variables, provider output,
+tokens, and credentials are not persisted in the trace. There is no Assistant
+action for approval, publication, withdrawal, role/permission changes, or
+arbitrary tool/code execution.
+
 `apps/mcp` runs a stateless Spring AI MCP server with one read-only,
 closed-world `search_knowledge` tool. It validates the caller's bearer token and
 forwards that same token to `/api/knowledge/search`, preserving one retrieval,
 OpenFGA, ACL-recheck, and audit path across the Assistant, REST, and MCP
 surfaces. MCP owns no schema migration or privileged service identity.
 
-Durable conversation memory, turn idempotency, mutation tools, and agent tool
-traces remain unimplemented.
+Durable conversation memory and general chat-turn idempotency remain
+unimplemented. The public MCP surface still exposes only Knowledge search;
+Asset resources, prompts, and read-only tools are deferred to the authenticated
+public MCP increment.
 
 ## Source Modules
 
 - `apps/api.assistant`
+- `core.assistant.AssistantAssetToolService`
 - `core.knowledge`
+- `web.features.assets`
 - `apps/mcp`
 - Spring AI MCP server in `apps/mcp`
 

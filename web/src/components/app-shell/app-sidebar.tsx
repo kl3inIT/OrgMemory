@@ -1,4 +1,4 @@
-import { Files, MessageSquareText, Network, UserRoundCog } from "lucide-react"
+import { Boxes, Files, MessageSquareText, Network, UserRoundCog } from "lucide-react"
 import { Link, useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
@@ -20,6 +20,7 @@ import {
 
 const NAVIGATION = [
   { label: "Assistant", to: "/" as const, icon: MessageSquareText },
+  { label: "Assets", to: "/assets" as const, icon: Boxes },
   { label: "Documents", to: "/sources" as const, icon: Files },
 ]
 
