@@ -1,5 +1,13 @@
 # Secure Knowledge Vertical Slice Plan
 
+## Completion Record
+
+Closed on 2026-07-25 after the upload/worker/ACL/retrieval/Assistant path shipped
+through the focused follow-on increments and the LightRAG integration reached
+`main` in PR #42. Unchecked items below are historical scope that was either
+superseded by those focused increments or remains explicit backlog; they do not
+keep this umbrella increment active.
+
 ## 1 — Freeze The Existing Slice
 
 - [ ] Commit/isolate current permission and knowledge work.

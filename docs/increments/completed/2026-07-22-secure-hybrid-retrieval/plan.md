@@ -1,5 +1,11 @@
 # Secure Hybrid Retrieval Plan
 
+## Completion Record
+
+The secure hybrid slice was complete before the LightRAG program. Its two
+follow-on backlog items also shipped through the Assistant gateway and secure
+GraphRAG integration merged in PR #42.
+
 ## Authorization Contract
 
 - [x] Add provider-neutral ListObjects and BatchCheck contracts.
@@ -39,7 +45,7 @@
 - [x] Make direct upload target a Knowledge Space and authorize the command at
   its parent with `can_create_asset`; reserve organization
   `can_manage_sources` for administrative source operations.
-- [ ] Build the in-app assistant on the verified retrieval service, then expose
+- [x] Build the in-app assistant on the verified retrieval service, then expose
   only read-only search/evidence tools through authenticated, audited MCP.
-- [ ] Add graph retrieval only after secure hybrid retrieval and graph evidence
+- [x] Add graph retrieval only after secure hybrid retrieval and graph evidence
   contracts are proven; keep graph data a rebuildable projection.

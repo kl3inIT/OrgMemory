@@ -1,5 +1,10 @@
 # External Principal Mapping Plan
 
+## Completion Record
+
+Completed and consolidated into the ingestion/retrieval specifications and
+tests. The former vertical-slice bookkeeping dependency is now closed.
+
 ## 1 — Schema And Model
 
 - [x] Add Flyway migration `V19__external_principal_mapping.sql`:
@@ -92,9 +97,9 @@ are removed rather than extended.
 
 - [x] Update the knowledge-ingestion spec with the shipped external-principal
   mapping and ADR 0009 ceiling behavior; secure-retrieval already links ADR 0009.
-- [ ] Tick the corresponding external-principal items in the vertical-slice
+- [x] Tick the corresponding external-principal items in the vertical-slice
   plan and record evidence in docs/tests.
-- [ ] Move this increment to `completed` (after the vertical-slice ties off).
+- [x] Move this increment to `completed` (after the vertical-slice ties off).
 
 ## Execution Notes
 

@@ -11,9 +11,18 @@ capture/import -> stage -> normalize -> ground -> review -> publish
 -> reuse -> measure -> transfer -> retire
 ```
 
-A Knowledge Asset is trusted, citable knowledge. Reusable workflows, prompts,
-and agent procedures may later become governed capability candidates, but that
-separate product lifecycle is not implemented in the current repository.
+An Asset is a stable, addressable item with potential or actual organizational
+value that OrgMemory can own, version, govern, relate, discover, release, reuse,
+measure, and retire. `KNOWLEDGE`, `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`,
+`CAPABILITY_PACK`, `SOP`, `SKILL`, and later executable types have different
+payload and consumption semantics without needing separate identity and
+governance systems. Manual authoring creates an Asset draft. Passive or
+machine-discovered work remains a private proposal until accepted; approval
+controls release and never creates the stable identity.
+
+The shipped repository implements secure Knowledge Assets. The shared Asset
+Registry and Prompt/Work Instruction/Pack profiles are target product intent
+and require the active implementation design and architecture-debate gate.
 
 ## Product Boundary
 
@@ -31,12 +40,13 @@ requires preview, policy checks, and explicit review.
 
 The initial design partner is an enterprise team with repeated AI-assisted
 support, operations, finance, or QA work and a concrete handover/onboarding pain.
-The first technical pilot is one or two test machines, one repeated workflow,
-explicit privacy filters, and a named reviewer. It succeeds when a good run can
-become a grounded draft, be reviewed/published, be reused by another person, and
-be revoked without data leakage. Expansion to 20-100 users is a later gate after
-trust, permission correctness, contribution willingness, and operational recovery
-are proven.
+The first product pilot is role capability onboarding for one bounded task: a
+named author and reviewer publish a Pack of authorized Knowledge, a Work
+Instruction, and an evaluated Prompt Template; a second user discovers that
+Pack and completes the task. It succeeds when exact released components are
+reused, updated or withdrawn safely, and ownership transfers without permission
+leakage. Expansion to 20-100 users is a later gate after trust, permission
+correctness, contribution willingness, and operational recovery are proven.
 
 Kill risks are employee-surveillance perception, weak source permissions,
 low-quality prompt dumping, no reuse by another person, and an operating burden
@@ -84,9 +94,23 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `KnowledgeAsset`: stable governed identity for approved knowledge.
 - `KnowledgeAssetVersion`: immutable content and security provenance selected
   by the stable asset's current-version pointer.
-- `CapabilityCandidate`: possible reusable AI workflow.
-- `CapabilityAsset`: possible future approved, versioned reusable capability;
-  not part of the current implementation.
+- `Asset`: target shared registry identity for organizationally valuable,
+  reusable items; not part of the current implementation.
+- `AssetDraft`: target mutable working content for any Asset type.
+- `AssetRevision`: target immutable submitted snapshot and digest reviewed by
+  an exact policy and reviewer set.
+- `AssetRelease`: target immutable released payload, digest, provenance, and
+  dependency set created only from an approved revision.
+- `AssetTypeProfile`: target typed schema, renderer, validation, review policy,
+  and consumption adapters.
+
+The first new types are `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and
+`CAPABILITY_PACK`. The catalog federates the current Knowledge Asset aggregate
+through a read-only adapter; it does not migrate or duplicate its stable
+identity, authorization, source lineage, or publication invariants. Later type
+profiles may include controlled `SOP`, installable `SKILL`, `PLAYBOOK`,
+`WORKFLOW`, `AGENT`, `TOOL_PACKAGE`, `GUARDRAIL_PROFILE`, and reusable
+`EVAL_SUITE`.
 
 Manual upload is a first-class source and follows the same quarantine, scan,
 parse, ACL, indexing, review, and audit pipeline as connectors.
@@ -164,14 +188,21 @@ bypass authorization.
 ## Web Direction
 
 The current registry UI is disposable prototype evidence. The replacement is an
-agent-first workspace centered on search/ask, evidence and citation inspection,
-private candidate review, publish/approval, source health, permission status, and
-admin device/source visibility. Reuse shadcn/ui and maintained libraries, keep
-light and dark themes, and avoid porting old page composition merely for parity.
+agent-first workspace centered on one Asset Registry with four generic
+surfaces: **For you / Asset catalog**, **Asset detail / use**, **Pack journey**,
+and **Governance workspace**. Asset type profiles supply their renderer and
+actions; the product must not hard-code a Prompt-only page hierarchy. Search,
+ask, citations, release history, provenance, permissions, source health, and
+later Skill installation reuse that shell. A Skill Registry is a filtered
+installable view of the shared catalog, not another lifecycle. Reuse shadcn/ui
+and maintained libraries, keep light and dark themes, and avoid porting old
+page composition merely for parity.
 
 ## Non-Goals For The First Pilot
 
-No broad employee monitoring, connector marketplace, full BPM suite, generic
-multi-agent orchestration, Kafka/Airflow by default, or company-wide rollout.
-The first pilot is one tenant, one repeated workflow, one or two controlled
-sources/devices, explicit privacy filters, and measurable reuse/transfer value.
+No Screenpipe capture, broad employee monitoring, public/paid marketplace,
+HRIS/LMS, full BPM suite, generic multi-agent orchestration, arbitrary
+Agent/MCP package execution, Kafka/Airflow by default, or company-wide rollout.
+The first pilot is one tenant, one role onboarding Pack, existing
+permission-aware Knowledge, Prompt Template and Work Instruction Asset types,
+one realistic task, a named reviewer, and measurable reuse/transfer value.

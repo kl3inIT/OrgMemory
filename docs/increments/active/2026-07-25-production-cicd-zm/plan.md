@@ -75,5 +75,5 @@
 - [ ] VPS memory, PostgreSQL connections, JVM heap, restart behavior, and image
   retention are observed for one full demo workflow.
 - [ ] CI and deploy workflows are green.
-- [ ] Actionable CodeRabbit threads are resolved.
-- [ ] Merge through a reviewed pull request.
+- [x] Actionable CodeRabbit threads are resolved.
+- [x] Merge through reviewed PR #44.
