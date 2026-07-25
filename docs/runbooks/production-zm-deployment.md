@@ -151,6 +151,11 @@ The deployment:
 9. checks web, API, MCP, Keycloak, and optionally the public endpoints;
 10. restores the previous image references when a gate fails.
 
+`ORGMEMORY_BACKUP_UID` and `ORGMEMORY_BACKUP_GID` must match the owner of
+`ORGMEMORY_BACKUP_DIRECTORY`. The one-shot backup container drops all Linux
+capabilities and writes as that host identity instead of relying on root to
+bypass directory permissions.
+
 Database migrations must remain backward compatible with the immediately
 previous application image. The rollback does not reverse a committed database
 migration.
