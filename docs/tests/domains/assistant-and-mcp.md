@@ -16,4 +16,8 @@
 | GraphRAG is selected explicitly with no silent fallback | `AssistantConfigurationTests` | covered |
 | MCP publishes only the read-only permission-aware search tool | `OrgMemoryMcpContextTests` | covered |
 | MCP forwards caller bearer identity to canonical REST search | `KnowledgeSearchApiClientTests`, `KnowledgeSearchToolTests` | covered |
-| Durable conversation/turn claim/tool trace | none | not implemented |
+| Asset recommendations are actor-scoped and pin an exact usable release | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases` | covered |
+| External provider and state-changing Asset actions require confirmation | `AssistantAssetToolServiceTests` | covered |
+| Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
+| Asset Assistant has no approval/publication/withdrawal/permission/arbitrary-execution action | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
+| Durable conversation/turn claim | none | not implemented |

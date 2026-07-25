@@ -14,6 +14,7 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
@@ -34,6 +35,7 @@ import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
@@ -118,6 +120,9 @@ class AssetRegistryIntegrationTests {
     @Autowired
     CapabilityPackService packs;
 
+    @Autowired
+    AssistantAssetToolService assistantTools;
+
     @MockitoBean
     RelationshipAuthorizationPort authorization;
 
@@ -156,6 +161,70 @@ class AssetRegistryIntegrationTests {
         AiRouteResolver promptTestRouteResolver() {
             return workload -> PROMPT_ROUTE;
         }
+    }
+
+    @Test
+    void recommendationsAreActorScopedAndPinExactUsableReleases() {
+        AssetView published = createApprovedRelease(
+                AssetType.PROMPT_TEMPLATE,
+                "assistant-recommendation",
+                promptPayloadWithEvaluation(),
+                "1.0.0");
+        AssetView.Release release = published.releases().getFirst();
+        assets.updateDraft(
+                AUTHOR,
+                published.id(),
+                published.draft().lockVersion(),
+                new AssetDraftInput(
+                        "Unreleased shadow metadata",
+                        "unreleased-shadow-query",
+                        "INTERNAL",
+                        "1",
+                        promptPayloadWithEvaluation()));
+        when(authorizationSets.listAuthorizedResources(any()))
+                .thenAnswer(invocation -> {
+                    AuthorizedResourceQuery query = invocation.getArgument(0);
+                    if (query.principal().equals(AUTHOR.principal())) {
+                        return AuthorizedResourceSetResult.resolved(
+                                List.of(ResourceRef.of(
+                                        ORGANIZATION_ID,
+                                        "asset",
+                                        published.id())),
+                                MODEL_ID);
+                    }
+                    return AuthorizedResourceSetResult.resolved(List.of(), MODEL_ID);
+                });
+
+        var authorResult = assistantTools.recommend(
+                AUTHOR, "support", AssetType.PROMPT_TEMPLATE);
+        var reviewerResult = assistantTools.recommend(
+                REVIEWER, "support", AssetType.PROMPT_TEMPLATE);
+        var unreleasedDraftResult = assistantTools.recommend(
+                AUTHOR, "unreleased-shadow-query", AssetType.PROMPT_TEMPLATE);
+
+        assertEquals(1, authorResult.recommendations().size());
+        assertEquals(release.id(), authorResult.recommendations().getFirst().releaseId());
+        assertEquals(release.digest(), authorResult.recommendations().getFirst().releaseDigest());
+        assertEquals(
+                "Asset assistant-recommendation",
+                authorResult.recommendations().getFirst().title());
+        assertTrue(reviewerResult.recommendations().isEmpty());
+        assertTrue(unreleasedDraftResult.recommendations().isEmpty());
+        assertEquals(
+                3,
+                jdbc.queryForObject(
+                        "select count(*) from assistant_asset_traces",
+                        Integer.class));
+        String releaseRefs = jdbc.queryForObject(
+                """
+                select release_refs::text
+                from assistant_asset_traces
+                where id = ?
+                """,
+                String.class,
+                authorResult.traceId());
+        assertTrue(releaseRefs.contains(release.id().toString()));
+        assertFalse(releaseRefs.contains("Asset assistant-recommendation"));
     }
 
     @Test

@@ -224,43 +224,44 @@ Expected size: 55-90 files.
 
 Assistant scope:
 
-- [ ] Add permission-aware tools for Asset/Pack search, exact release
+- [x] Add permission-aware tools for Asset/Pack search, exact release
   resolution, Knowledge ask/cite, Prompt render/run, Work Instruction guidance,
   and Pack progress.
-- [ ] Recommend Assets by role/task without leaking denied candidates.
-- [ ] Record traces pinning Asset releases, Knowledge/citations, model route,
+- [x] Recommend Assets by role/task without leaking denied candidates.
+- [x] Record traces pinning Asset releases, Knowledge/citations, model route,
   tool calls, authorization decision context, and sanitized outcome.
-- [ ] Ask for missing Prompt variables and confirm external-provider or state
+- [x] Ask for missing Prompt variables and confirm external-provider or state
   changing actions.
-- [ ] Allow explicit draft fork and feedback submission.
-- [ ] Prevent Assistant approval, publication, withdrawal, permission changes,
+- [x] Allow explicit draft fork and feedback submission.
+- [x] Prevent Assistant approval, publication, withdrawal, permission changes,
   silent Pack updates, and arbitrary code/tool execution.
 
 Web scope:
 
-- [ ] Add **For you / Asset catalog** with role/use-case/type discovery.
-- [ ] Add the generic **Asset detail / use** route with shared
+- [x] Add **For you / Asset catalog** with role/use-case/type discovery.
+- [x] Add the generic **Asset detail / use** route with shared
   identity/release/provenance and type-profile panels/actions.
-- [ ] Add **Pack journey** with order, required/optional state, exact pins,
+- [x] Add **Pack journey** with order, required/optional state, exact pins,
   progress, access gaps, and update impact.
-- [ ] Add **Governance workspace** with revision diff, evaluation/validation,
+- [x] Add **Governance workspace** with revision diff, evaluation/validation,
   review decisions, release history, deprecation, and withdrawal.
-- [ ] Use generated clients, TanStack Query, TanStack Router, and only
+- [x] Use generated clients, TanStack Query, TanStack Router, and only
   justified local Zustand state.
-- [ ] Preserve themes, keyboard access, narrow layouts, and explicit
+- [x] Preserve themes, keyboard access, narrow layouts, and explicit
   loading/error/denial states.
 
 Required gates:
 
-- [ ] Tool descriptions do not grant authority.
-- [ ] Retrieved Asset content cannot override system/policy instructions.
+- [x] Tool descriptions do not grant authority.
+- [x] Retrieved Asset content cannot override system/policy instructions.
 - [ ] Two-user tests cover recommendation, Pack, Prompt, Knowledge, and
   citations.
-- [ ] Every trace contains exact releases without raw secrets.
-- [ ] Assistant has no hidden governance tool path.
-- [ ] Oxlint, TypeScript typecheck, generated-client drift, and production build.
-- [ ] Generic detail renders every POC profile without Prompt-specific routing.
-- [ ] Role/permission switch shows no stale cached metadata.
+- [x] Every applicable trace contains exact releases without raw secrets.
+- [x] Assistant has no hidden governance tool path.
+- [x] Oxlint, TypeScript typecheck, generated-client drift, and production build.
+- [x] Generic detail renders every POC profile without Prompt-specific routing.
+- [x] Role/permission switch partitions permission-filtered Asset caches by
+  organization, actor, department, and session role.
 - [ ] Real-browser author -> review -> release -> second-user Pack journey.
 
 Explicitly excluded:

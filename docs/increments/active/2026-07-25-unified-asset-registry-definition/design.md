@@ -40,6 +40,9 @@ The current decision is grounded in:
   retained as research history;
 - [the independent lifecycle, Prompt Registry, onboarding, Assistant, MCP, and
   repository audit](../../../research/asset-registry-prompt-first-onboarding-poc-2026-07-25.md).
+- [the source-level UI reference audit](ui-reference-audit.md), which maps
+  Backstage, Langfuse, assistant-ui, Open edX, shadcn/ui, and Cognee components
+  to the four POC screens without importing their product identity.
 
 The product is not a Prompt library. Prompt Template is the first low-friction
 Asset profile; Capability Pack and permission-aware Knowledge turn it into a

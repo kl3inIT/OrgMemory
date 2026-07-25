@@ -170,6 +170,63 @@ class AssetRegistryCoordinator {
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    List<AssetRecommendation> recommendations(
+            UUID organizationId,
+            Collection<UUID> ids,
+            String query,
+            AssetType type) {
+        String normalizedQuery =
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        return summaries(organizationId, ids, null, type).stream()
+                .map(summary -> recommendation(organizationId, summary))
+                .flatMap(Optional::stream)
+                .filter(item -> matchesRecommendation(item, normalizedQuery))
+                .toList();
+    }
+
+    private Optional<AssetRecommendation> recommendation(
+            UUID organizationId, AssetSummary summary) {
+        return releases.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
+                        summary.id(), organizationId)
+                .stream()
+                .filter(release -> currentAvailability(release.getId())
+                        != AssetAvailability.WITHDRAWN)
+                .findFirst()
+                .map(release -> {
+                    AssetAvailability releaseAvailability =
+                            currentAvailability(release.getId());
+                    return new AssetRecommendation(
+                            summary.id(),
+                            summary.type(),
+                            summary.namespace(),
+                            summary.slug(),
+                            release.getTitle(),
+                            release.getSummary(),
+                            summary.knowledgeSpaceId(),
+                            summary.portfolioState(),
+                            release.getId(),
+                            release.getVersionLabel(),
+                            release.getDigest(),
+                            releaseAvailability);
+                });
+    }
+
+    private static boolean matchesRecommendation(
+            AssetRecommendation recommendation, String query) {
+        if (query.isEmpty()) {
+            return true;
+        }
+        return List.of(
+                        recommendation.namespace(),
+                        recommendation.slug(),
+                        recommendation.title(),
+                        recommendation.summary())
+                .stream()
+                .map(value -> value.toLowerCase(java.util.Locale.ROOT))
+                .anyMatch(value -> value.contains(query));
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     AssetView view(UUID organizationId, UUID assetId) {
         Asset asset = requiredAsset(organizationId, assetId);
         return view(asset);

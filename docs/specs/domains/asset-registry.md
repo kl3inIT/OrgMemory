@@ -61,17 +61,49 @@ catalog lists only current active versions visible through the canonical
 OpenFGA and ACL scope. Capability Packs reference exact Knowledge version IDs;
 the registry does not create duplicate Asset rows or copy Knowledge tuples.
 
+### Assistant And Web Consumption
+
+The in-app Assistant exposes a closed action allowlist for discovery,
+permission-aware Knowledge search, Prompt preparation/render/run, Work
+Instruction guidance, Pack start/read/progress, explicit release fork, and
+feedback. Recommendations are computed from live `CAN_USE` authorization and
+contain an exact non-withdrawn release reference. External provider calls and
+every state-changing action require an explicit confirmation flag.
+
+Each action appends a trace that pins the actor, action, exact release
+references, authorization context, citation identifiers, model route when
+applicable, and a sanitized input/output shape or digest. Traces do not retain
+raw Prompt variables, provider output, or credentials. The allowlist has no
+approval, publication, withdrawal, role/permission mutation, or arbitrary
+execution action.
+
+The authenticated web application provides four generic surfaces:
+
+- **For your role** lists only exact releases the current actor can use.
+- **Asset detail / use** shares identity, provenance, and release selection,
+  then renders Prompt, Work Instruction, or Capability Pack profile actions.
+- **Pack journey** preserves ordered exact pins, required/optional progress,
+  opaque access gaps, and replacement-release impact.
+- **Governance workspace** exposes revision comparison, evaluation, review,
+  release history, deprecation, and withdrawal through the registry's existing
+  authorization checks.
+
+Server state is fetched through generated clients and TanStack Query. URL state
+belongs to TanStack Router; no global client store is used for authorization or
+Asset payloads.
+
 ## Source Modules
 
 - `core.assetregistry`
+- `core.assistant.AssistantAssetToolService`
 - `core.knowledge.KnowledgeCatalogService`
 - `apps.api.assetregistry`
+- `apps.api.assistant.AssistantAssetToolController`
 - `apps.api.knowledge.KnowledgeCatalogController`
+- `web.features.assets`
 
 ## Explicitly Deferred
 
-- Assistant Asset tools and orchestration
-- final generic Asset web surfaces
 - public Asset MCP resources/prompts/tools
 - controlled SOP effectivity
 - Skill package installation and public marketplace behavior

@@ -20,12 +20,16 @@ import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
 import { Route as AdminSpacesRouteImport } from './routes/admin/spaces'
+import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets/index'
 import { Route as AdminConnectorsIndexRouteImport } from './routes/admin/connectors/index'
 import { Route as AdminConnectorsNewRouteImport } from './routes/admin/connectors/new'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
+import { Route as AuthenticatedAssetsAssetIdIndexRouteImport } from './routes/_authenticated/assets/$assetId.index'
+import { Route as AuthenticatedAssetsAssetIdGovernanceRouteImport } from './routes/_authenticated/assets/$assetId.governance'
 import { Route as AdminConnectorsSourceSystemIndexRouteImport } from './routes/admin/connectors/$sourceSystem.index'
 import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
+import { Route as AuthenticatedAssetsAssetIdPacksReleaseIdRouteImport } from './routes/_authenticated/assets/$assetId.packs.$releaseId'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -81,6 +85,12 @@ const AdminSpacesRoute = AdminSpacesRouteImport.update({
   path: '/spaces',
   getParentRoute: () => AdminRoute,
 } as any)
+const AuthenticatedAssetsIndexRoute =
+  AuthenticatedAssetsIndexRouteImport.update({
+    id: '/assets/',
+    path: '/assets/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AdminConnectorsIndexRoute = AdminConnectorsIndexRouteImport.update({
   id: '/connectors/',
   path: '/connectors/',
@@ -101,6 +111,18 @@ const AdminUsersUserIdRoute = AdminUsersUserIdRouteImport.update({
   path: '/users/$userId',
   getParentRoute: () => AdminRoute,
 } as any)
+const AuthenticatedAssetsAssetIdIndexRoute =
+  AuthenticatedAssetsAssetIdIndexRouteImport.update({
+    id: '/assets/$assetId/',
+    path: '/assets/$assetId/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAssetsAssetIdGovernanceRoute =
+  AuthenticatedAssetsAssetIdGovernanceRouteImport.update({
+    id: '/assets/$assetId/governance',
+    path: '/assets/$assetId/governance',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AdminConnectorsSourceSystemIndexRoute =
   AdminConnectorsSourceSystemIndexRouteImport.update({
     id: '/connectors/$sourceSystem/',
@@ -112,6 +134,12 @@ const AdminConnectorsSourceSystemConnectionKeyRoute =
     id: '/connectors/$sourceSystem/$connectionKey',
     path: '/connectors/$sourceSystem/$connectionKey',
     getParentRoute: () => AdminRoute,
+  } as any)
+const AuthenticatedAssetsAssetIdPacksReleaseIdRoute =
+  AuthenticatedAssetsAssetIdPacksReleaseIdRouteImport.update({
+    id: '/assets/$assetId/packs/$releaseId',
+    path: '/assets/$assetId/packs/$releaseId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -127,10 +155,14 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/assets/': typeof AuthenticatedAssetsIndexRoute
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
+  '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
+  '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -144,10 +176,14 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/assets': typeof AuthenticatedAssetsIndexRoute
   '/admin/connectors': typeof AdminConnectorsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
+  '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/assets/$assetId': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemIndexRoute
+  '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -164,10 +200,14 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
+  '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
+  '/_authenticated/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
+  '/_authenticated/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
+  '/_authenticated/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -184,10 +224,14 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
+    | '/assets/'
     | '/admin/connectors/'
     | '/admin/users/'
+    | '/assets/$assetId/governance'
     | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
+    | '/assets/$assetId/packs/$releaseId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -201,10 +245,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
+    | '/assets'
     | '/admin/connectors'
     | '/admin/users'
+    | '/assets/$assetId/governance'
     | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/assets/$assetId'
     | '/admin/connectors/$sourceSystem'
+    | '/assets/$assetId/packs/$releaseId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -220,10 +268,14 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
+    | '/_authenticated/assets/'
     | '/admin/connectors/'
     | '/admin/users/'
+    | '/_authenticated/assets/$assetId/governance'
     | '/admin/connectors/$sourceSystem/$connectionKey'
+    | '/_authenticated/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
+    | '/_authenticated/assets/$assetId/packs/$releaseId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -311,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSpacesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_authenticated/assets/': {
+      id: '/_authenticated/assets/'
+      path: '/assets'
+      fullPath: '/assets/'
+      preLoaderRoute: typeof AuthenticatedAssetsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/admin/connectors/': {
       id: '/admin/connectors/'
       path: '/connectors'
@@ -339,6 +398,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersUserIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_authenticated/assets/$assetId/': {
+      id: '/_authenticated/assets/$assetId/'
+      path: '/assets/$assetId'
+      fullPath: '/assets/$assetId/'
+      preLoaderRoute: typeof AuthenticatedAssetsAssetIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/assets/$assetId/governance': {
+      id: '/_authenticated/assets/$assetId/governance'
+      path: '/assets/$assetId/governance'
+      fullPath: '/assets/$assetId/governance'
+      preLoaderRoute: typeof AuthenticatedAssetsAssetIdGovernanceRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/admin/connectors/$sourceSystem/': {
       id: '/admin/connectors/$sourceSystem/'
       path: '/connectors/$sourceSystem'
@@ -353,17 +426,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConnectorsSourceSystemConnectionKeyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/_authenticated/assets/$assetId/packs/$releaseId': {
+      id: '/_authenticated/assets/$assetId/packs/$releaseId'
+      path: '/assets/$assetId/packs/$releaseId'
+      fullPath: '/assets/$assetId/packs/$releaseId'
+      preLoaderRoute: typeof AuthenticatedAssetsAssetIdPacksReleaseIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedSourcesRoute: typeof AuthenticatedSourcesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
+  AuthenticatedAssetsAssetIdGovernanceRoute: typeof AuthenticatedAssetsAssetIdGovernanceRoute
+  AuthenticatedAssetsAssetIdIndexRoute: typeof AuthenticatedAssetsAssetIdIndexRoute
+  AuthenticatedAssetsAssetIdPacksReleaseIdRoute: typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSourcesRoute: AuthenticatedSourcesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAssetsIndexRoute: AuthenticatedAssetsIndexRoute,
+  AuthenticatedAssetsAssetIdGovernanceRoute:
+    AuthenticatedAssetsAssetIdGovernanceRoute,
+  AuthenticatedAssetsAssetIdIndexRoute: AuthenticatedAssetsAssetIdIndexRoute,
+  AuthenticatedAssetsAssetIdPacksReleaseIdRoute:
+    AuthenticatedAssetsAssetIdPacksReleaseIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
