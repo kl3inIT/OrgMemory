@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test"
 
 const FIRST_CHUNK_ID = "43000000-0000-0000-0000-000000000003"
 const SECOND_CHUNK_ID = "43000000-0000-0000-0000-000000000004"
+const THIRD_CHUNK_ID = "43000000-0000-0000-0000-000000000005"
 
 interface AssistantHarnessOptions {
   chatFrames?: string[]
@@ -114,9 +115,14 @@ test("anchors only server-declared citations and opens the matching source", asy
   await expect(page.getByRole("button", { name: "Open source 2: Expense Policy" })).toHaveCount(2)
   await expect(page.getByRole("button", { name: /Open source 9/ })).toHaveCount(0)
   await expect(page.getByText(/verify exceptions \[9]\./)).toBeVisible()
+  await expect(page.getByText("Used 2 sources")).toBeVisible()
+  await expect(page.getByText("Used 3 sources")).toHaveCount(0)
 
   await page.getByRole("button", { name: "Open source 2: Expense Policy" }).first().click()
   await expect(page.getByRole("complementary", { name: "Answer sources" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Cited sources" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "More" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Preview source 3: Security Policy" })).toBeVisible()
   await page.getByRole("button", { name: "Preview source 2: Expense Policy" }).click()
   await expect(page.getByText("Expense claims require the original receipt.")).toBeVisible()
   expect(harness.requests.filter((request) => request === `GET ${secondPath}`)).toHaveLength(1)
@@ -243,6 +249,7 @@ function citedAnswerFrames() {
     frame({ type: "start-step" }),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     sourceFrame(2, SECOND_CHUNK_ID, "Expense Policy"),
+    sourceFrame(3, THIRD_CHUNK_ID, "Security Policy"),
     frame({ type: "text-start", id: "answer" }),
     frame({
       type: "text-delta",

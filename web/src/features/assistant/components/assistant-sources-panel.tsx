@@ -48,6 +48,7 @@ interface PreviewPayload {
 interface AssistantSourcesPanelProps {
   open: boolean
   sources: AssistantSourceRef[]
+  citedSourceIds: string[]
   selectedSourceId: string | null
   onClose: () => void
   onSelect: (sourceId: string) => void
@@ -85,11 +86,17 @@ export function AssistantSourcesPanel(props: AssistantSourcesPanelProps) {
 
 function SourcesPanelContent({
   sources,
+  citedSourceIds,
   selectedSourceId,
   onClose,
   onSelect,
 }: AssistantSourcesPanelProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
+  const citedIds = new Set(citedSourceIds)
+  const citedSources = citedSourceIds
+    .map((sourceId) => sources.find((source) => source.id === sourceId))
+    .filter((source): source is AssistantSourceRef => source !== undefined)
+  const otherSources = sources.filter((source) => !citedIds.has(source.id))
   const selected = sources.find((source) => source.id === selectedSourceId) ?? sources[0] ?? null
   const selectedCitationId = selected ? citationChunkId(selected.url) : undefined
   const canPreview = selectedCitationId !== undefined
@@ -141,7 +148,7 @@ function SourcesPanelContent({
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border-subtle px-4">
         <div className="flex min-w-0 items-center gap-2">
           <Search className="size-5 shrink-0 text-content-muted" aria-hidden="true" />
-          <h2 className="truncate text-section-title text-content-primary">Cited sources</h2>
+          <h2 className="truncate text-section-title text-content-primary">Sources</h2>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close sources">
           <X className="size-4" aria-hidden="true" />
@@ -150,18 +157,25 @@ function SourcesPanelContent({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
         {sources.length ? (
-          <div className="space-y-1">
-            {sources.map((source) => (
-              <SourceListItem
-                key={source.id}
-                source={source}
-                selected={source.id === selected?.id}
-                onOpen={() => {
-                  onSelect(source.id)
-                  setPreviewOpen(true)
-                }}
-              />
-            ))}
+          <div className="space-y-6">
+            <SourceSection
+              title="Cited sources"
+              sources={citedSources}
+              selectedSourceId={selected?.id ?? null}
+              onOpen={(sourceId) => {
+                onSelect(sourceId)
+                setPreviewOpen(true)
+              }}
+            />
+            <SourceSection
+              title={citedSources.length > 0 ? "More" : "Found sources"}
+              sources={otherSources}
+              selectedSourceId={selected?.id ?? null}
+              onOpen={(sourceId) => {
+                onSelect(sourceId)
+                setPreviewOpen(true)
+              }}
+            />
           </div>
         ) : (
           <EmptyPreview message="No source was attached to this answer." />
@@ -182,6 +196,38 @@ function SourcesPanelContent({
         error={previewQuery.isError}
       />
     </div>
+  )
+}
+
+function SourceSection({
+  title,
+  sources,
+  selectedSourceId,
+  onOpen,
+}: {
+  title: string
+  sources: AssistantSourceRef[]
+  selectedSourceId: string | null
+  onOpen: (sourceId: string) => void
+}) {
+  if (sources.length === 0) return null
+
+  return (
+    <section aria-label={title}>
+      <h3 className="px-3 pb-2 text-metadata font-medium uppercase tracking-wide text-content-muted">
+        {title}
+      </h3>
+      <div className="space-y-1">
+        {sources.map((source) => (
+          <SourceListItem
+            key={source.id}
+            source={source}
+            selected={source.id === selectedSourceId}
+            onOpen={() => onOpen(source.id)}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 

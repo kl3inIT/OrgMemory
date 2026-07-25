@@ -77,6 +77,22 @@ function sourcesFor(message: UIMessage) {
   return sources.sort((left, right) => left.citationNumber - right.citationNumber)
 }
 
+function citedSourcesFor(content: string, sources: AssistantSourceRef[]) {
+  const sourceByNumber = new Map(
+    sources.map((source) => [source.citationNumber, source]),
+  )
+  const cited: AssistantSourceRef[] = []
+  const seen = new Set<number>()
+  for (const match of content.matchAll(/\[(\d{1,3})]/g)) {
+    const citationNumber = Number(match[1])
+    const source = sourceByNumber.get(citationNumber)
+    if (!source || seen.has(citationNumber)) continue
+    seen.add(citationNumber)
+    cited.push(source)
+  }
+  return cited
+}
+
 function hasVisibleOutput(message: UIMessage) {
   return textFor(message).trim().length > 0 || sourcesFor(message).length > 0
 }
@@ -121,6 +137,7 @@ export function AssistantPage() {
   const [sourcePanel, setSourcePanel] = useState<{
     messageId: string
     sources: AssistantSourceRef[]
+    citedSourceIds: string[]
     selectedSourceId: string
   } | null>(null)
   const submitLock = useRef(false)
@@ -137,13 +154,22 @@ export function AssistantPage() {
       latestMessage.role === "user" ||
       !hasVisibleOutput(latestMessage))
   const showThinking = useAssistantThinkingVisibility(showWaiting)
-  const openSources = useCallback((messageId: string, sources: AssistantSourceRef[], sourceId: string) => {
-    setSourcePanel({
-      messageId,
-      sources,
-      selectedSourceId: sourceId,
-    })
-  }, [])
+  const openSources = useCallback(
+    (
+      messageId: string,
+      sources: AssistantSourceRef[],
+      citedSources: AssistantSourceRef[],
+      sourceId: string,
+    ) => {
+      setSourcePanel({
+        messageId,
+        sources,
+        citedSourceIds: citedSources.map((source) => source.id),
+        selectedSourceId: sourceId,
+      })
+    },
+    [],
+  )
 
   function send(rawMessage: string) {
     const message = rawMessage.trim()
@@ -224,6 +250,7 @@ export function AssistantPage() {
             {messages.map((message) => {
               const content = textFor(message)
               const sources = sourcesFor(message)
+              const citedSources = citedSourcesFor(content, sources)
               if (!content.trim() && sources.length === 0) return null
 
               return (
@@ -232,16 +259,18 @@ export function AssistantPage() {
                     <MessageContent className="text-body">
                       <AssistantAnswer
                         content={content}
-                        sources={sources}
-                        onOpenSource={(sourceId) => openSources(message.id, sources, sourceId)}
+                        sources={citedSources}
+                        onOpenSource={(sourceId) =>
+                          openSources(message.id, sources, citedSources, sourceId)
+                        }
                       />
                     </MessageContent>
                   ) : null}
-                  {sources.length > 0 ? (
+                  {citedSources.length > 0 ? (
                     <Sources>
-                      <SourcesTrigger count={sources.length} />
+                      <SourcesTrigger count={citedSources.length} />
                       <SourcesContent>
-                        {sources.map((source) => (
+                        {citedSources.map((source) => (
                           <Source
                             key={source.id}
                             href={source.url}
@@ -249,7 +278,12 @@ export function AssistantPage() {
                             target="_self"
                             onClick={(event) => {
                               event.preventDefault()
-                              openSources(message.id, sources, source.id)
+                              openSources(
+                                message.id,
+                                sources,
+                                citedSources,
+                                source.id,
+                              )
                             }}
                           />
                         ))}
@@ -311,6 +345,7 @@ export function AssistantPage() {
       <AssistantSourcesPanel
         open={sourcePanel !== null}
         sources={sourcePanel?.sources ?? []}
+        citedSourceIds={sourcePanel?.citedSourceIds ?? []}
         selectedSourceId={sourcePanel?.selectedSourceId ?? null}
         onClose={() => setSourcePanel(null)}
         onSelect={(selectedSourceId) =>
