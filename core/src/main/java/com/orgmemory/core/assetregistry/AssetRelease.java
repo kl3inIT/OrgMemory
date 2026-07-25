@@ -140,9 +140,10 @@ class AssetRelease extends BaseEntity {
         String normalized = Objects.requireNonNull(value, "versionLabel")
                 .trim()
                 .toLowerCase(Locale.ROOT);
-        if (!VERSION_LABEL.matcher(normalized).matches()) {
+        if (normalized.length() > 64 || !VERSION_LABEL.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
-                    "versionLabel must contain lowercase words separated by '.', '_', or '-'");
+                    "versionLabel must contain at most 64 lowercase characters "
+                            + "separated by '.', '_', or '-'");
         }
         return normalized;
     }

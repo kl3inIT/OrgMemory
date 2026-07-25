@@ -23,8 +23,13 @@ class AssetAuthorizationProjectionService {
     void project(UUID organizationId, UUID assetId) {
         AssetAuthorizationBatch batch = coordinator.startAttempt(organizationId, assetId);
         if (batch.tuples().isEmpty()) {
-            return;
+            throw new AssetUnavailableException(
+                    "Asset authorization is already being projected");
         }
+        project(batch);
+    }
+
+    void project(AssetAuthorizationBatch batch) {
         RelationshipTupleWriteResult result;
         try {
             result = Objects.requireNonNull(

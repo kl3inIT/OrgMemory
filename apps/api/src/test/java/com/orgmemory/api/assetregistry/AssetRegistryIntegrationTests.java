@@ -204,9 +204,19 @@ class AssetRegistryIntegrationTests {
                         + "WHERE asset_id = ? AND status = 'PENDING'",
                 Integer.class,
                 assetId));
+        assertEquals(3, jdbc.queryForObject(
+                "SELECT count(*) FROM asset_authorization_outbox "
+                        + "WHERE asset_id = ? AND claim_token IS NULL "
+                        + "AND next_attempt_at > created_at",
+                Integer.class,
+                assetId));
 
         when(tupleWrites.write(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
+        jdbc.update(
+                "UPDATE asset_authorization_outbox SET next_attempt_at = now() "
+                        + "WHERE asset_id = ?",
+                assetId);
         var report = convergence.reconcile(50);
 
         assertEquals(1, report.applied());
@@ -382,6 +392,35 @@ class AssetRegistryIntegrationTests {
                         .map(summary -> summary.id())
                         .toList());
         assertTrue(assets.search(AUTHOR, "not authorized text", null).isEmpty());
+    }
+
+    @Test
+    void payloadReferencesCannotPointAcrossTenantBoundaries() {
+        AssetView created = create("tenant-bound-reference");
+        AssetView submitted =
+                assets.submit(AUTHOR, created.id(), "Create immutable owner");
+        UUID revisionId = submitted.revisions().getFirst().id();
+        UUID otherOrganizationId = UUID.randomUUID();
+        jdbc.update(
+                "INSERT INTO organizations "
+                        + "(id, name, created_at, updated_at, version) "
+                        + "VALUES (?, ?, now(), now(), 0)",
+                otherOrganizationId,
+                "Other organization");
+
+        assertThrows(
+                DataAccessException.class,
+                () -> jdbc.update(
+                        "INSERT INTO asset_payload_references "
+                                + "(id, organization_id, owner_kind, revision_id, "
+                                + "reference_kind, reference_value, created_at, "
+                                + "updated_at, version) "
+                                + "VALUES (?, ?, 'REVISION', ?, 'INLINE', ?, "
+                                + "now(), now(), 0)",
+                        UUID.randomUUID(),
+                        otherOrganizationId,
+                        revisionId,
+                        "inline://payload"));
     }
 
     private AssetView create(String slug) {

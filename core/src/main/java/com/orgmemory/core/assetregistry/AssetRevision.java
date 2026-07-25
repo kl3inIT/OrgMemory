@@ -50,8 +50,7 @@ class AssetRevision extends BaseEntity {
     AssetRevision(
             AssetDraft draft,
             long sequence,
-            String canonicalPayload,
-            String digest,
+            AssetPayloadDigester.CanonicalAssetPayload canonical,
             String changeNote,
             UUID createdByUserId) {
         super(UUID.randomUUID());
@@ -61,12 +60,14 @@ class AssetRevision extends BaseEntity {
         this.organizationId = draft.getOrganizationId();
         this.assetId = draft.getAssetId();
         this.sequence = sequence;
-        this.title = draft.getTitle();
-        this.summary = draft.getSummary();
-        this.classification = draft.getClassification();
-        this.schemaVersion = draft.getSchemaVersion();
-        this.payload = Objects.requireNonNull(canonicalPayload, "canonicalPayload");
-        this.digest = Objects.requireNonNull(digest, "digest");
+        AssetPayloadDigester.CanonicalAssetPayload content =
+                Objects.requireNonNull(canonical, "canonical");
+        this.title = content.title();
+        this.summary = content.summary();
+        this.classification = content.classification();
+        this.schemaVersion = content.schemaVersion();
+        this.payload = content.payload();
+        this.digest = content.digest();
         this.changeNote = requireText(changeNote, "changeNote");
         this.createdByUserId = Objects.requireNonNull(createdByUserId, "createdByUserId");
     }

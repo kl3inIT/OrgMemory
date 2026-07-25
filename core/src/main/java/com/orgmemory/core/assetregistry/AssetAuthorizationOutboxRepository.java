@@ -18,29 +18,45 @@ interface AssetAuthorizationOutboxRepository
             select outbox
             from AssetAuthorizationOutbox outbox
             where outbox.assetId = :assetId
-              and outbox.status = :status
+              and (
+                    (outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+                     and outbox.nextAttemptAt <= :now)
+                    or
+                    (outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.IN_FLIGHT
+                     and outbox.leaseUntil <= :now)
+              )
             order by outbox.createdAt
             """)
-    List<AssetAuthorizationOutbox> findForAsset(
+    List<AssetAuthorizationOutbox> findClaimableForAsset(
             @Param("assetId") UUID assetId,
-            @Param("status") AssetAuthorizationStatus status);
+            @Param("now") java.time.Instant now);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select outbox
             from AssetAuthorizationOutbox outbox
-            where outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+            where (
+                    outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+                    and outbox.nextAttemptAt <= :now
+                  )
+               or (
+                    outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.IN_FLIGHT
+                    and outbox.leaseUntil <= :now
+                  )
             order by outbox.createdAt
             """)
-    List<AssetAuthorizationOutbox> findPending(Pageable pageable);
+    List<AssetAuthorizationOutbox> findClaimable(
+            @Param("now") java.time.Instant now,
+            Pageable pageable);
 
     @Query("""
             select count(outbox)
             from AssetAuthorizationOutbox outbox
             where outbox.assetId = :assetId
-              and outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+              and outbox.status <> com.orgmemory.core.assetregistry.AssetAuthorizationStatus.APPLIED
             """)
-    long countPending(@Param("assetId") UUID assetId);
+    long countUnresolved(@Param("assetId") UUID assetId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<AssetAuthorizationOutbox> findByIdIn(Collection<UUID> ids);
 }

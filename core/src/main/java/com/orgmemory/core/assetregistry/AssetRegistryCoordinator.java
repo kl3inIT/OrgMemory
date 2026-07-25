@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,15 +85,16 @@ class AssetRegistryCoordinator {
             assets.saveAndFlush(asset);
         } catch (DataIntegrityViolationException duplicate) {
             throw new AssetConflictException(
-                    "An Asset already uses this namespace and slug, or the Space is unavailable");
+                    "An Asset already uses this namespace and slug, or the Space is unavailable",
+                    duplicate);
         }
         AssetDraft draft = drafts.saveAndFlush(new AssetDraft(
                 actor.organizationId(),
                 asset.getId(),
-                input.title(),
-                input.summary(),
-                input.classification(),
-                input.schemaVersion(),
+                canonical.title(),
+                canonical.summary(),
+                canonical.classification(),
+                canonical.schemaVersion(),
                 canonical.payload(),
                 actor.userId()));
         Instant now = Instant.now();
@@ -159,16 +161,12 @@ class AssetRegistryCoordinator {
             return List.of();
         }
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        return assets
-                .findByOrganizationIdAndIdInAndAuthorizationReadyTrueOrderByNamespaceAscSlugAsc(
-                        organizationId, ids)
-                .stream()
-                .filter(asset -> type == null || asset.getType() == type)
-                .map(asset -> summary(
-                        asset, requiredDraft(organizationId, asset.getId())))
-                .filter(summary -> normalizedQuery.isEmpty()
-                        || searchable(summary).contains(normalizedQuery))
-                .toList();
+        return assets.searchAuthorized(
+                organizationId,
+                ids,
+                normalizedQuery,
+                type,
+                PageRequest.of(0, 100));
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
@@ -198,10 +196,10 @@ class AssetRegistryCoordinator {
                 input.schemaVersion(),
                 input.payload());
         draft.update(
-                input.title(),
-                input.summary(),
-                input.classification(),
-                input.schemaVersion(),
+                canonical.title(),
+                canonical.summary(),
+                canonical.classification(),
+                canonical.schemaVersion(),
                 canonical.payload(),
                 actor.userId());
         drafts.saveAndFlush(draft);
@@ -230,13 +228,22 @@ class AssetRegistryCoordinator {
                 draft.getClassification(),
                 draft.getSchemaVersion(),
                 draft.getPayload());
-        AssetRevision revision = revisions.saveAndFlush(new AssetRevision(
-                draft,
-                revisions.maxSequence(assetId, actor.organizationId()) + 1,
-                canonical.payload(),
-                canonical.digest(),
-                changeNote,
-                actor.userId()));
+        AssetRevision revision;
+        try {
+            revision = revisions.saveAndFlush(new AssetRevision(
+                    draft,
+                    revisions.maxSequence(assetId, actor.organizationId()) + 1,
+                    canonical,
+                    changeNote,
+                    actor.userId()));
+        } catch (DataIntegrityViolationException duplicate) {
+            if (!causedByConstraint(duplicate, "uq_asset_revision_sequence")) {
+                throw duplicate;
+            }
+            throw new AssetConflictException(
+                    "Another revision was submitted concurrently; reload and retry",
+                    duplicate);
+        }
         AssetReviewCase review = reviews.saveAndFlush(new AssetReviewCase(
                 revision, REVIEW_POLICY_VERSION, actor.userId()));
         recordAudit(
@@ -333,8 +340,16 @@ class AssetRegistryCoordinator {
                     actor.userId(),
                     now));
         } catch (DataIntegrityViolationException duplicate) {
+            if (!causedByConstraint(
+                    duplicate,
+                    "uq_asset_release_revision",
+                    "uq_asset_release_sequence",
+                    "uq_asset_release_label")) {
+                throw duplicate;
+            }
             throw new AssetConflictException(
-                    "The release coordinate is already used by different content");
+                    "The release coordinate is already used by different content",
+                    duplicate);
         }
         availability.save(new AssetReleaseAvailabilityEvent(
                 release,
@@ -401,7 +416,7 @@ class AssetRegistryCoordinator {
             UUID assetId,
             PrincipalRef principal,
             AssetRole role) {
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
         if (roles.findByAssetIdAndPrincipalTypeAndPrincipalIdAndRoleAndValidUntilIsNull(
                         assetId, principal.type(), principal.id(), role)
                 .isPresent()) {
@@ -435,6 +450,11 @@ class AssetRegistryCoordinator {
 
     private Asset requiredAsset(UUID organizationId, UUID assetId) {
         return assets.findByIdAndOrganizationId(assetId, organizationId)
+                .orElseThrow(AssetNotFoundException::new);
+    }
+
+    private Asset requiredAssetForUpdate(UUID organizationId, UUID assetId) {
+        return assets.findForUpdate(assetId, organizationId)
                 .orElseThrow(AssetNotFoundException::new);
     }
 
@@ -526,9 +546,7 @@ class AssetRegistryCoordinator {
                         event.getChangedByUserId(),
                         event.getEffectiveAt()))
                 .toList();
-        AssetAvailability current = history.isEmpty()
-                ? AssetAvailability.AVAILABLE
-                : history.getLast().availability();
+        AssetAvailability current = currentAvailability(release.getId());
         return new AssetView.Release(
                 release.getId(),
                 release.getRevisionId(),
@@ -564,28 +582,6 @@ class AssetRegistryCoordinator {
                 Instant.now()));
     }
 
-    private static AssetSummary summary(Asset asset, AssetDraft draft) {
-        return new AssetSummary(
-                asset.getId(),
-                asset.getType(),
-                asset.getNamespace(),
-                asset.getSlug(),
-                draft.getTitle(),
-                draft.getSummary(),
-                asset.getKnowledgeSpaceId(),
-                asset.getPortfolioState());
-    }
-
-    private static String searchable(AssetSummary summary) {
-        return String.join(
-                        " ",
-                        summary.namespace(),
-                        summary.slug(),
-                        summary.title(),
-                        summary.summary())
-                .toLowerCase(java.util.Locale.ROOT);
-    }
-
     private static AssetView.Revision revisionView(AssetRevision revision) {
         return new AssetView.Revision(
                 revision.getId(),
@@ -619,5 +615,21 @@ class AssetRegistryCoordinator {
             throw new IllegalArgumentException("An availability change needs a reason");
         }
         return normalized;
+    }
+
+    private static boolean causedByConstraint(
+            Throwable failure, String... constraintNames) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            String message = cause.getMessage();
+            if (message == null) {
+                continue;
+            }
+            for (String constraintName : constraintNames) {
+                if (message.contains(constraintName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

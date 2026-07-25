@@ -114,9 +114,10 @@ class Asset extends BaseEntity {
         String normalized = Objects.requireNonNull(value, field)
                 .trim()
                 .toLowerCase(Locale.ROOT);
-        if (!format.matcher(normalized).matches()) {
+        if (normalized.length() > 128 || !format.matcher(normalized).matches()) {
             throw new IllegalArgumentException(
-                    field + " must contain lowercase words separated by '.', '_', or '-'");
+                    field + " must contain at most 128 lowercase characters "
+                            + "separated by '.', '_', or '-'");
         }
         return normalized;
     }

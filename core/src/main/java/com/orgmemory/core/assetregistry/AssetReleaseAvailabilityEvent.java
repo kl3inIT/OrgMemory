@@ -50,7 +50,7 @@ class AssetReleaseAvailabilityEvent extends BaseEntity {
         this.assetId = release.getAssetId();
         this.releaseId = release.getId();
         this.availability = Objects.requireNonNull(availability, "availability");
-        this.reason = reason == null ? "" : reason.trim();
+        this.reason = requireReason(reason);
         this.changedByUserId = Objects.requireNonNull(changedByUserId, "changedByUserId");
         this.effectiveAt = Objects.requireNonNull(effectiveAt, "effectiveAt");
     }
@@ -73,5 +73,14 @@ class AssetReleaseAvailabilityEvent extends BaseEntity {
 
     Instant getEffectiveAt() {
         return effectiveAt;
+    }
+
+    private static String requireReason(String reason) {
+        String normalized = Objects.requireNonNull(reason, "reason").trim();
+        if (normalized.isEmpty() || normalized.length() > 1024) {
+            throw new IllegalArgumentException(
+                    "reason must contain between 1 and 1024 characters");
+        }
+        return normalized;
     }
 }

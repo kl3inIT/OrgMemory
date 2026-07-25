@@ -25,8 +25,12 @@ class AssetReviewLifecycleTests {
         AssetRevision revision = new AssetRevision(
                 draft,
                 1,
-                "{\"task\":\"triage\"}",
-                "a".repeat(64),
+                new AssetPayloadDigester().canonicalize(
+                        draft.getTitle(),
+                        draft.getSummary(),
+                        draft.getClassification(),
+                        draft.getSchemaVersion(),
+                        draft.getPayload()),
                 "Initial review",
                 authorId);
         AssetReviewCase review = new AssetReviewCase(

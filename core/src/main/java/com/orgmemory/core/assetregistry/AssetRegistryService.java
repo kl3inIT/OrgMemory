@@ -77,17 +77,19 @@ public class AssetRegistryService {
             throw new AssetUnavailableException("Asset permissions are temporarily unavailable");
         }
         Set<UUID> ids = new LinkedHashSet<>();
-        try {
-            for (ResourceRef resource : result.resources()) {
-                if (!actor.organizationId().equals(resource.organizationId())
-                        || !ASSET_RESOURCE.equals(resource.type())) {
-                    throw new IllegalArgumentException("Unexpected Asset authorization resource");
-                }
-                ids.add(UUID.fromString(resource.id()));
+        for (ResourceRef resource : result.resources()) {
+            if (!actor.organizationId().equals(resource.organizationId())
+                    || !ASSET_RESOURCE.equals(resource.type())) {
+                throw new AssetUnavailableException(
+                        "Asset permissions are inconsistent with the catalog");
             }
-        } catch (IllegalArgumentException inconsistent) {
-            throw new AssetUnavailableException(
-                    "Asset permissions are inconsistent with the catalog");
+            try {
+                ids.add(UUID.fromString(resource.id()));
+            } catch (IllegalArgumentException invalidId) {
+                throw new AssetUnavailableException(
+                        "Asset permissions are inconsistent with the catalog",
+                        invalidId);
+            }
         }
         return coordinator.summaries(actor.organizationId(), ids, query, type);
     }

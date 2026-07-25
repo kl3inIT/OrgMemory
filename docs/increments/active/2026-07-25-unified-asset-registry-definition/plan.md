@@ -119,8 +119,8 @@ Verification evidence on 2026-07-25:
 - targeted Asset Registry PostgreSQL/Testcontainers, context-load, canonical
   digest, lifecycle, immutable-table, outbox-convergence, and Modulith tests —
   passed.
-- `fga model validate` plus `fga model test` — valid model, 8/8 tests, 56/56
-  checks, and 12/12 ListObjects assertions.
+- `fga model validate` plus `fga model test` — valid model, 8/8 tests, 66/66
+  checks, and 27/27 ListObjects assertions.
 - live OpenAPI drift test plus Hey API client regeneration — passed.
 - `pnpm -C web lint`, `typecheck`, and production `build` — passed.
 

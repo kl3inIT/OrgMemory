@@ -128,6 +128,8 @@ CREATE TABLE public.asset_revisions (
     CONSTRAINT asset_revision_payload_object_check CHECK (
         jsonb_typeof(payload::jsonb) = 'object'
     ),
+    CONSTRAINT uq_asset_revision_id_organization
+        UNIQUE (id, organization_id),
     CONSTRAINT uq_asset_revision_id_asset_organization
         UNIQUE (id, asset_id, organization_id),
     CONSTRAINT fk_asset_revision_asset FOREIGN KEY (asset_id, organization_id)
@@ -195,6 +197,9 @@ CREATE TABLE public.asset_review_decisions (
     CONSTRAINT fk_asset_decision_reviewer FOREIGN KEY (reviewer_user_id, organization_id)
         REFERENCES public.app_users(id, organization_id)
 );
+
+CREATE INDEX idx_asset_review_decision_case
+    ON public.asset_review_decisions (review_case_id, decided_at);
 
 CREATE TABLE public.asset_releases (
     id uuid NOT NULL,
@@ -293,7 +298,8 @@ CREATE TABLE public.asset_payload_references (
     id uuid NOT NULL,
     organization_id uuid NOT NULL,
     owner_kind varchar(32) NOT NULL,
-    owner_id uuid NOT NULL,
+    revision_id uuid,
+    release_id uuid,
     reference_kind varchar(32) NOT NULL,
     reference_value varchar(1024) NOT NULL,
     digest varchar(64),
@@ -302,12 +308,27 @@ CREATE TABLE public.asset_payload_references (
     updated_at timestamp with time zone NOT NULL,
     version bigint NOT NULL,
     CONSTRAINT asset_payload_references_pkey PRIMARY KEY (id),
-    CONSTRAINT asset_payload_owner_check CHECK (owner_kind IN ('REVISION', 'RELEASE')),
+    CONSTRAINT asset_payload_owner_check CHECK (
+        (owner_kind = 'REVISION' AND revision_id IS NOT NULL AND release_id IS NULL)
+        OR
+        (owner_kind = 'RELEASE' AND release_id IS NOT NULL AND revision_id IS NULL)
+    ),
     CONSTRAINT asset_payload_reference_check CHECK (reference_kind IN ('INLINE', 'BLOB')),
     CONSTRAINT asset_payload_reference_digest_check CHECK (
         digest IS NULL OR digest ~ '^[0-9a-f]{64}$'
-    )
+    ),
+    CONSTRAINT fk_asset_payload_revision
+        FOREIGN KEY (revision_id, organization_id)
+        REFERENCES public.asset_revisions(id, organization_id),
+    CONSTRAINT fk_asset_payload_release
+        FOREIGN KEY (release_id, organization_id)
+        REFERENCES public.asset_releases(id, organization_id)
 );
+
+CREATE INDEX idx_asset_payload_reference_owner
+    ON public.asset_payload_references (
+        organization_id, owner_kind, revision_id, release_id
+    );
 
 CREATE TABLE public.asset_authorization_outbox (
     id uuid NOT NULL,
@@ -319,6 +340,9 @@ CREATE TABLE public.asset_authorization_outbox (
     tuple_object varchar(256) NOT NULL,
     status varchar(32) NOT NULL,
     attempt_count integer NOT NULL DEFAULT 0,
+    claim_token uuid,
+    lease_until timestamp with time zone,
+    next_attempt_at timestamp with time zone NOT NULL,
     authorization_model_id varchar(256),
     last_error_code varchar(64),
     last_error_message varchar(512),
@@ -328,7 +352,12 @@ CREATE TABLE public.asset_authorization_outbox (
     version bigint NOT NULL,
     CONSTRAINT asset_authorization_outbox_pkey PRIMARY KEY (id),
     CONSTRAINT asset_authorization_outbox_status_check CHECK (
-        status IN ('PENDING', 'APPLIED')
+        status IN ('PENDING', 'IN_FLIGHT', 'DEAD_LETTER', 'APPLIED')
+    ),
+    CONSTRAINT asset_authorization_outbox_claim_check CHECK (
+        (status = 'IN_FLIGHT' AND claim_token IS NOT NULL AND lease_until IS NOT NULL)
+        OR
+        (status <> 'IN_FLIGHT' AND claim_token IS NULL AND lease_until IS NULL)
     ),
     CONSTRAINT uq_asset_authorization_tuple UNIQUE (
         asset_id, tuple_user, tuple_relation, tuple_object
@@ -341,7 +370,9 @@ CREATE TABLE public.asset_authorization_outbox (
 );
 
 CREATE INDEX idx_asset_authorization_pending
-    ON public.asset_authorization_outbox (status, created_at);
+    ON public.asset_authorization_outbox (
+        status, next_attempt_at, lease_until, created_at
+    );
 
 CREATE TABLE public.asset_audit_events (
     id uuid NOT NULL,

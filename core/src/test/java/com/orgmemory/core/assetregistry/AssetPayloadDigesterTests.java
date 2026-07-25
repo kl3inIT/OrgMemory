@@ -29,6 +29,10 @@ class AssetPayloadDigesterTests {
         assertEquals(
                 "{\"priority\":\"high\",\"rules\":{\"a\":1,\"b\":2}}",
                 first.payload());
+        assertEquals("Triage ticket", first.title());
+        assertEquals("Classify and route a support request", first.summary());
+        assertEquals("INTERNAL", first.classification());
+        assertEquals("1", first.schemaVersion());
     }
 
     @Test
@@ -47,5 +51,20 @@ class AssetPayloadDigesterTests {
                 IllegalArgumentException.class,
                 () -> digester.canonicalize(
                         "Triage ticket", "Support", "INTERNAL", "1", "[1,2,3]"));
+    }
+
+    @Test
+    void canonicalMetadataIsTrimmedTogetherWithThePayloadDigest() {
+        var canonical = digester.canonicalize(
+                "  Triage ticket  ",
+                "  Support workflow ",
+                " INTERNAL ",
+                " 1 ",
+                "{\"task\":\"triage\"}");
+
+        assertEquals("Triage ticket", canonical.title());
+        assertEquals("Support workflow", canonical.summary());
+        assertEquals("INTERNAL", canonical.classification());
+        assertEquals("1", canonical.schemaVersion());
     }
 }

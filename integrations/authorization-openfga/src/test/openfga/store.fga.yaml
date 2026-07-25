@@ -51,6 +51,12 @@ tuples:
   - user: organization:acme#knowledge_contributor
     relation: contributor
     object: knowledge_space:company
+  - user: user:laura
+    relation: reviewer
+    object: knowledge_space:company
+  - user: user:evelyn
+    relation: reviewer
+    object: knowledge_space:company
   - user: organization:acme
     relation: organization
     object: knowledge_space:finance
@@ -106,6 +112,15 @@ tuples:
     object: asset:support-triage
   - user: user:minh
     relation: viewer
+    object: asset:support-triage
+  - user: user:local-only
+    relation: owner
+    object: asset:support-triage
+  - user: user:local-only
+    relation: reviewer
+    object: asset:support-triage
+  - user: user:local-only
+    relation: publisher
     object: asset:support-triage
 
   - user: organization:acme
@@ -322,6 +337,19 @@ tests:
       - user: user:unknown
         object: asset:support-triage
         assertions:
+          can_submit_review: false
+          can_withdraw: false
+          can_view: false
+          can_use: false
+      - user: user:local-only
+        object: asset:support-triage
+        assertions:
+          can_manage_roles: false
+          can_edit: false
+          can_submit_review: false
+          can_review: false
+          can_publish: false
+          can_withdraw: false
           can_view: false
           can_use: false
       - user: user:orgadmin
@@ -353,4 +381,22 @@ tests:
       - user: user:unknown
         type: asset
         assertions:
+          can_manage_roles: []
+          can_edit: []
+          can_submit_review: []
+          can_review: []
+          can_publish: []
+          can_withdraw: []
           can_view: []
+          can_use: []
+      - user: user:local-only
+        type: asset
+        assertions:
+          can_manage_roles: []
+          can_edit: []
+          can_submit_review: []
+          can_review: []
+          can_publish: []
+          can_withdraw: []
+          can_view: []
+          can_use: []

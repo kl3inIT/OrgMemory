@@ -36,12 +36,22 @@ class AssetPayloadDigester {
 
         String canonicalPayload = json.writeValueAsString(payloadValue);
         Map<String, Object> envelope = new TreeMap<>();
-        envelope.put("classification", Objects.requireNonNull(classification, "classification").trim());
+        String canonicalClassification =
+                Objects.requireNonNull(classification, "classification").trim();
+        String canonicalSchemaVersion =
+                Objects.requireNonNull(schemaVersion, "schemaVersion").trim();
+        String canonicalSummary = Objects.requireNonNull(summary, "summary").trim();
+        String canonicalTitle = Objects.requireNonNull(title, "title").trim();
+        envelope.put("classification", canonicalClassification);
         envelope.put("payload", payloadValue);
-        envelope.put("schemaVersion", Objects.requireNonNull(schemaVersion, "schemaVersion").trim());
-        envelope.put("summary", Objects.requireNonNull(summary, "summary").trim());
-        envelope.put("title", Objects.requireNonNull(title, "title").trim());
+        envelope.put("schemaVersion", canonicalSchemaVersion);
+        envelope.put("summary", canonicalSummary);
+        envelope.put("title", canonicalTitle);
         return new CanonicalAssetPayload(
+                canonicalTitle,
+                canonicalSummary,
+                canonicalClassification,
+                canonicalSchemaVersion,
                 canonicalPayload,
                 sha256(json.writeValueAsString(envelope)));
     }
@@ -56,6 +66,12 @@ class AssetPayloadDigester {
         }
     }
 
-    record CanonicalAssetPayload(String payload, String digest) {
+    record CanonicalAssetPayload(
+            String title,
+            String summary,
+            String classification,
+            String schemaVersion,
+            String payload,
+            String digest) {
     }
 }

@@ -17,12 +17,13 @@ public class AssetAuthorizationConvergenceService {
     }
 
     public AssetAuthorizationConvergenceReport reconcile(int limit) {
-        List<AssetAuthorizationCandidate> candidates = coordinator.pendingAssets(limit);
+        List<AssetAuthorizationBatch> candidates =
+                coordinator.claimPendingBatches(limit);
         int applied = 0;
         int failed = 0;
-        for (AssetAuthorizationCandidate candidate : candidates) {
+        for (AssetAuthorizationBatch candidate : candidates) {
             try {
-                projection.project(candidate.organizationId(), candidate.assetId());
+                projection.project(candidate);
                 applied++;
             } catch (RuntimeException exception) {
                 failed++;
