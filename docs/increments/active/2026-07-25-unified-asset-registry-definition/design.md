@@ -441,6 +441,14 @@ sanitized output, generic denial, and audit. If MCP and API do not share one
 protected-resource audience, the gateway must use an explicit on-behalf-of or
 token-exchange contract rather than bearer passthrough.
 
+The POC uses a dual-audience bearer: the MCP server validates the configured
+canonical MCP resource URI, while the API continues to validate
+`orgmemory-web`. The authorization server must issue both audiences and the
+requested `assets:read` or `assets:use` scope. These scopes only enter the
+delivery API; `CAN_USE` is still resolved for each Asset and each Pack item.
+MCP capability listing contains no Asset instances, so denied metadata cannot
+leak before a tool, resource, or prompt invocation.
+
 `run_prompt`, Pack progress, draft fork, and feedback remain in-app/API actions
 until identity, consent, idempotency, retention, and audit are proven. Approval,
 publication, withdrawal, permissions, Skill installation, and Tool execution

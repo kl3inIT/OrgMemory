@@ -17,7 +17,9 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
+import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
+import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.PackAssignmentStatus;
 import com.orgmemory.core.assetregistry.PackJourney;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
@@ -38,6 +40,7 @@ import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
+import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
@@ -104,6 +107,9 @@ class AssetRegistryIntegrationTests {
 
     @Autowired
     AssetRegistryService assets;
+
+    @Autowired
+    AssetDeliveryService delivery;
 
     @Autowired
     AssetAuthorizationConvergenceService convergence;
@@ -228,6 +234,52 @@ class AssetRegistryIntegrationTests {
     }
 
     @Test
+    void deliveryReturnsOnlyImmutableReleaseDataAndKeepsDeniedIdsOpaque() {
+        AssetView published = createApprovedRelease(
+                AssetType.PROMPT_TEMPLATE,
+                "mcp-delivery",
+                promptPayloadWithoutVariables(),
+                "1.0.0");
+        AssetView.Release release = published.releases().getFirst();
+        assets.updateDraft(
+                AUTHOR,
+                published.id(),
+                published.draft().lockVersion(),
+                new AssetDraftInput(
+                        "Unreleased delivery shadow",
+                        "This must never reach MCP",
+                        "INTERNAL",
+                        "1",
+                        promptPayloadWithoutVariables()));
+
+        var delivered = delivery.get(AUTHOR, published.id());
+
+        assertEquals(release.id(), delivered.releaseId());
+        assertEquals(release.title(), delivered.title());
+        assertNotEquals("Unreleased delivery shadow", delivered.title());
+        when(authorization.check(any())).thenAnswer(invocation -> {
+            RelationshipAuthorizationQuery query = invocation.getArgument(0);
+            return query.principal().equals(REVIEWER.principal())
+                    ? AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID)
+                    : AuthorizationDecision.allow(MODEL_ID);
+        });
+        assertThrows(
+                AssetNotFoundException.class,
+                () -> delivery.get(REVIEWER, published.id()));
+        assertThrows(
+                AssetNotFoundException.class,
+                () -> delivery.getRelease(
+                        REVIEWER, published.id(), release.id()));
+        assertThrows(
+                AssetNotFoundException.class,
+                () -> prompts.render(
+                        REVIEWER,
+                        published.id(),
+                        release.id(),
+                        Map.of()));
+    }
+
+    @Test
     void promptRunPinsReleaseAndRouteWithoutPersistingSensitiveVariables() {
         AssetView published = createApprovedRelease(
                 AssetType.PROMPT_TEMPLATE,
@@ -324,6 +376,16 @@ class AssetRegistryIntegrationTests {
                         instructionRelease.id()),
                 "1.0.0");
         AssetView.Release packRelease = pack.releases().getFirst();
+        CapabilityPackDefinition definition =
+                packs.describe(AUTHOR, pack.id(), packRelease.id());
+        assertEquals(2, definition.items().size());
+        assertFalse(definition.accessGap());
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "select count(*) from pack_assignments where pack_release_id = ?",
+                        Integer.class,
+                        packRelease.id()));
         PackJourney first = packs.start(AUTHOR, pack.id(), packRelease.id());
         PackJourney resumed = packs.start(AUTHOR, pack.id(), packRelease.id());
         assertEquals(first.assignmentId(), resumed.assignmentId());
