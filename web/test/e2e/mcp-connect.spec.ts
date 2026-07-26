@@ -47,8 +47,10 @@ test("shows generic MCP onboarding for Claude, Codex, and compatible clients", a
   ).toBeVisible()
 
   await page.getByRole("tab", { name: "Other clients" }).click()
-  await expect(page.getByText("Client ID Metadata Documents", { exact: false })).toBeVisible()
-  await expect(page.getByText("Dynamic Client Registration", { exact: false })).toBeVisible()
+  await expect(
+    page.getByText("restricted Dynamic Client Registration", { exact: false }),
+  ).toBeVisible()
+  await expect(page.getByText("do not need a shared client secret", { exact: false })).toBeVisible()
   await expect(page.getByText("No mutations in this POC", { exact: true })).toBeVisible()
   expect(browserErrors).toEqual([])
 })

@@ -64,11 +64,19 @@ These values are technical acceptance evidence, not customer benchmarks.
   to MCP rather than falling through to the SPA.
 - `test-keycloak-mcp-onboarding.sh` — the checked-in Keycloak 26.7 image:
   - imports the minimal production realm and applies the migration twice;
-  - advertises CIMD plus a DCR registration endpoint;
-  - creates a public, consent-required, PKCE S256 client with no direct grant,
-    service account, or full scope;
+  - advertises DCR without the currently incompatible CIMD path;
+  - registers a Claude-shaped public, consent-required, PKCE S256 client and
+    reaches the login page with no direct grant, service account, or full scope;
   - rejects an untrusted redirect and `assets:write` with `403`;
   - deletes the dynamic verification client.
+- Keycloak 26.7 persisted-state upgrade rehearsal — passed:
+  - an old CIMD-enabled image created the retired policy/profile in a persistent
+    Keycloak database;
+  - the new CIMD-disabled image started against that unchanged database;
+  - the migration removed the retired entries without replacing unrelated
+    realm policy;
+  - a Claude-shaped DCR client then reached the login page with HTTP `200` and
+    its temporary registration was deleted.
 - Generic denial evidence:
   - REST/cross-tenant:
     `AssetRegistryIntegrationTests#unauthorizedAndCrossTenantIdsAreOpaqueWhileListIntersectsCanonicalRows`;

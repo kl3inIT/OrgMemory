@@ -1,4 +1,4 @@
-import { Boxes, Files, MessageSquareText, Network, Plug, UserRoundCog } from "lucide-react"
+import { Boxes, Files, MessageSquareText, Plug, UserRoundCog } from "lucide-react"
 import { Link, useLocation } from "@tanstack/react-router"
 
 import { AccountMenu } from "@/components/app-shell/account-menu"
@@ -47,9 +47,12 @@ export function AppSidebar({ identity }: { identity: SessionResponse }) {
             aria-label="OrgMemory home"
             className="flex min-w-0 flex-1 items-center gap-2 group-data-[collapsible=icon]:hidden"
           >
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-action-primary text-action-primary-foreground shadow-xs">
-              <Network className="size-4" aria-hidden="true" />
-            </span>
+            <img
+              src="/orgmemory-mark.png"
+              alt=""
+              aria-hidden="true"
+              className="size-8 shrink-0 rounded-lg shadow-xs"
+            />
             <span className="truncate text-label text-content-primary">OrgMemory</span>
           </Link>
           <SidebarTrigger className="ml-auto shrink-0 text-content-secondary group-data-[collapsible=icon]:mx-auto" />

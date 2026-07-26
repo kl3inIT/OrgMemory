@@ -1,0 +1,19 @@
+{
+  "name": "OrgMemory",
+  "short_name": "OrgMemory",
+  "icons": [
+    {
+      "src": "/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/orgmemory-mark.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#071a3b",
+  "background_color": "#071a3b",
+  "display": "standalone"
+}

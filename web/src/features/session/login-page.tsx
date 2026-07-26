@@ -37,9 +37,20 @@ export function LoginPage() {
         <ModeToggle />
       </div>
       <section className="w-full max-w-md" aria-labelledby="login-heading">
-        <h1 id="login-heading" className="mb-6 text-2xl font-semibold tracking-tight">
-          Your organization&apos;s memory
-        </h1>
+        <div className="mb-6 flex items-center gap-3">
+          <img
+            src="/orgmemory-mark.png"
+            alt=""
+            aria-hidden="true"
+            className="size-12 shrink-0 rounded-xl shadow-xs"
+          />
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground">OrgMemory</p>
+            <h1 id="login-heading" className="text-2xl font-semibold tracking-tight">
+              Your organization&apos;s memory
+            </h1>
+          </div>
+        </div>
         <LoginForm statusMessage={statusMessage} onContinue={() => beginBrowserLogin()} />
       </section>
     </main>

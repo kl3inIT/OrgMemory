@@ -122,9 +122,11 @@ with open(desired_path, encoding="utf-8") as stream:
 
 desired_items = desired[array_key]
 desired_names = {item["name"] for item in desired_items}
+removed_names = set(desired.get("removeNames", []))
 preserved = [
     item for item in current.get(array_key, [])
     if item.get("name") not in desired_names
+    and item.get("name") not in removed_names
 ]
 json.dump({array_key: [*preserved, *desired_items]}, sys.stdout)
 PY
@@ -234,6 +236,11 @@ for offset in (1, 4):
     with open(expected_path, encoding="utf-8") as stream:
         expected = json.load(stream)
     actual_by_name = {item["name"]: item for item in actual[array_key]}
+    for removed_name in expected.get("removeNames", []):
+        if removed_name in actual_by_name:
+            raise SystemExit(
+                f"Retired Keycloak {array_key} still exists: {removed_name}"
+            )
     for item in expected[array_key]:
         if actual_by_name.get(item["name"]) != item:
             raise SystemExit(

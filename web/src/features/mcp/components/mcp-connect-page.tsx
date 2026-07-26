@@ -125,9 +125,9 @@ export function McpConnectPage() {
                 Select <strong>Streamable HTTP</strong> and enter the server URL.
               </SetupStep>
               <SetupStep number={2} title="Authorization">
-                Use OAuth 2.1 Authorization Code with PKCE. OrgMemory supports Client
-                ID Metadata Documents for trusted clients and restricted Dynamic
-                Client Registration as a compatibility fallback.
+                Use OAuth 2.1 Authorization Code with PKCE. OrgMemory uses restricted
+                Dynamic Client Registration, so public clients do not need a shared
+                client secret.
               </SetupStep>
               <SetupStep number={3} title="Scope">
                 Request <code>assets:read</code>. OrgMemory still checks your live

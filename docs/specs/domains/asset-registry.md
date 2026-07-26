@@ -119,10 +119,12 @@ and applies bounded per-caller plus process-wide rate limits. The confidential
 MCP gateway exchanges the inbound user token for a short-lived API-audience
 token; the inbound bearer is never forwarded.
 
-External client onboarding prefers trusted Client ID Metadata Documents and
-falls back to restricted Dynamic Client Registration for URL-only clients.
-Public clients use Authorization Code with PKCE S256 and user consent; no
-vendor-specific secret is shown or stored by the web connection surface.
+External client onboarding uses restricted Dynamic Client Registration while
+Keycloak 26.7 cannot consume Claude Web's public-client CIMD metadata. Public
+clients use Authorization Code with PKCE S256 and user consent; no
+vendor-specific client or secret is shown or stored by the web connection
+surface. CIMD may be re-enabled after the upstream metadata combination is
+interoperable.
 
 ### Golden POC Fixture
 

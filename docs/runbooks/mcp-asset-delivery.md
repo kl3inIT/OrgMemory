@@ -46,21 +46,24 @@ inbound bearer is never forwarded to the API.
 Client onboarding is capability-based rather than vendor-specific:
 
 1. use a pre-registered client when an operator has supplied one;
-2. prefer OAuth Client ID Metadata Documents (CIMD) for trusted clients such as
-   Claude Code and VS Code;
-3. use restricted Dynamic Client Registration (DCR) as the compatibility
-   fallback for URL-only clients such as Claude custom connectors.
+2. use restricted Dynamic Client Registration (DCR) for public MCP clients.
 
-Keycloak is built with the `cimd` feature. Deployment idempotently merges two
-client-policy profiles without replacing unrelated realm policies:
+The production authorization-server metadata deliberately does not advertise
+CIMD. Claude Web's current metadata combines a public client
+(`token_endpoint_auth_method=none`) with the JWT bearer authorization grant,
+which Keycloak 26.7 rejects before login. Advertising CIMD therefore sends
+Claude down a known-incompatible path. MCP clients fall back to the advertised
+DCR endpoint without requiring the user to enter a client ID or secret. Revisit
+CIMD when Keycloak accepts that metadata combination or Claude removes the
+incompatible grant.
 
-- CIMD accepts HTTPS client IDs only from `claude.ai` and `vscode.dev`, while
-  metadata redirects may use their documented domains and local loopback;
-- anonymous DCR forces PKCE S256, consent, disabled full scope, public clients,
-  approved redirect/client URI hosts, the standard OIDC `basic` plus
-  `assets:read` scope allowlist, and a maximum of 50 registered clients. The
-  migration creates `basic` only when a minimal imported realm does not already
-  contain it.
+Deployment removes the retired OrgMemory CIMD policy/profile and idempotently
+merges the DCR policy without replacing unrelated realm policies. Anonymous DCR
+forces PKCE S256, consent, disabled full scope, public clients,
+approved redirect/client URI hosts, the standard OIDC `basic` plus
+`assets:read` scope allowlist, and a maximum of 50 registered clients. The
+migration creates `basic` only when a minimal imported realm does not already
+contain it.
 
 This is restricted anonymous *client registration*, not anonymous Asset
 access. Every user still signs in and consents. Never enable wildcard
@@ -79,6 +82,9 @@ credentials, federation, and clients. The `assets:read` scope/mappers and
 confidential `orgmemory-mcp` exchange client must already exist from the realm
 baseline or the PR4 migration. Verify:
 
+- authorization-server metadata advertises DCR but not CIMD;
+- a Claude-shaped DCR request uses the documented callback, creates a public
+  PKCE S256 client, and reaches the login page;
 - the incoming MCP token has the MCP URI and `orgmemory-mcp` audiences, but
   does not have `orgmemory-web`;
 - the exchanged token has only `orgmemory-web`, has

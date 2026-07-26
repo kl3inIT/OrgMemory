@@ -124,7 +124,7 @@ import sys
 
 with open(sys.argv[1], encoding="utf-8") as stream:
     metadata = json.load(stream)
-assert metadata["client_id_metadata_document_supported"] is True
+assert metadata.get("client_id_metadata_document_supported") is not True
 assert metadata["registration_endpoint"].endswith(
     "/clients-registrations/openid-connect"
 )
@@ -133,8 +133,9 @@ PY
 registration_url="$base_url/realms/orgmemory/clients-registrations/openid-connect"
 cat >"$tmp_dir/good-client.json" <<'JSON'
 {
-  "client_name": "OrgMemory deployment contract",
-  "redirect_uris": ["http://127.0.0.1:43821/oauth/callback"],
+  "client_name": "Claude",
+  "client_uri": "https://claude.ai",
+  "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
@@ -172,6 +173,21 @@ assert client["directAccessGrantsEnabled"] is False
 assert client["serviceAccountsEnabled"] is False
 assert client["attributes"]["pkce.code.challenge.method"] == "S256"
 PY
+
+authorization_status="$(
+  curl --silent --show-error \
+    --output "$tmp_dir/authorization.html" \
+    --write-out '%{http_code}' \
+    --get "$base_url/realms/orgmemory/protocol/openid-connect/auth" \
+    --data-urlencode response_type=code \
+    --data-urlencode "client_id=$client_id" \
+    --data-urlencode redirect_uri=https://claude.ai/api/mcp/auth_callback \
+    --data-urlencode scope="openid assets:read" \
+    --data-urlencode code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+    --data-urlencode code_challenge_method=S256
+)"
+[[ "$authorization_status" == "200" ]]
+grep --quiet 'name="username"' "$tmp_dir/authorization.html"
 
 cat >"$tmp_dir/bad-redirect.json" <<'JSON'
 {

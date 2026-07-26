@@ -98,7 +98,7 @@ import sys
 
 document = json.load(sys.stdin)
 assert document["registration_endpoint"].endswith("/clients-registrations/openid-connect")
-assert document.get("client_id_metadata_document_supported") is True
+assert document.get("client_id_metadata_document_supported") is not True
 ' <<<"$authorization_metadata"
 
   challenge_headers="$(mktemp)"
