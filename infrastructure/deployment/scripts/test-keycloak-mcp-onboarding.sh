@@ -83,9 +83,14 @@ MSYS_NO_PATHCONV=1 docker exec "$container" \
   -q name=basic \
   --config "$container_kcadm_config" >"$tmp_dir/basic-scope.json"
 basic_scope_id="$(
-  python3 -c \
-    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[0]["id"])' \
-    "$tmp_dir/basic-scope.json"
+  python3 - "$tmp_dir/basic-scope.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    scopes = json.load(stream)
+print(next(scope["id"] for scope in scopes if scope["name"] == "basic"))
+PY
 )"
 MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh update "client-scopes/$basic_scope_id" \
