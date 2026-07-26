@@ -134,13 +134,6 @@ public class AssetRegistryService {
                 actor.organizationId(), assetId, releaseId);
     }
 
-    public AssetConsumptionRelease latestReleaseForUse(
-            CurrentActor actor, UUID assetId) {
-        require(actor, assetId, CAN_USE);
-        return coordinator.latestConsumptionRelease(
-                actor.organizationId(), assetId);
-    }
-
     public AssetView forkRelease(
             CurrentActor actor,
             UUID sourceAssetId,

@@ -92,28 +92,6 @@ Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
 Asset payloads.
 
-### Authenticated Read-Only MCP Delivery
-
-The MCP app publishes six Asset tools, two `orgmemory://assets/...` resource
-templates, and one generic `released_prompt` adapter. They call
-`/api/asset-delivery`; the MCP app has no core, repository, or database
-dependency. Search and reads require `assets:read`; deterministic Prompt render
-requires `assets:use`. Every request then resolves the bearer actor and live
-`CAN_USE` object authorization in the API.
-
-Delivery projections contain only immutable release data. Drafts, reviews,
-roles, and governance history never cross this boundary. Pack components and
-relations are authorized independently, with denied references collapsed into
-one `accessGap` flag. Successful delivery writes a sanitized structured audit
-line with actor, organization, action, Asset, and release identifiers; bearer
-tokens, Prompt variables, and payloads are not logged.
-
-The MCP endpoint is an RFC 9728 protected resource. It advertises
-`assets:read` and `assets:use`, validates issuer, expiry, and the exact configured
-MCP audience, and rate-limits each authenticated subject. The POC forwards a
-dual-audience bearer that also contains the API audience. Deployments that
-cannot issue that token require explicit token exchange/on-behalf-of.
-
 ## Source Modules
 
 - `core.assetregistry`
@@ -122,12 +100,10 @@ cannot issue that token require explicit token exchange/on-behalf-of.
 - `apps.api.assetregistry`
 - `apps.api.assistant.AssistantAssetToolController`
 - `apps.api.knowledge.KnowledgeCatalogController`
-- `apps.mcp.AssetDeliveryTools`
-- `apps.mcp.AssetDeliveryResources`
-- `apps.mcp.ReleasedPromptAdapter`
 - `web.features.assets`
 
 ## Explicitly Deferred
 
+- public Asset MCP resources/prompts/tools
 - controlled SOP effectivity
 - Skill package installation and public marketplace behavior

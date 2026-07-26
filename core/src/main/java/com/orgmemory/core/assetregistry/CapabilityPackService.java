@@ -63,43 +63,6 @@ public class CapabilityPackService {
         return journey(actor, release, assignment);
     }
 
-    @Transactional(readOnly = true)
-    public CapabilityPackDefinition describe(
-            CurrentActor actor,
-            UUID packAssetId,
-            UUID packReleaseId) {
-        AssetConsumptionRelease release =
-                packRelease(actor, packAssetId, packReleaseId);
-        CapabilityPackSpec spec = profile.parse(release.payload());
-        List<CapabilityPackDefinition.Item> visibleItems = new ArrayList<>();
-        boolean accessGap = false;
-        for (int index = 0; index < spec.items().size(); index++) {
-            CapabilityPackSpec.Item item = spec.items().get(index);
-            Optional<CapabilityPackDefinition.Item> resolved =
-                    resolveDefinition(actor, item, index + 1);
-            if (resolved.isPresent()) {
-                visibleItems.add(resolved.get());
-            } else {
-                accessGap = true;
-            }
-        }
-        return new CapabilityPackDefinition(
-                release.assetId(),
-                release.releaseId(),
-                release.digest(),
-                release.title(),
-                release.versionLabel(),
-                spec.purpose(),
-                spec.audience(),
-                spec.prerequisites(),
-                spec.expectedOutcome(),
-                spec.completionCriteria(),
-                spec.reviewDate(),
-                spec.owner(),
-                accessGap,
-                visibleItems);
-    }
-
     @Transactional
     public PackJourney setItemCompleted(
             CurrentActor actor,
@@ -266,42 +229,6 @@ public class CapabilityPackService {
                     AssetAvailability.AVAILABLE,
                     false,
                     null));
-        } catch (AssetNotFoundException | AssetUnavailableException deniedOrUnavailable) {
-            return Optional.empty();
-        }
-    }
-
-    private Optional<CapabilityPackDefinition.Item> resolveDefinition(
-            CurrentActor actor,
-            CapabilityPackSpec.Item item,
-            int order) {
-        try {
-            if (item.kind() == CapabilityPackSpec.ItemKind.REGISTRY_RELEASE) {
-                AssetConsumptionRelease component = assets.releaseForUse(
-                        actor, item.assetId(), item.releaseId());
-                return Optional.of(new CapabilityPackDefinition.Item(
-                        item.key(),
-                        item.required(),
-                        order,
-                        component.type().name(),
-                        component.assetId(),
-                        component.releaseId(),
-                        component.title(),
-                        component.versionLabel(),
-                        component.availability()));
-            }
-            Optional<KnowledgeCatalogItem> component = knowledge.findExactVisible(
-                    actor, item.knowledgeAssetId(), item.knowledgeVersionId());
-            return component.map(value -> new CapabilityPackDefinition.Item(
-                    item.key(),
-                    item.required(),
-                    order,
-                    "KNOWLEDGE",
-                    value.knowledgeAssetId(),
-                    value.knowledgeVersionId(),
-                    value.title(),
-                    Long.toString(value.versionNumber()),
-                    AssetAvailability.AVAILABLE));
         } catch (AssetNotFoundException | AssetUnavailableException deniedOrUnavailable) {
             return Optional.empty();
         }

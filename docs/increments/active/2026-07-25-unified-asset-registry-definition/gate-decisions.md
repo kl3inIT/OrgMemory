@@ -102,11 +102,8 @@ resource metadata and validates issuer, expiry, audience, and coarse
 `assets:read`/`assets:use` scopes before object authorization.
 
 Bearer passthrough is allowed only when the presented token explicitly contains
-the MCP audience. Because the same bearer is forwarded to the canonical API,
-the POC issuer issues a dual-audience token containing both the configured MCP
-resource URI and `orgmemory-web`. A token with only the API audience cannot call
-MCP. A deployment that cannot issue this dual-audience token must add explicit
-token exchange/on-behalf-of; the gateway must not reinterpret the API token as
-an MCP token. Object authorization remains OpenFGA-backed and cannot be
-replaced by OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
+the MCP audience. If an API-audience token must call MCP, the gateway must use
+token exchange/on-behalf-of; it must not reinterpret the API token as an MCP
+token. Object authorization remains OpenFGA-backed and cannot be replaced by
+OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
 review, publication, withdrawal, permission change, or installation.
