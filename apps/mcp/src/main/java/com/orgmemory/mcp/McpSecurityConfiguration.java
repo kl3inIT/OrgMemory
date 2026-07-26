@@ -1,19 +1,41 @@
 package com.orgmemory.mcp;
 
+import java.net.URI;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration(proxyBeanMethods = false)
 class McpSecurityConfiguration {
 
+    static final String ASSET_READ_SCOPE = "assets:read";
+    static final String ASSET_READ_AUTHORITY =
+            "SCOPE_" + ASSET_READ_SCOPE;
+
     @Bean
-    SecurityFilterChain mcpSecurityFilterChain(HttpSecurity http)
+    SecurityFilterChain mcpSecurityFilterChain(
+            HttpSecurity http,
+            McpGatewayProperties properties,
+            McpRateLimitProperties rateLimits,
+            ObjectMapper json)
             throws Exception {
+        URI metadataUri = protectedResourceMetadataUri(
+                properties.resourceUri());
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(
@@ -22,12 +44,71 @@ class McpSecurityConfiguration {
                         .requestMatchers(
                                 "/actuator/health",
                                 "/actuator/health/liveness",
-                                "/actuator/health/readiness")
+                                "/actuator/health/readiness",
+                                "/.well-known/oauth-protected-resource/**")
                         .permitAll()
-                        .requestMatchers("/mcp").authenticated()
+                        .requestMatchers("/mcp", "/mcp/**")
+                        .hasAuthority(ASSET_READ_AUTHORITY)
                         .anyRequest().denyAll())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(
-                        Customizer.withDefaults()));
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(
+                                authenticationEntryPoint(metadataUri))
+                        .protectedResourceMetadata(metadata -> metadata
+                                .protectedResourceMetadataCustomizer(builder -> builder
+                                        .resource(properties.resourceUri().toString())
+                                        .authorizationServer(properties
+                                                .authorizationServer()
+                                                .toString())
+                                        .tlsClientCertificateBoundAccessTokens(false)
+                                        .scopes(scopes -> scopes.addAll(
+                                                java.util.List.of(
+                                                        ASSET_READ_SCOPE)))))
+                        .jwt(Customizer.withDefaults()))
+                .addFilterAfter(
+                        new McpRateLimitFilter(rateLimits, json),
+                        BearerTokenAuthenticationFilter.class);
         return http.build();
+    }
+
+    static AuthenticationEntryPoint authenticationEntryPoint(
+            URI metadataUri) {
+        var delegate = new BearerTokenAuthenticationEntryPoint();
+        delegate.setResourceMetadataParameterResolver(
+                request -> metadataUri.toString());
+        return delegate;
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(McpGatewayProperties properties) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(
+                        properties.jwkSetUri().toString())
+                .build();
+        decoder.setJwtValidator(tokenValidator(properties));
+        return decoder;
+    }
+
+    static OAuth2TokenValidator<Jwt> tokenValidator(
+            McpGatewayProperties properties) {
+        return new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer(
+                        properties.authorizationServer().toString()),
+                new JwtAudienceValidator(properties.audience()));
+    }
+
+    static URI protectedResourceMetadataUri(URI resourceUri) {
+        String path = resourceUri.getPath();
+        String metadataPath = "/.well-known/oauth-protected-resource"
+                + (path == null ? "" : path);
+        try {
+            return new URI(
+                    resourceUri.getScheme(),
+                    resourceUri.getAuthority(),
+                    metadataPath,
+                    null,
+                    null);
+        } catch (java.net.URISyntaxException impossible) {
+            throw new IllegalArgumentException(
+                    "The MCP resource URI cannot form metadata discovery", impossible);
+        }
     }
 }

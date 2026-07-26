@@ -99,11 +99,41 @@ regulated electronic signatures are follow-on policy profiles.
 PR 4 exposes one authenticated remote MCP protected resource under the same
 OrgMemory issuer but a distinct MCP audience. It publishes OAuth protected
 resource metadata and validates issuer, expiry, audience, and coarse
-`assets:read`/`assets:use` scopes before object authorization.
+`assets:read` scope before object authorization.
 
-Bearer passthrough is allowed only when the presented token explicitly contains
-the MCP audience. If an API-audience token must call MCP, the gateway must use
-token exchange/on-behalf-of; it must not reinterpret the API token as an MCP
-token. Object authorization remains OpenFGA-backed and cannot be replaced by
-OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
-review, publication, withdrawal, permission change, or installation.
+Bearer passthrough is prohibited. The confidential `orgmemory-mcp` client uses
+Keycloak standard token exchange to obtain a short-lived `orgmemory-web`
+audience token for the canonical API. The requested `assets:read` scope maps
+the initial token only to the MCP resource and exchange-client audiences. The
+confidential exchange client adds the API audience only to the exchanged token.
+The gateway never persists exchanged clients by principal name. The MCP
+resource still rejects an API-only token. Object authorization remains
+OpenFGA-backed and cannot be replaced by OAuth scope. PR 4 is read-only: no
+model invocation, progress mutation, review, publication, withdrawal,
+permission change, or installation.
+
+Rate limiting is Bucket4j with bounded Caffeine caller state for one POC
+replica. A multi-replica deployment must move the buckets to a distributed
+proxy manager; introducing Redis or a generic Spring cache abstraction is not
+part of this increment.
+
+## API Error And Cache Infrastructure Decision
+
+The API publishes one RFC 9457 shape with a stable dotted `code`. Domain/use
+case failures extend the transport-neutral `BusinessException` and carry a
+category, safe public detail, and optional opaque-resource exposure. The web
+translator maps categories once; adding a business failure does not require a
+new handler method. Deliberate controller validation uses
+`ApiRequestException`. A broad `IllegalArgumentException -> 400` mapping is
+not a contract for new code. A temporary compatibility translator preserves
+existing 400 behavior for legacy validators, but returns only generic
+`request.invalid-argument` detail so invariant messages cannot leak. It can be
+removed after legacy API-facing validators have migrated. Unexpected failures
+are logged with their cause and returned as generic `internal.unexpected`.
+
+No generic Spring Cache layer is introduced without a concrete cached data
+contract, freshness rule, invalidation owner, and authorization analysis.
+Caffeine in this PR is private bounded state for the single-node limiter, not a
+cache of Assets, permissions, evidence, or tokens. The MCP OAuth manager uses a
+non-persisting authorized-client repository so each request is exchanged
+against its exact inbound subject token.

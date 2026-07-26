@@ -1,8 +1,8 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.authorization.RoleAdministrationService;
 import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
@@ -32,12 +32,12 @@ import org.springframework.web.server.ResponseStatusException;
 class AdminRoleController {
 
     private final AdminAccessGuard guard;
-    private final AppUserRepository users;
     private final RoleAdministrationService roles;
 
-    AdminRoleController(AdminAccessGuard guard, AppUserRepository users, RoleAdministrationService roles) {
+    AdminRoleController(
+            AdminAccessGuard guard,
+            RoleAdministrationService roles) {
         this.guard = guard;
-        this.users = users;
         this.roles = roles;
     }
 
@@ -74,7 +74,8 @@ class AdminRoleController {
             @RequestBody AssignRoleRequest request,
             Authentication authentication) {
         CurrentActor actor = guard.requireMemberAdministrator(authentication);
-        AppUser user = requireUserInOrganization(request.userId(), actor);
+        AppUser user = guard.requireUserInOrganization(
+                request.userId(), actor);
         var result = roles.assign(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
             throw new ResponseStatusException(
@@ -91,22 +92,13 @@ class AdminRoleController {
         // An administrator removing their own last role can lock the organization out of its own
         // administration, and unlike a role change there is nobody left who could undo it.
         if (actor.userId().equals(userId)) {
-            throw new IllegalArgumentException("An administrator cannot revoke their own role");
+            throw new ApiRequestException("An administrator cannot revoke their own role");
         }
-        AppUser user = requireUserInOrganization(userId, actor);
+        AppUser user = guard.requireUserInOrganization(userId, actor);
         var result = roles.revoke(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "The role revocation was not applied: " + result.reasonCode());
         }
-    }
-
-    private AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {
-        if (userId == null) {
-            throw new IllegalArgumentException("A user id is required");
-        }
-        return users.findById(userId)
-                .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user in this organization"));
     }
 }

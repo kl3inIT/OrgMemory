@@ -1,0 +1,64 @@
+package com.orgmemory.mcp;
+
+import io.modelcontextprotocol.common.McpTransportContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
+import org.springframework.stereotype.Component;
+
+/**
+ * Exchanges the MCP-audience user token for a short-lived API-audience token.
+ *
+ * <p>The inbound bearer is never forwarded to the downstream API. The
+ * authorized-client manager caches only the exchanged access token for its
+ * normal lifetime and re-authorizes when it expires.
+ */
+@Component
+final class McpApiAuthorization {
+
+    static final String CLIENT_REGISTRATION_ID = "orgmemory-api";
+    private static final Logger log =
+            LoggerFactory.getLogger(McpApiAuthorization.class);
+
+    private final OAuth2AuthorizedClientManager clients;
+
+    McpApiAuthorization(OAuth2AuthorizedClientManager clients) {
+        this.clients = clients;
+    }
+
+    String require(McpTransportContext context) {
+        Object value = context.get(
+                McpTransportConfiguration.AUTHENTICATION_CONTEXT_KEY);
+        if (!(value instanceof Authentication authentication)
+                || !authentication.isAuthenticated()) {
+            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                    "The MCP request has no authenticated identity");
+        }
+        var request = OAuth2AuthorizeRequest
+                .withClientRegistrationId(CLIENT_REGISTRATION_ID)
+                .principal(authentication)
+                .build();
+        var authorized = authorize(request);
+        if (authorized == null) {
+            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                    "OrgMemory could not authorize the downstream Asset request");
+        }
+        return "Bearer " + authorized.getAccessToken().getTokenValue();
+    }
+
+    private org.springframework.security.oauth2.client.OAuth2AuthorizedClient
+            authorize(OAuth2AuthorizeRequest request) {
+        try {
+            return clients.authorize(request);
+        } catch (OAuth2AuthorizationException refused) {
+            log.warn(
+                    "MCP downstream token exchange refused with OAuth error {}",
+                    refused.getError().getErrorCode());
+            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                    "OrgMemory could not authorize the downstream Asset request");
+        }
+    }
+}

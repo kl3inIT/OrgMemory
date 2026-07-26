@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.KnowledgeSpaceAdministration;
 import com.orgmemory.core.knowledge.KnowledgeSpaceAdministrationService;
@@ -165,7 +166,7 @@ class AdminKnowledgeSpaceController {
     private static KnowledgeSpaceSubject subject(
             KnowledgeSpaceSubject.Kind kind, UUID subjectId, String role) {
         if (kind == null) {
-            throw new IllegalArgumentException("A subject kind is required");
+            throw new ApiRequestException("A subject kind is required");
         }
         return switch (kind) {
             case ORGANIZATION -> KnowledgeSpaceSubject.organization();
@@ -175,7 +176,7 @@ class AdminKnowledgeSpaceController {
             case USER -> KnowledgeSpaceSubject.user(require(subjectId, "A user id"));
             case ROLE -> {
                 if (role == null || role.isBlank()) {
-                    throw new IllegalArgumentException("A role name is required for a role grant");
+                    throw new ApiRequestException("A role name is required for a role grant");
                 }
                 yield KnowledgeSpaceSubject.role(role);
             }
@@ -184,7 +185,7 @@ class AdminKnowledgeSpaceController {
 
     private static UUID require(UUID value, String field) {
         if (value == null) {
-            throw new IllegalArgumentException(field + " is required for this grant");
+            throw new ApiRequestException(field + " is required for this grant");
         }
         return value;
     }

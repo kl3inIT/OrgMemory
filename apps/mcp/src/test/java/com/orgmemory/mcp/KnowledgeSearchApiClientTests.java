@@ -2,13 +2,16 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,14 +35,14 @@ class KnowledgeSearchApiClientTests {
     }
 
     @Test
-    void forwardsTheAuthenticatedBearerToTheCanonicalSearchApi() {
+    void forwardsTheExchangedApiBearerToTheCanonicalSearchApi() {
         server.expect(requestTo(
                         "https://api.example.test/api/knowledge/search"
                                 + "?q=expense%20policy&limit=5"))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header(
                         HttpHeaders.AUTHORIZATION,
-                        "Bearer verified-token"))
+                        "Bearer api-token"))
                 .andRespond(withSuccess(
                         """
                         {
@@ -60,7 +63,7 @@ class KnowledgeSearchApiClientTests {
                         MediaType.APPLICATION_JSON));
 
         var result = client().search(
-                "Bearer verified-token",
+                "Bearer api-token",
                 "expense policy",
                 5);
 
@@ -84,7 +87,7 @@ class KnowledgeSearchApiClientTests {
         var refused = assertThrows(
                 KnowledgeSearchApiClient.KnowledgeSearchGatewayException.class,
                 () -> client().search(
-                        "Bearer verified-token",
+                        "Bearer api-token",
                         "forecast",
                         null));
 
@@ -93,11 +96,38 @@ class KnowledgeSearchApiClientTests {
         server.verify();
     }
 
+    @Test
+    void hidesSearchTransportFailureDetails() {
+        server.expect(requestTo(
+                        "https://api.example.test/api/knowledge/search"
+                                + "?q=expense"))
+                .andRespond(withException(
+                        new IOException("private network topology")));
+
+        var failure = assertThrows(
+                KnowledgeSearchApiClient.KnowledgeSearchGatewayException.class,
+                () -> client().search(
+                        "Bearer api-token",
+                        "expense",
+                        null));
+
+        assertEquals(
+                "OrgMemory knowledge search is temporarily unavailable",
+                failure.getMessage());
+        assertNotNull(failure.getCause());
+        server.verify();
+    }
+
     private KnowledgeSearchApiClient client() {
         return new KnowledgeSearchApiClient(
                 builder,
                 new McpGatewayProperties(
                         URI.create("https://api.example.test"),
-                        Duration.ofSeconds(5)));
+                        Duration.ofSeconds(5),
+                        URI.create("https://mcp.example.test/mcp"),
+                        URI.create("https://id.example.test/realms/orgmemory"),
+                        URI.create("https://id.example.test/realms/orgmemory/protocol/openid-connect/certs"),
+                        "https://mcp.example.test/mcp",
+                        "orgmemory-web"));
     }
 }

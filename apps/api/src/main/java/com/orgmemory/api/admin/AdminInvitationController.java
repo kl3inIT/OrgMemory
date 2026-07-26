@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.UserInvitation;
 import com.orgmemory.core.organization.UserProvisioningService;
@@ -72,10 +73,10 @@ class AdminInvitationController {
             @RequestBody CreateInvitationRequest request, Authentication authentication) {
         CurrentActor actor = guard.requireMemberAdministrator(authentication);
         if (request.email() == null || request.email().isBlank()) {
-            throw new IllegalArgumentException("An email is required");
+            throw new ApiRequestException("An email is required");
         }
         if (request.role() == null) {
-            throw new IllegalArgumentException("A role is required");
+            throw new ApiRequestException("A role is required");
         }
         return response(provisioning.invite(
                 actor.organizationId(),

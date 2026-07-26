@@ -1,8 +1,14 @@
 package com.orgmemory.core.knowledge;
 
-public class KnowledgeRetrievalUnavailableException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class KnowledgeRetrievalUnavailableException extends BusinessException {
 
     public KnowledgeRetrievalUnavailableException(String message) {
-        super(message);
+        super(
+                BusinessErrorCategory.UNAVAILABLE,
+                "knowledge.retrieval-unavailable",
+                message);
     }
 }

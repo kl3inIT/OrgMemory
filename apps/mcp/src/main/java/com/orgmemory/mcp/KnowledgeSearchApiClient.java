@@ -3,10 +3,11 @@ package com.orgmemory.mcp;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 @Component
@@ -53,6 +54,10 @@ class KnowledgeSearchApiClient {
             }
             throw new KnowledgeSearchGatewayException(
                     "OrgMemory knowledge search is temporarily unavailable");
+        } catch (RestClientException unavailable) {
+            throw new KnowledgeSearchGatewayException(
+                    "OrgMemory knowledge search is temporarily unavailable",
+                    unavailable);
         }
     }
 
@@ -80,6 +85,11 @@ class KnowledgeSearchApiClient {
 
         KnowledgeSearchGatewayException(String message) {
             super(message);
+        }
+
+        KnowledgeSearchGatewayException(
+                String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

@@ -63,9 +63,19 @@ class CapabilityPackServiceTests {
                         "dddddddd-dddd-4ddd-8ddd-dddddddddddd")))
                 .thenReturn(Optional.empty());
 
+        CapabilityPackDefinition definition = service.describe(
+                ACTOR, PACK_ASSET_ID, PACK_RELEASE_ID);
         PackJourney journey = service.get(
                 ACTOR, PACK_ASSET_ID, PACK_RELEASE_ID);
 
+        assertTrue(definition.accessGap());
+        assertEquals(1, definition.items().size());
+        assertEquals(
+                COMPONENT_ASSET_ID,
+                definition.items().getFirst().resourceId());
+        assertEquals(
+                COMPONENT_RELEASE_ID,
+                definition.items().getFirst().pinnedVersionId());
         assertTrue(journey.accessGap());
         assertEquals(1, journey.items().size());
         assertEquals("Triage Prompt", journey.items().getFirst().title());

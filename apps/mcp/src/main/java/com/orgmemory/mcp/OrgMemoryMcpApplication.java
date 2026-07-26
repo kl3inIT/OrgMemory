@@ -5,7 +5,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(McpGatewayProperties.class)
+@EnableConfigurationProperties({
+    McpGatewayProperties.class,
+    McpRateLimitProperties.class
+})
 public class OrgMemoryMcpApplication {
 
     public static void main(String[] args) {

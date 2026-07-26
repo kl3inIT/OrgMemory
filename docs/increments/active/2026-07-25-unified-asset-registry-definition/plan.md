@@ -290,33 +290,47 @@ without making MCP a privileged bypass.
 
 Depends on: PR 3.
 
-Expected size: 25-55 files.
+Accepted size: at most 100 files; implementation currently changes 82 files.
 
 Scope:
 
-- [ ] Add tools: `search_assets`, `get_asset`, `get_asset_release`,
+- [x] Add tools: `search_assets`, `get_asset`, `get_asset_release`,
   `get_capability_pack`, `resolve_asset_relations`, and `render_prompt`.
-- [ ] Add authorized MCP Resources for stable metadata and immutable release
+- [x] Add authorized MCP Resources for stable metadata and immutable release
   content.
-- [ ] Add an MCP Prompts adapter for released, authorized Prompt Templates where
+- [x] Add an MCP Prompts adapter for released, authorized Prompt Templates where
   client compatibility permits.
-- [ ] Reuse API/application use cases; never access the database from MCP.
-- [ ] Preserve bearer actor, object authorization, opaque denial, rate limit,
+- [x] Reuse API/application use cases; never access the database from MCP.
+- [x] Preserve bearer actor, object authorization, opaque denial, rate limit,
   output sanitization, and audit.
-- [ ] Publish explicit read-only/destructive/idempotent/open-world annotations.
-- [ ] Implement OAuth protected-resource metadata and audience validation.
-- [ ] Resolve shared MCP/API audience versus token exchange/on-behalf-of.
-- [ ] Define coarse `assets:read`/`assets:use` scopes without treating them as
-  object authorization.
+- [x] Publish explicit read-only/destructive/idempotent/open-world annotations.
+- [x] Implement OAuth protected-resource metadata and audience validation.
+- [x] Resolve shared MCP/API audience versus token exchange/on-behalf-of.
+- [x] Define coarse `assets:read` scope without treating it as object
+  authorization.
+- [x] Exchange the MCP bearer for a short-lived API-audience token; never pass
+  the inbound bearer through.
+- [x] Apply bounded single-replica Bucket4j/Caffeine limits and document the
+  distributed replacement required before horizontal scaling.
+- [x] Replace per-exception web handlers with transport-neutral business error
+  categories, stable RFC 9457 codes, and a safe generic fallback.
+- [x] Replace deliberate controller `IllegalArgumentException` use with an
+  explicit API request error; keep a sanitized compatibility translator for
+  legacy service validators until they migrate.
 
 Required gates:
 
-- [ ] MCP contract/schema tests.
-- [ ] Missing, wrong-audience, expired, and insufficient-scope tokens fail.
-- [ ] Two-user metadata/payload/Pack/Prompt negative tests.
-- [ ] Tool/resource/prompt listing returns only authorized released content.
-- [ ] MCP and REST produce the same authorization/audit decision.
-- [ ] MCP owns no migration or direct repository dependency.
+- [x] MCP contract/schema tests.
+- [x] Keycloak 26.7 realm import and standard token exchange produce an
+  inbound token without `orgmemory-web` plus an `orgmemory-web`-only downstream
+  token with `azp=orgmemory-mcp`.
+- [x] Missing, wrong-audience, expired, and insufficient-scope tokens fail.
+- [x] Two-user metadata/payload/Pack/Prompt negative tests.
+- [x] Tool/resource/prompt listing exposes capability descriptors only; every
+  content read resolves an authorized release at invocation time.
+- [x] MCP and REST produce the same authorization/audit decision through the
+  canonical delivery service.
+- [x] MCP owns no migration or direct repository dependency.
 
 Explicitly excluded:
 

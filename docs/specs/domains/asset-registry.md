@@ -92,6 +92,28 @@ Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
 Asset payloads.
 
+### Authenticated Read-Only MCP Delivery
+
+The MCP app publishes six Asset tools, two `orgmemory://assets/...` resource
+templates, and one generic `released_prompt` adapter. They call
+`/api/asset-delivery`; the MCP app has no core, repository, or database
+dependency. Search and reads require `assets:read`; deterministic Prompt render
+uses the same read-only `assets:read` scope. Every request then resolves the
+bearer actor and live `CAN_USE` object authorization in the API.
+
+Delivery projections contain only immutable release data. Drafts, reviews,
+roles, and governance history never cross this boundary. Pack components and
+relations are authorized independently, with denied references collapsed into
+one `accessGap` flag. Successful delivery writes a sanitized structured audit
+line with actor, organization, action, Asset, and release identifiers; bearer
+tokens, Prompt variables, and payloads are not logged.
+
+The MCP endpoint is an RFC 9728 protected resource. It advertises
+`assets:read`, validates issuer, expiry, and the exact configured MCP audience,
+and applies bounded per-caller plus process-wide rate limits. The confidential
+MCP gateway exchanges the inbound user token for a short-lived API-audience
+token; the inbound bearer is never forwarded.
+
 ## Source Modules
 
 - `core.assetregistry`
@@ -100,10 +122,12 @@ Asset payloads.
 - `apps.api.assetregistry`
 - `apps.api.assistant.AssistantAssetToolController`
 - `apps.api.knowledge.KnowledgeCatalogController`
+- `apps.mcp.AssetDeliveryTools`
+- `apps.mcp.AssetDeliveryResources`
+- `apps.mcp.ReleasedPromptAdapter`
 - `web.features.assets`
 
 ## Explicitly Deferred
 
-- public Asset MCP resources/prompts/tools
 - controlled SOP effectivity
 - Skill package installation and public marketplace behavior
