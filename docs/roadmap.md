@@ -53,6 +53,12 @@ belongs in one active increment.
   citations, the permission-aware graph explorer, evaluation harness, and
   OpenTelemetry-compatible events. Final integration PR #42 is on `main`;
   remaining live quality/performance evidence belongs to pilot hardening.
+- The five-PR
+  [prompt-first unified Asset Registry POC](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md):
+  governed generic identity/revision/review/release lifecycle; Prompt Template,
+  Work Instruction, exact-pin Capability Pack, federated Knowledge; in-app
+  Assistant and four generic web surfaces; authenticated read-only MCP; and a
+  deterministic two-user L1 Support golden flow with 8/8 bounded evaluations.
 
 ## Active Delivery
 
@@ -87,17 +93,6 @@ belongs in one active increment.
 5. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
    but not retired, and asset movement still needs an explicit retention and
    authorization contract.
-6. Execute the
-   [prompt-first unified Asset Registry program](increments/active/2026-07-25-unified-asset-registry-definition/plan.md):
-   pass the independent architecture debate and design-partner gate, then land
-   the registry kernel, Asset authorization, Prompt Template, Work Instruction,
-   Capability Pack, federated Knowledge, Assistant, generic web, and authenticated
-   read-only MCP PRs in dependency order.
-7. Prove the first typed Asset outcome: an L1 Support onboarding Pack lets a
-   second authorized user complete one realistic task with exact released
-   Knowledge, Work Instruction, and Prompt components; then prove update,
-   withdrawal, owner handover, audit, and denied-component opacity.
-
 ## Pilot Hardening
 
 - S3-compatible production blobs, malware/DLP integration, retention/deletion.

@@ -43,16 +43,41 @@ fresh exchange for a short-lived `orgmemory-web` audience token on every MCP
 request. Exchanged clients are not persisted by principal name, and the
 inbound bearer is never forwarded to the API.
 
-For each supported MCP host, pre-register an OAuth client with exact redirect
-URIs and assign `assets:read` as an optional scope. Do not enable anonymous
-access, wildcard redirects, or unrestricted dynamic client registration for
-the POC. A token with only the API audience is rejected by MCP.
+Client onboarding is capability-based rather than vendor-specific:
+
+1. use a pre-registered client when an operator has supplied one;
+2. prefer OAuth Client ID Metadata Documents (CIMD) for trusted clients such as
+   Claude Code and VS Code;
+3. use restricted Dynamic Client Registration (DCR) as the compatibility
+   fallback for URL-only clients such as Claude custom connectors.
+
+Keycloak is built with the `cimd` feature. Deployment idempotently merges two
+client-policy profiles without replacing unrelated realm policies:
+
+- CIMD accepts HTTPS client IDs only from `claude.ai` and `vscode.dev`, while
+  metadata redirects may use their documented domains and local loopback;
+- anonymous DCR forces PKCE S256, consent, disabled full scope, public clients,
+  approved redirect/client URI hosts, the standard OIDC `basic` plus
+  `assets:read` scope allowlist, and a maximum of 50 registered clients. The
+  migration creates `basic` only when a minimal imported realm does not already
+  contain it.
+
+This is restricted anonymous *client registration*, not anonymous Asset
+access. Every user still signs in and consents. Never enable wildcard
+redirects, confidential-only shared secrets for desktop clients, password
+grant, service accounts, or unrestricted DCR. The client-count cap is a POC
+abuse bound, not a distributed registration rate limiter; monitor and remove
+abandoned dynamic clients before raising it. A token with only the API audience
+is rejected by MCP.
 
 The checked-in realm files are a baseline for a new Keycloak realm. Keycloak
 imports with `IGNORE_EXISTING`, so deploying a new image does not mutate an
-already-created realm. Before enabling MCP in an existing environment, apply
-the same `assets:read` scope/mappers and `orgmemory-mcp` confidential client
-through the Keycloak administration path, then verify:
+already-created realm. `configure-keycloak-mcp.sh` therefore updates only the
+named MCP client policies and anonymous registration-policy components after
+Keycloak is healthy; it preserves unrelated client policies, users,
+credentials, federation, and clients. The `assets:read` scope/mappers and
+confidential `orgmemory-mcp` exchange client must already exist from the realm
+baseline or the PR4 migration. Verify:
 
 - the incoming MCP token has the MCP URI and `orgmemory-mcp` audiences, but
   does not have `orgmemory-web`;
@@ -70,6 +95,10 @@ GET https://om.kl3in.tech/.well-known/oauth-protected-resource/mcp
 
 An unauthenticated `/mcp` request returns `401` and a `WWW-Authenticate`
 challenge pointing to that metadata URL.
+
+Authenticated users can open `/connect` in OrgMemory for the canonical server
+URL and client-specific steps. This page contains no client secret and does not
+replace the OAuth consent screen.
 
 ## Authorization And Operations
 

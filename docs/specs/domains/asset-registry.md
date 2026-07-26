@@ -12,6 +12,11 @@ Consumers always address an exact authorized release. A withdrawn release
 cannot start new consumption. Forking creates a new Asset draft from an exact
 release payload and does not copy reviews or approvals.
 
+Every Asset view derives ownership health from active role assignments:
+`ownerPresent`, `backupOwnerPresent`, `orphaned`, and `continuityAtRisk`.
+Missing ownership coverage is visible in the shared release header; it never
+changes release bytes or grants authorization.
+
 ### Prompt Template
 
 A Prompt Template release contains exactly one text template or ordered
@@ -113,6 +118,20 @@ The MCP endpoint is an RFC 9728 protected resource. It advertises
 and applies bounded per-caller plus process-wide rate limits. The confidential
 MCP gateway exchanges the inbound user token for a short-lived API-audience
 token; the inbound bearer is never forwarded.
+
+External client onboarding prefers trusted Client ID Metadata Documents and
+falls back to restricted Dynamic Client Registration for URL-only clients.
+Public clients use Authorization Code with PKCE S256 and user consent; no
+vendor-specific secret is shown or stored by the web connection surface.
+
+### Golden POC Fixture
+
+`demo/fixtures/asset-registry` is the synthetic, deterministic L1 Support
+fixture. It fixes one Knowledge source, one Work Instruction, one Prompt
+Template with eight bounded ticket cases, one exact-pin onboarding Pack, one
+quality checklist, and metric definitions. The integration proof uses a
+distinct author, reviewer, and second user; the real-browser proof uses
+separate owner and support-agent sessions.
 
 ## Source Modules
 

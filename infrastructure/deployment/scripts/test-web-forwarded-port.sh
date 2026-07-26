@@ -35,6 +35,7 @@ trap cleanup EXIT
 cat >"$tmp_dir/api.conf" <<'NGINX'
 server {
     listen 8080;
+    listen 8090;
     server_name _;
 
     location / {
@@ -50,6 +51,7 @@ docker run --detach --rm \
   --name "$api_container" \
   --network "$network" \
   --network-alias api \
+  --network-alias mcp \
   --volume "$api_config_path:/etc/nginx/conf.d/default.conf:ro" \
   "$runtime_image" >/dev/null
 
@@ -95,5 +97,15 @@ assert_forwarded_port 80 --header="X-Forwarded-Proto: http"
 assert_forwarded_port 8443 \
   --header="X-Forwarded-Proto: https" \
   --header="X-Forwarded-Port: 8443"
+
+discovery_headers="$(
+  docker exec "$web_container" \
+    wget -S -O /dev/null \
+    --header="X-Forwarded-Proto: https" \
+    http://127.0.0.1:8080/.well-known/oauth-protected-resource/mcp 2>&1
+)"
+grep -Eiq \
+  '^[[:space:]]*X-Seen-Forwarded-Port:[[:space:]]*443[[:space:]]*$' \
+  <<<"$discovery_headers"
 
 printf 'Web forwarded-port regression passed.\n'

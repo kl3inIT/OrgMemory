@@ -191,6 +191,15 @@ function AssetIdentityHeader({
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className={meta.tone}>{meta.label}</Badge>
                 <Badge variant="outline">{asset.portfolioState}</Badge>
+                {asset.ownershipHealth?.orphaned ? (
+                  <Badge className="bg-status-danger-surface text-status-danger-content">
+                    Orphaned
+                  </Badge>
+                ) : asset.ownershipHealth?.continuityAtRisk ? (
+                  <Badge className="bg-status-warning-surface text-status-warning-content">
+                    Ownership gap
+                  </Badge>
+                ) : null}
                 {release?.availability === "DEPRECATED" ? (
                   <Badge className="bg-status-warning-surface text-status-warning-content">
                     Deprecated

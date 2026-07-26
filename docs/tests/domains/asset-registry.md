@@ -29,3 +29,10 @@
 | MCP rejects wrong audience, issuer, and expired tokens | `McpTokenValidationTests` | covered |
 | MCP advertises RFC 9728 metadata and challenges unauthenticated requests with its location | `OrgMemoryMcpContextTests` | covered |
 | MCP applies bounded per-caller and process-wide token buckets plus known/chunked body limits without returning tokens | `McpRateLimitFilterTests` | covered |
+| Public discovery reaches MCP through nginx and deployment smoke requires CIMD/DCR authorization metadata | `test-web-forwarded-port.sh`, `smoke-production.sh` | covered |
+| Generic MCP onboarding renders Claude, Codex, and compatible-client instructions without a client secret | `mcp-connect.spec.ts` | covered |
+| Golden L1 Support fixture passes eight bounded Prompt cases with permission-aware grounding | `AssetRegistryIntegrationTests#goldenPocTransfersAReleasedSupportCapabilityToASecondUser`, `demo/fixtures/asset-registry` | covered |
+| Second-user discovery, exact-release Prompt use, Work Instruction acknowledgement, Pack completion, replacement pin stability, and withdrawal are one integrated flow | `AssetRegistryIntegrationTests#goldenPocTransfersAReleasedSupportCapabilityToASecondUser` | covered |
+| Active owner/backup coverage derives an explicit orphaned and continuity-risk flag | `AssetRegistryIntegrationTests#goldenPocTransfersAReleasedSupportCapabilityToASecondUser`, `AssetIdentityHeader` | covered |
+| Owner governance and second-user Pack completion render in separate real browser sessions | `asset-registry-golden-poc.spec.ts` | covered |
+| Generic denial stays opaque across REST, Assistant, and MCP | `AssetRegistryIntegrationTests#unauthorizedAndCrossTenantIdsAreOpaqueWhileListIntersectsCanonicalRows`, `AssetDeliveryApiClientTests`, `CapabilityPackServiceTests` | covered |
