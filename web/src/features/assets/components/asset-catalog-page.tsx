@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
-import { ArrowUpRight, Search, ShieldCheck } from "lucide-react"
+import { ArrowUpRight, Search } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -44,24 +45,15 @@ export function AssetCatalogPage({
   if (assets.isError) return <AssetPageError onRetry={() => void assets.refetch()} />
 
   const recommendations = assets.data?.recommendations ?? []
+  const hasFilters = query.length > 0 || type !== undefined
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-7xl space-y-7 p-4 md:p-8">
-        <header className="grid gap-5 border-b border-border-subtle pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div className="max-w-3xl">
-            <div className="mb-3 flex items-center gap-2 text-supporting text-content-secondary">
-              <ShieldCheck className="size-4" aria-hidden="true" />
-              Filtered by your live permissions
-            </div>
-            <h1 className="text-page-title text-content-primary">For your role</h1>
-            <p className="mt-2 text-body text-content-secondary">
-              Approved capability packs and reusable assets you can use now. Every card pins an
-              exact release; restricted candidates are never included.
-            </p>
-          </div>
+        <header className="flex items-end justify-between gap-4 border-b border-border-subtle pb-7">
+          <h1 className="text-page-title text-content-primary">For your role</h1>
           <Badge variant="outline" className="w-fit font-mono text-metadata">
-            {recommendations.length} visible
+            {recommendations.length} {recommendations.length === 1 ? "asset" : "assets"}
           </Badge>
         </header>
 
@@ -99,12 +91,21 @@ export function AssetCatalogPage({
 
         {recommendations.length === 0 ? (
           <Card className="border-dashed bg-surface-subtle">
-            <CardContent className="p-10 text-center">
-              <h2 className="text-section-title text-content-primary">No usable assets found</h2>
-              <p className="mx-auto mt-2 max-w-lg text-body text-content-secondary">
-                Try another task phrase or type. If you expected an asset here, ask its owner to
-                verify the release and your access.
-              </p>
+            <CardContent className="flex flex-col items-center gap-4 p-10 text-center">
+              <h2 className="text-section-title text-content-primary">
+                {hasFilters ? "No matches" : "No assets available"}
+              </h2>
+              {hasFilters ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    onQueryChange("")
+                    onTypeChange(undefined)
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
             </CardContent>
           </Card>
         ) : (
