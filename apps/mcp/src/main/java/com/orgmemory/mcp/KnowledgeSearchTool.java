@@ -1,7 +1,6 @@
 package com.orgmemory.mcp;
 
 import io.modelcontextprotocol.common.McpTransportContext;
-import java.util.Objects;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
 import org.springframework.ai.mcp.annotation.McpToolParam;
@@ -11,9 +10,13 @@ import org.springframework.stereotype.Component;
 class KnowledgeSearchTool {
 
     private final KnowledgeSearchApiClient search;
+    private final McpApiAuthorization authorization;
 
-    KnowledgeSearchTool(KnowledgeSearchApiClient search) {
+    KnowledgeSearchTool(
+            KnowledgeSearchApiClient search,
+            McpApiAuthorization authorization) {
         this.search = search;
+        this.authorization = authorization;
     }
 
     @McpTool(
@@ -37,14 +40,9 @@ class KnowledgeSearchTool {
                             description = "Maximum evidence items to return")
                     Integer limit,
             McpTransportContext context) {
-        String authorization = Objects.toString(
-                context.get(
-                        McpTransportConfiguration.AUTHORIZATION_CONTEXT_KEY),
-                "");
-        if (authorization.isBlank()) {
-            throw new KnowledgeSearchApiClient.KnowledgeSearchGatewayException(
-                    "The MCP request has no authenticated identity");
-        }
-        return search.search(authorization, query, limit);
+        return search.search(
+                authorization.require(context),
+                query,
+                limit);
     }
 }

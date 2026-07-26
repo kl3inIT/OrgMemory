@@ -1,8 +1,16 @@
 package com.orgmemory.core.knowledge;
 
-public class KnowledgeAssetNotFoundException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class KnowledgeAssetNotFoundException extends BusinessException {
 
     public KnowledgeAssetNotFoundException() {
-        super("Knowledge asset not found");
+        super(
+                BusinessErrorCategory.NOT_FOUND,
+                "knowledge.resource-not-available",
+                "The requested knowledge resource is not available",
+                BusinessErrorExposure.OPAQUE_RESOURCE);
     }
 }

@@ -7,6 +7,18 @@ spring:
         jwt:
           issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI}
           jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI}
+      client:
+        provider:
+          keycloak:
+            token-uri: ${ORGMEMORY_OIDC_TOKEN_URI}
+        registration:
+          orgmemory-api:
+            provider: keycloak
+            client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
+            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
+            scope: assets:read
 
 server:
   shutdown: graceful
@@ -26,6 +38,20 @@ orgmemory:
   mcp:
     api-base-url: ${ORGMEMORY_API_BASE_URL}
     request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+    resource-uri: ${ORGMEMORY_MCP_RESOURCE_URI}
+    authorization-server: ${ORGMEMORY_OIDC_ISSUER_URI}
+    jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI}
+    audience: ${ORGMEMORY_MCP_AUDIENCE:${ORGMEMORY_MCP_RESOURCE_URI}}
+    api-audience: ${ORGMEMORY_MCP_API_AUDIENCE:orgmemory-web}
+    rate-limit:
+      enabled: ${ORGMEMORY_MCP_RATE_LIMIT_ENABLED:true}
+      global-capacity: ${ORGMEMORY_MCP_GLOBAL_RATE_CAPACITY:800}
+      global-window: ${ORGMEMORY_MCP_GLOBAL_RATE_WINDOW:1m}
+      caller-capacity: ${ORGMEMORY_MCP_CALLER_RATE_CAPACITY:120}
+      caller-window: ${ORGMEMORY_MCP_CALLER_RATE_WINDOW:1m}
+      caller-expiry: ${ORGMEMORY_MCP_CALLER_RATE_EXPIRY:15m}
+      max-tracked-callers: ${ORGMEMORY_MCP_MAX_TRACKED_CALLERS:10000}
+      max-body-bytes: ${ORGMEMORY_MCP_MAX_BODY_BYTES:262144}
 
 logging:
   level:

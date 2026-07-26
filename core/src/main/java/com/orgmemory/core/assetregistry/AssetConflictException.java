@@ -1,12 +1,15 @@
 package com.orgmemory.core.assetregistry;
 
-public class AssetConflictException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class AssetConflictException extends BusinessException {
 
     public AssetConflictException(String message) {
-        super(message);
+        super(BusinessErrorCategory.CONFLICT, "asset.conflict", message);
     }
 
     public AssetConflictException(String message, Throwable cause) {
-        super(message, cause);
+        super(BusinessErrorCategory.CONFLICT, "asset.conflict", message, cause);
     }
 }

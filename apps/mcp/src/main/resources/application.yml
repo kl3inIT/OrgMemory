@@ -9,6 +9,18 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
+      client:
+        provider:
+          keycloak:
+            token-uri: ${ORGMEMORY_OIDC_TOKEN_URI:http://localhost:8180/realms/orgmemory/protocol/openid-connect/token}
+        registration:
+          orgmemory-api:
+            provider: keycloak
+            client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
+            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET:orgmemory-mcp-local-dev-only}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
+            scope: assets:read
   ai:
     mcp:
       server:
@@ -18,11 +30,12 @@ spring:
         type: SYNC
         request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
         instructions: >-
-          OrgMemory exposes read-only, permission-aware organization knowledge.
-          Every result is constrained to the authenticated user's current access.
+          OrgMemory exposes read-only, permission-aware organization knowledge
+          and immutable released Assets. Every result is constrained to the
+          authenticated actor's current access.
         capabilities:
-          resource: false
-          prompt: false
+          resource: true
+          prompt: true
           completion: false
           tool: true
         streamable-http:
@@ -41,3 +54,17 @@ orgmemory:
   mcp:
     api-base-url: ${ORGMEMORY_API_BASE_URL:http://localhost:8080}
     request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+    resource-uri: ${ORGMEMORY_MCP_RESOURCE_URI:http://localhost:8090/mcp}
+    authorization-server: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
+    jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI:http://localhost:8180/realms/orgmemory/protocol/openid-connect/certs}
+    audience: ${ORGMEMORY_MCP_AUDIENCE:http://localhost:8090/mcp}
+    api-audience: ${ORGMEMORY_MCP_API_AUDIENCE:orgmemory-web}
+    rate-limit:
+      enabled: ${ORGMEMORY_MCP_RATE_LIMIT_ENABLED:true}
+      global-capacity: ${ORGMEMORY_MCP_GLOBAL_RATE_CAPACITY:800}
+      global-window: ${ORGMEMORY_MCP_GLOBAL_RATE_WINDOW:1m}
+      caller-capacity: ${ORGMEMORY_MCP_CALLER_RATE_CAPACITY:120}
+      caller-window: ${ORGMEMORY_MCP_CALLER_RATE_WINDOW:1m}
+      caller-expiry: ${ORGMEMORY_MCP_CALLER_RATE_EXPIRY:15m}
+      max-tracked-callers: ${ORGMEMORY_MCP_MAX_TRACKED_CALLERS:10000}
+      max-body-bytes: ${ORGMEMORY_MCP_MAX_BODY_BYTES:262144}

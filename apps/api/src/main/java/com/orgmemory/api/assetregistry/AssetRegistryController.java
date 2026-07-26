@@ -1,5 +1,6 @@
 package com.orgmemory.api.assetregistry;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
@@ -95,7 +96,7 @@ class AssetRegistryController {
             @RequestBody CreateAssetRequest request,
             Authentication authentication) {
         if (request.draft() == null) {
-            throw new IllegalArgumentException("An Asset draft is required");
+            throw new ApiRequestException("An Asset draft is required");
         }
         return assets.create(
                 actors.current(authentication),
@@ -154,7 +155,7 @@ class AssetRegistryController {
             @RequestBody AssetReviewDecisionRequest request,
             Authentication authentication) {
         if (request.decision() == null) {
-            throw new IllegalArgumentException("A review decision is required");
+            throw new ApiRequestException("A review decision is required");
         }
         return assets.decide(
                 actors.current(authentication),

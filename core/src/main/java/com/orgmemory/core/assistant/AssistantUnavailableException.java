@@ -1,12 +1,22 @@
 package com.orgmemory.core.assistant;
 
-public class AssistantUnavailableException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class AssistantUnavailableException extends BusinessException {
 
     public AssistantUnavailableException(String message) {
-        super(message);
+        super(
+                BusinessErrorCategory.UNAVAILABLE,
+                "assistant.unavailable",
+                message);
     }
 
     public AssistantUnavailableException(String message, Throwable cause) {
-        super(message, cause);
+        super(
+                BusinessErrorCategory.UNAVAILABLE,
+                "assistant.unavailable",
+                message,
+                cause);
     }
 }

@@ -8,15 +8,14 @@ import org.springframework.ai.mcp.server.webmvc.transport.WebMvcStatelessServerT
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpHeaders;
-import org.springframework.util.StringUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration(proxyBeanMethods = false)
 class McpTransportConfiguration {
 
-    static final String AUTHORIZATION_CONTEXT_KEY =
-            "orgmemory.authorization";
+    static final String AUTHENTICATION_CONTEXT_KEY =
+            "orgmemory.authentication";
 
     @Bean
     WebMvcStatelessServerTransport webMvcStatelessServerTransport(
@@ -27,23 +26,19 @@ class McpTransportConfiguration {
                 .messageEndpoint(properties.getMcpEndpoint())
                 .contextExtractor(request -> McpTransportContext.create(
                         Map.of(
-                                AUTHORIZATION_CONTEXT_KEY,
-                                requireBearer(request.headers().firstHeader(
-                                        HttpHeaders.AUTHORIZATION)))))
+                                AUTHENTICATION_CONTEXT_KEY,
+                                requireAuthentication())))
                 .build();
     }
 
-    private static String requireBearer(String authorization) {
-        if (!StringUtils.hasText(authorization)
-                || !authorization.regionMatches(
-                        true,
-                        0,
-                        "Bearer ",
-                        0,
-                        7)) {
+    private static org.springframework.security.core.Authentication
+            requireAuthentication() {
+        var authentication = SecurityContextHolder.getContext()
+                .getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalStateException(
-                    "An authenticated bearer token is required");
+                    "An authenticated MCP identity is required");
         }
-        return authorization;
+        return authentication;
     }
 }

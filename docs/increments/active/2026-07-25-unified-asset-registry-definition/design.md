@@ -446,10 +446,25 @@ released Prompt Templates for compatible clients. Registry identity and release
 semantics remain independent of MCP client support.
 
 The public remote endpoint requires OAuth protected-resource metadata, audience
-validation, scopes plus object authorization, input validation, rate limiting,
-sanitized output, generic denial, and audit. If MCP and API do not share one
-protected-resource audience, the gateway must use an explicit on-behalf-of or
-token-exchange contract rather than bearer passthrough.
+validation, scope plus object authorization, input validation, rate limiting,
+sanitized output, generic denial, and audit. MCP and API use different
+protected-resource audiences, so the gateway performs standard token exchange
+and never passes the inbound bearer through.
+
+The MCP server validates the configured canonical MCP resource URI and
+`assets:read`. Its confidential OAuth client exchanges that user token for a
+short-lived `orgmemory-web` audience token before calling the API. For Keycloak
+standard token exchange, the requested `assets:read` client scope supplies the
+MCP resource, exchange-client, and API audiences; the exchange then down-scopes
+the API token. OAuth remains coarse admission only: `CAN_USE` is resolved for
+each Asset and each Pack item. MCP capability listing contains no Asset
+instances, so denied metadata cannot leak before a tool, resource, or prompt
+invocation.
+
+Bucket4j enforces per-caller and process-wide token buckets. Bounded Caffeine
+state is acceptable for the single MCP replica in this POC and is not presented
+as a generic application cache. Horizontal scaling requires a distributed
+Bucket4j proxy manager and an approved shared store.
 
 `run_prompt`, Pack progress, draft fork, and feedback remain in-app/API actions
 until identity, consent, idempotency, retention, and audit are proven. Approval,

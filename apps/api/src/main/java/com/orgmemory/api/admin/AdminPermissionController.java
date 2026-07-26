@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.authorization.AccessExplanation;
 import com.orgmemory.core.authorization.AccessExplanationService;
 import com.orgmemory.core.authorization.AccessState;
@@ -132,13 +133,13 @@ class AdminPermissionController {
         CurrentActor actor = guard.requireMemberAdministrator(authentication);
         AppUser user = requireUserInOrganization(request.userId(), actor);
         if (request.permission() == null || request.permission().isBlank()) {
-            throw new IllegalArgumentException("A permission is required");
+            throw new ApiRequestException("A permission is required");
         }
         if (request.resourceType() == null || !EXPLAINABLE_TYPES.contains(request.resourceType())) {
-            throw new IllegalArgumentException("Unsupported resource type for an access explanation");
+            throw new ApiRequestException("Unsupported resource type for an access explanation");
         }
         if (request.resourceId() == null) {
-            throw new IllegalArgumentException("A resource id is required");
+            throw new ApiRequestException("A resource id is required");
         }
         ResourceRef resource = resources.require(
                 actor.organizationId(),
@@ -154,11 +155,11 @@ class AdminPermissionController {
 
     private AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {
         if (userId == null) {
-            throw new IllegalArgumentException("A user id is required");
+            throw new ApiRequestException("A user id is required");
         }
         return users.findById(userId)
                 .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user in this organization"));
+                .orElseThrow(() -> new ApiRequestException("Unknown user in this organization"));
     }
 
     private static ExplainAccessResponse response(AccessExplanation explanation) {

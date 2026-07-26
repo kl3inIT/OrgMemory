@@ -265,6 +265,22 @@ class AssetRegistryCoordinator {
                 release.getReleasedAt());
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetConsumptionRelease latestConsumptionRelease(
+            UUID organizationId, UUID assetId) {
+        Asset asset = requiredAsset(organizationId, assetId);
+        AssetRelease release = releases
+                .findByAssetIdAndOrganizationIdOrderBySequenceDesc(
+                        assetId, organizationId)
+                .stream()
+                .filter(candidate -> currentAvailability(candidate.getId())
+                        != AssetAvailability.WITHDRAWN)
+                .findFirst()
+                .orElseThrow(AssetNotFoundException::new);
+        return consumptionRelease(
+                organizationId, asset.getId(), release.getId());
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView updateDraft(
             CurrentActor actor,

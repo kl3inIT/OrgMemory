@@ -1,8 +1,16 @@
 package com.orgmemory.core.assetregistry;
 
-public class AssetNotFoundException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class AssetNotFoundException extends BusinessException {
 
     public AssetNotFoundException() {
-        super("The requested Asset is not available");
+        super(
+                BusinessErrorCategory.NOT_FOUND,
+                "knowledge.resource-not-available",
+                "The requested knowledge resource is not available",
+                BusinessErrorExposure.OPAQUE_RESOURCE);
     }
 }

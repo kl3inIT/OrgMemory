@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.authorization.RoleAdministrationService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
@@ -91,7 +92,7 @@ class AdminRoleController {
         // An administrator removing their own last role can lock the organization out of its own
         // administration, and unlike a role change there is nobody left who could undo it.
         if (actor.userId().equals(userId)) {
-            throw new IllegalArgumentException("An administrator cannot revoke their own role");
+            throw new ApiRequestException("An administrator cannot revoke their own role");
         }
         AppUser user = requireUserInOrganization(userId, actor);
         var result = roles.revoke(actor.organizationId(), role, user.getId());
@@ -103,10 +104,10 @@ class AdminRoleController {
 
     private AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {
         if (userId == null) {
-            throw new IllegalArgumentException("A user id is required");
+            throw new ApiRequestException("A user id is required");
         }
         return users.findById(userId)
                 .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user in this organization"));
+                .orElseThrow(() -> new ApiRequestException("Unknown user in this organization"));
     }
 }

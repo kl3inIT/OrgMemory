@@ -2,7 +2,6 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,8 +16,10 @@ class KnowledgeSearchToolTests {
 
     private final KnowledgeSearchApiClient search =
             mock(KnowledgeSearchApiClient.class);
+    private final McpApiAuthorization authorization =
+            mock(McpApiAuthorization.class);
     private final KnowledgeSearchTool tool =
-            new KnowledgeSearchTool(search);
+            new KnowledgeSearchTool(search, authorization);
 
     @Test
     void delegatesToTheSameAuthenticatedApiContract() {
@@ -26,33 +27,24 @@ class KnowledgeSearchToolTests {
                 new KnowledgeSearchApiClient.SearchResult(
                         "request-1",
                         List.of());
+        var context = McpTransportContext.create(
+                Map.of("request", "test"));
+        when(authorization.require(context))
+                .thenReturn("Bearer exchanged-api-token");
         when(search.search(
-                        "Bearer verified-token",
+                        "Bearer exchanged-api-token",
                         "leave policy",
                         8))
                 .thenReturn(expected);
-        var context = McpTransportContext.create(Map.of(
-                McpTransportConfiguration.AUTHORIZATION_CONTEXT_KEY,
-                "Bearer verified-token"));
 
         var result =
                 tool.searchKnowledge("leave policy", 8, context);
 
         assertEquals(expected, result);
         verify(search).search(
-                "Bearer verified-token",
+                "Bearer exchanged-api-token",
                 "leave policy",
                 8);
-    }
-
-    @Test
-    void refusesARequestWithoutForwardableIdentity() {
-        assertThrows(
-                KnowledgeSearchApiClient.KnowledgeSearchGatewayException.class,
-                () -> tool.searchKnowledge(
-                        "leave policy",
-                        8,
-                        McpTransportContext.EMPTY));
     }
 
     @Test

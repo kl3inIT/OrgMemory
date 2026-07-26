@@ -1,18 +1,8 @@
 package com.orgmemory.api;
 
-import com.orgmemory.core.assistant.AssistantConversationNotFoundException;
-import com.orgmemory.core.assistant.AssistantUnavailableException;
-import com.orgmemory.core.assetregistry.AssetConflictException;
-import com.orgmemory.core.assetregistry.AssetNotFoundException;
-import com.orgmemory.core.assetregistry.AssetUnavailableException;
-import com.orgmemory.core.knowledge.CitationNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeSpaceKeyConflictException;
-import com.orgmemory.core.knowledge.KnowledgeSpaceUnavailableException;
-import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
-import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessException;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,125 +20,146 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+/**
+ * Translates transport-neutral business failures and Spring MVC failures to
+ * one stable RFC 9457 contract.
+ *
+ * <p>Concrete domain exception classes are intentionally absent. New use-case
+ * failures extend {@link BusinessException} and carry their category, stable
+ * code, and safe public detail without coupling core to HTTP.
+ */
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
-    private static final URI OPAQUE_CITATION_INSTANCE =
-            URI.create("/api/citations");
-    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(ApiExceptionHandler.class);
+    private static final String CODE_PROPERTY = "code";
 
-    @ExceptionHandler(OrgMemoryAccessDeniedException.class)
-    ProblemDetail accessDenied(OrgMemoryAccessDeniedException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
-    }
-
-    @ExceptionHandler(CitationNotFoundException.class)
-    ProblemDetail citationNotFound(CitationNotFoundException e) {
-        ProblemDetail detail =
-                ProblemDetail.forStatusAndDetail(
-                        HttpStatus.NOT_FOUND,
-                        e.getMessage());
-        detail.setInstance(OPAQUE_CITATION_INSTANCE);
-        return detail;
-    }
-
-    @ExceptionHandler({
-        AssetNotFoundException.class,
-        KnowledgeAssetNotFoundException.class,
-        KnowledgeResourceNotFoundException.class
-    })
-    ProblemDetail knowledgeResourceNotFound(RuntimeException e) {
-        return ProblemDetail.forStatusAndDetail(
-                HttpStatus.NOT_FOUND,
-                "The requested knowledge resource is not available");
-    }
-
-    @ExceptionHandler(AssistantConversationNotFoundException.class)
-    ProblemDetail assistantConversationNotFound(AssistantConversationNotFoundException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    ProblemDetail badRequest(IllegalArgumentException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
-    }
-
-    /**
-     * Naming a source no adapter provides is a request error, not a server fault: the caller
-     * asked about something this deployment does not have.
-     */
-    @ExceptionHandler(UnsupportedConnectorSourceException.class)
-    ProblemDetail unsupportedSource(UnsupportedConnectorSourceException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    @ExceptionHandler(BusinessException.class)
+    ProblemDetail business(BusinessException exception) {
+        HttpStatus status = status(exception.category());
+        ProblemDetail problem = problem(
+                status,
+                exception.code(),
+                exception.getMessage());
+        if (exception.exposure()
+                == BusinessErrorExposure.OPAQUE_RESOURCE) {
+            problem.setInstance(URI.create("/api/resources"));
+        }
+        return problem;
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
-    ProblemDetail conflict(OptimisticLockingFailureException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
-    }
-
-    @ExceptionHandler(AssetConflictException.class)
-    ProblemDetail assetConflict(AssetConflictException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    ProblemDetail optimisticConflict(OptimisticLockingFailureException exception) {
+        log.debug("Concurrent persistence modification", exception);
+        return problem(
+                HttpStatus.CONFLICT,
+                "persistence.concurrent-modification",
+                "The resource changed while this operation was running");
     }
 
     /**
-     * Two Knowledge Space names that derive the same key are usually the same space twice, so this
-     * names the key that is already taken rather than inventing a suffix the creator did not ask
-     * for and would have to discover afterwards.
+     * Compatibility boundary for legacy request validators.
+     *
+     * <p>New use cases must throw {@link BusinessException}. The legacy message
+     * is intentionally not disclosed because some IllegalArgumentExceptions
+     * describe internal invariants rather than caller-safe detail.
      */
-    @ExceptionHandler(KnowledgeSpaceKeyConflictException.class)
-    ProblemDetail knowledgeSpaceKeyConflict(KnowledgeSpaceKeyConflictException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
-    }
-
-    @ExceptionHandler(KnowledgeRetrievalUnavailableException.class)
-    ProblemDetail retrievalUnavailable(KnowledgeRetrievalUnavailableException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
-    }
-
-    @ExceptionHandler(KnowledgeSpaceUnavailableException.class)
-    ProblemDetail knowledgeSpaceUnavailable(KnowledgeSpaceUnavailableException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
-    }
-
-    @ExceptionHandler(AssistantUnavailableException.class)
-    ProblemDetail assistantUnavailable(AssistantUnavailableException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
-    }
-
-    @ExceptionHandler(AssetUnavailableException.class)
-    ProblemDetail assetUnavailable(AssetUnavailableException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
-    }
-
-    @ExceptionHandler(ResponseStatusException.class)
-    ProblemDetail statusException(ResponseStatusException e) {
-        ProblemDetail body = e.getBody();
-        if (body.getDetail() == null && e.getReason() != null) {
-            body.setDetail(e.getReason());
-        }
-        return body;
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail legacyInvalidArgument(IllegalArgumentException exception) {
+        log.debug("Legacy invalid request argument", exception);
+        return problem(
+                HttpStatus.BAD_REQUEST,
+                "request.invalid-argument",
+                "The request is invalid");
     }
 
     @ExceptionHandler(Exception.class)
-    ProblemDetail unexpected(Exception e) {
-        log.error("Unhandled exception", e);
-        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
+    ProblemDetail unexpected(Exception exception) {
+        log.error("Unhandled exception", exception);
+        return problem(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "internal.unexpected",
+                "Unexpected error");
     }
 
     @Override
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        ProblemDetail body = ex.getBody();
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+        ProblemDetail body = exception.getBody();
+        body.setType(problemType("request.validation-failed"));
+        body.setTitle(HttpStatus.BAD_REQUEST.getReasonPhrase());
+        body.setDetail("The request contains invalid fields");
+        body.setProperty(CODE_PROPERTY, "request.validation-failed");
         Map<String, String> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors()
-                .forEach(field -> errors.putIfAbsent(field.getField(), field.getDefaultMessage()));
+        exception.getBindingResult().getFieldErrors()
+                .forEach(field -> errors.putIfAbsent(
+                        field.getField(),
+                        field.getDefaultMessage()));
         body.setProperty("errors", errors);
-        return handleExceptionInternal(ex, body, headers, status, request);
+        return handleExceptionInternal(
+                exception,
+                body,
+                headers,
+                status,
+                request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> createResponseEntity(
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request) {
+        if (body instanceof ProblemDetail problem) {
+            if (problem.getType() == null
+                    || URI.create("about:blank").equals(problem.getType())) {
+                String code = "http." + statusCode.value();
+                problem.setType(problemType(code));
+                problem.setProperty(CODE_PROPERTY, code);
+            } else if (problem.getProperties() == null
+                    || !problem.getProperties().containsKey(CODE_PROPERTY)) {
+                problem.setProperty(
+                        CODE_PROPERTY,
+                        "http." + statusCode.value());
+            }
+        }
+        return super.createResponseEntity(
+                body,
+                headers,
+                statusCode,
+                request);
+    }
+
+    private static ProblemDetail problem(
+            HttpStatus status,
+            String code,
+            String detail) {
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setType(problemType(code));
+        problem.setTitle(status.getReasonPhrase());
+        problem.setProperty(CODE_PROPERTY, code);
+        return problem;
+    }
+
+    private static URI problemType(String code) {
+        return URI.create("urn:orgmemory:problem:" + code);
+    }
+
+    private static HttpStatus status(BusinessErrorCategory category) {
+        return switch (category) {
+            case VALIDATION -> HttpStatus.BAD_REQUEST;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+            case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
     }
 }

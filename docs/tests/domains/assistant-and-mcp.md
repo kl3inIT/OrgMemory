@@ -16,7 +16,7 @@
 | Empty evidence, provider retry, and user abort are browser-tested | `assistant-pipeline.spec.ts` | covered |
 | GraphRAG is selected explicitly with no silent fallback | `AssistantConfigurationTests` | covered |
 | MCP publishes only the read-only permission-aware search tool | `OrgMemoryMcpContextTests` | covered |
-| MCP forwards caller bearer identity to canonical REST search | `KnowledgeSearchApiClientTests`, `KnowledgeSearchToolTests` | covered |
+| MCP exchanges caller identity and forwards only the API-audience bearer to canonical REST search | `McpApiAuthorizationTests`, `KnowledgeSearchApiClientTests`, `KnowledgeSearchToolTests` | covered |
 | Asset recommendations are actor-scoped and pin an exact usable release | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases` | covered |
 | Assistant-proposed external provider and state-changing Asset actions require confirmation | `AssistantAssetToolServiceTests` | covered |
 | Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |

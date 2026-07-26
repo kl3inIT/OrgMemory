@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.knowledge.SourcePrincipalAdminService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
@@ -98,11 +99,11 @@ class AdminUserController {
         // Self-edits are the one way an administrator can lock the organization out of
         // its own administration surface, so they are refused rather than confirmed.
         if (actor.userId().equals(userId)) {
-            throw new IllegalArgumentException("An administrator cannot change their own role or activation");
+            throw new ApiRequestException("An administrator cannot change their own role or activation");
         }
         AppUser user = users.findById(userId)
                 .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user in this organization"));
+                .orElseThrow(() -> new ApiRequestException("Unknown user in this organization"));
 
         if (request.role() != null) {
             user.changeRole(request.role());
