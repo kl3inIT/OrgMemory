@@ -104,16 +104,17 @@ MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get "client-scopes/$basic_scope_id" \
   -r orgmemory \
   --config "$container_kcadm_config" >"$tmp_dir/basic-scope.json"
-python3 - "$tmp_dir/basic-scope.json" <<'PY'
+python3 \
+  - "$tmp_dir/basic-scope.json" \
+  "$repo_root/infrastructure/keycloak/mcp-basic-client-scope.json" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as stream:
     scope = json.load(stream)
-expected_description = (
-    "OpenID Connect scope for basic subject and authentication-time claims"
-)
-assert scope["description"] == expected_description, scope
+with open(sys.argv[2], encoding="utf-8") as stream:
+    expected = json.load(stream)
+assert scope["description"] == expected["description"], scope
 PY
 
 curl --fail --silent --show-error "$metadata_url" >"$tmp_dir/metadata.json"
