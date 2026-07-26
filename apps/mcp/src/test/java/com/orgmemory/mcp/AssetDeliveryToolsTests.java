@@ -76,13 +76,13 @@ class AssetDeliveryToolsTests {
 
         assertEquals(
                 "orgmemory://assets/" + ASSET_ID,
-                result.getFirst().resourceUri());
+                result.assets().getFirst().resourceUri());
         assertEquals(
                 "orgmemory://assets/"
                         + ASSET_ID
                         + "/releases/"
                         + RELEASE_ID,
-                result.getFirst().releaseResourceUri());
+                result.assets().getFirst().releaseResourceUri());
     }
 
     @Test

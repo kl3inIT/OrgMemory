@@ -67,6 +67,11 @@ class OrgMemoryMcpContextTests {
             assertEquals(false, spec.tool().annotations().destructiveHint());
             assertEquals(true, spec.tool().annotations().idempotentHint());
             assertEquals(false, spec.tool().annotations().openWorldHint());
+            assertEquals(
+                    "object",
+                    spec.tool().outputSchema().get("type"),
+                    () -> spec.tool().name()
+                            + " must publish an MCP 2025-11-25 object outputSchema");
         });
         assertEquals(2, resources.size());
         assertEquals(1, prompts.size());

@@ -33,7 +33,7 @@ class AssetDeliveryTools {
                     destructiveHint = false,
                     idempotentHint = true,
                     openWorldHint = false))
-    List<AssetLink> searchAssets(
+    AssetSearchResults searchAssets(
             @McpToolParam(required = false, description = "Optional title, summary, namespace, or slug query")
                     String query,
             @McpToolParam(
@@ -41,10 +41,11 @@ class AssetDeliveryTools {
                             description = "Optional PROMPT_TEMPLATE, WORK_INSTRUCTION, or CAPABILITY_PACK filter")
                     String type,
             McpTransportContext context) {
-        return assets.search(authorization.require(context), query, type)
+        return new AssetSearchResults(assets.search(
+                        authorization.require(context), query, type)
                 .stream()
                 .map(AssetLink::from)
-                .toList();
+                .toList());
     }
 
     @McpTool(
@@ -162,4 +163,6 @@ class AssetDeliveryTools {
                     base + "/releases/" + asset.releaseId());
         }
     }
+
+    record AssetSearchResults(List<AssetLink> assets) {}
 }
