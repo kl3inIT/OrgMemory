@@ -161,6 +161,9 @@ jobs:
       - name: Type-check
         run: pnpm typecheck
 
+      - name: Run focused component tests
+        run: pnpm test:unit
+
       - name: Build production bundle
         run: pnpm build
 

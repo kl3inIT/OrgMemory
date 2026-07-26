@@ -4,6 +4,7 @@ import { Ellipsis, RefreshCw } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
@@ -27,6 +27,7 @@ import { AdminInvitationsCard } from "@/features/admin/components/admin-invitati
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { avatarInitials } from "@/lib/avatar"
 import { updateAdminUserMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
+import type { AdminUserResponse } from "@/lib/hey-api"
 
 export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
   const queryClient = useQueryClient()
@@ -84,6 +85,151 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
     return matchesQuery && matchesRole && matchesSignIn && matchesAccountStatus
   })
   const visibleRows = pageItems(filteredRows, page)
+  const columns: ColumnDef<AdminUserResponse>[] = [
+    {
+      id: "user",
+      accessorFn: (user) => user.name ?? user.email ?? "",
+      header: "User",
+      cell: ({ row }) => {
+        const user = row.original
+        return (
+          <div className="flex min-w-64 items-center gap-3">
+            <Avatar className="size-9">
+              <AvatarFallback>{avatarInitials(user.name, user.email)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <Link
+                to="/admin/users/$userId"
+                params={{ userId: user.id! }}
+                className="block truncate font-medium hover:underline"
+              >
+                {user.name ?? "Unnamed user"}
+              </Link>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                {user.email}
+              </div>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: "role",
+      accessorFn: (user) => roleLabel(user.role),
+      header: "Role",
+      cell: ({ row }) => {
+        const user = row.original
+        const isSelf = user.id === currentUserId
+        const pending = update.isPending && update.variables?.path.userId === user.id
+        return (
+          <Select
+            value={user.role}
+            disabled={isSelf || pending}
+            onValueChange={(nextRole: string) =>
+              update.mutate({
+                path: { userId: user.id! },
+                body: { role: nextRole as UserRoleValue },
+              })
+            }
+          >
+            <SelectTrigger
+              className="w-40"
+              aria-label={`Role for ${user.name ?? user.email ?? "user"}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {USER_ROLES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {roleLabel(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      },
+    },
+    {
+      id: "signIn",
+      accessorFn: (user) => (user.signInLinked ? "Linked" : "Not linked"),
+      header: "Sign-in",
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2 text-sm">
+          <span
+            className={`size-1.5 rounded-full ${
+              row.original.signInLinked
+                ? "bg-status-success-content"
+                : "bg-status-warning-content"
+            }`}
+            aria-hidden="true"
+          />
+          {row.original.signInLinked ? "Linked" : "Not linked"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "mappedPrincipalCount",
+      header: "Source identities",
+      meta: { cellClassName: "tabular-nums" },
+      cell: ({ row }) => row.original.mappedPrincipalCount ?? 0,
+    },
+    {
+      id: "status",
+      accessorFn: (user) => (user.active ? "Active" : "Deactivated"),
+      header: "Status",
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2 text-sm">
+          <span
+            className={`size-1.5 rounded-full ${
+              row.original.active
+                ? "bg-status-success-content"
+                : "bg-status-danger-content"
+            }`}
+            aria-hidden="true"
+          />
+          {row.original.active ? "Active" : "Deactivated"}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      meta: { headerClassName: "w-12" },
+      cell: ({ row }) => {
+        const user = row.original
+        const isSelf = user.id === currentUserId
+        const pending = update.isPending && update.variables?.path.userId === user.id
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={pending}
+                aria-label={`Actions for ${user.name ?? user.email ?? "user"}`}
+              >
+                <Ellipsis aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                variant={user.active ? "destructive" : "default"}
+                disabled={isSelf || pending}
+                onSelect={() =>
+                  update.mutate({
+                    path: { userId: user.id! },
+                    body: { active: !user.active },
+                  })
+                }
+              >
+                {user.active ? "Deactivate account" : "Activate account"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    },
+  ]
 
   function updateQuery(value: string) {
     setQuery(value)
@@ -216,124 +362,11 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
           </div>
         ) : (
           <div className="overflow-hidden border-y border-border-subtle">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Sign-in</TableHead>
-                  <TableHead>Source identities</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-12">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleRows.map((user) => {
-                  const isSelf = user.id === currentUserId
-                  const pending = update.isPending && update.variables?.path.userId === user.id
-                  return (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex min-w-64 items-center gap-3">
-                          <Avatar className="size-9">
-                            <AvatarFallback>{avatarInitials(user.name, user.email)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <Link
-                              to="/admin/users/$userId"
-                              params={{ userId: user.id! }}
-                              className="block truncate font-medium hover:underline"
-                            >
-                              {user.name ?? "Unnamed user"}
-                            </Link>
-                            <div className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={user.role}
-                          disabled={isSelf || pending}
-                          onValueChange={(nextRole: string) =>
-                            update.mutate({
-                              path: { userId: user.id! },
-                              body: { role: nextRole as UserRoleValue },
-                            })
-                          }
-                        >
-                          <SelectTrigger
-                            className="w-40"
-                            aria-label={`Role for ${user.name ?? user.email ?? "user"}`}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {USER_ROLES.map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {roleLabel(value)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <span
-                            className={`size-1.5 rounded-full ${
-                              user.signInLinked ? "bg-status-success-content" : "bg-status-warning-content"
-                            }`}
-                            aria-hidden="true"
-                          />
-                          {user.signInLinked ? "Linked" : "Not linked"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="tabular-nums">{user.mappedPrincipalCount ?? 0}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <span
-                            className={`size-1.5 rounded-full ${
-                              user.active ? "bg-status-success-content" : "bg-status-danger-content"
-                            }`}
-                            aria-hidden="true"
-                          />
-                          {user.active ? "Active" : "Deactivated"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={pending}
-                              aria-label={`Actions for ${user.name ?? user.email ?? "user"}`}
-                            >
-                              <Ellipsis aria-hidden="true" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              variant={user.active ? "destructive" : "default"}
-                              disabled={isSelf || pending}
-                              onSelect={() =>
-                                update.mutate({
-                                  path: { userId: user.id! },
-                                  body: { active: !user.active },
-                                })
-                              }
-                            >
-                              {user.active ? "Deactivate account" : "Activate account"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={visibleRows}
+              getRowId={(user, index) => user.id ?? String(index)}
+            />
           </div>
         )}
 

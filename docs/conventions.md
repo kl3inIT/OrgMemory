@@ -72,6 +72,16 @@ implementation choices do not require this review.
   streaming, upload progress, and browser-navigation logout; keep them thin and
   document why generation is not sufficient.
 - Product-specific composition belongs in features; generic primitives do not.
+- Page composition belongs in `components/layouts`: use the namespaced
+  `PageLayout` width/scroll variants instead of repeating `mx-auto`,
+  `max-w-*`, and page gutters in features. Use `SplitLayout` for a main surface
+  with a responsive detail panel. Product-neutral repeated compositions such as
+  `FilterBar`, `EmptyState`, and `DataTable` belong in `components/patterns`.
+- Use the shared headless `DataTable` for repeated table mechanics. TanStack
+  Table owns sorting/filtering/pagination state while the existing shadcn table
+  primitives keep the semantic HTML and OrgMemory styling. Prefer controlled,
+  server-side pagination before loading an unbounded collection, and add
+  virtualization only after measured row counts require it.
 - TanStack Query owns server state and TanStack Router owns the current route.
   Zustand is for durable UI preferences and high-frequency local interaction
   state; never mirror query data or the active URL in a second store.
@@ -91,6 +101,7 @@ Run the narrowest tests while iterating and completion gates before handoff:
 .\gradlew.bat :core:test
 .\gradlew.bat --no-daemon clean test
 corepack pnpm -C web typecheck
+corepack pnpm --dir web run test:unit
 corepack pnpm -C web build
 Push-Location integrations\authorization-openfga\src\test\openfga
 & '..\..\..\..\..\.tools\openfga\fga.exe' model test --tests store.fga.yaml

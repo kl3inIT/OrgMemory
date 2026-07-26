@@ -4,6 +4,7 @@ import { ChevronRight, MoreHorizontal, Plus, TriangleAlert } from "lucide-react"
 import { useState, type MouseEvent, type ReactNode } from "react"
 import { toast } from "sonner"
 
+import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -26,7 +27,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatDay, formatTimestamp } from "@/features/admin/admin-labels"
@@ -208,6 +208,163 @@ export function AdminConnectorsPage() {
 
           {groups.map((group) => {
             const shown = presentation(group.system, group.displayName)
+            const columns: ColumnDef<AdminConnectionResponse>[] = [
+              {
+                id: "status",
+                accessorFn: (connection) => connectionState(connection).label,
+                header: "Status",
+                enableSorting: true,
+                cell: ({ row }) => {
+                  const state = connectionState(row.original)
+                  return <Badge variant={state.variant}>{state.label}</Badge>
+                },
+              },
+              {
+                accessorKey: "sourceConnectionKey",
+                header: "Connection",
+                enableSorting: true,
+                cell: ({ row }) => {
+                  const key = row.original.sourceConnectionKey ?? ""
+                  const result = checked?.key === key ? checked.result : undefined
+                  return (
+                    <div className="max-w-52">
+                      <div className="truncate font-medium" title={key}>
+                        {key}
+                      </div>
+                      {result ? (
+                        <div
+                          className={
+                            probeIsGood(result)
+                              ? "mt-0.5 text-xs text-muted-foreground"
+                              : "mt-0.5 text-xs text-destructive"
+                          }
+                        >
+                          {probeReason(group.system, result)}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                },
+              },
+              {
+                id: "space",
+                accessorFn: (connection) => {
+                  const space = spaceRows.find(
+                    (candidate) => candidate.id === connection.knowledgeSpaceId,
+                  )
+                  return space?.name ?? space?.key ?? "Not set"
+                },
+                header: "Publishes into",
+                enableSorting: true,
+                meta: { cellClassName: "text-muted-foreground" },
+                cell: ({ getValue }) => String(getValue()),
+              },
+              {
+                id: "credential",
+                accessorFn: (connection) =>
+                  connection.credentialSet ? "Stored" : "None",
+                header: "Credential",
+                enableSorting: true,
+                cell: ({ row }) =>
+                  row.original.credentialSet ? (
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <Badge variant="secondary">Stored</Badge>
+                      <span
+                        className="text-xs text-muted-foreground"
+                        title={formatTimestamp(row.original.credentialSetAt)}
+                      >
+                        {formatDay(row.original.credentialSetAt)}
+                      </span>
+                    </div>
+                  ) : (
+                    <Badge variant="warning">None</Badge>
+                  ),
+              },
+              {
+                id: "actions",
+                header: "Actions",
+                meta: {
+                  headerClassName: "text-right",
+                  cellClassName: "text-right",
+                },
+                cell: ({ row }) => {
+                  const connection = row.original
+                  const key = connection.sourceConnectionKey ?? ""
+                  const state = connectionState(connection)
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Actions for ${key}`}
+                        >
+                          <MoreHorizontal aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to="/admin/connectors/$sourceSystem/$connectionKey"
+                            params={{
+                              sourceSystem: group.system,
+                              connectionKey: key,
+                            }}
+                          >
+                            Open
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to="/admin/connectors/$sourceSystem"
+                            params={{ sourceSystem: group.system }}
+                            search={{ connection: key }}
+                          >
+                            Configure
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={check.isPending}
+                          onSelect={() =>
+                            check.mutate({
+                              path: {
+                                sourceSystem: group.system,
+                                connectionKey: key,
+                              },
+                            })
+                          }
+                        >
+                          Test credential
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={state.label !== "Indexing" || crawlNow.isPending}
+                          onSelect={() =>
+                            crawlNow.mutate({
+                              path: {
+                                sourceSystem: group.system,
+                                connectionKey: key,
+                              },
+                            })
+                          }
+                        >
+                          Crawl now
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          disabled={!connection.credentialSet}
+                          onSelect={() =>
+                            setForgetTarget({ system: group.system, key })
+                          }
+                        >
+                          Forget credential
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )
+                },
+              },
+            ]
             return (
               <SourceGroup
                 key={group.system}
@@ -217,128 +374,13 @@ export function AdminConnectorsPage() {
                 indexing={group.rows.filter((row) => connectionState(row).label === "Indexing").length}
                 invalid={group.rows.filter((row) => connectionState(row).blocked).length}
               >
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>Status</TableHead>
-                      <TableHead>Connection</TableHead>
-                      <TableHead>Publishes into</TableHead>
-                      <TableHead>Credential</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {group.rows.map((connection) => {
-                      const key = connection.sourceConnectionKey ?? ""
-                      const state = connectionState(connection)
-                      const space = spaceRows.find(
-                        (candidate) => candidate.id === connection.knowledgeSpaceId,
-                      )
-                      const result = checked?.key === key ? checked.result : undefined
-                      return (
-                        <TableRow key={key}>
-                          <TableCell>
-                            <Badge variant={state.variant}>{state.label}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-52">
-                              <div className="truncate font-medium" title={key}>
-                                {key}
-                              </div>
-                              {result ? (
-                                <div
-                                  className={
-                                    probeIsGood(result)
-                                      ? "mt-0.5 text-xs text-muted-foreground"
-                                      : "mt-0.5 text-xs text-destructive"
-                                  }
-                                >
-                                  {probeReason(group.system, result)}
-                                </div>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {space?.name ?? space?.key ?? "Not set"}
-                          </TableCell>
-                          <TableCell>
-                            {connection.credentialSet ? (
-                              <div className="flex items-center gap-2 whitespace-nowrap">
-                                <Badge variant="secondary">Stored</Badge>
-                                <span
-                                  className="text-xs text-muted-foreground"
-                                  title={formatTimestamp(connection.credentialSetAt)}
-                                >
-                                  {formatDay(connection.credentialSetAt)}
-                                </span>
-                              </div>
-                            ) : (
-                              <Badge variant="warning">None</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="icon" variant="ghost" aria-label={`Actions for ${key}`}>
-                                  <MoreHorizontal aria-hidden="true" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link
-                                    to="/admin/connectors/$sourceSystem/$connectionKey"
-                                    params={{ sourceSystem: group.system, connectionKey: key }}
-                                  >
-                                    Open
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link
-                                    to="/admin/connectors/$sourceSystem"
-                                    params={{ sourceSystem: group.system }}
-                                    search={{ connection: key }}
-                                  >
-                                    Configure
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={check.isPending}
-                                  onSelect={() =>
-                                    check.mutate({
-                                      path: { sourceSystem: group.system, connectionKey: key },
-                                    })
-                                  }
-                                >
-                                  Test credential
-                                </DropdownMenuItem>
-                                {/* Only an enabled connection holding a credential — the state the
-                                    worker actually polls — has a crawl to bring forward. */}
-                                <DropdownMenuItem
-                                  disabled={state.label !== "Indexing" || crawlNow.isPending}
-                                  onSelect={() =>
-                                    crawlNow.mutate({
-                                      path: { sourceSystem: group.system, connectionKey: key },
-                                    })
-                                  }
-                                >
-                                  Crawl now
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  disabled={!connection.credentialSet}
-                                  onSelect={() => setForgetTarget({ system: group.system, key })}
-                                >
-                                  Forget credential
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                <DataTable
+                  columns={columns}
+                  data={group.rows}
+                  getRowId={(connection, index) =>
+                    connection.sourceConnectionKey ?? String(index)
+                  }
+                />
               </SourceGroup>
             )
           })}

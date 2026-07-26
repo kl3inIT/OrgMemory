@@ -23,6 +23,12 @@ explorer to the curator/admin authorization boundary; it reads the same
 published projection and does not create node-owned ACLs or persist a global
 permission-independent merged description.
 
+The explorer uses the shared canvas page contract. It fills the remaining app
+shell height and width instead of inheriting the centered Documents content
+width or a viewport-height cap. Its controls wrap for narrow screens, and a
+selected entity or relation opens in the responsive shared split layout without
+changing graph authorization or query state.
+
 ## Source Modules
 
 - `components.graph-rag-core`

@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query"
 import { ChevronDown } from "lucide-react"
 import { useState } from "react"
 
+import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { connectionLabel, formatTimestamp } from "@/features/admin/admin-labels"
@@ -15,7 +15,48 @@ import {
   AdminSearch,
 } from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
-import type { AdminSourceGroupResponse } from "@/lib/hey-api"
+import type {
+  AdminSourceGroupMemberResponse,
+  AdminSourceGroupResponse,
+} from "@/lib/hey-api"
+
+const memberColumns: ColumnDef<AdminSourceGroupMemberResponse>[] = [
+  {
+    id: "member",
+    accessorFn: (member) => member.observedDisplayName?.trim() || member.externalKey || "",
+    header: "Member",
+    enableSorting: true,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {row.original.observedDisplayName?.trim() || row.original.externalKey}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "observedEmail",
+    header: "Observed email",
+    enableSorting: true,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.observedEmail || "—"}</span>
+    ),
+  },
+  {
+    id: "resolvesTo",
+    accessorFn: (member) => member.appUserName ?? "",
+    header: "Resolves to",
+    enableSorting: true,
+    meta: {
+      headerClassName: "text-right",
+      cellClassName: "text-right",
+    },
+    cell: ({ row }) =>
+      row.original.appUserId ? (
+        row.original.appUserName
+      ) : (
+        <Badge variant="destructive">Unmapped</Badge>
+      ),
+  },
+]
 
 function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
   const unresolved = group.members?.filter((member) => !member.appUserId).length ?? 0
@@ -50,30 +91,11 @@ function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t border-border-subtle">
         {group.members?.length ? (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Member</TableHead>
-                <TableHead>Observed email</TableHead>
-                <TableHead className="text-right">Resolves to</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.members.map((member) => (
-                <TableRow key={member.principalId}>
-                  <TableCell className="font-medium">
-                    {member.observedDisplayName?.trim() || member.externalKey}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {member.observedEmail || "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {member.appUserId ? member.appUserName : <Badge variant="destructive">Unmapped</Badge>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={memberColumns}
+            data={group.members}
+            getRowId={(member, index) => member.principalId ?? String(index)}
+          />
         ) : (
           <AdminEmpty
             title="No sealed membership"

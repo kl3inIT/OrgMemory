@@ -1,10 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowLeft, Plus, X } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { PageLayout } from "@/components/layouts/page-layout"
 import { Badge } from "@/components/ui/badge"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -15,7 +24,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -72,24 +87,33 @@ export function AdminUserPermissionsPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link to="/admin/users">
-            <ArrowLeft className="size-4" aria-hidden />
-            Users
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {user?.name ?? "Permissions"}
-        </h1>
-        {user ? (
-          <p className="text-sm text-muted-foreground">
-            {user.email} · {user.role}
-            {user.signInLinked ? null : " · cannot sign in yet"}
-          </p>
-        ) : null}
-      </div>
+    <PageLayout.Root variant="wide">
+      <PageLayout.Header
+        title={user?.name ?? "Permissions"}
+        description={
+          user ? (
+            <>
+              {user.email} · {user.role}
+              {user.signInLinked ? null : " · cannot sign in yet"}
+            </>
+          ) : undefined
+        }
+        breadcrumb={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/admin/users">Users</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{user?.name ?? "Permissions"}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -211,7 +235,6 @@ export function AdminUserPermissionsPage({
       </div>
 
       <AccessInspector userId={userId} />
-
-    </div>
+    </PageLayout.Root>
   )
 }

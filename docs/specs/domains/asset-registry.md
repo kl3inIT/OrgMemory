@@ -97,6 +97,13 @@ Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
 Asset payloads.
 
+The Asset surfaces use the shared page contract: catalog and governance views
+use the wide variant, release/detail content uses the standard variant, and a
+focused journey uses the narrow variant. Nested Asset and governance routes
+render hierarchy breadcrumbs; the top-level catalog does not. Supporting copy
+is optional and appears only when it changes a decision or explains an
+unfamiliar action.
+
 ### Authenticated Read-Only MCP Delivery
 
 The MCP app publishes six Asset tools, two `orgmemory://assets/...` resource
