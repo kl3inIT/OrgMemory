@@ -19,8 +19,10 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.util.LinkedMultiValueMap;
 
 class McpApiAuthorizationTests {
 
@@ -95,6 +97,25 @@ class McpApiAuthorizationTests {
                 "orgmemory-api",
                 (org.springframework.security.core.Authentication) principal,
                 new MockHttpServletRequest()));
+    }
+
+    @Test
+    void keycloakTokenExchangeUsesOneAccessTokenTypeAndTheApiAudience() {
+        var parameters = new LinkedMultiValueMap<String, String>();
+        parameters.add(
+                OAuth2ParameterNames.SUBJECT_TOKEN_TYPE,
+                "urn:ietf:params:oauth:token-type:jwt");
+
+        McpDownstreamOAuthConfiguration.customizeTokenExchangeParameters(
+                parameters,
+                "orgmemory-web");
+
+        assertEquals(
+                List.of("urn:ietf:params:oauth:token-type:access_token"),
+                parameters.get(OAuth2ParameterNames.SUBJECT_TOKEN_TYPE));
+        assertEquals(
+                List.of("orgmemory-web"),
+                parameters.get(OAuth2ParameterNames.AUDIENCE));
     }
 
     private static McpTransportContext authenticatedContext() {

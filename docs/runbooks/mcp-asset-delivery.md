@@ -76,11 +76,14 @@ is rejected by MCP.
 The checked-in realm files are a baseline for a new Keycloak realm. Keycloak
 imports with `IGNORE_EXISTING`, so deploying a new image does not mutate an
 already-created realm. `configure-keycloak-mcp.sh` therefore updates only the
-named MCP client policies and anonymous registration-policy components after
-Keycloak is healthy; it preserves unrelated client policies, users,
-credentials, federation, and clients. The `assets:read` scope/mappers and
-confidential `orgmemory-mcp` exchange client must already exist from the realm
-baseline or the PR4 migration. Verify:
+named MCP client policies, the required token-exchange attribute on the
+existing `orgmemory-mcp` client, and anonymous registration-policy components
+after Keycloak is healthy. The client update starts from Keycloak's complete
+current representation and merges only the required attribute, preserving its
+secret and unrelated settings. The migration preserves unrelated client
+policies, users, credentials, federation, and clients. The `assets:read`
+scope/mappers and confidential `orgmemory-mcp` exchange client must already
+exist from the realm baseline or the initial MCP migration. Verify:
 
 - authorization-server metadata advertises DCR but not CIMD;
 - a Claude-shaped DCR request uses the documented callback, creates a public
@@ -89,6 +92,14 @@ baseline or the PR4 migration. Verify:
   does not have `orgmemory-web`;
 - the exchanged token has only `orgmemory-web`, has
   `azp=orgmemory-mcp`, and retains `assets:read`.
+
+Spring Security models a Keycloak access token as `Jwt` and therefore defaults
+RFC 8693 `subject_token_type` to `urn:ietf:params:oauth:token-type:jwt`.
+OrgMemory replaces that single parameter with
+`urn:ietf:params:oauth:token-type:access_token`, which is the token type
+Keycloak standard exchange accepts for its access tokens. Do not append a
+second `subject_token_type`: Keycloak rejects an ambiguous multi-value request
+with `invalid_request`.
 
 Rotate `ORGMEMORY_MCP_OIDC_CLIENT_SECRET` independently from the web client
 secret. Never put either value in a document, issue, or log.

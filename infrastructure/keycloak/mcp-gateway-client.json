@@ -1,0 +1,6 @@
+{
+  "clientId": "orgmemory-mcp",
+  "attributes": {
+    "standard.token.exchange.enabled": "true"
+  }
+}
