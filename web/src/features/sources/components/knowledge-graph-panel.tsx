@@ -13,13 +13,11 @@ import { MultiDirectedGraph } from "graphology"
 import { LoaderCircle, Network, RefreshCw, Search } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useMemo, useState } from "react"
-import {
-  EdgeRectangleProgram,
-  NodeCircleProgram,
-  NodePointProgram,
-} from "sigma/rendering"
+import { EdgeRectangleProgram, NodeCircleProgram, NodePointProgram } from "sigma/rendering"
 import { toast } from "sonner"
 
+import { PageLayout } from "@/components/layouts/page-layout"
+import { SplitLayout } from "@/components/layouts/split-layout"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -49,9 +47,7 @@ const NODE_COLORS = ["#2563eb", "#0d9488", "#7c3aed", "#c2410c", "#be123c", "#4f
 export function KnowledgeGraphPanel() {
   const queryClient = useQueryClient()
   const spaces = useQuery(listVisibleKnowledgeSpacesOptions())
-  const selectedKnowledgeSpaceId = useGraphExplorerStore(
-    (state) => state.selectedKnowledgeSpaceId,
-  )
+  const selectedKnowledgeSpaceId = useGraphExplorerStore((state) => state.selectedKnowledgeSpaceId)
   const setSelectedKnowledgeSpaceId = useGraphExplorerStore(
     (state) => state.setSelectedKnowledgeSpaceId,
   )
@@ -118,98 +114,98 @@ export function KnowledgeGraphPanel() {
   }, [entityTypes])
 
   return (
-    <div className="space-y-4">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-page-title text-content-primary">Knowledge graph</h1>
-        <form
-          className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event) => {
-            event.preventDefault()
-            setSelectedEntityId(null)
-            setSelectedRelationId(null)
-            setSelectedTypes(new Set())
-            setExpandedViews([])
-            setHiddenEntityIds(new Set())
-            setQuery(queryDraft.trim())
-          }}
-        >
-          <Select
-            value={selectedSpace?.id ?? ""}
-            onValueChange={(value: string) => {
-              setSelectedKnowledgeSpaceId(value)
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+      <PageLayout.Header
+        title="Knowledge graph"
+        actions={
+          <form
+            className="flex w-full max-w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end"
+            onSubmit={(event) => {
+              event.preventDefault()
               setSelectedEntityId(null)
               setSelectedRelationId(null)
               setSelectedTypes(new Set())
               setExpandedViews([])
               setHiddenEntityIds(new Set())
+              setQuery(queryDraft.trim())
             }}
           >
-            <SelectTrigger className="w-full sm:w-56" aria-label="Knowledge space">
-              <SelectValue placeholder="Select a space" />
-            </SelectTrigger>
-            <SelectContent>
-              {visibleSpaces.map((space) =>
-                space.id ? (
-                  <SelectItem key={space.id} value={space.id}>
-                    {space.name ?? space.key ?? "Knowledge space"}
+            <Select
+              value={selectedSpace?.id ?? ""}
+              onValueChange={(value: string) => {
+                setSelectedKnowledgeSpaceId(value)
+                setSelectedEntityId(null)
+                setSelectedRelationId(null)
+                setSelectedTypes(new Set())
+                setExpandedViews([])
+                setHiddenEntityIds(new Set())
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-56" aria-label="Knowledge space">
+                <SelectValue placeholder="Select a space" />
+              </SelectTrigger>
+              <SelectContent>
+                {visibleSpaces.map((space) =>
+                  space.id ? (
+                    <SelectItem key={space.id} value={space.id}>
+                      {space.name ?? space.key ?? "Knowledge space"}
+                    </SelectItem>
+                  ) : null,
+                )}
+              </SelectContent>
+            </Select>
+            <Select
+              value={String(entityLimit)}
+              onValueChange={(value: string) => setEntityLimit(Number(value) as GraphEntityLimit)}
+            >
+              <SelectTrigger className="w-full sm:w-32" aria-label="Maximum graph nodes">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ENTITY_LIMITS.map((limit) => (
+                  <SelectItem key={limit} value={String(limit)}>
+                    {limit.toLocaleString()} nodes
                   </SelectItem>
-                ) : null,
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={String(maximumDepth)}
+              onValueChange={(value: string) => setMaximumDepth(Number(value))}
+            >
+              <SelectTrigger className="w-full sm:w-32" aria-label="Maximum graph depth">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MAXIMUM_DEPTHS.map((depth) => (
+                  <SelectItem key={depth} value={String(depth)}>
+                    Depth {depth}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <InputGroup className="w-full shadow-none sm:w-72">
+              <InputGroupAddon>
+                <Search aria-hidden="true" />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={queryDraft}
+                onChange={(event) => setQueryDraft(event.target.value)}
+                placeholder="Find an entity or relation"
+                aria-label="Find an entity or relation"
+              />
+            </InputGroup>
+            <Button type="submit" disabled={!selectedSpace?.id || graph.isFetching}>
+              {graph.isFetching ? (
+                <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Search className="size-4" aria-hidden="true" />
               )}
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(entityLimit)}
-            onValueChange={(value: string) =>
-              setEntityLimit(Number(value) as GraphEntityLimit)
-            }
-          >
-            <SelectTrigger className="w-full sm:w-32" aria-label="Maximum graph nodes">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ENTITY_LIMITS.map((limit) => (
-                <SelectItem key={limit} value={String(limit)}>
-                  {limit.toLocaleString()} nodes
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(maximumDepth)}
-            onValueChange={(value: string) => setMaximumDepth(Number(value))}
-          >
-            <SelectTrigger className="w-full sm:w-32" aria-label="Maximum graph depth">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MAXIMUM_DEPTHS.map((depth) => (
-                <SelectItem key={depth} value={String(depth)}>
-                  Depth {depth}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <InputGroup className="w-full shadow-none sm:w-72">
-            <InputGroupAddon>
-              <Search aria-hidden="true" />
-            </InputGroupAddon>
-            <InputGroupInput
-              value={queryDraft}
-              onChange={(event) => setQueryDraft(event.target.value)}
-              placeholder="Find an entity or relation"
-              aria-label="Find an entity or relation"
-            />
-          </InputGroup>
-          <Button type="submit" disabled={!selectedSpace?.id || graph.isFetching}>
-            {graph.isFetching ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Search className="size-4" aria-hidden="true" />
-            )}
-            Explore
-          </Button>
-        </form>
-      </header>
+              Explore
+            </Button>
+          </form>
+        }
+      />
 
       {spaces.isPending ? <GraphState label="Loading knowledge spaces" loading /> : null}
       {spaces.isError ? <GraphState label="Knowledge spaces could not be loaded" /> : null}
@@ -229,109 +225,112 @@ export function KnowledgeGraphPanel() {
         />
       ) : null}
       {displayedGraph && (displayedGraph.entities?.length ?? 0) === 0 ? (
-        <GraphState label={query ? "No graph entities match this query" : "No graph has been published yet"} />
+        <GraphState
+          label={query ? "No graph entities match this query" : "No graph has been published yet"}
+        />
       ) : null}
       {displayedGraph && (displayedGraph.entities?.length ?? 0) > 0 ? (
-        <section className="relative h-[min(72vh,52rem)] min-h-[32rem] overflow-hidden rounded-xl border bg-card">
-          <div className="absolute bottom-3 left-14 z-10 flex items-center gap-2">
-            <Badge variant="muted">
-              {(displayedGraph.entities?.length ?? 0).toLocaleString()} entities
-            </Badge>
-            <Badge variant="muted">
-              {(displayedGraph.relations?.length ?? 0).toLocaleString()} relations
-            </Badge>
-            {displayedGraph.truncated ? <Badge variant="warning">Limited view</Badge> : null}
-          </div>
-          <GraphCanvas
-            graph={displayedGraph}
-            selectedEntityId={selectedEntityId}
-            selectedRelationId={selectedRelationId}
-            selectedTypes={selectedTypes}
-            entityTypes={entityTypes}
-            onSelectedTypesChange={setSelectedTypes}
-            onSelectEntity={(entityId) => {
-              setSelectedEntityId(entityId)
-              if (entityId) setSelectedRelationId(null)
-            }}
-            onSelectRelation={(relationId) => {
-              setSelectedRelationId(relationId)
-              if (relationId) setSelectedEntityId(null)
-            }}
-            onRefresh={() => {
-              setExpandedViews([])
-              setHiddenEntityIds(new Set())
-              return graph.refetch()
-            }}
-          />
-          {showPropertyPanel && (selectedEntity || selectedRelation) ? (
-            <GraphPropertiesPanel
-              graph={displayedGraph}
-              selectedEntity={selectedEntity}
-              selectedRelation={selectedRelation}
-              onSelectEntity={(entityId) => {
-                setSelectedEntityId(entityId)
-                setSelectedRelationId(null)
-              }}
-              onClose={() => {
-                setSelectedEntityId(null)
-                setSelectedRelationId(null)
-              }}
-              onExpandEntity={async (entity) => {
-                if (!selectedSpace?.id || !entity.id || !entity.name) return
-                const expanded = await queryClient.fetchQuery(
-                  exploreKnowledgeGraphOptions({
-                    path: { knowledgeSpaceId: selectedSpace.id },
-                    query: {
-                      q: entity.name,
-                      entityLimit: Math.min(1_000, entityLimit),
-                      maxDepth: Math.max(2, maximumDepth),
-                    },
-                  }),
-                )
-                if (
-                  expanded.authorizationGeneration !==
-                  displayedGraph.authorizationGeneration
-                ) {
+        <PageLayout.Canvas aria-label="Knowledge graph explorer">
+          <SplitLayout.Root>
+            <SplitLayout.Main className="relative overflow-hidden">
+              <div className="absolute bottom-3 left-14 z-10 flex items-center gap-2">
+                <Badge variant="muted">
+                  {(displayedGraph.entities?.length ?? 0).toLocaleString()} entities
+                </Badge>
+                <Badge variant="muted">
+                  {(displayedGraph.relations?.length ?? 0).toLocaleString()} relations
+                </Badge>
+                {displayedGraph.truncated ? <Badge variant="warning">Limited view</Badge> : null}
+              </div>
+              <GraphCanvas
+                graph={displayedGraph}
+                selectedEntityId={selectedEntityId}
+                selectedRelationId={selectedRelationId}
+                selectedTypes={selectedTypes}
+                entityTypes={entityTypes}
+                onSelectedTypesChange={setSelectedTypes}
+                onSelectEntity={(entityId) => {
+                  setSelectedEntityId(entityId)
+                  if (entityId) setSelectedRelationId(null)
+                }}
+                onSelectRelation={(relationId) => {
+                  setSelectedRelationId(relationId)
+                  if (relationId) setSelectedEntityId(null)
+                }}
+                onRefresh={() => {
                   setExpandedViews([])
                   setHiddenEntityIds(new Set())
-                  await graph.refetch()
-                  toast.info("Permissions changed; the graph view was refreshed")
-                  return
-                }
-                const currentIds = new Set(
-                  displayedGraph.entities?.map((candidate) => candidate.id) ?? [],
-                )
-                const added = (expanded.entities ?? []).filter(
-                  (candidate) => candidate.id && !currentIds.has(candidate.id),
-                ).length
-                if (added === 0) {
-                  toast.info("No new visible neighbors")
-                  return
-                }
-                setExpandedViews((current) => [...current, expanded])
-                toast.success(`${added} visible ${added === 1 ? "neighbor" : "neighbors"} added`)
-              }}
-              onHideEntity={(entityId) => {
-                const entitiesToHide = prunableEntityIds(displayedGraph, entityId)
-                if (entitiesToHide.size >= (displayedGraph.entities?.length ?? 0)) {
-                  toast.error("At least one visible entity must remain")
-                  return
-                }
-                setHiddenEntityIds((current) => new Set([...current, ...entitiesToHide]))
-                setSelectedEntityId(null)
-                setSelectedRelationId(null)
-                if (entitiesToHide.size > 1) {
-                  toast.info(`${entitiesToHide.size} entities hidden from this view`)
-                }
-              }}
-              onChanged={async () => {
-                setExpandedViews([])
-                setHiddenEntityIds(new Set())
-                return graph.refetch()
-              }}
-            />
-          ) : null}
-        </section>
+                  return graph.refetch()
+                }}
+              />
+            </SplitLayout.Main>
+            {showPropertyPanel && (selectedEntity || selectedRelation) ? (
+              <GraphPropertiesPanel
+                graph={displayedGraph}
+                selectedEntity={selectedEntity}
+                selectedRelation={selectedRelation}
+                onSelectEntity={(entityId) => {
+                  setSelectedEntityId(entityId)
+                  setSelectedRelationId(null)
+                }}
+                onClose={() => {
+                  setSelectedEntityId(null)
+                  setSelectedRelationId(null)
+                }}
+                onExpandEntity={async (entity) => {
+                  if (!selectedSpace?.id || !entity.id || !entity.name) return
+                  const expanded = await queryClient.fetchQuery(
+                    exploreKnowledgeGraphOptions({
+                      path: { knowledgeSpaceId: selectedSpace.id },
+                      query: {
+                        q: entity.name,
+                        entityLimit: Math.min(1_000, entityLimit),
+                        maxDepth: Math.max(2, maximumDepth),
+                      },
+                    }),
+                  )
+                  if (expanded.authorizationGeneration !== displayedGraph.authorizationGeneration) {
+                    setExpandedViews([])
+                    setHiddenEntityIds(new Set())
+                    await graph.refetch()
+                    toast.info("Permissions changed; the graph view was refreshed")
+                    return
+                  }
+                  const currentIds = new Set(
+                    displayedGraph.entities?.map((candidate) => candidate.id) ?? [],
+                  )
+                  const added = (expanded.entities ?? []).filter(
+                    (candidate) => candidate.id && !currentIds.has(candidate.id),
+                  ).length
+                  if (added === 0) {
+                    toast.info("No new visible neighbors")
+                    return
+                  }
+                  setExpandedViews((current) => [...current, expanded])
+                  toast.success(`${added} visible ${added === 1 ? "neighbor" : "neighbors"} added`)
+                }}
+                onHideEntity={(entityId) => {
+                  const entitiesToHide = prunableEntityIds(displayedGraph, entityId)
+                  if (entitiesToHide.size >= (displayedGraph.entities?.length ?? 0)) {
+                    toast.error("At least one visible entity must remain")
+                    return
+                  }
+                  setHiddenEntityIds((current) => new Set([...current, ...entitiesToHide]))
+                  setSelectedEntityId(null)
+                  setSelectedRelationId(null)
+                  if (entitiesToHide.size > 1) {
+                    toast.info(`${entitiesToHide.size} entities hidden from this view`)
+                  }
+                }}
+                onChanged={async () => {
+                  setExpandedViews([])
+                  setHiddenEntityIds(new Set())
+                  return graph.refetch()
+                }}
+              />
+            ) : null}
+          </SplitLayout.Root>
+        </PageLayout.Canvas>
       ) : null}
     </div>
   )
@@ -489,8 +488,8 @@ function LoadGraph({ graph: view }: { graph: KnowledgeGraphView }) {
 
   useEffect(() => {
     const graph = new MultiDirectedGraph()
-    const entities = (view.entities ?? []).filter(
-      (entity): entity is Entity & { id: string } => Boolean(entity.id),
+    const entities = (view.entities ?? []).filter((entity): entity is Entity & { id: string } =>
+      Boolean(entity.id),
     )
     entities.forEach((entity) => {
       if (graph.hasNode(entity.id)) return
@@ -544,11 +543,9 @@ function stableNodePosition(id: string): { x: number; y: number } {
   }
 
   xHash =
-    Math.imul(xHash ^ (xHash >>> 16), 2246822507) ^
-    Math.imul(yHash ^ (yHash >>> 13), 3266489909)
+    Math.imul(xHash ^ (xHash >>> 16), 2246822507) ^ Math.imul(yHash ^ (yHash >>> 13), 3266489909)
   yHash =
-    Math.imul(yHash ^ (yHash >>> 16), 2246822507) ^
-    Math.imul(xHash ^ (xHash >>> 13), 3266489909)
+    Math.imul(yHash ^ (yHash >>> 16), 2246822507) ^ Math.imul(xHash ^ (xHash >>> 13), 3266489909)
 
   return {
     x: (xHash >>> 0) / 4294967296,
@@ -722,7 +719,7 @@ function GraphState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="grid min-h-80 place-items-center rounded-xl border bg-card p-6 text-center">
+    <div className="grid min-h-80 flex-1 place-items-center rounded-xl border bg-card p-6 text-center">
       <div className="flex flex-col items-center gap-3">
         {loading ? (
           <LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />

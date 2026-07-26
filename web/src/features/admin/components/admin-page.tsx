@@ -1,6 +1,9 @@
 import { ListFilterPlus } from "lucide-react"
 import type { ReactNode } from "react"
 
+import { PageLayout } from "@/components/layouts/page-layout"
+import { ContentAction } from "@/components/patterns/content"
+import { EmptyState } from "@/components/patterns/empty-state"
 import { Card, CardContent } from "@/components/ui/card"
 
 /**
@@ -23,21 +26,10 @@ export function AdminPage({
   children: ReactNode
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              {icon ? <span className="grid size-7 shrink-0 place-items-center">{icon}</span> : null}
-              <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            </div>
-            {description ? <p className="max-w-2xl text-sm text-muted-foreground">{description}</p> : null}
-          </div>
-          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-        </header>
-        {children}
-      </div>
-    </div>
+    <PageLayout.Root variant="wide">
+      <PageLayout.Header title={title} description={description} icon={icon} actions={actions} />
+      {children}
+    </PageLayout.Root>
   )
 }
 
@@ -112,16 +104,13 @@ export function AdminSection({
 }) {
   return (
     <section className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
-            {icon ? <span className="grid size-4 shrink-0 place-items-center">{icon}</span> : null}
-            {title}
-          </h2>
-          {description ? <p className="max-w-2xl text-sm text-muted-foreground">{description}</p> : null}
-        </div>
-        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-      </div>
+      <ContentAction
+        title={title}
+        description={description}
+        icon={icon}
+        size="section"
+        action={actions}
+      />
       <Card className="overflow-hidden py-0">
         {toolbar ? (
           <div className="flex flex-wrap items-center gap-2 border-b border-border-subtle p-3">
@@ -130,9 +119,7 @@ export function AdminSection({
         ) : null}
         <div className="overflow-x-auto">{children}</div>
         {footer ? (
-          <div className="flex items-center border-t border-border-subtle px-3 py-2">
-            {footer}
-          </div>
+          <div className="flex items-center border-t border-border-subtle px-3 py-2">{footer}</div>
         ) : null}
       </Card>
     </section>
@@ -140,12 +127,5 @@ export function AdminSection({
 }
 
 export function AdminEmpty({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="grid min-h-52 place-items-center px-6 text-center">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="max-w-md text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  )
+  return <EmptyState className="min-h-52" title={title} description={description} />
 }

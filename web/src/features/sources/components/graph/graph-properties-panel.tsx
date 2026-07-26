@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
+import { SplitLayout } from "@/components/layouts/split-layout"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,14 +82,14 @@ export function GraphPropertiesPanel({
   if (!selectedEntity && !selectedRelation) return null
 
   return (
-    <aside className="absolute right-3 top-3 z-30 max-h-[calc(100%-1.5rem)] w-[min(23rem,calc(100%-1.5rem))] overflow-y-auto rounded-lg border bg-background/95 shadow-lg backdrop-blur">
+    <SplitLayout.Aside className="absolute right-3 top-3 z-(--z-detail-panel) max-h-[calc(100%-1.5rem)] w-[min(var(--detail-panel-width),calc(100%-1.5rem))] rounded-lg border border-border-default bg-background/95 shadow-lg backdrop-blur lg:relative lg:right-auto lg:top-auto lg:max-h-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:bg-surface-base lg:shadow-none lg:backdrop-blur-none">
       <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">
             {selectedEntity?.name ?? selectedRelation?.type ?? "Graph property"}
           </p>
           <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-            {selectedEntity ? selectedEntity.type ?? "Entity" : "Relation"}
+            {selectedEntity ? (selectedEntity.type ?? "Entity") : "Relation"}
           </p>
         </div>
         <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close properties">
@@ -118,7 +119,7 @@ export function GraphPropertiesPanel({
           />
         ) : null}
       </div>
-    </aside>
+    </SplitLayout.Aside>
   )
 }
 
@@ -140,8 +141,7 @@ function EntityProperties({
   onChanged: () => Promise<unknown>
 }) {
   const relations = (graph.relations ?? []).filter(
-    (relation) =>
-      relation.sourceEntityId === entity.id || relation.targetEntityId === entity.id,
+    (relation) => relation.sourceEntityId === entity.id || relation.targetEntityId === entity.id,
   )
   return (
     <>
@@ -194,9 +194,7 @@ function EntityProperties({
               >
                 <Link2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">
-                    {relation.type ?? "Related"}
-                  </span>
+                  <span className="block text-sm font-medium">{relation.type ?? "Related"}</span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {other?.name ?? "Visible entity"}
                   </span>
@@ -345,13 +343,7 @@ function EditIdentityDialog({
   const validWeight = !relation || (Number.isFinite(parsedWeight) && parsedWeight > 0)
 
   async function submit() {
-    if (
-      !graph.knowledgeSpaceId ||
-      !identity.id ||
-      !reason.trim() ||
-      !type.trim() ||
-      !validWeight
-    ) {
+    if (!graph.knowledgeSpaceId || !identity.id || !reason.trim() || !type.trim() || !validWeight) {
       return
     }
     try {
@@ -595,7 +587,8 @@ function SuppressIdentityDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Suppress this graph identity?</AlertDialogTitle>
           <AlertDialogDescription>
-            It disappears from the effective graph, while source evidence and the audit trail remain.
+            It disappears from the effective graph, while source evidence and the audit trail
+            remain.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid gap-2">

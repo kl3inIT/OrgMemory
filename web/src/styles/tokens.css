@@ -2,11 +2,9 @@
   color-scheme: light;
 
   --font-interface:
-    "Hanken Grotesk Variable", "Segoe UI Variable", "Segoe UI", ui-sans-serif,
-    system-ui, sans-serif;
+    "Hanken Grotesk Variable", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   --font-metadata:
-    ui-monospace, "Cascadia Code", "SFMono-Regular", consolas, "Liberation Mono",
-    monospace;
+    ui-monospace, "Cascadia Code", "SFMono-Regular", consolas, "Liberation Mono", monospace;
 
   /* Primitive palette. Components consume semantic aliases below. */
   --neutral-00: oklch(1 0 0);
@@ -93,11 +91,21 @@
   --permission-denied-surface: var(--status-danger-surface);
 
   --elevation-1: 0 1px 2px oklch(0.16 0.01 260 / 0.05);
-  --elevation-2:
-    0 1px 2px oklch(0.16 0.01 260 / 0.06),
-    0 8px 24px oklch(0.16 0.01 260 / 0.07);
+  --elevation-2: 0 1px 2px oklch(0.16 0.01 260 / 0.06), 0 8px 24px oklch(0.16 0.01 260 / 0.07);
 
   --radius: 0.75rem;
+
+  /* Application layout. Feature pages consume these through shared layouts. */
+  --page-width-narrow: 42rem;
+  --page-width-standard: 56rem;
+  --page-width-wide: 80rem;
+  --page-gutter: 2rem;
+  --page-gutter-compact: 1rem;
+  --workspace-gutter: 1rem;
+  --detail-panel-width: 22rem;
+  --z-sticky-header: 20;
+  --z-detail-panel: 30;
+  --z-toast: 50;
 
   /* shadcn compatibility aliases. */
   --background: var(--surface-canvas);
@@ -200,9 +208,7 @@
   --permission-denied-surface: var(--status-danger-surface);
 
   --elevation-1: 0 1px 2px oklch(0 0 0 / 0.24);
-  --elevation-2:
-    0 1px 2px oklch(0 0 0 / 0.22),
-    0 12px 32px oklch(0 0 0 / 0.28);
+  --elevation-2: 0 1px 2px oklch(0 0 0 / 0.22), 0 12px 32px oklch(0 0 0 / 0.28);
 
   --chart-1: oklch(0.68 0.16 255);
   --chart-2: oklch(0.7 0.13 155);

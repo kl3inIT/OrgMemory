@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
 import {
-  ArrowLeft,
   CheckCircle2,
   CircleAlert,
   FlaskConical,
@@ -14,6 +12,7 @@ import {
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
+import { PageLayout } from "@/components/layouts/page-layout"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { formatAssetCoordinate, formatDate } from "@/features/assets/asset-format"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
+import { AssetBreadcrumb } from "@/features/assets/components/asset-breadcrumb"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
 import {
   decideAssetReviewMutation,
@@ -64,58 +64,61 @@ export function GovernanceWorkspacePage({
 
   if (asset.isPending) return <AssetPageLoading />
   if (asset.isError || !asset.data?.id) {
-    return <AssetPageError title="Governance workspace is unavailable" onRetry={() => void asset.refetch()} />
+    return (
+      <AssetPageError
+        title="Governance workspace is unavailable"
+        onRetry={() => void asset.refetch()}
+      />
+    )
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-        <header className="border-b border-border-default pb-6">
-          <Link
-            to="/assets/$assetId"
-            params={{ assetId }}
-            search={{}}
-            className="inline-flex items-center gap-2 text-supporting text-content-secondary"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Back to Asset
-          </Link>
-          <div className="mt-5 flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{asset.data.type}</Badge>
-                <Badge variant="outline">{asset.data.portfolioState}</Badge>
-              </div>
-              <h1 className="mt-3 text-page-title">Governance workspace</h1>
-              <p className="mt-2 font-mono text-metadata text-content-muted">
-                {formatAssetCoordinate(asset.data)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle px-4 py-3 text-supporting">
-              <ShieldCheck className="size-4 text-status-success-content" aria-hidden="true" />
-              Exact digest review
-            </div>
+    <PageLayout.Root variant="wide">
+      <PageLayout.Header
+        title="Governance workspace"
+        description={
+          <span className="font-mono text-metadata">{formatAssetCoordinate(asset.data)}</span>
+        }
+        breadcrumb={
+          <AssetBreadcrumb
+            assetId={assetId}
+            assetTitle={asset.data.draft?.title}
+            current="Governance"
+          />
+        }
+        metadata={
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{asset.data.type}</Badge>
+            <Badge variant="outline">{asset.data.portfolioState}</Badge>
           </div>
-        </header>
+        }
+        actions={
+          <div className="flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle px-4 py-3 text-supporting">
+            <ShieldCheck className="size-4 text-status-success-content" aria-hidden="true" />
+            Exact digest review
+          </div>
+        }
+      />
 
-        <Tabs defaultValue="changes" className="gap-6">
+      <Tabs defaultValue="changes" className="gap-6">
+        <PageLayout.Tabs>
           <TabsList aria-label="Governance sections">
             <TabsTrigger value="changes">Changes</TabsTrigger>
             <TabsTrigger value="review">Review</TabsTrigger>
             <TabsTrigger value="releases">Releases</TabsTrigger>
           </TabsList>
-          <TabsContent value="changes">
-            <RevisionDiff asset={asset.data} />
-          </TabsContent>
-          <TabsContent value="review">
-            <ReviewWorkspace asset={asset.data} onChanged={refresh} />
-          </TabsContent>
-          <TabsContent value="releases">
-            <ReleaseHistory asset={asset.data} onChanged={refresh} />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+        </PageLayout.Tabs>
+        <TabsContent value="changes">
+          <RevisionDiff asset={asset.data} />
+        </TabsContent>
+        <TabsContent value="review">
+          <ReviewWorkspace asset={asset.data} onChanged={refresh} />
+        </TabsContent>
+        <TabsContent value="releases">
+          <ReleaseHistory asset={asset.data} onChanged={refresh} />
+        </TabsContent>
+      </Tabs>
+    </PageLayout.Root>
   )
 }
 
@@ -138,8 +141,18 @@ function RevisionDiff({ asset }: { asset: AssetView }) {
           <CardTitle>Compare revisions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <RevisionSelect label="Before" revisions={revisions} value={leftId} onChange={setLeftId} />
-          <RevisionSelect label="After" revisions={revisions} value={rightId} onChange={setRightId} />
+          <RevisionSelect
+            label="Before"
+            revisions={revisions}
+            value={leftId}
+            onChange={setLeftId}
+          />
+          <RevisionSelect
+            label="After"
+            revisions={revisions}
+            value={rightId}
+            onChange={setRightId}
+          />
           <div className="rounded-lg bg-surface-subtle p-4">
             <p className="text-metadata text-content-muted">Digest-bound review</p>
             <p className="mt-2 font-mono text-metadata">{right?.digest?.slice(0, 20) ?? "—"}</p>
@@ -519,7 +532,9 @@ function DecisionDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Confirm {label.toLocaleLowerCase()}</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>
+            Confirm {label.toLocaleLowerCase()}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

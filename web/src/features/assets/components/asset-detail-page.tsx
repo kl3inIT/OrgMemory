@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
-  ArrowLeft,
   ArrowRight,
   Braces,
   Check,
@@ -14,6 +13,7 @@ import {
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { PageLayout } from "@/components/layouts/page-layout"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -31,7 +31,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
@@ -43,6 +49,7 @@ import {
   parsePayload,
 } from "@/features/assets/asset-format"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
+import { AssetBreadcrumb } from "@/features/assets/components/asset-breadcrumb"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
 import { AssistantActionReceipt } from "@/features/assistant/components/assistant-action-receipt"
 import {
@@ -127,32 +134,30 @@ export function AssetDetailPage({
     latestUsableRelease(asset.data)
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-8">
-        <AssetIdentityHeader
-          asset={asset.data}
-          release={selected}
-          onReleaseChange={onReleaseChange}
-        />
-        {selected ? (
-          <ProfilePanel asset={asset.data} release={selected} />
-        ) : (
-          <Card className="border-dashed">
-            <CardContent className="p-8">
-              <h2 className="text-section-title">No usable release yet</h2>
-              <p className="mt-2 text-body text-content-secondary">
-                This Asset is visible for authoring, but it has no release available for use.
-              </p>
-              <Button asChild variant="outline" className="mt-5">
-                <Link to="/assets/$assetId/governance" params={{ assetId }}>
-                  Open governance workspace
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+    <PageLayout.Root variant="wide">
+      <AssetIdentityHeader
+        asset={asset.data}
+        release={selected}
+        onReleaseChange={onReleaseChange}
+      />
+      {selected ? (
+        <ProfilePanel asset={asset.data} release={selected} />
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="p-8">
+            <h2 className="text-section-title">No usable release yet</h2>
+            <p className="mt-2 text-body text-content-secondary">
+              This Asset is visible for authoring, but it has no release available for use.
+            </p>
+            <Button asChild variant="outline" className="mt-5">
+              <Link to="/assets/$assetId/governance" params={{ assetId }}>
+                Open governance workspace
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </PageLayout.Root>
   )
 }
 
@@ -173,90 +178,78 @@ function AssetIdentityHeader({
   const owner = activeAssignments.find((assignment) => assignment.role === "OWNER")
   const backupOwner = activeAssignments.find((assignment) => assignment.role === "BACKUP_OWNER")
   return (
-    <header className="overflow-hidden rounded-2xl border border-border-default bg-surface-raised shadow-sm">
-      <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[1fr_auto] lg:items-start">
-        <div className="min-w-0">
-          <Link
-            to="/assets"
-            className="mb-5 inline-flex items-center gap-2 text-supporting text-content-secondary hover:text-content-primary"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            For your role
-          </Link>
-          <div className="flex items-start gap-4">
-            <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${meta.tone}`}>
-              <Icon className="size-5" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className={meta.tone}>{meta.label}</Badge>
-                <Badge variant="outline">{asset.portfolioState}</Badge>
-                {asset.ownershipHealth?.orphaned ? (
-                  <Badge className="bg-status-danger-surface text-status-danger-content">
-                    Orphaned
-                  </Badge>
-                ) : asset.ownershipHealth?.continuityAtRisk ? (
-                  <Badge className="bg-status-warning-surface text-status-warning-content">
-                    Ownership gap
-                  </Badge>
-                ) : null}
-                {release?.availability === "DEPRECATED" ? (
-                  <Badge className="bg-status-warning-surface text-status-warning-content">
-                    Deprecated
-                  </Badge>
-                ) : null}
-              </div>
-              <h1 className="mt-3 text-page-title text-content-primary">
-                {release?.title ?? asset.draft?.title}
-              </h1>
-              <p className="mt-2 max-w-3xl text-body text-content-secondary">
-                {release?.summary ?? asset.draft?.summary}
-              </p>
-              <p className="mt-3 font-mono text-metadata text-content-muted">
-                {formatAssetCoordinate(asset)}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-metadata text-content-secondary">
-                <span>Owner: {owner?.principalId ?? "Unassigned"}</span>
-                <span aria-hidden="true">·</span>
-                <span>Backup: {backupOwner?.principalId ?? "Missing"}</span>
-              </div>
-            </div>
+    <>
+      <PageLayout.Header
+        title={release?.title ?? asset.draft?.title}
+        description={release?.summary ?? asset.draft?.summary}
+        icon={<Icon className="size-5" aria-hidden="true" />}
+        breadcrumb={
+          <AssetBreadcrumb assetId={asset.id} assetTitle={release?.title ?? asset.draft?.title} />
+        }
+        metadata={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={meta.tone}>{meta.label}</Badge>
+            <Badge variant="outline">{asset.portfolioState}</Badge>
+            {asset.ownershipHealth?.orphaned ? (
+              <Badge className="bg-status-danger-surface text-status-danger-content">
+                Orphaned
+              </Badge>
+            ) : asset.ownershipHealth?.continuityAtRisk ? (
+              <Badge className="bg-status-warning-surface text-status-warning-content">
+                Ownership gap
+              </Badge>
+            ) : null}
+            {release?.availability === "DEPRECATED" ? (
+              <Badge className="bg-status-warning-surface text-status-warning-content">
+                Deprecated
+              </Badge>
+            ) : null}
           </div>
+        }
+        actions={
+          <div className="grid min-w-64 gap-2">
+            <Label htmlFor="asset-release">Pinned release</Label>
+            <Select
+              value={release?.id}
+              onValueChange={(value: string) => onReleaseChange(value)}
+              disabled={!asset.releases?.length}
+            >
+              <SelectTrigger id="asset-release" className="w-full">
+                <SelectValue placeholder="No release" />
+              </SelectTrigger>
+              <SelectContent>
+                {asset.releases?.map((item) => (
+                  <SelectItem key={item.id} value={item.id!}>
+                    {item.versionLabel} · {item.availability}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button asChild variant="outline">
+              <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
+                <History aria-hidden="true" />
+                Governance
+              </Link>
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-wrap gap-2 text-metadata text-content-secondary">
+          <span className="font-mono">{formatAssetCoordinate(asset)}</span>
+          <span aria-hidden="true">·</span>
+          <span>Owner: {owner?.principalId ?? "Unassigned"}</span>
+          <span aria-hidden="true">·</span>
+          <span>Backup: {backupOwner?.principalId ?? "Missing"}</span>
         </div>
-        <div className="grid min-w-64 gap-3">
-          <Label htmlFor="asset-release">Pinned release</Label>
-          <Select
-            value={release?.id}
-            onValueChange={(value: string) => onReleaseChange(value)}
-            disabled={!asset.releases?.length}
-          >
-            <SelectTrigger id="asset-release" className="w-full">
-              <SelectValue placeholder="No release" />
-            </SelectTrigger>
-            <SelectContent>
-              {asset.releases?.map((item) => (
-                <SelectItem key={item.id} value={item.id!}>
-                  {item.versionLabel} · {item.availability}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button asChild variant="outline">
-            <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
-              <History aria-hidden="true" />
-              Governance
-            </Link>
-          </Button>
-        </div>
-      </div>
+      </PageLayout.Header>
       {release ? (
-        <div className="grid gap-px border-t border-border-subtle bg-border-subtle sm:grid-cols-3">
+        <div className="grid overflow-hidden rounded-xl border border-border-subtle bg-border-subtle sm:grid-cols-3 sm:gap-px">
           <Metadata label="Version" value={release.versionLabel} />
           <Metadata label="Released" value={formatDate(release.releasedAt)} />
           <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
         </div>
       ) : null}
-    </header>
+    </>
   )
 }
 
@@ -272,7 +265,9 @@ function Metadata({
   return (
     <div className="bg-surface-subtle px-5 py-3">
       <p className="text-metadata text-content-muted">{label}</p>
-      <p className={`mt-1 truncate text-supporting text-content-primary ${mono ? "font-mono" : ""}`}>
+      <p
+        className={`mt-1 truncate text-supporting text-content-primary ${mono ? "font-mono" : ""}`}
+      >
         {value ?? "—"}
       </p>
     </div>
@@ -313,9 +308,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>Use this prompt</CardTitle>
-              <p className="mt-1 text-supporting text-content-secondary">
-                {payload.objective}
-              </p>
+              <p className="mt-1 text-supporting text-content-secondary">{payload.objective}</p>
             </div>
             <Braces className="size-5 text-content-muted" aria-hidden="true" />
           </div>
@@ -389,10 +382,7 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
                     label="Grounding"
                     value={knowledgeQuery ? "Permission-aware Knowledge search" : "Not requested"}
                   />
-                  <Definition
-                    label="Release digest"
-                    value={release.digest?.slice(0, 20)}
-                  />
+                  <Definition label="Release digest" value={release.digest?.slice(0, 20)} />
                 </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -466,7 +456,10 @@ function PromptPanel({ assetId, release }: { assetId: string; release: Release }
               label="Grounding"
               value={(payload.knowledgeRequirements ?? []).join(" · ") || "Not required"}
             />
-            <Definition label="Known limitations" value={payload.knownLimitations || "None stated"} />
+            <Definition
+              label="Known limitations"
+              value={payload.knownLimitations || "None stated"}
+            />
           </CardContent>
         </Card>
         {result ? (
@@ -548,10 +541,16 @@ function PromptVariableField({
         value={String(value ?? "")}
         onChange={(event) => {
           const raw = event.currentTarget.value
-          if (variable.type === "INTEGER") onChange(raw === "" ? undefined : Number.parseInt(raw, 10))
+          if (variable.type === "INTEGER")
+            onChange(raw === "" ? undefined : Number.parseInt(raw, 10))
           else if (variable.type === "NUMBER") onChange(raw === "" ? undefined : Number(raw))
           else if (variable.type === "STRING_LIST") {
-            onChange(raw.split(",").map((item) => item.trim()).filter(Boolean))
+            onChange(
+              raw
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean),
+            )
           } else onChange(raw)
         }}
       />
@@ -688,10 +687,7 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
         <CardTitle>Release feedback</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Select
-          value={type}
-          onValueChange={(value: string) => setType(value as typeof type)}
-        >
+        <Select value={type} onValueChange={(value: string) => setType(value as typeof type)}>
           <SelectTrigger aria-label="Feedback type">
             <SelectValue />
           </SelectTrigger>
@@ -739,7 +735,9 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
 function Definition({ label, value }: { label: string; value?: string }) {
   return (
     <div>
-      <dt className="text-metadata font-medium uppercase tracking-wide text-content-muted">{label}</dt>
+      <dt className="text-metadata font-medium uppercase tracking-wide text-content-muted">
+        {label}
+      </dt>
       <dd className="mt-1 text-body text-content-primary">{value || "—"}</dd>
     </div>
   )
