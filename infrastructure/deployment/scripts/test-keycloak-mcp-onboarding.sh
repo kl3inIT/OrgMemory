@@ -7,6 +7,7 @@ container="orgmemory-keycloak-mcp-test-${run_id}"
 image="orgmemory-keycloak-mcp-test:${run_id}"
 tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-keycloak-mcp-test.XXXXXX")"
+container_kcadm_config="/tmp/orgmemory-mcp-test-${run_id}.config"
 
 cleanup() {
   if [[ "$(docker inspect "$container" --format '{{.Name}}' 2>/dev/null || true)" == "/$container" ]]; then
@@ -68,9 +69,47 @@ fi
 ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
 ORGMEMORY_KEYCLOAK_REALM=orgmemory \
   "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
+MSYS_NO_PATHCONV=1 docker exec "$container" sh -ec \
+  '/opt/keycloak/bin/kcadm.sh config credentials \
+    --config "$1" \
+    --server http://127.0.0.1:8080 \
+    --realm master \
+    --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
+    --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null' \
+  sh "$container_kcadm_config"
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get client-scopes \
+  -r orgmemory \
+  -q name=basic \
+  --config "$container_kcadm_config" >"$tmp_dir/basic-scope.json"
+basic_scope_id="$(
+  python3 -c \
+    'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[0]["id"])' \
+    "$tmp_dir/basic-scope.json"
+)"
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh update "client-scopes/$basic_scope_id" \
+  -r orgmemory \
+  -s description=drifted \
+  --config "$container_kcadm_config" >/dev/null
 ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
 ORGMEMORY_KEYCLOAK_REALM=orgmemory \
   "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get "client-scopes/$basic_scope_id" \
+  -r orgmemory \
+  --config "$container_kcadm_config" >"$tmp_dir/basic-scope.json"
+python3 - "$tmp_dir/basic-scope.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    scope = json.load(stream)
+expected_description = (
+    "OpenID Connect scope for basic subject and authentication-time claims"
+)
+assert scope["description"] == expected_description, scope
+PY
 
 curl --fail --silent --show-error "$metadata_url" >"$tmp_dir/metadata.json"
 python3 - "$tmp_dir/metadata.json" <<'PY'
@@ -107,18 +146,11 @@ client_id="$(
     'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["client_id"])' \
     "$tmp_dir/registration.json"
 )"
-MSYS_NO_PATHCONV=1 docker exec "$container" sh -ec \
-  '/opt/keycloak/bin/kcadm.sh config credentials \
-    --config /tmp/orgmemory-mcp-test.config \
-    --server http://127.0.0.1:8080 \
-    --realm master \
-    --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
-    --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null'
 MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get clients \
   -r orgmemory \
   -q "clientId=$client_id" \
-  --config /tmp/orgmemory-mcp-test.config >"$tmp_dir/client.json"
+  --config "$container_kcadm_config" >"$tmp_dir/client.json"
 python3 - "$tmp_dir/client.json" <<'PY'
 import json
 import sys

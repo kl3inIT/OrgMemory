@@ -11,8 +11,6 @@
             "only-allow-confidential-client": false,
             "cimd-allow-permitted-domains": [
               "claude.ai",
-              "localhost",
-              "127.0.0.1",
               "vscode.dev",
               "code.visualstudio.com"
             ],

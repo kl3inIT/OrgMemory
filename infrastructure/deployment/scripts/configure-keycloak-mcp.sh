@@ -65,9 +65,41 @@ kcadm get client-scopes \
   --format csv \
   --noquotes \
   | tr -d '\r' >"$client_scopes_csv"
-if ! awk -F, '$2 == "basic" { found = 1 } END { exit !found }' \
-  "$client_scopes_csv"; then
+basic_scope_id="$(
+  awk -F, '$2 == "basic" { print $1; exit }' "$client_scopes_csv"
+)"
+if [[ -z "$basic_scope_id" ]]; then
   kcadm create client-scopes -r "$realm" -f - <"$basic_scope_source" >/dev/null
+else
+  basic_scope_current="$tmp_dir/basic-scope-current.json"
+  basic_scope_synced="$tmp_dir/basic-scope-synced.json"
+  kcadm get "client-scopes/$basic_scope_id" \
+    -r "$realm" >"$basic_scope_current"
+  python3 \
+    - "$basic_scope_current" "$basic_scope_source" >"$basic_scope_synced" <<'PY'
+import json
+import sys
+
+current_path, desired_path = sys.argv[1:]
+with open(current_path, encoding="utf-8") as stream:
+    current = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    desired = json.load(stream)
+
+desired["id"] = current["id"]
+current_mapper_ids = {
+    mapper.get("name"): mapper.get("id")
+    for mapper in current.get("protocolMappers", [])
+}
+for mapper in desired.get("protocolMappers", []):
+    mapper_id = current_mapper_ids.get(mapper.get("name"))
+    if mapper_id:
+        mapper["id"] = mapper_id
+json.dump(desired, sys.stdout)
+PY
+  kcadm update "client-scopes/$basic_scope_id" \
+    -r "$realm" \
+    -f - <"$basic_scope_synced"
 fi
 
 merge_client_policy_document() {
@@ -135,27 +167,31 @@ for provider_id in "${registration_providers[@]}"; do
     exit 1
   fi
 
-  case "$provider_id" in
-    trusted-hosts)
-      kcadm update "components/$component_id" -r "$realm" \
-        -s 'config."host-sending-registration-request-must-match"=["false"]' \
-        -s 'config."trusted-hosts"=["localhost","127.0.0.1","claude.ai","claude.com","vscode.dev"]' \
-        -s 'config."client-uris-must-match"=["true"]'
-      ;;
-    allowed-client-templates)
-      kcadm update "components/$component_id" -r "$realm" \
-        -s 'config."allow-default-scopes"=["true"]' \
-        -s 'config."allowed-client-scopes"=["basic","assets:read"]'
-      ;;
-    max-clients)
-      kcadm update "components/$component_id" -r "$realm" \
-        -s 'config."max-clients"=["50"]'
-      ;;
-    *)
-      printf 'Unsupported MCP registration policy: %s\n' "$provider_id" >&2
-      exit 1
-      ;;
-  esac
+  mapfile -t policy_settings < <(
+    python3 - "$registration_policy_source" "$provider_id" <<'PY'
+import json
+import sys
+
+policy_path, provider_id = sys.argv[1:]
+with open(policy_path, encoding="utf-8") as stream:
+    policies = json.load(stream)
+if provider_id not in policies:
+    raise SystemExit(f"Unsupported MCP registration policy: {provider_id}")
+for key, values in policies[provider_id].items():
+    print(f'config."{key}"={json.dumps(values, separators=(",", ":"))}')
+PY
+  )
+  if [[ "${#policy_settings[@]}" -eq 0 ]]; then
+    printf 'MCP registration policy has no settings: %s\n' "$provider_id" >&2
+    exit 1
+  fi
+  policy_set_args=()
+  for setting in "${policy_settings[@]}"; do
+    policy_set_args+=(-s "$setting")
+  done
+  kcadm update "components/$component_id" \
+    -r "$realm" \
+    "${policy_set_args[@]}"
 
   component_path="$tmp_dir/component-${provider_id}.json"
   kcadm get "components/$component_id" -r "$realm" >"$component_path"

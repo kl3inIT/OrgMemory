@@ -8,6 +8,15 @@
   "expectedOutcome": "The agent can classify, ground, draft, verify, and record a correct first ticket",
   "items": [
     {
+      "key": "knowledge",
+      "required": true,
+      "kind": "KNOWLEDGE_VERSION",
+      "assetId": null,
+      "releaseId": null,
+      "knowledgeAssetId": "${KNOWLEDGE_ASSET_ID}",
+      "knowledgeVersionId": "${KNOWLEDGE_VERSION_ID}"
+    },
+    {
       "key": "instruction",
       "required": true,
       "kind": "REGISTRY_RELEASE",
@@ -27,7 +36,7 @@
     }
   ],
   "completionCriteria": [
-    "Both required released items are complete",
+    "All three required exact-pinned items are complete",
     "One mock ticket passes support.triage-quality@1",
     "The execution trace pins the Prompt release and grounding citation"
   ],

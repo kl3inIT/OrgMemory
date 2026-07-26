@@ -14,6 +14,8 @@ const INSTRUCTION_ID = "a2000000-0000-0000-0000-000000000001"
 const INSTRUCTION_RELEASE_ID = "a2000000-0000-0000-0000-000000000002"
 const PROMPT_ID = "a3000000-0000-0000-0000-000000000001"
 const PROMPT_RELEASE_ID = "a3000000-0000-0000-0000-000000000002"
+const KNOWLEDGE_ID = "90000000-0000-0000-0000-000000000002"
+const KNOWLEDGE_VERSION_ID = "90000000-0000-0000-0000-000000000007"
 
 test("two users prove governed release and second-user Pack completion", async ({
   browser,
@@ -52,11 +54,13 @@ test("two users prove governed release and second-user Pack completion", async (
   await supportPage.getByRole("link", { name: "Start or resume journey" }).click()
 
   await expect(supportPage.getByRole("heading", { name: "L1 Customer Support Capability Onboarding" })).toBeVisible()
-  await expect(supportPage.getByText("0%")).toBeVisible()
+  await expect(supportPage.getByText("0%", { exact: true })).toBeVisible()
+  await supportPage.getByRole("button", { name: "Mark complete: Support SLA and escalation" }).click()
+  await expect(supportPage.getByText("33%", { exact: true })).toBeVisible()
   await supportPage.getByRole("button", { name: "Mark complete: Classify and respond" }).click()
-  await expect(supportPage.getByText("50%")).toBeVisible()
+  await expect(supportPage.getByText("67%", { exact: true })).toBeVisible()
   await supportPage.getByRole("button", { name: "Mark complete: Triage customer ticket" }).click()
-  await expect(supportPage.getByText("100%")).toBeVisible()
+  await expect(supportPage.getByText("100%", { exact: true })).toBeVisible()
   await expect(supportPage.getByText("COMPLETED", { exact: true })).toBeVisible()
 
   expect(supportHarness.unexpectedRequests).toEqual([])
@@ -64,7 +68,7 @@ test("two users prove governed release and second-user Pack completion", async (
   expect(supportHarness.requests).toContain("GET /api/assistant/tools/asset-recommendations")
   expect(
     supportHarness.requests.filter((request) => request.startsWith("PUT /api/assets/")),
-  ).toHaveLength(2)
+  ).toHaveLength(3)
   await supportContext.close()
 })
 
@@ -177,6 +181,7 @@ function packAsset() {
     prerequisites: ["Active support account"],
     expectedOutcome: "Complete the first correct L1 support ticket",
     items: [
+      { key: "knowledge", required: true, kind: "KNOWLEDGE_VERSION" },
       { key: "instruction", required: true, kind: "REGISTRY_RELEASE" },
       { key: "prompt", required: true, kind: "REGISTRY_RELEASE" },
     ],
@@ -292,9 +297,21 @@ function roleAssignment(principalId: string, role: "OWNER" | "BACKUP_OWNER") {
 function packJourney(completed: Set<string>) {
   const items = [
     {
-      key: "instruction",
+      key: "knowledge",
       required: true,
       order: 1,
+      kind: "KNOWLEDGE",
+      resourceId: KNOWLEDGE_ID,
+      pinnedVersionId: KNOWLEDGE_VERSION_ID,
+      title: "Support SLA and escalation",
+      versionLabel: "1",
+      availability: "AVAILABLE",
+      completed: completed.has("knowledge"),
+    },
+    {
+      key: "instruction",
+      required: true,
+      order: 2,
       kind: "REGISTRY_RELEASE",
       resourceId: INSTRUCTION_ID,
       pinnedVersionId: INSTRUCTION_RELEASE_ID,
@@ -306,7 +323,7 @@ function packJourney(completed: Set<string>) {
     {
       key: "prompt",
       required: true,
-      order: 2,
+      order: 3,
       kind: "REGISTRY_RELEASE",
       resourceId: PROMPT_ID,
       pinnedVersionId: PROMPT_RELEASE_ID,

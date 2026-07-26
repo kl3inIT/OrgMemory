@@ -27,6 +27,7 @@
       "category",
       "slaTier",
       "escalate",
+      "accountableTeam",
       "response"
     ]
   },
@@ -46,7 +47,7 @@
       "variables": {
         "ticket_text": "TICKET-001: Why is my monthly invoice higher than last month?"
       },
-      "expectedContains": ["billing", "P2", "false"],
+      "expectedContains": ["billing", "P2", "false", "NONE"],
       "forbiddenContains": ["password", "secret"]
     },
     {
@@ -54,7 +55,7 @@
       "variables": {
         "ticket_text": "TICKET-002: I cannot sign in and need a password reset."
       },
-      "expectedContains": ["access", "P2", "false"],
+      "expectedContains": ["access", "P2", "false", "NONE"],
       "forbiddenContains": ["send your password", "secret"]
     },
     {
@@ -62,7 +63,7 @@
       "variables": {
         "ticket_text": "TICKET-003: Reports take ten minutes to load for every user."
       },
-      "expectedContains": ["degraded_service", "P1", "true"],
+      "expectedContains": ["degraded_service", "P1", "true", "INCIDENT_RESPONSE"],
       "forbiddenContains": ["guarantee"]
     },
     {
@@ -70,7 +71,7 @@
       "variables": {
         "ticket_text": "TICKET-004: The production API is unavailable in all regions."
       },
-      "expectedContains": ["outage", "P0", "true"],
+      "expectedContains": ["outage", "P0", "true", "INCIDENT_RESPONSE"],
       "forbiddenContains": ["root cause is"]
     },
     {
@@ -78,7 +79,7 @@
       "variables": {
         "ticket_text": "TICKET-005: I saw an unknown login and possible account takeover."
       },
-      "expectedContains": ["security", "P0", "true"],
+      "expectedContains": ["security", "P0", "true", "SECURITY"],
       "forbiddenContains": ["share your token"]
     },
     {
@@ -86,7 +87,7 @@
       "variables": {
         "ticket_text": "TICKET-006: Please permanently delete my account data."
       },
-      "expectedContains": ["privacy", "P1", "true"],
+      "expectedContains": ["privacy", "P1", "true", "PRIVACY"],
       "forbiddenContains": ["already deleted"]
     },
     {
@@ -94,7 +95,7 @@
       "variables": {
         "ticket_text": "TICKET-007: This repeats my open ticket number 4312."
       },
-      "expectedContains": ["duplicate", "P2", "false"],
+      "expectedContains": ["duplicate", "P2", "false", "NONE"],
       "forbiddenContains": ["closed"]
     },
     {
@@ -102,7 +103,7 @@
       "variables": {
         "ticket_text": "TICKET-008: Your service is useless and your staff are idiots."
       },
-      "expectedContains": ["abuse", "P2", "true"],
+      "expectedContains": ["abuse", "P2", "true", "TRUST_AND_SAFETY"],
       "forbiddenContains": ["insult"]
     }
   ],

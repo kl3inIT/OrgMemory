@@ -45,16 +45,18 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.KnowledgeCatalogItem;
+import com.orgmemory.core.knowledge.KnowledgeCatalogService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.permission.KnowledgeClassification;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -96,6 +98,10 @@ class AssetRegistryIntegrationTests {
             UUID.fromString("77777777-7777-7777-7777-777777777777");
     private static final UUID SPACE_ID =
             UUID.fromString("88888888-8888-4888-8888-888888888802");
+    private static final UUID GOLDEN_KNOWLEDGE_ASSET_ID =
+            UUID.fromString("90000000-0000-0000-0000-000000000002");
+    private static final UUID GOLDEN_KNOWLEDGE_VERSION_ID =
+            UUID.fromString("90000000-0000-0000-0000-000000000007");
     private static final String MODEL_ID = "asset-model-1";
     private static final AiRoute PROMPT_ROUTE =
             new AiRoute("test-gateway", "test-model");
@@ -164,6 +170,9 @@ class AssetRegistryIntegrationTests {
     PermissionAwareKnowledgeSearch knowledgeSearch;
 
     @MockitoBean
+    KnowledgeCatalogService knowledgeCatalog;
+
+    @MockitoBean
     ChatModelPort chat;
 
     @BeforeEach
@@ -182,6 +191,8 @@ class AssetRegistryIntegrationTests {
         when(knowledgeSearch.search(any(), any(), any(), any()))
                 .thenReturn(new SecureKnowledgeSearchResult(
                         "asset-registry-empty-grounding", List.of()));
+        when(knowledgeCatalog.findExactVisible(any(), any(), any()))
+                .thenReturn(Optional.empty());
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -860,7 +871,19 @@ class AssetRegistryIntegrationTests {
                 new TypeReference<>() {
                 });
         assertEquals(8, tickets.size());
-        assertTrue(tickets.stream().allMatch(MockTicket::rubricPass));
+        when(knowledgeCatalog.findExactVisible(
+                        any(),
+                        eq(GOLDEN_KNOWLEDGE_ASSET_ID),
+                        eq(GOLDEN_KNOWLEDGE_VERSION_ID)))
+                .thenReturn(Optional.of(new KnowledgeCatalogItem(
+                        GOLDEN_KNOWLEDGE_ASSET_ID,
+                        GOLDEN_KNOWLEDGE_VERSION_ID,
+                        1,
+                        SPACE_ID,
+                        "Support SLA and escalation",
+                        "en",
+                        KnowledgeClassification.INTERNAL,
+                        "b".repeat(64))));
 
         when(knowledgeSearch.search(any(), any(), any(), any()))
                 .thenAnswer(invocation -> new SecureKnowledgeSearchResult(
@@ -883,6 +906,7 @@ class AssetRegistryIntegrationTests {
                             "category", ticket.category(),
                             "slaTier", ticket.slaTier(),
                             "escalate", ticket.escalate(),
+                            "accountableTeam", ticket.accountableTeam(),
                             "response", "Use approved policy and cite support.sla-and-escalation@1")));
                 });
 
@@ -903,7 +927,13 @@ class AssetRegistryIntegrationTests {
                 .replace("${WORK_INSTRUCTION_ASSET_ID}", instruction.id().toString())
                 .replace("${WORK_INSTRUCTION_RELEASE_ID}", instructionRelease.id().toString())
                 .replace("${PROMPT_ASSET_ID}", prompt.id().toString())
-                .replace("${PROMPT_RELEASE_ID}", promptRelease.id().toString());
+                .replace("${PROMPT_RELEASE_ID}", promptRelease.id().toString())
+                .replace(
+                        "${KNOWLEDGE_ASSET_ID}",
+                        GOLDEN_KNOWLEDGE_ASSET_ID.toString())
+                .replace(
+                        "${KNOWLEDGE_VERSION_ID}",
+                        GOLDEN_KNOWLEDGE_VERSION_ID.toString());
         AssetView pack = createApprovedRelease(
                 AssetType.CAPABILITY_PACK,
                 "l1-onboarding",
@@ -983,10 +1013,47 @@ class AssetRegistryIntegrationTests {
                 "support SLA escalation",
                 "golden-poc-first-correct-task");
         assertTrue(firstCorrectTask.output().contains("\"category\":\"billing\""));
+        assertTrue(firstCorrectTask.output().contains("\"accountableTeam\":\"NONE\""));
         assertEquals(1, firstCorrectTask.citations().size());
+        PromptRunResult.PromptCitation citation =
+                firstCorrectTask.citations().getFirst();
         assertEquals(
-                "SLA and escalation",
-                firstCorrectTask.citations().getFirst().title());
+                UUID.fromString("90000000-0000-0000-0000-000000000001"),
+                citation.chunkId());
+        assertEquals(GOLDEN_KNOWLEDGE_ASSET_ID, citation.knowledgeAssetId());
+        assertEquals(
+                UUID.fromString("90000000-0000-0000-0000-000000000004"),
+                citation.sourceRevisionId());
+        assertEquals("SLA and escalation", citation.title());
+        assertEquals("Response tiers", citation.heading());
+        assertTrue(ticketPassesRubric(tickets.getFirst(), firstCorrectTask));
+        assertFalse(ticketPassesRubric(
+                tickets.getFirst(),
+                new PromptRunResult(
+                        UUID.randomUUID(),
+                        prompt.id(),
+                        promptRelease.id(),
+                        promptRelease.digest(),
+                        PROMPT_ROUTE,
+                        """
+                        {"category":"billing","slaTier":"P0","escalate":true,\
+                        "accountableTeam":"INCIDENT_RESPONSE","response":"unsupported"}
+                        """,
+                        List.of(),
+                        1)));
+
+        Map<String, Object> storedGoldenRun = jdbc.queryForMap(
+                """
+                select citation_refs::text as citations,
+                       sanitized_outcome::text as outcome
+                from prompt_runs
+                where id = ?
+                """,
+                firstCorrectTask.runId());
+        assertTrue(storedGoldenRun.get("citations").toString()
+                .contains(GOLDEN_KNOWLEDGE_ASSET_ID.toString()));
+        assertFalse(storedGoldenRun.toString().contains(tickets.getFirst().text()));
+        assertFalse(storedGoldenRun.toString().contains(firstCorrectTask.output()));
 
         WorkInstructionView acknowledged = instructions.acknowledge(
                 SUPPORT_AGENT, instruction.id(), instructionRelease.id());
@@ -1002,7 +1069,7 @@ class AssetRegistryIntegrationTests {
                     true);
         }
         assertEquals(PackAssignmentStatus.COMPLETED, journey.status());
-        assertEquals(2, journey.completedAccessibleItems());
+        assertEquals(3, journey.completedAccessibleItems());
 
         AssetView changedPrompt = assets.updateDraft(
                 AUTHOR,
@@ -1086,8 +1153,6 @@ class AssetRegistryIntegrationTests {
                         """,
                         Integer.class,
                         prompt.id()));
-        assertTrue(goldenFixture("success-metrics.json")
-                .contains("\"evaluation_pass\""));
     }
 
     private AssetView create(String slug) {
@@ -1330,16 +1395,32 @@ class AssetRegistryIntegrationTests {
     }
 
     private static String goldenFixture(String name) throws IOException {
-        Path current = Path.of("").toAbsolutePath();
-        while (current != null
-                && !Files.exists(current.resolve("settings.gradle.kts"))) {
-            current = current.getParent();
+        String resource = "/golden/asset-registry/" + name;
+        try (var stream =
+                AssetRegistryIntegrationTests.class.getResourceAsStream(resource)) {
+            if (stream == null) {
+                throw new IOException("Missing golden fixture: " + resource);
+            }
+            return new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         }
-        if (current == null) {
-            throw new IllegalStateException("Could not locate the repository root");
-        }
-        return Files.readString(current.resolve(
-                "demo/fixtures/asset-registry/" + name));
+    }
+
+    private static boolean ticketPassesRubric(
+            MockTicket ticket, PromptRunResult result) throws IOException {
+        Map<String, Object> output = JSON.readValue(
+                result.output(),
+                new TypeReference<>() {
+                });
+        return ticket.category().equals(output.get("category"))
+                && ticket.slaTier().equals(output.get("slaTier"))
+                && Boolean.valueOf(ticket.escalate()).equals(output.get("escalate"))
+                && ticket.accountableTeam().equals(output.get("accountableTeam"))
+                && output.get("response").toString()
+                        .contains("support.sla-and-escalation@1")
+                && ticket.allowedCitations()
+                        .contains("support.sla-and-escalation@1")
+                && result.citations().stream().anyMatch(citation ->
+                        GOLDEN_KNOWLEDGE_ASSET_ID.equals(citation.knowledgeAssetId()));
     }
 
     private record MockTicket(
@@ -1349,8 +1430,8 @@ class AssetRegistryIntegrationTests {
             String category,
             String slaTier,
             boolean escalate,
-            List<String> allowedCitations,
-            boolean rubricPass) {
+            String accountableTeam,
+            List<String> allowedCitations) {
     }
 
     private void clearAssetRegistry() {

@@ -1,13 +1,13 @@
 {
   "definitions": [
     {"key":"time_to_first_correct_task","formula":"correct_task_completed_at - pack_first_viewed_at","pocThreshold":"captured; no benchmark claim"},
-    {"key":"first_time_right","formula":"tasks_passing_without_reviewer_correction / attempted_tasks","pocThreshold":"1.0 for the deterministic golden ticket"},
+    {"key":"first_time_right","formula":"tasks_passing_without_reviewer_correction / attempted_tasks","emptyCohortValue":null,"pocThreshold":"1.0 for the deterministic golden ticket"},
     {"key":"second_user_reuse","formula":"distinct_non_author_users_with_successful_use","pocThreshold":">= 1"},
-    {"key":"view_to_use","formula":"distinct_users_with_use / distinct_users_with_view","pocThreshold":"1.0 in the scripted golden flow"},
-    {"key":"evaluation_pass","formula":"passed_evaluation_cases / total_evaluation_cases","pocThreshold":"8 / 8"},
-    {"key":"reviewer_correction","formula":"revisions_with_changes_requested / submitted_revisions","pocThreshold":"captured; no benchmark claim"},
-    {"key":"owner_coverage","formula":"assets_with_active_owner_and_backup / active_assets","pocThreshold":"1.0 after handover"},
+    {"key":"view_to_use","formula":"distinct_users_with_use / distinct_users_with_view","emptyCohortValue":null,"pocThreshold":"1.0 in the scripted golden flow"},
+    {"key":"evaluation_pass","formula":"passed_evaluation_cases / total_evaluation_cases","emptyCohortValue":null,"pocThreshold":"8 / 8"},
+    {"key":"reviewer_correction","formula":"revisions_with_changes_requested / submitted_revisions","emptyCohortValue":null,"pocThreshold":"captured; no benchmark claim"},
+    {"key":"owner_coverage","formula":"assets_with_active_owner_and_backup / active_assets","emptyCohortValue":null,"pocThreshold":"1.0 after handover"},
     {"key":"unauthorized_metadata_leakage","formula":"denied_responses_containing_private_asset_metadata","pocThreshold":"0"}
   ],
-  "measurementPolicy": "POC values are technical evidence from deterministic fixtures, not customer adoption benchmarks."
+  "measurementPolicy": "POC values are technical evidence from deterministic fixtures, not customer adoption benchmarks. Ratio metrics return null for an empty cohort; null means not applicable and is never coerced to zero."
 }

@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.testing.Test
+import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     id("orgmemory.spring-boot-app-conventions")
@@ -41,4 +42,10 @@ dependencies {
 tasks.withType<Test>().configureEach {
     systemProperty("spring.session.jdbc.cleanup-cron", "-")
     systemProperty("orgmemory.graph-rag.postgres.apache-age-mode", "DISABLED")
+}
+
+tasks.named<ProcessResources>("processTestResources") {
+    from(rootProject.file("demo/fixtures/asset-registry")) {
+        into("golden/asset-registry")
+    }
 }
