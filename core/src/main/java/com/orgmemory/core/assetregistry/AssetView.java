@@ -16,7 +16,6 @@ public record AssetView(
         List<Revision> revisions,
         List<Review> reviews,
         List<Release> releases,
-        OwnershipHealth ownershipHealth,
         List<RoleAssignment> roleAssignments) {
 
     public AssetView {
@@ -112,12 +111,5 @@ public record AssetView(
             Instant validUntil,
             UUID assignedByUserId,
             Instant projectedAt) {
-    }
-
-    public record OwnershipHealth(
-            boolean ownerPresent,
-            boolean backupOwnerPresent,
-            boolean orphaned,
-            boolean continuityAtRisk) {
     }
 }

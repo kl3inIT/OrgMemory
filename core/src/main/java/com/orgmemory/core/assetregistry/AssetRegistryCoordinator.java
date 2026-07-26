@@ -265,22 +265,6 @@ class AssetRegistryCoordinator {
                 release.getReleasedAt());
     }
 
-    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    AssetConsumptionRelease latestConsumptionRelease(
-            UUID organizationId, UUID assetId) {
-        Asset asset = requiredAsset(organizationId, assetId);
-        AssetRelease release = releases
-                .findByAssetIdAndOrganizationIdOrderBySequenceDesc(
-                        assetId, organizationId)
-                .stream()
-                .filter(candidate -> currentAvailability(candidate.getId())
-                        != AssetAvailability.WITHDRAWN)
-                .findFirst()
-                .orElseThrow(AssetNotFoundException::new);
-        return consumptionRelease(
-                organizationId, asset.getId(), release.getId());
-    }
-
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView updateDraft(
             CurrentActor actor,
@@ -598,7 +582,6 @@ class AssetRegistryCoordinator {
                         asset.getId(), asset.getOrganizationId());
         List<AssetRoleAssignment> assignments =
                 roles.findByAssetIdOrderByValidFromAsc(asset.getId());
-        Instant viewedAt = Instant.now();
         return new AssetView(
                 asset.getId(),
                 asset.getType(),
@@ -620,31 +603,7 @@ class AssetRegistryCoordinator {
                 assetRevisions.stream().map(AssetRegistryCoordinator::revisionView).toList(),
                 assetReviews.stream().map(this::reviewView).toList(),
                 assetReleases.stream().map(this::releaseView).toList(),
-                ownershipHealth(assignments, viewedAt),
                 assignments.stream().map(AssetRegistryCoordinator::roleView).toList());
-    }
-
-    private static AssetView.OwnershipHealth ownershipHealth(
-            List<AssetRoleAssignment> assignments, Instant viewedAt) {
-        boolean ownerPresent = hasActiveRole(
-                assignments, AssetRole.OWNER, viewedAt);
-        boolean backupOwnerPresent = hasActiveRole(
-                assignments, AssetRole.BACKUP_OWNER, viewedAt);
-        return new AssetView.OwnershipHealth(
-                ownerPresent,
-                backupOwnerPresent,
-                !ownerPresent && !backupOwnerPresent,
-                !ownerPresent || !backupOwnerPresent);
-    }
-
-    private static boolean hasActiveRole(
-            List<AssetRoleAssignment> assignments,
-            AssetRole role,
-            Instant viewedAt) {
-        return assignments.stream().anyMatch(assignment ->
-                assignment.getRole() == role
-                        && (assignment.getValidUntil() == null
-                                || assignment.getValidUntil().isAfter(viewedAt)));
     }
 
     private AssetView.Review reviewView(AssetReviewCase review) {

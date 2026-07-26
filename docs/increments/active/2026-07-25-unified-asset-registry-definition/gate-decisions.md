@@ -17,11 +17,11 @@ The fixture is synthetic and contains no customer or employee data.
 | Capability Pack | `support.l1-onboarding@1.0.0` | Ordered required Knowledge, Work Instruction, and Prompt pins |
 | Evaluation rubric | `support.triage-quality@1` | Classification, SLA, escalation, grounding, tone, and schema checks |
 
-PR 5 materializes eight deterministic mock tickets: billing question, password
-reset, degraded service, confirmed outage, suspected security issue,
+PR 5 will materialize eight deterministic mock tickets: billing question,
+password reset, degraded service, confirmed outage, suspected security issue,
 data-deletion request, duplicate ticket, and abusive message. Expected labels,
 SLA tier, escalation decision, allowed citations, and rubric result are pinned
-under `demo/fixtures/asset-registry`.
+in the fixture. Until then this table is the frozen semantic contract.
 
 Two actors prove the flow:
 
@@ -102,21 +102,8 @@ resource metadata and validates issuer, expiry, audience, and coarse
 `assets:read`/`assets:use` scopes before object authorization.
 
 Bearer passthrough is allowed only when the presented token explicitly contains
-the MCP audience. Because the same bearer is forwarded to the canonical API,
-the POC issuer issues a dual-audience token containing both the configured MCP
-resource URI and `orgmemory-web`. A token with only the API audience cannot call
-MCP. A deployment that cannot issue this dual-audience token must add explicit
-token exchange/on-behalf-of; the gateway must not reinterpret the API token as
-an MCP token. Object authorization remains OpenFGA-backed and cannot be
-replaced by OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
+the MCP audience. If an API-audience token must call MCP, the gateway must use
+token exchange/on-behalf-of; it must not reinterpret the API token as an MCP
+token. Object authorization remains OpenFGA-backed and cannot be replaced by
+OAuth scopes. PR 4 is read-only: no prompt execution, progress mutation,
 review, publication, withdrawal, permission change, or installation.
-
-## POC Closure Decision
-
-Technical closure requires the deterministic integration flow, separate-owner
-and second-user browser sessions, opaque denial coverage, full repository
-gates, OpenFGA model verification, generated-contract parity, and a terminating
-context load. Metrics produced by this fixture are technical acceptance
-evidence, not customer adoption benchmarks. Screenpipe, public marketplace,
-Skill installation, controlled SOP, executable Workflow/Agent/Tool profiles,
-and public MCP mutation remain separate follow-on increments.

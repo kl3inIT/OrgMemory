@@ -15,3 +15,9 @@ progress here. Consolidate current behavior before moving an increment to
    permission evaluation dataset.
 3. Prove the Slack connector against a real workspace, including member removal
    and the next-crawl access revocation.
+4. Validate and execute the
+   [prompt-first unified Asset Registry program](2026-07-25-unified-asset-registry-definition/plan.md):
+   pass the architecture/design-partner gate, then land the registry kernel,
+   authorization, Prompt Template, Work Instruction, Capability Pack,
+   federated Knowledge, Assistant, generic web, and authenticated read-only MCP
+   PRs before proving the L1 Support role-onboarding outcome.

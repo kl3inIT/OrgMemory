@@ -370,9 +370,6 @@ services:
       <<: *oidc-environment
       SPRING_PROFILES_ACTIVE: prod
       ORGMEMORY_API_BASE_URL: http://api:8080
-      ORGMEMORY_MCP_RESOURCE_URI: ${ORGMEMORY_MCP_RESOURCE_URI:?Set ORGMEMORY_MCP_RESOURCE_URI}
-      ORGMEMORY_MCP_AUDIENCE: ${ORGMEMORY_MCP_AUDIENCE:?Set ORGMEMORY_MCP_AUDIENCE}
-      ORGMEMORY_MCP_RATE_LIMIT_PER_MINUTE: ${ORGMEMORY_MCP_RATE_LIMIT_PER_MINUTE:-120}
       ORGMEMORY_ROOT_LOG_LEVEL: ${ORGMEMORY_ROOT_LOG_LEVEL:-INFO}
       ORGMEMORY_APP_LOG_LEVEL: ${ORGMEMORY_APP_LOG_LEVEL:-DEBUG}
       ORGMEMORY_SECURITY_LOG_LEVEL: ${ORGMEMORY_SECURITY_LOG_LEVEL:-INFO}
@@ -381,10 +378,7 @@ services:
       api:
         condition: service_healthy
     networks:
-      orgmemory-internal:
-      proxy:
-        aliases:
-          - orgmemory-mcp
+      - orgmemory-internal
     healthcheck:
       test:
         - CMD-SHELL

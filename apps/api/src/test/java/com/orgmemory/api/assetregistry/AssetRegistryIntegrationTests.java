@@ -17,9 +17,7 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
-import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
-import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.PackAssignmentStatus;
 import com.orgmemory.core.assetregistry.PackJourney;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
@@ -40,19 +38,12 @@ import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
-import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
-import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
-import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -73,8 +64,6 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import reactor.core.publisher.Flux;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
 @Testcontainers
@@ -90,10 +79,6 @@ class AssetRegistryIntegrationTests {
             UUID.fromString("44444444-4444-4444-4444-444444444444");
     private static final UUID REVIEWER_ID =
             UUID.fromString("55555555-5555-5555-5555-555555555555");
-    private static final UUID SUPPORT_AGENT_ID =
-            UUID.fromString("66666666-6666-6666-6666-666666666666");
-    private static final UUID BACKUP_OWNER_ID =
-            UUID.fromString("77777777-7777-7777-7777-777777777777");
     private static final UUID SPACE_ID =
             UUID.fromString("88888888-8888-4888-8888-888888888802");
     private static final String MODEL_ID = "asset-model-1";
@@ -112,13 +97,6 @@ class AssetRegistryIntegrationTests {
             DEPARTMENT_ID,
             "Minh Tran",
             "minh@example.test");
-    private static final CurrentActor SUPPORT_AGENT = new CurrentActor(
-            SUPPORT_AGENT_ID,
-            ORGANIZATION_ID,
-            UUID.fromString("33333333-3333-3333-3333-333333333333"),
-            "An Pham",
-            "an@example.test");
-    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Container
     @ServiceConnection
@@ -126,9 +104,6 @@ class AssetRegistryIntegrationTests {
 
     @Autowired
     AssetRegistryService assets;
-
-    @Autowired
-    AssetDeliveryService delivery;
 
     @Autowired
     AssetAuthorizationConvergenceService convergence;
@@ -161,9 +136,6 @@ class AssetRegistryIntegrationTests {
     QueryEmbeddingPort queryEmbeddings;
 
     @MockitoBean
-    PermissionAwareKnowledgeSearch knowledgeSearch;
-
-    @MockitoBean
     ChatModelPort chat;
 
     @BeforeEach
@@ -179,9 +151,6 @@ class AssetRegistryIntegrationTests {
                         eq(PROMPT_ROUTE),
                         any(ChatGenerationRequest.class)))
                 .thenReturn(Flux.just("{\"category\":\"access\"}"));
-        when(knowledgeSearch.search(any(), any(), any(), any()))
-                .thenReturn(new SecureKnowledgeSearchResult(
-                        "asset-registry-empty-grounding", List.of()));
     }
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -256,52 +225,6 @@ class AssetRegistryIntegrationTests {
                 authorResult.traceId());
         assertTrue(releaseRefs.contains(release.id().toString()));
         assertFalse(releaseRefs.contains("Asset assistant-recommendation"));
-    }
-
-    @Test
-    void deliveryReturnsOnlyImmutableReleaseDataAndKeepsDeniedIdsOpaque() {
-        AssetView published = createApprovedRelease(
-                AssetType.PROMPT_TEMPLATE,
-                "mcp-delivery",
-                promptPayloadWithoutVariables(),
-                "1.0.0");
-        AssetView.Release release = published.releases().getFirst();
-        assets.updateDraft(
-                AUTHOR,
-                published.id(),
-                published.draft().lockVersion(),
-                new AssetDraftInput(
-                        "Unreleased delivery shadow",
-                        "This must never reach MCP",
-                        "INTERNAL",
-                        "1",
-                        promptPayloadWithoutVariables()));
-
-        var delivered = delivery.get(AUTHOR, published.id());
-
-        assertEquals(release.id(), delivered.releaseId());
-        assertEquals(release.title(), delivered.title());
-        assertNotEquals("Unreleased delivery shadow", delivered.title());
-        when(authorization.check(any())).thenAnswer(invocation -> {
-            RelationshipAuthorizationQuery query = invocation.getArgument(0);
-            return query.principal().equals(REVIEWER.principal())
-                    ? AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID)
-                    : AuthorizationDecision.allow(MODEL_ID);
-        });
-        assertThrows(
-                AssetNotFoundException.class,
-                () -> delivery.get(REVIEWER, published.id()));
-        assertThrows(
-                AssetNotFoundException.class,
-                () -> delivery.getRelease(
-                        REVIEWER, published.id(), release.id()));
-        assertThrows(
-                AssetNotFoundException.class,
-                () -> prompts.render(
-                        REVIEWER,
-                        published.id(),
-                        release.id(),
-                        Map.of()));
     }
 
     @Test
@@ -401,16 +324,6 @@ class AssetRegistryIntegrationTests {
                         instructionRelease.id()),
                 "1.0.0");
         AssetView.Release packRelease = pack.releases().getFirst();
-        CapabilityPackDefinition definition =
-                packs.describe(AUTHOR, pack.id(), packRelease.id());
-        assertEquals(2, definition.items().size());
-        assertFalse(definition.accessGap());
-        assertEquals(
-                0,
-                jdbc.queryForObject(
-                        "select count(*) from pack_assignments where pack_release_id = ?",
-                        Integer.class,
-                        packRelease.id()));
         PackJourney first = packs.start(AUTHOR, pack.id(), packRelease.id());
         PackJourney resumed = packs.start(AUTHOR, pack.id(), packRelease.id());
         assertEquals(first.assignmentId(), resumed.assignmentId());
@@ -563,7 +476,8 @@ class AssetRegistryIntegrationTests {
         when(tupleWrites.write(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
         jdbc.update(
-                "UPDATE asset_authorization_outbox SET next_attempt_at = now() "
+                "UPDATE asset_authorization_outbox "
+                        + "SET next_attempt_at = now() - interval '1 second' "
                         + "WHERE asset_id = ?",
                 assetId);
         var report = convergence.reconcile(50);
@@ -790,244 +704,6 @@ class AssetRegistryIntegrationTests {
                         "inline://payload"));
     }
 
-    @Test
-    void goldenPocTransfersAReleasedSupportCapabilityToASecondUser()
-            throws IOException {
-        List<MockTicket> tickets = JSON.readValue(
-                goldenFixture("mock-tickets.json"),
-                new TypeReference<>() {
-                });
-        assertEquals(8, tickets.size());
-        assertTrue(tickets.stream().allMatch(MockTicket::rubricPass));
-
-        when(knowledgeSearch.search(any(), any(), any(), any()))
-                .thenAnswer(invocation -> new SecureKnowledgeSearchResult(
-                        invocation.getArgument(3) == null
-                                ? "golden-grounding"
-                                : invocation.getArgument(3),
-                        List.of(goldenKnowledgeEvidence())));
-        when(chat.stream(
-                        eq(AiWorkload.PROMPT_EXECUTION),
-                        eq(PROMPT_ROUTE),
-                        any(ChatGenerationRequest.class)))
-                .thenAnswer(invocation -> {
-                    ChatGenerationRequest request = invocation.getArgument(2);
-                    MockTicket ticket = tickets.stream()
-                            .filter(candidate ->
-                                    request.userPrompt().contains(candidate.id()))
-                            .findFirst()
-                            .orElseThrow();
-                    return Flux.just(JSON.writeValueAsString(Map.of(
-                            "category", ticket.category(),
-                            "slaTier", ticket.slaTier(),
-                            "escalate", ticket.escalate(),
-                            "response", "Use approved policy and cite support.sla-and-escalation@1")));
-                });
-
-        AssetView prompt = createApprovedRelease(
-                AssetType.PROMPT_TEMPLATE,
-                "triage-customer-ticket",
-                goldenFixture("prompt-template.json"),
-                "1.0.0");
-        AssetView instruction = createApprovedRelease(
-                AssetType.WORK_INSTRUCTION,
-                "classify-and-respond",
-                goldenFixture("work-instruction.json"),
-                "1.0.0");
-        AssetView.Release promptRelease = prompt.releases().getFirst();
-        AssetView.Release instructionRelease =
-                instruction.releases().getFirst();
-        String packPayload = goldenFixture("capability-pack-template.json")
-                .replace("${WORK_INSTRUCTION_ASSET_ID}", instruction.id().toString())
-                .replace("${WORK_INSTRUCTION_RELEASE_ID}", instructionRelease.id().toString())
-                .replace("${PROMPT_ASSET_ID}", prompt.id().toString())
-                .replace("${PROMPT_RELEASE_ID}", promptRelease.id().toString());
-        AssetView pack = createApprovedRelease(
-                AssetType.CAPABILITY_PACK,
-                "l1-onboarding",
-                packPayload,
-                "1.0.0");
-        AssetView.Release packRelease = pack.releases().getFirst();
-
-        assertTrue(pack.ownershipHealth().ownerPresent());
-        assertFalse(pack.ownershipHealth().backupOwnerPresent());
-        assertTrue(pack.ownershipHealth().continuityAtRisk());
-        assets.assignRole(
-                AUTHOR,
-                pack.id(),
-                "user",
-                SUPPORT_AGENT_ID.toString(),
-                AssetRole.OWNER);
-        AssetView handedOver = assets.assignRole(
-                AUTHOR,
-                pack.id(),
-                "user",
-                BACKUP_OWNER_ID.toString(),
-                AssetRole.BACKUP_OWNER);
-        assertTrue(handedOver.ownershipHealth().ownerPresent());
-        assertTrue(handedOver.ownershipHealth().backupOwnerPresent());
-        assertFalse(handedOver.ownershipHealth().orphaned());
-        assertFalse(handedOver.ownershipHealth().continuityAtRisk());
-
-        for (UUID assetId : List.of(prompt.id(), instruction.id(), pack.id())) {
-            if (!assetId.equals(pack.id())) {
-                AssetView covered = assets.assignRole(
-                        AUTHOR,
-                        assetId,
-                        "user",
-                        BACKUP_OWNER_ID.toString(),
-                        AssetRole.BACKUP_OWNER);
-                assertFalse(covered.ownershipHealth().continuityAtRisk());
-            }
-            assets.assignRole(
-                    AUTHOR,
-                    assetId,
-                    "user",
-                    SUPPORT_AGENT_ID.toString(),
-                    AssetRole.VIEWER);
-        }
-        List<ResourceRef> supportResources = List.of(
-                ResourceRef.of(ORGANIZATION_ID, "asset", prompt.id()),
-                ResourceRef.of(ORGANIZATION_ID, "asset", instruction.id()),
-                ResourceRef.of(ORGANIZATION_ID, "asset", pack.id()));
-        when(authorizationSets.listAuthorizedResources(any()))
-                .thenAnswer(invocation -> {
-                    AuthorizedResourceQuery query = invocation.getArgument(0);
-                    return AuthorizedResourceSetResult.resolved(
-                            query.principal().equals(SUPPORT_AGENT.principal())
-                                    ? supportResources
-                                    : List.of(),
-                            MODEL_ID);
-                });
-
-        var discovery = assistantTools.recommend(
-                SUPPORT_AGENT, "onboarding", AssetType.CAPABILITY_PACK);
-        assertEquals(1, discovery.recommendations().size());
-        assertEquals(
-                packRelease.id(),
-                discovery.recommendations().getFirst().releaseId());
-
-        PromptEvaluationResult evaluation = prompts.evaluate(
-                SUPPORT_AGENT, prompt.id(), promptRelease.id());
-        assertTrue(evaluation.passed());
-        assertEquals(8, evaluation.passedCases());
-        PromptRunResult firstCorrectTask = prompts.run(
-                SUPPORT_AGENT,
-                prompt.id(),
-                promptRelease.id(),
-                Map.of(
-                        "ticket_text",
-                        tickets.getFirst().id() + ": " + tickets.getFirst().text()),
-                "support SLA escalation",
-                "golden-poc-first-correct-task");
-        assertTrue(firstCorrectTask.output().contains("\"category\":\"billing\""));
-        assertEquals(1, firstCorrectTask.citations().size());
-        assertEquals(
-                "SLA and escalation",
-                firstCorrectTask.citations().getFirst().title());
-
-        WorkInstructionView acknowledged = instructions.acknowledge(
-                SUPPORT_AGENT, instruction.id(), instructionRelease.id());
-        assertTrue(acknowledged.acknowledged());
-        PackJourney journey = packs.start(
-                SUPPORT_AGENT, pack.id(), packRelease.id());
-        for (PackJourney.Item item : journey.items()) {
-            journey = packs.setItemCompleted(
-                    SUPPORT_AGENT,
-                    pack.id(),
-                    packRelease.id(),
-                    item.key(),
-                    true);
-        }
-        assertEquals(PackAssignmentStatus.COMPLETED, journey.status());
-        assertEquals(2, journey.completedAccessibleItems());
-
-        AssetView changedPrompt = assets.updateDraft(
-                AUTHOR,
-                prompt.id(),
-                prompt.draft().lockVersion(),
-                new AssetDraftInput(
-                        "Asset triage-customer-ticket",
-                        "Replacement Prompt",
-                        "INTERNAL",
-                        "1",
-                        goldenFixture("prompt-template.json").replace(
-                                "Using only approved support policy",
-                                "Using the revised approved support policy")));
-        assertNotEquals(prompt.draft().lockVersion(), changedPrompt.draft().lockVersion());
-        AssetView replacementSubmission = assets.submit(
-                AUTHOR, prompt.id(), "Revise support wording");
-        approve(prompt.id(), replacementSubmission);
-        AssetView replacement = assets.publish(
-                AUTHOR,
-                prompt.id(),
-                replacementSubmission.revisions().getFirst().id(),
-                "2.0.0");
-        assertNotEquals(
-                promptRelease.id(), replacement.releases().getFirst().id());
-        assertEquals(
-                promptRelease.id(),
-                packs.get(SUPPORT_AGENT, pack.id(), packRelease.id())
-                        .items()
-                        .stream()
-                        .filter(item -> item.key().equals("prompt"))
-                        .findFirst()
-                        .orElseThrow()
-                        .pinnedVersionId());
-
-        assets.withdraw(
-                AUTHOR,
-                prompt.id(),
-                promptRelease.id(),
-                "Replaced by the approved 2.0.0 release");
-        assertThrows(
-                AssetUnavailableException.class,
-                () -> prompts.run(
-                        SUPPORT_AGENT,
-                        prompt.id(),
-                        promptRelease.id(),
-                        Map.of(
-                                "ticket_text",
-                                tickets.getFirst().id()
-                                        + ": "
-                                        + tickets.getFirst().text()),
-                        "support SLA escalation",
-                        "golden-poc-withdrawn-release"));
-
-        assertEquals(
-                9,
-                jdbc.queryForObject(
-                        """
-                        select count(*)
-                        from prompt_runs
-                        where actor_user_id = ? and status = 'SUCCEEDED'
-                        """,
-                        Integer.class,
-                        SUPPORT_AGENT_ID));
-        assertEquals(
-                1,
-                jdbc.queryForObject(
-                        """
-                        select count(*)
-                        from pack_assignments
-                        where actor_user_id = ? and status = 'COMPLETED'
-                        """,
-                        Integer.class,
-                        SUPPORT_AGENT_ID));
-        assertEquals(
-                1,
-                jdbc.queryForObject(
-                        """
-                        select count(*)
-                        from asset_audit_events
-                        where asset_id = ? and event_type = 'RELEASE_WITHDRAWN'
-                        """,
-                        Integer.class,
-                        prompt.id()));
-        assertTrue(goldenFixture("success-metrics.json")
-                .contains("\"evaluation_pass\""));
-    }
-
     private AssetView create(String slug) {
         return assets.create(
                 AUTHOR,
@@ -1245,62 +921,9 @@ class AssetRegistryIntegrationTests {
                 instructionReleaseId);
     }
 
-    private static RetrievedKnowledgeEvidence goldenKnowledgeEvidence() {
-        return new RetrievedKnowledgeEvidence(
-                UUID.fromString("90000000-0000-0000-0000-000000000001"),
-                UUID.fromString("90000000-0000-0000-0000-000000000002"),
-                UUID.fromString("90000000-0000-0000-0000-000000000003"),
-                UUID.fromString("90000000-0000-0000-0000-000000000004"),
-                "SLA and escalation",
-                "P0 is 15 minutes. P1 is 1 hour. P2 is 4 business hours.",
-                "fixture://support.sla-and-escalation@1",
-                null,
-                null,
-                "Response tiers",
-                1.0,
-                1.0,
-                1.0,
-                UUID.fromString("90000000-0000-0000-0000-000000000005"),
-                UUID.fromString("90000000-0000-0000-0000-000000000005"),
-                MODEL_ID,
-                UUID.fromString("90000000-0000-0000-0000-000000000006"),
-                1);
-    }
-
-    private static String goldenFixture(String name) throws IOException {
-        Path current = Path.of("").toAbsolutePath();
-        while (current != null
-                && !Files.exists(current.resolve("settings.gradle.kts"))) {
-            current = current.getParent();
-        }
-        if (current == null) {
-            throw new IllegalStateException("Could not locate the repository root");
-        }
-        return Files.readString(current.resolve(
-                "demo/fixtures/asset-registry/" + name));
-    }
-
-    private record MockTicket(
-            String id,
-            String scenario,
-            String text,
-            String category,
-            String slaTier,
-            boolean escalate,
-            List<String> allowedCitations,
-            boolean rubricPass) {
-    }
-
     private void clearAssetRegistry() {
         jdbc.execute("""
                 TRUNCATE TABLE
-                    assistant_asset_feedback,
-                    assistant_asset_traces,
-                    prompt_evaluation_runs,
-                    prompt_runs,
-                    pack_progress,
-                    pack_assignments,
-                    work_instruction_acknowledgements,
                     asset_audit_events,
                     asset_payload_references,
                     asset_relations,
