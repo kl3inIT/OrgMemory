@@ -3,10 +3,10 @@ import { Link } from "@tanstack/react-router"
 import { ArrowLeft, RefreshCw, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 
+import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { formatTimestamp } from "@/features/admin/admin-labels"
@@ -63,6 +63,59 @@ function changedBy(attempt: AdminCrawlAttemptResponse) {
   ].filter(Boolean)
   return parts.length ? parts.join(" · ") : "Nothing changed"
 }
+
+const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
+  {
+    accessorKey: "outcome",
+    header: "Outcome",
+    enableSorting: true,
+    cell: ({ row }) => {
+      const outcome = OUTCOMES[row.original.outcome ?? ""]
+      return (
+        <Badge variant={outcome?.variant ?? "muted"}>
+          {outcome?.label ?? row.original.outcome}
+        </Badge>
+      )
+    },
+  },
+  {
+    accessorKey: "attemptedAt",
+    header: "When",
+    enableSorting: true,
+    meta: { cellClassName: "text-muted-foreground" },
+    cell: ({ row }) => formatTimestamp(row.original.attemptedAt),
+  },
+  {
+    id: "changed",
+    accessorFn: changedBy,
+    header: "Changed",
+    enableSorting: true,
+    meta: { cellClassName: "text-muted-foreground" },
+  },
+  {
+    id: "reason",
+    accessorFn: (attempt) =>
+      [attempt.errorCode, attempt.errorMessage].filter(Boolean).join(" "),
+    header: "Reason",
+    meta: { cellClassName: "max-w-md text-muted-foreground" },
+    cell: ({ row }) => {
+      const attempt = row.original
+      return (
+        <>
+          {attempt.errorCode ? (
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+              {attempt.errorCode}
+            </code>
+          ) : null}
+          {attempt.errorMessage ? (
+            <div className="mt-0.5 text-xs">{attempt.errorMessage}</div>
+          ) : null}
+          {!attempt.errorCode && !attempt.errorMessage ? "—" : null}
+        </>
+      )
+    },
+  },
+]
 
 /**
  * One connection, and what it has actually done.
@@ -220,37 +273,35 @@ export function ConnectionDetailPage({
         title="Configuration"
         description="What an administrator told this connection to do. The credential is not among it — it is stored encrypted and is never returned in any form."
       >
-        <Table>
-          <TableBody>
-            <SettingRow label="Crawl">
-              {connection?.crawlEnabled ? (
-                <Badge variant="success">On</Badge>
-              ) : (
-                <Badge variant="outline">Off</Badge>
-              )}
-            </SettingRow>
-            <SettingRow label="Publishes into">{space?.name ?? space?.key ?? "Not set"}</SettingRow>
-            <SettingRow label="Credential">
-              {connection?.credentialSet ? (
-                <span>Stored {formatTimestamp(connection.credentialSetAt)}</span>
-              ) : (
-                <Badge variant="warning">None</Badge>
-              )}
-            </SettingRow>
-            <SettingRow label="Content interval">
-              {Math.round((connection?.contentCrawlIntervalSeconds ?? 0) / 60)} minutes
-            </SettingRow>
-            {/* Read from the same descriptor the form is rendered from, so a setting can never
-                appear on one and not the other. */}
-            {descriptor
-              ? allFields(descriptor).map((field) => (
-                  <SettingRow key={field.name} label={field.label}>
-                    {formatSetting(connection?.sourceConfig?.[field.name])}
-                  </SettingRow>
-                ))
-              : null}
-          </TableBody>
-        </Table>
+        <dl className="divide-y divide-border-subtle">
+          <SettingRow label="Crawl">
+            {connection?.crawlEnabled ? (
+              <Badge variant="success">On</Badge>
+            ) : (
+              <Badge variant="outline">Off</Badge>
+            )}
+          </SettingRow>
+          <SettingRow label="Publishes into">
+            {space?.name ?? space?.key ?? "Not set"}
+          </SettingRow>
+          <SettingRow label="Credential">
+            {connection?.credentialSet ? (
+              <span>Stored {formatTimestamp(connection.credentialSetAt)}</span>
+            ) : (
+              <Badge variant="warning">None</Badge>
+            )}
+          </SettingRow>
+          <SettingRow label="Content interval">
+            {Math.round((connection?.contentCrawlIntervalSeconds ?? 0) / 60)} minutes
+          </SettingRow>
+          {descriptor
+            ? allFields(descriptor).map((field) => (
+                <SettingRow key={field.name} label={field.label}>
+                  {formatSetting(connection?.sourceConfig?.[field.name])}
+                </SettingRow>
+              ))
+            : null}
+        </dl>
       </AdminSection>
 
       <AdminSection
@@ -263,43 +314,11 @@ export function ConnectionDetailPage({
             description="Attempts appear here once the worker has polled this connection."
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Outcome</TableHead>
-                <TableHead>When</TableHead>
-                <TableHead>Changed</TableHead>
-                <TableHead>Reason</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {attempts.map((attempt, index) => {
-                const outcome = OUTCOMES[attempt.outcome ?? ""]
-                return (
-                  <TableRow key={`${attempt.attemptedAt}-${index}`}>
-                    <TableCell>
-                      <Badge variant={outcome?.variant ?? "muted"}>
-                        {outcome?.label ?? attempt.outcome}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatTimestamp(attempt.attemptedAt)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{changedBy(attempt)}</TableCell>
-                    <TableCell className="max-w-md text-muted-foreground">
-                      {attempt.errorCode ? (
-                        <code className="rounded bg-muted px-1 py-0.5 text-xs">{attempt.errorCode}</code>
-                      ) : null}
-                      {attempt.errorMessage ? (
-                        <div className="mt-0.5 text-xs">{attempt.errorMessage}</div>
-                      ) : null}
-                      {!attempt.errorCode && !attempt.errorMessage ? "—" : null}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={attemptColumns}
+            data={attempts}
+            getRowId={(attempt, index) => `${attempt.attemptedAt}-${index}`}
+          />
         )}
       </AdminSection>
     </AdminPage>
@@ -308,10 +327,10 @@ export function ConnectionDetailPage({
 
 function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <TableRow>
-      <TableCell className="w-52 font-medium">{label}</TableCell>
-      <TableCell className="text-muted-foreground">{children}</TableCell>
-    </TableRow>
+    <div className="grid gap-1 px-4 py-3 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="font-medium">{label}</dt>
+      <dd className="text-muted-foreground">{children}</dd>
+    </div>
   )
 }
 

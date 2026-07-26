@@ -43,7 +43,7 @@ test("two users prove governed release and second-user Pack completion", async (
 
   await supportPage.goto("/assets")
   await expect(supportPage.getByRole("heading", { name: "For your role" })).toBeVisible()
-  await expect(supportPage.getByText("1 asset", { exact: true })).toBeVisible()
+  await expect(supportPage.getByText("1 asset", { exact: true })).toHaveCount(0)
   await expect(supportPage.getByText("Filtered by your live permissions")).toHaveCount(0)
   await expect(
     supportPage.getByText("Approved capability packs and reusable assets you can use now."),

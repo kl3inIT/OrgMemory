@@ -101,6 +101,7 @@ Run the narrowest tests while iterating and completion gates before handoff:
 .\gradlew.bat :core:test
 .\gradlew.bat --no-daemon clean test
 corepack pnpm -C web typecheck
+corepack pnpm --dir web run test:unit
 corepack pnpm -C web build
 Push-Location integrations\authorization-openfga\src\test\openfga
 & '..\..\..\..\..\.tools\openfga\fga.exe' model test --tests store.fga.yaml

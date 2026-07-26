@@ -1,0 +1,38 @@
+import { render, screen } from "@testing-library/react"
+import { describe, expect, it } from "vitest"
+
+import { PageLayout } from "@/components/layouts/page-layout"
+
+describe("PageLayout", () => {
+  it("exposes a single semantic page identity and its primary action", () => {
+    render(
+      <PageLayout.Root variant="wide">
+        <PageLayout.Header
+          title="Asset catalog"
+          description="Approved assets"
+          actions={<button type="button">Create asset</button>}
+        />
+      </PageLayout.Root>,
+    )
+
+    expect(screen.getByRole("main")).toHaveAttribute("data-variant", "wide")
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Asset catalog" }),
+    ).toBeVisible()
+    expect(screen.getByText("Approved assets")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Create asset" })).toBeEnabled()
+  })
+
+  it("gives a canvas workspace an accessible region", () => {
+    render(
+      <PageLayout.Root variant="canvas">
+        <PageLayout.Header title="Knowledge graph" />
+        <PageLayout.Canvas aria-label="Knowledge graph explorer" />
+      </PageLayout.Root>,
+    )
+
+    expect(
+      screen.getByRole("region", { name: "Knowledge graph explorer" }),
+    ).toHaveAttribute("data-slot", "page-canvas")
+  })
+})

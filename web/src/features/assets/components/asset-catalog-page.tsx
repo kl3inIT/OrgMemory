@@ -55,14 +55,7 @@ export function AssetCatalogPage({
 
   return (
     <PageLayout.Root variant="wide">
-      <PageLayout.Header
-        title="For your role"
-        metadata={
-          <Badge variant="outline" className="w-fit font-mono text-metadata">
-            {recommendations.length} {recommendations.length === 1 ? "asset" : "assets"}
-          </Badge>
-        }
-      />
+      <PageLayout.Header title="For your role" />
 
       <FilterBar
         search={

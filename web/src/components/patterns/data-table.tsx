@@ -4,6 +4,7 @@ import {
   getSortedRowModel,
   type ColumnDef,
   type Row,
+  type RowData,
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table"
@@ -22,7 +23,7 @@ import {
 import { cn } from "@/lib/utils"
 
 declare module "@tanstack/react-table" {
-  interface ColumnMeta<TData, TValue> {
+  interface ColumnMeta<TData extends RowData, TValue> {
     headerClassName?: string
     cellClassName?: string
   }

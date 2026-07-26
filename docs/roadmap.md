@@ -120,10 +120,10 @@ belongs in one active increment.
   document allowed dependencies, and keep Modulith verification in CI; do not
   create one Gradle module or one top-level Modulith module per class or asset
   profile.
-- Add a component-development gate after the shared page system stabilizes:
-  Vitest, Testing Library, accessibility assertions, and focused component
-  contracts first; add Storybook only when the reusable catalog is large enough
-  to justify a second preview/build surface.
+- Add Storybook only when the reusable component catalog is large enough to
+  justify a second preview/build surface. Vitest and Testing Library are now
+  installed for focused shared-component contracts; grow that suite only where
+  a stable behavior has meaningful fan-out or regression risk.
 - Add authoring interaction libraries only with their owning workflows:
   `dnd-kit` for ordered Pack/Workflow/Skill composition, `react-dropzone` for a
   measured multi-file ingestion queue, and `date-fns`/`react-day-picker` for SOP

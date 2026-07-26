@@ -6,7 +6,10 @@ export function SplitRoot({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="split-layout"
-      className={cn("flex min-h-0 min-w-0 flex-1 overflow-hidden", className)}
+      className={cn(
+        "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row",
+        className,
+      )}
       {...props}
     />
   )
@@ -27,7 +30,7 @@ export function SplitAside({ className, ...props }: ComponentProps<"aside">) {
     <aside
       data-slot="split-layout-aside"
       className={cn(
-        "min-h-0 w-(--detail-panel-width) shrink-0 overflow-y-auto border-l border-border-subtle bg-surface-base",
+        "min-h-0 max-h-1/2 w-full shrink-0 overflow-y-auto border-t border-border-subtle bg-surface-base lg:max-h-none lg:w-(--detail-panel-width) lg:border-l lg:border-t-0",
         className,
       )}
       {...props}

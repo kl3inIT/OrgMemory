@@ -172,6 +172,7 @@ function AssetIdentityHeader({
 }) {
   const meta = ASSET_TYPE_META[asset.type!]
   const Icon = meta.icon
+  const title = release?.title ?? asset.draft?.title ?? "Untitled asset"
   const activeAssignments = (asset.roleAssignments ?? []).filter(
     (assignment) => !assignment.validUntil || new Date(assignment.validUntil) > new Date(),
   )
@@ -180,11 +181,11 @@ function AssetIdentityHeader({
   return (
     <>
       <PageLayout.Header
-        title={release?.title ?? asset.draft?.title}
+        title={title}
         description={release?.summary ?? asset.draft?.summary}
         icon={<Icon className="size-5" aria-hidden="true" />}
         breadcrumb={
-          <AssetBreadcrumb assetId={asset.id} assetTitle={release?.title ?? asset.draft?.title} />
+          <AssetBreadcrumb assetId={asset.id} assetTitle={title} />
         }
         metadata={
           <div className="flex flex-wrap items-center gap-2">

@@ -2,10 +2,10 @@ import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { connectionLabel, formatTimestamp, principalName } from "@/features/admin/admin-labels"
@@ -28,7 +28,10 @@ import {
   revokeAdminSourceMappingMutation,
   setAdminSourceConnectionTrustMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-import type { AdminSourcePrincipalResponse } from "@/lib/hey-api"
+import type {
+  AdminSourceConnectionResponse,
+  AdminSourcePrincipalResponse,
+} from "@/lib/hey-api"
 
 const TRUST_OPTIONS = [
   { value: "UNTRUSTED", label: "Untrusted" },
@@ -125,6 +128,192 @@ export function AdminMappingsPage() {
     return matchesQuery && matchesFilter
   })
   const visiblePrincipals = pageItems(filteredPrincipals, principalPage)
+  const connectionColumns: ColumnDef<AdminSourceConnectionResponse>[] = [
+    {
+      id: "connection",
+      accessorFn: (connection) =>
+        connectionLabel(connection.sourceSystem, connection.sourceConnectionKey),
+      header: "Connection",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {connectionLabel(
+            row.original.sourceSystem,
+            row.original.sourceConnectionKey,
+          )}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "identityTrust",
+      header: "Identity trust",
+      enableSorting: true,
+      cell: ({ row }) => {
+        const connection = row.original
+        const key = `${connection.sourceSystem}/${connection.sourceConnectionKey}`
+        const pending =
+          trust.isPending &&
+          trust.variables?.body.sourceConnectionKey ===
+            connection.sourceConnectionKey &&
+          trust.variables?.body.sourceSystem === connection.sourceSystem
+        return (
+          <Select
+            value={connection.identityTrust}
+            disabled={pending}
+            onValueChange={(value: string) =>
+              trust.mutate({
+                body: {
+                  sourceSystem: connection.sourceSystem,
+                  sourceConnectionKey: connection.sourceConnectionKey,
+                  identityTrust: value as "UNTRUSTED" | "SSO_VERIFIED",
+                },
+              })
+            }
+          >
+            <SelectTrigger className="w-44" aria-label={`Identity trust for ${key}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TRUST_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      },
+    },
+    {
+      accessorKey: "userCount",
+      header: "People",
+      enableSorting: true,
+      meta: {
+        headerClassName: "text-right",
+        cellClassName: "text-right tabular-nums",
+      },
+      cell: ({ row }) => row.original.userCount ?? 0,
+    },
+    {
+      accessorKey: "unmappedUserCount",
+      header: "Unmapped",
+      enableSorting: true,
+      meta: {
+        headerClassName: "text-right",
+        cellClassName: "text-right tabular-nums",
+      },
+      cell: ({ row }) =>
+        row.original.unmappedUserCount ? (
+          <Badge variant="warning">{row.original.unmappedUserCount}</Badge>
+        ) : (
+          0
+        ),
+    },
+    {
+      accessorKey: "lastSeenAt",
+      header: "Last seen",
+      enableSorting: true,
+      meta: {
+        headerClassName: "text-right",
+        cellClassName: "text-right text-muted-foreground",
+      },
+      cell: ({ row }) => formatTimestamp(row.original.lastSeenAt),
+    },
+  ]
+  const principalColumns: ColumnDef<AdminSourcePrincipalResponse>[] = [
+    {
+      id: "principal",
+      accessorFn: (principal) => principalName(principal),
+      header: "Principal",
+      cell: ({ row }) => {
+        const principal = row.original
+        const isGroup = principal.kind === "SOURCE_GROUP"
+        return (
+          <div className="min-w-56">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium">{principalName(principal)}</span>
+              {isGroup ? <Badge variant="outline">Group</Badge> : null}
+              {principal.ssoVerified ? <Badge variant="secondary">SSO</Badge> : null}
+            </div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {principal.observedEmail || principal.externalKey}
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: "connection",
+      accessorFn: (principal) =>
+        connectionLabel(principal.sourceSystem, principal.sourceConnectionKey),
+      header: "Connection",
+      meta: { cellClassName: "text-muted-foreground" },
+      cell: ({ row }) =>
+        connectionLabel(
+          row.original.sourceSystem,
+          row.original.sourceConnectionKey,
+        ),
+    },
+    {
+      id: "mapping",
+      accessorFn: (principal) =>
+        principal.kind === "SOURCE_GROUP"
+          ? "Membership is sealed"
+          : principal.mapping
+            ? "Mapped"
+            : "Unmapped",
+      header: "Mapping",
+      cell: ({ row }) =>
+        row.original.kind === "SOURCE_GROUP" ? (
+          <span className="text-sm text-muted-foreground">Membership is sealed</span>
+        ) : (
+          <MappingBadge mapping={row.original.mapping} />
+        ),
+    },
+    {
+      id: "internalUser",
+      accessorFn: (principal) =>
+        principal.mapping?.appUserName ?? principal.mapping?.appUserEmail ?? "",
+      header: "Internal user",
+      cell: ({ row }) => (
+        <div className="min-w-40 truncate text-sm">
+          {row.original.mapping?.appUserName ??
+            row.original.mapping?.appUserEmail ??
+            "—"}
+        </div>
+      ),
+    },
+    {
+      id: "action",
+      header: "Action",
+      meta: {
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
+      cell: ({ row }) => {
+        const principal = row.original
+        if (principal.kind === "SOURCE_GROUP") return null
+        const pending =
+          revoke.isPending && revoke.variables?.path.principalId === principal.id
+        return principal.mapping ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() =>
+              revoke.mutate({ path: { principalId: principal.id! } })
+            }
+          >
+            Revoke
+          </Button>
+        ) : (
+          <Button size="sm" onClick={() => setConfirming(principal)}>
+            Confirm
+          </Button>
+        )
+      },
+    },
+  ]
 
   function updatePrincipalQuery(value: string) {
     setPrincipalQuery(value)
@@ -160,70 +349,13 @@ export function AdminMappingsPage() {
             description="A connection appears here after its first crawl reports identities."
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Connection</TableHead>
-                <TableHead>Identity trust</TableHead>
-                <TableHead className="text-right">People</TableHead>
-                <TableHead className="text-right">Unmapped</TableHead>
-                <TableHead className="text-right">Last seen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {connectionRows.map((connection) => {
-                const key = `${connection.sourceSystem}/${connection.sourceConnectionKey}`
-                const pending =
-                  trust.isPending &&
-                  trust.variables?.body.sourceConnectionKey === connection.sourceConnectionKey &&
-                  trust.variables?.body.sourceSystem === connection.sourceSystem
-                return (
-                  <TableRow key={key}>
-                    <TableCell className="font-medium">
-                      {connectionLabel(connection.sourceSystem, connection.sourceConnectionKey)}
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={connection.identityTrust}
-                        disabled={pending}
-                        onValueChange={(value: string) =>
-                          trust.mutate({
-                            body: {
-                              sourceSystem: connection.sourceSystem,
-                              sourceConnectionKey: connection.sourceConnectionKey,
-                              identityTrust: value as "UNTRUSTED" | "SSO_VERIFIED",
-                            },
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-44" aria-label={`Identity trust for ${key}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TRUST_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{connection.userCount ?? 0}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {connection.unmappedUserCount ? (
-                        <Badge variant="warning">{connection.unmappedUserCount}</Badge>
-                      ) : (
-                        0
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {formatTimestamp(connection.lastSeenAt)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={connectionColumns}
+            data={connectionRows}
+            getRowId={(connection, index) =>
+              `${connection.sourceSystem}/${connection.sourceConnectionKey || index}`
+            }
+          />
         )}
       </AdminSection>
 
@@ -268,70 +400,11 @@ export function AdminMappingsPage() {
             }
           />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Principal</TableHead>
-                <TableHead>Connection</TableHead>
-                <TableHead>Mapping</TableHead>
-                <TableHead>Internal user</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {visiblePrincipals.map((principal) => {
-                const isGroup = principal.kind === "SOURCE_GROUP"
-                const pending = revoke.isPending && revoke.variables?.path.principalId === principal.id
-                return (
-                  <TableRow key={principal.id}>
-                    <TableCell>
-                      <div className="min-w-56">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate font-medium">{principalName(principal)}</span>
-                          {isGroup ? <Badge variant="outline">Group</Badge> : null}
-                          {principal.ssoVerified ? <Badge variant="secondary">SSO</Badge> : null}
-                        </div>
-                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {principal.observedEmail || principal.externalKey}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {connectionLabel(principal.sourceSystem, principal.sourceConnectionKey)}
-                    </TableCell>
-                    <TableCell>
-                      {isGroup ? (
-                        <span className="text-sm text-muted-foreground">Membership is sealed</span>
-                      ) : (
-                        <MappingBadge mapping={principal.mapping} />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="min-w-40 truncate text-sm">
-                        {principal.mapping?.appUserName ?? principal.mapping?.appUserEmail ?? "—"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {isGroup ? null : principal.mapping ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() => revoke.mutate({ path: { principalId: principal.id! } })}
-                        >
-                          Revoke
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => setConfirming(principal)}>
-                          Confirm
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={principalColumns}
+            data={visiblePrincipals}
+            getRowId={(principal, index) => principal.id ?? String(index)}
+          />
         )}
       </AdminSection>
 

@@ -102,6 +102,12 @@ sorting, filtering, pagination, and later server-controlled state. The shared
 wrapper still renders OrgMemory's existing `<Table>` primitives and accessible
 HTML.
 
+Add Vitest with Testing Library for fast, behavior-facing shared component
+contracts. Keep the suite narrow: shared layout semantics and table
+sorting/empty behavior run here; routing, responsive layout, authentication,
+and end-to-end product journeys stay in Playwright. Do not snapshot Tailwind
+classes or duplicate each page journey as a component test.
+
 Do not add Motion in this increment. Current transitions are simple,
 self-contained CSS transitions. Motion becomes justified when a concrete flow
 needs interruptible layout animation, presence animation, or gestures. If
@@ -140,6 +146,7 @@ The graph view uses `PageLayout`'s `canvas` variant:
 
 - Oxlint;
 - TypeScript project build;
+- focused Vitest component contracts;
 - Vite production build;
 - focused browser validation for Documents, Knowledge graph, Assets, MCP, and
   Administration at desktop and narrow viewports;
@@ -149,8 +156,15 @@ Completed evidence:
 
 - Oxlint passed.
 - TypeScript project build passed.
+- Four focused Vitest assertions passed in two test files in about three
+  seconds locally.
 - Vite production build passed with the existing large-chunk advisory.
 - All eight Playwright flows passed.
+- Every feature data grid now renders through the TanStack-backed `DataTable`;
+  the only direct table primitives left are the shared renderer itself.
+- Admin Users was inspected in a real Chromium session with mocked API data;
+  accessible sorting moved Alice to the first row and produced no browser
+  errors.
 - Assets and Knowledge graph were inspected at `1440x900` and `390x844`;
   neither produced horizontal overflow, and the graph canvas filled the
   remaining app-shell workspace.

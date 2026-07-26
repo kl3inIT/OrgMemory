@@ -279,35 +279,44 @@ export function KnowledgeGraphPanel() {
                 }}
                 onExpandEntity={async (entity) => {
                   if (!selectedSpace?.id || !entity.id || !entity.name) return
-                  const expanded = await queryClient.fetchQuery(
-                    exploreKnowledgeGraphOptions({
-                      path: { knowledgeSpaceId: selectedSpace.id },
-                      query: {
-                        q: entity.name,
-                        entityLimit: Math.min(1_000, entityLimit),
-                        maxDepth: Math.max(2, maximumDepth),
-                      },
-                    }),
-                  )
-                  if (expanded.authorizationGeneration !== displayedGraph.authorizationGeneration) {
-                    setExpandedViews([])
-                    setHiddenEntityIds(new Set())
-                    await graph.refetch()
-                    toast.info("Permissions changed; the graph view was refreshed")
-                    return
+                  try {
+                    const expanded = await queryClient.fetchQuery(
+                      exploreKnowledgeGraphOptions({
+                        path: { knowledgeSpaceId: selectedSpace.id },
+                        query: {
+                          q: entity.name,
+                          entityLimit: Math.min(1_000, entityLimit),
+                          maxDepth: Math.max(2, maximumDepth),
+                        },
+                      }),
+                    )
+                    if (
+                      expanded.authorizationGeneration !==
+                      displayedGraph.authorizationGeneration
+                    ) {
+                      setExpandedViews([])
+                      setHiddenEntityIds(new Set())
+                      await graph.refetch()
+                      toast.info("Permissions changed; the graph view was refreshed")
+                      return
+                    }
+                    const currentIds = new Set(
+                      displayedGraph.entities?.map((candidate) => candidate.id) ?? [],
+                    )
+                    const added = (expanded.entities ?? []).filter(
+                      (candidate) => candidate.id && !currentIds.has(candidate.id),
+                    ).length
+                    if (added === 0) {
+                      toast.info("No new visible neighbors")
+                      return
+                    }
+                    setExpandedViews((current) => [...current, expanded])
+                    toast.success(
+                      `${added} visible ${added === 1 ? "neighbor" : "neighbors"} added`,
+                    )
+                  } catch {
+                    toast.error("Visible neighbors could not be loaded")
                   }
-                  const currentIds = new Set(
-                    displayedGraph.entities?.map((candidate) => candidate.id) ?? [],
-                  )
-                  const added = (expanded.entities ?? []).filter(
-                    (candidate) => candidate.id && !currentIds.has(candidate.id),
-                  ).length
-                  if (added === 0) {
-                    toast.info("No new visible neighbors")
-                    return
-                  }
-                  setExpandedViews((current) => [...current, expanded])
-                  toast.success(`${added} visible ${added === 1 ? "neighbor" : "neighbors"} added`)
                 }}
                 onHideEntity={(entityId) => {
                   const entitiesToHide = prunableEntityIds(displayedGraph, entityId)
