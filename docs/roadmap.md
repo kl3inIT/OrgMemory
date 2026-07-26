@@ -107,6 +107,21 @@ belongs in one active increment.
   one realistic task, explicit data-retention policy, and rollback plan. Expand
   to 20-100 users only after this gate passes.
 
+## Engineering Backlog
+
+- Complete the API-facing exception migration: inventory legacy validators and
+  services that still expose `IllegalArgumentException` or require dedicated
+  transport handlers, move intended business failures to the shared
+  `BusinessException` categories and stable RFC 9457 codes, add contract tests,
+  then remove the compatibility translator only after no caller depends on it.
+- Refactor oversized Spring Modulith packages into cohesive internal
+  subpackages while preserving each logical module and its public named
+  interface. Choose package boundaries from actual responsibilities
+  (application use cases, domain model, inbound API, outbound infrastructure),
+  document allowed dependencies, and keep Modulith verification in CI; do not
+  create one Gradle module or one top-level Modulith module per class or asset
+  profile.
+
 ## Later, Only With Evidence
 
 Screenpipe capture, controlled SOP effectivity, Skill installation, executable
