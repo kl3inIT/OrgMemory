@@ -364,8 +364,9 @@ Scope:
   view-to-use, evaluation pass, reviewer correction, and owner coverage.
 - [x] Add generic MCP connection guidance for Claude, Codex, and compatible
   clients without storing vendor client secrets in the product UI.
-- [x] Enable CIMD and a restricted DCR compatibility fallback with PKCE,
-  consent, redirect-host and scope allowlists, and a bounded client count.
+- [x] Enable restricted DCR with PKCE, consent, redirect-host and scope
+  allowlists, and a bounded client count; keep CIMD disabled for the documented
+  Keycloak 26.7 and Claude Web public-client grant incompatibility.
 - [x] Proxy and smoke-test public OAuth protected-resource discovery.
 - [x] Run static, domain, integration, OpenFGA, frontend, browser, MCP, and
   two-user security gates.

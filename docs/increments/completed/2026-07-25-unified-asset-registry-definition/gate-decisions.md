@@ -113,9 +113,10 @@ model invocation, progress mutation, review, publication, withdrawal,
 permission change, or installation.
 
 MCP clients are not modeled as one confidential client per vendor. The
-onboarding order is pre-registration when supplied, trusted Client ID Metadata
-Documents where supported, then restricted Dynamic Client Registration for
-URL-only compatibility. The Keycloak policy forces PKCE S256 and consent,
+onboarding order is pre-registration when supplied, then restricted Dynamic
+Client Registration. CIMD remains disabled because Claude Web currently
+advertises a JWT bearer grant for a public client that Keycloak 26.7 rejects.
+The Keycloak DCR policy forces PKCE S256 and consent,
 allows only documented vendor/loopback redirect hosts and `assets:read`, and
 bounds anonymous registrations. The `/connect` UI publishes connection
 instructions only; Keycloak remains the authorization and consent surface.

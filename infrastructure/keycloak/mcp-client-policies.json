@@ -1,27 +1,8 @@
 {
+  "removeNames": [
+    "orgmemory-mcp-cimd-policy"
+  ],
   "policies": [
-    {
-      "name": "orgmemory-mcp-cimd-policy",
-      "description": "Allow trusted MCP Client ID Metadata Documents",
-      "enabled": true,
-      "conditions": [
-        {
-          "condition": "client-id-uri",
-          "configuration": {
-            "client-id-uri-allow-permitted-domains": [
-              "claude.ai",
-              "vscode.dev"
-            ],
-            "client-id-uri-scheme": [
-              "https"
-            ]
-          }
-        }
-      ],
-      "profiles": [
-        "orgmemory-mcp-cimd-profile"
-      ]
-    },
     {
       "name": "orgmemory-mcp-dcr-policy",
       "description": "Apply hardened OAuth defaults to anonymous MCP DCR clients",

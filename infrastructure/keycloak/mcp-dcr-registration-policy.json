@@ -8,7 +8,8 @@
       "127.0.0.1",
       "claude.ai",
       "claude.com",
-      "vscode.dev"
+      "vscode.dev",
+      "code.visualstudio.com"
     ],
     "client-uris-must-match": [
       "true"
