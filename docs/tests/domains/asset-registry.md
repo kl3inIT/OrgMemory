@@ -25,6 +25,7 @@
 | Read-only Pack description creates no assignment or progress | `AssetRegistryIntegrationTests#workInstructionAcknowledgementAndPackProgressAreIdempotentAndPinned` | covered |
 | Every read-only delivery endpoint, including deterministic Prompt render, requires `assets:read` | `AssetDeliveryControllerSecurityTests` | covered |
 | MCP publishes six read-only Asset tools, two resource templates, and one Prompt adapter | `OrgMemoryMcpContextTests`, `AssetDeliveryToolsTests` | covered |
+| Every MCP tool publishes an MCP 2025-11-25-compatible object-root output schema accepted by strict clients | `OrgMemoryMcpContextTests` | covered |
 | MCP exchanges the actor bearer for an API-audience token and hides denial bodies | `McpApiAuthorizationTests`, `AssetDeliveryApiClientTests` | covered |
 | MCP rejects wrong audience, issuer, and expired tokens | `McpTokenValidationTests` | covered |
 | MCP advertises RFC 9728 metadata and challenges unauthenticated requests with its location | `OrgMemoryMcpContextTests` | covered |
