@@ -10,6 +10,7 @@ profiles_source="$repo_root/infrastructure/keycloak/mcp-client-profiles.json"
 policies_source="$repo_root/infrastructure/keycloak/mcp-client-policies.json"
 registration_policy_source="$repo_root/infrastructure/keycloak/mcp-dcr-registration-policy.json"
 basic_scope_source="$repo_root/infrastructure/keycloak/mcp-basic-client-scope.json"
+gateway_client_source="$repo_root/infrastructure/keycloak/mcp-gateway-client.json"
 kcadm_config="/tmp/orgmemory-mcp-kcadm.config"
 tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-keycloak-mcp.XXXXXX")"
@@ -57,6 +58,72 @@ keycloak_exec bash -ec \
     --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null'
 
 kcadm get "realms/$realm" >/dev/null
+
+clients_path="$tmp_dir/clients.json"
+kcadm get clients -r "$realm" >"$clients_path"
+gateway_client_id="$(
+  python3 - "$clients_path" "$gateway_client_source" <<'PY'
+import json
+import sys
+
+clients_path, desired_path = sys.argv[1:]
+with open(clients_path, encoding="utf-8") as stream:
+    clients = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    client_id = json.load(stream)["clientId"]
+matches = [client for client in clients if client.get("clientId") == client_id]
+if len(matches) != 1:
+    raise SystemExit(
+        f"Expected exactly one Keycloak client {client_id!r}, found {len(matches)}"
+    )
+print(matches[0]["id"])
+PY
+)"
+gateway_client_current="$tmp_dir/gateway-client-current.json"
+gateway_client_synced="$tmp_dir/gateway-client-synced.json"
+kcadm get "clients/$gateway_client_id" \
+  -r "$realm" >"$gateway_client_current"
+python3 \
+  - "$gateway_client_current" "$gateway_client_source" \
+  >"$gateway_client_synced" <<'PY'
+import json
+import sys
+
+current_path, desired_path = sys.argv[1:]
+with open(current_path, encoding="utf-8") as stream:
+    current = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    desired = json.load(stream)
+if current.get("clientId") != desired["clientId"]:
+    raise SystemExit("Refusing to update a different Keycloak client")
+current["attributes"] = {
+    **current.get("attributes", {}),
+    **desired.get("attributes", {}),
+}
+json.dump(current, sys.stdout)
+PY
+kcadm update "clients/$gateway_client_id" \
+  -r "$realm" \
+  -f - <"$gateway_client_synced"
+kcadm get "clients/$gateway_client_id" \
+  -r "$realm" >"$gateway_client_current"
+python3 \
+  - "$gateway_client_current" "$gateway_client_source" <<'PY'
+import json
+import sys
+
+current_path, desired_path = sys.argv[1:]
+with open(current_path, encoding="utf-8") as stream:
+    current = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    desired = json.load(stream)
+actual_attributes = current.get("attributes", {})
+for key, value in desired.get("attributes", {}).items():
+    if actual_attributes.get(key) != value:
+        raise SystemExit(
+            f"Keycloak gateway client attribute verification failed for {key}"
+        )
+PY
 
 client_scopes_csv="$tmp_dir/client-scopes.csv"
 kcadm get client-scopes \

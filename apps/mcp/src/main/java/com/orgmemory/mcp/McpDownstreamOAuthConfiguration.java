@@ -15,10 +15,13 @@ import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedCli
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
-import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 @Configuration(proxyBeanMethods = false)
 class McpDownstreamOAuthConfiguration {
+
+    private static final String ACCESS_TOKEN_TYPE =
+            "urn:ietf:params:oauth:token-type:access_token";
 
     @Bean
     OAuth2AuthorizedClientManager mcpAuthorizedClientManager(
@@ -26,17 +29,10 @@ class McpDownstreamOAuthConfiguration {
             McpGatewayProperties properties) {
         var responseClient =
                 new RestClientTokenExchangeTokenResponseClient();
-        responseClient.addParametersConverter(request -> {
-            var parameters =
-                    new LinkedMultiValueMap<String, String>();
-            parameters.set(
-                    OAuth2ParameterNames.SUBJECT_TOKEN_TYPE,
-                    "urn:ietf:params:oauth:token-type:access_token");
-            parameters.set(
-                    OAuth2ParameterNames.AUDIENCE,
-                    properties.apiAudience());
-            return parameters;
-        });
+        responseClient.setParametersCustomizer(parameters ->
+                customizeTokenExchangeParameters(
+                        parameters,
+                        properties.apiAudience()));
 
         var tokenExchange =
                 new TokenExchangeOAuth2AuthorizedClientProvider();
@@ -53,6 +49,22 @@ class McpDownstreamOAuthConfiguration {
                         new NonPersistingAuthorizedClientRepository());
         manager.setAuthorizedClientProvider(provider);
         return manager;
+    }
+
+    static void customizeTokenExchangeParameters(
+            MultiValueMap<String, String> parameters,
+            String audience) {
+        /*
+         * Spring identifies Jwt as the RFC 8693 "jwt" token type by default,
+         * while Keycloak's standard exchange accepts its access-token JWT as
+         * an "access_token". set() also replaces that default value. Using an
+         * additional parameters converter would append a second
+         * subject_token_type and Keycloak rejects the ambiguous request.
+         */
+        parameters.set(
+                OAuth2ParameterNames.SUBJECT_TOKEN_TYPE,
+                ACCESS_TOKEN_TYPE);
+        parameters.set(OAuth2ParameterNames.AUDIENCE, audience);
     }
 
     /**

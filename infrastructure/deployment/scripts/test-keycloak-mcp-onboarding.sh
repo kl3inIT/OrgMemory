@@ -97,6 +97,48 @@ MSYS_NO_PATHCONV=1 docker exec "$container" \
   -r orgmemory \
   -s description=drifted \
   --config "$container_kcadm_config" >/dev/null
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get clients \
+  -r orgmemory \
+  --config "$container_kcadm_config" >"$tmp_dir/clients.json"
+gateway_client_id="$(
+  python3 - "$tmp_dir/clients.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    clients = json.load(stream)
+print(next(
+    client["id"]
+    for client in clients
+    if client["clientId"] == "orgmemory-mcp"
+))
+PY
+)"
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get "clients/$gateway_client_id" \
+  -r orgmemory \
+  --config "$container_kcadm_config" >"$tmp_dir/gateway-client.json"
+python3 \
+  - "$tmp_dir/gateway-client.json" \
+  >"$tmp_dir/gateway-client-drifted.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    client = json.load(stream)
+client.setdefault("attributes", {}).pop(
+    "standard.token.exchange.enabled",
+    None,
+)
+json.dump(client, sys.stdout)
+PY
+MSYS_NO_PATHCONV=1 docker exec -i "$container" \
+  /opt/keycloak/bin/kcadm.sh update "clients/$gateway_client_id" \
+  -r orgmemory \
+  -f - \
+  --config "$container_kcadm_config" \
+  <"$tmp_dir/gateway-client-drifted.json"
 ORGMEMORY_KEYCLOAK_CONTAINER="$container" \
 ORGMEMORY_KEYCLOAK_REALM=orgmemory \
   "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
@@ -115,6 +157,25 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 with open(sys.argv[2], encoding="utf-8") as stream:
     expected = json.load(stream)
 assert scope["description"] == expected["description"], scope
+PY
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get "clients/$gateway_client_id" \
+  -r orgmemory \
+  --config "$container_kcadm_config" >"$tmp_dir/gateway-client.json"
+python3 \
+  - "$tmp_dir/gateway-client.json" \
+  "$repo_root/infrastructure/keycloak/mcp-gateway-client.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    client = json.load(stream)
+with open(sys.argv[2], encoding="utf-8") as stream:
+    expected = json.load(stream)
+for key, value in expected["attributes"].items():
+    assert client["attributes"].get(key) == value, client["attributes"]
+assert client["clientAuthenticatorType"] == "client-secret", client
+assert client["publicClient"] is False, client
 PY
 
 curl --fail --silent --show-error "$metadata_url" >"$tmp_dir/metadata.json"
