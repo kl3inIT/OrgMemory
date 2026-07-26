@@ -476,7 +476,8 @@ class AssetRegistryIntegrationTests {
         when(tupleWrites.write(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
         jdbc.update(
-                "UPDATE asset_authorization_outbox SET next_attempt_at = now() "
+                "UPDATE asset_authorization_outbox "
+                        + "SET next_attempt_at = now() - interval '1 second' "
                         + "WHERE asset_id = ?",
                 assetId);
         var report = convergence.reconcile(50);
