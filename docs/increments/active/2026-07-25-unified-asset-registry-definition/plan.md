@@ -290,7 +290,7 @@ without making MCP a privileged bypass.
 
 Depends on: PR 3.
 
-Accepted size: at most 100 files; implementation currently changes 80 files.
+Accepted size: at most 100 files; implementation currently changes 82 files.
 
 Scope:
 
