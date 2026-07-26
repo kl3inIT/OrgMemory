@@ -2,6 +2,7 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -14,6 +15,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -116,18 +118,63 @@ class AssetDeliveryApiClientTests {
     }
 
     @Test
+    void preservesExplicitNullPromptVariables() {
+        server.expect(requestTo(
+                        "https://api.example.test/api/asset-delivery/"
+                                + ASSET_ID
+                                + "/releases/"
+                                + RELEASE_ID
+                                + "/prompt-render"))
+                .andExpect(content().json(
+                        "{\"variables\":{\"optional\":null}}"))
+                .andRespond(withSuccess(
+                        """
+                        {
+                          "assetId":"10000000-0000-0000-0000-000000000001",
+                          "releaseId":"20000000-0000-0000-0000-000000000001",
+                          "releaseDigest":"abc",
+                          "systemInstruction":"Follow policy.",
+                          "userPrompt":"Use the approved default",
+                          "sensitiveVariables":[],
+                          "inputShapeDigest":"shape"
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON));
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("optional", null);
+
+        var result = client().renderPrompt(
+                "Bearer api-token",
+                ASSET_ID,
+                RELEASE_ID,
+                variables);
+
+        assertEquals("Use the approved default", result.userPrompt());
+        server.verify();
+    }
+
+    @Test
     void mapsDeniedAndMissingAssetsToOneOpaqueMessage() {
         server.expect(requestTo(
                         "https://api.example.test/api/asset-delivery/" + ASSET_ID))
                 .andRespond(withStatus(HttpStatus.NOT_FOUND)
                         .body("private authorization detail"));
+        server.expect(requestTo(
+                        "https://api.example.test/api/asset-delivery/" + ASSET_ID))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .body("denied for actor"));
 
-        var failure = assertThrows(
+        var missing = assertThrows(
+                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                () -> client().getAsset("Bearer api-token", ASSET_ID));
+        var denied = assertThrows(
                 AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
                 () -> client().getAsset("Bearer api-token", ASSET_ID));
 
-        assertFalse(failure.getMessage().contains(
+        assertFalse(missing.getMessage().contains(
                 "private authorization detail"));
+        assertFalse(denied.getMessage().contains("denied for actor"));
+        assertEquals(missing.getMessage(), denied.getMessage());
         server.verify();
     }
 
@@ -145,6 +192,7 @@ class AssetDeliveryApiClientTests {
         assertEquals(
                 "OrgMemory Asset delivery is temporarily unavailable",
                 failure.getMessage());
+        assertNotNull(failure.getCause());
         server.verify();
     }
 

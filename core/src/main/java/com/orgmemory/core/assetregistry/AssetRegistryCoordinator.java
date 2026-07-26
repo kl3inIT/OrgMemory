@@ -270,11 +270,12 @@ class AssetRegistryCoordinator {
             UUID organizationId, UUID assetId) {
         Asset asset = requiredAsset(organizationId, assetId);
         AssetRelease release = releases
-                .findByAssetIdAndOrganizationIdOrderBySequenceDesc(
-                        assetId, organizationId)
+                .findLatestUsable(
+                        assetId,
+                        organizationId,
+                        AssetAvailability.WITHDRAWN,
+                        PageRequest.of(0, 1))
                 .stream()
-                .filter(candidate -> currentAvailability(candidate.getId())
-                        != AssetAvailability.WITHDRAWN)
                 .findFirst()
                 .orElseThrow(AssetNotFoundException::new);
         return consumptionRelease(

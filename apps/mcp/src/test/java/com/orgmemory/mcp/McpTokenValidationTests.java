@@ -1,12 +1,19 @@
 package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
 
 class McpTokenValidationTests {
 
@@ -40,6 +47,33 @@ class McpTokenValidationTests {
                         "https://wrong-issuer.example.test",
                         List.of("https://mcp.example.test/mcp")))
                 .hasErrors());
+    }
+
+    @Test
+    void preservesBearerFailureDetailsAndAddsResourceMetadata()
+            throws Exception {
+        var response = new MockHttpServletResponse();
+        var error = new BearerTokenError(
+                "invalid_token",
+                HttpStatus.UNAUTHORIZED,
+                "The token is invalid",
+                null);
+
+        McpSecurityConfiguration.authenticationEntryPoint(
+                        URI.create(
+                                "https://mcp.example.test/.well-known/oauth-protected-resource/mcp"))
+                .commence(
+                        new MockHttpServletRequest(),
+                        response,
+                        new OAuth2AuthenticationException(error));
+
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), response.getStatus());
+        String challenge = response.getHeader("WWW-Authenticate");
+        assertTrue(challenge.contains("error=\"invalid_token\""));
+        assertTrue(challenge.contains(
+                "error_description=\"The token is invalid\""));
+        assertTrue(challenge.contains(
+                "resource_metadata=\"https://mcp.example.test/.well-known/oauth-protected-resource/mcp\""));
     }
 
     private static Jwt jwt(

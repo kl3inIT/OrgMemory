@@ -3,6 +3,7 @@ package com.orgmemory.mcp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.mcp.annotation.McpTool;
+import tools.jackson.databind.json.JsonMapper;
 
 class AssetDeliveryToolsTests {
 
@@ -107,5 +109,45 @@ class AssetDeliveryToolsTests {
             assertFalse(declaration.annotations().destructiveHint());
             assertFalse(declaration.annotations().openWorldHint());
         });
+    }
+
+    @Test
+    void releasedPromptPreservesExplicitNullVariables() {
+        var rendered = new AssetDeliveryApiClient.PromptRender(
+                ASSET_ID,
+                RELEASE_ID,
+                "digest",
+                "Follow policy.",
+                "Use the approved default",
+                List.of(),
+                "shape");
+        when(authorization.require(context))
+                .thenReturn("Bearer exchanged-api-token");
+        when(client.renderPrompt(
+                        org.mockito.ArgumentMatchers.eq(
+                                "Bearer exchanged-api-token"),
+                        org.mockito.ArgumentMatchers.eq(ASSET_ID),
+                        org.mockito.ArgumentMatchers.eq(RELEASE_ID),
+                        argThat(values -> values.containsKey("optional")
+                                && values.get("optional") == null)))
+                .thenReturn(rendered);
+        var adapter = new ReleasedPromptAdapter(
+                client,
+                authorization,
+                JsonMapper.builder().build());
+
+        adapter.releasedPrompt(
+                ASSET_ID.toString(),
+                RELEASE_ID.toString(),
+                "{\"optional\":null}",
+                context);
+
+        verify(client).renderPrompt(
+                org.mockito.ArgumentMatchers.eq(
+                        "Bearer exchanged-api-token"),
+                org.mockito.ArgumentMatchers.eq(ASSET_ID),
+                org.mockito.ArgumentMatchers.eq(RELEASE_ID),
+                argThat(values -> values.containsKey("optional")
+                        && values.get("optional") == null));
     }
 }

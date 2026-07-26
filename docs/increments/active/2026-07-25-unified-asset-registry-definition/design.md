@@ -454,9 +454,10 @@ and never passes the inbound bearer through.
 The MCP server validates the configured canonical MCP resource URI and
 `assets:read`. Its confidential OAuth client exchanges that user token for a
 short-lived `orgmemory-web` audience token before calling the API. For Keycloak
-standard token exchange, the requested `assets:read` client scope supplies the
-MCP resource, exchange-client, and API audiences; the exchange then down-scopes
-the API token. OAuth remains coarse admission only: `CAN_USE` is resolved for
+standard token exchange, the requested `assets:read` client scope supplies only
+the MCP resource and exchange-client audiences. The confidential exchange
+client alone adds the API audience to the exchanged token, which is never
+persisted across MCP requests. OAuth remains coarse admission only: `CAN_USE` is resolved for
 each Asset and each Pack item. MCP capability listing contains no Asset
 instances, so denied metadata cannot leak before a tool, resource, or prompt
 invocation.

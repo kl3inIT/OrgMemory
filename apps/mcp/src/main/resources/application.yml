@@ -17,7 +17,7 @@ spring:
           orgmemory-api:
             provider: keycloak
             client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
-            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET:orgmemory-mcp-local-dev-only}
+            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET}
             client-authentication-method: client_secret_basic
             authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
             scope: assets:read

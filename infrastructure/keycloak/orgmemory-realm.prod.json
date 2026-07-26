@@ -48,19 +48,7 @@
             "access.token.claim": "true",
             "introspection.token.claim": "true"
           }
-        },
-        {
-          "name": "orgmemory-api-downstream-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "orgmemory-web",
-            "id.token.claim": "false",
-            "access.token.claim": "true",
-            "introspection.token.claim": "true"
-          }
-        }
+      }
       ]
     }
   ],
@@ -117,10 +105,24 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": false,
-      "attributes": {
-        "standard.token.exchange.enabled": "true"
-      },
-      "optionalClientScopes": [
+    "attributes": {
+      "standard.token.exchange.enabled": "true"
+    },
+    "protocolMappers": [
+      {
+        "name": "orgmemory-api-downstream-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": false,
+        "config": {
+          "included.client.audience": "orgmemory-web",
+          "id.token.claim": "false",
+          "access.token.claim": "true",
+          "introspection.token.claim": "true"
+        }
+      }
+    ],
+    "optionalClientScopes": [
         "assets:read"
       ]
     }

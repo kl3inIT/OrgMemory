@@ -21,10 +21,12 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Token-bucket rate limiting for authenticated MCP callers.
@@ -38,11 +40,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 final class McpRateLimitFilter extends OncePerRequestFilter {
 
     private final McpRateLimitProperties properties;
+    private final ObjectMapper json;
     private final Bucket global;
     private final Cache<String, Bucket> callers;
 
-    McpRateLimitFilter(McpRateLimitProperties properties) {
+    McpRateLimitFilter(
+            McpRateLimitProperties properties,
+            ObjectMapper json) {
         this.properties = properties;
+        this.json = json;
         this.global = bucket(
                 properties.globalCapacity(),
                 properties.globalWindow());
@@ -80,6 +86,16 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof JwtAuthenticationToken jwt)
                 || !authentication.isAuthenticated()) {
+            ConsumptionProbe globalProbe =
+                    global.tryConsumeAndReturnRemaining(1);
+            if (!globalProbe.isConsumed()) {
+                reject(
+                        response,
+                        "mcp.global-rate-limited",
+                        globalProbe,
+                        properties.globalCapacity());
+                return;
+            }
             filterChain.doFilter(request, response);
             return;
         }
@@ -126,7 +142,7 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
             if (!causedByBodyLimit(failure) || response.isCommitted()) {
                 throw failure;
             }
-            response.resetBuffer();
+            response.reset();
             writeProblem(
                     response,
                     HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
@@ -179,7 +195,7 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
         return false;
     }
 
-    private static void reject(
+    private void reject(
             HttpServletResponse response,
             String code,
             ConsumptionProbe probe,
@@ -204,7 +220,7 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
                 retryAfter);
     }
 
-    private static void writeProblem(
+    private void writeProblem(
             HttpServletResponse response,
             int status,
             String code,
@@ -213,25 +229,23 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
             throws IOException {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        String retry = retryAfterSeconds > 0
-                ? ",\"retryAfterSeconds\":" + retryAfterSeconds
-                : "";
-        response.getWriter().write(
-                "{\"type\":\"urn:orgmemory:problem:"
-                        + code
-                        + "\",\"title\":\""
-                        + (status == HttpStatus.TOO_MANY_REQUESTS.value()
-                                ? "Too Many Requests"
-                                : "Content Too Large")
-                        + "\",\"status\":"
-                        + status
-                        + ",\"detail\":\""
-                        + detail
-                        + "\",\"code\":\""
-                        + code
-                        + "\""
-                        + retry
-                        + "}");
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(
+                        org.springframework.http.HttpStatusCode.valueOf(status),
+                        detail);
+        problem.setType(java.net.URI.create(
+                "urn:orgmemory:problem:" + code));
+        problem.setTitle(
+                status == HttpStatus.TOO_MANY_REQUESTS.value()
+                        ? "Too Many Requests"
+                        : "Content Too Large");
+        problem.setProperty("code", code);
+        if (retryAfterSeconds > 0) {
+            problem.setProperty(
+                    "retryAfterSeconds", retryAfterSeconds);
+        }
+        json.writeValue(response.getOutputStream(), problem);
     }
 
     private static final class LimitedBodyRequest

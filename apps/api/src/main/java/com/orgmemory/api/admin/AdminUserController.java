@@ -101,9 +101,7 @@ class AdminUserController {
         if (actor.userId().equals(userId)) {
             throw new ApiRequestException("An administrator cannot change their own role or activation");
         }
-        AppUser user = users.findById(userId)
-                .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new ApiRequestException("Unknown user in this organization"));
+        AppUser user = guard.requireUserInOrganization(userId, actor);
 
         if (request.role() != null) {
             user.changeRole(request.role());

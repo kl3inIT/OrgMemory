@@ -1,6 +1,8 @@
 package com.orgmemory.mcp;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -100,7 +102,7 @@ class AssetDeliveryApiClient {
                 .header(HttpHeaders.AUTHORIZATION, authorization)
                 .body(Map.of(
                         "variables",
-                        variables == null ? Map.of() : Map.copyOf(variables)))
+                        copyVariables(variables)))
                 .retrieve()
                 .body(PromptRender.class));
     }
@@ -139,8 +141,18 @@ class AssetDeliveryApiClient {
                     "OrgMemory Asset delivery is temporarily unavailable");
         } catch (RestClientException unavailable) {
             throw new AssetDeliveryGatewayException(
-                    "OrgMemory Asset delivery is temporarily unavailable");
+                    "OrgMemory Asset delivery is temporarily unavailable",
+                    unavailable);
         }
+    }
+
+    private static Map<String, Object> copyVariables(
+            Map<String, Object> variables) {
+        if (variables == null || variables.isEmpty()) {
+            return Map.of();
+        }
+        return Collections.unmodifiableMap(
+                new LinkedHashMap<>(variables));
     }
 
     private static String blankToNull(String value) {
@@ -263,6 +275,11 @@ class AssetDeliveryApiClient {
 
         AssetDeliveryGatewayException(String message) {
             super(message);
+        }
+
+        AssetDeliveryGatewayException(
+                String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

@@ -241,6 +241,9 @@ class AssetRegistryIntegrationTests {
                 promptPayloadWithoutVariables(),
                 "1.0.0");
         AssetView.Release release = published.releases().getFirst();
+        String draftPayload = promptPayloadWithoutVariables().replace(
+                "Draft an approved response.",
+                "Draft an unreleased replacement response.");
         assets.updateDraft(
                 AUTHOR,
                 published.id(),
@@ -248,15 +251,29 @@ class AssetRegistryIntegrationTests {
                 new AssetDraftInput(
                         "Unreleased delivery shadow",
                         "This must never reach MCP",
-                        "INTERNAL",
+                        "CONFIDENTIAL",
                         "1",
-                        promptPayloadWithoutVariables()));
+                        draftPayload));
 
         var delivered = delivery.get(AUTHOR, published.id());
 
+        assertEquals(published.id(), delivered.assetId());
         assertEquals(release.id(), delivered.releaseId());
+        assertEquals(published.type(), delivered.type());
+        assertEquals(published.namespace(), delivered.namespace());
+        assertEquals(published.slug(), delivered.slug());
+        assertEquals(release.versionLabel(), delivered.versionLabel());
         assertEquals(release.title(), delivered.title());
-        assertNotEquals("Unreleased delivery shadow", delivered.title());
+        assertEquals(release.summary(), delivered.summary());
+        assertEquals(release.classification(), delivered.classification());
+        assertEquals(release.schemaVersion(), delivered.schemaVersion());
+        assertEquals(release.payload(), delivered.payload());
+        assertEquals(release.digest(), delivered.digest());
+        assertEquals(release.availability(), delivered.availability());
+        assertEquals(
+                release.releasedAt().toEpochMilli(),
+                delivered.releasedAt().toEpochMilli());
+        assertNotEquals(draftPayload, delivered.payload());
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             return query.principal().equals(REVIEWER.principal())
@@ -276,7 +293,51 @@ class AssetRegistryIntegrationTests {
                         REVIEWER,
                         published.id(),
                         release.id(),
-                        Map.of()));
+                Map.of()));
+    }
+
+    @Test
+    void latestDeliveryFallsBackToTheNewestReleaseThatIsStillUsable() {
+        AssetView first = createApprovedRelease(
+                AssetType.PROMPT_TEMPLATE,
+                "mcp-delivery-fallback",
+                promptPayloadWithoutVariables(),
+                "1.0.0");
+        AssetView.Release firstRelease = first.releases().getFirst();
+        String replacementPayload = promptPayloadWithoutVariables().replace(
+                "Draft an approved response.",
+                "Draft a replacement response.");
+        AssetView changed = assets.updateDraft(
+                AUTHOR,
+                first.id(),
+                first.draft().lockVersion(),
+                new AssetDraftInput(
+                        "Replacement release",
+                        "A later release that will be withdrawn",
+                        "INTERNAL",
+                        "1",
+                        replacementPayload));
+        AssetView submitted = assets.submit(
+                AUTHOR, first.id(), "Publish replacement");
+        approve(first.id(), submitted);
+        AssetView second = assets.publish(
+                AUTHOR,
+                first.id(),
+                submitted.revisions().getFirst().id(),
+                "2.0.0");
+        AssetView.Release secondRelease = second.releases().getFirst();
+        assets.withdraw(
+                AUTHOR,
+                first.id(),
+                secondRelease.id(),
+                "Withdraw replacement");
+
+        var delivered = delivery.get(AUTHOR, changed.id());
+
+        assertEquals(firstRelease.id(), delivered.releaseId());
+        assertEquals(firstRelease.digest(), delivered.digest());
+        assertEquals(firstRelease.payload(), delivered.payload());
+        assertEquals(AssetAvailability.AVAILABLE, delivered.availability());
     }
 
     @Test

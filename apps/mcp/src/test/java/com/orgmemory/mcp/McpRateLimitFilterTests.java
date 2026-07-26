@@ -20,6 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import tools.jackson.databind.json.JsonMapper;
 
 class McpRateLimitFilterTests {
 
@@ -32,7 +33,7 @@ class McpRateLimitFilterTests {
     void limitsEachSubjectAndOAuthClientWithoutLeakingTheToken()
             throws Exception {
         authenticate("actor-1", "claude-code", "secret-token");
-        var filter = new McpRateLimitFilter(properties(100, 2, 1_000));
+        var filter = filter(properties(100, 2, 1_000));
         FilterChain chain = mock(FilterChain.class);
 
         filter.doFilter(request(100), new MockHttpServletResponse(), chain);
@@ -55,7 +56,7 @@ class McpRateLimitFilterTests {
     @Test
     void sameSubjectThroughDifferentClientsGetsIndependentBuckets()
             throws Exception {
-        var filter = new McpRateLimitFilter(properties(100, 1, 1_000));
+        var filter = filter(properties(100, 1, 1_000));
         FilterChain chain = mock(FilterChain.class);
 
         authenticate("actor-1", "claude-code", "token-a");
@@ -71,7 +72,7 @@ class McpRateLimitFilterTests {
 
     @Test
     void globalLimitTripsAcrossIndependentCallers() throws Exception {
-        var filter = new McpRateLimitFilter(properties(2, 10, 1_000));
+        var filter = filter(properties(2, 10, 1_000));
         FilterChain chain = mock(FilterChain.class);
 
         authenticate("actor-1", "claude-code", "token-a");
@@ -90,7 +91,7 @@ class McpRateLimitFilterTests {
     @Test
     void rejectsKnownOversizedBodiesBeforeToolDispatch() throws Exception {
         authenticate("actor-1", "claude-code", "token");
-        var filter = new McpRateLimitFilter(properties(100, 100, 64));
+        var filter = filter(properties(100, 100, 64));
         FilterChain chain = mock(FilterChain.class);
         MockHttpServletResponse refused = new MockHttpServletResponse();
 
@@ -107,7 +108,7 @@ class McpRateLimitFilterTests {
     @Test
     void rejectsChunkedOversizedBodiesWhileTheyAreRead() throws Exception {
         authenticate("actor-1", "claude-code", "token");
-        var filter = new McpRateLimitFilter(properties(100, 100, 64));
+        var filter = filter(properties(100, 100, 64));
         MockHttpServletRequest request = new MockHttpServletRequest() {
             @Override
             public long getContentLengthLong() {
@@ -127,6 +128,55 @@ class McpRateLimitFilterTests {
         assertEquals(413, refused.getStatus());
         assertTrue(refused.getContentAsString()
                 .contains("mcp.request-too-large"));
+    }
+
+    @Test
+    void unauthenticatedRequestsConsumeTheGlobalBudget()
+            throws Exception {
+        var filter = filter(properties(1, 100, 1_000));
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(
+                request(100),
+                new MockHttpServletResponse(),
+                chain);
+        MockHttpServletResponse refused =
+                new MockHttpServletResponse();
+        filter.doFilter(request(100), refused, chain);
+
+        verify(chain, times(1)).doFilter(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+        assertEquals(429, refused.getStatus());
+        assertTrue(refused.getContentAsString()
+                .contains("mcp.global-rate-limited"));
+    }
+
+    @Test
+    void nonMcpPathsBypassTheLimiter() throws Exception {
+        var filter = filter(properties(1, 1, 1));
+        FilterChain chain = mock(FilterChain.class);
+        MockHttpServletRequest health = request(100);
+        health.setRequestURI("/actuator/health");
+
+        filter.doFilter(
+                health,
+                new MockHttpServletResponse(),
+                chain);
+        filter.doFilter(
+                health,
+                new MockHttpServletResponse(),
+                chain);
+
+        verify(chain, times(2)).doFilter(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    private static McpRateLimitFilter filter(
+            McpRateLimitProperties properties) {
+        return new McpRateLimitFilter(
+                properties, JsonMapper.builder().build());
     }
 
     private static McpRateLimitProperties properties(

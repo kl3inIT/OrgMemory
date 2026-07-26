@@ -2,6 +2,7 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -113,6 +114,7 @@ class KnowledgeSearchApiClientTests {
         assertEquals(
                 "OrgMemory knowledge search is temporarily unavailable",
                 failure.getMessage());
+        assertNotNull(failure.getCause());
         server.verify();
     }
 

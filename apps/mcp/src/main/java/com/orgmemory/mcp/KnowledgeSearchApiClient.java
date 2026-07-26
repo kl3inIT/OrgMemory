@@ -56,7 +56,8 @@ class KnowledgeSearchApiClient {
                     "OrgMemory knowledge search is temporarily unavailable");
         } catch (RestClientException unavailable) {
             throw new KnowledgeSearchGatewayException(
-                    "OrgMemory knowledge search is temporarily unavailable");
+                    "OrgMemory knowledge search is temporarily unavailable",
+                    unavailable);
         }
     }
 
@@ -84,6 +85,11 @@ class KnowledgeSearchApiClient {
 
         KnowledgeSearchGatewayException(String message) {
             super(message);
+        }
+
+        KnowledgeSearchGatewayException(
+                String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

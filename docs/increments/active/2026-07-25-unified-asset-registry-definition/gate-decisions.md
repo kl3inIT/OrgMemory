@@ -104,8 +104,9 @@ resource metadata and validates issuer, expiry, audience, and coarse
 Bearer passthrough is prohibited. The confidential `orgmemory-mcp` client uses
 Keycloak standard token exchange to obtain a short-lived `orgmemory-web`
 audience token for the canonical API. The requested `assets:read` scope maps
-the initial token to the MCP resource, exchange-client, and API audiences so
-Keycloak can authorize the requester and down-scope the result. The MCP
+the initial token only to the MCP resource and exchange-client audiences. The
+confidential exchange client adds the API audience only to the exchanged token.
+The gateway never persists exchanged clients by principal name. The MCP
 resource still rejects an API-only token. Object authorization remains
 OpenFGA-backed and cannot be replaced by OAuth scope. PR 4 is read-only: no
 model invocation, progress mutation, review, publication, withdrawal,
@@ -133,5 +134,6 @@ are logged with their cause and returned as generic `internal.unexpected`.
 No generic Spring Cache layer is introduced without a concrete cached data
 contract, freshness rule, invalidation owner, and authorization analysis.
 Caffeine in this PR is private bounded state for the single-node limiter, not a
-cache of Assets, permissions, evidence, or tokens. Spring Security owns the
-normal lifetime cache of exchanged OAuth authorized clients.
+cache of Assets, permissions, evidence, or tokens. The MCP OAuth manager uses a
+non-persisting authorized-client repository so each request is exchanged
+against its exact inbound subject token.

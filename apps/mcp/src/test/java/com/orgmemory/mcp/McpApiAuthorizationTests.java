@@ -1,6 +1,7 @@
 package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -10,6 +11,7 @@ import io.modelcontextprotocol.common.McpTransportContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -79,6 +81,20 @@ class McpApiAuthorizationTests {
         assertEquals(
                 "OrgMemory could not authorize the downstream Asset request",
                 failure.getMessage());
+    }
+
+    @Test
+    void exchangedAuthorizedClientsAreNeverPersistedByPrincipalName() {
+        var repository =
+                new McpDownstreamOAuthConfiguration
+                        .NonPersistingAuthorizedClientRepository();
+        var principal = authenticatedContext().get(
+                McpTransportConfiguration.AUTHENTICATION_CONTEXT_KEY);
+
+        assertNull(repository.loadAuthorizedClient(
+                "orgmemory-api",
+                (org.springframework.security.core.Authentication) principal,
+                new MockHttpServletRequest()));
     }
 
     private static McpTransportContext authenticatedContext() {

@@ -5,6 +5,8 @@ import io.modelcontextprotocol.spec.McpSchema.GetPromptResult;
 import io.modelcontextprotocol.spec.McpSchema.PromptMessage;
 import io.modelcontextprotocol.spec.McpSchema.Role;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -82,7 +84,14 @@ class ReleasedPromptAdapter {
             return Map.of();
         }
         try {
-            return Map.copyOf(json.readValue(variablesJson, VARIABLE_MAP));
+            Map<String, Object> parsed =
+                    json.readValue(variablesJson, VARIABLE_MAP);
+            if (parsed == null) {
+                throw new IllegalArgumentException(
+                        "variables_json root must be an object");
+            }
+            return Collections.unmodifiableMap(
+                    new LinkedHashMap<>(parsed));
         } catch (RuntimeException invalid) {
             throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
                     "variables_json must be a JSON object");

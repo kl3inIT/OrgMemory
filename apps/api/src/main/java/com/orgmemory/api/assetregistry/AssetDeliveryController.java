@@ -31,6 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/asset-delivery")
 class AssetDeliveryController {
 
+    private static final String ASSET_READ_AUTHORITY =
+            "SCOPE_assets:read";
+
     private final AssetDeliveryService delivery;
     private final PromptExecutionService prompts;
     private final CurrentActorProvider actors;
@@ -48,7 +51,7 @@ class AssetDeliveryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "searchReleasedAssets",
             summary = "Search exact released Assets authorized for the current actor")
@@ -60,7 +63,7 @@ class AssetDeliveryController {
     }
 
     @GetMapping("/{assetId}")
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "getLatestReleasedAsset",
             summary = "Read the latest usable immutable release for an Asset")
@@ -71,7 +74,7 @@ class AssetDeliveryController {
     }
 
     @GetMapping("/{assetId}/releases/{releaseId}")
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "getReleasedAsset",
             summary = "Read one exact usable immutable Asset release")
@@ -84,7 +87,7 @@ class AssetDeliveryController {
     }
 
     @GetMapping("/{assetId}/releases/{releaseId}/relations")
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "resolveReleasedAssetRelations",
             summary = "Resolve only independently authorized relations of an exact release")
@@ -97,7 +100,7 @@ class AssetDeliveryController {
     }
 
     @GetMapping("/{assetId}/releases/{releaseId}/pack")
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "getReleasedCapabilityPack",
             summary = "Read a Pack definition with independently authorized pinned items")
@@ -110,7 +113,7 @@ class AssetDeliveryController {
     }
 
     @PostMapping("/{assetId}/releases/{releaseId}/prompt-render")
-    @PreAuthorize("hasAuthority('SCOPE_assets:read')")
+    @PreAuthorize("hasAuthority('" + ASSET_READ_AUTHORITY + "')")
     @Operation(
             operationId = "renderReleasedPrompt",
             summary = "Deterministically render an exact authorized Prompt release")

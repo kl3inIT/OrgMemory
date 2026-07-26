@@ -70,6 +70,12 @@ class CapabilityPackServiceTests {
 
         assertTrue(definition.accessGap());
         assertEquals(1, definition.items().size());
+        assertEquals(
+                COMPONENT_ASSET_ID,
+                definition.items().getFirst().resourceId());
+        assertEquals(
+                COMPONENT_RELEASE_ID,
+                definition.items().getFirst().pinnedVersionId());
         assertTrue(journey.accessGap());
         assertEquals(1, journey.items().size());
         assertEquals("Triage Prompt", journey.items().getFirst().title());

@@ -14,17 +14,25 @@ import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration(proxyBeanMethods = false)
 class McpSecurityConfiguration {
+
+    static final String ASSET_READ_SCOPE = "assets:read";
+    static final String ASSET_READ_AUTHORITY =
+            "SCOPE_" + ASSET_READ_SCOPE;
 
     @Bean
     SecurityFilterChain mcpSecurityFilterChain(
             HttpSecurity http,
             McpGatewayProperties properties,
-            McpRateLimitProperties rateLimits)
+            McpRateLimitProperties rateLimits,
+            ObjectMapper json)
             throws Exception {
         URI metadataUri = protectedResourceMetadataUri(
                 properties.resourceUri());
@@ -40,17 +48,11 @@ class McpSecurityConfiguration {
                                 "/.well-known/oauth-protected-resource/**")
                         .permitAll()
                         .requestMatchers("/mcp", "/mcp/**")
-                        .hasAuthority("SCOPE_assets:read")
+                        .hasAuthority(ASSET_READ_AUTHORITY)
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .authenticationEntryPoint((request, response, failure) -> {
-                            response.setStatus(401);
-                            response.setHeader(
-                                    "WWW-Authenticate",
-                                    "Bearer resource_metadata=\""
-                                            + metadataUri
-                                            + "\"");
-                        })
+                        .authenticationEntryPoint(
+                                authenticationEntryPoint(metadataUri))
                         .protectedResourceMetadata(metadata -> metadata
                                 .protectedResourceMetadataCustomizer(builder -> builder
                                         .resource(properties.resourceUri().toString())
@@ -60,12 +62,20 @@ class McpSecurityConfiguration {
                                         .tlsClientCertificateBoundAccessTokens(false)
                                         .scopes(scopes -> scopes.addAll(
                                                 java.util.List.of(
-                                                        "assets:read")))))
+                                                        ASSET_READ_SCOPE)))))
                         .jwt(Customizer.withDefaults()))
                 .addFilterAfter(
-                        new McpRateLimitFilter(rateLimits),
+                        new McpRateLimitFilter(rateLimits, json),
                         BearerTokenAuthenticationFilter.class);
         return http.build();
+    }
+
+    static AuthenticationEntryPoint authenticationEntryPoint(
+            URI metadataUri) {
+        var delegate = new BearerTokenAuthenticationEntryPoint();
+        delegate.setResourceMetadataParameterResolver(
+                request -> metadataUri.toString());
+        return delegate;
     }
 
     @Bean

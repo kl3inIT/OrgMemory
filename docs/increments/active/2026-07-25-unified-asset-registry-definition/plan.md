@@ -290,7 +290,7 @@ without making MCP a privileged bypass.
 
 Depends on: PR 3.
 
-Expected size: 25-55 files.
+Accepted size: at most 100 files; implementation currently changes 80 files.
 
 Scope:
 
@@ -322,7 +322,8 @@ Required gates:
 
 - [x] MCP contract/schema tests.
 - [x] Keycloak 26.7 realm import and standard token exchange produce an
-  `orgmemory-web`-only downstream token with `azp=orgmemory-mcp`.
+  inbound token without `orgmemory-web` plus an `orgmemory-web`-only downstream
+  token with `azp=orgmemory-mcp`.
 - [x] Missing, wrong-audience, expired, and insufficient-scope tokens fail.
 - [x] Two-user metadata/payload/Pack/Prompt negative tests.
 - [x] Tool/resource/prompt listing exposes capability descriptors only; every

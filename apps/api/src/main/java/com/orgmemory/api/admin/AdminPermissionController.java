@@ -8,7 +8,6 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.knowledge.AuthorizationResourceDirectory;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,17 +56,14 @@ class AdminPermissionController {
             Set.of("organization", "organizational_unit", "knowledge_space", "knowledge_asset");
 
     private final AdminAccessGuard guard;
-    private final AppUserRepository users;
     private final AccessExplanationService explanations;
     private final AuthorizationResourceDirectory resources;
 
     AdminPermissionController(
             AdminAccessGuard guard,
-            AppUserRepository users,
             AccessExplanationService explanations,
             AuthorizationResourceDirectory resources) {
         this.guard = guard;
-        this.users = users;
         this.explanations = explanations;
         this.resources = resources;
     }
@@ -106,7 +102,7 @@ class AdminPermissionController {
     @Transactional(readOnly = true)
     EffectivePermissionResponse permissions(@PathVariable UUID userId, Authentication authentication) {
         CurrentActor actor = guard.requireMemberAdministrator(authentication);
-        AppUser user = requireUserInOrganization(userId, actor);
+        AppUser user = guard.requireUserInOrganization(userId, actor);
         var states = explanations.effectivePermissions(
                 actor.organizationId(),
                 PrincipalRef.user(user.getId()),
@@ -131,7 +127,8 @@ class AdminPermissionController {
     ExplainAccessResponse explain(
             @RequestBody ExplainAccessRequest request, Authentication authentication) {
         CurrentActor actor = guard.requireMemberAdministrator(authentication);
-        AppUser user = requireUserInOrganization(request.userId(), actor);
+        AppUser user = guard.requireUserInOrganization(
+                request.userId(), actor);
         if (request.permission() == null || request.permission().isBlank()) {
             throw new ApiRequestException("A permission is required");
         }
@@ -152,16 +149,6 @@ class AdminPermissionController {
                 resource);
         return response(explanation);
     }
-
-    private AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {
-        if (userId == null) {
-            throw new ApiRequestException("A user id is required");
-        }
-        return users.findById(userId)
-                .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                .orElseThrow(() -> new ApiRequestException("Unknown user in this organization"));
-    }
-
     private static ExplainAccessResponse response(AccessExplanation explanation) {
         return new ExplainAccessResponse(
                 explanation.state(),

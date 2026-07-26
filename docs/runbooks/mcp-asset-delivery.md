@@ -20,24 +20,28 @@ withdrawal, permission mutation, or arbitrary execution tool.
 Set one canonical, externally reachable URI:
 
 ```text
-ORGMEMORY_MCP_RESOURCE_URI=https://mcp.example.com/mcp
-ORGMEMORY_MCP_AUDIENCE=https://mcp.example.com/mcp
+ORGMEMORY_MCP_RESOURCE_URI=https://om.kl3in.tech/mcp
+ORGMEMORY_MCP_AUDIENCE=https://om.kl3in.tech/mcp
 ```
 
 Configure the issuer to advertise the optional `assets:read` client scope.
-The checked-in Keycloak realm maps that scope to three audiences:
+The checked-in Keycloak realm maps that scope to two inbound audiences:
 
 - the exact MCP resource URI, so the MCP resource server can accept it;
 - `orgmemory-mcp`, so that confidential client may perform standard token
-  exchange for the user;
-- `orgmemory-web`, so Keycloak can down-scope the exchanged token to the
-  canonical API audience.
+  exchange for the user.
+
+The `orgmemory-web` audience mapper belongs only to the confidential
+`orgmemory-mcp` exchange client. The inbound MCP token is therefore rejected by
+the API, while the exchanged token is accepted by the canonical API and
+rejected by the MCP resource.
 
 Enable **Standard token exchange** only on the confidential `orgmemory-mcp`
 client and keep its secret in the deployment secret store. The MCP gateway
-validates the issuer, expiry, MCP audience, and `assets:read`, then exchanges
-the user token for a short-lived `orgmemory-web` audience token. The inbound
-bearer is never forwarded to the API.
+validates the issuer, expiry, MCP audience, and `assets:read`, then performs a
+fresh exchange for a short-lived `orgmemory-web` audience token on every MCP
+request. Exchanged clients are not persisted by principal name, and the
+inbound bearer is never forwarded to the API.
 
 For each supported MCP host, pre-register an OAuth client with exact redirect
 URIs and assign `assets:read` as an optional scope. Do not enable anonymous
@@ -50,8 +54,8 @@ already-created realm. Before enabling MCP in an existing environment, apply
 the same `assets:read` scope/mappers and `orgmemory-mcp` confidential client
 through the Keycloak administration path, then verify:
 
-- the incoming MCP token has the MCP URI, `orgmemory-mcp`, and
-  `orgmemory-web` audiences;
+- the incoming MCP token has the MCP URI and `orgmemory-mcp` audiences, but
+  does not have `orgmemory-web`;
 - the exchanged token has only `orgmemory-web`, has
   `azp=orgmemory-mcp`, and retains `assets:read`.
 
@@ -61,7 +65,7 @@ secret. Never put either value in a document, issue, or log.
 Discovery is:
 
 ```text
-GET https://mcp.example.com/.well-known/oauth-protected-resource/mcp
+GET https://om.kl3in.tech/.well-known/oauth-protected-resource/mcp
 ```
 
 An unauthenticated `/mcp` request returns `401` and a `WWW-Authenticate`
