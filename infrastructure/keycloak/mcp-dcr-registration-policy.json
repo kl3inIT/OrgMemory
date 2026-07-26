@@ -1,0 +1,31 @@
+{
+  "trusted-hosts": {
+    "host-sending-registration-request-must-match": [
+      "false"
+    ],
+    "trusted-hosts": [
+      "localhost",
+      "127.0.0.1",
+      "claude.ai",
+      "claude.com",
+      "vscode.dev"
+    ],
+    "client-uris-must-match": [
+      "true"
+    ]
+  },
+  "allowed-client-templates": {
+    "allow-default-scopes": [
+      "true"
+    ],
+    "allowed-client-scopes": [
+      "basic",
+      "assets:read"
+    ]
+  },
+  "max-clients": {
+    "max-clients": [
+      "50"
+    ]
+  }
+}

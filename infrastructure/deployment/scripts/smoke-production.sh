@@ -61,6 +61,66 @@ if [[ "${ORGMEMORY_REQUIRE_PUBLIC_SMOKE:-false}" == "true" ]]; then
     https://auth.kl3in.tech/realms/orgmemory/.well-known/openid-configuration \
     | python3 -c 'import json,sys; print(json.load(sys.stdin)["issuer"])')"
   [[ "$issuer" == "https://auth.kl3in.tech/realms/orgmemory" ]]
+
+  protected_resource_metadata="$(
+    curl --fail --silent --show-error \
+      --connect-timeout 5 \
+      --max-time 15 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      https://om.kl3in.tech/.well-known/oauth-protected-resource/mcp
+  )"
+  python3 -c '
+import json
+import sys
+
+document = json.load(sys.stdin)
+assert document["resource"] == "https://om.kl3in.tech/mcp"
+assert document["authorization_servers"] == [
+    "https://auth.kl3in.tech/realms/orgmemory"
+]
+assert "assets:read" in document["scopes_supported"]
+' <<<"$protected_resource_metadata"
+
+  authorization_metadata="$(
+    curl --fail --silent --show-error \
+      --connect-timeout 5 \
+      --max-time 15 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      https://auth.kl3in.tech/realms/orgmemory/.well-known/oauth-authorization-server
+  )"
+  python3 -c '
+import json
+import sys
+
+document = json.load(sys.stdin)
+assert document["registration_endpoint"].endswith("/clients-registrations/openid-connect")
+assert document.get("client_id_metadata_document_supported") is True
+' <<<"$authorization_metadata"
+
+  challenge_headers="$(mktemp)"
+  trap 'rm -f "$challenge_headers"' EXIT
+  mcp_status="$(
+    curl --silent --show-error \
+      --connect-timeout 5 \
+      --max-time 15 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      --dump-header "$challenge_headers" \
+      --output /dev/null \
+      --write-out '%{http_code}' \
+      https://om.kl3in.tech/mcp
+  )"
+  [[ "$mcp_status" == "401" ]]
+  grep -Eiq \
+    '^[[:space:]]*www-authenticate:.*resource_metadata="https://om\.kl3in\.tech/\.well-known/oauth-protected-resource/mcp"' \
+    "$challenge_headers"
+  rm -f "$challenge_headers"
+  trap - EXIT
 fi
 
 printf 'OrgMemory production smoke passed.\n'

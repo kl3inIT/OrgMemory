@@ -1,0 +1,10 @@
+[
+  {"id":"TICKET-001","scenario":"billing question","text":"Why is my monthly invoice higher than last month?","category":"billing","slaTier":"P2","escalate":false,"accountableTeam":"NONE","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-002","scenario":"password reset","text":"I cannot sign in and need a password reset.","category":"access","slaTier":"P2","escalate":false,"accountableTeam":"NONE","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-003","scenario":"degraded service","text":"Reports take ten minutes to load for every user.","category":"degraded_service","slaTier":"P1","escalate":true,"accountableTeam":"INCIDENT_RESPONSE","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-004","scenario":"confirmed outage","text":"The production API is unavailable in all regions.","category":"outage","slaTier":"P0","escalate":true,"accountableTeam":"INCIDENT_RESPONSE","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-005","scenario":"suspected security issue","text":"I saw an unknown login and possible account takeover.","category":"security","slaTier":"P0","escalate":true,"accountableTeam":"SECURITY","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-006","scenario":"data deletion request","text":"Please permanently delete my account data.","category":"privacy","slaTier":"P1","escalate":true,"accountableTeam":"PRIVACY","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-007","scenario":"duplicate ticket","text":"This repeats my open ticket number 4312.","category":"duplicate","slaTier":"P2","escalate":false,"accountableTeam":"NONE","allowedCitations":["support.sla-and-escalation@1"]},
+  {"id":"TICKET-008","scenario":"abusive message","text":"Your service is useless and your staff are idiots.","category":"abuse","slaTier":"P2","escalate":true,"accountableTeam":"TRUST_AND_SAFETY","allowedCitations":["support.sla-and-escalation@1"]}
+]

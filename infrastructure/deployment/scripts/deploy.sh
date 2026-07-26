@@ -154,6 +154,9 @@ compose=(
   --remove-orphans
 
 ORGMEMORY_ENV_FILE="$environment_file" \
+  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
+
+ORGMEMORY_ENV_FILE="$environment_file" \
 ORGMEMORY_REQUIRE_PUBLIC_SMOKE="${public_smoke:-true}" \
   "$repo_root/infrastructure/deployment/scripts/smoke-production.sh"
 

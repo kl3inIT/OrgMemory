@@ -17,11 +17,11 @@ The fixture is synthetic and contains no customer or employee data.
 | Capability Pack | `support.l1-onboarding@1.0.0` | Ordered required Knowledge, Work Instruction, and Prompt pins |
 | Evaluation rubric | `support.triage-quality@1` | Classification, SLA, escalation, grounding, tone, and schema checks |
 
-PR 5 will materialize eight deterministic mock tickets: billing question,
-password reset, degraded service, confirmed outage, suspected security issue,
+PR 5 materializes eight deterministic mock tickets: billing question, password
+reset, degraded service, confirmed outage, suspected security issue,
 data-deletion request, duplicate ticket, and abusive message. Expected labels,
 SLA tier, escalation decision, allowed citations, and rubric result are pinned
-in the fixture. Until then this table is the frozen semantic contract.
+under `demo/fixtures/asset-registry`.
 
 Two actors prove the flow:
 
@@ -112,6 +112,14 @@ OpenFGA-backed and cannot be replaced by OAuth scope. PR 4 is read-only: no
 model invocation, progress mutation, review, publication, withdrawal,
 permission change, or installation.
 
+MCP clients are not modeled as one confidential client per vendor. The
+onboarding order is pre-registration when supplied, trusted Client ID Metadata
+Documents where supported, then restricted Dynamic Client Registration for
+URL-only compatibility. The Keycloak policy forces PKCE S256 and consent,
+allows only documented vendor/loopback redirect hosts and `assets:read`, and
+bounds anonymous registrations. The `/connect` UI publishes connection
+instructions only; Keycloak remains the authorization and consent surface.
+
 Rate limiting is Bucket4j with bounded Caffeine caller state for one POC
 replica. A multi-replica deployment must move the buckets to a distributed
 proxy manager; introducing Redis or a generic Spring cache abstraction is not
@@ -137,3 +145,13 @@ Caffeine in this PR is private bounded state for the single-node limiter, not a
 cache of Assets, permissions, evidence, or tokens. The MCP OAuth manager uses a
 non-persisting authorized-client repository so each request is exchanged
 against its exact inbound subject token.
+
+## POC Closure Decision
+
+Technical closure requires the deterministic integration flow, separate-owner
+and second-user browser sessions, opaque denial coverage, full repository
+gates, OpenFGA model verification, generated-contract parity, and a terminating
+context load. Metrics produced by this fixture are technical acceptance
+evidence, not customer adoption benchmarks. Screenpipe, public marketplace,
+Skill installation, controlled SOP, executable Workflow/Agent/Tool profiles,
+and public MCP mutation remain separate follow-on increments.

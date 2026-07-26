@@ -5,6 +5,7 @@ ARG KEYCLOAK_IMAGE=quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700c
 FROM ${KEYCLOAK_IMAGE} AS build
 
 ENV KC_DB=postgres \
+    KC_FEATURES=cimd \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=true
 
@@ -24,6 +25,7 @@ COPY --from=build /opt/keycloak/ /opt/keycloak/
 COPY --chown=keycloak:keycloak infrastructure/keycloak/orgmemory-realm.prod.json /opt/keycloak/data/import/orgmemory-realm.json
 
 ENV KC_DB=postgres \
+    KC_FEATURES=cimd \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=true
 

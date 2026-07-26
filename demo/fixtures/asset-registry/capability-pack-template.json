@@ -1,0 +1,45 @@
+{
+  "purpose": "ROLE_ONBOARDING",
+  "audience": "L1 support agent",
+  "prerequisites": [
+    "Active support account",
+    "Access to the Support Knowledge Space"
+  ],
+  "expectedOutcome": "The agent can classify, ground, draft, verify, and record a correct first ticket",
+  "items": [
+    {
+      "key": "knowledge",
+      "required": true,
+      "kind": "KNOWLEDGE_VERSION",
+      "assetId": null,
+      "releaseId": null,
+      "knowledgeAssetId": "${KNOWLEDGE_ASSET_ID}",
+      "knowledgeVersionId": "${KNOWLEDGE_VERSION_ID}"
+    },
+    {
+      "key": "instruction",
+      "required": true,
+      "kind": "REGISTRY_RELEASE",
+      "assetId": "${WORK_INSTRUCTION_ASSET_ID}",
+      "releaseId": "${WORK_INSTRUCTION_RELEASE_ID}",
+      "knowledgeAssetId": null,
+      "knowledgeVersionId": null
+    },
+    {
+      "key": "prompt",
+      "required": true,
+      "kind": "REGISTRY_RELEASE",
+      "assetId": "${PROMPT_ASSET_ID}",
+      "releaseId": "${PROMPT_RELEASE_ID}",
+      "knowledgeAssetId": null,
+      "knowledgeVersionId": null
+    }
+  ],
+  "completionCriteria": [
+    "All three required exact-pinned items are complete",
+    "One mock ticket passes support.triage-quality@1",
+    "The execution trace pins the Prompt release and grounding citation"
+  ],
+  "reviewDate": "2026-12-31",
+  "owner": "Support operations"
+}

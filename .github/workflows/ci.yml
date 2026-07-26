@@ -393,6 +393,9 @@ jobs:
       - name: Test web forwarded-port handling
         run: infrastructure/deployment/scripts/test-web-forwarded-port.sh
 
+      - name: Test Keycloak MCP client onboarding
+        run: infrastructure/deployment/scripts/test-keycloak-mcp-onboarding.sh
+
   gate:
     name: CI Gate
     if: always()

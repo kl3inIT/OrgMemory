@@ -53,6 +53,12 @@ belongs in one active increment.
   citations, the permission-aware graph explorer, evaluation harness, and
   OpenTelemetry-compatible events. Final integration PR #42 is on `main`;
   remaining live quality/performance evidence belongs to pilot hardening.
+- The five-PR
+  [prompt-first unified Asset Registry POC](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md):
+  governed generic identity/revision/review/release lifecycle; Prompt Template,
+  Work Instruction, exact-pin Capability Pack, federated Knowledge; in-app
+  Assistant and four generic web surfaces; authenticated read-only MCP; and a
+  deterministic two-user L1 Support golden flow with 8/8 bounded evaluations.
 
 ## Active Delivery
 
@@ -87,17 +93,6 @@ belongs in one active increment.
 5. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
    but not retired, and asset movement still needs an explicit retention and
    authorization contract.
-6. Execute the
-   [prompt-first unified Asset Registry program](increments/active/2026-07-25-unified-asset-registry-definition/plan.md):
-   pass the independent architecture debate and design-partner gate, then land
-   the registry kernel, Asset authorization, Prompt Template, Work Instruction,
-   Capability Pack, federated Knowledge, Assistant, generic web, and authenticated
-   read-only MCP PRs in dependency order.
-7. Prove the first typed Asset outcome: an L1 Support onboarding Pack lets a
-   second authorized user complete one realistic task with exact released
-   Knowledge, Work Instruction, and Prompt components; then prove update,
-   withdrawal, owner handover, audit, and denied-component opacity.
-
 ## Pilot Hardening
 
 - S3-compatible production blobs, malware/DLP integration, retention/deletion.
@@ -106,6 +101,21 @@ belongs in one active increment.
 - First gate: one tenant, one role Pack, two users with different permissions,
   one realistic task, explicit data-retention policy, and rollback plan. Expand
   to 20-100 users only after this gate passes.
+
+## Engineering Backlog
+
+- Complete the API-facing exception migration: inventory legacy validators and
+  services that still expose `IllegalArgumentException` or require dedicated
+  transport handlers, move intended business failures to the shared
+  `BusinessException` categories and stable RFC 9457 codes, add contract tests,
+  then remove the compatibility translator only after no caller depends on it.
+- Refactor oversized Spring Modulith packages into cohesive internal
+  subpackages while preserving each logical module and its public named
+  interface. Choose package boundaries from actual responsibilities
+  (application use cases, domain model, inbound API, outbound infrastructure),
+  document allowed dependencies, and keep Modulith verification in CI; do not
+  create one Gradle module or one top-level Modulith module per class or asset
+  profile.
 
 ## Later, Only With Evidence
 

@@ -1,0 +1,12 @@
+{
+  "coordinate": "support.triage-quality@1",
+  "checks": [
+    {"key": "classification", "required": true, "description": "Category matches the ticket intent"},
+    {"key": "sla", "required": true, "description": "SLA tier matches approved Knowledge"},
+    {"key": "escalation", "required": true, "description": "Escalation decision and accountable team are correct"},
+    {"key": "grounding", "required": true, "description": "SLA or escalation claims cite support.sla-and-escalation@1"},
+    {"key": "tone", "required": true, "description": "Response is calm, factual, and non-retaliatory"},
+    {"key": "schema", "required": true, "description": "Output contains category, slaTier, escalate, accountableTeam, and response"},
+    {"key": "safety", "required": true, "description": "No secret, unsupported promise, or sensitive raw value is retained"}
+  ]
+}

@@ -553,9 +553,11 @@ Rejected alternatives:
 - expose every application action as an MCP tool;
 - implement a generic BPM or Agent runtime.
 
-The named independent debate did not occur. Stakeholder validation with a
-support/operations process owner and an AI power user also remains open and is
-required before PR 5 can claim the POC is complete.
+The named independent debate did not occur. The repository POC closes through
+the product-owner accepted deterministic integration and two-session browser
+proof in PR 5. No external support-operations stakeholder or customer adoption
+validation is claimed; that evidence belongs to a pilot follow-on rather than
+being implied by automated acceptance.
 
 ## POC Success Gate
 

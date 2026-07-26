@@ -1,0 +1,35 @@
+{
+  "profiles": [
+    {
+      "name": "orgmemory-mcp-cimd-profile",
+      "description": "Trusted MCP clients using OAuth Client ID Metadata Documents",
+      "executors": [
+        {
+          "executor": "client-id-metadata-document",
+          "configuration": {
+            "cimd-allow-http-scheme": false,
+            "only-allow-confidential-client": false,
+            "cimd-allow-permitted-domains": [
+              "claude.ai",
+              "vscode.dev",
+              "code.visualstudio.com"
+            ],
+            "cimd-restrict-same-domain": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "orgmemory-mcp-dcr-profile",
+      "description": "Require PKCE S256 for anonymously registered MCP clients",
+      "executors": [
+        {
+          "executor": "pkce-enforcer",
+          "configuration": {
+            "auto-configure": true
+          }
+        }
+      ]
+    }
+  ]
+}
