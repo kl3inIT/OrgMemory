@@ -3,9 +3,9 @@
 ## Comparison target
 
 - Source visual truth:
-  `C:\Users\admin\.codex\generated_images\019f9974-b30f-7d52-8d6d-12ef84629b9b\call_NQwDIb4D2BlXUurygWbW2BoU.png`
+  `docs/increments/completed/2026-07-28-asset-catalog-list-grid/asset-catalog-list-target.png`
 - Browser-rendered implementation:
-  `D:\OrgMemory-worktrees\asset-catalog-list-grid\output\design-qa\asset-catalog-list.png`
+  `output/design-qa/asset-catalog-list.png`
 - Browser: Microsoft Edge through Playwright channel `msedge`
 - Viewport and CSS size: `1536 x 1024`
 - Source pixels: `1536 x 1024`
@@ -52,7 +52,7 @@ Lucide `ListChecks` SVG, alongside `Boxes`, `Sparkles`, and `FileArchive`.
 - Spacing and layout rhythm: toolbar alignment, row density, column alignment,
   page gutters, and responsive visibility follow existing design-system tokens.
 - Colors and visual tokens: semantic success/warning/info/muted tokens replace
-  ad-hoc color values and retain contrast in both themes.
+  ad-hoc color values and retain contrast in the verified light-theme state.
 - Image and asset fidelity: all visible type icons are vector glyphs from the
   existing Lucide dependency; there are no generated, inline handcrafted, CSS,
   emoji, or placeholder icons.

@@ -18,7 +18,7 @@ export function CollectionPagination({
   onPageChange: (page: number) => void
 }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  if (pageCount <= 1 && !showSummaryWhenSinglePage) return null
+  if (pageCount <= 1 && !(showSummaryWhenSinglePage && total > 0)) return null
 
   const safePage = Math.min(Math.max(page, 1), pageCount)
   const first = (safePage - 1) * pageSize + 1

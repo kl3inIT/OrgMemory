@@ -300,6 +300,7 @@ export function AssetCatalogPage({
   const recommendations = (assets.data?.items ?? []).filter(isCatalogAsset)
   const total = assets.data?.total ?? 0
   const hasFilters = query.length > 0 || type !== undefined
+  const hasUnrenderablePage = total > 0 && recommendations.length === 0
 
   return (
     <PageLayout.Root variant="wide">
@@ -389,7 +390,7 @@ export function AssetCatalogPage({
       </PageLayout.Header>
 
       <PageLayout.Body>
-        {recommendations.length === 0 ? (
+        {total === 0 ? (
           <Card className="border-dashed bg-surface-subtle">
             <EmptyState
               title={hasFilters ? "No matches" : "No assets available"}
@@ -405,6 +406,17 @@ export function AssetCatalogPage({
                     Clear filters
                   </Button>
                 ) : undefined
+              }
+            />
+          </Card>
+        ) : hasUnrenderablePage ? (
+          <Card className="border-dashed bg-surface-subtle">
+            <EmptyState
+              title="Assets could not be displayed"
+              action={
+                <Button variant="outline" onClick={() => void assets.refetch()}>
+                  Try again
+                </Button>
               }
             />
           </Card>
@@ -426,7 +438,7 @@ export function AssetCatalogPage({
         <CollectionPagination
           page={page}
           pageSize={ASSET_PAGE_SIZE}
-          total={total}
+          total={hasUnrenderablePage ? 0 : total}
           disabled={assets.isPlaceholderData}
           showSummaryWhenSinglePage
           onPageChange={onPageChange}

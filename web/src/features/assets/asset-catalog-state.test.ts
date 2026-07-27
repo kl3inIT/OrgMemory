@@ -37,5 +37,11 @@ describe("parseAssetCatalogSearch", () => {
       view: undefined,
       page: undefined,
     })
+
+    expect(parseAssetCatalogSearch({ page: 4 }).page).toBe(4)
+    expect(parseAssetCatalogSearch({ page: 2.5 }).page).toBeUndefined()
+    expect(
+      parseAssetCatalogSearch({ page: Number.MAX_SAFE_INTEGER + 1 }).page,
+    ).toBeUndefined()
   })
 })

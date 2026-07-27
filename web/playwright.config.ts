@@ -1,8 +1,13 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
-const browserChannel =
-  process.env.PLAYWRIGHT_CHANNEL === "msedge" ? "msedge" : undefined
+const requestedChannel = process.env.PLAYWRIGHT_CHANNEL
+if (requestedChannel && requestedChannel !== "msedge") {
+  throw new Error(
+    `Unsupported PLAYWRIGHT_CHANNEL "${requestedChannel}"; expected "msedge" or unset.`,
+  )
+}
+const browserChannel = requestedChannel === "msedge" ? requestedChannel : undefined
 
 export default defineConfig({
   testDir: "./test/e2e",

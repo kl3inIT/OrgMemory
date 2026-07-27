@@ -3,12 +3,12 @@ import type { AssetType } from "@/features/assets/asset-format"
 export type AssetCatalogSort = "RECENTLY_RELEASED" | "NAME"
 export type AssetCatalogView = "LIST" | "GRID"
 
-const TYPES = new Set<AssetType>([
-  "PROMPT_TEMPLATE",
-  "WORK_INSTRUCTION",
-  "CAPABILITY_PACK",
-  "SKILL",
-])
+const TYPES = {
+  PROMPT_TEMPLATE: true,
+  WORK_INSTRUCTION: true,
+  CAPABILITY_PACK: true,
+  SKILL: true,
+} satisfies Record<AssetType, true>
 
 export function parseAssetCatalogSearch(search: Record<string, unknown>): {
   q?: string
@@ -19,7 +19,8 @@ export function parseAssetCatalogSearch(search: Record<string, unknown>): {
 } {
   const q = typeof search.q === "string" ? search.q.trim().slice(0, 200) : ""
   const type =
-    typeof search.type === "string" && TYPES.has(search.type as AssetType)
+    typeof search.type === "string" &&
+    Object.prototype.hasOwnProperty.call(TYPES, search.type)
       ? (search.type as AssetType)
       : undefined
   const sort =
