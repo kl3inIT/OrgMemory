@@ -8,6 +8,9 @@
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Skill submission and publication pin the same exact blob reference and digest | `AssetRegistryIntegrationTests#skillImportPinsTheValidatedBlobToRevisionAndRelease` | covered |
+| Exact Skill manifests omit storage keys and package streaming rejects payload, release-reference, and stored-object mismatches | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
+| MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |
+| CLI installation verifies package and per-file digests, promotes atomically, writes a token-free receipt, and preserves an active install on tampering | `install.test.ts` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
 | Prompt output contract and bounded evaluations expose pass/failure | `PromptExecutionServiceTests`, `AssetRegistryIntegrationTests` | covered |
@@ -31,7 +34,7 @@
 | Delivery returns immutable release metadata and keeps denied IDs opaque | `AssetRegistryIntegrationTests#deliveryReturnsOnlyImmutableReleaseDataAndKeepsDeniedIdsOpaque` | covered |
 | Read-only Pack description creates no assignment or progress | `AssetRegistryIntegrationTests#workInstructionAcknowledgementAndPackProgressAreIdempotentAndPinned` | covered |
 | Every read-only delivery endpoint, including deterministic Prompt render, requires `assets:read` | `AssetDeliveryControllerSecurityTests` | covered |
-| MCP publishes six read-only Asset tools, two resource templates, and one Prompt adapter | `OrgMemoryMcpContextTests`, `AssetDeliveryToolsTests` | covered |
+| MCP publishes eight read-only Asset tools, two resource templates, and one Prompt adapter | `OrgMemoryMcpContextTests`, `AssetDeliveryToolsTests` | covered |
 | Every MCP tool publishes an MCP 2025-11-25-compatible object-root output schema accepted by strict clients | `OrgMemoryMcpContextTests` | covered |
 | MCP exchanges the actor bearer for an API-audience token and hides denial bodies | `McpApiAuthorizationTests`, `AssetDeliveryApiClientTests` | covered |
 | MCP rejects wrong audience, issuer, and expired tokens | `McpTokenValidationTests` | covered |

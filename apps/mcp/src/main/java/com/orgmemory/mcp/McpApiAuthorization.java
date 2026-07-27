@@ -32,8 +32,15 @@ final class McpApiAuthorization {
     String require(McpTransportContext context) {
         Object value = context.get(
                 McpTransportConfiguration.AUTHENTICATION_CONTEXT_KEY);
-        if (!(value instanceof Authentication authentication)
-                || !authentication.isAuthenticated()) {
+        if (!(value instanceof Authentication authentication)) {
+            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                    "The MCP request has no authenticated identity");
+        }
+        return require(authentication);
+    }
+
+    String require(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
                     "The MCP request has no authenticated identity");
         }

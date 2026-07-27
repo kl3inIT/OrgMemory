@@ -7,3 +7,6 @@ Completed increments are historical evidence. Current behavior belongs in
   generic governed registry, Prompt/Work Instruction/Pack profiles, federated
   Knowledge, Assistant and four web surfaces, authenticated read-only MCP, and
   the deterministic two-user L1 Support golden proof.
+- [Skill Registry package foundation](2026-07-27-skill-registry-package-foundation/plan.md):
+  governed Skill profile, bounded package inspection, immutable object storage,
+  payload-reference pinning, and authenticated administrative import.

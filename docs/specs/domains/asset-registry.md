@@ -133,7 +133,7 @@ unfamiliar action.
 
 ### Authenticated Read-Only MCP Delivery
 
-The MCP app publishes six Asset tools, two `orgmemory://assets/...` resource
+The MCP app publishes eight Asset tools, two `orgmemory://assets/...` resource
 templates, and one generic `released_prompt` adapter. They call
 `/api/asset-delivery`; the MCP app has no core, repository, or database
 dependency. Search and reads require `assets:read`; deterministic Prompt render
@@ -160,6 +160,19 @@ vendor-specific client or secret is shown or stored by the web connection
 surface. CIMD may be re-enabled after the upstream metadata combination is
 interoperable.
 
+Skill discovery returns a storage-neutral install manifest for one exact
+release. It contains coordinate, version, release/package digests, package
+length/media type, compatibility metadata, and the exact file manifest; the
+object-storage key never crosses the core boundary. A bearer-protected binary
+companion route on the MCP resource proxies the canonical API stream instead of
+base64-encoding a bounded archive into JSON-RPC.
+
+The Node CLI resolves and searches through MCP, downloads the exact package
+through that companion route, verifies the archive and every file against the
+manifest, then installs through an adjacent staging directory. Project-local
+Claude Code and Codex targets come from a fixed mapping. The atomic lock receipt
+is written only after promotion and never contains OAuth credentials.
+
 ### Golden POC Fixture
 
 `demo/fixtures/asset-registry` is the synthetic, deterministic L1 Support
@@ -180,12 +193,13 @@ separate owner and support-agent sessions.
 - `apps.mcp.AssetDeliveryTools`
 - `apps.mcp.AssetDeliveryResources`
 - `apps.mcp.ReleasedPromptAdapter`
+- `apps.cli`
 - `web.features.assets`
 
 ## Explicitly Deferred
 
 - controlled SOP effectivity
 - Skill draft package replacement and orphan cleanup
-- authenticated Skill discovery/download and local installer CLI
-- Skill install/update/remove receipts and client compatibility policy
+- Skill update/remove commands and compatibility policy enforcement
+- public npm publication and signed CLI release automation
 - cross-company public marketplace, ratings, and social publishing

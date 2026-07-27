@@ -7,4 +7,6 @@
 - [x] Persist revision and release blob references with the exact package digest.
 - [x] Add focused validator, service, migration, and API contract tests.
 - [x] Regenerate OpenAPI clients and run repository verification gates.
-- [ ] Open the pull request and resolve CI and review findings.
+- [x] Open the pull request and resolve CI and review findings.
+
+Completed on 2026-07-27 via PR #77.

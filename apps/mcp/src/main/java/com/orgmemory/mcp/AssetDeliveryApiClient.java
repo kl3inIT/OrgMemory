@@ -1,5 +1,7 @@
 package com.orgmemory.mcp;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -87,6 +89,57 @@ class AssetDeliveryApiClient {
                 RelationResolution.class,
                 assetId,
                 releaseId);
+    }
+
+    SkillManifest getSkillManifest(
+            String authorization, UUID assetId, UUID releaseId) {
+        return get(
+                authorization,
+                "/api/asset-delivery/{assetId}/releases/{releaseId}/skill-manifest",
+                SkillManifest.class,
+                assetId,
+                releaseId);
+    }
+
+    SkillManifest resolveSkillManifest(
+            String authorization,
+            String namespace,
+            String slug,
+            String version) {
+        return get(
+                authorization,
+                "/api/asset-delivery/skills/{namespace}/{slug}/versions/{version}/manifest",
+                SkillManifest.class,
+                namespace,
+                slug,
+                version);
+    }
+
+    void copySkillPackage(
+            String authorization,
+            UUID assetId,
+            UUID releaseId,
+            OutputStream output) {
+        request(() -> restClient.get()
+                .uri(
+                        "/api/asset-delivery/{assetId}/releases/{releaseId}/skill-package",
+                        assetId,
+                        releaseId)
+                .header(HttpHeaders.AUTHORIZATION, authorization)
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new AssetDeliveryGatewayException(
+                                "The requested Skill package is not available to the current identity");
+                    }
+                    try {
+                        response.getBody().transferTo(output);
+                    } catch (IOException unavailable) {
+                        throw new AssetDeliveryGatewayException(
+                                "OrgMemory Skill package delivery was interrupted",
+                                unavailable);
+                    }
+                    return Boolean.TRUE;
+                }));
     }
 
     PromptRender renderPrompt(
@@ -268,6 +321,34 @@ class AssetDeliveryApiClient {
         PromptRender {
             sensitiveVariables = List.copyOf(sensitiveVariables);
         }
+    }
+
+    record SkillManifest(
+            UUID assetId,
+            UUID releaseId,
+            String namespace,
+            String slug,
+            String coordinate,
+            String version,
+            String title,
+            String description,
+            String releaseDigest,
+            String packageDigest,
+            long packageLength,
+            String mediaType,
+            String license,
+            String compatibility,
+            String allowedTools,
+            Map<String, String> metadata,
+            List<SkillFile> files) {
+
+        SkillManifest {
+            metadata = Map.copyOf(metadata);
+            files = List.copyOf(files);
+        }
+    }
+
+    record SkillFile(String path, long size, String sha256) {
     }
 
     static final class AssetDeliveryGatewayException
