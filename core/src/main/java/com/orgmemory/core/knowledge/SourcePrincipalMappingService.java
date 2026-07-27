@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.ExternalIdentity;
 import com.orgmemory.core.organization.ExternalIdentityRepository;
@@ -67,9 +68,9 @@ class SourcePrincipalMappingService {
             }
         }
         if (hasText(principal.getObservedEmail()) && emailIsVouchedFor(principal, connectionTrust)) {
-            return users.findByEmailIgnoreCase(principal.getObservedEmail())
-                    .filter(user -> user.isActive()
-                            && user.getOrganizationId().equals(principal.getOrganizationId()))
+            return users.findByOrganizationIdAndEmailIgnoreCase(
+                            principal.getOrganizationId(), principal.getObservedEmail())
+                    .filter(AppUser::isActive)
                     .map(user -> bind(
                             principal,
                             user.getId(),
