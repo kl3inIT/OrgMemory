@@ -92,10 +92,9 @@ belongs in one active increment.
    comparisons.
 3. Run the Slack live proof. Keep live credentials outside the repository and
    capture only the reusable runbook and redacted evidence.
-4. Execute the accepted
-   [Identity tenant hardening](increments/active/2026-07-27-identity-tenant-hardening/plan.md).
-   Do not expose SCIM while global/cross-tenant identity and concurrent
-   issuer/subject binding defects remain.
+4. Use the completed
+   [Identity tenant hardening](increments/completed/2026-07-27-identity-tenant-hardening/plan.md)
+   as the compatibility floor for the native provisioning program.
 5. Continue the dependency-ordered
    [native identity provisioning program](increments/active/README.md#native-identity-provisioning-program):
    machine foundation, Users private beta, inert Directory Groups, optional

@@ -39,7 +39,7 @@ H1-H4  Identity tenant hardening and compatibility cutover
 
 The dependency-ordered increments are:
 
-1. [Identity tenant hardening](2026-07-27-identity-tenant-hardening/design.md):
+1. [Identity tenant hardening](../completed/2026-07-27-identity-tenant-hardening/design.md):
    repair organization-scoped identity integrity and concurrent
    issuer/subject binding before SCIM.
 2. [SCIM provisioning foundation](2026-07-27-scim-provisioning-foundation/design.md):
