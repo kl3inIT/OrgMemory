@@ -24,6 +24,8 @@ function AssetDetailRoute() {
       assetId={assetId}
       actorKey={assetActorKey(session)}
       releaseId={release}
+      currentUserId={session.userId}
+      isAdmin={session.role === "ADMIN"}
       onReleaseChange={(nextRelease) =>
         void navigate({
           replace: true,

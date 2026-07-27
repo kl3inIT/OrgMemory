@@ -106,9 +106,13 @@ execution action.
 
 The authenticated web application provides four generic surfaces:
 
-- **For your role** lists only exact releases the current actor can use.
+- **Assets** lists only the latest non-withdrawn exact release the current actor
+  can use. Search, type, sort, and page are URL state. The server returns a
+  bounded page plus the authorized total and applies an explicit stable order.
 - **Asset detail / use** shares identity, provenance, and release selection,
-  then renders Prompt, Work Instruction, or Capability Pack profile actions.
+  then renders Prompt, Work Instruction, Capability Pack, or Skill profile
+  actions. Consumption is primary; provenance is disclosed on demand and
+  governance is shown only to accountable actors.
 - **Pack journey** preserves ordered exact pins, required/optional progress,
   opaque access gaps, and replacement-release impact.
 - **Governance workspace** exposes revision comparison, evaluation, review,
@@ -117,7 +121,8 @@ The authenticated web application provides four generic surfaces:
 
 Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
-Asset payloads.
+Asset payloads. Collection pagination is shared across the Asset and
+Administration surfaces and is rendered only when more than one page exists.
 
 The Asset surfaces use the shared page contract: catalog and governance views
 use the wide variant, release/detail content uses the standard variant, and a

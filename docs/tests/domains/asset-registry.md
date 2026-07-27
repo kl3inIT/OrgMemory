@@ -23,6 +23,8 @@
 | Pack progress is actor-derived and idempotent | `AssetRegistryIntegrationTests` | covered |
 | Replacement releases do not mutate existing Pack pins | `AssetRegistryIntegrationTests` | covered |
 | Recommendations are actor-scoped and contain exact usable release refs | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases`, `AssistantAssetToolServiceTests#recommendationsContainOnlyExactUsableReleaseRefs` | covered |
+| Asset catalog total, filtering, stable name sorting, and pages are evaluated over the authorized latest-release set | `AssetRegistryIntegrationTests#catalogPagesAndSortsTheLatestAuthorizedReleasesOnTheServer` | covered |
+| Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Assistant action registry has no governance or arbitrary-execution path | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |

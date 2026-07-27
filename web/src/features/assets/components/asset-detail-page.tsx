@@ -4,8 +4,10 @@ import {
   ArrowRight,
   Braces,
   Check,
+  ChevronDown,
   CircleAlert,
   History,
+  MessageSquareWarning,
   Play,
   Send,
   ShieldCheck,
@@ -29,6 +31,11 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -54,6 +61,7 @@ import { AssetPageError, AssetPageLoading } from "@/features/assets/components/a
 import { AssistantActionReceipt } from "@/features/assistant/components/assistant-action-receipt"
 import {
   acknowledgeWorkInstructionMutation,
+  getCapabilityPackDefinitionOptions,
   getAssetOptions,
   getAssetQueryKey,
   renderAssistantPromptMutation,
@@ -98,24 +106,19 @@ type WorkInstructionPayload = {
   }>
 }
 
-type PackPayload = {
-  purpose?: string
-  audience?: string
-  prerequisites?: string[]
-  expectedOutcome?: string
-  completionCriteria?: string[]
-  items?: Array<{ key: string; required: boolean; kind: string }>
-}
-
 export function AssetDetailPage({
   assetId,
   actorKey,
   releaseId,
+  currentUserId,
+  isAdmin,
   onReleaseChange,
 }: {
   assetId: string
   actorKey: string
   releaseId?: string
+  currentUserId?: string
+  isAdmin: boolean
   onReleaseChange: (releaseId?: string) => void
 }) {
   const assetOptions = getAssetOptions({ path: { assetId } })
@@ -132,12 +135,21 @@ export function AssetDetailPage({
   const selected =
     asset.data.releases?.find((release) => release.id === releaseId) ??
     latestUsableRelease(asset.data)
+  const canManage =
+    isAdmin ||
+    (asset.data.roleAssignments ?? []).some(
+      (assignment) =>
+        assignment.principalType === "user" &&
+        assignment.principalId === currentUserId &&
+        assignment.role !== "VIEWER",
+    )
 
   return (
     <PageLayout.Root variant="wide">
       <AssetIdentityHeader
         asset={asset.data}
         release={selected}
+        canManage={canManage}
         onReleaseChange={onReleaseChange}
       />
       <PageLayout.Body>
@@ -166,20 +178,17 @@ export function AssetDetailPage({
 function AssetIdentityHeader({
   asset,
   release,
+  canManage,
   onReleaseChange,
 }: {
   asset: AssetView
   release?: Release
+  canManage: boolean
   onReleaseChange: (releaseId?: string) => void
 }) {
   const meta = ASSET_TYPE_META[asset.type!]
   const Icon = meta.icon
   const title = release?.title ?? asset.draft?.title ?? "Untitled asset"
-  const activeAssignments = (asset.roleAssignments ?? []).filter(
-    (assignment) => !assignment.validUntil || new Date(assignment.validUntil) > new Date(),
-  )
-  const owner = activeAssignments.find((assignment) => assignment.role === "OWNER")
-  const backupOwner = activeAssignments.find((assignment) => assignment.role === "BACKUP_OWNER")
   return (
     <PageLayout.Header
       title={title}
@@ -189,7 +198,9 @@ function AssetIdentityHeader({
       metadata={
         <div className="flex flex-wrap items-center gap-2">
           <Badge className={meta.tone}>{meta.label}</Badge>
-          <Badge variant="outline">{asset.portfolioState}</Badge>
+          <Badge variant="outline">
+            {asset.portfolioState?.replaceAll("_", " ").toLocaleLowerCase()}
+          </Badge>
           {asset.ownershipHealth?.orphaned ? (
             <Badge className="bg-status-danger-surface text-status-danger-content">Orphaned</Badge>
           ) : asset.ownershipHealth?.continuityAtRisk ? (
@@ -206,7 +217,7 @@ function AssetIdentityHeader({
       }
       actions={
         <div className="grid min-w-64 gap-2">
-          <Label htmlFor="asset-release">Pinned release</Label>
+          <Label htmlFor="asset-release">Version</Label>
           <Select
             value={release?.id}
             onValueChange={(value: string) => onReleaseChange(value)}
@@ -218,36 +229,45 @@ function AssetIdentityHeader({
             <SelectContent>
               {asset.releases?.map((item) => (
                 <SelectItem key={item.id} value={item.id!}>
-                  {item.versionLabel} · {item.availability}
+                  {item.versionLabel} ·{" "}
+                  {item.availability === "AVAILABLE"
+                    ? "Current"
+                    : item.availability === "DEPRECATED"
+                      ? "Deprecated"
+                      : item.availability}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button asChild variant="outline">
-            <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
-              <History aria-hidden="true" />
-              Governance
-            </Link>
-          </Button>
+          {canManage ? (
+            <Button asChild variant="outline">
+              <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
+                <History aria-hidden="true" />
+                Manage asset
+              </Link>
+            </Button>
+          ) : null}
         </div>
       }
     >
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-2 text-metadata text-content-secondary">
-          <span className="font-mono">{formatAssetCoordinate(asset)}</span>
-          <span aria-hidden="true">·</span>
-          <span>Owner: {owner?.principalId ?? "Unassigned"}</span>
-          <span aria-hidden="true">·</span>
-          <span>Backup: {backupOwner?.principalId ?? "Missing"}</span>
-        </div>
-        {release ? (
-          <div className="grid overflow-hidden rounded-xl border border-border-subtle bg-border-subtle sm:grid-cols-3 sm:gap-px">
-            <Metadata label="Version" value={release.versionLabel} />
-            <Metadata label="Released" value={formatDate(release.releasedAt)} />
-            <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
-          </div>
-        ) : null}
-      </div>
+      {release ? (
+        <Collapsible className="rounded-lg border border-border-subtle">
+          <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-supporting font-medium outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus-ring">
+            Version and provenance
+            <ChevronDown
+              className="size-4 text-content-muted transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden="true"
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t border-border-subtle">
+            <div className="grid bg-border-subtle sm:grid-cols-3 sm:gap-px">
+              <Metadata label="Coordinate" value={formatAssetCoordinate(asset)} mono />
+              <Metadata label="Released" value={formatDate(release.releasedAt)} />
+              <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
     </PageLayout.Header>
   )
 }
@@ -636,30 +656,101 @@ function WorkInstructionPanel({ assetId, release }: { assetId: string; release: 
 }
 
 function PackPanel({ assetId, release }: { assetId: string; release: Release }) {
-  const payload = parsePayload<PackPayload>(release.payload)
-  if (!payload) return <InvalidPayload />
+  const definitionOptions = getCapabilityPackDefinitionOptions({
+    path: { assetId, releaseId: release.id! },
+  })
+  const definition = useQuery(definitionOptions)
+
+  if (definition.isPending) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-supporting text-content-muted">
+          Loading Pack contents...
+        </CardContent>
+      </Card>
+    )
+  }
+  if (definition.isError) {
+    return (
+      <Card>
+        <CardContent className="space-y-4 py-10 text-center">
+          <p className="text-supporting text-content-secondary">Pack contents could not be loaded.</p>
+          <Button variant="outline" onClick={() => void definition.refetch()}>
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const pack = definition.data
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <Card>
         <CardHeader>
-          <CardTitle>{payload.expectedOutcome}</CardTitle>
-          <p className="text-supporting text-content-secondary">{payload.audience}</p>
+          <CardTitle>{pack.expectedOutcome}</CardTitle>
+          <p className="text-supporting text-content-secondary">{pack.audience}</p>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Metadata label="Purpose" value={payload.purpose} />
-            <Metadata label="Pinned items" value={String(payload.items?.length ?? 0)} />
-            <Metadata
-              label="Required"
-              value={String(payload.items?.filter((item) => item.required).length ?? 0)}
-            />
+        <CardContent className="space-y-6">
+          {pack.accessGap ? (
+            <Alert className="border-status-warning-border bg-status-warning-surface">
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>Some Pack items are not available</AlertTitle>
+              <AlertDescription>
+                Only items you can currently access are shown. Ask the Pack owner to review your
+                access if something is missing.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          <ol className="divide-y divide-border-subtle rounded-xl border border-border-default">
+            {pack.items?.map((item) => (
+              <li
+                key={item.key}
+                className="grid gap-3 px-4 py-4 sm:grid-cols-[2rem_minmax(0,1fr)_auto] sm:items-center"
+              >
+                <span className="grid size-8 place-items-center rounded-full bg-surface-subtle font-mono text-metadata text-content-secondary">
+                  {item.order}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-label text-content-primary">{item.title}</p>
+                  <p className="mt-1 text-metadata text-content-muted">
+                    {item.kind === "REGISTRY_RELEASE" ? "Asset" : "Knowledge"} · version{" "}
+                    {item.versionLabel}
+                  </p>
+                </div>
+                <Badge variant={item.required ? "default" : "outline"}>
+                  {item.required ? "Required" : "Optional"}
+                </Badge>
+              </li>
+            ))}
+          </ol>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <h3 className="text-label text-content-primary">Before you start</h3>
+              <ul className="mt-2 space-y-1 text-supporting text-content-secondary">
+                {pack.prerequisites?.length ? (
+                  pack.prerequisites.map((item) => <li key={item}>• {item}</li>)
+                ) : (
+                  <li>No prerequisites</li>
+                )}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-label text-content-primary">Completion</h3>
+              <ul className="mt-2 space-y-1 text-supporting text-content-secondary">
+                {pack.completionCriteria?.map((item) => <li key={item}>• {item}</li>)}
+              </ul>
+            </div>
           </div>
+
           <Button asChild className="mt-6">
             <Link
               to="/assets/$assetId/packs/$releaseId"
               params={{ assetId, releaseId: release.id! }}
             >
-              Start or resume journey
+              Open pack
               <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
@@ -671,7 +762,7 @@ function PackPanel({ assetId, release }: { assetId: string; release: Release }) 
 }
 
 function FeedbackCard({ assetId, release }: { assetId: string; release: Release }) {
-  const [type, setType] = useState<"HELPFUL" | "OUTDATED" | "INCORRECT" | "OTHER">("HELPFUL")
+  const [type, setType] = useState<"OUTDATED" | "INCORRECT" | "OTHER">("OUTDATED")
   const [comment, setComment] = useState("")
   const submit = useMutation({
     ...submitAssistantAssetFeedbackMutation(),
@@ -681,17 +772,42 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
     },
   })
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Release feedback</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Collapsible className="rounded-xl border border-border-default bg-surface-raised">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <p className="text-supporting font-medium text-content-primary">Was this useful?</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={submit.isPending}
+            onClick={() =>
+              submit.mutate({
+                path: { assetId, releaseId: release.id! },
+                body: {
+                  type: "HELPFUL",
+                  comment: "This release was helpful.",
+                  confirmed: true,
+                },
+              })
+            }
+          >
+            <Check aria-hidden="true" />
+            Yes
+          </Button>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MessageSquareWarning aria-hidden="true" />
+              Report issue
+            </Button>
+          </CollapsibleTrigger>
+        </div>
+      </div>
+      <CollapsibleContent className="space-y-3 border-t border-border-subtle p-4">
         <Select value={type} onValueChange={(value: string) => setType(value as typeof type)}>
           <SelectTrigger aria-label="Feedback type">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="HELPFUL">Helpful</SelectItem>
             <SelectItem value="OUTDATED">Outdated</SelectItem>
             <SelectItem value="INCORRECT">Incorrect</SelectItem>
             <SelectItem value="OTHER">Other</SelectItem>
@@ -717,6 +833,8 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
           <Send aria-hidden="true" />
           {submit.isPending ? "Sending feedback..." : "Send feedback"}
         </Button>
+      </CollapsibleContent>
+      <div className="px-4 pb-4">
         {submit.isSuccess ? (
           <AssistantActionReceipt
             action="Submit release feedback"
@@ -726,8 +844,8 @@ function FeedbackCard({ assetId, release }: { assetId: string; release: Release 
             releaseDigest={release.digest}
           />
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </Collapsible>
   )
 }
 

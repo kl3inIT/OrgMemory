@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query"
-import { ArrowUpRight, Search } from "lucide-react"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { ChevronRight, Search } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 
+import { CollectionPagination } from "@/components/patterns/collection-pagination"
 import { PageLayout } from "@/components/layouts/page-layout"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { FilterBar } from "@/components/patterns/filter-bar"
@@ -24,38 +25,71 @@ import {
 } from "@/features/assets/asset-format"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
-import { recommendAssistantAssetsOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { listAssetCatalogOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
+
+const ASSET_PAGE_SIZE = 24
+
+export type AssetCatalogSort = "RECENTLY_RELEASED" | "NAME"
+
+function assetActionLabel(type: AssetType) {
+  switch (type) {
+    case "PROMPT_TEMPLATE":
+      return "Use prompt"
+    case "WORK_INSTRUCTION":
+      return "View instructions"
+    case "CAPABILITY_PACK":
+      return "View pack"
+    case "SKILL":
+      return "View skill"
+  }
+}
 
 export function AssetCatalogPage({
   actorKey,
   query,
   type,
+  sort,
+  page,
   onQueryChange,
   onTypeChange,
+  onSortChange,
+  onPageChange,
 }: {
   actorKey: string
   query: string
   type?: AssetType
+  sort: AssetCatalogSort
+  page: number
   onQueryChange: (query: string) => void
   onTypeChange: (type?: AssetType) => void
+  onSortChange: (sort: AssetCatalogSort) => void
+  onPageChange: (page: number) => void
 }) {
-  const recommendationOptions = recommendAssistantAssetsOptions({
-    query: { q: query || undefined, type },
+  const catalogOptions = listAssetCatalogOptions({
+    query: {
+      q: query || undefined,
+      type,
+      sort,
+      page,
+      pageSize: ASSET_PAGE_SIZE,
+    },
   })
   const assets = useQuery({
-    ...recommendationOptions,
-    queryKey: scopeAssetQueryKey(recommendationOptions.queryKey, actorKey),
+    ...catalogOptions,
+    queryKey: scopeAssetQueryKey(catalogOptions.queryKey, actorKey),
+    placeholderData: keepPreviousData,
   })
 
   if (assets.isPending) return <AssetPageLoading />
   if (assets.isError) return <AssetPageError onRetry={() => void assets.refetch()} />
 
-  const recommendations = assets.data?.recommendations ?? []
+  const recommendations = assets.data?.items ?? []
+  const total = assets.data?.total ?? 0
   const hasFilters = query.length > 0 || type !== undefined
 
   return (
     <PageLayout.Root variant="wide">
-      <PageLayout.Header title="For your role">
+      <PageLayout.Header title="Assets">
         <FilterBar
           search={
             <InputGroup>
@@ -71,25 +105,40 @@ export function AssetCatalogPage({
             </InputGroup>
           }
           filters={
-            <Select
-              value={type ?? "ALL"}
-              onValueChange={(value: string) =>
-                onTypeChange(value === "ALL" ? undefined : (value as AssetType))
-              }
-            >
-              <SelectTrigger aria-label="Filter asset type" className="w-full">
-                <SelectValue placeholder="All asset types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All asset types</SelectItem>
-                {ASSET_TYPES.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select
+                value={type ?? "ALL"}
+                onValueChange={(value: string) =>
+                  onTypeChange(value === "ALL" ? undefined : (value as AssetType))
+                }
+              >
+                <SelectTrigger aria-label="Filter asset type" className="w-full sm:w-48">
+                  <SelectValue placeholder="All asset types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All asset types</SelectItem>
+                  {ASSET_TYPES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sort}
+                onValueChange={(value: string) => onSortChange(value as AssetCatalogSort)}
+              >
+                <SelectTrigger aria-label="Sort assets" className="w-full sm:w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RECENTLY_RELEASED">Recently released</SelectItem>
+                  <SelectItem value="NAME">Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
           }
+          result={`${total} ${total === 1 ? "asset" : "assets"}`}
         />
       </PageLayout.Header>
 
@@ -158,8 +207,8 @@ export function AssetCatalogPage({
                       search={{ release: asset.releaseId }}
                       className="flex w-full items-center justify-between px-6 py-4 text-label text-content-primary outline-none transition-colors hover:bg-action-ghost-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
                     >
-                      Use exact release
-                      <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                      {assetActionLabel(asset.type)}
+                      <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                   </CardFooter>
                 </Card>
@@ -167,6 +216,13 @@ export function AssetCatalogPage({
             })}
           </section>
         )}
+        <CollectionPagination
+          page={page}
+          pageSize={ASSET_PAGE_SIZE}
+          total={total}
+          disabled={assets.isPlaceholderData}
+          onPageChange={onPageChange}
+        />
       </PageLayout.Body>
     </PageLayout.Root>
   )

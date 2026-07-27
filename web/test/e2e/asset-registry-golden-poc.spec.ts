@@ -42,8 +42,8 @@ test("two users prove governed release and second-user Pack completion", async (
   const supportHarness = await assetHarness(supportPage, "support")
 
   await supportPage.goto("/assets")
-  await expect(supportPage.getByRole("heading", { name: "For your role" })).toBeVisible()
-  await expect(supportPage.getByText("1 asset", { exact: true })).toHaveCount(0)
+  await expect(supportPage.getByRole("heading", { name: "Assets" })).toBeVisible()
+  await expect(supportPage.getByText("1 asset", { exact: true })).toBeVisible()
   await expect(supportPage.getByText("Filtered by your live permissions")).toHaveCount(0)
   await expect(
     supportPage.getByText("Approved capability packs and reusable assets you can use now."),
@@ -59,11 +59,11 @@ test("two users prove governed release and second-user Pack completion", async (
   expect(filterBarBox).not.toBeNull()
   expect(assetGridBox).not.toBeNull()
   expect(assetGridBox!.y - (filterBarBox!.y + filterBarBox!.height)).toBeGreaterThanOrEqual(16)
-  await supportPage.getByRole("link", { name: "Use exact release" }).click()
-  await expect(supportPage.getByText(`Owner: ${SUPPORT_AGENT_ID}`)).toBeVisible()
-  await expect(supportPage.getByText(`Backup: ${BACKUP_OWNER_ID}`)).toBeVisible()
-  await expect(supportPage.getByText("Ownership gap")).toHaveCount(0)
-  await supportPage.getByRole("link", { name: "Start or resume journey" }).click()
+  await supportPage.getByRole("link", { name: "View pack" }).click()
+  await expect(supportPage.getByText(`Owner: ${SUPPORT_AGENT_ID}`)).toHaveCount(0)
+  await expect(supportPage.getByText(`Backup: ${BACKUP_OWNER_ID}`)).toHaveCount(0)
+  await expect(supportPage.getByText("Support SLA and escalation")).toBeVisible()
+  await supportPage.getByRole("link", { name: "Open pack" }).click()
 
   await expect(supportPage.getByRole("heading", { name: "L1 Customer Support Capability Onboarding" })).toBeVisible()
   await expect(supportPage.getByText("0%", { exact: true })).toBeVisible()
@@ -77,7 +77,7 @@ test("two users prove governed release and second-user Pack completion", async (
 
   expect(supportHarness.unexpectedRequests).toEqual([])
   expect(supportHarness.browserErrors).toEqual([])
-  expect(supportHarness.requests).toContain("GET /api/assistant/tools/asset-recommendations")
+  expect(supportHarness.requests).toContain("GET /api/assets/catalog")
   expect(
     supportHarness.requests.filter((request) => request.startsWith("PUT /api/assets/")),
   ).toHaveLength(3)
@@ -120,11 +120,10 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
     }
     if (
       actor === "support" &&
-      url.pathname === "/api/assistant/tools/asset-recommendations"
+      url.pathname === "/api/assets/catalog"
     ) {
       await json(route, {
-        traceId: "a4000000-0000-0000-0000-000000000001",
-        recommendations: [
+        items: [
           {
             assetId: PACK_ID,
             type: "CAPABILITY_PACK",
@@ -140,11 +139,24 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
             availability: "AVAILABLE",
           },
         ],
+        total: 1,
+        page: 1,
+        pageSize: 24,
+        totalPages: 1,
+        sort: "RECENTLY_RELEASED",
       })
       return
     }
     if (url.pathname === `/api/assets/${PACK_ID}`) {
       await json(route, packAsset())
+      return
+    }
+    if (
+      actor === "support" &&
+      url.pathname ===
+        `/api/assets/${PACK_ID}/releases/${PACK_RELEASE_ID}/pack-definition`
+    ) {
+      await json(route, packDefinition())
       return
     }
     if (
@@ -362,6 +374,26 @@ function packJourney(completed: Set<string>) {
     startedAt: "2026-07-26T00:00:00Z",
     completedAt:
       completed.size === items.length ? "2026-07-26T00:05:00Z" : undefined,
+  }
+}
+
+function packDefinition() {
+  const journey = packJourney(new Set())
+  return {
+    packAssetId: PACK_ID,
+    packReleaseId: PACK_RELEASE_ID,
+    releaseDigest: "a".repeat(64),
+    title: journey.title,
+    versionLabel: journey.versionLabel,
+    purpose: journey.purpose,
+    audience: journey.audience,
+    prerequisites: ["Active support account"],
+    expectedOutcome: journey.expectedOutcome,
+    completionCriteria: ["Required items complete"],
+    reviewDate: "2026-08-26",
+    owner: "Support Operations",
+    accessGap: false,
+    items: journey.items.map(({ completed: _completed, ...item }) => item),
   }
 }
 

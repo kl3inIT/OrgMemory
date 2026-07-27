@@ -1,8 +1,12 @@
 package com.orgmemory.api.assetregistry;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assetregistry.AssetCatalogSort;
+import com.orgmemory.core.assetregistry.AssetRecommendationPage;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
+import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
+import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PackJourney;
 import com.orgmemory.core.assetregistry.PromptEvaluationComparison;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -203,6 +208,18 @@ class AssetConsumptionController {
                 actors.current(authentication), assetId, releaseId);
     }
 
+    @GetMapping("/{assetId}/releases/{releaseId}/pack-definition")
+    @Operation(
+            operationId = "getCapabilityPackDefinition",
+            summary = "Read the ordered authorized items pinned by a Capability Pack release")
+    CapabilityPackDefinition getPackDefinition(
+            @PathVariable UUID assetId,
+            @PathVariable UUID releaseId,
+            Authentication authentication) {
+        return packs.describe(
+                actors.current(authentication), assetId, releaseId);
+    }
+
     @PutMapping("/{assetId}/releases/{releaseId}/pack-progress/{itemKey}")
     @Operation(
             operationId = "setCapabilityPackProgress",
@@ -219,5 +236,21 @@ class AssetConsumptionController {
                 releaseId,
                 itemKey,
                 request.completed());
+    }
+
+    @GetMapping("/catalog")
+    @Operation(
+            operationId = "listAssetCatalog",
+            summary = "List exact usable Asset releases authorized for the current actor")
+    AssetRecommendationPage catalog(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) AssetType type,
+            @RequestParam(defaultValue = "RECENTLY_RELEASED")
+                    AssetCatalogSort sort,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "24") int pageSize,
+            Authentication authentication) {
+        return assets.catalog(
+                actors.current(authentication), q, type, sort, page, pageSize);
     }
 }

@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -241,6 +242,37 @@ class AssetRegistryCoordinator {
                 .flatMap(Optional::stream)
                 .filter(item -> matchesRecommendation(item, normalizedQuery))
                 .toList();
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetRecommendationPage recommendationPage(
+            UUID organizationId,
+            Collection<UUID> ids,
+            String query,
+            AssetType type,
+            AssetCatalogSort sort,
+            int page,
+            int pageSize) {
+        if (ids.isEmpty()) {
+            return AssetRecommendationPage.empty(page, pageSize, sort);
+        }
+        String normalizedQuery =
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        Page<AssetRecommendation> result = assets.searchAuthorizedRecommendations(
+                organizationId,
+                ids,
+                normalizedQuery,
+                type,
+                AssetAvailability.WITHDRAWN,
+                sort.name(),
+                PageRequest.of(page - 1, pageSize));
+        return new AssetRecommendationPage(
+                result.getContent(),
+                result.getTotalElements(),
+                page,
+                pageSize,
+                result.getTotalPages(),
+                sort);
     }
 
     private Optional<AssetRecommendation> recommendation(
