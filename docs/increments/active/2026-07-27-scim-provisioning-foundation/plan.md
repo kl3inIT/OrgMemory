@@ -52,22 +52,22 @@ Scope:
 
 Merge gate:
 
-- [ ] Flyway upgrade and `ddl-auto=validate` pass on PostgreSQL;
-- [ ] one organization cannot access another connection by every repository
+- [x] Flyway upgrade and `ddl-auto=validate` pass on PostgreSQL;
+- [x] one organization cannot access another connection by every repository
   method;
-- [ ] concurrent duplicate `externalId`, `userName`, or workforce key leaves
+- [x] concurrent duplicate `externalId`, `userName`, or workforce key leaves
   one resource;
-- [ ] concurrent connection enable and public-token-ID collision are constrained
+- [x] concurrent connection enable and public-token-ID collision are constrained
   by PostgreSQL rather than an application-only check;
-- [ ] no raw SCIM payload or credential is persisted;
-- [ ] local suspension wins over directory activation;
-- [ ] previous-binary activation cannot revive a directory-disabled user;
-- [ ] Spring Modulith dependency verification passes.
+- [x] no raw SCIM payload or credential is persisted;
+- [x] local suspension wins over directory activation;
+- [x] previous-binary activation cannot revive a directory-disabled user;
+- [x] Spring Modulith dependency verification passes.
 
 Rollback gate:
 
 - [ ] previous binary starts and resolves active/inactive users correctly;
-- [ ] connection tables remain inert with no API route enabled;
+- [x] connection tables remain inert with no API route enabled;
 - [ ] database restore rehearsal preserves resource IDs and tombstones.
 
 ## PR F3 — Machine Security, Discovery, And Credential Administration

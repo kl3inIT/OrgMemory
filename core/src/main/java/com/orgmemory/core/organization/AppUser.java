@@ -31,6 +31,15 @@ public class AppUser extends BaseEntity {
     @Column(nullable = false)
     private boolean active;
 
+    @Column(name = "local_access_enabled", nullable = false)
+    private boolean localAccessEnabled;
+
+    @Column(name = "directory_access_enabled")
+    private Boolean directoryAccessEnabled;
+
+    @Column(name = "provisioning_access_ready", nullable = false)
+    private boolean provisioningAccessReady;
+
     protected AppUser() {
     }
 
@@ -51,7 +60,10 @@ public class AppUser extends BaseEntity {
         this.name = name;
         this.email = email;
         this.role = role;
-        this.active = active;
+        this.localAccessEnabled = active;
+        this.directoryAccessEnabled = null;
+        this.provisioningAccessReady = true;
+        recomputeActive();
     }
 
     public void changeRole(UserRole role) {
@@ -67,11 +79,31 @@ public class AppUser extends BaseEntity {
      * boundary on the next request and resolves no source principal mapping.
      */
     public void deactivate() {
-        this.active = false;
+        this.localAccessEnabled = false;
+        recomputeActive();
     }
 
     public void activate() {
-        this.active = true;
+        this.localAccessEnabled = true;
+        recomputeActive();
+    }
+
+    /**
+     * Applies the authoritative lifecycle assertion from a provisioning
+     * directory. Null means that no directory owns this local account.
+     */
+    public void applyDirectoryAccess(Boolean enabled) {
+        this.directoryAccessEnabled = enabled;
+        recomputeActive();
+    }
+
+    /**
+     * Keeps a newly materialized account closed until its required mappings and
+     * authorization relationships have been established.
+     */
+    public void markProvisioningReady(boolean ready) {
+        this.provisioningAccessReady = ready;
+        recomputeActive();
     }
 
     public UUID getOrganizationId() {
@@ -96,5 +128,23 @@ public class AppUser extends BaseEntity {
 
     public boolean isActive() {
         return active;
+    }
+
+    public boolean isLocalAccessEnabled() {
+        return localAccessEnabled;
+    }
+
+    public Boolean getDirectoryAccessEnabled() {
+        return directoryAccessEnabled;
+    }
+
+    public boolean isProvisioningAccessReady() {
+        return provisioningAccessReady;
+    }
+
+    private void recomputeActive() {
+        active = localAccessEnabled
+                && (directoryAccessEnabled == null || directoryAccessEnabled)
+                && provisioningAccessReady;
     }
 }
