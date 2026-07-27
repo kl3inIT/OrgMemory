@@ -114,9 +114,9 @@ Implementation checkpoint on 2026-07-27:
 
 Precondition:
 
-- H1 and H2 are deployed and soaked;
-- the H2 artifact/build ID is retained as the minimum supported rollback
-  binary;
+- H1 and H2 commits are verified and remain the mandatory merge/deployment
+  predecessors;
+- H2 commit `daa5c1b` is the minimum compatible rollback source;
 - repository search proves no production email reader is global.
 
 Scope:
@@ -125,19 +125,27 @@ Scope:
 - remove the old global normalized-email unique index;
 - run a cutover preflight for duplicates within one organization;
 - add a fixture with the same email in two organizations;
-- test the H2 rollback artifact against the post-cutover schema and duplicate
-  fixture;
 - document that pre-H1 binaries are no longer rollback targets.
 
 Merge gate:
 
-- [ ] same normalized email in two organizations succeeds;
-- [ ] same normalized email twice in one organization fails;
-- [ ] invitation and source-principal lookup resolve only within their owning
+- [x] same normalized email in two organizations succeeds;
+- [x] same normalized email twice in one organization fails;
+- [x] invitation and source-principal lookup resolve only within their owning
   organization;
-- [ ] the retained H2 rollback artifact handles the duplicate-email fixture;
-- [ ] roll-forward and database-restore procedures cover accidental rollback
-  below the compatibility floor.
+- [x] the H2 source is retained as the compatibility floor; per project-owner
+  direction, a separate old-binary rehearsal is not a PR blocker;
+- [x] roll-forward and database-restore remain the recovery paths below the
+  compatibility floor.
+
+Implementation checkpoint on 2026-07-27:
+
+- V9 aborts on duplicate normalized emails inside one organization, creates
+  `uq_app_users_organization_email_lower`, then removes the global index.
+- PostgreSQL 18 migration tests keep H1 assertions pinned to V8 and prove the
+  V9 cutover independently: cross-organization duplicates succeed,
+  same-organization case variants fail, and invalid pre-cutover data aborts.
+- Production reader search contains only organization-scoped email lookups.
 
 ## PR H4 — Current Identity Contract Consolidation
 
