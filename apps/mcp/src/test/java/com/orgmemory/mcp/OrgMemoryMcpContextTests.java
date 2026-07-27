@@ -48,14 +48,16 @@ class OrgMemoryMcpContextTests {
 
     @Test
     void publishesOnlyThePermissionAwareReadOnlyContracts() {
-        assertEquals(7, tools.size());
+        assertEquals(9, tools.size());
         assertEquals(
                 List.of(
                         "get_asset",
                         "get_asset_release",
                         "get_capability_pack",
+                        "get_skill_manifest",
                         "render_prompt",
                         "resolve_asset_relations",
+                        "resolve_skill",
                         "search_assets",
                         "search_knowledge"),
                 tools.stream()

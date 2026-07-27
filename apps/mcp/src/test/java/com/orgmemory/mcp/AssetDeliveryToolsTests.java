@@ -86,21 +86,23 @@ class AssetDeliveryToolsTests {
     }
 
     @Test
-    void publishesSixExplicitReadOnlyClosedWorldTools() {
+    void publishesEightExplicitReadOnlyClosedWorldTools() {
         List<McpTool> declarations = java.util.Arrays.stream(
                         AssetDeliveryTools.class.getDeclaredMethods())
                 .map(method -> method.getAnnotation(McpTool.class))
                 .filter(java.util.Objects::nonNull)
                 .toList();
 
-        assertEquals(6, declarations.size());
+        assertEquals(8, declarations.size());
         assertEquals(
                 List.of(
                         "get_asset",
                         "get_asset_release",
                         "get_capability_pack",
+                        "get_skill_manifest",
                         "render_prompt",
                         "resolve_asset_relations",
+                        "resolve_skill",
                         "search_assets"),
                 declarations.stream().map(McpTool::name).sorted().toList());
         declarations.forEach(declaration -> {
