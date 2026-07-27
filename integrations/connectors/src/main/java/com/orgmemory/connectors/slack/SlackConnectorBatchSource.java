@@ -180,10 +180,13 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * Slack; the objects those grants apply to come from the ledger, because asking Slack to
      * enumerate them again would mean paging every channel's history for ids we already have.
      *
-     * <p>This batch never claims completeness, and the reason is worth stating plainly: its object
-     * list is our own record rather than the source's. A crawl that claimed to have enumerated the
-     * connection on that basis would be confirming itself, and the ledger would then be entitled
-     * to retire anything the circular answer left out.
+     * <p>This batch never claims content-enumeration completeness, including when every permission
+     * read succeeds, and the reason is worth stating plainly: its object list is our own record
+     * rather than the source's. The literal {@code complete=false} passed to {@link #batch} below
+     * preserves that invariant; do not replace it with {@code crawl.complete}. A crawl that
+     * claimed to have enumerated the connection on the ledger's own evidence would be confirming
+     * itself, and the ledger would then be entitled to retire anything the circular answer left
+     * out.
      */
     private ConnectorCrawlBatch permissionsCrawl(
             SlackWebApiClient client, ConnectorCrawlConfiguration configuration) {
