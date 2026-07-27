@@ -108,4 +108,15 @@ grep -Eiq \
   '^[[:space:]]*X-Seen-Forwarded-Port:[[:space:]]*443[[:space:]]*$' \
   <<<"$discovery_headers"
 
+publication_headers="$(
+  docker exec "$web_container" \
+    wget -S -O /dev/null \
+    --post-data="probe" \
+    --header="X-Forwarded-Proto: https" \
+    http://127.0.0.1:8080/skill-publications 2>&1
+)"
+grep -Eiq \
+  '^[[:space:]]*X-Seen-Forwarded-Port:[[:space:]]*443[[:space:]]*$' \
+  <<<"$publication_headers"
+
 printf 'Web forwarded-port regression passed.\n'

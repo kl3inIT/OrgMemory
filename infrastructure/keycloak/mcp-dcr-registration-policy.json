@@ -21,7 +21,8 @@
     ],
     "allowed-client-scopes": [
       "basic",
-      "assets:read"
+      "assets:read",
+      "assets:write"
     ]
   },
   "max-clients": {

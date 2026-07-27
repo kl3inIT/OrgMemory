@@ -74,6 +74,24 @@ export const skillManifestLinkSchema = z.object({
 
 export type SkillManifestLink = z.infer<typeof skillManifestLinkSchema>
 
+export const skillDraftPublicationSchema = z.object({
+  id: orgMemoryUuidSchema,
+  type: z.literal("SKILL"),
+  namespace: namespaceSchema,
+  slug: slugSchema,
+  knowledgeSpaceId: orgMemoryUuidSchema,
+  draft: z.object({
+    id: orgMemoryUuidSchema,
+    lockVersion: z.number().int().nonnegative(),
+    title: z.string(),
+    summary: z.string(),
+  }),
+})
+
+export type SkillDraftPublication = z.infer<
+  typeof skillDraftPublicationSchema
+>
+
 export function resolvePackageUrl(
   serverUrl: URL,
   link: SkillManifestLink,

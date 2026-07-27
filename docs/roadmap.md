@@ -63,6 +63,10 @@ belongs in one active increment.
   centralized width/scroll variants, responsive split and canvas layouts,
   conditional breadcrumbs, common filter/empty/content patterns, and a
   TanStack Table-backed semantic table wrapper.
+- A governed Skill package profile with bounded validation, immutable
+  exact-version delivery, OAuth PKCE discovery/installation for Claude Code and
+  Codex, and folder-first deterministic Draft publication through the same
+  canonical Asset lifecycle.
 
 ## Active Delivery
 
@@ -148,7 +152,7 @@ belongs in one active increment.
 
 ## Later, Only With Evidence
 
-Screenpipe capture, controlled SOP effectivity, Skill installation, executable
+Screenpipe capture, controlled SOP effectivity, executable
 Workflow/Agent/Tool packages, Airflow, Kafka, more providers/connectors,
 mutation MCP tools, and multi-agent orchestration require measured need or the
 completed browser-native Asset POC. SCIM Bulk/sort/ETag, nested directory

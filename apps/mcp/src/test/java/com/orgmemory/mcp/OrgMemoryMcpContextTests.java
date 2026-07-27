@@ -2,9 +2,11 @@ package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import io.modelcontextprotocol.server.McpStatelessServerFeatures;
 import java.util.List;
@@ -14,10 +16,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "spring.security.oauth2.client.registration.orgmemory-api.client-secret=test-only")
+        properties = {
+            "spring.security.oauth2.client.registration.orgmemory-api.client-secret=test-only",
+            "spring.security.oauth2.client.registration.orgmemory-api-publisher.client-secret=test-only"
+        })
 @AutoConfigureMockMvc
 class OrgMemoryMcpContextTests {
 
@@ -98,7 +105,32 @@ class OrgMemoryMcpContextTests {
                         .value("http://localhost:8180/realms/orgmemory"))
                 .andExpect(jsonPath("$.scopes_supported[0]")
                         .value("assets:read"))
+                .andExpect(jsonPath("$.scopes_supported[1]")
+                        .value("assets:write"))
                 .andExpect(jsonPath("$.scopes_supported.length()")
-                        .value(1));
+                        .value(2));
+    }
+
+    @Test
+    void skillPublicationRequiresTheSeparateWriteScope()
+            throws Exception {
+        var file = new MockMultipartFile(
+                "file",
+                "skill.zip",
+                "application/zip",
+                new byte[] {1});
+
+        mvc.perform(multipart("/skill-publications")
+                        .file(file)
+                        .param(
+                                "namespace",
+                                "finance")
+                        .param(
+                                "knowledgeSpaceId",
+                                "30000000-0000-0000-0000-000000000001")
+                        .with(jwt().authorities(
+                                new SimpleGrantedAuthority(
+                                        "SCOPE_assets:read"))))
+                .andExpect(status().isForbidden());
     }
 }

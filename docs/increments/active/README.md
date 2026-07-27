@@ -17,6 +17,10 @@ progress here. Consolidate current behavior before moving an increment to
    and the next-crawl access revocation.
 4. In the isolated identity worktree, land the accepted tenant-hardening
    increment before exposing any native SCIM endpoint.
+5. Complete
+   [Skill authoring and Draft publication](2026-07-27-skill-authoring-publication/plan.md):
+   folder-first local validation, deterministic packaging, and authenticated
+   Draft creation while keeping MCP tools read-only.
 
 ## Native Identity Provisioning Program
 

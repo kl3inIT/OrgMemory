@@ -20,6 +20,8 @@ import org.springframework.stereotype.Component;
 final class McpApiAuthorization {
 
     static final String CLIENT_REGISTRATION_ID = "orgmemory-api";
+    static final String PUBLISHER_CLIENT_REGISTRATION_ID =
+            "orgmemory-api-publisher";
     private static final Logger log =
             LoggerFactory.getLogger(McpApiAuthorization.class);
 
@@ -40,12 +42,23 @@ final class McpApiAuthorization {
     }
 
     String require(Authentication authentication) {
+        return require(authentication, CLIENT_REGISTRATION_ID);
+    }
+
+    String requirePublisher(Authentication authentication) {
+        return require(
+                authentication, PUBLISHER_CLIENT_REGISTRATION_ID);
+    }
+
+    private String require(
+            Authentication authentication,
+            String clientRegistrationId) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
                     "The MCP request has no authenticated identity");
         }
         var request = OAuth2AuthorizeRequest
-                .withClientRegistrationId(CLIENT_REGISTRATION_ID)
+                .withClientRegistrationId(clientRegistrationId)
                 .principal(authentication)
                 .build();
         var authorized = authorize(request);

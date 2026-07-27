@@ -131,6 +131,25 @@ class McpRateLimitFilterTests {
     }
 
     @Test
+    void givesSkillPublicationItsOwnBoundedMultipartBudget()
+            throws Exception {
+        authenticate("actor-1", "orgmemory-cli", "token");
+        var filter = filter(properties(100, 100, 64));
+        FilterChain chain = mock(FilterChain.class);
+        MockHttpServletRequest accepted = request(65);
+        accepted.setRequestURI("/skill-publications");
+
+        filter.doFilter(
+                accepted,
+                new MockHttpServletResponse(),
+                chain);
+
+        verify(chain, times(1)).doFilter(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void unauthenticatedRequestsConsumeTheGlobalBudget()
             throws Exception {
         var filter = filter(properties(1, 100, 1_000));
@@ -191,7 +210,8 @@ class McpRateLimitFilterTests {
                 Duration.ofMinutes(1),
                 Duration.ofMinutes(15),
                 100,
-                maxBodyBytes);
+                maxBodyBytes,
+                maxBodyBytes * 2);
     }
 
     private static void authenticate(
