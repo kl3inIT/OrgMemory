@@ -11,5 +11,11 @@
   department checks.
 - [x] Add PostgreSQL-backed regression coverage for stale connector and
   OrgMemory-owned evidence.
-- [ ] Merge, deploy, and verify Documents and Knowledge Graph with the affected
+- [x] Merge, deploy, and verify Documents and Knowledge Graph with the affected
   production account.
+
+Production evidence: PR #74 merged as `4d907f154c937365a790238f2d8161d7e3cd7614`;
+CI `30233923642`; image build `30234114183`; deployment `30234348176`. The
+affected Bùi Đức Minh account regained 21 ready Documents. Graph access then
+returned its 92 entities and 129 relations; the separate frontend rendering
+regression was completed in PR #75.

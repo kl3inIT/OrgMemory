@@ -6,4 +6,8 @@
 - [x] Render fullscreen through the shared graph icon-control primitive.
 - [x] Pass frontend static, unit, and production build gates.
 - [x] Verify a populated graph in a real browser with the equivalent CSS rule.
-- [ ] Merge, deploy, and verify the production route.
+- [x] Merge, deploy, and verify the production route.
+
+Production evidence: PR #75; commit `4fa215c`; CI `30237427612`; image build
+`30237507156`; deployment `30237618292`; browser verification showed 92
+entities, 129 relations, zero console errors, and aligned 32-pixel controls.
