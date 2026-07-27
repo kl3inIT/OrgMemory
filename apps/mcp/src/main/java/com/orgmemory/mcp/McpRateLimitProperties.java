@@ -14,13 +14,17 @@ record McpRateLimitProperties(
         @DefaultValue("1m") Duration callerWindow,
         @DefaultValue("15m") Duration callerExpiry,
         @DefaultValue("10000") long maxTrackedCallers,
-        @DefaultValue("262144") long maxBodyBytes) {
+        @DefaultValue("262144") long maxBodyBytes,
+        @DefaultValue("23068672") long maxPublicationBodyBytes) {
 
     McpRateLimitProperties {
         requirePositive(globalCapacity, "global-capacity");
         requirePositive(callerCapacity, "caller-capacity");
         requirePositive(maxTrackedCallers, "max-tracked-callers");
         requirePositive(maxBodyBytes, "max-body-bytes");
+        requirePositive(
+                maxPublicationBodyBytes,
+                "max-publication-body-bytes");
         requirePositive(globalWindow, "global-window");
         requirePositive(callerWindow, "caller-window");
         requirePositive(callerExpiry, "caller-expiry");

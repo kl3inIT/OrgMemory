@@ -21,6 +21,7 @@ type PersistedOAuthState = {
 }
 
 const AUTHORIZATION_CALLBACK_TIMEOUT_MS = 5 * 60_000
+const DEFAULT_SCOPE = "assets:read"
 
 export class FileOAuthClientProvider implements OAuthClientProvider {
   readonly clientMetadata: OAuthClientMetadata
@@ -33,16 +34,17 @@ export class FileOAuthClientProvider implements OAuthClientProvider {
   constructor(
     readonly serverUrl: URL,
     callbackPort: number,
+    scope = DEFAULT_SCOPE,
   ) {
     this.callback = new OAuthCallback(callbackPort, () => this.expectedState)
-    this.stateFile = oauthStatePath(serverUrl)
+    this.stateFile = oauthStatePath(serverUrl, scope)
     this.clientMetadata = {
       client_name: "OrgMemory CLI",
       redirect_uris: [String(this.redirectUrl)],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none",
-      scope: "assets:read",
+      scope,
       software_id: "orgmemory-cli",
       software_version: "0.1.0",
     }
@@ -305,8 +307,10 @@ class OAuthCallback {
   }
 }
 
-function oauthStatePath(serverUrl: URL): string {
-  const identity = createHash("sha256").update(serverUrl.origin).digest("hex").slice(0, 16)
+function oauthStatePath(serverUrl: URL, scope: string): string {
+  const identitySource =
+    scope === DEFAULT_SCOPE ? serverUrl.origin : `${serverUrl.origin}\n${scope}`
+  const identity = createHash("sha256").update(identitySource).digest("hex").slice(0, 16)
   return join(userStateDirectory(), `oauth-${identity}.json`)
 }
 

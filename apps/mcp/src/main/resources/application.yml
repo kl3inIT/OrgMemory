@@ -21,6 +21,13 @@ spring:
             client-authentication-method: client_secret_basic
             authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
             scope: assets:read
+          orgmemory-api-publisher:
+            provider: keycloak
+            client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
+            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET}
+            client-authentication-method: client_secret_basic
+            authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
+            scope: assets:write
   ai:
     mcp:
       server:
@@ -68,3 +75,4 @@ orgmemory:
       caller-expiry: ${ORGMEMORY_MCP_CALLER_RATE_EXPIRY:15m}
       max-tracked-callers: ${ORGMEMORY_MCP_MAX_TRACKED_CALLERS:10000}
       max-body-bytes: ${ORGMEMORY_MCP_MAX_BODY_BYTES:262144}
+      max-publication-body-bytes: ${ORGMEMORY_SKILL_PUBLICATION_MAX_BODY_BYTES:23068672}

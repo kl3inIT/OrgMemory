@@ -81,6 +81,16 @@ revision; publication copies it to the immutable release after verifying that
 it still matches the approved payload. Generic create, draft update, and fork
 cannot manufacture a `SKILL` payload.
 
+The Node CLI provides a folder-first authoring path. `skill validate` and
+`skill publish --dry-run` inspect the local root `SKILL.md`, reject unsafe
+filesystem entries, enforce package bounds, and build deterministic ZIP bytes
+without authentication or network access. A real `skill publish` requests the
+separate `assets:write` scope and sends those bytes to the bounded
+`/skill-publications` HTTP companion. The MCP gateway exchanges the actor token
+and delegates to the same canonical multipart endpoint above. Core repeats
+validation and live `CAN_CREATE_ASSET` authorization and creates a Draft only;
+submit, review, approval, and release remain explicit Governance actions.
+
 ### Federated Knowledge
 
 Knowledge remains owned by the canonical Knowledge ledger. The read-only
@@ -148,7 +158,8 @@ line with actor, organization, action, Asset, and release identifiers; bearer
 tokens, Prompt variables, and payloads are not logged.
 
 The MCP endpoint is an RFC 9728 protected resource. It advertises
-`assets:read`, validates issuer, expiry, and the exact configured MCP audience,
+`assets:read` and the companion-only `assets:write`, validates issuer, expiry,
+and the exact configured MCP audience,
 and applies bounded per-caller plus process-wide rate limits. The confidential
 MCP gateway exchanges the inbound user token for a short-lived API-audience
 token; the inbound bearer is never forwarded.
@@ -171,7 +182,9 @@ The Node CLI resolves and searches through MCP, downloads the exact package
 through that companion route, verifies the archive and every file against the
 manifest, then installs through an adjacent staging directory. Project-local
 Claude Code and Codex targets come from a fixed mapping. The atomic lock receipt
-is written only after promotion and never contains OAuth credentials.
+is written only after promotion and never contains OAuth credentials. OAuth
+state is isolated by server and requested scope set, so read-only installation
+does not silently gain the Draft-publication grant.
 
 ### Golden POC Fixture
 

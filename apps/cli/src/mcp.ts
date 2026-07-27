@@ -10,8 +10,12 @@ export class OrgMemoryMcpClient implements AsyncDisposable {
   private transport: StreamableHTTPClientTransport | undefined
   readonly oauth: FileOAuthClientProvider
 
-  constructor(readonly serverUrl: URL, callbackPort: number) {
-    this.oauth = new FileOAuthClientProvider(serverUrl, callbackPort)
+  constructor(
+    readonly serverUrl: URL,
+    callbackPort: number,
+    scope = "assets:read",
+  ) {
+    this.oauth = new FileOAuthClientProvider(serverUrl, callbackPort, scope)
   }
 
   async connect(): Promise<void> {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import io.modelcontextprotocol.common.McpTransportContext;
 import java.time.Instant;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -83,6 +85,32 @@ class McpApiAuthorizationTests {
         assertEquals(
                 "OrgMemory could not authorize the downstream Asset request",
                 failure.getMessage());
+    }
+
+    @Test
+    void publicationUsesTheWriteScopedDownstreamRegistration() {
+        Instant now = Instant.parse("2026-07-26T00:00:00Z");
+        var client = mock(OAuth2AuthorizedClient.class);
+        when(client.getAccessToken()).thenReturn(new OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER,
+                "publisher-token",
+                now,
+                now.plusSeconds(60)));
+        when(manager.authorize(any())).thenReturn(client);
+        var authentication = (org.springframework.security.core.Authentication)
+                authenticatedContext().get(
+                        McpTransportConfiguration.AUTHENTICATION_CONTEXT_KEY);
+
+        assertEquals(
+                "Bearer publisher-token",
+                authorization.requirePublisher(authentication));
+
+        var request = org.mockito.ArgumentCaptor.forClass(
+                OAuth2AuthorizeRequest.class);
+        verify(manager).authorize(request.capture());
+        assertEquals(
+                McpApiAuthorization.PUBLISHER_CLIENT_REGISTRATION_ID,
+                request.getValue().getClientRegistrationId());
     }
 
     @Test

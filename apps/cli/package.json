@@ -2,7 +2,7 @@
   "name": "@orgmemory/cli",
   "version": "0.1.0",
   "private": true,
-  "description": "Authenticated OrgMemory Skill installer for AI coding agents",
+  "description": "Authenticated OrgMemory Skill authoring and distribution CLI",
   "type": "module",
   "bin": {
     "orgmemory": "./dist/index.js"
@@ -22,6 +22,7 @@
     "@modelcontextprotocol/sdk": "1.29.0",
     "commander": "14.0.3",
     "fflate": "0.8.2",
+    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

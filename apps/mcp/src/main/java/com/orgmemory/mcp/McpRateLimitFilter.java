@@ -62,7 +62,9 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return !properties.enabled()
-                || !(path.equals("/mcp") || path.startsWith("/mcp/"));
+                || !(path.equals("/mcp")
+                        || path.startsWith("/mcp/")
+                        || path.equals("/skill-publications"));
     }
 
     @Override
@@ -71,13 +73,14 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain)
             throws ServletException, IOException {
+        long maximumBodyBytes = maximumBodyBytes(request);
         long length = request.getContentLengthLong();
-        if (length > properties.maxBodyBytes()) {
+        if (length > maximumBodyBytes) {
             writeProblem(
                     response,
                     HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
-                    "mcp.request-too-large",
-                    "MCP request body exceeds the configured limit",
+                    requestCode(request),
+                    requestDetail(request),
                     0);
             return;
         }
@@ -136,7 +139,7 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(
                     new LimitedBodyRequest(
-                            request, properties.maxBodyBytes()),
+                            request, maximumBodyBytes),
                     response);
         } catch (IOException | ServletException | RuntimeException failure) {
             if (!causedByBodyLimit(failure) || response.isCommitted()) {
@@ -146,8 +149,8 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
             writeProblem(
                     response,
                     HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE,
-                    "mcp.request-too-large",
-                    "MCP request body exceeds the configured limit",
+                    requestCode(request),
+                    requestDetail(request),
                     0);
         }
     }
@@ -174,6 +177,24 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
             client = "unidentified-client";
         }
         return jwt.getSubject() + '\u001f' + client;
+    }
+
+    private long maximumBodyBytes(HttpServletRequest request) {
+        return request.getRequestURI().equals("/skill-publications")
+                ? properties.maxPublicationBodyBytes()
+                : properties.maxBodyBytes();
+    }
+
+    private static String requestCode(HttpServletRequest request) {
+        return request.getRequestURI().equals("/skill-publications")
+                ? "skill.publication-request-too-large"
+                : "mcp.request-too-large";
+    }
+
+    private static String requestDetail(HttpServletRequest request) {
+        return request.getRequestURI().equals("/skill-publications")
+                ? "Skill publication body exceeds the configured limit"
+                : "MCP request body exceeds the configured limit";
     }
 
     private static String claim(Jwt jwt, String name) {

@@ -159,6 +159,31 @@ with open(sys.argv[2], encoding="utf-8") as stream:
 assert scope["description"] == expected["description"], scope
 PY
 MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get client-scopes \
+  -r orgmemory \
+  -q name=assets:write \
+  --config "$container_kcadm_config" >"$tmp_dir/write-scope.json"
+python3 \
+  - "$tmp_dir/write-scope.json" \
+  "$repo_root/infrastructure/keycloak/mcp-assets-write-client-scope.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    scopes = json.load(stream)
+with open(sys.argv[2], encoding="utf-8") as stream:
+    expected = json.load(stream)
+matches = [scope for scope in scopes if scope.get("name") == "assets:write"]
+assert len(matches) == 1, scopes
+scope = matches[0]
+assert scope["description"] == expected["description"], scope
+assert {
+    mapper["name"] for mapper in scope.get("protocolMappers", [])
+} == {
+    mapper["name"] for mapper in expected["protocolMappers"]
+}, scope
+PY
+MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get "clients/$gateway_client_id" \
   -r orgmemory \
   --config "$container_kcadm_config" >"$tmp_dir/gateway-client.json"
@@ -176,6 +201,23 @@ for key, value in expected["attributes"].items():
     assert client["attributes"].get(key) == value, client["attributes"]
 assert client["clientAuthenticatorType"] == "client-secret", client
 assert client["publicClient"] is False, client
+PY
+MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get \
+  "clients/$gateway_client_id/optional-client-scopes" \
+  -r orgmemory \
+  --config "$container_kcadm_config" >"$tmp_dir/gateway-optional-scopes.json"
+python3 \
+  - "$tmp_dir/gateway-optional-scopes.json" \
+  "$repo_root/infrastructure/keycloak/mcp-gateway-client.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    actual = {scope["name"] for scope in json.load(stream)}
+with open(sys.argv[2], encoding="utf-8") as stream:
+    expected = set(json.load(stream)["optionalClientScopes"])
+assert expected <= actual, (expected, actual)
 PY
 
 curl --fail --silent --show-error "$metadata_url" >"$tmp_dir/metadata.json"
@@ -208,6 +250,22 @@ curl --fail --silent --show-error \
   --header 'Content-Type: application/json' \
   --data-binary "@$tmp_dir/good-client.json" \
   "$registration_url" >"$tmp_dir/registration.json"
+
+cat >"$tmp_dir/publisher-client.json" <<'JSON'
+{
+  "client_name": "OrgMemory CLI Publisher",
+  "redirect_uris": ["http://127.0.0.1:53682/oauth/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "scope": "assets:read assets:write"
+}
+JSON
+curl --fail --silent --show-error \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$tmp_dir/publisher-client.json" \
+  "$registration_url" >"$tmp_dir/publisher-registration.json"
 
 client_id="$(
   python3 -c \
@@ -278,7 +336,7 @@ cat >"$tmp_dir/bad-scope.json" <<'JSON'
   "grant_types": ["authorization_code"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
-  "scope": "assets:write"
+  "scope": "assets:admin"
 }
 JSON
 bad_scope_status="$(

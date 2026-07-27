@@ -11,6 +11,9 @@
 | Exact Skill manifests omit storage keys and package streaming rejects payload, release-reference, and stored-object mismatches | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
 | MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |
 | CLI installation verifies package and per-file digests, promotes atomically, writes a token-free receipt, and preserves an active install on tampering | `install.test.ts` | covered |
+| CLI authoring validates a root Skill folder and produces deterministic bounded ZIP bytes before authentication | `skill-package.test.ts` | covered |
+| CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
+| Skill publication requires `assets:write`, uses the publisher token-exchange registration, bounds multipart size, and delegates only to canonical Skill import | `OrgMemoryMcpContextTests`, `SkillPublicationControllerTests`, `SkillPublicationApiClientTests`, `McpApiAuthorizationTests`, `McpRateLimitFilterTests` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
 | Prompt output contract and bounded evaluations expose pass/failure | `PromptExecutionServiceTests`, `AssetRegistryIntegrationTests` | covered |
@@ -38,7 +41,7 @@
 | Every MCP tool publishes an MCP 2025-11-25-compatible object-root output schema accepted by strict clients | `OrgMemoryMcpContextTests` | covered |
 | MCP exchanges the actor bearer for an API-audience token and hides denial bodies | `McpApiAuthorizationTests`, `AssetDeliveryApiClientTests` | covered |
 | MCP rejects wrong audience, issuer, and expired tokens | `McpTokenValidationTests` | covered |
-| MCP advertises RFC 9728 metadata and challenges unauthenticated requests with its location | `OrgMemoryMcpContextTests` | covered |
+| MCP advertises RFC 9728 read/write scope metadata and challenges unauthenticated MCP and publication requests with its location | `OrgMemoryMcpContextTests`, `smoke-production.sh` | covered |
 | MCP applies bounded per-caller and process-wide token buckets plus known/chunked body limits without returning tokens | `McpRateLimitFilterTests` | covered |
 | Public discovery reaches MCP through nginx and deployment smoke requires DCR authorization metadata without the incompatible CIMD advertisement | `test-web-forwarded-port.sh`, `smoke-production.sh`, `test-keycloak-mcp-onboarding.sh` | covered |
 | Generic MCP onboarding renders Claude, Codex, and compatible-client instructions without a client secret | `mcp-connect.spec.ts` | covered |

@@ -22,6 +22,41 @@
       ]
     },
     {
+      "name": "assets:write",
+      "description": "Create governed OrgMemory Asset drafts through an authenticated publication adapter",
+      "protocol": "openid-connect",
+      "attributes": {
+        "display.on.consent.screen": "true",
+        "include.in.token.scope": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "orgmemory-mcp-publication-resource-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "${ORGMEMORY_MCP_RESOURCE_URI}",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "orgmemory-mcp-publication-exchange-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "orgmemory-mcp",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "id": "55555555-5555-5555-5555-555555555555",
       "username": "minh",
       "email": "minh@example.com",
@@ -674,7 +709,8 @@
       }
     ],
     "optionalClientScopes": [
-          "assets:read"
+          "assets:read",
+          "assets:write"
         ]
       }
   ]
