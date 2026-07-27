@@ -9,7 +9,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     List<AppUser> findByOrganizationIdOrderByName(UUID organizationId);
 
-    Optional<AppUser> findByEmailIgnoreCase(String email);
+    Optional<AppUser> findByOrganizationIdAndEmailIgnoreCase(UUID organizationId, String email);
 
     boolean existsByIdAndOrganizationId(UUID id, UUID organizationId);
 }

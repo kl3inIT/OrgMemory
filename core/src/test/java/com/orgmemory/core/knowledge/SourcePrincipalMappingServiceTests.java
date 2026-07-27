@@ -65,7 +65,7 @@ class SourcePrincipalMappingServiceTests {
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.IDP_JOIN, mapping.get().getMethod());
         assertEquals(IDP_USER_ID, mapping.get().getAppUserId());
-        verify(users, never()).findByEmailIgnoreCase(any());
+        verify(users, never()).findByOrganizationIdAndEmailIgnoreCase(any(), any());
         verify(audit).record(any());
     }
 
@@ -73,7 +73,8 @@ class SourcePrincipalMappingServiceTests {
     void emailJoinNeedsSomebodyToVouchForTheAddress() {
         SourcePrincipal principal = userPrincipal(false, EMAIL);
         AppUser emailUser = activeUser(ORGANIZATION_ID);
-        when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(emailUser));
+        when(users.findByOrganizationIdAndEmailIgnoreCase(ORGANIZATION_ID, EMAIL))
+                .thenReturn(Optional.of(emailUser));
 
         assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED).isEmpty());
         verify(mappings, never()).save(any());
@@ -84,7 +85,8 @@ class SourcePrincipalMappingServiceTests {
     void emailJoinBindsWhenTheSourceVouchesForThePrincipal() {
         SourcePrincipal principal = userPrincipal(true, EMAIL);
         AppUser user = activeUser(ORGANIZATION_ID);
-        when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(user));
+        when(users.findByOrganizationIdAndEmailIgnoreCase(ORGANIZATION_ID, EMAIL))
+                .thenReturn(Optional.of(user));
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
 
         Optional<SourcePrincipalMapping> mapping =
@@ -93,13 +95,15 @@ class SourcePrincipalMappingServiceTests {
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.SSO_EMAIL_JOIN, mapping.get().getMethod());
         assertTrue(mapping.get().getEvidence().contains("vouched-by:source"));
+        verify(users).findByOrganizationIdAndEmailIgnoreCase(ORGANIZATION_ID, EMAIL);
     }
 
     @Test
     void emailJoinBindsWhenAnAdministratorAttestedTheConnection() {
         SourcePrincipal principal = userPrincipal(false, EMAIL);
         AppUser user = activeUser(ORGANIZATION_ID);
-        when(users.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.of(user));
+        when(users.findByOrganizationIdAndEmailIgnoreCase(ORGANIZATION_ID, EMAIL))
+                .thenReturn(Optional.of(user));
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
 
         Optional<SourcePrincipalMapping> mapping =
@@ -115,7 +119,7 @@ class SourcePrincipalMappingServiceTests {
         SourcePrincipal principal = userPrincipal(false, null);
 
         assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.SSO_VERIFIED).isEmpty());
-        verify(users, never()).findByEmailIgnoreCase(any());
+        verify(users, never()).findByOrganizationIdAndEmailIgnoreCase(any(), any());
         verify(mappings, never()).save(any());
     }
 

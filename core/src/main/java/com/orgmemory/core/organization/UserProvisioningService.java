@@ -2,6 +2,7 @@ package com.orgmemory.core.organization;
 
 import com.orgmemory.core.shared.error.BusinessErrorExposure;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -27,14 +28,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserProvisioningService {
 
     private final AppUserRepository users;
+    private final OrganizationRepository organizations;
+    private final DepartmentRepository departments;
     private final ExternalIdentityRepository identities;
     private final UserInvitationRepository invitations;
 
     public UserProvisioningService(
             AppUserRepository users,
+            OrganizationRepository organizations,
+            DepartmentRepository departments,
             ExternalIdentityRepository identities,
             UserInvitationRepository invitations) {
         this.users = Objects.requireNonNull(users, "users");
+        this.organizations = Objects.requireNonNull(organizations, "organizations");
+        this.departments = Objects.requireNonNull(departments, "departments");
         this.identities = Objects.requireNonNull(identities, "identities");
         this.invitations = Objects.requireNonNull(invitations, "invitations");
     }
@@ -46,9 +53,9 @@ public class UserProvisioningService {
      * can resolve from a sign-in alone, and picking one would silently place somebody in the wrong
      * tenant, so nothing is provisioned and access is refused.
      *
-     * <p>An address that already belongs to a user is linked rather than duplicated: the
-     * unique index on {@code lower(email)} would refuse the insert anyway, and someone whose
-     * account predates this mechanism still needs the binding an invitation would have created.
+     * <p>An address that already belongs to a user in the invitation's organization is linked
+     * rather than duplicated. The organization scope is explicit even while the global email
+     * index remains as the H1 rollback-compatibility floor.
      */
     @Transactional
     public Optional<AppUser> provisionFromInvitation(String issuer, String subject, String email) {
@@ -64,7 +71,8 @@ public class UserProvisioningService {
         }
         UserInvitation invitation = open.getFirst();
 
-        AppUser user = users.findByEmailIgnoreCase(normalized)
+        AppUser user = users.findByOrganizationIdAndEmailIgnoreCase(
+                        invitation.getOrganizationId(), normalized)
                 .orElseGet(() -> users.save(new AppUser(
                         invitation.getOrganizationId(),
                         invitation.getDepartmentId(),
@@ -81,6 +89,23 @@ public class UserProvisioningService {
     @Transactional
     public UserInvitation invite(
             UUID organizationId, String email, UUID departmentId, UserRole role, UUID invitedByUserId) {
+        if (organizationId == null || !organizations.existsById(organizationId)) {
+            throw new BusinessValidationException(
+                    "invitation.organization-invalid",
+                    "The invitation organization is not available");
+        }
+        if (departmentId != null
+                && !departments.existsByIdAndOrganizationId(departmentId, organizationId)) {
+            throw new BusinessValidationException(
+                    "invitation.department-invalid",
+                    "The invitation department is not available");
+        }
+        if (invitedByUserId == null
+                || !users.existsByIdAndOrganizationId(invitedByUserId, organizationId)) {
+            throw new BusinessValidationException(
+                    "invitation.inviter-invalid",
+                    "The invitation creator is not available");
+        }
         return invitations.save(
                 new UserInvitation(organizationId, email, departmentId, role, invitedByUserId));
     }
