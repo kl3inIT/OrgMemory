@@ -1,0 +1,16 @@
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "replace",
+      "value": {
+        "name": {
+          "givenName": "Alex",
+          "familyName": "Example"
+        },
+        "displayName": "Alex Example",
+        "active": true
+      }
+    }
+  ]
+}

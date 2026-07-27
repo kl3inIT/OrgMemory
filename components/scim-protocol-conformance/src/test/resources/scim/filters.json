@@ -1,0 +1,57 @@
+[
+  {
+    "name": "simple userName equality",
+    "valid": true,
+    "input": "userName eq \"bjensen\""
+  },
+  {
+    "name": "escaped quote and slash",
+    "valid": true,
+    "input": "displayName eq \"Babs \\\"Jensen\\\" \\\\ Platform\""
+  },
+  {
+    "name": "unicode value",
+    "valid": true,
+    "input": "displayName eq \"Jöhn-Доу-東京\""
+  },
+  {
+    "name": "compound expression",
+    "valid": true,
+    "input": "userName sw \"a\" and (active eq true or title pr)"
+  },
+  {
+    "name": "Entra primary work email value path",
+    "valid": true,
+    "input": "emails[type eq \"work\" and primary eq true and value co \"@example.com\"]"
+  },
+  {
+    "name": "negation",
+    "valid": true,
+    "input": "not (userName eq \"disabled\")"
+  },
+  {
+    "name": "unterminated value",
+    "valid": false,
+    "input": "userName eq \"alice"
+  },
+  {
+    "name": "non-SCIM equals operator",
+    "valid": false,
+    "input": "userName = \"alice\""
+  },
+  {
+    "name": "SQL-shaped injection",
+    "valid": false,
+    "input": "userName eq \"alice\" OR 1=1 --"
+  },
+  {
+    "name": "regex extension is unsupported",
+    "valid": false,
+    "input": "userName regex \".*\""
+  },
+  {
+    "name": "dangling boolean operator",
+    "valid": false,
+    "input": "userName eq \"alice\" and"
+  }
+]
