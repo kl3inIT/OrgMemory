@@ -38,3 +38,12 @@ contract of the surrounding shadcn controls.
 - run web lint, typecheck, unit tests, and production build;
 - verify the populated graph and aligned fullscreen control in a real browser
   with no Sigma console error.
+
+## Completion Evidence
+
+PR #75 merged as `4fa215cfc66b60311f725767858fed4829ebdeff`.
+Main CI run `30237427612`, production image run `30237507156`, and production
+deployment run `30237618292` passed. The deployed Bùi Đức Minh account rendered
+92 entities and 129 relations with no console errors. The graph canvas resolved
+to a non-zero full workspace height, all camera and fullscreen controls measured
+32 by 32 pixels, and entering and exiting fullscreen succeeded.
