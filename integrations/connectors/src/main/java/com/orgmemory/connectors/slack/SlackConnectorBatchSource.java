@@ -10,9 +10,12 @@ import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.shared.secret.SecretValue;
@@ -265,6 +268,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                 crawlCursor(crawl),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
+                crawl.memberships(),
                 contents,
                 crawl.permissions,
                 List.of(),
@@ -649,12 +653,9 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                         user.displayName(),
                         true,
                         null,
-                        null,
-                        List.of()));
+                        null));
             }
             for (ChannelIdentity channel : observedChannels.values()) {
-                Set<String> members = new LinkedHashSet<>(channel.memberIds());
-                members.retainAll(observedUsers.keySet());
                 identities.add(new ConnectorIdentityItem(
                         SourcePrincipalKind.SOURCE_GROUP,
                         channel.id(),
@@ -662,10 +663,26 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                         "#" + channel.name(),
                         false,
                         null,
-                        null,
-                        List.copyOf(members)));
+                        null));
             }
             return identities;
+        }
+
+        private List<ConnectorMembershipItem> memberships() {
+            List<ConnectorMembershipItem> memberships = new ArrayList<>();
+            for (ChannelIdentity channel : observedChannels.values()) {
+                Set<String> members = new LinkedHashSet<>(channel.memberIds());
+                members.retainAll(observedUsers.keySet());
+                memberships.add(new ConnectorMembershipItem(
+                        channel.id(),
+                        MembershipCaptureStatus.COMPLETE,
+                        null,
+                        members.stream()
+                                .map(memberId -> new ConnectorMembershipMember(
+                                        SourcePrincipalKind.SOURCE_USER, memberId))
+                                .toList()));
+            }
+            return memberships;
         }
     }
 

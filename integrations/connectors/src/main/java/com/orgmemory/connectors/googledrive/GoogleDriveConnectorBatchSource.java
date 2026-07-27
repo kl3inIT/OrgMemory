@@ -10,8 +10,10 @@ import com.orgmemory.core.knowledge.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.nio.charset.StandardCharsets;
@@ -218,6 +220,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 crawlCursor(crawl, readContent),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
+                crawl.memberships(),
                 crawl.contents,
                 crawl.permissions,
                 List.of(),
@@ -469,7 +472,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         crawl.permissions.forEach(permission -> permissions.put(
                 permission.externalObjectId(),
                 permission.grants().stream()
-                        .map(grant -> grant.principalKind() + ":" + grant.principalExternalKey()
+                        .map(grant -> grant.principalKind() + ":" + grant.principalNativeId()
                                 + ":" + grant.gate())
                         .sorted()
                         .reduce((left, right) -> left + "," + right)
@@ -478,14 +481,31 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
 
         Map<String, String> identities = new TreeMap<>();
         crawl.identities().forEach(identity -> identities.put(
-                identity.kind() + ":" + identity.externalKey(),
-                identity.memberExternalKeys().stream().sorted()
-                        .reduce((left, right) -> left + "," + right)
-                        .orElse("")));
-        identities.forEach((key, members) -> material.append(key).append('#').append(members).append(';'));
+                identity.kind() + ":" + identity.nativePrincipalId(),
+                identity.email() == null ? "" : identity.email()));
+        identities.forEach((key, alias) -> material.append(key).append('#').append(alias).append(';'));
+
+        material.append(membershipCursorMaterial(crawl.memberships()));
 
         material.append("complete=").append(crawl.complete);
         return "google-drive-" + sha256(material.toString());
+    }
+
+    static String membershipCursorMaterial(List<ConnectorMembershipItem> capturedMemberships) {
+        Map<String, String> memberships = new TreeMap<>();
+        capturedMemberships.forEach(membership -> memberships.put(
+                membership.groupNativePrincipalId(),
+                membership.captureStatus()
+                        + ":" + membership.incompleteReason()
+                        + ":" + membership.members().stream()
+                                .map(member -> member.kind() + ":" + member.nativePrincipalId())
+                                .sorted()
+                                .reduce((left, right) -> left + "," + right)
+                                .orElse("")));
+        StringBuilder material = new StringBuilder();
+        memberships.forEach((key, evidence) ->
+                material.append(key).append('%').append(evidence).append(';'));
+        return material.toString();
     }
 
     private static String sha256(String value) {
@@ -501,8 +521,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
     private static final class Crawl {
 
         private final Map<String, DriveUser> observedUsers = new LinkedHashMap<>();
-        private final Map<String, Set<String>> observedDomainGroups = new LinkedHashMap<>();
-        private final Map<String, Set<String>> observedGroups = new LinkedHashMap<>();
+        private final Map<String, DriveGroup> observedGroups = new LinkedHashMap<>();
         private final List<ConnectorContentItem> contents = new ArrayList<>();
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
         private boolean complete = true;
@@ -514,72 +533,84 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         /** The owner is a user even when nothing was shared with anybody else. */
         private void observeOwner(JsonNode file) {
             JsonNode owner = file.path("owners").path(0);
+            String nativeId = owner.path("permissionId").asString("").strip();
             String email = owner.path("emailAddress").asString("").strip().toLowerCase();
-            if (!email.isEmpty()) {
-                observe(email, owner.path("displayName").asString(email));
+            if (!nativeId.isEmpty()) {
+                observeUser(nativeId, email, owner.path("displayName").asString(email));
             }
         }
 
         private void observePrincipals(List<JsonNode> filePermissions, List<ConnectorAclGrant> grants) {
+            Set<String> granted = new LinkedHashSet<>();
             for (ConnectorAclGrant grant : grants) {
-                String key = grant.principalExternalKey();
-                if (grant.principalKind() == SourcePrincipalKind.SOURCE_USER) {
-                    observe(key, key);
-                } else if (!key.startsWith(GoogleDrivePermissionMapper.DOMAIN_GROUP_PREFIX)) {
-                    // A real Google group. Drive does not report its members, so it is declared
-                    // with none and grants only once somebody maps it deliberately.
-                    observedGroups.computeIfAbsent(key, ignored -> new LinkedHashSet<>());
+                granted.add(grant.principalKind() + ":" + grant.principalNativeId());
+            }
+            for (JsonNode permission : filePermissions) {
+                String nativeId = GoogleDrivePermissionMapper.principalNativeIdOf(permission);
+                if (nativeId == null) {
+                    continue;
+                }
+                SourcePrincipalKind kind = GoogleDrivePermissionMapper.kindOf(permission);
+                if (!granted.contains(kind + ":" + nativeId)) {
+                    continue;
+                }
+                String email = permission.path("emailAddress").asString("").strip().toLowerCase();
+                if (kind == SourcePrincipalKind.SOURCE_USER) {
+                    observeUser(nativeId, email, permission.path("displayName").asString(email));
+                } else {
+                    String displayName = "domain".equals(permission.path("type").asString(""))
+                            ? "Everyone at " + permission.path("domain").asString(nativeId)
+                            : email.isEmpty() ? nativeId : email;
+                    observedGroups.putIfAbsent(nativeId, new DriveGroup(nativeId, displayName));
                 }
             }
-            GoogleDrivePermissionMapper.domainsGrantedBy(filePermissions)
-                    .forEach(domain -> observedDomainGroups.computeIfAbsent(
-                            GoogleDrivePermissionMapper.domainGroupKey(domain),
-                            ignored -> new LinkedHashSet<>()));
         }
 
-        private void observe(String email, String displayName) {
-            observedUsers.putIfAbsent(email, new DriveUser(email, displayName));
+        private void observeUser(String nativeId, String email, String displayName) {
+            observedUsers.putIfAbsent(nativeId, new DriveUser(nativeId, email, displayName));
         }
 
         /**
-         * Every principal this crawl saw. A domain group's membership is the users observed at
-         * that domain — the Drive API cannot enumerate a domain, so this under-grants and says so
-         * rather than inventing members.
+         * Every principal this crawl saw, keyed by Drive's immutable permission id. Email and
+         * display name are aliases only and never define authorization identity.
          */
         private List<ConnectorIdentityItem> identities() {
             List<ConnectorIdentityItem> identities = new ArrayList<>();
             observedUsers.values().forEach(user -> identities.add(new ConnectorIdentityItem(
                     SourcePrincipalKind.SOURCE_USER,
-                    user.email(),
+                    user.nativeId(),
                     user.email(),
                     user.displayName(),
                     // Google verifies address ownership before an account can exist, which is
                     // the same reasoning that makes Slack's observed users SSO-verified.
                     true,
                     null,
-                    null,
-                    List.of())));
-            observedGroups.forEach((key, members) -> identities.add(new ConnectorIdentityItem(
-                    SourcePrincipalKind.SOURCE_GROUP, key, null, key, false, null, null, List.copyOf(members))));
-            observedDomainGroups.keySet().forEach(key -> identities.add(new ConnectorIdentityItem(
+                    null)));
+            observedGroups.values().forEach(group -> identities.add(new ConnectorIdentityItem(
                     SourcePrincipalKind.SOURCE_GROUP,
-                    key,
+                    group.nativeId(),
                     null,
-                    "Everyone at " + key.substring(GoogleDrivePermissionMapper.DOMAIN_GROUP_PREFIX.length()),
+                    group.displayName(),
                     false,
                     null,
-                    null,
-                    membersAtDomain(key))));
+                    null)));
             return identities;
         }
 
-        private List<String> membersAtDomain(String domainGroupKey) {
-            String domain = "@" + domainGroupKey.substring(
-                    GoogleDrivePermissionMapper.DOMAIN_GROUP_PREFIX.length());
-            return observedUsers.keySet().stream().filter(email -> email.endsWith(domain)).toList();
+        private List<ConnectorMembershipItem> memberships() {
+            return observedGroups.values().stream()
+                    .map(group -> new ConnectorMembershipItem(
+                            group.nativeId(),
+                            MembershipCaptureStatus.INCOMPLETE,
+                            "GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED",
+                            List.of()))
+                    .toList();
         }
     }
 
-    private record DriveUser(String email, String displayName) {
+    private record DriveUser(String nativeId, String email, String displayName) {
+    }
+
+    private record DriveGroup(String nativeId, String displayName) {
     }
 }

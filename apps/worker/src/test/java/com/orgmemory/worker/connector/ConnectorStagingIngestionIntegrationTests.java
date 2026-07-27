@@ -19,12 +19,14 @@ import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;
@@ -157,14 +159,51 @@ class ConnectorStagingIngestionIntegrationTests {
         assertEquals(1L, aclGeneration());
 
         ConnectorIngestionResult recrawl = connector.ingest(load("slack-02-recrawl-membership.json"));
-        assertEquals(List.of("C-general-msg"), recrawl.rotated());
+        assertTrue(recrawl.rotated().isEmpty(), "unchanged resource grants must not rotate the ACL");
         assertTrue(recrawl.materialized().isEmpty(), "a membership re-crawl must not re-materialize content");
         assertTrue(recrawl.rematerialized().isEmpty(), "a permissions-only re-crawl carries no content revision");
         assertTrue(sees(CHI_USER), "Chi joined the channel and must now see the message");
         assertFalse(sees(AN_USER), "An left the channel and must be revoked");
         assertEquals(revisionAfterInitial, currentRevisionId(), "content revision must be unchanged");
         assertEquals(chunksAfterInitial, chunkCount(), "chunks must not be re-materialized");
-        assertEquals(2L, aclGeneration(), "the head must advance to the new sealed generation");
+        assertEquals(1L, aclGeneration(), "membership convergence must not advance the resource ACL");
+        assertEquals(2L, membershipGeneration(), "the independent membership head must advance");
+
+        ConnectorCrawlBatch completeMembership = load("slack-02-recrawl-membership.json");
+        ConnectorCrawlBatch incompleteMembership = new ConnectorCrawlBatch(
+                completeMembership.organizationId(),
+                completeMembership.sourceSystem(),
+                completeMembership.sourceConnectionKey(),
+                completeMembership.knowledgeSpaceId(),
+                completeMembership.actorUserId(),
+                "cursor-02-incomplete-membership",
+                completeMembership.versions(),
+                completeMembership.identities(),
+                List.of(new ConnectorMembershipItem(
+                        "C-general",
+                        MembershipCaptureStatus.INCOMPLETE,
+                        "SOURCE_MEMBERSHIP_PAGE_UNAVAILABLE",
+                        List.of())),
+                List.of(),
+                List.of(),
+                List.of());
+        ConnectorIngestionResult incomplete = connector.ingest(incompleteMembership);
+        assertTrue(incomplete.materialized().isEmpty());
+        assertTrue(incomplete.rotated().isEmpty());
+        assertTrue(sees(CHI_USER), "incomplete evidence must not replace the last complete head");
+        assertEquals(2L, membershipGeneration(), "incomplete evidence must not activate");
+        assertEquals(
+                "INCOMPLETE",
+                jdbc.queryForObject(
+                        """
+                        SELECT capture_status
+                        FROM source_group_membership_snapshots
+                        WHERE organization_id = ?
+                        ORDER BY membership_generation DESC
+                        LIMIT 1
+                        """,
+                        String.class,
+                        ORG));
 
         ConnectorIngestionResult tombstone = connector.ingest(load("slack-03-tombstone.json"));
         assertEquals(List.of("C-general-msg"), tombstone.retired());
@@ -278,6 +317,14 @@ class ConnectorStagingIngestionIntegrationTests {
         return jdbc.queryForObject(
                 "SELECT acl_generation FROM source_acl_heads "
                         + "WHERE organization_id = ? AND external_object_id = 'C-general-msg'",
+                Long.class,
+                ORG);
+    }
+
+    private long membershipGeneration() {
+        return jdbc.queryForObject(
+                "SELECT membership_generation FROM source_group_membership_heads "
+                        + "WHERE organization_id = ?",
                 Long.class,
                 ORG);
     }

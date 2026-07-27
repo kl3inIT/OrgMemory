@@ -15,13 +15,15 @@ This is a wire contract, not a Gradle module. Fixture batches under
 
 ## Shape
 
-A batch is an envelope plus three independently-versioned payload kinds and
+A batch is an envelope plus four independently-versioned payload kinds and
 tombstones:
 
-- **identity** (`identity/v1`) — users and groups the crawl observed. A group
-  carries its member external keys. Observation grants nothing; a `SOURCE_USER`
-  only confers access once the matcher resolves it to a verified internal user, a
-  `SOURCE_GROUP` only through its sealed membership.
+- **identity** (`identity/v2`) — users and groups the crawl observed, identified
+  by a stable provider-native principal ID. Email and display name are mutable
+  observations. Observation alone grants nothing.
+- **membership** (`membership/v1`) — independently captured group membership.
+  Only sealed `COMPLETE` evidence may advance the active group head;
+  `INCOMPLETE` evidence is retained with a reason and cannot widen access.
 - **content** (`content/v1`) — objects (Slack messages/threads rendered to text).
   `contentRevision` is the sole idempotency key on the content path.
 - **permissions** (`permissions/v1`) — per-object grants (`ALLOW`/`DENY` for a
@@ -29,18 +31,18 @@ tombstones:
 - **tombstones** — objects removed at the source; the matching `SourceObject` is
   retired out of retrieval while its evidence is retained.
 
-Content and permissions re-crawl on their own cadence: a membership-only re-crawl
-appends a sealed ACL generation and rotates the head without re-materializing
-content.
+Content, permissions, and membership may change independently. A
+membership-only re-crawl advances the group membership head without rotating a
+resource ACL, revising content, or rebuilding embeddings.
 
 ## Versioning — fail closed
 
 Each payload kind is versioned separately (`versions.content`,
-`versions.identity`, `versions.permission`). The build understands exactly the
-versions in `ConnectorContractVersions.supported()`. Any other value is rejected
-with `UnsupportedConnectorPayloadException` — an unrecognized shape is never
-guessed at or partially applied. Bump one payload version to evolve its shape
-without touching the others.
+`versions.identity`, `versions.membership`, `versions.permission`). The build
+understands exactly the versions in `ConnectorContractVersions.supported()`.
+Any other value is rejected with `UnsupportedConnectorPayloadException` — an
+unrecognized shape is never guessed at or partially applied. Bump one payload
+version to evolve its shape without touching the others.
 
 ## Guarantees the connector cannot violate
 

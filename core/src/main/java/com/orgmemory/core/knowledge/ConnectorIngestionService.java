@@ -58,6 +58,8 @@ public class ConnectorIngestionService {
         ConnectorIngestionContext ctx = ConnectorIngestionContext.from(batch, profile);
         ConnectorIdentityResolution resolution =
                 perObjectTransaction.execute(status -> reconciler.resolveIdentities(ctx, batch));
+        perObjectTransaction.executeWithoutResult(
+                status -> reconciler.reconcileMemberships(ctx, batch, resolution));
 
         Map<String, ConnectorPermissionItem> permissions = new LinkedHashMap<>();
         for (ConnectorPermissionItem permission : batch.permissions()) {
@@ -178,6 +180,9 @@ public class ConnectorIngestionService {
             case MATERIALIZED -> materialized.add(externalObjectId);
             case ROTATED -> rotated.add(externalObjectId);
             case REMATERIALIZED -> rematerialized.add(externalObjectId);
+            case UNCHANGED -> {
+                // The current sealed resource ACL already expresses this source state.
+            }
             default -> throw new IllegalStateException("unhandled outcome: " + outcome);
         }
     }

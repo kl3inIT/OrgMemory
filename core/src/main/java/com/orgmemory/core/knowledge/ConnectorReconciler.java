@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.ConnectorIdentityResolution.PrincipalKey;
 import com.orgmemory.core.knowledge.ConnectorIdentityResolution.ResolvedPrincipal;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStorageException;
@@ -55,6 +56,7 @@ class ConnectorReconciler {
 
     private final KnowledgeIngestionService ingestion;
     private final SourcePrincipalService principals;
+    private final SourceGroupMembershipService groupMemberships;
     private final SourcePrincipalMappingService mappings;
     private final SourcePrincipalRepository principalRepository;
     private final SourceConnectionRepository connections;
@@ -68,6 +70,7 @@ class ConnectorReconciler {
     ConnectorReconciler(
             KnowledgeIngestionService ingestion,
             SourcePrincipalService principals,
+            SourceGroupMembershipService groupMemberships,
             SourcePrincipalMappingService mappings,
             SourcePrincipalRepository principalRepository,
             SourceConnectionRepository connections,
@@ -79,6 +82,7 @@ class ConnectorReconciler {
             PermissionAuditService audit) {
         this.ingestion = ingestion;
         this.principals = principals;
+        this.groupMemberships = groupMemberships;
         this.mappings = mappings;
         this.principalRepository = principalRepository;
         this.connections = connections;
@@ -98,13 +102,13 @@ class ConnectorReconciler {
     ConnectorIdentityResolution resolveIdentities(ConnectorIngestionContext ctx, ConnectorCrawlBatch batch) {
         Instant now = Instant.now();
         SourceIdentityTrust connectionTrust = identityTrustOf(ctx);
-        Map<String, ResolvedPrincipal> byKey = new LinkedHashMap<>();
+        Map<PrincipalKey, ResolvedPrincipal> resolvedPrincipals = new LinkedHashMap<>();
         for (ConnectorIdentityItem item : batch.identities()) {
             SourcePrincipal principal = principals.observe(new SourceIdentityObservation(
                     ctx.organizationId(),
                     ctx.sourceSystem(),
                     ctx.sourceConnectionKey(),
-                    item.externalKey(),
+                    item.nativePrincipalId(),
                     item.kind(),
                     item.email(),
                     item.displayName(),
@@ -112,31 +116,26 @@ class ConnectorReconciler {
                     item.idpIssuer(),
                     item.idpSubject(),
                     now));
-            byKey.put(item.externalKey(), new ResolvedPrincipal(principal.getId(), principal.getKind()));
+            PrincipalKey key = new PrincipalKey(item.kind(), item.nativePrincipalId());
+            if (resolvedPrincipals.put(
+                    key,
+                    new ResolvedPrincipal(principal.getId(), principal.getKind())) != null) {
+                throw new IllegalArgumentException(
+                        "connector identity repeats typed native principal " + key);
+            }
             if (item.kind() == SourcePrincipalKind.SOURCE_USER) {
                 mappings.autoMap(principal, item.idpIssuer(), item.idpSubject(), connectionTrust);
             }
         }
-        Map<String, List<UUID>> membersByGroup = new LinkedHashMap<>();
-        for (ConnectorIdentityItem item : batch.identities()) {
-            if (item.kind() != SourcePrincipalKind.SOURCE_GROUP) {
-                continue;
-            }
-            List<UUID> memberIds = new ArrayList<>();
-            for (String memberKey : item.memberExternalKeys()) {
-                ResolvedPrincipal member = byKey.get(memberKey);
-                if (member == null) {
-                    member = lookupRegistry(ctx, memberKey);
-                }
-                if (member == null || member.kind() != SourcePrincipalKind.SOURCE_USER) {
-                    throw new IllegalArgumentException(
-                            "group " + item.externalKey() + " member is not an observed source user: " + memberKey);
-                }
-                memberIds.add(member.id());
-            }
-            membersByGroup.put(item.externalKey(), List.copyOf(memberIds));
-        }
-        return new ConnectorIdentityResolution(byKey, membersByGroup);
+        return new ConnectorIdentityResolution(resolvedPrincipals);
+    }
+
+    /** Captures membership once per group, independently from every resource ACL. */
+    void reconcileMemberships(
+            ConnectorIngestionContext ctx,
+            ConnectorCrawlBatch batch,
+            ConnectorIdentityResolution resolution) {
+        groupMemberships.reconcile(ctx, batch.memberships(), resolution);
     }
 
     /**
@@ -237,7 +236,7 @@ class ConnectorReconciler {
             ConnectorHeadView current,
             AclPlan plan,
             String externalObjectId) {
-        ingestion.rotateConnectorAcl(
+        SourceAclRotationRef result = ingestion.rotateConnectorAcl(
                 new RotateSourceAclCommand(
                         ctx.organizationId(),
                         current.rawSourceObjectId(),
@@ -245,8 +244,10 @@ class ConnectorReconciler {
                         AccessGate.DENY,
                         Instant.now().plus(ACL_TTL),
                         plan.entries(),
-                        current.currentSnapshotId()),
-                plan.membership());
+                        current.currentSnapshotId()));
+        if (result.sourceAclSnapshotId().equals(current.currentSnapshotId())) {
+            return ObjectOutcome.UNCHANGED;
+        }
         audit(ctx, "CONNECTOR_ROTATE", externalObjectId, "ACL_ROTATED");
         return ObjectOutcome.ROTATED;
     }
@@ -256,29 +257,26 @@ class ConnectorReconciler {
             ConnectorPermissionItem permission,
             ConnectorIdentityResolution resolution) {
         List<SourceAclEntryCommand> entries = new ArrayList<>();
-        List<SealedGroupMembership> membership = new ArrayList<>();
         for (ConnectorAclGrant grant : grantsOf(permission)) {
-            ResolvedPrincipal principal = resolve(ctx, grant.principalExternalKey(), resolution);
+            ResolvedPrincipal principal = resolve(
+                    ctx,
+                    grant.principalNativeId(),
+                    grant.principalKind(),
+                    resolution);
             if (principal.kind() != grant.principalKind()) {
                 throw new IllegalArgumentException(
                         "grant principal kind does not match the observed identity: "
-                                + grant.principalExternalKey());
+                                + grant.principalNativeId());
             }
             SourcePrincipalType type = grant.principalKind() == SourcePrincipalKind.SOURCE_GROUP
                     ? SourcePrincipalType.SOURCE_GROUP
                     : SourcePrincipalType.SOURCE_USER;
             entries.add(new SourceAclEntryCommand(type, principal.id().toString(), grant.gate()));
-            if (grant.principalKind() == SourcePrincipalKind.SOURCE_GROUP) {
-                membership.add(new SealedGroupMembership(
-                        principal.id(),
-                        resolution.memberPrincipalIdsByGroupKey()
-                                .getOrDefault(grant.principalExternalKey(), List.of())));
-            }
         }
-        return new AclPlan(entries, membership);
+        return new AclPlan(entries);
     }
 
-    private record AclPlan(List<SourceAclEntryCommand> entries, List<SealedGroupMembership> membership) {
+    private record AclPlan(List<SourceAclEntryCommand> entries) {
     }
 
     /**
@@ -324,10 +322,12 @@ class ConnectorReconciler {
             UUID sourceId,
             AclPlan plan,
             UUID expectedCurrentSnapshotId) {
-        RawSourceRef raw = ingestion.registerConnectorSource(
-                registerCommand(
-                        ctx, content, plan.entries(), Instant.now().plus(ACL_TTL), expectedCurrentSnapshotId),
-                plan.membership());
+        RawSourceRef raw = ingestion.registerConnectorSource(registerCommand(
+                ctx,
+                content,
+                plan.entries(),
+                Instant.now().plus(ACL_TTL),
+                expectedCurrentSnapshotId));
         NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
                 ctx.organizationId(),
                 raw.rawSourceObjectId(),
@@ -467,22 +467,33 @@ class ConnectorReconciler {
     }
 
     private ResolvedPrincipal resolve(
-            ConnectorIngestionContext ctx, String externalKey, ConnectorIdentityResolution resolution) {
-        ResolvedPrincipal resolved = resolution.principalsByKey().get(externalKey);
+            ConnectorIngestionContext ctx,
+            String nativePrincipalId,
+            SourcePrincipalKind kind,
+            ConnectorIdentityResolution resolution) {
+        ResolvedPrincipal resolved = resolution.find(kind, nativePrincipalId);
         if (resolved != null) {
             return resolved;
         }
-        ResolvedPrincipal fromRegistry = lookupRegistry(ctx, externalKey);
+        ResolvedPrincipal fromRegistry = lookupRegistry(ctx, nativePrincipalId, kind);
         if (fromRegistry == null) {
-            throw new IllegalArgumentException("grant references an unobserved principal: " + externalKey);
+            throw new IllegalArgumentException(
+                    "grant references an unobserved principal: " + nativePrincipalId);
         }
         return fromRegistry;
     }
 
-    private ResolvedPrincipal lookupRegistry(ConnectorIngestionContext ctx, String externalKey) {
+    private ResolvedPrincipal lookupRegistry(
+            ConnectorIngestionContext ctx,
+            String nativePrincipalId,
+            SourcePrincipalKind kind) {
         return principalRepository
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalKey(
-                        ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), externalKey)
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndKindAndNativePrincipalId(
+                        ctx.organizationId(),
+                        ctx.sourceSystem(),
+                        ctx.sourceConnectionKey(),
+                        kind,
+                        nativePrincipalId)
                 .map(principal -> new ResolvedPrincipal(principal.getId(), principal.getKind()))
                 .orElse(null);
     }
@@ -547,6 +558,7 @@ class ConnectorReconciler {
     enum ObjectOutcome {
         MATERIALIZED,
         ROTATED,
-        REMATERIALIZED
+        REMATERIALIZED,
+        UNCHANGED
     }
 }

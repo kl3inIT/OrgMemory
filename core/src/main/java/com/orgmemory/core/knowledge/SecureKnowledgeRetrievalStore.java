@@ -40,17 +40,50 @@ class SecureKnowledgeRetrievalStore {
                 )
                 OR (
                     sae.principal_type = 'SOURCE_GROUP'
-                    AND EXISTS (
-                        SELECT 1
-                        FROM source_acl_group_members sagm
-                        JOIN source_principal_mappings spm
-                          ON spm.organization_id = sagm.organization_id
-                         AND spm.source_principal_id = sagm.member_principal_id
-                         AND spm.app_user_id = :actorUserId
-                         AND spm.status = 'ACTIVE'
-                        WHERE sagm.organization_id = sae.organization_id
-                          AND sagm.source_acl_snapshot_id = sae.source_acl_snapshot_id
-                          AND sagm.group_principal_id = sae.principal_key::uuid
+                    AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM source_group_membership_heads sgmh
+                            JOIN source_group_membership_snapshots sgms
+                              ON sgms.id = sgmh.current_snapshot_id
+                             AND sgms.organization_id = sgmh.organization_id
+                             AND sgms.group_principal_id = sgmh.group_principal_id
+                             AND sgms.membership_generation = sgmh.membership_generation
+                             AND sgms.capture_status = 'COMPLETE'
+                            JOIN source_group_membership_snapshot_seals sgmseal
+                              ON sgmseal.membership_snapshot_id = sgms.id
+                             AND sgmseal.organization_id = sgms.organization_id
+                            JOIN source_group_membership_members sgmm
+                              ON sgmm.membership_snapshot_id = sgms.id
+                             AND sgmm.organization_id = sgms.organization_id
+                            JOIN source_principal_mappings spm
+                              ON spm.organization_id = sgmm.organization_id
+                             AND spm.source_principal_id = sgmm.member_principal_id
+                             AND spm.app_user_id = :actorUserId
+                             AND spm.status = 'ACTIVE'
+                            WHERE sgmh.organization_id = sae.organization_id
+                              AND sgmh.group_principal_id = sae.principal_key::uuid
+                              AND sgmh.capture_status = 'COMPLETE'
+                        )
+                        OR (
+                            sae.gate = 'DENY'
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM source_group_membership_heads sgmh
+                                JOIN source_group_membership_snapshots sgms
+                                  ON sgms.id = sgmh.current_snapshot_id
+                                 AND sgms.organization_id = sgmh.organization_id
+                                 AND sgms.group_principal_id = sgmh.group_principal_id
+                                 AND sgms.membership_generation = sgmh.membership_generation
+                                 AND sgms.capture_status = 'COMPLETE'
+                                JOIN source_group_membership_snapshot_seals sgmseal
+                                  ON sgmseal.membership_snapshot_id = sgms.id
+                                 AND sgmseal.organization_id = sgms.organization_id
+                                WHERE sgmh.organization_id = sae.organization_id
+                                  AND sgmh.group_principal_id = sae.principal_key::uuid
+                                  AND sgmh.capture_status = 'COMPLETE'
+                            )
+                        )
                     )
                 )
             )

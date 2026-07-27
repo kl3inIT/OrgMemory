@@ -15,8 +15,8 @@
 | Users report whether they can sign in at all | `#usersReportWhetherTheyCanSignInAtAll` |
 | An administrator cannot change their own account | `#anAdministratorCannotChangeTheirOwnAccount` |
 | Identity trust is recorded for the whole connection | `#identityTrustIsRecordedForTheWholeConnection` |
-| Source groups report their sealed membership | `#sourceGroupsReportTheirSealedMembership` |
-| The committed OpenAPI contract matches the live API | `OpenApiContractTests#theCommittedContractDescribesTheLiveApi` |
+| Source groups report their active membership snapshot and generation | `#sourceGroupsReportTheirSealedMembership` |
+| The committed product and SCIM OpenAPI contracts match their live groups | `OpenApiContractTests` |
 
 Gap: no self-service source-principal claim flow for end users (`selfClaim`
 still has no API surface), no SCIM provisioning, and no browser test for the

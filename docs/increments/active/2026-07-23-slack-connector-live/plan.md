@@ -25,7 +25,8 @@ through the existing `FileConnectorBatchSource`.
 - [x] New `integrations:connectors` module; `SlackConnectorBatchSource` in
   `com.orgmemory.connectors.slack` implementing `ConnectorBatchSource` over
   `conversations.list`/`history`/`replies`/`members` and `users.list` → the
-  versioned `content/v1` / `identity/v1` / `permissions/v1` payloads.
+  versioned `content/v1` / `identity/v2` / `membership/v1` /
+  `permissions/v1` payloads.
 - [x] Message-to-text and channel/member-to-identity rendering, threaded on
   `channelId__threadTs`, with the completeness claim withdrawn whenever the crawl
   did not in fact see the whole connection.

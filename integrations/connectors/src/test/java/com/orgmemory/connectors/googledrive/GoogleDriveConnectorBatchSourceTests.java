@@ -15,7 +15,10 @@ import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
@@ -52,6 +55,16 @@ class GoogleDriveConnectorBatchSourceTests {
     private MockRestServiceServer server;
     private ConnectorConnectionDirectory connections;
 
+    @Test
+    void membershipCursorMaterialChangesWhenMembersChange() {
+        ConnectorMembershipItem before = completeMembership("group-p", "user-a");
+        ConnectorMembershipItem after = completeMembership("group-p", "user-b");
+
+        assertNotEquals(
+                GoogleDriveConnectorBatchSource.membershipCursorMaterial(List.of(before)),
+                GoogleDriveConnectorBatchSource.membershipCursorMaterial(List.of(after)));
+    }
+
     @BeforeEach
     void setUp() {
         builder = RestClient.builder();
@@ -67,6 +80,18 @@ class GoogleDriveConnectorBatchSourceTests {
      */
     private void setUpServerOnly() {
         server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+    }
+
+    private static ConnectorMembershipItem completeMembership(
+            String groupNativePrincipalId,
+            String memberNativePrincipalId) {
+        return new ConnectorMembershipItem(
+                groupNativePrincipalId,
+                MembershipCaptureStatus.COMPLETE,
+                null,
+                List.of(new ConnectorMembershipMember(
+                        SourcePrincipalKind.SOURCE_USER,
+                        memberNativePrincipalId)));
     }
 
     @Test
@@ -100,20 +125,20 @@ class GoogleDriveConnectorBatchSourceTests {
         ConnectorCrawlBatch batch = crawl(List.of());
 
         List<String> granted = batch.permissions().getFirst().grants().stream()
-                .map(grant -> grant.principalExternalKey())
+                .map(grant -> grant.principalNativeId())
                 .toList();
         assertEquals(
-                List.of("mai@example.com", "eng@example.com", "domain:example.com"),
+                List.of("p1", "p2", "p3"),
                 granted,
                 "a user, a group and a domain all grant; the anyone-with-the-link permission does not");
     }
 
     /**
-     * A domain grant resolves through the users this crawl actually saw. Drive cannot enumerate a
-     * domain, so the alternative to under-granting would be inventing members.
+     * Drive can identify a domain grantee but cannot enumerate that domain. Membership must remain
+     * incomplete rather than being guessed from users observed on unrelated file permissions.
      */
     @Test
-    void aDomainGroupIsMadeOfTheUsersTheCrawlActuallySaw() {
+    void aDomainGroupIsStableButItsMembershipRemainsIncomplete() {
         expectToken();
         expectList(FILES);
         expectExport("1-handbook", "Anything.");
@@ -121,14 +146,17 @@ class GoogleDriveConnectorBatchSourceTests {
         ConnectorCrawlBatch batch = crawl(List.of());
 
         ConnectorIdentityItem domainGroup = batch.identities().stream()
-                .filter(identity -> "domain:example.com".equals(identity.externalKey()))
+                .filter(identity -> "p3".equals(identity.nativePrincipalId()))
                 .findFirst()
                 .orElseThrow();
         assertEquals(SourcePrincipalKind.SOURCE_GROUP, domainGroup.kind());
-        assertEquals(List.of("owner@example.com", "mai@example.com"), domainGroup.memberExternalKeys());
-        assertFalse(
-                domainGroup.memberExternalKeys().contains("eng@example.com"),
-                "a group address is not a person, so it is not a member of the domain group");
+        var membership = batch.memberships().stream()
+                .filter(item -> "p3".equals(item.groupNativePrincipalId()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(MembershipCaptureStatus.INCOMPLETE, membership.captureStatus());
+        assertEquals("GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED", membership.incompleteReason());
+        assertTrue(membership.members().isEmpty(), "Drive did not enumerate anybody");
     }
 
     @Test
@@ -143,9 +171,11 @@ class GoogleDriveConnectorBatchSourceTests {
                 .filter(identity -> identity.kind() == SourcePrincipalKind.SOURCE_USER)
                 .toList();
         assertEquals(
-                List.of("owner@example.com", "mai@example.com"),
-                users.stream().map(ConnectorIdentityItem::externalKey).toList(),
+                List.of("owner-p", "p1"),
+                users.stream().map(ConnectorIdentityItem::nativePrincipalId).toList(),
                 "the owner counts even when nothing was shared with anybody");
+        assertEquals(List.of("owner@example.com", "mai@example.com"),
+                users.stream().map(ConnectorIdentityItem::email).toList());
         assertTrue(
                 users.getFirst().ssoVerified(),
                 "Google confirms address ownership before an account exists, so it vouches");
@@ -310,9 +340,9 @@ class GoogleDriveConnectorBatchSourceTests {
         ConnectorCrawlBatch batch = crawl(List.of());
 
         assertEquals(
-                List.of("mai@example.com", "domain:example.com"),
+                List.of("p9", "p10"),
                 batch.permissions().getFirst().grants().stream()
-                        .map(grant -> grant.principalExternalKey())
+                        .map(grant -> grant.principalNativeId())
                         .toList(),
                 "the sharing Drive reported separately still becomes the object's grants");
     }
@@ -539,7 +569,7 @@ class GoogleDriveConnectorBatchSourceTests {
               "mimeType":"application/vnd.google-apps.document",
               "modifiedTime":"2026-07-20T10:00:00Z",
               "trashed":false,
-              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
               "permissions":[
                 {"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"},
                 {"id":"p2","type":"group","emailAddress":"eng@example.com","role":"reader"},
@@ -570,7 +600,7 @@ class GoogleDriveConnectorBatchSourceTests {
               "name":"Runbook",
               "mimeType":"application/vnd.google-apps.document",
               "trashed":false,
-              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
               "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]
             }]}
             """;
@@ -582,7 +612,7 @@ class GoogleDriveConnectorBatchSourceTests {
               "name":"Engineering handbook",
               "mimeType":"application/vnd.google-apps.document",
               "trashed":false,
-              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
               "permissions":[{"id":"p1","type":"user","emailAddress":"READER","role":"reader"}]
             }]}
             """;
@@ -595,7 +625,7 @@ class GoogleDriveConnectorBatchSourceTests {
               "mimeType":"text/plain",
               "trashed":false,
               "size":"104857600",
-              "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+              "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
               "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]
             }]}
             """;
@@ -604,18 +634,18 @@ class GoogleDriveConnectorBatchSourceTests {
             {"files":[
               {"id":"1-handbook","name":"Engineering handbook",
                "mimeType":"application/vnd.google-apps.document","trashed":false,
-               "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
                "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]},
               {"id":"2-runbook","name":"Runbook",
                "mimeType":"application/vnd.google-apps.document","trashed":false,
-               "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
                "permissions":[{"id":"p2","type":"user","emailAddress":"mai@example.com","role":"reader"}]},
               {"id":"3-charter","name":"Team charter",
                "mimeType":"application/vnd.google-apps.document","trashed":false,
-               "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
                "permissions":[{"id":"p3","type":"user","emailAddress":"mai@example.com","role":"reader"}]},
               {"id":"4-image","name":"Diagram","mimeType":"image/png","trashed":false,
-               "owners":[{"emailAddress":"owner@example.com","displayName":"Owner"}],
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
                "permissions":[]}
             ]}
             """;

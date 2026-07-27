@@ -5,24 +5,23 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A source group and the membership sealed with its most recent ACL generation.
- * This is evidence, not configuration: it cannot be edited here because it was
- * fixed at seal time and is what enforcement reads.
+ * A source group and its active independently sealed membership snapshot. This is evidence, not
+ * configuration: it cannot be edited here because enforcement reads the same active head.
  */
 public record SourceGroupView(
         UUID principalId,
         String sourceSystem,
         String sourceConnectionKey,
-        String externalKey,
+        String nativePrincipalId,
         String observedDisplayName,
-        UUID sourceAclSnapshotId,
-        long aclGeneration,
+        UUID membershipSnapshotId,
+        long membershipGeneration,
         Instant sealedAt,
         List<SourceGroupMemberView> members) {
 
     public record SourceGroupMemberView(
             UUID principalId,
-            String externalKey,
+            String nativePrincipalId,
             String observedDisplayName,
             String observedEmail,
             UUID appUserId,

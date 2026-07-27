@@ -12,7 +12,7 @@ record SourceIdentityObservation(
         UUID organizationId,
         String sourceSystem,
         String sourceConnectionKey,
-        String externalKey,
+        String nativePrincipalId,
         SourcePrincipalKind kind,
         String observedEmail,
         String observedDisplayName,

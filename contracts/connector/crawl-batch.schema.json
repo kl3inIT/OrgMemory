@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://orgmemory.com/contracts/connector/crawl-batch.schema.json",
   "title": "Connector Crawl Batch",
-  "description": "One crawl batch a connector hands to ConnectorIngestionService. The envelope carries the tenant, source connection, target Knowledge Space, an opaque resume cursor, whether the crawl was exhaustive, and the three separately-versioned payload kinds plus tombstones. An unknown payload version is rejected (fail closed).",
+  "description": "One crawl batch a connector hands to ConnectorIngestionService. The envelope carries the tenant, source connection, target Knowledge Space, an opaque resume cursor, whether the crawl was exhaustive, and the four separately-versioned payload kinds plus tombstones. An unknown payload version is rejected (fail closed).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -23,6 +23,7 @@
     "crawlCursor": { "type": "string", "minLength": 1, "description": "Opaque per-connection idempotency/resume marker owned by the batch producer." },
     "versions": { "$ref": "#/$defs/versions" },
     "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },
+    "memberships": { "type": "array", "items": { "$ref": "#/$defs/membership" }, "default": [] },
     "contents": { "type": "array", "items": { "$ref": "#/$defs/content" }, "default": [] },
     "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" }, "default": [] },
     "tombstones": { "type": "array", "items": { "$ref": "#/$defs/tombstone" }, "default": [] },
@@ -36,38 +37,68 @@
     "versions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["content", "identity", "permission"],
+      "required": ["content", "identity", "membership", "permission"],
       "properties": {
         "content": { "type": "string", "const": "content/v1" },
-        "identity": { "type": "string", "const": "identity/v1" },
+        "identity": { "type": "string", "const": "identity/v2" },
+        "membership": { "type": "string", "const": "membership/v1" },
         "permission": { "type": "string", "const": "permissions/v1" }
       }
     },
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "externalKey"],
+      "required": ["kind", "nativePrincipalId"],
       "properties": {
         "kind": { "type": "string", "enum": ["SOURCE_USER", "SOURCE_GROUP"] },
-        "externalKey": { "type": "string", "minLength": 1 },
+        "nativePrincipalId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable source-owned principal id. Email and display name are aliases, never authorization keys."
+        },
         "email": { "type": ["string", "null"] },
         "displayName": { "type": ["string", "null"] },
         "ssoVerified": { "type": "boolean", "default": false },
         "idpIssuer": { "type": ["string", "null"] },
-        "idpSubject": { "type": ["string", "null"] },
-        "memberExternalKeys": {
+        "idpSubject": { "type": ["string", "null"] }
+      }
+    },
+    "membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groupNativePrincipalId", "captureStatus", "members"],
+      "properties": {
+        "groupNativePrincipalId": { "type": "string", "minLength": 1 },
+        "captureStatus": { "type": "string", "enum": ["COMPLETE", "INCOMPLETE"] },
+        "incompleteReason": { "type": ["string", "null"] },
+        "members": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
-          "default": [],
-          "description": "For a SOURCE_GROUP, the external keys of its member users at crawl time. Must be empty for a SOURCE_USER."
+          "items": { "$ref": "#/$defs/membershipMember" },
+          "default": []
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "kind": { "const": "SOURCE_USER" } } },
-          "then": { "properties": { "memberExternalKeys": { "maxItems": 0 } } }
+          "if": { "properties": { "captureStatus": { "const": "COMPLETE" } } },
+          "then": { "properties": { "incompleteReason": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "captureStatus": { "const": "INCOMPLETE" } } },
+          "then": {
+            "required": ["incompleteReason"],
+            "properties": { "incompleteReason": { "type": "string", "minLength": 1 } }
+          }
         }
       ]
+    },
+    "membershipMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "nativePrincipalId"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["SOURCE_USER", "SOURCE_GROUP"] },
+        "nativePrincipalId": { "type": "string", "minLength": 1 }
+      }
     },
     "content": {
       "type": "object",
@@ -92,10 +123,10 @@
     "grant": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["principalKind", "principalExternalKey", "gate"],
+      "required": ["principalKind", "principalNativeId", "gate"],
       "properties": {
         "principalKind": { "type": "string", "enum": ["SOURCE_USER", "SOURCE_GROUP"] },
-        "principalExternalKey": { "type": "string", "minLength": 1 },
+        "principalNativeId": { "type": "string", "minLength": 1 },
         "gate": { "type": "string", "enum": ["ALLOW", "DENY"] }
       }
     },

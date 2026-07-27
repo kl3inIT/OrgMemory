@@ -27,8 +27,8 @@ class SourcePrincipal extends BaseEntity {
     @Column(name = "source_connection_key", nullable = false, length = 128, updatable = false)
     private String sourceConnectionKey;
 
-    @Column(name = "external_key", nullable = false, length = 512, updatable = false)
-    private String externalKey;
+    @Column(name = "native_principal_id", nullable = false, length = 512, updatable = false)
+    private String nativePrincipalId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16, updatable = false)
@@ -54,7 +54,7 @@ class SourcePrincipal extends BaseEntity {
             UUID organizationId,
             String sourceSystem,
             String sourceConnectionKey,
-            String externalKey,
+            String nativePrincipalId,
             SourcePrincipalKind kind,
             String observedEmail,
             String observedDisplayName,
@@ -64,7 +64,7 @@ class SourcePrincipal extends BaseEntity {
         this.organizationId = organizationId;
         this.sourceSystem = sourceSystem;
         this.sourceConnectionKey = sourceConnectionKey;
-        this.externalKey = externalKey;
+        this.nativePrincipalId = nativePrincipalId;
         this.kind = kind;
         this.observedEmail = observedEmail;
         this.observedDisplayName = observedDisplayName;
@@ -91,8 +91,8 @@ class SourcePrincipal extends BaseEntity {
         return sourceConnectionKey;
     }
 
-    String getExternalKey() {
-        return externalKey;
+    String getNativePrincipalId() {
+        return nativePrincipalId;
     }
 
     SourcePrincipalKind getKind() {

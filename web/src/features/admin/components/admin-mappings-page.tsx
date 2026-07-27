@@ -112,7 +112,7 @@ export function AdminMappingsPage() {
       [
         principalName(principal),
         principal.observedEmail,
-        principal.externalKey,
+        principal.nativePrincipalId,
         principal.mapping?.appUserName,
         principal.mapping?.appUserEmail,
       ]
@@ -234,7 +234,7 @@ export function AdminMappingsPage() {
               {principal.ssoVerified ? <Badge variant="secondary">SSO</Badge> : null}
             </div>
             <div className="mt-0.5 truncate text-xs text-muted-foreground">
-              {principal.observedEmail || principal.externalKey}
+              {principal.observedEmail || principal.nativePrincipalId}
             </div>
           </div>
         )

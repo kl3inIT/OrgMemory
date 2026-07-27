@@ -7,29 +7,41 @@
   "crawlCursor": "cursor-02-recrawl",
   "versions": {
     "content": "content/v1",
-    "identity": "identity/v1",
+    "identity": "identity/v2",
+    "membership": "membership/v1",
     "permission": "permissions/v1"
   },
   "identities": [
     {
       "kind": "SOURCE_USER",
-      "externalKey": "U-chi",
+      "nativePrincipalId": "U-chi",
       "email": "chi@slackfix.example",
       "displayName": "Chi",
       "ssoVerified": true,
       "idpIssuer": null,
-      "idpSubject": null,
-      "memberExternalKeys": []
+      "idpSubject": null
     },
     {
       "kind": "SOURCE_GROUP",
-      "externalKey": "C-general",
+      "nativePrincipalId": "C-general",
       "email": null,
       "displayName": "#general",
       "ssoVerified": false,
       "idpIssuer": null,
-      "idpSubject": null,
-      "memberExternalKeys": ["U-chi"]
+      "idpSubject": null
+    }
+  ],
+  "memberships": [
+    {
+      "groupNativePrincipalId": "C-general",
+      "captureStatus": "COMPLETE",
+      "incompleteReason": null,
+      "members": [
+        {
+          "kind": "SOURCE_USER",
+          "nativePrincipalId": "U-chi"
+        }
+      ]
     }
   ],
   "contents": [],
@@ -39,7 +51,7 @@
       "grants": [
         {
           "principalKind": "SOURCE_GROUP",
-          "principalExternalKey": "C-general",
+          "principalNativeId": "C-general",
           "gate": "ALLOW"
         }
       ]

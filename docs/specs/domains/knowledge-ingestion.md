@@ -36,7 +36,8 @@ Effective retrieval remains the intersection of Space authorization,
 immutable/current source ACL, classification, tenant, and lifecycle state.
 
 External source principals observed from a source are recorded in a
-`source_principals` registry (observation grants nothing) and resolved to active
+`source_principals` registry by `(organization, source, connection, kind,
+native_principal_id)` (observation grants nothing) and resolved to active
 internal users through a verified `source_principal_mappings` ledger. Automatic
 matching runs a trusted issuer/subject IdP join first, then an email join that
 requires the address to be vouched for by either signal: the principal's own
@@ -49,9 +50,11 @@ vouch needs an administrator to. The bind records which signal carried it.
 Unverified tails use explicit self-claim or admin confirmation. Each
 mutation keeps at most one active mapping per principal and appends a permission
 audit event. A `SOURCE_USER` ACL entry grants only through an active mapping to
-the querying user; a `SOURCE_GROUP` entry grants only through that snapshot's
-sealed group membership joined to an active mapping. Any unmapped, revoked, or
-inactive principal grants nothing. Per [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md),
+the querying user; a `SOURCE_GROUP` entry grants only through the group's active
+sealed `COMPLETE` membership head joined to an active mapping. Resource ACL
+snapshots contain principal grants only and never copy expanded membership.
+`INCOMPLETE`, unsealed, missing, unmapped, revoked, or inactive evidence grants
+nothing. Per [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md),
 sources whose access rule the source itself owns enforce the current sealed ACL
 generation as the ceiling, while sources OrgMemory holds the rule for keep the
 ingestion-current intersection.
@@ -69,17 +72,19 @@ type, `ConnectorSourceRegistry` refuses a name no adapter claimed and refuses tw
 adapters claiming one name, and nothing in `core` names a source.
 
 A Slack connector ingests a versioned crawl contract
-(`contracts/connector/`: three separately-versioned payload kinds — content,
-identity, permissions — plus tombstones, an opaque crawl cursor, and a
+(`contracts/connector/`: four separately-versioned payload kinds — content,
+identity, membership, and permissions — plus tombstones, an opaque crawl cursor, and a
 completeness claim) through a
 dedicated `ConnectorIngestionService`. It observes and matches external
-principals, then seals ACL generations carrying `SOURCE_GROUP`/`SOURCE_USER`
-evidence and channel membership through package-private connector-aware
-seal/rotate methods on `KnowledgeIngestionService` that the public upload path
-does not expose (the upload path still rejects external principals). A new object
+principals, reconciles group membership once per crawl, then seals resource ACL
+generations carrying only `SOURCE_GROUP`/`SOURCE_USER` grants through
+package-private connector-aware methods on `KnowledgeIngestionService` that the
+public upload path does not expose (the upload path still rejects external
+principals). A new object
 materializes content by reusing the `normalize` and `publish` use cases, with
 chunks embedded through a `ConnectorTextEmbedder` port; a membership re-crawl
-appends a sealed generation and rotates the head without re-materializing content,
+appends and atomically activates a membership snapshot without rotating any
+resource ACL or re-materializing content,
 converging grants and revocations under the [ADR 0009](../../decisions/0009-dynamic-source-acl-ceiling.md)
 live-source ceiling; a changed content revision materializes a new current source
 revision on the same object, which leaves the superseded text unanswerable because
@@ -236,17 +241,17 @@ parent only, so the configured folders are expanded breadth-first, visiting each
 folder once, before any file is listed.
 
 The crawl cursor is the batch's fingerprint, covering the sorted grants,
-identities and their membership, content revisions and titles, and the
+typed native identities, membership status and members, content revisions and titles, and the
 completeness flag. It has to name the grants and not count them — replacing one
 reader with another leaves the count unchanged, and a cursor that only counted
 would let the driver skip the batch as already ingested, leaving the removed
 reader with access and the added one without.
 
-Its permission mapping is defined by what it refuses. A `user` or `group`
-permission grants to that address; a `domain` permission grants to a group keyed
-on the domain whose membership is the users this crawl observed there, because the
-Drive API cannot enumerate a domain — so it under-grants rather than inventing
-members, and resolves as more of the Drive is crawled. An `anyone` permission
+Its permission mapping is defined by what it refuses. A `user`, `group`, or
+`domain` permission grants to Drive's stable permission/grantee ID; email and
+domain text remain aliases. Drive cannot enumerate Google Group or domain
+membership, so those groups emit `INCOMPLETE` membership and grant nobody until
+an authoritative Directory integration captures a complete member set. An `anyone` permission
 grants nothing: a public link is a statement about people outside the
 organization, and translating it into an internal grant would widen access on the
 strength of a setting that says nothing about who inside may read.
