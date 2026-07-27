@@ -19,6 +19,7 @@ import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
@@ -199,7 +200,12 @@ class GoogleDriveConnectorBatchSourceTests {
 
         // A crawl of one folder says nothing about the rest of the Drive, and the ledger must
         // not read its silence as a deletion.
-        assertFalse(crawl(List.of("1AbC")).crawlComplete());
+        ConnectorCrawlBatch batch = crawl(List.of("1AbC"));
+        assertFalse(batch.crawlComplete());
+        assertEquals(
+                ConnectorCaptureStatus.COMPLETE,
+                batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus(),
+                "an intentional folder scope is not a failed permission read");
     }
 
     @Test
@@ -366,6 +372,9 @@ class GoogleDriveConnectorBatchSourceTests {
         assertTrue(batch.permissions().isEmpty(), "no grant is asserted for sharing that was not read");
         assertTrue(batch.contents().isEmpty(), "and its content is not indexed under an unknown ACL");
         assertFalse(batch.crawlComplete(), "a crawl that skipped an object cannot speak for it");
+        assertEquals(
+                ConnectorCaptureStatus.INCOMPLETE,
+                batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus());
     }
 
     /** Google's own admission that it did not search everywhere it was asked to. */

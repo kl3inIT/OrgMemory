@@ -129,12 +129,12 @@ const COMPONENT_LABELS: Record<string, string> = {
 }
 
 function ComponentCheckpoint({ checkpoint }: { checkpoint: AdminComponentCheckpointResponse }) {
-  const incomplete = checkpoint.captureStatus === "INCOMPLETE"
+  const complete = checkpoint.captureStatus === "COMPLETE"
   return (
     <SettingRow label={COMPONENT_LABELS[checkpoint.component ?? ""] ?? checkpoint.component ?? "Component"}>
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={incomplete ? "warning" : "success"}>
-          {incomplete ? "Incomplete" : "Complete"}
+        <Badge variant={complete ? "success" : "warning"}>
+          {complete ? "Complete" : (checkpoint.captureStatus ?? "Unknown")}
         </Badge>
         <span>
           Last successful:{" "}

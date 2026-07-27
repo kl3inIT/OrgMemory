@@ -76,6 +76,9 @@ class ConnectorCrawlCheckpointIntegrationTests {
     private static final String UNREACHABLE_CONNECTION = "T-revoked-workspace";
     private static final String RECORDED_CONNECTION = "T-recorded-workspace";
     private static final String PARTIAL_CONNECTION = "T-partial-workspace";
+    private static final String TERMINAL_FAILURE_CONNECTION = "T-terminal-failure-workspace";
+    private static final String INCOMPLETE_PERMISSION_CONNECTION =
+            "T-incomplete-permission-workspace";
 
     @Container
     @ServiceConnection
@@ -302,6 +305,121 @@ class ConnectorCrawlCheckpointIntegrationTests {
         assertEquals(
                 ConnectorCrawlOutcome.PARTIAL,
                 attempts.recent(ORG, "slack", PARTIAL_CONNECTION).getFirst().outcome());
+    }
+
+    @Test
+    void aTerminalFailureTakesPrecedenceOverAnEarlierPartialResult() {
+        seedOrganization();
+        int[] ingestAttempts = {0};
+        ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
+            ingestAttempts[0]++;
+            if (ingestAttempts[0] > 1) {
+                throw new IllegalStateException("database became unavailable");
+            }
+            Set<ConnectorSyncComponent> completed =
+                    new HashSet<>(invocation.<Set<ConnectorSyncComponent>>getArgument(1));
+            completed.remove(ConnectorSyncComponent.CONTENT);
+            return new ConnectorIngestionResult(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(new ConnectorItemFailure(
+                            "thread-stuck",
+                            "projection unavailable",
+                            ConnectorSyncComponent.CONTENT)),
+                    completed);
+        });
+
+        new ConnectorCrawlRunner(
+                        producing(batch(TERMINAL_FAILURE_CONNECTION, "cursor-terminal")),
+                        ingestion,
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        ConnectorCrawlAttemptView recorded =
+                attempts.recent(ORG, "slack", TERMINAL_FAILURE_CONNECTION).getFirst();
+        assertEquals(3, ingestAttempts[0]);
+        assertEquals(ConnectorCrawlOutcome.FAILED, recorded.outcome());
+        assertEquals("IllegalStateException", recorded.errorCode());
+        assertTrue(recorded.errorMessage().contains("database became unavailable"));
+    }
+
+    @Test
+    void incompletePermissionStopsAfterOneAttemptAndLeavesContentPending() {
+        seedOrganization();
+        int[] ingestAttempts = {0};
+        ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
+            ingestAttempts[0]++;
+            return new ConnectorIngestionResult(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(new ConnectorItemFailure(
+                            "thread-blocked",
+                            "permission evidence is incomplete",
+                            ConnectorSyncComponent.CONTENT)),
+                    Set.of(
+                            ConnectorSyncComponent.PERMISSION,
+                            ConnectorSyncComponent.MEMBERSHIP));
+        });
+        ConnectorCrawlBatch incomplete = new ConnectorCrawlBatch(
+                ORG,
+                "slack",
+                INCOMPLETE_PERMISSION_CONNECTION,
+                SPACE,
+                ACTOR,
+                "batch-incomplete-permission",
+                ConnectorContractVersions.supported(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.CONTENT, "content-blocked"),
+                        ConnectorComponentState.incomplete(
+                                ConnectorSyncComponent.PERMISSION,
+                                "permission-incomplete",
+                                "API_SCOPE_MISSING"),
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.MEMBERSHIP, "membership-current")),
+                false);
+
+        new ConnectorCrawlRunner(
+                        producing(incomplete),
+                        ingestion,
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        assertEquals(1, ingestAttempts[0], "source-declared incompleteness must not hot-loop");
+        assertEquals(
+                ConnectorCrawlOutcome.PARTIAL,
+                attempts.recent(ORG, "slack", INCOMPLETE_PERMISSION_CONNECTION)
+                        .getFirst()
+                        .outcome());
+        assertTrue(checkpoints
+                .lastCompletedCursor(
+                        ORG,
+                        "slack",
+                        INCOMPLETE_PERMISSION_CONNECTION,
+                        ConnectorSyncComponent.CONTENT)
+                .isEmpty());
+        var permission = checkpoints.describe(
+                        ORG, "slack", INCOMPLETE_PERMISSION_CONNECTION)
+                .stream()
+                .filter(checkpoint ->
+                        checkpoint.component() == ConnectorSyncComponent.PERMISSION)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(ConnectorCaptureStatus.INCOMPLETE, permission.captureStatus());
+        assertTrue(permission.lastSuccessfulCursor() == null);
     }
 
     @Test

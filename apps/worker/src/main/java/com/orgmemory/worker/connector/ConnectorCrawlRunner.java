@@ -90,6 +90,7 @@ class ConnectorCrawlRunner {
                 ConnectorIngestionResult result = ingestion.ingest(batch, pending);
                 report(batch, result);
                 lastResult = result;
+                lastFailure = null;
                 checkpoints.complete(batch, result.completedComponents());
                 pending = checkpoints.pendingComponents(batch);
                 if (result.failures().isEmpty() && pending.isEmpty()) {
@@ -129,10 +130,10 @@ class ConnectorCrawlRunner {
         // One row per exhausted batch rather than one per attempt. The attempts inside a single
         // poll fail the same way; what an administrator needs is that this batch is stuck and
         // what it said, not the same sentence three times.
-        if (lastResult != null) {
-            attempts.recordPartial(batch, lastResult);
-        } else {
+        if (lastFailure != null) {
             attempts.recordFailed(batch, codeOf(lastFailure), messageOf(lastFailure));
+        } else if (lastResult != null) {
+            attempts.recordPartial(batch, lastResult);
         }
     }
 

@@ -28,6 +28,23 @@
       "minItems": 1,
       "maxItems": 3,
       "items": { "$ref": "#/$defs/componentState" },
+      "allOf": [
+        {
+          "contains": { "properties": { "component": { "const": "CONTENT" } } },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "contains": { "properties": { "component": { "const": "PERMISSION" } } },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "contains": { "properties": { "component": { "const": "MEMBERSHIP" } } },
+          "minContains": 0,
+          "maxContains": 1
+        }
+      ],
       "description": "Independent source cursor and completeness evidence for each component carried by this batch."
     },
     "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },

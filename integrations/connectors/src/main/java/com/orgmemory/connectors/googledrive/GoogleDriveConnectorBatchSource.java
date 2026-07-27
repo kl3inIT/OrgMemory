@@ -214,8 +214,13 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             componentStates.add(ConnectorComponentState.complete(
                     ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
         }
-        componentStates.add(ConnectorComponentState.complete(
-                ConnectorSyncComponent.PERMISSION, permissionCursor(crawl)));
+        componentStates.add(crawl.permissionComplete
+                ? ConnectorComponentState.complete(
+                        ConnectorSyncComponent.PERMISSION, permissionCursor(crawl))
+                : ConnectorComponentState.incomplete(
+                        ConnectorSyncComponent.PERMISSION,
+                        permissionCursor(crawl),
+                        "GOOGLE_DRIVE_SHARING_NOT_FULLY_READ"));
         componentStates.add(ConnectorComponentState.incomplete(
                 ConnectorSyncComponent.MEMBERSHIP,
                 membershipCursor(crawl),
@@ -363,6 +368,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             // that Drive says nobody may read it, which is a claim this crawl cannot make.
             log.warn("Google Drive file {} was left out: its sharing could not be read", fileId);
             crawl.incomplete();
+            crawl.permissionIncomplete();
             return;
         }
         crawl.observeOwner(file);
@@ -477,7 +483,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         crawl.contents.forEach(content -> contents.put(
                 content.externalObjectId(), content.contentRevision() + '/' + sha256(content.title())));
         contents.forEach((id, revision) -> material.append(id).append('=').append(revision).append(';'));
-        material.append("complete=").append(crawl.complete);
+        material.append("enumerationComplete=").append(crawl.complete);
         return "google-drive-content-" + sha256(material.toString());
     }
 
@@ -499,7 +505,8 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 identity.kind() + ":" + identity.nativePrincipalId(),
                 identity.email() == null ? "" : identity.email()));
         identities.forEach((key, alias) -> material.append(key).append('#').append(alias).append(';'));
-        material.append("complete=").append(crawl.complete);
+        material.append("enumerationComplete=").append(crawl.complete);
+        material.append("permissionComplete=").append(crawl.permissionComplete);
         return "google-drive-permission-" + sha256(material.toString());
     }
 
@@ -556,9 +563,14 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         private final List<ConnectorContentItem> contents = new ArrayList<>();
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
         private boolean complete = true;
+        private boolean permissionComplete = true;
 
         private void incomplete() {
             complete = false;
+        }
+
+        private void permissionIncomplete() {
+            permissionComplete = false;
         }
 
         /** The owner is a user even when nothing was shared with anybody else. */

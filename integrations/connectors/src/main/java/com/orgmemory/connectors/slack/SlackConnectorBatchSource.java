@@ -200,6 +200,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             } catch (SlackApiException failure) {
                 log.warn("Slack channel {} membership was skipped: {}",
                         channel.path("id").asString(""), failure.getMessage());
+                crawl.accessIncomplete();
                 if (!NOT_IN_CHANNEL.equals(failure.errorCode())) {
                     failed++;
                 }
@@ -242,6 +243,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                 // this crawl its completeness claim rather than costing the workspace its index.
                 log.warn("Slack channel {} was skipped: {}", channel.path("id").asString(""), failure.getMessage());
                 crawl.incomplete();
+                crawl.accessIncomplete();
                 if (!NOT_IN_CHANNEL.equals(failure.errorCode())) {
                     // Membership can change between listing the channels and reading one. That
                     // says nothing about the workspace being reachable, so it must not push this
@@ -266,10 +268,20 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             componentStates.add(ConnectorComponentState.complete(
                     ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
         }
-        componentStates.add(ConnectorComponentState.complete(
-                ConnectorSyncComponent.PERMISSION, permissionCursor(crawl)));
-        componentStates.add(ConnectorComponentState.complete(
-                ConnectorSyncComponent.MEMBERSHIP, membershipCursor(crawl)));
+        componentStates.add(crawl.accessComplete
+                ? ConnectorComponentState.complete(
+                        ConnectorSyncComponent.PERMISSION, permissionCursor(crawl))
+                : ConnectorComponentState.incomplete(
+                        ConnectorSyncComponent.PERMISSION,
+                        permissionCursor(crawl),
+                        "SLACK_ACCESS_NOT_FULLY_READ"));
+        componentStates.add(crawl.accessComplete
+                ? ConnectorComponentState.complete(
+                        ConnectorSyncComponent.MEMBERSHIP, membershipCursor(crawl))
+                : ConnectorComponentState.incomplete(
+                        ConnectorSyncComponent.MEMBERSHIP,
+                        membershipCursor(crawl),
+                        "SLACK_ACCESS_NOT_FULLY_READ"));
         return new ConnectorCrawlBatch(
                 configuration.organizationId(),
                 SOURCE_SYSTEM,
@@ -363,6 +375,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             log.warn("Slack refused private channels ({}); continuing with public channels only",
                     refused.errorCode());
             crawl.incomplete();
+            crawl.accessIncomplete();
             channels = client.collectPaged(
                     "conversations.list",
                     Map.of("types", PUBLIC_CHANNELS_ONLY, "exclude_archived", "true"),
@@ -540,6 +553,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                         .append(permission.grants())
                         .append(';'));
         material.append("enumerationComplete=").append(crawl.complete);
+        material.append("accessComplete=").append(crawl.accessComplete);
         return "slack-permission-" + sha256(material.toString());
     }
 
@@ -548,6 +562,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         crawl.observedChannels.forEach((channelId, channel) ->
                 material.append(channelId).append('@').append(channel.memberIds()).append(';'));
         material.append("enumerationComplete=").append(crawl.complete);
+        material.append("accessComplete=").append(crawl.accessComplete);
         return "slack-membership-" + sha256(material.toString());
     }
 
@@ -581,9 +596,14 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
         private final Set<String> seenObjectIds = new LinkedHashSet<>();
         private boolean complete = true;
+        private boolean accessComplete = true;
 
         private void incomplete() {
             complete = false;
+        }
+
+        private void accessIncomplete() {
+            accessComplete = false;
         }
 
         private void observe(SlackUser user) {

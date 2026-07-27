@@ -15,12 +15,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
@@ -169,6 +171,10 @@ class SlackConnectorBatchSourceTests {
         assertFalse(
                 batch.crawlComplete(),
                 "a crawl told to look at one channel cannot speak for the others");
+        assertEquals(
+                ConnectorCaptureStatus.COMPLETE,
+                batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus(),
+                "an intentional source scope is not a failed permission read");
     }
 
     @Test
@@ -241,6 +247,12 @@ class SlackConnectorBatchSourceTests {
 
         assertFalse(batch.crawlComplete(), "public channels alone do not account for the private ones");
         assertFalse(batch.contents().isEmpty(), "the crawl still delivers what it could read");
+        assertEquals(
+                ConnectorCaptureStatus.INCOMPLETE,
+                batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus());
+        assertEquals(
+                ConnectorCaptureStatus.INCOMPLETE,
+                batch.componentState(ConnectorSyncComponent.MEMBERSHIP).captureStatus());
     }
 
     @Test
