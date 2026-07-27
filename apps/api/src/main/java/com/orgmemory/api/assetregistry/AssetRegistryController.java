@@ -9,10 +9,14 @@ import com.orgmemory.core.assetregistry.AssetRole;
 import com.orgmemory.core.assetregistry.AssetSummary;
 import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
+import com.orgmemory.core.assetregistry.SkillRegistryService;
+import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,19 +25,35 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/assets")
 class AssetRegistryController {
 
+    enum GenericAssetType {
+        PROMPT_TEMPLATE,
+        WORK_INSTRUCTION,
+        CAPABILITY_PACK;
+
+        AssetType domainType() {
+            return AssetType.valueOf(name());
+        }
+    }
+
     private final AssetRegistryService assets;
+    private final SkillRegistryService skills;
     private final CurrentActorProvider actors;
 
     AssetRegistryController(
-            AssetRegistryService assets, CurrentActorProvider actors) {
+            AssetRegistryService assets,
+            SkillRegistryService skills,
+            CurrentActorProvider actors) {
         this.assets = assets;
+        this.skills = skills;
         this.actors = actors;
     }
 
@@ -51,7 +71,7 @@ class AssetRegistryController {
     }
 
     record CreateAssetRequest(
-            AssetType type,
+            GenericAssetType type,
             String namespace,
             String slug,
             UUID knowledgeSpaceId,
@@ -98,13 +118,41 @@ class AssetRegistryController {
         if (request.draft() == null) {
             throw new ApiRequestException("An Asset draft is required");
         }
+        if (request.type() == null) {
+            throw new ApiRequestException("An Asset type is required");
+        }
         return assets.create(
                 actors.current(authentication),
-                request.type(),
+                request.type().domainType(),
                 request.namespace(),
                 request.slug(),
                 request.knowledgeSpaceId(),
                 request.draft().input());
+    }
+
+    @PostMapping(path = "/skills", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "importSkillPackage",
+            summary = "Validate and import one Agent Skill package")
+    AssetView importSkill(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam String namespace,
+            @RequestParam UUID knowledgeSpaceId,
+            @RequestParam(defaultValue = "INTERNAL")
+                    KnowledgeClassification classification,
+            Authentication authentication) {
+        try (var content = file.getInputStream()) {
+            return skills.importPackage(
+                    actors.current(authentication),
+                    namespace,
+                    knowledgeSpaceId,
+                    classification,
+                    file.getSize(),
+                    content);
+        } catch (IOException failure) {
+            throw new ApiRequestException("The Skill package could not be read");
+        }
     }
 
     @GetMapping

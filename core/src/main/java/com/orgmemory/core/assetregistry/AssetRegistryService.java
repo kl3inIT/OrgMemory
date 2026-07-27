@@ -56,6 +56,50 @@ public class AssetRegistryService {
             String slug,
             UUID knowledgeSpaceId,
             AssetDraftInput input) {
+        if (type == AssetType.SKILL) {
+            throw new IllegalArgumentException(
+                    "Skill Assets must be created from a validated package upload");
+        }
+        return createValidated(actor, type, namespace, slug, knowledgeSpaceId, input);
+    }
+
+    UUID createValidatedSkillIdentity(
+            CurrentActor actor,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId,
+            AssetDraftInput input,
+            SkillPackageStoragePort.StoredSkillPackage storedPackage) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        requireParentCreate(actor, knowledgeSpaceId);
+        return coordinator.createSkill(
+                actor,
+                namespace,
+                slug,
+                knowledgeSpaceId,
+                input,
+                storedPackage);
+    }
+
+    AssetView projectCreated(CurrentActor actor, UUID assetId) {
+        projection.project(actor.organizationId(), assetId);
+        return coordinator.view(actor.organizationId(), assetId);
+    }
+
+    void requireSkillCreate(CurrentActor actor, UUID knowledgeSpaceId) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        requireParentCreate(actor, knowledgeSpaceId);
+    }
+
+    private AssetView createValidated(
+            CurrentActor actor,
+            AssetType type,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId,
+            AssetDraftInput input) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         requireParentCreate(actor, knowledgeSpaceId);

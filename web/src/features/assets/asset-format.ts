@@ -1,4 +1,10 @@
-import { BookOpenCheck, Boxes, Sparkles, type LucideIcon } from "lucide-react"
+import {
+  BookOpenCheck,
+  Boxes,
+  FileArchive,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react"
 
 import type { AssetSummary, AssetView, Release } from "@/lib/hey-api"
 
@@ -8,6 +14,7 @@ export const ASSET_TYPES: Array<{ value: AssetType; label: string }> = [
   { value: "PROMPT_TEMPLATE", label: "Prompt template" },
   { value: "WORK_INSTRUCTION", label: "Work instruction" },
   { value: "CAPABILITY_PACK", label: "Capability pack" },
+  { value: "SKILL", label: "Skill" },
 ]
 
 export const ASSET_TYPE_META: Record<
@@ -31,6 +38,12 @@ export const ASSET_TYPE_META: Record<
     shortLabel: "Pack",
     icon: Boxes,
     tone: "bg-status-success-surface text-status-success-content",
+  },
+  SKILL: {
+    label: "Skill",
+    shortLabel: "Skill",
+    icon: FileArchive,
+    tone: "bg-muted text-muted-foreground",
   },
 }
 

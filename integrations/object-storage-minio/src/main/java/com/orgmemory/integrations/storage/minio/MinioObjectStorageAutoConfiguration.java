@@ -1,5 +1,6 @@
 package com.orgmemory.integrations.storage.minio;
 
+import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import io.minio.MinioClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -30,5 +31,11 @@ public class MinioObjectStorageAutoConfiguration {
     @ConditionalOnMissingBean(ObjectStoragePort.class)
     ObjectStoragePort objectStoragePort(MinioClient client, MinioObjectStorageProperties properties) {
         return new MinioObjectStorageAdapter(client, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SkillPackageStoragePort.class)
+    SkillPackageStoragePort skillPackageStoragePort(ObjectStoragePort objectStoragePort) {
+        return new MinioSkillPackageStorageAdapter(objectStoragePort);
     }
 }

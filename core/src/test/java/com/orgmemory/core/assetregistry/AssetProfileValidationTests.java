@@ -12,18 +12,21 @@ class AssetProfileValidationTests {
     private final PromptTemplateProfile prompts = new PromptTemplateProfile();
     private final WorkInstructionProfile instructions = new WorkInstructionProfile();
     private final CapabilityPackProfile packs = new CapabilityPackProfile();
+    private final SkillPackageProfile skills = new SkillPackageProfile();
     private final AssetTypeProfileRegistry registry =
-            new AssetTypeProfileRegistry(List.of(prompts, instructions, packs));
+            new AssetTypeProfileRegistry(List.of(prompts, instructions, packs, skills));
 
     @Test
     void everyEnabledTypeHasAnExplicitSchemaValidator() {
-        assertEquals(3, registry.enabledTypes().size());
+        assertEquals(4, registry.enabledTypes().size());
         registry.require(AssetType.PROMPT_TEMPLATE)
                 .validate("1", promptPayload("{{ticket_text}}"));
         registry.require(AssetType.WORK_INSTRUCTION)
                 .validate("1", instructionPayload());
         registry.require(AssetType.CAPABILITY_PACK)
                 .validate("1", packPayload());
+        registry.require(AssetType.SKILL)
+                .validate("1", skillPayload());
     }
 
     @Test
@@ -136,6 +139,29 @@ class AssetProfileValidationTests {
                   "completionCriteria": ["Required item completed"],
                   "reviewDate": "2026-12-31",
                   "owner": "Support operations"
+                }
+                """;
+    }
+
+    static String skillPayload() {
+        return """
+                {
+                  "name": "support-triage",
+                  "description": "Triage support tickets using the approved process.",
+                  "license": "Proprietary",
+                  "compatibility": "Agent Skills compatible clients",
+                  "allowedTools": "",
+                  "metadata": {"owner":"support-operations"},
+                  "artifact": {
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "contentLength": 512,
+                    "mediaType": "application/zip"
+                  },
+                  "files": [{
+                    "path": "SKILL.md",
+                    "size": 128,
+                    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                  }]
                 }
                 """;
     }

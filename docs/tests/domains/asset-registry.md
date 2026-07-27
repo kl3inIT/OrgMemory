@@ -2,7 +2,12 @@
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
-| Prompt, Work Instruction, and Pack schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
+| Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
+| Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
+| Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |
+| A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
+| Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
+| Skill submission and publication pin the same exact blob reference and digest | `AssetRegistryIntegrationTests#skillImportPinsTheValidatedBlobToRevisionAndRelease` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
 | Prompt output contract and bounded evaluations expose pass/failure | `PromptExecutionServiceTests`, `AssetRegistryIntegrationTests` | covered |
