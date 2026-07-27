@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.shared.error.BusinessConflictException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.List;
 import java.util.Optional;
@@ -82,6 +83,48 @@ class UserProvisioningServiceTests {
 
         assertTrue(service.provisionFromInvitation(ISSUER, SUBJECT, "stranger@example.com").isEmpty());
         verify(users, never()).save(any());
+        verify(identityBindings, never()).bind(any(), anyString(), anyString());
+    }
+
+    @Test
+    void aVerifiedDirectoryUserIsBoundWithoutAnInvitation() {
+        var directoryUser = new AppUser(
+                ORGANIZATION_ID,
+                null,
+                "Directory User",
+                "directory@example.com",
+                UserRole.EMPLOYEE);
+        directoryUser.applyDirectoryAccess(true);
+        when(users.findByEmailIgnoreCase("directory@example.com"))
+                .thenReturn(List.of(directoryUser));
+
+        var provisioned = service.provisionForVerifiedSignIn(
+                ISSUER, SUBJECT, "Directory@Example.com");
+
+        assertEquals(directoryUser.getId(), provisioned.orElseThrow().getId());
+        verify(identityBindings).bind(directoryUser.getId(), ISSUER, SUBJECT);
+        verify(invitations, never()).findOpenByEmailForUpdate(anyString());
+    }
+
+    @Test
+    void anInvitationCannotAdoptADirectoryManagedUser() {
+        var directoryUser = new AppUser(
+                ORGANIZATION_ID,
+                null,
+                "Directory User",
+                "directory@example.com",
+                UserRole.EMPLOYEE);
+        directoryUser.applyDirectoryAccess(true);
+        when(invitations.findOpenByEmailForUpdate("directory@example.com"))
+                .thenReturn(List.of(invitation(
+                        ORGANIZATION_ID, "directory@example.com")));
+        when(users.findByOrganizationIdAndEmailIgnoreCase(
+                        ORGANIZATION_ID, "directory@example.com"))
+                .thenReturn(Optional.of(directoryUser));
+
+        assertTrue(service.provisionFromInvitation(
+                        ISSUER, SUBJECT, "directory@example.com")
+                .isEmpty());
         verify(identityBindings, never()).bind(any(), anyString(), anyString());
     }
 
@@ -199,5 +242,99 @@ class UserProvisioningServiceTests {
         assertEquals(DEPARTMENT_ID, invitation.getDepartmentId());
         assertEquals(INVITER_ID, invitation.getInvitedByUserId());
         assertEquals("newcomer@example.com", invitation.getEmail());
+    }
+
+    @Test
+    void inviteRejectsAnExistingDirectoryManagedUser() {
+        var directoryUser = new AppUser(
+                ORGANIZATION_ID,
+                null,
+                "Directory User",
+                "directory@example.com",
+                UserRole.EMPLOYEE);
+        directoryUser.applyDirectoryAccess(true);
+        when(users.findByOrganizationIdAndEmailIgnoreCase(
+                        ORGANIZATION_ID, "directory@example.com"))
+                .thenReturn(Optional.of(directoryUser));
+
+        var failure = assertThrows(
+                BusinessConflictException.class,
+                () -> service.invite(
+                        ORGANIZATION_ID,
+                        "Directory@Example.com",
+                        null,
+                        UserRole.EMPLOYEE,
+                        INVITER_ID));
+
+        assertEquals("invitation.user-scim-managed", failure.code());
+        verify(invitations, never()).save(any());
+    }
+
+    @Test
+    void directoryProvisioningAdoptsExistingUserAndConsumesInvitation() {
+        var existing = new AppUser(
+                ORGANIZATION_ID,
+                DEPARTMENT_ID,
+                "Existing Name",
+                "employee@example.com",
+                UserRole.MANAGER);
+        var pending = invitation(ORGANIZATION_ID, "employee@example.com");
+        when(invitations.findOpenByOrganizationIdAndEmailForUpdate(
+                        ORGANIZATION_ID, "employee@example.com"))
+                .thenReturn(Optional.of(pending));
+        when(users.findByOrganizationIdAndEmailIgnoreCase(
+                        ORGANIZATION_ID, "employee@example.com"))
+                .thenReturn(Optional.of(existing));
+
+        var result = service.provisionFromDirectory(
+                new UserProvisioningService.DirectoryUserCommand(
+                        ORGANIZATION_ID,
+                        "Employee@Example.com",
+                        "Directory Name",
+                        true));
+
+        assertEquals(existing.getId(), result.user().getId());
+        assertTrue(result.adoptedExistingUser());
+        assertEquals(pending.getId(), result.consumedInvitationId());
+        assertFalse(pending.open());
+        assertTrue(existing.isDirectoryManaged());
+        assertEquals(UserRole.MANAGER, existing.getRole());
+        assertEquals("Directory Name", existing.getName());
+    }
+
+    @Test
+    void directoryProvisioningCreatesAnEmployeeWithoutInvitation() {
+        when(invitations.findOpenByOrganizationIdAndEmailForUpdate(
+                        ORGANIZATION_ID, "employee@example.com"))
+                .thenReturn(Optional.empty());
+        when(users.findByOrganizationIdAndEmailIgnoreCase(
+                        ORGANIZATION_ID, "employee@example.com"))
+                .thenReturn(Optional.empty());
+
+        var result = service.provisionFromDirectory(
+                new UserProvisioningService.DirectoryUserCommand(
+                        ORGANIZATION_ID,
+                        "Employee@Example.com",
+                        null,
+                        false));
+
+        assertFalse(result.adoptedExistingUser());
+        assertEquals("employee@example.com", result.user().getEmail());
+        assertEquals("employee", result.user().getName());
+        assertEquals(UserRole.EMPLOYEE, result.user().getRole());
+        assertTrue(result.user().isDirectoryManaged());
+        assertFalse(result.user().isActive());
+    }
+
+    @Test
+    void directoryProvisioningRejectsABlankEmailWithADomainValidationError() {
+        var failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.provisionFromDirectory(
+                        new UserProvisioningService.DirectoryUserCommand(
+                                ORGANIZATION_ID, "  ", "Directory User", true)));
+
+        assertEquals("directory-user.email-required", failure.code());
+        verify(users, never()).findByOrganizationIdAndEmailIgnoreCase(any(), anyString());
     }
 }

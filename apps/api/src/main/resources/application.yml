@@ -140,6 +140,15 @@ orgmemory:
       bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET:orgmemory-evidence}
       maximum-object-size: ${ORGMEMORY_MAX_UPLOAD_SIZE:25MB}
   security:
+    scim:
+      verifier-key: ${ORGMEMORY_SCIM_VERIFIER_KEY:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}
+      current-key-version: ${ORGMEMORY_SCIM_VERIFIER_KEY_VERSION:1}
+      previous-verifier-keys: ${ORGMEMORY_SCIM_PREVIOUS_VERIFIER_KEYS:}
+      require-tls: ${ORGMEMORY_SCIM_REQUIRE_TLS:false}
+      maximum-request-size: ${ORGMEMORY_SCIM_MAXIMUM_REQUEST_SIZE:256KB}
+      requests-per-minute: ${ORGMEMORY_SCIM_REQUESTS_PER_MINUTE:120}
+      token-ttl: ${ORGMEMORY_SCIM_TOKEN_TTL:90d}
+      rotation-overlap: ${ORGMEMORY_SCIM_ROTATION_OVERLAP:15m}
     oidc:
       issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
       client-id: ${ORGMEMORY_OIDC_CLIENT_ID:orgmemory-web}

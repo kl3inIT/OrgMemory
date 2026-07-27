@@ -85,29 +85,29 @@ Scope:
 
 Merge gate:
 
-- [ ] missing, malformed, expired, revoked, wrong-scope, and old-overlap tokens
+- [x] missing, malformed, expired, revoked, wrong-scope, and old-overlap tokens
   return the expected generic `401` or `403`;
-- [ ] an organization A token cannot distinguish any organization B state;
-- [ ] token value is absent from PostgreSQL plaintext, logs, events, traces, and
+- [x] an organization A token cannot distinguish any organization B state;
+- [x] token value is absent from PostgreSQL plaintext, logs, events, traces, and
   metrics;
-- [ ] SCIM token on `/api/**`, and OIDC JWT/browser cookie on `/scim/v2/**`,
+- [x] SCIM token on `/api/**`, and OIDC JWT/browser cookie on `/scim/v2/**`,
   are rejected without fallback to another chain;
-- [ ] CSRF remains disabled only for the SCIM chain;
-- [ ] production startup fails when the configured verifier key/current key
+- [x] CSRF remains disabled only for the SCIM chain;
+- [x] production startup fails when the configured verifier key/current key
   version is missing;
-- [ ] credential administration derives tenant from `CurrentActor` and requires
+- [x] credential administration derives tenant from `CurrentActor` and requires
   OpenFGA `can_manage_members`;
-- [ ] rotation overlap and immediate revocation pass concurrency tests;
-- [ ] discovery snapshots exactly match implemented capabilities;
-- [ ] product OpenAPI/browser client generation does not include SCIM routes;
-- [ ] new chain precedence/token-confusion tests pass, and existing browser
+- [x] rotation overlap and immediate revocation pass concurrency tests;
+- [x] discovery snapshots exactly match implemented capabilities;
+- [x] product OpenAPI/browser client generation does not include SCIM routes;
+- [x] new chain precedence/token-confusion tests pass, and existing browser
   security, bearer `/api/**`, CSRF, session, and logout behavior remains green.
 
 ## Increment Exit
 
 - [ ] F1, F2, and F3 are merged in order.
-- [ ] No User or Group mutation is reachable.
-- [ ] Every connection remains disabled by default.
+- [x] No User or Group mutation is reachable.
+- [x] Every connection remains disabled by default.
 - [ ] A two-organization negative test, credential-rotation rehearsal, and
   previous-binary rollback rehearsal are attached to the increment evidence.
 - [ ] The next increment may create users only behind a private-beta feature

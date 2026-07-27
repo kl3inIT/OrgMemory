@@ -1,8 +1,14 @@
 package com.orgmemory.core.identityprovisioning;
 
-public final class ProvisioningNotFoundException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public final class ProvisioningNotFoundException extends BusinessException {
 
     public ProvisioningNotFoundException(String message) {
-        super(message);
+        super(
+                BusinessErrorCategory.NOT_FOUND,
+                "provisioning.resource-not-found",
+                message);
     }
 }

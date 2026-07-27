@@ -10,7 +10,7 @@ types. Foundation discovery must not advertise either resource type.
 | --- | --- | --- | --- |
 | `schemas` | required | immutable | Core User plus allowlisted Enterprise User extension only |
 | `id` | server response | read-only | Stable SCIM resource UUID, distinct from `app_users.id` |
-| `externalId` | required | immutable | Connection-scoped workforce correlation key in the first profile |
+| `externalId` | optional | immutable once present | Preferred connection-scoped directory identifier |
 | `userName` | required | read-write | Connection-scoped, case-insensitive normalized uniqueness |
 | `name.givenName` | optional | read-write | Profile data only |
 | `name.familyName` | optional | read-write | Profile data only |
@@ -35,6 +35,12 @@ IdP own authentication.
 `roles`, `entitlements`, arbitrary extensions, OrgMemory role, organization,
 department ID, Knowledge Space, and Source Group are rejected. SCIM profile
 attributes never become authorization instructions.
+
+The required primary work email is the first-profile brownfield match for an
+existing unmanaged application user and the first verified Keycloak login.
+After matching, OrgMemory uses the SCIM resource ID, connection-scoped
+`externalId` when supplied, and `(issuer, subject)` login binding. Email changes
+never create a second application user implicitly.
 
 ## Group
 

@@ -1,6 +1,7 @@
 package com.orgmemory.core.identityprovisioning;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +16,8 @@ interface ProvisioningConnectionRepository
 
     Optional<ProvisioningConnection> findByIdAndOrganizationId(
             UUID id, UUID organizationId);
+
+    List<ProvisioningConnection> findByOrganizationIdOrderByAlias(UUID organizationId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """

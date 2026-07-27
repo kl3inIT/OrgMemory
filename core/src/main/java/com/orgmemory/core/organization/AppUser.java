@@ -98,6 +98,16 @@ public class AppUser extends BaseEntity {
     }
 
     /**
+     * Directory profile fields are descriptive only. Provisioning never changes
+     * the OrgMemory role or department through these values.
+     */
+    public void applyDirectoryProfile(String displayName) {
+        if (displayName != null && !displayName.isBlank()) {
+            this.name = displayName.trim();
+        }
+    }
+
+    /**
      * Keeps a newly materialized account closed until its required mappings and
      * authorization relationships have been established.
      */
@@ -140,6 +150,10 @@ public class AppUser extends BaseEntity {
 
     public boolean isProvisioningAccessReady() {
         return provisioningAccessReady;
+    }
+
+    public boolean isDirectoryManaged() {
+        return directoryAccessEnabled != null;
     }
 
     private void recomputeActive() {

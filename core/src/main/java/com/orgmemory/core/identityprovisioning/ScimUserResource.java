@@ -90,8 +90,20 @@ class ScimUserResource extends BaseEntity {
         return connectionId;
     }
 
+    UUID getAppUserId() {
+        return appUserId;
+    }
+
+    String getExternalId() {
+        return externalId;
+    }
+
     String getNormalizedUserName() {
         return normalizedUserName;
+    }
+
+    String getNormalizedEmail() {
+        return normalizedEmail;
     }
 
     boolean isDirectoryActive() {

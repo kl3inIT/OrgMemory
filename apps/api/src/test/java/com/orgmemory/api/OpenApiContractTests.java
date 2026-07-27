@@ -19,11 +19,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * The committed OpenAPI contract is what the browser client is generated from, so it
- * has to keep describing the controllers that actually exist. This test regenerates it
- * from the live application and fails when the committed copy has drifted.
+ * The committed product and SCIM OpenAPI contracts are generated independently
+ * from the live application. The browser client consumes only the product
+ * contract, so a machine provisioning route cannot enter that client by accident.
  *
- * <p>Refresh it after changing any endpoint by setting {@code ORGMEMORY_OPENAPI_WRITE=true} and
+ * <p>Refresh them after changing an endpoint by setting {@code ORGMEMORY_OPENAPI_WRITE=true} and
  * running {@code .\gradlew.bat :apps:api:test --tests "*OpenApiContractTests*"}, then regenerate
  * the browser client with {@code pnpm -C web gen:api}.
  */
@@ -41,8 +41,18 @@ class OpenApiContractTests {
     private MockMvc mockMvc;
 
     @Test
-    void theCommittedContractDescribesTheLiveApi() throws Exception {
-        String generated = mockMvc.perform(get("/v3/api-docs"))
+    void theCommittedProductContractDescribesTheLiveProductApi() throws Exception {
+        verifyContract("product", "openapi.json", "http://localhost");
+    }
+
+    @Test
+    void theCommittedScimContractDescribesOnlyTheLiveScimApi() throws Exception {
+        verifyContract("scim", "scim-openapi.json", "https://memory.company.com");
+    }
+
+    private void verifyContract(String group, String fileName, String serverUrl)
+            throws Exception {
+        String generated = mockMvc.perform(get("/v3/api-docs/{group}", group))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -50,11 +60,14 @@ class OpenApiContractTests {
         // The application context exposes Jackson 3; the contract is plain JSON, so a
         // local Jackson 2 mapper keeps this test independent of the runtime binding.
         ObjectMapper objectMapper = new ObjectMapper();
-        Path contract = repositoryRoot().resolve("contracts/openapi.json");
-        JsonNode expected = objectMapper.readTree(Files.readString(contract));
+        Path contract = repositoryRoot().resolve("contracts").resolve(fileName);
+        JsonNode expected = Files.exists(contract)
+                ? objectMapper.readTree(Files.readString(contract))
+                : null;
         // MockMvc reports its own host, which says nothing about the contract.
-        JsonNode actual = ((com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(generated))
-                .set("servers", expected.get("servers"));
+        var actual =
+                (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree(generated);
+        actual.putArray("servers").addObject().put("url", serverUrl);
 
         if (Boolean.parseBoolean(System.getenv("ORGMEMORY_OPENAPI_WRITE"))) {
             Files.writeString(contract, objectMapper.writeValueAsString(actual));
@@ -64,7 +77,8 @@ class OpenApiContractTests {
         assertEquals(
                 expected,
                 actual,
-                "contracts/openapi.json is stale; rerun this test with ORGMEMORY_OPENAPI_WRITE=true");
+                "contracts/" + fileName
+                        + " is stale; rerun this test with ORGMEMORY_OPENAPI_WRITE=true");
     }
 
     private static Path repositoryRoot() {

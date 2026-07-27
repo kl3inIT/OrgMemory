@@ -37,7 +37,8 @@ class OidcCurrentActorProviderTests {
      */
     private static UserProvisioningService refusingProvisioning() {
         UserProvisioningService provisioning = mock(UserProvisioningService.class);
-        when(provisioning.provisionFromInvitation(any(), any(), any())).thenReturn(Optional.empty());
+        when(provisioning.provisionForVerifiedSignIn(any(), any(), any()))
+                .thenReturn(Optional.empty());
         return provisioning;
     }
 
@@ -120,7 +121,8 @@ class OidcCurrentActorProviderTests {
         when(identities.findByIssuerAndSubject(ISSUER, "fresh-subject")).thenReturn(Optional.empty());
         AppUser invited = new AppUser(
                 UUID.randomUUID(), null, "newcomer", "newcomer@example.test", UserRole.EMPLOYEE);
-        when(provisioning.provisionFromInvitation(ISSUER, "fresh-subject", "newcomer@example.test"))
+        when(provisioning.provisionForVerifiedSignIn(
+                        ISSUER, "fresh-subject", "newcomer@example.test"))
                 .thenReturn(Optional.of(invited));
 
         var actor = new OidcCurrentActorProvider(identities, users, provisioning)
@@ -129,7 +131,8 @@ class OidcCurrentActorProviderTests {
         assertEquals(invited.getId(), actor.userId());
         // The claim only chose the invitation; the binding written is against the subject, and
         // the role claimed in the token is still ignored.
-        verify(provisioning).provisionFromInvitation(ISSUER, "fresh-subject", "newcomer@example.test");
+        verify(provisioning).provisionForVerifiedSignIn(
+                ISSUER, "fresh-subject", "newcomer@example.test");
     }
 
     @Test
@@ -154,7 +157,7 @@ class OidcCurrentActorProviderTests {
                         .current(new JwtAuthenticationToken(unverified)));
 
         verify(provisioning, org.mockito.Mockito.never())
-                .provisionFromInvitation(any(), any(), any());
+                .provisionForVerifiedSignIn(any(), any(), any());
     }
 
     private static JwtAuthenticationToken jwt(String subject, String email, String authority) {

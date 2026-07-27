@@ -124,6 +124,14 @@ belongs in one active increment.
 
 ## Engineering Backlog
 
+- Audit outbound adapters that call stable remote APIs through direct Spring
+  `RestClient`, and migrate selectively to typed `@HttpExchange` HTTP Service
+  interfaces backed by the existing `RestClient` configuration. Prioritize
+  repeated endpoint families with stable DTOs and shared error policy; retain
+  direct `RestClient` for streaming/uploads, runtime-dynamic requests, and
+  provider-specific retry/error flows. Do not apply this mechanically to
+  inbound MVC endpoints or public standards such as SCIM, where it would couple
+  the server contract to an internal client interface.
 - Refactor oversized Spring Modulith packages into cohesive internal
   subpackages while preserving each logical module and its public named
   interface. Choose package boundaries from actual responsibilities

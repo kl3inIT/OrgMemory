@@ -88,6 +88,61 @@ class ProvisioningCredential extends BaseEntity {
         return publicTokenId;
     }
 
+    UUID getOrganizationId() {
+        return organizationId;
+    }
+
+    UUID getConnectionId() {
+        return connectionId;
+    }
+
+    CredentialAuthenticationView authenticationView(ProvisioningOperationalState connectionState) {
+        return new CredentialAuthenticationView(
+                getId(),
+                organizationId,
+                connectionId,
+                publicTokenId,
+                verifierDigest,
+                verifierKeyVersion,
+                usersScope,
+                groupsScope,
+                expiresAt,
+                overlapEndsAt,
+                revokedAt,
+                lastUsedAt,
+                connectionState);
+    }
+
+    CredentialView view() {
+        return new CredentialView(
+                getId(),
+                publicTokenId,
+                verifierKeyVersion,
+                usersScope,
+                groupsScope,
+                expiresAt,
+                overlapEndsAt,
+                revokedAt,
+                lastUsedAt,
+                getCreatedAt());
+    }
+
+    void beginOverlap(Instant endsAt) {
+        if (revokedAt != null) {
+            throw new IllegalStateException("A revoked credential cannot overlap");
+        }
+        if (overlapEndsAt != null) {
+            throw new IllegalStateException("A credential can only be rotated once");
+        }
+        overlapEndsAt = Objects.requireNonNull(endsAt, "endsAt");
+    }
+
+    void revoke(UUID actorUserId, Instant at) {
+        revokedByUserId = Objects.requireNonNull(actorUserId, "actorUserId");
+        revokedAt = Objects.requireNonNull(at, "at");
+        overlapEndsAt = null;
+    }
+
     @Override
     public String toString() {
         return "ProvisioningCredential[id=" + getId()
@@ -110,5 +165,34 @@ class ProvisioningCredential extends BaseEntity {
                     "verifierDigest must be an unpadded base64url SHA-256 digest");
         }
         return digest;
+    }
+
+    record CredentialView(
+            UUID id,
+            String publicTokenId,
+            int verifierKeyVersion,
+            boolean usersScope,
+            boolean groupsScope,
+            Instant expiresAt,
+            Instant overlapEndsAt,
+            Instant revokedAt,
+            Instant lastUsedAt,
+            Instant createdAt) {
+    }
+
+    record CredentialAuthenticationView(
+            UUID credentialId,
+            UUID organizationId,
+            UUID connectionId,
+            String publicTokenId,
+            String verifierDigest,
+            int verifierKeyVersion,
+            boolean usersScope,
+            boolean groupsScope,
+            Instant expiresAt,
+            Instant overlapEndsAt,
+            Instant revokedAt,
+            Instant lastUsedAt,
+            ProvisioningOperationalState connectionState) {
     }
 }

@@ -27,6 +27,18 @@ public interface UserInvitationRepository extends JpaRepository<UserInvitation, 
             """)
     List<UserInvitation> findOpenByEmailForUpdate(@Param("email") String email);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT invitation FROM UserInvitation invitation
+            WHERE invitation.organizationId = :organizationId
+              AND lower(invitation.email) = lower(:email)
+              AND invitation.acceptedAt IS NULL
+              AND invitation.revokedAt IS NULL
+            """)
+    Optional<UserInvitation> findOpenByOrganizationIdAndEmailForUpdate(
+            @Param("organizationId") UUID organizationId,
+            @Param("email") String email);
+
     List<UserInvitation> findByOrganizationIdOrderByEmail(UUID organizationId);
 
     Optional<UserInvitation> findByIdAndOrganizationId(UUID id, UUID organizationId);

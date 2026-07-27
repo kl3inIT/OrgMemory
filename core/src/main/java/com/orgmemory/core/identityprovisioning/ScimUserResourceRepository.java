@@ -8,6 +8,19 @@ interface ScimUserResourceRepository extends Repository<ScimUserResource, UUID> 
 
     ScimUserResource save(ScimUserResource resource);
 
+    ScimUserResource saveAndFlush(ScimUserResource resource);
+
     Optional<ScimUserResource> findByIdAndOrganizationIdAndConnectionId(
             UUID id, UUID organizationId, UUID connectionId);
+
+    Optional<ScimUserResource>
+            findByOrganizationIdAndConnectionIdAndExternalId(
+                    UUID organizationId, UUID connectionId, String externalId);
+
+    Optional<ScimUserResource>
+            findByOrganizationIdAndConnectionIdAndNormalizedUserName(
+                    UUID organizationId, UUID connectionId, String normalizedUserName);
+
+    boolean existsByOrganizationIdAndAppUserId(
+            UUID organizationId, UUID appUserId);
 }
