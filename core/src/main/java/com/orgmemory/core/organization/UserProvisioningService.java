@@ -30,19 +30,19 @@ public class UserProvisioningService {
     private final AppUserRepository users;
     private final OrganizationRepository organizations;
     private final DepartmentRepository departments;
-    private final ExternalIdentityRepository identities;
+    private final ExternalIdentityBindingService identityBindings;
     private final UserInvitationRepository invitations;
 
     public UserProvisioningService(
             AppUserRepository users,
             OrganizationRepository organizations,
             DepartmentRepository departments,
-            ExternalIdentityRepository identities,
+            ExternalIdentityBindingService identityBindings,
             UserInvitationRepository invitations) {
         this.users = Objects.requireNonNull(users, "users");
         this.organizations = Objects.requireNonNull(organizations, "organizations");
         this.departments = Objects.requireNonNull(departments, "departments");
-        this.identities = Objects.requireNonNull(identities, "identities");
+        this.identityBindings = Objects.requireNonNull(identityBindings, "identityBindings");
         this.invitations = Objects.requireNonNull(invitations, "invitations");
     }
 
@@ -64,10 +64,14 @@ public class UserProvisioningService {
         if (email == null || email.isBlank()) {
             return Optional.empty();
         }
+        Optional<AppUser> alreadyBound = boundActiveUser(issuer, subject);
+        if (alreadyBound.isPresent()) {
+            return alreadyBound;
+        }
         String normalized = UserInvitation.normalizeEmail(email);
-        List<UserInvitation> open = invitations.findOpenByEmail(normalized);
+        List<UserInvitation> open = invitations.findOpenByEmailForUpdate(normalized);
         if (open.size() != 1) {
-            return Optional.empty();
+            return boundActiveUser(issuer, subject);
         }
         UserInvitation invitation = open.getFirst();
 
@@ -80,7 +84,7 @@ public class UserProvisioningService {
                         normalized,
                         invitation.getRole())));
 
-        identities.linkIfAbsent(UUID.randomUUID(), user.getId(), issuer, subject);
+        identityBindings.bind(user.getId(), issuer, subject);
         invitation.accept(user.getId(), Instant.now());
         invitations.save(invitation);
         return Optional.of(user);
@@ -130,5 +134,11 @@ public class UserProvisioningService {
     private static String displayName(String email) {
         int at = email.indexOf('@');
         return at <= 0 ? email : email.substring(0, at);
+    }
+
+    private Optional<AppUser> boundActiveUser(String issuer, String subject) {
+        return identityBindings.findUserId(issuer, subject)
+                .flatMap(users::findById)
+                .filter(AppUser::isActive);
     }
 }

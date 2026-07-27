@@ -87,14 +87,28 @@ Scope:
 
 Merge gate:
 
-- [ ] 50 or more concurrent identical attempts leave one binding and one
+- [x] 50 or more concurrent identical attempts leave one binding and one
   accepted invitation;
-- [ ] conflicting users cannot both claim the same subject;
-- [ ] one user cannot acquire two subjects for the same issuer;
-- [ ] a losing transaction re-reads and validates the winner;
-- [ ] ambiguous cross-organization invitations accept neither invitation;
-- [ ] no conflict response reveals foreign user or organization identifiers;
-- [ ] browser and bearer current-actor suites remain green.
+- [x] conflicting users cannot both claim the same subject;
+- [x] one user cannot acquire two subjects for the same issuer;
+- [x] a losing transaction re-reads and validates the winner;
+- [x] ambiguous cross-organization invitations accept neither invitation;
+- [x] no conflict response reveals foreign user or organization identifiers;
+- [x] browser and bearer current-actor suites remain green.
+
+Implementation checkpoint on 2026-07-27:
+
+- The repository insert remains conflict-tolerant, but the new binding service
+  accepts success only after re-reading both unique-key winners and verifying
+  the intended user, issuer, and subject.
+- Invitation selection uses a pessimistic write lock. A concurrent replay that
+  observes the invitation after acceptance resolves the winning subject
+  binding instead of creating or accepting another row.
+- Stable opaque conflicts distinguish subject ownership, user/issuer
+  ownership, and an unresolved race without returning foreign identifiers.
+- A PostgreSQL 18 Spring integration test runs 50 concurrent first-login
+  attempts and proves one external identity, one accepted invitation, and one
+  returned application actor. Full `:core:test` and `:apps:api:test` pass.
 
 ## PR H3 — Organization Email Constraint Cutover
 
