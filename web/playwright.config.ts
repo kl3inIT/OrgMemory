@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test"
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173)
+const browserChannel =
+  process.env.PLAYWRIGHT_CHANNEL === "msedge" ? "msedge" : undefined
 
 export default defineConfig({
   testDir: "./test/e2e",
@@ -21,7 +23,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], channel: browserChannel },
     },
   ],
   webServer: {

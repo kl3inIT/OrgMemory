@@ -147,7 +147,8 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                         release.id,
                         release.versionLabel,
                         release.digest,
-                        availabilityEvent.availability)
+                        availabilityEvent.availability,
+                        release.releasedAt)
                     """
                     + CATALOG_FROM_AND_PREDICATES
                     + CATALOG_ORDER,

@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record AssetRecommendation(
@@ -14,5 +15,6 @@ public record AssetRecommendation(
         UUID releaseId,
         String versionLabel,
         String releaseDigest,
-        AssetAvailability availability) {
+        AssetAvailability availability,
+        Instant releasedAt) {
 }

@@ -7,16 +7,18 @@ export function CollectionPagination({
   pageSize,
   total,
   disabled = false,
+  showSummaryWhenSinglePage = false,
   onPageChange,
 }: {
   page: number
   pageSize: number
   total: number
   disabled?: boolean
+  showSummaryWhenSinglePage?: boolean
   onPageChange: (page: number) => void
 }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  if (pageCount <= 1) return null
+  if (pageCount <= 1 && !showSummaryWhenSinglePage) return null
 
   const safePage = Math.min(Math.max(page, 1), pageCount)
   const first = (safePage - 1) * pageSize + 1
@@ -41,56 +43,58 @@ export function CollectionPagination({
       <p className="text-sm tabular-nums text-content-muted" aria-live="polite">
         {total === 0 ? "No results" : `Showing ${first}–${last} of ${total}`}
       </p>
-      <nav
-        className="flex max-w-full items-center gap-1 self-end overflow-x-auto"
-        aria-label="Pagination"
-        aria-busy={disabled}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Previous page"
-          disabled={disabled || safePage <= 1}
-          onClick={() => onPageChange(safePage - 1)}
+      {pageCount > 1 ? (
+        <nav
+          className="flex max-w-full items-center gap-1 self-end overflow-x-auto"
+          aria-label="Pagination"
+          aria-busy={disabled}
         >
-          <ChevronLeft aria-hidden="true" />
-        </Button>
-        {pageTokens.map((token, index) =>
-          token === "ellipsis" ? (
-            <span
-              key={`ellipsis-${index}`}
-              className="grid size-8 place-items-center text-sm text-content-muted"
-              aria-hidden="true"
-            >
-              …
-            </span>
-          ) : (
-            <Button
-              key={token}
-              type="button"
-              variant={token === safePage ? "outline" : "ghost"}
-              size="icon-sm"
-              aria-label={`Page ${token}`}
-              aria-current={token === safePage ? "page" : undefined}
-              disabled={disabled}
-              onClick={() => onPageChange(token)}
-            >
-              {token}
-            </Button>
-          ),
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Next page"
-          disabled={disabled || safePage >= pageCount}
-          onClick={() => onPageChange(safePage + 1)}
-        >
-          <ChevronRight aria-hidden="true" />
-        </Button>
-      </nav>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Previous page"
+            disabled={disabled || safePage <= 1}
+            onClick={() => onPageChange(safePage - 1)}
+          >
+            <ChevronLeft aria-hidden="true" />
+          </Button>
+          {pageTokens.map((token, index) =>
+            token === "ellipsis" ? (
+              <span
+                key={`ellipsis-${index}`}
+                className="grid size-8 place-items-center text-sm text-content-muted"
+                aria-hidden="true"
+              >
+                …
+              </span>
+            ) : (
+              <Button
+                key={token}
+                type="button"
+                variant={token === safePage ? "outline" : "ghost"}
+                size="icon-sm"
+                aria-label={`Page ${token}`}
+                aria-current={token === safePage ? "page" : undefined}
+                disabled={disabled}
+                onClick={() => onPageChange(token)}
+              >
+                {token}
+              </Button>
+            ),
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Next page"
+            disabled={disabled || safePage >= pageCount}
+            onClick={() => onPageChange(safePage + 1)}
+          >
+            <ChevronRight aria-hidden="true" />
+          </Button>
+        </nav>
+      ) : null}
     </div>
   )
 }

@@ -18,6 +18,21 @@ describe("CollectionPagination", () => {
     expect(screen.queryByRole("navigation", { name: "Pagination" })).not.toBeInTheDocument()
   })
 
+  it("can keep the server range visible without rendering page controls", () => {
+    render(
+      <CollectionPagination
+        page={1}
+        pageSize={24}
+        total={18}
+        showSummaryWhenSinglePage
+        onPageChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("Showing 1–18 of 18")).toBeVisible()
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).not.toBeInTheDocument()
+  })
+
   it("reports the server range and requests the next page", async () => {
     const user = userEvent.setup()
     const onPageChange = vi.fn()

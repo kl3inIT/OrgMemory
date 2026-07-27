@@ -369,6 +369,9 @@ class AssetRegistryIntegrationTests {
         assertEquals(instruction.id(), filtered.items().getFirst().assetId());
         assertEquals(AssetCatalogSort.RECENTLY_RELEASED, recent.sort());
         assertEquals(alpha.id(), recent.items().getFirst().assetId());
+        assertEquals(
+                alpha.releases().getFirst().releasedAt().toEpochMilli(),
+                recent.items().getFirst().releasedAt().toEpochMilli());
         assertEquals(zulu.id(), recent.items().getLast().assetId());
         assertEquals(firstZuluRelease.id(), recent.items().getLast().releaseId());
     }
