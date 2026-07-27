@@ -135,7 +135,7 @@ export function PageCanvas({ className, ...props }: ComponentProps<"section">) {
     <section
       data-slot="page-canvas"
       className={cn(
-        "relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border-default bg-surface-raised",
+        "relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border-default bg-surface-raised",
         className,
       )}
       {...props}

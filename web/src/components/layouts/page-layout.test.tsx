@@ -23,7 +23,7 @@ describe("PageLayout", () => {
     expect(screen.getByRole("button", { name: "Create asset" })).toBeEnabled()
   })
 
-  it("gives a canvas workspace an accessible region", () => {
+  it("gives a canvas workspace an accessible flex region", () => {
     render(
       <PageLayout.Root variant="canvas">
         <PageLayout.Header title="Knowledge graph" />
@@ -31,9 +31,10 @@ describe("PageLayout", () => {
       </PageLayout.Root>,
     )
 
-    expect(
-      screen.getByRole("region", { name: "Knowledge graph explorer" }),
-    ).toHaveAttribute("data-slot", "page-canvas")
+    const canvas = screen.getByRole("region", { name: "Knowledge graph explorer" })
+
+    expect(canvas).toHaveAttribute("data-slot", "page-canvas")
+    expect(canvas).toHaveClass("flex")
   })
 
   it("keeps ordinary page content in a dedicated body region", () => {
