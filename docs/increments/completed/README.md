@@ -10,3 +10,7 @@ Completed increments are historical evidence. Current behavior belongs in
 - [Skill Registry package foundation](2026-07-27-skill-registry-package-foundation/plan.md):
   governed Skill profile, bounded package inspection, immutable object storage,
   payload-reference pinning, and authenticated administrative import.
+- [Skill Registry distribution](2026-07-27-skill-registry-distribution/plan.md):
+  authenticated exact-version manifest and package delivery, MCP discovery,
+  OAuth PKCE CLI installation for Claude Code and Codex, integrity-checked
+  atomic installation, receipts, and a Skill-specific Asset detail.

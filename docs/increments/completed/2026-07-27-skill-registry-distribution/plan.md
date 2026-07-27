@@ -8,7 +8,7 @@
 - [x] Add the Skill-specific Asset detail and copyable agent install commands.
 - [x] Add focused backend, CLI, and frontend tests.
 - [x] Regenerate OpenAPI clients and run repository verification gates.
-- [ ] Open the pull request and resolve CI and review findings.
+- [x] Open the pull request and resolve CI and review findings.
 
 ## Verification
 
@@ -17,3 +17,11 @@
 - `apps/cli`: frozen install, Vitest, typecheck, and build on the Node 24
   contract
 - `actionlint` and `git diff --check`
+
+## Delivery evidence
+
+- PR #88 implements authenticated exact-version Skill distribution.
+- GitHub CI passed Backend, Web, CLI, adapters, deployment contracts, and the
+  aggregate CI gate.
+- All 16 actionable CodeRabbit threads were verified, addressed or rejected
+  with migration evidence, and resolved.

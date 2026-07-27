@@ -1,6 +1,6 @@
 # Skill Registry Distribution
 
-Status: active.
+Status: completed by PR #88.
 
 ## Problem
 

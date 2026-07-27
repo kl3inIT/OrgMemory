@@ -6,20 +6,16 @@ progress here. Consolidate current behavior before moving an increment to
 
 ## Current Queue
 
-1. Complete authenticated
-   [Skill Registry distribution](2026-07-27-skill-registry-distribution/plan.md):
-   exact manifest/package delivery, MCP discovery, OAuth CLI installation, and
-   the Skill-specific detail surface.
-2. Complete the
+1. Complete the
    [production ZM runtime](2026-07-25-production-cicd-zm/plan.md): disable the
    obsolete runner, take and restore-test backups, perform the bounded shared
    PostgreSQL cutover, bring up the runtime, and prove login, upload, GraphRAG,
    citation, denial, rollback, and resource behavior.
-3. Complete the reproducible demo through the real ingestion API and run the
+2. Complete the reproducible demo through the real ingestion API and run the
    permission evaluation dataset.
-4. Prove the Slack connector against a real workspace, including member removal
+3. Prove the Slack connector against a real workspace, including member removal
    and the next-crawl access revocation.
-5. In the isolated identity worktree, land the accepted tenant-hardening
+4. In the isolated identity worktree, land the accepted tenant-hardening
    increment before exposing any native SCIM endpoint.
 
 ## Native Identity Provisioning Program
