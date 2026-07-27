@@ -159,11 +159,70 @@ class ExternalPrincipalRetrievalIntegrationTests {
 
     @Test
     void staleLiveSourceAclKeepsTheLatestSealedPermissions() {
+        UUID staleCurrentSnapshot = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO source_acl_snapshots (
+                    id, organization_id, raw_source_object_id, acl_generation, capture_status,
+                    default_gate, acl_sha256, captured_at, valid_until)
+                VALUES (?, ?, ?, 2, 'COMPLETE', 'DENY', ?, ?, ?)
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                RAW,
+                SHA,
+                ts(CAPTURED),
+                ts(CAPTURED.plus(2, ChronoUnit.HOURS)));
+        insertEntry(staleCurrentSnapshot, "SOURCE_GROUP", CHANNEL_PRINCIPAL.toString());
+        jdbc.update("""
+                INSERT INTO source_acl_group_members (
+                    id, organization_id, source_acl_snapshot_id,
+                    group_principal_id, member_principal_id, created_at)
+                VALUES (?, ?, ?, ?, ?, now())
+                """,
+                UUID.randomUUID(),
+                ORG,
+                staleCurrentSnapshot,
+                CHANNEL_PRINCIPAL,
+                AN_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_acl_snapshot_seals (
+                    source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
+                VALUES (?, ?, 1, ?, now())
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                SHA);
+        jdbc.update(
+                """
+                UPDATE source_acl_heads
+                SET current_snapshot_id = ?, acl_generation = 2, updated_at = now(), version = version + 1
+                WHERE organization_id = ? AND current_raw_source_object_id = ?
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                RAW);
         mapActive(AN_PRINCIPAL, AN_USER);
+        mapActive(BOB_PRINCIPAL, BOB_USER);
 
-        assertTrue(
-                visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
-                "A stale connector must keep enforcing its latest sealed permissions generation");
+        try {
+            assertTrue(
+                    visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "A stale connector must keep grants from its latest sealed permissions generation");
+            assertFalse(
+                    visibleAt(BOB_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "An ingestion-only grant must not bypass the latest sealed permissions generation");
+        } finally {
+            jdbc.update(
+                    """
+                    UPDATE source_acl_heads
+                    SET current_snapshot_id = ?, acl_generation = 1,
+                        updated_at = now(), version = version + 1
+                    WHERE organization_id = ? AND current_raw_source_object_id = ?
+                    """,
+                    SNAPSHOT,
+                    ORG,
+                    RAW);
+        }
     }
 
     @Test
