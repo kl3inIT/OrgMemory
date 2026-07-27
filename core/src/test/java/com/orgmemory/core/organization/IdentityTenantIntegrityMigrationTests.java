@@ -67,7 +67,7 @@ class IdentityTenantIntegrityMigrationTests {
                 null,
                 "valid@example.test");
 
-        migrateLatest();
+        migrateTo("8");
 
         assertThrows(
                 DataIntegrityViolationException.class,
@@ -128,7 +128,7 @@ class IdentityTenantIntegrityMigrationTests {
                 DEPARTMENT_B,
                 "invalid-tenant@example.test");
 
-        FlywayException failure = assertThrows(FlywayException.class, this::migrateLatest);
+        FlywayException failure = assertThrows(FlywayException.class, () -> migrateTo("8"));
 
         assertTrue(
                 allMessages(failure).contains(
@@ -141,10 +141,11 @@ class IdentityTenantIntegrityMigrationTests {
                 allMessages(failure));
     }
 
-    private void migrateLatest() {
+    private void migrateTo(String target) {
         Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")
+                .target(target)
                 .load()
                 .migrate();
     }
