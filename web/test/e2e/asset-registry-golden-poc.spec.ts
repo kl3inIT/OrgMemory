@@ -82,13 +82,13 @@ test("two users prove governed release and second-user Pack completion", async (
 
   await supportPage.goto("/assets")
   await expect(supportPage.getByRole("heading", { name: "Assets" })).toBeVisible()
-  await expect(supportPage.getByText("1 asset", { exact: true })).toBeVisible()
+  await expect(supportPage.getByText("1 result", { exact: true })).toBeVisible()
   await expect(supportPage.getByText("Filtered by your live permissions")).toHaveCount(0)
   await expect(
     supportPage.getByText("Approved capability packs and reusable assets you can use now."),
   ).toHaveCount(0)
   await expect(
-    supportPage.getByRole("heading", { name: "L1 Customer Support Capability Onboarding" }),
+    supportPage.getByRole("link", { name: "L1 Customer Support Capability Onboarding" }),
   ).toBeVisible()
   await expect(supportPage.getByText("Restricted Security Prompt")).toHaveCount(0)
   const filterBarBox = await supportPage.locator('[data-slot="filter-bar"]').boundingBox()
@@ -123,7 +123,44 @@ test("two users prove governed release and second-user Pack completion", async (
   await supportContext.close()
 })
 
-async function assetHarness(page: Page, actor: "owner" | "support") {
+test("asset catalog defaults to a dense list and keeps grid state in the URL", async ({
+  page,
+}) => {
+  const harness = await assetHarness(page, "support", catalogRecommendations())
+
+  await page.setViewportSize({ width: 1536, height: 1024 })
+  await page.goto("/assets")
+
+  await expect(page.getByText("18 results", { exact: true })).toBeVisible()
+  await expect(page.getByRole("table")).toBeVisible()
+  await expect(page.getByRole("columnheader", { name: "Released" })).toBeVisible()
+  await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-catalog-list.png",
+      fullPage: false,
+    })
+  }
+
+  await page.getByRole("button", { name: "Grid view" }).click()
+  await expect(page).toHaveURL(/view=GRID/)
+  await expect(page.getByRole("table")).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
+
+  await page.getByRole("button", { name: "List view" }).click()
+  await expect(page).not.toHaveURL(/view=/)
+  await expect(page.getByRole("table")).toBeVisible()
+
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+async function assetHarness(
+  page: Page,
+  actor: "owner" | "support",
+  catalogItems = [supportPackRecommendation()],
+) {
   const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
 
@@ -136,23 +173,8 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
       url.pathname === "/api/assets/catalog"
     ) {
       await json(route, {
-        items: [
-          {
-            assetId: PACK_ID,
-            type: "CAPABILITY_PACK",
-            namespace: "support",
-            slug: "l1-onboarding",
-            title: "L1 Customer Support Capability Onboarding",
-            summary: "Complete the first correct L1 support ticket",
-            knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
-            portfolioState: "ACTIVE",
-            releaseId: PACK_RELEASE_ID,
-            versionLabel: "1.0.0",
-            releaseDigest: "a".repeat(64),
-            availability: "AVAILABLE",
-          },
-        ],
-        total: 1,
+        items: catalogItems,
+        total: catalogItems.length,
         page: 1,
         pageSize: 24,
         totalPages: 1,
@@ -206,6 +228,74 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
   })
 
   return harness.result
+}
+
+function supportPackRecommendation() {
+  return {
+    assetId: PACK_ID,
+    type: "CAPABILITY_PACK",
+    namespace: "support",
+    slug: "l1-onboarding",
+    title: "L1 Customer Support Capability Onboarding",
+    summary: "Complete the first correct L1 support ticket",
+    knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    portfolioState: "ACTIVE",
+    releaseId: PACK_RELEASE_ID,
+    versionLabel: "1.0.0",
+    releaseDigest: "a".repeat(64),
+    availability: "AVAILABLE",
+    releasedAt: "2026-07-28T00:00:00Z",
+  }
+}
+
+function catalogRecommendations() {
+  const types = [
+    "CAPABILITY_PACK",
+    "WORK_INSTRUCTION",
+    "PROMPT_TEMPLATE",
+    "SKILL",
+  ] as const
+  const titles = [
+    "Executive Strategy Review",
+    "Review Strategic Priorities",
+    "Executive Strategy Brief",
+    "Quarterly Planning Assistant",
+    "Engineering Incident Response",
+    "Respond to an Engineering Incident",
+    "Engineering Incident Triage",
+    "Production Readiness Checklist",
+    "Expense Claim Onboarding",
+    "Submit a Travel Expense Claim",
+    "Expense Claim Review",
+    "Finance Policy Skill",
+    "New Employee Onboarding",
+    "Complete Employee Onboarding",
+    "Employee Onboarding Answer",
+    "People Operations Skill",
+    "Customer Support Onboarding",
+    "Escalate a Support Incident",
+  ]
+
+  return titles.map((title, index) => {
+    const number = String(index + 10).padStart(12, "0")
+    const type = types[index % types.length]
+    const namespace = ["executive", "engineering", "finance", "people"][index % 4]
+    return {
+      assetId: `a9000000-0000-4000-8000-${number}`,
+      type,
+      namespace,
+      slug: title.toLowerCase().replaceAll(" ", "-"),
+      title,
+      summary: "Approved reusable guidance for a common company workflow.",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+      portfolioState: "ACTIVE",
+      releaseId: `b9000000-0000-4000-8000-${number}`,
+      versionLabel: "1.0.0",
+      releaseDigest: String(index).padStart(64, "0"),
+      availability: "AVAILABLE",
+      releasedAt: new Date(Date.UTC(2026, 6, 28 - index)).toISOString(),
+    }
+  })
 }
 
 async function skillGovernanceHarness(page: Page) {

@@ -1,7 +1,7 @@
 import {
-  BookOpenCheck,
   Boxes,
   FileArchive,
+  ListChecks,
   Sparkles,
   type LucideIcon,
 } from "lucide-react"
@@ -30,7 +30,7 @@ export const ASSET_TYPE_META: Record<
   WORK_INSTRUCTION: {
     label: "Work instruction",
     shortLabel: "Instruction",
-    icon: BookOpenCheck,
+    icon: ListChecks,
     tone: "bg-status-warning-surface text-status-warning-content",
   },
   CAPABILITY_PACK: {

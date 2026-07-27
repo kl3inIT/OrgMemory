@@ -298,7 +298,8 @@ class AssetRegistryCoordinator {
                             release.getId(),
                             release.getVersionLabel(),
                             release.getDigest(),
-                            releaseAvailability);
+                            releaseAvailability,
+                            release.getReleasedAt());
                 });
     }
 

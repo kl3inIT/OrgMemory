@@ -24,6 +24,7 @@ import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -81,7 +82,8 @@ class AssistantAssetToolServiceTests {
                         releaseId,
                         "1.0.0",
                         "a".repeat(64),
-                        AssetAvailability.AVAILABLE)));
+                        AssetAvailability.AVAILABLE,
+                        Instant.parse("2026-07-28T00:00:00Z"))));
 
         var result = service.recommend(
                 actor, "triage", AssetType.PROMPT_TEMPLATE);
