@@ -32,6 +32,24 @@ const SOURCE_REASONS: Record<string, Record<string, string>> = {
       "The key authenticates but Drive returned nothing it may read. Share a folder or a shared drive with the service account.",
     insufficient_scopes: "The key authenticates but was not granted the Drive scope.",
   },
+  github: {
+    invalid_key:
+      "This does not read as a GitHub App credential with appId, installationId, and a downloaded RSA private key.",
+    organization_installation_required:
+      "Install this GitHub App on an organization; user installations are not supported.",
+    issues_read_required: "Grant the GitHub App read access to Issues.",
+    no_admissible_repositories:
+      "The installation has no selected private organization repository with Issues enabled.",
+    repository_not_admissible:
+      "Only private organization repositories with Issues enabled can be mirrored safely.",
+    invalid_source_config:
+      "The saved repository scope is malformed. Save the connection settings again before crawling.",
+    github_http_401: "GitHub rejected the app or installation token.",
+    github_http_403:
+      "GitHub authenticated the app but refused a repository, collaborator, or issue request.",
+    github_http_404:
+      "The installation or selected repository no longer exists or is no longer visible to the app.",
+  },
 }
 
 export function probeReason(sourceSystem: string, result: AdminConnectorProbeResponse) {

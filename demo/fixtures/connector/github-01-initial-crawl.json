@@ -1,0 +1,81 @@
+{
+  "organizationId": "e0000000-0000-4000-8000-000000000001",
+  "sourceSystem": "github",
+  "sourceConnectionKey": "42",
+  "knowledgeSpaceId": "e0000000-0000-4000-8000-000000000003",
+  "actorUserId": "e0000000-0000-4000-8000-000000000004",
+  "crawlCursor": "github-cursor-01",
+  "componentStates": [
+    { "component": "CONTENT", "cursor": "github-content-01", "captureStatus": "COMPLETE", "incompleteReason": null },
+    { "component": "PERMISSION", "cursor": "github-permission-01", "captureStatus": "COMPLETE", "incompleteReason": null },
+    { "component": "MEMBERSHIP", "cursor": "github-membership-01", "captureStatus": "COMPLETE", "incompleteReason": null }
+  ],
+  "versions": {
+    "content": "content/v1",
+    "identity": "identity/v2",
+    "membership": "membership/v1",
+    "permission": "permissions/v1"
+  },
+  "identities": [
+    {
+      "kind": "SOURCE_USER",
+      "nativePrincipalId": "101",
+      "email": null,
+      "displayName": "mai",
+      "ssoVerified": false,
+      "idpIssuer": null,
+      "idpSubject": null
+    },
+    {
+      "kind": "SOURCE_USER",
+      "nativePrincipalId": "102",
+      "email": null,
+      "displayName": "lan",
+      "ssoVerified": false,
+      "idpIssuer": null,
+      "idpSubject": null
+    },
+    {
+      "kind": "SOURCE_GROUP",
+      "nativePrincipalId": "repository:77:readers",
+      "email": null,
+      "displayName": "acme/platform readers",
+      "ssoVerified": false,
+      "idpIssuer": null,
+      "idpSubject": null
+    }
+  ],
+  "memberships": [
+    {
+      "groupNativePrincipalId": "repository:77:readers",
+      "captureStatus": "COMPLETE",
+      "incompleteReason": null,
+      "members": [
+        { "kind": "SOURCE_USER", "nativePrincipalId": "101" },
+        { "kind": "SOURCE_USER", "nativePrincipalId": "102" }
+      ]
+    }
+  ],
+  "contents": [
+    {
+      "externalObjectId": "77__201",
+      "title": "acme/platform #9 Ship source authorization",
+      "body": "Roll out the authorization ledger with stable repository reader membership.",
+      "contentRevision": "github-rev-1"
+    }
+  ],
+  "permissions": [
+    {
+      "externalObjectId": "77__201",
+      "grants": [
+        {
+          "principalKind": "SOURCE_GROUP",
+          "principalNativeId": "repository:77:readers",
+          "gate": "ALLOW"
+        }
+      ]
+    }
+  ],
+  "tombstones": [],
+  "crawlComplete": true
+}

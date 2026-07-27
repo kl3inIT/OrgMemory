@@ -107,6 +107,30 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
       },
     ],
   },
+  github: {
+    fields: [
+      {
+        type: "scopes",
+        name: "repositoryIds",
+        label: "Repositories",
+        description:
+          "Private organization repositories selected for this installation. Leave empty to crawl every admissible selected repository.",
+        emptyMeans:
+          "Nothing chosen means every private organization repository selected for the GitHub App installation.",
+      },
+    ],
+    advanced: [
+      {
+        type: "number",
+        name: "maxItemsPerRepository",
+        label: "Issues and pull requests per repository",
+        default: 500,
+        min: 1,
+        description:
+          "A bound on one content crawl. Hitting it marks content incomplete without weakening the repository ACL or membership snapshot.",
+      },
+    ],
+  },
 }
 
 /** Every field on a descriptor, in the order they are rendered. */

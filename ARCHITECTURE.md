@@ -120,8 +120,8 @@ uploads, with source ACL evidence resolved through the principal mappings. Each
 object records `source_system` (which system it came from, governed by the
 connector registry rather than a check constraint) separately from `acl_authority`
 (`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
-rules applies), so adding a connector needs no migration — Slack and Google Drive
-are both adapters contributing a profile, a batch source and a credential probe,
+rules applies), so adding a connector needs no migration — Slack, Google Drive,
+and GitHub are adapters contributing a profile, a batch source and a credential probe,
 with no source named in `core` or in the API. An adapter that cannot establish an
 object's source ACL leaves that object out of its payload rather than sending an
 empty grant list, because the ledger seals an empty list as the source stating
@@ -350,7 +350,7 @@ carries the authority, generation, and capture time it was decided from. The
 explanation path reads the relationship port directly so an unanswered check stays
 distinguishable from a refusal; `EffectiveAuthorizationService` continues to
 collapse the two for enforcement. Administrative tuple writes are confined to
-`organization` and `role` objects: Slack and Drive own the ACL for connected
+`organization` and `role` objects: Slack, Drive, and GitHub own the ACL for connected
 content, and a second writer would let the two diverge.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API

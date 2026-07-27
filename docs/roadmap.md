@@ -32,9 +32,14 @@ belongs in one active increment.
   variables: an encrypted write-only credential, a source catalogue showing what
   this deployment can ingest, one endpoint per operation rather than per source,
   and a per-connection page reporting what each crawl actually did.
-- Two source adapters — Slack and Google Drive — proving the connector shape
+- Three source adapters — Slack, Google Drive, and GitHub — proving the connector shape
   holds: an adapter contributes a profile, a batch source and a credential probe,
   and nothing in `core`, the API or the schema learns its name.
+- GitHub repository authorization mirrored through one effective-reader source
+  group per private organization repository. Direct, team-derived, organization,
+  owner, and enterprise access paths converge through GitHub's effective
+  collaborators, and a membership-only refresh revokes retrieval without
+  rotating ACL evidence or rebuilding content projections.
 - Source authorization core V2: typed provider-native principal IDs,
   independently versioned identity/membership/permission payloads, immutable
   complete membership snapshots with an atomic active head, incomplete evidence
