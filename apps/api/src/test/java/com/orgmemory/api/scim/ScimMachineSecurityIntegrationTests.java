@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.web.context.HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -78,8 +79,14 @@ class ScimMachineSecurityIntegrationTests {
 
     @BeforeEach
     void seedTenantAndDisabledConnection() {
-        jdbc.update("DELETE FROM provisioning_credentials");
-        jdbc.update("DELETE FROM provisioning_connections");
+        jdbc.update(
+                "DELETE FROM provisioning_credentials WHERE organization_id IN (?, ?)",
+                ORGANIZATION_ID,
+                OTHER_ORGANIZATION_ID);
+        jdbc.update(
+                "DELETE FROM provisioning_connections WHERE organization_id IN (?, ?)",
+                ORGANIZATION_ID,
+                OTHER_ORGANIZATION_ID);
         jdbc.update(
                 "DELETE FROM app_users WHERE organization_id IN (?, ?)",
                 ORGANIZATION_ID,
@@ -126,6 +133,14 @@ class ScimMachineSecurityIntegrationTests {
                 .andExpect(jsonPath("$.patch.supported").value(false))
                 .andExpect(jsonPath("$.filter.supported").value(false))
                 .andExpect(jsonPath("$.bulk.supported").value(false));
+        Instant firstUsedAt = jdbc.queryForObject(
+                """
+                SELECT last_used_at
+                FROM provisioning_credentials
+                WHERE public_token_id = ?
+                """,
+                Instant.class,
+                tokenCodec.parse(token).publicId());
         mvc.perform(get("/scim/v2/ResourceTypes")
                         .header(HttpHeaders.AUTHORIZATION, bearer(token)))
                 .andExpect(status().isOk())
@@ -136,13 +151,13 @@ class ScimMachineSecurityIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.Resources", hasSize(0)));
 
-        assertFalse(jdbc.queryForObject(
+        assertEquals(firstUsedAt, jdbc.queryForObject(
                 """
-                SELECT last_used_at IS NULL
+                SELECT last_used_at
                 FROM provisioning_credentials
                 WHERE public_token_id = ?
                 """,
-                Boolean.class,
+                Instant.class,
                 tokenCodec.parse(token).publicId()));
     }
 
@@ -166,6 +181,15 @@ class ScimMachineSecurityIntegrationTests {
         session.setAttribute(SPRING_SECURITY_CONTEXT_KEY, context);
         mvc.perform(get("/scim/v2/ServiceProviderConfig").session(session))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void oversizedRequestIsRejectedBeforeBearerAuthentication() throws Exception {
+        mvc.perform(post("/scim/v2/Users")
+                        .content(new byte[256 * 1024 + 1]))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(content().contentTypeCompatibleWith(ScimErrorWriter.MEDIA_TYPE))
+                .andExpect(header().exists("X-Request-ID"));
     }
 
     @Test

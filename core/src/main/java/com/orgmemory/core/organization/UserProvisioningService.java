@@ -178,6 +178,11 @@ public class UserProvisioningService {
                     "directory-user.organization-invalid",
                     "The directory user organization is not available");
         }
+        if (command.email() == null || command.email().isBlank()) {
+            throw new BusinessValidationException(
+                    "directory-user.email-required",
+                    "The directory user email is required");
+        }
         String normalized = UserInvitation.normalizeEmail(command.email());
         Optional<UserInvitation> openInvitation =
                 invitations.findOpenByOrganizationIdAndEmailForUpdate(

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
@@ -15,11 +16,11 @@ class ScimTokenCodec {
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
 
     private final SecureRandom random = new SecureRandom();
-    private final byte[] verifierKey;
+    private final Map<Integer, byte[]> verifierKeys;
     private final int keyVersion;
 
     ScimTokenCodec(ScimSecurityProperties properties) {
-        verifierKey = properties.decodedVerifierKey();
+        verifierKeys = properties.decodedVerifierKeys();
         keyVersion = properties.currentKeyVersion();
     }
 
@@ -33,7 +34,7 @@ class ScimTokenCodec {
         return new IssuedToken(
                 PREFIX + publicId + "." + secret,
                 publicId,
-                digest(secret),
+                digest(secret, verifierKeys.get(keyVersion)),
                 keyVersion);
     }
 
@@ -57,15 +58,16 @@ class ScimTokenCodec {
     }
 
     boolean matches(String secret, String expectedDigest, int verifierKeyVersion) {
-        if (verifierKeyVersion != keyVersion) {
+        byte[] verifierKey = verifierKeys.get(verifierKeyVersion);
+        if (verifierKey == null) {
             return false;
         }
         return MessageDigest.isEqual(
-                digest(secret).getBytes(StandardCharsets.US_ASCII),
+                digest(secret, verifierKey).getBytes(StandardCharsets.US_ASCII),
                 expectedDigest.getBytes(StandardCharsets.US_ASCII));
     }
 
-    private String digest(String secret) {
+    private static String digest(String secret, byte[] verifierKey) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(verifierKey, "HmacSHA256"));

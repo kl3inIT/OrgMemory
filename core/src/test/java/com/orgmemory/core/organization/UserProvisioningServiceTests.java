@@ -325,4 +325,16 @@ class UserProvisioningServiceTests {
         assertTrue(result.user().isDirectoryManaged());
         assertFalse(result.user().isActive());
     }
+
+    @Test
+    void directoryProvisioningRejectsABlankEmailWithADomainValidationError() {
+        var failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.provisionFromDirectory(
+                        new UserProvisioningService.DirectoryUserCommand(
+                                ORGANIZATION_ID, "  ", "Directory User", true)));
+
+        assertEquals("directory-user.email-required", failure.code());
+        verify(users, never()).findByOrganizationIdAndEmailIgnoreCase(any(), anyString());
+    }
 }

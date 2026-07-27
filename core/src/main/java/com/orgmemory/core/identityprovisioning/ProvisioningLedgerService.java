@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -180,18 +181,25 @@ public class ProvisioningLedgerService {
             throw new ProvisioningConflictException(
                     "The application user is already managed by SCIM");
         }
-        ScimUserResource resource = users.save(new ScimUserResource(
-                command.organizationId(),
-                command.connectionId(),
-                actor.user().getId(),
-                command.externalId(),
-                command.userName(),
-                command.email(),
-                command.workforceKey(),
-                command.displayName(),
-                command.givenName(),
-                command.familyName(),
-                command.directoryActive()));
+        ScimUserResource resource;
+        try {
+            resource = users.saveAndFlush(new ScimUserResource(
+                    command.organizationId(),
+                    command.connectionId(),
+                    actor.user().getId(),
+                    command.externalId(),
+                    command.userName(),
+                    command.email(),
+                    command.workforceKey(),
+                    command.displayName(),
+                    command.givenName(),
+                    command.familyName(),
+                    command.directoryActive()));
+        } catch (DataIntegrityViolationException concurrentConflict) {
+            throw new ProvisioningConflictException(
+                    "The application user is already managed by SCIM",
+                    concurrentConflict);
+        }
         return new UserResourceRegistration(
                 resource.getId(),
                 actor.user().getId(),
@@ -344,6 +352,7 @@ public class ProvisioningLedgerService {
             Instant expiresAt,
             Instant overlapEndsAt,
             Instant revokedAt,
+            Instant lastUsedAt,
             ProvisioningOperationalState connectionState) {
 
         private static CredentialAuthentication from(
@@ -360,6 +369,7 @@ public class ProvisioningLedgerService {
                     view.expiresAt(),
                     view.overlapEndsAt(),
                     view.revokedAt(),
+                    view.lastUsedAt(),
                     view.connectionState());
         }
     }

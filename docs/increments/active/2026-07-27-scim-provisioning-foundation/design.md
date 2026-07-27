@@ -119,6 +119,12 @@ secret material. Verification uses a deployment-managed keyed verifier (or an
 equivalently reviewed construction), a constant-time comparison, and per-token
 rate limits. The raw token is shown once.
 
+Verifier-key rotation increments `ORGMEMORY_SCIM_VERIFIER_KEY_VERSION`, installs
+the new key in `ORGMEMORY_SCIM_VERIFIER_KEY`, and temporarily lists accepted old
+keys in `ORGMEMORY_SCIM_PREVIOUS_VERIFIER_KEYS` as comma-separated
+`version=base64url` entries. Old entries are removed after every credential
+using that version has expired, been rotated, or been revoked.
+
 ### `scim_user_resources`
 
 - stable SCIM resource UUID distinct from `app_users.id`;
@@ -190,7 +196,10 @@ A highest-priority security chain matches `/scim/v2/**`:
 - tenant and connection derived only from the verified credential;
 - TLS required outside test/development;
 - bounded body, page count, filter depth/nodes, PATCH operations, and group size;
-- per-connection rate limiting with `429` and `Retry-After`;
+- per-connection node-local rate limiting with `429` and `Retry-After`;
+- a trusted ingress or API gateway global rate limit for multi-replica
+  deployments, because application-local windows are defense in depth rather
+  than a distributed quota;
 - no request-body or PII-bearing query logging.
 
 Authentication failures are generic. A credential from organization A cannot

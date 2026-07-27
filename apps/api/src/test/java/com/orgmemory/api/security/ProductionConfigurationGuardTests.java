@@ -78,6 +78,7 @@ class ProductionConfigurationGuardTests {
                 () -> new ScimSecurityProperties(
                         null,
                         1,
+                        "",
                         true,
                         DataSize.ofKilobytes(256),
                         120,
@@ -88,6 +89,7 @@ class ProductionConfigurationGuardTests {
                 () -> new ScimSecurityProperties(
                         encoded,
                         0,
+                        "",
                         true,
                         DataSize.ofKilobytes(256),
                         120,
@@ -242,6 +244,7 @@ class ProductionConfigurationGuardTests {
         return new ScimSecurityProperties(
                 Base64.getUrlEncoder().withoutPadding().encodeToString(key),
                 1,
+                "",
                 requireTls,
                 DataSize.ofKilobytes(256),
                 120,

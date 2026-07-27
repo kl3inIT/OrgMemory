@@ -22,9 +22,16 @@ class ScimSecurityConfiguration {
             ScimAuthenticationProvider authenticationProvider,
             ScimSecurityProperties properties)
             throws Exception {
+        var rateLimiter = new ScimRequestRateLimiter(properties);
         var entryPoint = (org.springframework.security.web.AuthenticationEntryPoint)
-                (request, response, failure) ->
-                        ScimErrorWriter.write(response, 401, "Invalid or missing credential");
+                (request, response, failure) -> {
+                    if (!rateLimiter.consumeAuthenticationFailure(request)) {
+                        response.setHeader(org.springframework.http.HttpHeaders.RETRY_AFTER, "60");
+                        ScimErrorWriter.write(response, 429, "Request rate exceeded");
+                        return;
+                    }
+                    ScimErrorWriter.write(response, 401, "Invalid or missing credential");
+                };
         var bearer = new BearerTokenAuthenticationFilter(
                 new ProviderManager(authenticationProvider));
         bearer.setAuthenticationEntryPoint(entryPoint);
@@ -47,8 +54,11 @@ class ScimSecurityConfiguration {
                         .accessDeniedHandler((request, response, failure) ->
                                 ScimErrorWriter.write(response, 403, "Insufficient scope")))
                 .addFilterAt(bearer, BearerTokenAuthenticationFilter.class)
-                .addFilterAfter(
+                .addFilterBefore(
                         new ScimRequestGuardFilter(properties),
+                        BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(
+                        new ScimConnectionRateLimitFilter(rateLimiter),
                         BearerTokenAuthenticationFilter.class);
         return http.build();
     }

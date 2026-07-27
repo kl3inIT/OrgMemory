@@ -23,6 +23,30 @@ final class ScimErrorWriter {
     }
 
     private static String escape(String value) {
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+        StringBuilder escaped = new StringBuilder(value.length() + 16);
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '"' -> escaped.append("\\\"");
+                case '\\' -> escaped.append("\\\\");
+                case '\b' -> escaped.append("\\b");
+                case '\f' -> escaped.append("\\f");
+                case '\n' -> escaped.append("\\n");
+                case '\r' -> escaped.append("\\r");
+                case '\t' -> escaped.append("\\t");
+                default -> {
+                    if (character < 0x20) {
+                        escaped.append("\\u");
+                        escaped.append(Character.forDigit((character >> 12) & 0xf, 16));
+                        escaped.append(Character.forDigit((character >> 8) & 0xf, 16));
+                        escaped.append(Character.forDigit((character >> 4) & 0xf, 16));
+                        escaped.append(Character.forDigit(character & 0xf, 16));
+                    } else {
+                        escaped.append(character);
+                    }
+                }
+            }
+        }
+        return escaped.toString();
     }
 }

@@ -63,6 +63,11 @@ function CredentialRow({
   const rotate = useMutation(rotateProvisioningCredentialMutation())
   const revoke = useMutation(revokeProvisioningCredentialMutation())
   const revoked = Boolean(credential.revokedAt)
+  const now = Date.now()
+  const expired =
+    !revoked &&
+    ((credential.overlapEndsAt && new Date(credential.overlapEndsAt).getTime() <= now) ||
+      (credential.expiresAt && new Date(credential.expiresAt).getTime() <= now))
 
   async function rotateCredential() {
     if (!window.confirm("Rotate this token? The old token will remain valid only during the overlap window.")) {
@@ -101,14 +106,16 @@ function CredentialRow({
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <code className="truncate text-xs font-medium">{credential.publicTokenId}</code>
-          <Badge variant={revoked ? "outline" : "secondary"}>{revoked ? "Revoked" : "Active"}</Badge>
+          <Badge variant={revoked || expired ? "outline" : "secondary"}>
+            {revoked ? "Revoked" : expired ? "Expired" : "Active"}
+          </Badge>
         </div>
         <p className="text-xs text-muted-foreground">
           Last used {formatTimestamp(credential.lastUsedAt)} · Created{" "}
           {formatTimestamp(credential.createdAt)}
         </p>
       </div>
-      {!revoked ? (
+      {!revoked && !expired ? (
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

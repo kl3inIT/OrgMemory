@@ -11,4 +11,12 @@ public final class ProvisioningConflictException extends BusinessException {
                 "provisioning.resource-conflict",
                 message);
     }
+
+    public ProvisioningConflictException(String message, Throwable cause) {
+        super(
+                BusinessErrorCategory.CONFLICT,
+                "provisioning.resource-conflict",
+                message,
+                cause);
+    }
 }

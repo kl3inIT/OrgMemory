@@ -109,6 +109,7 @@ class ProvisioningCredential extends BaseEntity {
                 expiresAt,
                 overlapEndsAt,
                 revokedAt,
+                lastUsedAt,
                 connectionState);
     }
 
@@ -191,6 +192,7 @@ class ProvisioningCredential extends BaseEntity {
             Instant expiresAt,
             Instant overlapEndsAt,
             Instant revokedAt,
+            Instant lastUsedAt,
             ProvisioningOperationalState connectionState) {
     }
 }
