@@ -76,6 +76,10 @@ belongs in one active increment.
 - [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md):
   PR #44 is merged and its repository/CI scope is shipped; the increment remains
   active until the guarded shared-PostgreSQL cutover and live runtime gates pass.
+- [Native identity provisioning program](increments/active/README.md#native-identity-provisioning-program):
+  ADR 0016 is accepted and H1 implementation is active in an isolated worktree.
+  The first code boundary is tenant identity hardening; native SCIM remains
+  disabled until its staged security and live gates pass.
 
 ## Next — Execution Order
 
@@ -88,13 +92,22 @@ belongs in one active increment.
    comparisons.
 3. Run the Slack live proof. Keep live credentials outside the repository and
    capture only the reusable runbook and redacted evidence.
-4. Finish what the admin permission surface left open: reachable containers
+4. Execute the accepted
+   [Identity tenant hardening](increments/active/2026-07-27-identity-tenant-hardening/plan.md).
+   Do not expose SCIM while global/cross-tenant identity and concurrent
+   issuer/subject binding defects remain.
+5. Continue the dependency-ordered
+   [native identity provisioning program](increments/active/README.md#native-identity-provisioning-program):
+   machine foundation, Users private beta, inert Directory Groups, optional
+   explicit authorization mapping, then vendor/operations certification.
+6. Finish what the admin permission surface left open: reachable containers
    with their ACL authority, generation and capture time; a permission audit
    event per role mutation; resolved names and a resource picker instead of
-   pasted UUIDs; and relabelling `app_users.role`, which still reads as a grant
-   while granting nothing. The gaps are listed in
+   pasted UUIDs; and relabelling `app_users.role`, which reads as an OpenFGA
+   grant even though it is a separate business/classification attribute. The
+   gaps are listed in
    [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
-5. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
+7. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
    but not retired, and asset movement still needs an explicit retention and
    authorization contract.
 ## Pilot Hardening
@@ -137,9 +150,12 @@ belongs in one active increment.
 ## Later, Only With Evidence
 
 Screenpipe capture, controlled SOP effectivity, Skill installation, executable
-Workflow/Agent/Tool packages, Airflow, Kafka, SCIM, more providers/connectors,
+Workflow/Agent/Tool packages, Airflow, Kafka, more providers/connectors,
 mutation MCP tools, and multi-agent orchestration require measured need or the
-completed browser-native Asset POC. OpenSearch and Neo4j adapters are already in
-the full LightRAG port program; production backend selection is still
-evidence-driven. Search and graph remain rebuildable projections behind stable
-ledger/permission contracts.
+completed browser-native Asset POC. SCIM Bulk/sort/ETag, nested directory
+groups, multi-organization membership for one OIDC subject, and Keycloak preview
+SCIM as a production adapter remain evidence-gated follow-ons to the native
+provisioning program. OpenSearch and Neo4j adapters are already in the full
+LightRAG port program; production backend selection is still evidence-driven.
+Search and graph remain rebuildable projections behind stable ledger/permission
+contracts.
