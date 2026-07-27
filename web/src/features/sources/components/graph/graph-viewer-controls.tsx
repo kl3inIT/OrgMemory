@@ -1,4 +1,4 @@
-import { FullScreenControl, useCamera, useSigma } from "@react-sigma/core"
+import { useCamera, useFullScreen, useSigma } from "@react-sigma/core"
 import { useLayoutCirclepack } from "@react-sigma/layout-circlepack"
 import { useLayoutCircular } from "@react-sigma/layout-circular"
 import { useLayoutRandom } from "@react-sigma/layout-random"
@@ -468,20 +468,22 @@ function GraphCameraControls() {
       />
       <IconControl label="Zoom in" icon={Plus} onClick={() => zoomIn()} />
       <IconControl label="Zoom out" icon={Minus} onClick={() => zoomOut()} />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="contents">
-            <FullScreenControl
-              className="!h-8 !w-8 !rounded-none !border-0 !bg-transparent !shadow-none"
-            >
-              <Expand className="size-4" />
-              <Minimize className="size-4" />
-            </FullScreenControl>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="right">Full screen</TooltipContent>
-      </Tooltip>
+      <GraphFullscreenControl />
     </>
+  )
+}
+
+function GraphFullscreenControl() {
+  const { isFullScreen, toggle } = useFullScreen()
+
+  if (!document.fullscreenEnabled) return null
+
+  return (
+    <IconControl
+      label={isFullScreen ? "Exit full screen" : "Enter full screen"}
+      icon={isFullScreen ? Minimize : Expand}
+      onClick={toggle}
+    />
   )
 }
 

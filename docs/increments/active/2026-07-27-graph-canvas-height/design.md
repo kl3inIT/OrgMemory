@@ -26,8 +26,15 @@ Do not:
 Those alternatives either break the full workspace layout or conceal an invalid
 container rather than repairing it.
 
+The graph toolbar also uses the headless React Sigma `useFullScreen` behavior
+through OrgMemory's existing `IconControl`. React Sigma's prebuilt
+`FullScreenControl` applies `className` to an outer wrapper rather than its
+native button, so it cannot share the size, theme, hover, focus, and tooltip
+contract of the surrounding shadcn controls.
+
 ## Verification
 
 - protect the shared canvas layout contract with the focused Vitest test;
 - run web lint, typecheck, unit tests, and production build;
-- verify the populated graph in a real browser with no Sigma console error.
+- verify the populated graph and aligned fullscreen control in a real browser
+  with no Sigma console error.
