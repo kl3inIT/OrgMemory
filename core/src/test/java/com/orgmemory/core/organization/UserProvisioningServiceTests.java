@@ -31,7 +31,7 @@ class UserProvisioningServiceTests {
     private AppUserRepository users;
     private OrganizationRepository organizations;
     private DepartmentRepository departments;
-    private ExternalIdentityRepository identities;
+    private ExternalIdentityBindingService identityBindings;
     private UserInvitationRepository invitations;
     private UserProvisioningService service;
 
@@ -40,16 +40,17 @@ class UserProvisioningServiceTests {
         users = mock(AppUserRepository.class);
         organizations = mock(OrganizationRepository.class);
         departments = mock(DepartmentRepository.class);
-        identities = mock(ExternalIdentityRepository.class);
+        identityBindings = mock(ExternalIdentityBindingService.class);
         invitations = mock(UserInvitationRepository.class);
         when(organizations.existsById(ORGANIZATION_ID)).thenReturn(true);
         when(departments.existsByIdAndOrganizationId(DEPARTMENT_ID, ORGANIZATION_ID))
                 .thenReturn(true);
         when(users.existsByIdAndOrganizationId(INVITER_ID, ORGANIZATION_ID)).thenReturn(true);
+        when(identityBindings.findUserId(anyString(), anyString())).thenReturn(Optional.empty());
         when(users.save(any())).thenAnswer(call -> call.getArgument(0));
         when(invitations.save(any())).thenAnswer(call -> call.getArgument(0));
         service = new UserProvisioningService(
-                users, organizations, departments, identities, invitations);
+                users, organizations, departments, identityBindings, invitations);
     }
 
     private UserInvitation invitation(UUID organizationId, String email) {
@@ -58,7 +59,7 @@ class UserProvisioningServiceTests {
 
     @Test
     void anInvitedAddressBecomesAUserBoundToItsSubject() {
-        when(invitations.findOpenByEmail("newcomer@example.com"))
+        when(invitations.findOpenByEmailForUpdate("newcomer@example.com"))
                 .thenReturn(List.of(invitation(ORGANIZATION_ID, "newcomer@example.com")));
         when(users.findByOrganizationIdAndEmailIgnoreCase(
                         ORGANIZATION_ID, "newcomer@example.com"))
@@ -72,33 +73,33 @@ class UserProvisioningServiceTests {
         assertEquals(UserRole.EMPLOYEE, provisioned.get().getRole());
         verify(users).findByOrganizationIdAndEmailIgnoreCase(
                 ORGANIZATION_ID, "newcomer@example.com");
-        verify(identities).linkIfAbsent(any(), eq(provisioned.get().getId()), eq(ISSUER), eq(SUBJECT));
+        verify(identityBindings).bind(eq(provisioned.get().getId()), eq(ISSUER), eq(SUBJECT));
     }
 
     @Test
     void anAddressWithNoInvitationProvisionsNothing() {
-        when(invitations.findOpenByEmail(anyString())).thenReturn(List.of());
+        when(invitations.findOpenByEmailForUpdate(anyString())).thenReturn(List.of());
 
         assertTrue(service.provisionFromInvitation(ISSUER, SUBJECT, "stranger@example.com").isEmpty());
         verify(users, never()).save(any());
-        verify(identities, never()).linkIfAbsent(any(), any(), anyString(), anyString());
+        verify(identityBindings, never()).bind(any(), anyString(), anyString());
     }
 
     @Test
     void anAddressExpectedByTwoOrganizationsProvisionsNothing() {
-        when(invitations.findOpenByEmail("shared@example.com")).thenReturn(List.of(
+        when(invitations.findOpenByEmailForUpdate("shared@example.com")).thenReturn(List.of(
                 invitation(ORGANIZATION_ID, "shared@example.com"),
                 invitation(OTHER_ORGANIZATION_ID, "shared@example.com")));
 
         assertTrue(service.provisionFromInvitation(ISSUER, SUBJECT, "shared@example.com").isEmpty());
         verify(users, never()).save(any());
-        verify(identities, never()).linkIfAbsent(any(), any(), anyString(), anyString());
+        verify(identityBindings, never()).bind(any(), anyString(), anyString());
     }
 
     @Test
     void anExistingAccountIsLinkedRatherThanDuplicated() {
         var existing = new AppUser(ORGANIZATION_ID, DEPARTMENT_ID, "Linh", "linh@example.com", UserRole.EMPLOYEE);
-        when(invitations.findOpenByEmail("linh@example.com"))
+        when(invitations.findOpenByEmailForUpdate("linh@example.com"))
                 .thenReturn(List.of(invitation(ORGANIZATION_ID, "linh@example.com")));
         when(users.findByOrganizationIdAndEmailIgnoreCase(
                         ORGANIZATION_ID, "linh@example.com"))
@@ -108,13 +109,13 @@ class UserProvisioningServiceTests {
 
         assertEquals(existing.getId(), provisioned.orElseThrow().getId());
         verify(users, never()).save(any());
-        verify(identities).linkIfAbsent(any(), eq(existing.getId()), eq(ISSUER), eq(SUBJECT));
+        verify(identityBindings).bind(eq(existing.getId()), eq(ISSUER), eq(SUBJECT));
     }
 
     @Test
     void anAcceptedInvitationIsClosedAndCannotBeUsedAgain() {
         var open = invitation(ORGANIZATION_ID, "newcomer@example.com");
-        when(invitations.findOpenByEmail("newcomer@example.com")).thenReturn(List.of(open));
+        when(invitations.findOpenByEmailForUpdate("newcomer@example.com")).thenReturn(List.of(open));
         when(users.findByOrganizationIdAndEmailIgnoreCase(
                         ORGANIZATION_ID, "newcomer@example.com"))
                 .thenReturn(Optional.empty());
@@ -129,7 +130,7 @@ class UserProvisioningServiceTests {
     void aSignInWithoutAnAddressProvisionsNothing() {
         assertTrue(service.provisionFromInvitation(ISSUER, SUBJECT, null).isEmpty());
         assertTrue(service.provisionFromInvitation(ISSUER, SUBJECT, "  ").isEmpty());
-        verify(invitations, never()).findOpenByEmail(anyString());
+        verify(invitations, never()).findOpenByEmailForUpdate(anyString());
     }
 
     @Test

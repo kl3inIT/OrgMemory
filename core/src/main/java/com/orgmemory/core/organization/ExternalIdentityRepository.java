@@ -13,6 +13,8 @@ public interface ExternalIdentityRepository extends JpaRepository<ExternalIdenti
 
     Optional<ExternalIdentity> findByIssuerAndSubject(String issuer, String subject);
 
+    Optional<ExternalIdentity> findByAppUserIdAndIssuer(UUID appUserId, String issuer);
+
     /** Which users have a linked identity and can therefore actually sign in. */
     List<ExternalIdentity> findByAppUserIdIn(Collection<UUID> appUserIds);
 
@@ -25,7 +27,7 @@ public interface ExternalIdentityRepository extends JpaRepository<ExternalIdenti
             )
             ON CONFLICT DO NOTHING
             """, nativeQuery = true)
-    int linkIfAbsent(
+    int insertIfAbsent(
             @Param("id") UUID id,
             @Param("appUserId") UUID appUserId,
             @Param("issuer") String issuer,

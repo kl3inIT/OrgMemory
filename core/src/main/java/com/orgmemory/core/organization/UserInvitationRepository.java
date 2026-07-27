@@ -1,9 +1,11 @@
 package com.orgmemory.core.organization;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,13 +18,14 @@ public interface UserInvitationRepository extends JpaRepository<UserInvitation, 
      * nothing else — so the invitation is what decides which organization the person joins. The
      * partial unique index keeps at most one open row per address per organization.
      */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT invitation FROM UserInvitation invitation
             WHERE lower(invitation.email) = lower(:email)
               AND invitation.acceptedAt IS NULL
               AND invitation.revokedAt IS NULL
             """)
-    List<UserInvitation> findOpenByEmail(@Param("email") String email);
+    List<UserInvitation> findOpenByEmailForUpdate(@Param("email") String email);
 
     List<UserInvitation> findByOrganizationIdOrderByEmail(UUID organizationId);
 
