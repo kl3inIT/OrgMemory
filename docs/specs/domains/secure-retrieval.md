@@ -37,9 +37,11 @@ Every classification decision is still intersected with tenant, both source ACL
 snapshots, and OrgMemory policy.
 
 ACL snapshots are immutable and sealed. A compare-and-set head selects the
-current generation; stale or absent current evidence fails closed. The current
-head expires after 24 hours while the ingestion snapshot remains a historical
-ceiling. Audit records include request/decision context and exact snapshot IDs;
+current generation; superseded or absent current evidence fails closed. The
+latest sealed `COMPLETE` source ACL remains authoritative after its freshness
+timestamp; expiry is connector-health evidence rather than a universal
+authorization denial, consistently in canonical retrieval and PostgreSQL
+GraphRAG. Audit records include request/decision context and exact snapshot IDs;
 raw query text is represented only by a hash.
 
 OIDC identities resolve only through an explicit issuer/subject binding; email

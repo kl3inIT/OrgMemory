@@ -1,21 +1,23 @@
 package com.orgmemory.core.knowledge;
 
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Remembers how far each source connection has been crawled, so a driver that restarts
- * mid-run does not replay from the beginning of whatever the producer still holds.
+ * Remembers the last observed and last successfully reconciled cursor for every component of
+ * each source connection, so a driver restart does not replay unrelated work.
  *
  * <p>A checkpoint is deliberately not a correctness guarantee. Re-ingesting a batch is safe —
  * content materializes once per revision and ACL generations reconcile deterministically — so
- * this exists to avoid pointless work, not to prevent harm. It records only the connection's
- * most recent cursor rather than every cursor ever seen, because that is what a resuming
- * producer needs and what a growing ledger of dead cursors does not give.
+ * this exists to avoid pointless work, not to prevent harm. It retains one row per component,
+ * not a growing history of dead cursors.
  */
 @Service
 public class ConnectorCrawlCheckpointService {
@@ -26,60 +28,99 @@ public class ConnectorCrawlCheckpointService {
         this.checkpoints = checkpoints;
     }
 
-    /** Whether this exact cursor is the one the connection last completed. */
+    /** Components whose exact source observation has not yet been handled. */
     @Transactional(readOnly = true)
-    public boolean isCompleted(ConnectorCrawlBatch batch) {
+    public Set<ConnectorSyncComponent> pendingComponents(ConnectorCrawlBatch batch) {
         Objects.requireNonNull(batch, "batch");
-        return find(batch)
-                .map(checkpoint -> checkpoint.getCrawlCursor().equals(batch.crawlCursor()))
-                .orElse(false);
+        EnumSet<ConnectorSyncComponent> pending = EnumSet.noneOf(ConnectorSyncComponent.class);
+        for (ConnectorComponentState state : batch.componentStates()) {
+            boolean observed = find(batch, state.component())
+                    .map(checkpoint -> checkpoint.getObservedCursor().equals(state.cursor()))
+                    .orElse(false);
+            if (!observed) {
+                pending.add(state.component());
+            }
+        }
+        return Set.copyOf(pending);
     }
 
-    /** The cursor a connection last completed, for a producer that resumes from it. */
+    /** The last successfully reconciled cursor for one component. */
     @Transactional(readOnly = true)
     public Optional<String> lastCompletedCursor(
-            UUID organizationId, String sourceSystem, String sourceConnectionKey) {
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            ConnectorSyncComponent component) {
         return checkpoints
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
-                        organizationId, sourceSystem.trim(), sourceConnectionKey.trim())
-                .map(ConnectorCrawlCheckpoint::getCrawlCursor);
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndComponent(
+                        organizationId,
+                        sourceSystem.trim(),
+                        sourceConnectionKey.trim(),
+                        component)
+                .map(ConnectorCrawlCheckpoint::toView)
+                .map(ConnectorComponentCheckpointView::lastSuccessfulCursor);
     }
 
-    /** When a connection last got through a batch, for a screen reporting on it. */
+    /** Component health and progress for an administrator. */
     @Transactional(readOnly = true)
-    public Optional<Instant> lastCompletedAt(
+    public List<ConnectorComponentCheckpointView> describe(
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         return checkpoints
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyOrderByComponent(
                         organizationId, sourceSystem.trim(), sourceConnectionKey.trim())
-                .map(ConnectorCrawlCheckpoint::getCheckpointedAt);
+                .stream()
+                .map(ConnectorCrawlCheckpoint::toView)
+                .toList();
     }
 
     /**
-     * Marks the batch dealt with. Called both when a batch ingested and when it was rejected
-     * for a reason retrying cannot change: a poisoned batch that stays unrecorded would be
-     * re-offered on every poll forever.
+     * Marks only the components that ingestion handled. Complete source evidence advances
+     * last-successful state; incomplete evidence advances observation only.
      */
     @Transactional
-    public void complete(ConnectorCrawlBatch batch) {
-        Objects.requireNonNull(batch, "batch");
-        Instant now = Instant.now();
-        ConnectorCrawlCheckpoint checkpoint = find(batch).orElse(null);
-        if (checkpoint == null) {
-            checkpoints.save(new ConnectorCrawlCheckpoint(
-                    batch.organizationId(),
-                    batch.sourceSystem(),
-                    batch.sourceConnectionKey(),
-                    batch.crawlCursor(),
-                    now));
-            return;
-        }
-        checkpoint.advanceTo(batch.crawlCursor(), now);
-        checkpoints.save(checkpoint);
+    public void complete(
+            ConnectorCrawlBatch batch, Set<ConnectorSyncComponent> completedComponents) {
+        observe(batch, completedComponents, true);
     }
 
-    private Optional<ConnectorCrawlCheckpoint> find(ConnectorCrawlBatch batch) {
-        return checkpoints.findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
-                batch.organizationId(), batch.sourceSystem(), batch.sourceConnectionKey());
+    /** Marks invalid bytes observed without claiming they reconciled successfully. */
+    @Transactional
+    public void reject(ConnectorCrawlBatch batch, Set<ConnectorSyncComponent> components) {
+        observe(batch, components, false);
+    }
+
+    private void observe(
+            ConnectorCrawlBatch batch,
+            Set<ConnectorSyncComponent> components,
+            boolean reconciled) {
+        Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(components, "components");
+        Instant now = Instant.now();
+        for (ConnectorSyncComponent component : components) {
+            ConnectorComponentState state = batch.componentState(component);
+            ConnectorCrawlCheckpoint checkpoint = find(batch, component).orElse(null);
+            if (checkpoint == null) {
+                checkpoints.save(new ConnectorCrawlCheckpoint(
+                        batch.organizationId(),
+                        batch.sourceSystem(),
+                        batch.sourceConnectionKey(),
+                        state,
+                        now,
+                        reconciled));
+                continue;
+            }
+            checkpoint.advanceTo(state, now, reconciled);
+            checkpoints.save(checkpoint);
+        }
+    }
+
+    private Optional<ConnectorCrawlCheckpoint> find(
+            ConnectorCrawlBatch batch, ConnectorSyncComponent component) {
+        return checkpoints
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndComponent(
+                        batch.organizationId(),
+                        batch.sourceSystem(),
+                        batch.sourceConnectionKey(),
+                        component);
     }
 }

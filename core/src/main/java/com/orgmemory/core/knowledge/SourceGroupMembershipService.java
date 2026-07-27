@@ -101,7 +101,7 @@ class SourceGroupMembershipService {
                 .findByOrganizationIdAndGroupPrincipalId(ctx.organizationId(), group.id())
                 .orElse(null);
         String membersSha = sha256(canonicalMembers(resolvedMembers));
-        if (captured.captureStatus() == MembershipCaptureStatus.COMPLETE
+        if (captured.captureStatus() == ConnectorCaptureStatus.COMPLETE
                 && head != null
                 && seals.findByMembershipSnapshotId(head.getCurrentSnapshotId())
                         .map(SourceGroupMembershipSnapshotSeal::getMembersSha256)
@@ -132,7 +132,7 @@ class SourceGroupMembershipService {
                         member.kind(),
                         capturedAt))
                 .toList());
-        if (captured.captureStatus() != MembershipCaptureStatus.COMPLETE) {
+        if (captured.captureStatus() != ConnectorCaptureStatus.COMPLETE) {
             return;
         }
         seals.saveAndFlush(new SourceGroupMembershipSnapshotSeal(

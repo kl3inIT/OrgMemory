@@ -54,3 +54,7 @@ Provider-backed evaluation and load/latency evidence remain operational gaps.
 The deterministic suite requires no provider key and keeps restricted,
 cross-tenant, stale-generation, and model-mismatched evidence out of the final
 grounding.
+
+`PostgresAuthorizedGraphSqlTests.graphVisibilityUsesTheLatestSealedCompleteAclAfterFreshnessExpiry`
+pins ADR 0015 parity: GraphRAG requires the current sealed `COMPLETE` ACL but does
+not add an expiry denial absent from canonical knowledge retrieval.

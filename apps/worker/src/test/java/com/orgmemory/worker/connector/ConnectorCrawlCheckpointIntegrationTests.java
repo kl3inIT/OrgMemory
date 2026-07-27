@@ -3,6 +3,7 @@ package com.orgmemory.worker.connector;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,8 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorComponentState;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
@@ -18,12 +21,16 @@ import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorCrawlOutcome;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorItemFailure;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -68,6 +75,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
     private static final String FLAKY_CONNECTION = "T-flaky-workspace";
     private static final String UNREACHABLE_CONNECTION = "T-revoked-workspace";
     private static final String RECORDED_CONNECTION = "T-recorded-workspace";
+    private static final String PARTIAL_CONNECTION = "T-partial-workspace";
 
     @Container
     @ServiceConnection
@@ -114,7 +122,13 @@ class ConnectorCrawlCheckpointIntegrationTests {
         assertEquals(List.of("cursor-1", "cursor-2"), firstRun, "a fresh connection ingests both");
         assertEquals(
                 "cursor-2",
-                checkpoints.lastCompletedCursor(ORG, "slack", STEADY_CONNECTION).orElseThrow(),
+                checkpoints
+                        .lastCompletedCursor(
+                                ORG,
+                                "slack",
+                                STEADY_CONNECTION,
+                                ConnectorSyncComponent.CONTENT)
+                        .orElseThrow(),
                 "the checkpoint holds the last cursor the connection completed");
 
         // A second driver over the same database is what a restart looks like from here.
@@ -127,7 +141,15 @@ class ConnectorCrawlCheckpointIntegrationTests {
                 .runPending();
 
         assertEquals(List.of("cursor-3"), afterRestart, "the completed cursor is not replayed");
-        assertEquals("cursor-3", checkpoints.lastCompletedCursor(ORG, "slack", STEADY_CONNECTION).orElseThrow());
+        assertEquals(
+                "cursor-3",
+                checkpoints
+                        .lastCompletedCursor(
+                                ORG,
+                                "slack",
+                                STEADY_CONNECTION,
+                                ConnectorSyncComponent.CONTENT)
+                        .orElseThrow());
     }
 
     @Test
@@ -159,7 +181,13 @@ class ConnectorCrawlCheckpointIntegrationTests {
 
         assertEquals(3, ingestAttempts[0], "a transient failure is retried within the run");
         assertTrue(
-                checkpoints.lastCompletedCursor(ORG, "slack", FLAKY_CONNECTION).isEmpty(),
+                checkpoints
+                        .lastCompletedCursor(
+                                ORG,
+                                "slack",
+                                FLAKY_CONNECTION,
+                                ConnectorSyncComponent.CONTENT)
+                        .isEmpty(),
                 "nothing is checkpointed, so the next poll tries again");
     }
 
@@ -186,7 +214,13 @@ class ConnectorCrawlCheckpointIntegrationTests {
         assertEquals(ConnectorCrawlOutcome.UNAVAILABLE, recorded.getFirst().outcome());
         assertEquals("token_revoked", recorded.getFirst().errorCode(), "Slack's own word for it survives");
         assertTrue(
-                checkpoints.lastCompletedCursor(ORG, "slack", UNREACHABLE_CONNECTION).isEmpty(),
+                checkpoints
+                        .lastCompletedCursor(
+                                ORG,
+                                "slack",
+                                UNREACHABLE_CONNECTION,
+                                ConnectorSyncComponent.CONTENT)
+                        .isEmpty(),
                 "recording the failure does not mark anything as done");
     }
 
@@ -198,8 +232,13 @@ class ConnectorCrawlCheckpointIntegrationTests {
     void aSuccessfulBatchIsRecordedWithWhatItChanged() {
         seedOrganization();
         ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
-        when(ingestion.ingest(any())).thenReturn(new ConnectorIngestionResult(
-                List.of("thread-a", "thread-b"), List.of(), List.of(), List.of("thread-c"), List.of()));
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> new ConnectorIngestionResult(
+                List.of("thread-a", "thread-b"),
+                List.of(),
+                List.of(),
+                List.of("thread-c"),
+                List.of(),
+                invocation.getArgument(1)));
         new ConnectorCrawlRunner(
                         producing(batch(RECORDED_CONNECTION, "cursor-recorded")),
                         ingestion,
@@ -214,6 +253,133 @@ class ConnectorCrawlCheckpointIntegrationTests {
         assertTrue(recorded.changedSomething(), "two arrivals and a retirement is not a quiet poll");
     }
 
+    @Test
+    void aPartialBatchAdvancesOnlySuccessfulComponentsAndRetriesTheFailure() {
+        seedOrganization();
+        int[] ingestAttempts = {0};
+        ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
+            ingestAttempts[0]++;
+            Set<ConnectorSyncComponent> completed =
+                    new HashSet<>(invocation.<Set<ConnectorSyncComponent>>getArgument(1));
+            completed.remove(ConnectorSyncComponent.CONTENT);
+            return new ConnectorIngestionResult(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(new ConnectorItemFailure(
+                            "thread-stuck",
+                            "projection unavailable",
+                            ConnectorSyncComponent.CONTENT)),
+                    completed);
+        });
+
+        new ConnectorCrawlRunner(
+                        producing(batch(PARTIAL_CONNECTION, "cursor-partial")),
+                        ingestion,
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        assertEquals(3, ingestAttempts[0], "the failed component is retried within the poll");
+        assertTrue(checkpoints
+                .lastCompletedCursor(
+                        ORG,
+                        "slack",
+                        PARTIAL_CONNECTION,
+                        ConnectorSyncComponent.CONTENT)
+                .isEmpty());
+        assertEquals(
+                "cursor-partial",
+                checkpoints
+                        .lastCompletedCursor(
+                                ORG,
+                                "slack",
+                                PARTIAL_CONNECTION,
+                                ConnectorSyncComponent.PERMISSION)
+                        .orElseThrow());
+        assertEquals(
+                ConnectorCrawlOutcome.PARTIAL,
+                attempts.recent(ORG, "slack", PARTIAL_CONNECTION).getFirst().outcome());
+    }
+
+    @Test
+    void incompleteObservationDoesNotAdvanceLastSuccessfulAuthorizationState() {
+        seedOrganization();
+        ConnectorCrawlBatch incomplete = new ConnectorCrawlBatch(
+                ORG,
+                "slack",
+                "T-incomplete-workspace",
+                SPACE,
+                ACTOR,
+                "batch-incomplete",
+                ConnectorContractVersions.supported(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(ConnectorComponentState.incomplete(
+                        ConnectorSyncComponent.PERMISSION,
+                        "permission-incomplete",
+                        "API_SCOPE_MISSING")),
+                false);
+
+        checkpoints.complete(incomplete, Set.of(ConnectorSyncComponent.PERMISSION));
+
+        var checkpoint = checkpoints
+                .describe(ORG, "slack", "T-incomplete-workspace")
+                .getFirst();
+        assertEquals(ConnectorCaptureStatus.INCOMPLETE, checkpoint.captureStatus());
+        assertEquals("API_SCOPE_MISSING", checkpoint.incompleteReason());
+        assertEquals("permission-incomplete", checkpoint.observedCursor());
+        assertTrue(checkpoint.lastSuccessfulCursor() == null);
+        assertTrue(checkpoint.lastSuccessfulAt() == null);
+    }
+
+    @Test
+    void membershipChangeDoesNotReplayUnchangedContentOrPermissions() {
+        seedOrganization();
+        List<Set<ConnectorSyncComponent>> seen = new ArrayList<>();
+        ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
+            Set<ConnectorSyncComponent> pending =
+                    Set.copyOf(invocation.getArgument(1));
+            seen.add(pending);
+            return new ConnectorIngestionResult(
+                    List.of(), List.of(), List.of(), List.of(), List.of(), pending);
+        });
+
+        ConnectorCrawlBatch initial = componentBatch(
+                "T-independent-workspace",
+                "batch-1",
+                "content-1",
+                "permission-1",
+                "membership-1");
+        ConnectorCrawlBatch membershipChanged = componentBatch(
+                "T-independent-workspace",
+                "batch-2",
+                "content-1",
+                "permission-1",
+                "membership-2");
+        new ConnectorCrawlRunner(
+                        producing(initial, membershipChanged),
+                        ingestion,
+                        checkpoints,
+                        attempts)
+                .runPending();
+
+        assertEquals(
+                List.of(
+                        Set.of(
+                                ConnectorSyncComponent.CONTENT,
+                                ConnectorSyncComponent.PERMISSION,
+                                ConnectorSyncComponent.MEMBERSHIP),
+                        Set.of(ConnectorSyncComponent.MEMBERSHIP)),
+                seen);
+    }
+
     /** A source producing exactly these batches and reporting no unreachable connection. */
     private static List<com.orgmemory.core.knowledge.ConnectorBatchSource> producing(
             ConnectorCrawlBatch... batches) {
@@ -223,10 +389,16 @@ class ConnectorCrawlCheckpointIntegrationTests {
     /** Reports every batch as an empty success and records which cursors reached ingestion. */
     private static ConnectorIngestionService recordingIngestion(List<String> seen) {
         ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
-        when(ingestion.ingest(any())).thenAnswer(invocation -> {
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
             ConnectorCrawlBatch batch = invocation.getArgument(0);
             seen.add(batch.crawlCursor());
-            return new ConnectorIngestionResult(List.of(), List.of(), List.of(), List.of(), List.of());
+            return new ConnectorIngestionResult(
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    invocation.getArgument(1));
         });
         return ingestion;
     }
@@ -235,7 +407,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
     private static ConnectorIngestionService failingIngestion(
             int[] attempts, java.util.function.Supplier<RuntimeException> failure) {
         ConnectorIngestionService ingestion = mock(ConnectorIngestionService.class);
-        when(ingestion.ingest(any())).thenAnswer(invocation -> {
+        when(ingestion.ingest(any(), anySet())).thenAnswer(invocation -> {
             attempts[0]++;
             throw failure.get();
         });
@@ -256,6 +428,35 @@ class ConnectorCrawlCheckpointIntegrationTests {
                 List.of(),
                 List.of(),
                 List.of());
+    }
+
+    private ConnectorCrawlBatch componentBatch(
+            String connectionKey,
+            String batchCursor,
+            String contentCursor,
+            String permissionCursor,
+            String membershipCursor) {
+        return new ConnectorCrawlBatch(
+                ORG,
+                "slack",
+                connectionKey,
+                SPACE,
+                ACTOR,
+                batchCursor,
+                ConnectorContractVersions.supported(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.CONTENT, contentCursor),
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.PERMISSION, permissionCursor),
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.MEMBERSHIP, membershipCursor)),
+                false);
     }
 
     @SuppressWarnings("SqlResolve")

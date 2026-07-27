@@ -20,12 +20,12 @@ import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admi
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
 import { allFields, CONNECTOR_FORMS } from "@/features/admin/connector-forms"
-import type { AdminCrawlAttemptResponse } from "@/lib/hey-api"
+import type { AdminComponentCheckpointResponse, AdminCrawlAttemptResponse } from "@/lib/hey-api"
 
 /**
  * How each outcome reads on the screen.
  *
- * <p>The four are kept apart because they call for four different actions. A rejected batch is
+ * <p>The five are kept apart because they call for different actions. A rejected batch is
  * gone and will not come back; a failed one is still queued; an unavailable connection never
  * produced a batch at all, which is what a revoked credential looks like and is the only one
  * where the fix is a token rather than patience.
@@ -35,6 +35,11 @@ const OUTCOMES: Record<string, { label: string; variant: "success" | "warning" |
     label: "Reconciled",
     variant: "success",
     hint: "The batch was ingested.",
+  },
+  PARTIAL: {
+    label: "Partial",
+    variant: "warning",
+    hint: "Some components advanced; failed items remain queued.",
   },
   REJECTED: {
     label: "Rejected",
@@ -117,6 +122,32 @@ const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
   },
 ]
 
+const COMPONENT_LABELS: Record<string, string> = {
+  CONTENT: "Content",
+  PERMISSION: "Permissions",
+  MEMBERSHIP: "Membership",
+}
+
+function ComponentCheckpoint({ checkpoint }: { checkpoint: AdminComponentCheckpointResponse }) {
+  const incomplete = checkpoint.captureStatus === "INCOMPLETE"
+  return (
+    <SettingRow label={COMPONENT_LABELS[checkpoint.component ?? ""] ?? checkpoint.component ?? "Component"}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={incomplete ? "warning" : "success"}>
+          {incomplete ? "Incomplete" : "Complete"}
+        </Badge>
+        <span>
+          Last successful:{" "}
+          {checkpoint.lastSuccessfulAt ? formatTimestamp(checkpoint.lastSuccessfulAt) : "Never"}
+        </span>
+      </div>
+      {checkpoint.incompleteReason ? (
+        <p className="mt-1 text-sm text-warning-foreground">{checkpoint.incompleteReason}</p>
+      ) : null}
+    </SettingRow>
+  )
+}
+
 /**
  * One connection, and what it has actually done.
  *
@@ -172,6 +203,7 @@ export function ConnectionDetailPage({
     (candidate) => candidate.sourceConnectionKey === connectionKey,
   )
   const attempts = activity.data?.recentAttempts ?? []
+  const componentCheckpoints = activity.data?.componentCheckpoints ?? []
   const space = (spaces.data ?? []).find((candidate) => candidate.id === connection?.knowledgeSpaceId)
   const catalogued = CONNECTOR_CATALOG.find((entry) => entry.sourceSystem === sourceSystem)
   const descriptor = CONNECTOR_FORMS[sourceSystem]
@@ -268,6 +300,27 @@ export function ConnectionDetailPage({
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <AdminSection
+        title="Sync health"
+        description="Content, permissions, and membership advance independently. Incomplete source evidence is visible here but never becomes successful authorization state."
+      >
+        {componentCheckpoints.length === 0 ? (
+          <AdminEmpty
+            title="No component has been observed"
+            description="Component health appears after the worker handles the first batch."
+          />
+        ) : (
+          <dl className="divide-y divide-border-subtle">
+            {componentCheckpoints.map((checkpoint) => (
+              <ComponentCheckpoint
+                key={checkpoint.component ?? checkpoint.observedCursor}
+                checkpoint={checkpoint}
+              />
+            ))}
+          </dl>
+        )}
+      </AdminSection>
 
       <AdminSection
         title="Configuration"

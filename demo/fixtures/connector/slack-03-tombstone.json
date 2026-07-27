@@ -5,6 +5,9 @@
   "knowledgeSpaceId": "e0000000-0000-4000-8000-000000000003",
   "actorUserId": "e0000000-0000-4000-8000-000000000004",
   "crawlCursor": "cursor-03-tombstone",
+  "componentStates": [
+    { "component": "CONTENT", "cursor": "content-03", "captureStatus": "COMPLETE", "incompleteReason": null }
+  ],
   "versions": {
     "content": "content/v1",
     "identity": "identity/v2",

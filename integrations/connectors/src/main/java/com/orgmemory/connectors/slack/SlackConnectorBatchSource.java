@@ -4,6 +4,7 @@ import com.orgmemory.connectors.ContentCadence;
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
+import com.orgmemory.core.knowledge.ConnectorComponentState;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
@@ -15,7 +16,8 @@ import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.shared.secret.SecretValue;
@@ -188,7 +190,6 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         requireWorkingCredential(client, configuration);
         SlackCrawlSettings settings = SlackCrawlSettings.from(configuration.sourceConfig());
         Crawl crawl = new Crawl();
-        crawl.incomplete();
         Map<String, SlackUser> usersById = users(client);
         List<JsonNode> channels = channels(client, settings, crawl);
 
@@ -209,7 +210,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         crawl.grantKnownObjects(objects.activeObjectIds(
                 configuration.organizationId(), SOURCE_SYSTEM, configuration.sourceConnectionKey()));
 
-        return batch(configuration, crawl, List.of(), false);
+        return batch(configuration, crawl, List.of(), false, false);
     }
 
     private void observeMembership(
@@ -251,27 +252,38 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
         abortIfMostlyFailed(failed, channels.size());
 
-        return batch(configuration, crawl, crawl.contents, crawl.complete);
+        return batch(configuration, crawl, crawl.contents, true, crawl.complete);
     }
 
     private static ConnectorCrawlBatch batch(
             ConnectorCrawlConfiguration configuration,
             Crawl crawl,
             List<ConnectorContentItem> contents,
+            boolean contentIncluded,
             boolean complete) {
+        List<ConnectorComponentState> componentStates = new ArrayList<>();
+        if (contentIncluded) {
+            componentStates.add(ConnectorComponentState.complete(
+                    ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
+        }
+        componentStates.add(ConnectorComponentState.complete(
+                ConnectorSyncComponent.PERMISSION, permissionCursor(crawl)));
+        componentStates.add(ConnectorComponentState.complete(
+                ConnectorSyncComponent.MEMBERSHIP, membershipCursor(crawl)));
         return new ConnectorCrawlBatch(
                 configuration.organizationId(),
                 SOURCE_SYSTEM,
                 configuration.sourceConnectionKey(),
                 configuration.knowledgeSpaceId(),
                 configuration.actorUserId(),
-                crawlCursor(crawl),
+                crawlCursor(componentStates),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
                 crawl.memberships(),
                 contents,
                 crawl.permissions,
                 List.of(),
+                componentStates,
                 complete);
     }
 
@@ -501,14 +513,42 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
      * content at all, so hashing content alone would give every one of them the same cursor and
      * the first would be the last ever ingested.
      */
-    private static String crawlCursor(Crawl crawl) {
+    private static String crawlCursor(List<ConnectorComponentState> states) {
+        String material = states.stream()
+                .map(state -> state.component() + "=" + state.cursor())
+                .sorted()
+                .reduce((left, right) -> left + ";" + right)
+                .orElse("");
+        return "slack-" + sha256(material);
+    }
+
+    private static String contentCursor(Crawl crawl) {
         StringBuilder material = new StringBuilder();
         crawl.contents.forEach(content ->
                 material.append(content.externalObjectId()).append('=').append(content.contentRevision()).append(';'));
+        material.append("complete=").append(crawl.complete);
+        return "slack-content-" + sha256(material.toString());
+    }
+
+    private static String permissionCursor(Crawl crawl) {
+        StringBuilder material = new StringBuilder();
+        crawl.permissions.stream()
+                .sorted(java.util.Comparator.comparing(ConnectorPermissionItem::externalObjectId))
+                .forEach(permission -> material
+                        .append(permission.externalObjectId())
+                        .append('@')
+                        .append(permission.grants())
+                        .append(';'));
+        material.append("enumerationComplete=").append(crawl.complete);
+        return "slack-permission-" + sha256(material.toString());
+    }
+
+    private static String membershipCursor(Crawl crawl) {
+        StringBuilder material = new StringBuilder();
         crawl.observedChannels.forEach((channelId, channel) ->
                 material.append(channelId).append('@').append(channel.memberIds()).append(';'));
-        material.append("complete=").append(crawl.complete);
-        return "slack-" + sha256(material.toString());
+        material.append("enumerationComplete=").append(crawl.complete);
+        return "slack-membership-" + sha256(material.toString());
     }
 
     private static String firstNonBlank(String... values) {
@@ -675,7 +715,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                 members.retainAll(observedUsers.keySet());
                 memberships.add(new ConnectorMembershipItem(
                         channel.id(),
-                        MembershipCaptureStatus.COMPLETE,
+                        ConnectorCaptureStatus.COMPLETE,
                         null,
                         members.stream()
                                 .map(memberId -> new ConnectorMembershipMember(

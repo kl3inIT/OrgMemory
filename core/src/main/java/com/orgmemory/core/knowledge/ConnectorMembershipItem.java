@@ -4,11 +4,11 @@ import java.util.List;
 
 /**
  * One source group's independently captured member list. Only {@link
- * MembershipCaptureStatus#COMPLETE} evidence is eligible to become the active membership head.
+ * ConnectorCaptureStatus#COMPLETE} evidence is eligible to become the active membership head.
  */
 public record ConnectorMembershipItem(
         String groupNativePrincipalId,
-        MembershipCaptureStatus captureStatus,
+        ConnectorCaptureStatus captureStatus,
         String incompleteReason,
         List<ConnectorMembershipMember> members) {
 
@@ -23,11 +23,11 @@ public record ConnectorMembershipItem(
         }
         incompleteReason = normalize(incompleteReason);
         members = members == null ? List.of() : List.copyOf(members);
-        if (captureStatus == MembershipCaptureStatus.COMPLETE && incompleteReason != null) {
+        if (captureStatus == ConnectorCaptureStatus.COMPLETE && incompleteReason != null) {
             throw new IllegalArgumentException(
                     "complete connector membership cannot have an incompleteReason");
         }
-        if (captureStatus == MembershipCaptureStatus.INCOMPLETE && incompleteReason == null) {
+        if (captureStatus == ConnectorCaptureStatus.INCOMPLETE && incompleteReason == null) {
             throw new IllegalArgumentException(
                     "incomplete connector membership requires an incompleteReason");
         }

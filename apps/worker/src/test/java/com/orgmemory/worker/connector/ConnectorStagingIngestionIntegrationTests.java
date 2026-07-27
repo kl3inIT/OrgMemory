@@ -25,7 +25,7 @@ import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -181,7 +181,7 @@ class ConnectorStagingIngestionIntegrationTests {
                 completeMembership.identities(),
                 List.of(new ConnectorMembershipItem(
                         "C-general",
-                        MembershipCaptureStatus.INCOMPLETE,
+                        ConnectorCaptureStatus.INCOMPLETE,
                         "SOURCE_MEMBERSHIP_PAGE_UNAVAILABLE",
                         List.of())),
                 List.of(),

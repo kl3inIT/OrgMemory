@@ -18,7 +18,7 @@ import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
@@ -87,7 +87,7 @@ class GoogleDriveConnectorBatchSourceTests {
             String memberNativePrincipalId) {
         return new ConnectorMembershipItem(
                 groupNativePrincipalId,
-                MembershipCaptureStatus.COMPLETE,
+                ConnectorCaptureStatus.COMPLETE,
                 null,
                 List.of(new ConnectorMembershipMember(
                         SourcePrincipalKind.SOURCE_USER,
@@ -154,7 +154,7 @@ class GoogleDriveConnectorBatchSourceTests {
                 .filter(item -> "p3".equals(item.groupNativePrincipalId()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals(MembershipCaptureStatus.INCOMPLETE, membership.captureStatus());
+        assertEquals(ConnectorCaptureStatus.INCOMPLETE, membership.captureStatus());
         assertEquals("GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED", membership.incompleteReason());
         assertTrue(membership.members().isEmpty(), "Drive did not enumerate anybody");
     }

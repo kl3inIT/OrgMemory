@@ -110,7 +110,8 @@ mutable ACL heads, an observed external source-principal registry keyed by stabl
 typed native IDs with verified principal mappings, independently sealed
 per-group membership snapshots and atomic active heads, per-connection
 identity trust decisions consumed by the crawl matcher, durable per-connection
-crawl checkpoints, a per-batch record of what each crawl did
+component checkpoints that separate observed from successfully reconciled
+content, permission, and membership cursors, a per-batch record of what each crawl did
 (`connector_crawl_attempts`), publication outbox evidence, and append-only
 permission audit events. Immutable evidence bytes live
 in MinIO; chunks, embeddings, graph data, and OpenFGA relationships are

@@ -5,6 +5,7 @@ import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
+import com.orgmemory.core.knowledge.ConnectorComponentState;
 import com.orgmemory.core.knowledge.ConnectorContentItem;
 import com.orgmemory.core.knowledge.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
@@ -13,7 +14,8 @@ import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.nio.charset.StandardCharsets;
@@ -207,9 +209,17 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         // saw. An object the ledger holds that this listing did not return is deliberately left
         // out of the payload, which keeps whatever was last sealed for it — an empty grant list
         // would instead assert that nobody may read it.
-        if (!readContent) {
-            crawl.incomplete();
+        List<ConnectorComponentState> componentStates = new ArrayList<>();
+        if (readContent) {
+            componentStates.add(ConnectorComponentState.complete(
+                    ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
         }
+        componentStates.add(ConnectorComponentState.complete(
+                ConnectorSyncComponent.PERMISSION, permissionCursor(crawl)));
+        componentStates.add(ConnectorComponentState.incomplete(
+                ConnectorSyncComponent.MEMBERSHIP,
+                membershipCursor(crawl),
+                "GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED"));
 
         return new ConnectorCrawlBatch(
                 configuration.organizationId(),
@@ -217,14 +227,15 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 configuration.sourceConnectionKey(),
                 configuration.knowledgeSpaceId(),
                 configuration.actorUserId(),
-                crawlCursor(crawl, readContent),
+                crawlCursor(componentStates),
                 ConnectorContractVersions.supported(),
                 crawl.identities(),
                 crawl.memberships(),
                 crawl.contents,
                 crawl.permissions,
                 List.of(),
-                crawl.complete);
+                componentStates,
+                readContent && crawl.complete);
     }
 
     /**
@@ -460,14 +471,18 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
      * added one without, which is the exact convergence the permissions cadence exists for.
      * Everything is sorted first, because Drive's ordering is not a change.
      */
-    private static String crawlCursor(Crawl crawl, boolean readContent) {
-        StringBuilder material = new StringBuilder("mode=").append(readContent ? "content" : "acl").append(';');
-
+    private static String contentCursor(Crawl crawl) {
+        StringBuilder material = new StringBuilder();
         Map<String, String> contents = new TreeMap<>();
         crawl.contents.forEach(content -> contents.put(
                 content.externalObjectId(), content.contentRevision() + '/' + sha256(content.title())));
         contents.forEach((id, revision) -> material.append(id).append('=').append(revision).append(';'));
+        material.append("complete=").append(crawl.complete);
+        return "google-drive-content-" + sha256(material.toString());
+    }
 
+    private static String permissionCursor(Crawl crawl) {
+        StringBuilder material = new StringBuilder();
         Map<String, String> permissions = new TreeMap<>();
         crawl.permissions.forEach(permission -> permissions.put(
                 permission.externalObjectId(),
@@ -484,11 +499,27 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 identity.kind() + ":" + identity.nativePrincipalId(),
                 identity.email() == null ? "" : identity.email()));
         identities.forEach((key, alias) -> material.append(key).append('#').append(alias).append(';'));
-
-        material.append(membershipCursorMaterial(crawl.memberships()));
-
         material.append("complete=").append(crawl.complete);
-        return "google-drive-" + sha256(material.toString());
+        return "google-drive-permission-" + sha256(material.toString());
+    }
+
+    private static String membershipCursor(Crawl crawl) {
+        StringBuilder material = new StringBuilder(membershipCursorMaterial(crawl.memberships()));
+        Map<String, String> identities = new TreeMap<>();
+        crawl.identities().forEach(identity -> identities.put(
+                identity.kind() + ":" + identity.nativePrincipalId(),
+                identity.email() == null ? "" : identity.email()));
+        identities.forEach((key, alias) -> material.append(key).append('#').append(alias).append(';'));
+        return "google-drive-membership-" + sha256(material.toString());
+    }
+
+    private static String crawlCursor(List<ConnectorComponentState> states) {
+        String material = states.stream()
+                .map(state -> state.component() + "=" + state.cursor())
+                .sorted()
+                .reduce((left, right) -> left + ";" + right)
+                .orElse("");
+        return "google-drive-" + sha256(material);
     }
 
     static String membershipCursorMaterial(List<ConnectorMembershipItem> capturedMemberships) {
@@ -601,7 +632,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             return observedGroups.values().stream()
                     .map(group -> new ConnectorMembershipItem(
                             group.nativeId(),
-                            MembershipCaptureStatus.INCOMPLETE,
+                            ConnectorCaptureStatus.INCOMPLETE,
                             "GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED",
                             List.of()))
                     .toList();

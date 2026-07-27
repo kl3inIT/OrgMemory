@@ -31,7 +31,7 @@ import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.ConnectorTombstone;
@@ -216,7 +216,7 @@ class ConnectorContentEditIntegrationTests {
                 List.of(member, channel),
                 List.of(new ConnectorMembershipItem(
                         channelKey,
-                        MembershipCaptureStatus.COMPLETE,
+                        ConnectorCaptureStatus.COMPLETE,
                         null,
                         List.of(new ConnectorMembershipMember(
                                 SourcePrincipalKind.SOURCE_USER, "U-mai")))),

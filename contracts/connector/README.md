@@ -31,9 +31,11 @@ tombstones:
 - **tombstones** — objects removed at the source; the matching `SourceObject` is
   retired out of retrieval while its evidence is retained.
 
-Content, permissions, and membership may change independently. A
-membership-only re-crawl advances the group membership head without rotating a
-resource ACL, revising content, or rebuilding embeddings.
+Content, permissions, and membership carry independent cursor/completeness
+states. A membership-only re-crawl advances the group membership head without
+rotating a resource ACL, revising content, or rebuilding embeddings. A
+truthfully `INCOMPLETE` component advances its observation for health reporting
+but never its last-successful authorization state.
 
 ## Versioning — fail closed
 

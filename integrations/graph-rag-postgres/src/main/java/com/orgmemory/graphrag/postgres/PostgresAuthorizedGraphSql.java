@@ -204,7 +204,6 @@ final class PostgresAuthorizedGraphSql {
                  AND current_snapshot.organization_id =
                         asset.organization_id
                  AND current_snapshot.capture_status = 'COMPLETE'
-                 AND current_snapshot.valid_until > :evaluatedAt
                 JOIN source_acl_snapshot_seals current_seal
                   ON current_seal.source_acl_snapshot_id =
                         current_snapshot.id

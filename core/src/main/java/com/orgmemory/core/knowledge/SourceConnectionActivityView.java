@@ -18,9 +18,11 @@ public record SourceConnectionActivityView(
         long objectsArchived,
         Instant lastObjectAt,
         Instant lastCheckpointAt,
+        List<ConnectorComponentCheckpointView> componentCheckpoints,
         List<ConnectorCrawlAttemptView> recentAttempts) {
 
     public SourceConnectionActivityView {
+        componentCheckpoints = List.copyOf(componentCheckpoints);
         recentAttempts = List.copyOf(recentAttempts);
     }
 

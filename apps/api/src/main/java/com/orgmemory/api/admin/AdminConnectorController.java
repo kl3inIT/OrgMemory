@@ -2,6 +2,7 @@ package com.orgmemory.api.admin;
 
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.ConnectorComponentCheckpointView;
 import com.orgmemory.core.knowledge.ConnectorScope;
 import com.orgmemory.core.knowledge.ConnectorScopeBrowserRegistry;
 import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
@@ -113,7 +114,29 @@ class AdminConnectorController {
             long objectsArchived,
             Instant lastObjectAt,
             Instant lastCrawlAt,
+            List<AdminComponentCheckpointResponse> componentCheckpoints,
             List<AdminCrawlAttemptResponse> recentAttempts) {
+    }
+
+    record AdminComponentCheckpointResponse(
+            String component,
+            String observedCursor,
+            String captureStatus,
+            String incompleteReason,
+            Instant observedAt,
+            String lastSuccessfulCursor,
+            Instant lastSuccessfulAt) {
+
+        static AdminComponentCheckpointResponse from(ConnectorComponentCheckpointView checkpoint) {
+            return new AdminComponentCheckpointResponse(
+                    checkpoint.component().name(),
+                    checkpoint.observedCursor(),
+                    checkpoint.captureStatus().name(),
+                    checkpoint.incompleteReason(),
+                    checkpoint.observedAt(),
+                    checkpoint.lastSuccessfulCursor(),
+                    checkpoint.lastSuccessfulAt());
+        }
     }
 
     /**
@@ -263,6 +286,9 @@ class AdminConnectorController {
                 view.objectsArchived(),
                 view.lastObjectAt(),
                 view.lastCheckpointAt(),
+                view.componentCheckpoints().stream()
+                        .map(AdminComponentCheckpointResponse::from)
+                        .toList(),
                 view.recentAttempts().stream().map(AdminCrawlAttemptResponse::from).toList());
     }
 
