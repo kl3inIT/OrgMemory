@@ -67,7 +67,7 @@ public class SkillDistributionService {
         try {
             versionLabel = AssetRelease.validateVersionLabel(version);
         } catch (IllegalArgumentException | NullPointerException invalid) {
-            throw new AssetNotFoundException();
+            throw new AssetNotFoundException(invalid);
         }
         AssetRelease release = releaseRepository
                 .findByAssetIdAndOrganizationIdAndVersionLabel(

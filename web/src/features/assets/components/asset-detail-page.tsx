@@ -904,12 +904,16 @@ function InstallCommand({ agent, command }: { agent: string; command: string }) 
           size="icon-sm"
           variant="ghost"
           aria-label={`Copy ${agent} install command`}
-          onClick={() =>
+          onClick={() => {
+            if (!navigator.clipboard?.writeText) {
+              toast.error("Could not copy command")
+              return
+            }
             void navigator.clipboard
               .writeText(command)
               .then(() => toast.success("Install command copied"))
               .catch(() => toast.error("Could not copy command"))
-          }
+          }}
         >
           <Copy aria-hidden="true" />
         </Button>

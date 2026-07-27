@@ -99,6 +99,26 @@ class SkillDistributionServiceTests {
                 ACTOR, ASSET_ID, RELEASE_ID, AssetType.SKILL);
     }
 
+    @Test
+    void keepsTheInvalidVersionCauseBehindTheOpaqueNotFoundError() {
+        Fixture fixture = fixture();
+        Asset asset = mock(Asset.class);
+        when(asset.getType()).thenReturn(AssetType.SKILL);
+        when(fixture.assetRepository
+                        .findByOrganizationIdAndNamespaceAndSlug(
+                                ORGANIZATION_ID,
+                                "support",
+                                "triage"))
+                .thenReturn(Optional.of(asset));
+
+        AssetNotFoundException failure = assertThrows(
+                AssetNotFoundException.class,
+                () -> fixture.service.manifest(
+                        ACTOR, "support", "triage", "not a version"));
+
+        assertTrue(failure.getCause() instanceof IllegalArgumentException);
+    }
+
     private static Fixture fixture() {
         AssetRegistryService assets = mock(AssetRegistryService.class);
         AssetRepository assetRepository = mock(AssetRepository.class);

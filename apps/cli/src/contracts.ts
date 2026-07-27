@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 const digestSchema = z.string().regex(/^[0-9a-f]{64}$/)
+export const orgMemoryUuidSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  )
 const namespaceSchema = z
   .string()
   .max(128)
@@ -13,15 +18,17 @@ const versionSchema = z
   .string()
   .max(64)
   .regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/)
+const packagePathPattern =
+  /^\/skill-packages\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/releases\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/
 
 const assetSchema = z.object({
-  assetId: z.uuid(),
+  assetId: orgMemoryUuidSchema,
   type: z.literal("SKILL"),
   namespace: namespaceSchema,
   slug: slugSchema,
   title: z.string(),
   summary: z.string(),
-  releaseId: z.uuid(),
+  releaseId: orgMemoryUuidSchema,
   versionLabel: versionSchema,
   releaseDigest: digestSchema,
 })
@@ -44,8 +51,8 @@ const skillFileSchema = z.object({
 
 export const skillManifestLinkSchema = z.object({
   manifest: z.object({
-    assetId: z.uuid(),
-    releaseId: z.uuid(),
+    assetId: orgMemoryUuidSchema,
+    releaseId: orgMemoryUuidSchema,
     namespace: namespaceSchema,
     slug: slugSchema,
     coordinate: z.string().min(3).max(257),
@@ -62,10 +69,29 @@ export const skillManifestLinkSchema = z.object({
     metadata: z.record(z.string(), z.string()),
     files: z.array(skillFileSchema).min(1).max(300),
   }),
-  packagePath: z.string().startsWith("/skill-packages/"),
+  packagePath: z.string().regex(packagePathPattern),
 })
 
 export type SkillManifestLink = z.infer<typeof skillManifestLinkSchema>
+
+export function resolvePackageUrl(
+  serverUrl: URL,
+  link: SkillManifestLink,
+): URL {
+  const url = new URL(link.packagePath, serverUrl)
+  const match = packagePathPattern.exec(url.pathname)
+  if (
+    url.origin !== serverUrl.origin ||
+    url.search ||
+    url.hash ||
+    !match ||
+    match[1] !== link.manifest.assetId ||
+    match[2] !== link.manifest.releaseId
+  ) {
+    throw new Error("OrgMemory returned an invalid Skill package location")
+  }
+  return url
+}
 
 export function parseSkillReference(reference: string): {
   namespace: string

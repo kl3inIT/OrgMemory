@@ -2,17 +2,29 @@ import { createHash, randomBytes } from "node:crypto"
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join, relative, resolve, sep } from "node:path"
-import { unzipSync } from "fflate"
+import { Unzip, UnzipInflate } from "fflate"
 import { z } from "zod"
 
-import type { SkillManifestLink } from "./contracts.js"
+import {
+  orgMemoryUuidSchema,
+  type SkillManifestLink,
+} from "./contracts.js"
 
 export type Agent = "claude-code" | "codex"
+
+type PromotionFileOperations = {
+  rename: typeof rename
+  rm: typeof rm
+}
+
+const promotionFileOperations: PromotionFileOperations = { rename, rm }
 
 const agentDirectories: Record<Agent, string> = {
   "claude-code": ".claude/skills",
   codex: ".agents/skills",
 }
+
+const MAXIMUM_UNCOMPRESSED_PACKAGE_BYTES = 50 * 1024 * 1024
 
 const receiptSchema = z.object({
   schemaVersion: z.literal(1),
@@ -21,8 +33,8 @@ const receiptSchema = z.object({
     z.object({
       coordinate: z.string(),
       version: z.string(),
-      assetId: z.uuid(),
-      releaseId: z.uuid(),
+      assetId: orgMemoryUuidSchema,
+      releaseId: orgMemoryUuidSchema,
       releaseDigest: z.string(),
       packageDigest: z.string(),
       agent: z.union([z.literal("claude-code"), z.literal("codex")]),
@@ -40,6 +52,7 @@ export async function installSkill(input: {
   agent: Agent
   global: boolean
   cwd: string
+  promotionOperations?: PromotionFileOperations
 }): Promise<{ target: string }> {
   const { manifest } = input.manifestLink
   verifyPackage(input.packageBytes, manifest.packageDigest, manifest.packageLength)
@@ -66,7 +79,19 @@ export async function installSkill(input: {
       await mkdir(dirname(destination), { recursive: true })
       await writeFile(destination, bytes, { flag: "wx" })
     }
-    backupOwned = await promote(staging, target, backup)
+    try {
+      backupOwned = await promote(
+        staging,
+        target,
+        backup,
+        input.promotionOperations ?? promotionFileOperations,
+      )
+    } catch (promotionFailure) {
+      if (promotionFailure instanceof SkillPromotionRecoveryError) {
+        backupOwned = true
+      }
+      throw promotionFailure
+    }
     try {
       await writeReceipt({
         global: input.global,
@@ -179,13 +204,14 @@ function extractAndVerify(
   bytes: Uint8Array,
   manifest: SkillManifestLink["manifest"],
 ): Map<string, Uint8Array> {
-  let archive: Record<string, Uint8Array>
-  try {
-    archive = unzipSync(bytes)
-  } catch (error) {
-    throw new Error("The released Skill package is not a readable ZIP", { cause: error })
+  const declaredSize = manifest.files.reduce((total, file) => total + file.size, 0)
+  if (
+    !Number.isSafeInteger(declaredSize) ||
+    declaredSize > MAXIMUM_UNCOMPRESSED_PACKAGE_BYTES
+  ) {
+    throw new Error("The released Skill package exceeds the 50 MiB extraction limit")
   }
-  const archiveFiles = Object.entries(archive).filter(([path]) => !path.endsWith("/"))
+  const archiveFiles = [...streamArchive(bytes)]
   const skillMarkdown = archiveFiles
     .map(([path]) => path)
     .filter((path) => path === "SKILL.md" || path.endsWith("/SKILL.md"))
@@ -225,11 +251,124 @@ function extractAndVerify(
   return extracted
 }
 
-async function promote(staging: string, target: string, backup: string): Promise<boolean> {
+function streamArchive(bytes: Uint8Array): Map<string, Uint8Array> {
+  const extracted = new Map<string, Uint8Array>()
+  const seen = new Set<string>()
+  const pending = new Set<string>()
+  let knownUncompressedSize = 0
+  let actualUncompressedSize = 0
+  let extractionFailure: Error | undefined
+  const unzip = new Unzip((file) => {
+    const archivePath = file.name
+    const relativePath = archivePath.endsWith("/")
+      ? archivePath.slice(0, -1)
+      : archivePath
+    try {
+      requireSafeRelativePath(relativePath)
+    } catch (error) {
+      extractionFailure =
+        error instanceof Error ? error : new Error("Unsafe Skill package path")
+      return
+    }
+    if (archivePath.endsWith("/")) return
+    if (seen.has(archivePath)) {
+      extractionFailure = new Error(
+        "The released Skill package contains duplicate paths",
+      )
+      return
+    }
+    seen.add(archivePath)
+    if (file.originalSize !== undefined) {
+      knownUncompressedSize += file.originalSize
+      if (
+        !Number.isSafeInteger(knownUncompressedSize) ||
+        knownUncompressedSize > MAXIMUM_UNCOMPRESSED_PACKAGE_BYTES
+      ) {
+        extractionFailure = new Error(
+          "The released Skill package exceeds the 50 MiB extraction limit",
+        )
+        return
+      }
+    }
+    const chunks: Uint8Array[] = []
+    let fileSize = 0
+    pending.add(archivePath)
+    file.ondata = (error, chunk, final) => {
+      if (extractionFailure) {
+        file.terminate()
+        pending.delete(archivePath)
+        return
+      }
+      if (error) {
+        extractionFailure = new Error(
+          "The released Skill package is not a readable ZIP",
+          { cause: error },
+        )
+        pending.delete(archivePath)
+        return
+      }
+      if (chunk) {
+        actualUncompressedSize += chunk.byteLength
+        fileSize += chunk.byteLength
+        if (
+          actualUncompressedSize > MAXIMUM_UNCOMPRESSED_PACKAGE_BYTES ||
+          !Number.isSafeInteger(actualUncompressedSize)
+        ) {
+          extractionFailure = new Error(
+            "The released Skill package exceeds the 50 MiB extraction limit",
+          )
+          file.terminate()
+          pending.delete(archivePath)
+          return
+        }
+        chunks.push(chunk)
+      }
+      if (final) {
+        const content = new Uint8Array(fileSize)
+        let offset = 0
+        for (const part of chunks) {
+          content.set(part, offset)
+          offset += part.byteLength
+        }
+        extracted.set(archivePath, content)
+        pending.delete(archivePath)
+      }
+    }
+    try {
+      file.start()
+    } catch (error) {
+      extractionFailure = new Error(
+        "The released Skill package is not a readable ZIP",
+        { cause: error },
+      )
+      pending.delete(archivePath)
+    }
+  })
+  unzip.register(UnzipInflate)
+  try {
+    unzip.push(bytes, true)
+  } catch (error) {
+    throw new Error("The released Skill package is not a readable ZIP", {
+      cause: extractionFailure ?? error,
+    })
+  }
+  if (extractionFailure) throw extractionFailure
+  if (pending.size > 0) {
+    throw new Error("The released Skill package is not a readable ZIP")
+  }
+  return extracted
+}
+
+async function promote(
+  staging: string,
+  target: string,
+  backup: string,
+  operations: PromotionFileOperations,
+): Promise<boolean> {
   let backedUp = false
   try {
     try {
-      await rename(target, backup)
+      await operations.rename(target, backup)
       backedUp = true
     } catch (error) {
       if (
@@ -242,15 +381,15 @@ async function promote(staging: string, target: string, backup: string): Promise
         throw error
       }
     }
-    await rename(staging, target)
+    await operations.rename(staging, target)
     return backedUp
   } catch (error) {
     if (backedUp) {
       try {
-        await rm(target, { recursive: true, force: true })
-        await rename(backup, target)
+        await operations.rm(target, { recursive: true, force: true })
+        await operations.rename(backup, target)
       } catch (rollbackError) {
-        throw new AggregateError(
+        throw new SkillPromotionRecoveryError(
           [error, rollbackError],
           `Skill promotion failed and rollback requires recovery from ${backup}`,
         )
@@ -259,6 +398,8 @@ async function promote(staging: string, target: string, backup: string): Promise
     throw error
   }
 }
+
+class SkillPromotionRecoveryError extends AggregateError {}
 
 async function writeReceipt(input: {
   global: boolean

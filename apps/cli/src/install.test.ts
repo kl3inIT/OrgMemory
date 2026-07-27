@@ -1,12 +1,20 @@
 import { createHash } from "node:crypto"
-import { access, mkdtemp, readFile, writeFile } from "node:fs/promises"
+import {
+  access,
+  mkdtemp,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+  readFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { zipSync } from "fflate"
 import { afterEach, describe, expect, it } from "vitest"
 
 import type { SkillManifestLink } from "./contracts.js"
-import { installSkill } from "./install.js"
+import { installSkill, listInstalled } from "./install.js"
 
 const temporaryDirectories: string[] = []
 
@@ -49,6 +57,9 @@ describe("installSkill", () => {
       version: "1.0.0",
       packageDigest: sha256(packageBytes),
     })
+    expect(await listInstalled({ global: false, cwd })).toHaveProperty(
+      "codex:support/support-triage",
+    )
   })
 
   it("leaves an active install untouched when package integrity fails", async () => {
@@ -74,6 +85,28 @@ describe("installSkill", () => {
 
     expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe("existing")
     await expect(access(join(cwd, ".orgmemory", "skills.lock.json"))).rejects.toThrow()
+  })
+
+  it("rejects a manifest above the bounded extraction budget before install", async () => {
+    const cwd = await temporaryDirectory()
+    const skillMarkdown = new TextEncoder().encode("bounded")
+    const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
+    const link = manifest(packageBytes, skillMarkdown)
+    link.manifest.files.push({
+      path: "references/oversized.md",
+      size: 50 * 1024 * 1024,
+      sha256: "d".repeat(64),
+    })
+
+    await expect(
+      installSkill({
+        manifestLink: link,
+        packageBytes,
+        agent: "codex",
+        global: false,
+        cwd,
+      }),
+    ).rejects.toThrow("50 MiB extraction limit")
   })
 
   it("restores the active install when the lock receipt cannot be committed", async () => {
@@ -102,6 +135,81 @@ describe("installSkill", () => {
         name.includes(".orgmemory-"),
       ),
     ).toEqual([])
+  })
+
+  it("restores the active install when promotion fails after backup", async () => {
+    const cwd = await temporaryDirectory()
+    const target = join(cwd, ".agents", "skills", "support-triage")
+    const { mkdir } = await import("node:fs/promises")
+    await mkdir(target, { recursive: true })
+    await writeFile(join(target, "SKILL.md"), "existing")
+    const skillMarkdown = new TextEncoder().encode("replacement")
+    const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
+    let renameCount = 0
+
+    await expect(
+      installSkill({
+        manifestLink: manifest(packageBytes, skillMarkdown),
+        packageBytes,
+        agent: "codex",
+        global: false,
+        cwd,
+        promotionOperations: {
+          rename: async (source, destination) => {
+            renameCount += 1
+            if (renameCount === 2) throw new Error("promotion failed")
+            await rename(source, destination)
+          },
+          rm,
+        },
+      }),
+    ).rejects.toThrow("promotion failed")
+
+    expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe("existing")
+    expect(
+      (await readdir(join(cwd, ".agents", "skills"))).filter((name) =>
+        name.includes("orgmemory-backup"),
+      ),
+    ).toEqual([])
+  })
+
+  it("preserves the recovery backup when promotion rollback fails", async () => {
+    const cwd = await temporaryDirectory()
+    const skillsDirectory = join(cwd, ".agents", "skills")
+    const target = join(skillsDirectory, "support-triage")
+    const { mkdir } = await import("node:fs/promises")
+    await mkdir(target, { recursive: true })
+    await writeFile(join(target, "SKILL.md"), "existing")
+    const skillMarkdown = new TextEncoder().encode("replacement")
+    const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
+    let renameCount = 0
+
+    await expect(
+      installSkill({
+        manifestLink: manifest(packageBytes, skillMarkdown),
+        packageBytes,
+        agent: "codex",
+        global: false,
+        cwd,
+        promotionOperations: {
+          rename: async (source, destination) => {
+            renameCount += 1
+            if (renameCount === 2) throw new Error("promotion failed")
+            if (renameCount === 3) throw new Error("rollback failed")
+            await rename(source, destination)
+          },
+          rm,
+        },
+      }),
+    ).rejects.toThrow("requires recovery")
+
+    const backups = (await readdir(skillsDirectory)).filter((name) =>
+      name.includes("orgmemory-backup"),
+    )
+    expect(backups).toHaveLength(1)
+    expect(
+      await readFile(join(skillsDirectory, backups[0]!, "SKILL.md"), "utf8"),
+    ).toBe("existing")
   })
 })
 

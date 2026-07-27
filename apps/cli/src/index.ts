@@ -4,6 +4,7 @@ import { Command, Option } from "commander"
 
 import {
   parseSkillReference,
+  resolvePackageUrl,
   skillManifestLinkSchema,
   skillSearchSchema,
 } from "./contracts.js"
@@ -17,6 +18,7 @@ import { OrgMemoryMcpClient } from "./mcp.js"
 
 const DEFAULT_SERVER = "https://om.kl3in.tech/mcp"
 const DEFAULT_CALLBACK_PORT = 53_682
+const PACKAGE_DOWNLOAD_TIMEOUT_MS = 60_000
 
 const program = new Command()
   .name("orgmemory")
@@ -88,12 +90,23 @@ skill
           skillManifestLinkSchema,
         )
         const token = await client.accessToken()
-        const packageUrl = new URL(link.packagePath, serverUrl)
-        const response = await fetch(packageUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-          redirect: "error",
-        })
-        const packageBytes = await readBoundedPackage(response)
+        const packageUrl = resolvePackageUrl(serverUrl, link)
+        const controller = new AbortController()
+        const timeout = setTimeout(
+          () => controller.abort(),
+          PACKAGE_DOWNLOAD_TIMEOUT_MS,
+        )
+        let packageBytes: Uint8Array
+        try {
+          const response = await fetch(packageUrl, {
+            headers: { Authorization: `Bearer ${token}` },
+            redirect: "error",
+            signal: controller.signal,
+          })
+          packageBytes = await readBoundedPackage(response)
+        } finally {
+          clearTimeout(timeout)
+        }
         const installed = await installSkill({
           manifestLink: link,
           packageBytes,

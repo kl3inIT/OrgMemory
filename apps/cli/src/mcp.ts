@@ -62,13 +62,47 @@ export class OrgMemoryMcpClient implements AsyncDisposable {
       this.client = client
       this.transport = transport
     } catch (error) {
-      if (!(error instanceof UnauthorizedError) || !allowAuthorization) throw error
-      const code = await this.oauth.waitForAuthorizationCode()
-      await transport.finishAuth(code)
-      await this.oauth.closeCallback()
-      await transport.close()
+      if (!(error instanceof UnauthorizedError) || !allowAuthorization) {
+        await closeWithoutMasking(transport)
+        throw error
+      }
+      try {
+        const code = await this.oauth.waitForAuthorizationCode()
+        await transport.finishAuth(code)
+      } catch (authorizationFailure) {
+        await closeOAuthCallbackWithoutMasking(this.oauth)
+        await closeWithoutMasking(transport)
+        throw authorizationFailure
+      }
+      try {
+        await this.oauth.closeCallback()
+      } catch (callbackCloseFailure) {
+        await closeWithoutMasking(transport)
+        throw callbackCloseFailure
+      }
+      await closeWithoutMasking(transport)
       await this.connectAttempt(false)
     }
+  }
+}
+
+async function closeWithoutMasking(
+  transport: StreamableHTTPClientTransport,
+): Promise<void> {
+  try {
+    await transport.close()
+  } catch {
+    // Preserve the connection or authorization failure that caused cleanup.
+  }
+}
+
+async function closeOAuthCallbackWithoutMasking(
+  oauth: FileOAuthClientProvider,
+): Promise<void> {
+  try {
+    await oauth.closeCallback()
+  } catch {
+    // Preserve the authorization failure that caused callback cleanup.
   }
 }
 

@@ -165,22 +165,31 @@ class AssetDeliveryController {
                 content.stream().transferTo(output);
             }
         };
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(
-                        content.manifest().mediaType()))
-                .contentLength(content.manifest().packageLength())
-                .cacheControl(CacheControl.noStore())
-                .eTag(content.manifest().packageDigest())
-                .header(
-                        HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment()
-                                .filename(
-                                        content.fileName(),
-                                        StandardCharsets.UTF_8)
-                                .build()
-                                .toString())
-                .header("X-Content-Type-Options", "nosniff")
-                .body(body);
+        try {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(
+                            content.manifest().mediaType()))
+                    .contentLength(content.manifest().packageLength())
+                    .cacheControl(CacheControl.noStore())
+                    .eTag(content.manifest().packageDigest())
+                    .header(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            ContentDisposition.attachment()
+                                    .filename(
+                                            content.fileName(),
+                                            StandardCharsets.UTF_8)
+                                    .build()
+                                    .toString())
+                    .header("X-Content-Type-Options", "nosniff")
+                    .body(body);
+        } catch (RuntimeException | Error responseFailure) {
+            try {
+                content.close();
+            } catch (Exception closeFailure) {
+                responseFailure.addSuppressed(closeFailure);
+            }
+            throw responseFailure;
+        }
     }
 
     @GetMapping("/{assetId}/releases/{releaseId}/pack")

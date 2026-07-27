@@ -20,6 +20,8 @@ type PersistedOAuthState = {
   discovery?: OAuthDiscoveryState
 }
 
+const AUTHORIZATION_CALLBACK_TIMEOUT_MS = 5 * 60_000
+
 export class FileOAuthClientProvider implements OAuthClientProvider {
   readonly clientMetadata: OAuthClientMetadata
   private readonly stateFile: string
@@ -176,6 +178,9 @@ class OAuthCallback {
   private codePromise: Promise<string> | undefined
   private resolveCode: ((code: string) => void) | undefined
   private rejectCode: ((error: Error) => void) | undefined
+  private waitTimeout: ReturnType<typeof setTimeout> | undefined
+  private waiting = false
+  private settled = false
 
   constructor(
     private readonly port: number,
@@ -189,9 +194,16 @@ class OAuthCallback {
   async start(): Promise<void> {
     if (this.server) return
     this.codePromise = new Promise<string>((resolve, reject) => {
-      this.resolveCode = resolve
-      this.rejectCode = reject
+      this.resolveCode = (code) => {
+        this.settled = true
+        resolve(code)
+      }
+      this.rejectCode = (error) => {
+        this.settled = true
+        reject(error)
+      }
     })
+    this.settled = false
     this.server = createServer((request, response) => {
       const url = new URL(request.url ?? "/", this.url)
       if (request.method !== "GET" || url.pathname !== "/oauth/callback") {
@@ -202,26 +214,47 @@ class OAuthCallback {
       const code = url.searchParams.get("code")
       const state = url.searchParams.get("state")
       if (error) {
-        response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" })
+        response.writeHead(400, {
+          "Connection": "close",
+          "Content-Type": "text/plain; charset=utf-8",
+        })
         response.end("OrgMemory authorization failed. Return to the terminal.")
         this.rejectCode?.(new Error(`OAuth authorization failed: ${error}`))
         return
       }
       if (!code || !state || state !== this.expectedState()) {
-        response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" })
+        response.writeHead(400, {
+          "Connection": "close",
+          "Content-Type": "text/plain; charset=utf-8",
+        })
         response.end("Invalid OrgMemory authorization callback.")
         this.rejectCode?.(new Error("OAuth callback state or code is invalid"))
         return
       }
-      response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
+      response.writeHead(200, {
+        "Connection": "close",
+        "Content-Type": "text/html; charset=utf-8",
+      })
       response.end(
         "<!doctype html><title>OrgMemory connected</title><p>OrgMemory is connected. You can close this window.</p>",
       )
       this.resolveCode?.(code)
     })
     await new Promise<void>((resolve, reject) => {
-      this.server?.once("error", reject)
-      this.server?.listen(this.port, "127.0.0.1", () => resolve())
+      const server = this.server
+      if (!server) {
+        reject(new Error("OAuth callback server was not created"))
+        return
+      }
+      const listenFailed = (error: Error) => {
+        if (this.server === server) this.server = undefined
+        reject(error)
+      }
+      server.once("error", listenFailed)
+      server.listen(this.port, "127.0.0.1", () => {
+        server.off("error", listenFailed)
+        resolve()
+      })
     })
   }
 
@@ -229,16 +262,46 @@ class OAuthCallback {
     if (!this.codePromise) {
       throw new Error("OAuth callback server was not started")
     }
-    return this.codePromise
+    this.waiting = true
+    this.waitTimeout = setTimeout(() => {
+      if (!this.settled) {
+        this.rejectCode?.(
+          new Error("OrgMemory authorization timed out after 5 minutes"),
+        )
+      }
+    }, AUTHORIZATION_CALLBACK_TIMEOUT_MS)
+    try {
+      return await this.codePromise
+    } finally {
+      this.waiting = false
+      if (this.waitTimeout) clearTimeout(this.waitTimeout)
+      this.waitTimeout = undefined
+    }
   }
 
   async close(): Promise<void> {
-    if (!this.server) return
+    if (this.waiting && !this.settled) {
+      this.rejectCode?.(
+        new Error("OrgMemory authorization was cancelled before completion"),
+      )
+    }
+    if (this.waitTimeout) clearTimeout(this.waitTimeout)
+    this.waitTimeout = undefined
+    if (!this.server) {
+      this.codePromise = undefined
+      this.resolveCode = undefined
+      this.rejectCode = undefined
+      return
+    }
     const server = this.server
     this.server = undefined
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()))
+      server.closeAllConnections()
     })
+    this.codePromise = undefined
+    this.resolveCode = undefined
+    this.rejectCode = undefined
   }
 }
 

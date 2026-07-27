@@ -3,6 +3,7 @@ package com.orgmemory.api.assetregistry;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -81,7 +82,40 @@ class SkillDistributionControllerTests {
         assertTrue(stream.closed);
     }
 
+    @Test
+    void closesThePackageIfResponseMetadataCannotBeBuilt() {
+        TrackingInputStream stream =
+                new TrackingInputStream(new byte[] {1});
+        SkillDistributionService skills =
+                mock(SkillDistributionService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        when(actors.current(authentication)).thenReturn(ACTOR);
+        when(skills.open(ACTOR, ASSET_ID, RELEASE_ID))
+                .thenReturn(new SkillPackageContent(
+                        manifest(1, "invalid media type;"),
+                        "support-triage-1.0.0.zip",
+                        stream));
+        AssetDeliveryController controller = new AssetDeliveryController(
+                mock(AssetDeliveryService.class),
+                mock(PromptExecutionService.class),
+                skills,
+                actors);
+
+        assertThrows(
+                RuntimeException.class,
+                () -> controller.skillPackage(
+                        ASSET_ID, RELEASE_ID, authentication));
+
+        assertTrue(stream.closed);
+    }
+
     private static SkillInstallManifest manifest(long length) {
+        return manifest(length, "application/zip");
+    }
+
+    private static SkillInstallManifest manifest(
+            long length, String mediaType) {
         return new SkillInstallManifest(
                 ASSET_ID,
                 RELEASE_ID,
@@ -94,7 +128,7 @@ class SkillDistributionControllerTests {
                 "b".repeat(64),
                 "a".repeat(64),
                 length,
-                "application/zip",
+                mediaType,
                 "MIT",
                 "Claude Code and Codex",
                 "Read",

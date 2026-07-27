@@ -1,6 +1,7 @@
 {
   "name": "@orgmemory/cli",
   "version": "0.1.0",
+  "private": true,
   "description": "Authenticated OrgMemory Skill installer for AI coding agents",
   "type": "module",
   "bin": {
