@@ -3,9 +3,17 @@
 ## Current Behavior
 
 OIDC issuer/subject is the durable external identity for both browser sessions
-and bearer JWTs. The binding must already exist in `external_identities`; email,
-display name, and identity-provider roles never create or elevate an OrgMemory
-identity. Unknown and inactive identities fail closed.
+and bearer JWTs. An existing `external_identities` binding always wins. An
+unlinked identity may consume exactly one open invitation selected by a
+verified email claim; the email only selects that expectation and the durable
+result is still `(issuer, subject)`. Zero or multiple eligible invitations fail
+closed. Display name, email, and identity-provider roles never elevate
+OrgMemory access. Unknown and inactive identities fail closed.
+
+One Keycloak `(issuer, subject)` binds to one application user and therefore
+one organization. Email uniqueness is organization-scoped. Supporting one
+human in multiple organizations requires a future global-person plus membership
+model; duplicating the same external subject is not supported.
 
 The browser uses Spring as a confidential OIDC BFF. Keycloak authenticates the
 user, Spring Session JDBC stores the server-side session, and React reads only
@@ -28,18 +36,21 @@ principals through the verified mapping ledger described in the
 
 An administration surface under `/api/admin/**` governs that identity layer.
 Every endpoint is gated on OpenFGA `can_manage_members` against the actor's
-organization; the app role carried by `/api/session` and `/api/me` is a browser
-rendering hint and never a boundary. Administration lists internal users with
+organization. `app_users.role` is a local business/classification profile used
+by application policy and presentation; it is neither a Keycloak role nor an
+OpenFGA relationship and cannot grant organization or Knowledge Space access.
+Administration lists internal users with
 their role, activation, whether an `external_identities` row exists at all, and
 how many source principals resolve to them; it changes role and activation but
 never creates users, refusing self-edits so an organization cannot be locked out
 of its own administration. It lists observed source principals with the tier that
 mapped them, records administrator-confirmed mappings and revocations through the
 existing mapping service, records the per-connection identity trust decision, and
-exposes sealed source-group membership read-only. There is no in-application
-invitation, registration, or application-managed group: accounts come from the
-identity provider and group membership is fixed at ACL seal time. SCIM
-provisioning is not implemented.
+exposes sealed source-group membership read-only. Administrators can create,
+list, and revoke invitation expectations; first verified sign-in atomically
+creates or links the application user and accepts the invitation. There is no
+open registration or application-managed directory group. SCIM provisioning is
+not implemented.
 
 OpenAPI and Swagger are disabled by default and public only in the `dev`
 profile. The committed `contracts/openapi.json` is generated from the running
@@ -60,8 +71,12 @@ abort API startup before traffic is accepted.
 - Authentication answers who the external principal is; OpenFGA answers what
   the canonical internal actor may do.
 - `(issuer, subject)` is the only automatic identity lookup key.
+- Verified email may select one invitation but never becomes a binding key.
+- One external subject belongs to one application user and one organization.
+- Application-user email uniqueness is scoped to its organization.
 - Email and Keycloak roles are display/authentication claims, not authorization
   grants.
+- `app_users.role` is local business/classification state, not an OpenFGA grant.
 - Browser and bearer paths must resolve the same `CurrentActor`.
 - Unknown, inactive, stale, or ambiguous identity state denies access.
 - Administration is authorized by OpenFGA, never by the app role a browser reads.
@@ -71,3 +86,5 @@ abort API startup before traffic is accepted.
 ## Related Decisions
 
 - [0003](../../decisions/0003-postgresql-ledger-openfga-authorization.md)
+- [0016](../../decisions/0016-native-scim-behind-keycloak-broker.md)
+- [Identity tenant migration operations](../../guidelines/identity-tenant-migration-operations.md)

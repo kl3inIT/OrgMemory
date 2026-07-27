@@ -165,18 +165,28 @@ Scope:
 
 Merge gate:
 
-- [ ] architecture, spec, tests, and roadmap use the same authority names;
-- [ ] every current-fact claim points to implemented code or test evidence;
-- [ ] future SCIM behavior remains only in the ADR, roadmap, and active
+- [x] architecture, spec, tests, and roadmap use the same authority names;
+- [x] every current-fact claim points to implemented code or test evidence;
+- [x] future SCIM behavior remains only in the ADR, roadmap, and active
   increments;
-- [ ] Markdown links and repository diff checks pass.
+- [x] Markdown links and repository diff checks pass.
+
+Implementation checkpoint on 2026-07-27:
+
+- The current identity spec now describes invitation-gated provisioning,
+  one-subject/one-organization cardinality, organization-scoped email, and the
+  distinct authority of local `app_users.role`.
+- The coverage matrix names the service, migration, opaque-conflict, and
+  50-attempt PostgreSQL concurrency evidence.
+- The operational guideline contains count-only preflight queries, stable
+  conflict diagnosis, and the forward-only compatibility floor.
 
 ## Increment Exit
 
 - [ ] H1, H2, H3, and H4 are merged in order.
-- [ ] The clean-schema and populated-schema migration rehearsals pass.
-- [ ] Existing invitation, browser login, bearer login, admin-user, and logout
+- [x] The clean-schema and populated-schema migration rehearsals pass.
+- [x] Existing invitation, browser login, bearer login, admin-user, and logout
   flows pass.
-- [ ] ADR 0016 was `Accepted` with its Fable review record before H1
+- [x] ADR 0016 was `Accepted` with its Fable review record before H1
   implementation started, or the project owner explicitly recorded an
   exception to that review gate.
