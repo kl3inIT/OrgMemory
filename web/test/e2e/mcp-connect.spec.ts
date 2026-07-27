@@ -44,6 +44,9 @@ test("shows generic MCP onboarding for Claude, Codex, and compatible clients", a
       exact: false,
     }),
   ).toBeVisible()
+  await expect(
+    page.getByText("cannot publish or modify them.", { exact: false }),
+  ).toBeVisible()
 
   await page.getByRole("tab", { name: "Codex" }).click()
   await expect(
