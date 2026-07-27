@@ -128,6 +128,28 @@ public class AssetRegistryService {
                 actor.organizationId(), ids, query, type);
     }
 
+    public AssetRecommendationPage catalog(
+            CurrentActor actor,
+            String query,
+            AssetType type,
+            AssetCatalogSort sort,
+            int page,
+            int pageSize) {
+        int boundedPage = Math.max(page, 1);
+        int boundedPageSize = Math.min(Math.max(pageSize, 1), 60);
+        AssetCatalogSort selectedSort =
+                sort == null ? AssetCatalogSort.RECENTLY_RELEASED : sort;
+        Set<UUID> ids = authorizedIds(actor, CAN_USE);
+        return coordinator.recommendationPage(
+                actor.organizationId(),
+                ids,
+                query,
+                type,
+                selectedSort,
+                boundedPage,
+                boundedPageSize);
+    }
+
     private Set<UUID> authorizedIds(
             CurrentActor actor, PermissionKey permission) {
         Objects.requireNonNull(actor, "actor");

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -61,5 +62,155 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
             @Param("ids") Collection<UUID> ids,
             @Param("query") String query,
             @Param("type") AssetType type,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    select new com.orgmemory.core.assetregistry.AssetRecommendation(
+                        asset.id,
+                        asset.type,
+                        asset.namespace,
+                        asset.slug,
+                        release.title,
+                        release.summary,
+                        asset.knowledgeSpaceId,
+                        asset.portfolioState,
+                        release.id,
+                        release.versionLabel,
+                        release.digest,
+                        availabilityEvent.availability)
+                    from Asset asset
+                    join AssetRelease release
+                      on release.assetId = asset.id
+                     and release.organizationId = asset.organizationId
+                    join AssetReleaseAvailabilityEvent availabilityEvent
+                      on availabilityEvent.releaseId = release.id
+                    where asset.organizationId = :organizationId
+                      and asset.id in :ids
+                      and asset.authorizationReady = true
+                      and (:type is null or asset.type = :type)
+                      and (
+                            :query = ''
+                            or lower(concat(
+                                asset.namespace, ' ', asset.slug, ' ',
+                                release.title, ' ', release.summary))
+                               like concat('%', :query, '%')
+                      )
+                      and availabilityEvent.availability <> :withdrawn
+                      and not exists (
+                            select laterAvailability.id
+                            from AssetReleaseAvailabilityEvent laterAvailability
+                            where laterAvailability.releaseId = availabilityEvent.releaseId
+                              and (
+                                laterAvailability.effectiveAt > availabilityEvent.effectiveAt
+                                or (
+                                  laterAvailability.effectiveAt = availabilityEvent.effectiveAt
+                                  and laterAvailability.createdAt > availabilityEvent.createdAt
+                                )
+                              )
+                      )
+                      and not exists (
+                            select newerRelease.id
+                            from AssetRelease newerRelease
+                            where newerRelease.assetId = asset.id
+                              and newerRelease.organizationId = asset.organizationId
+                              and newerRelease.sequence > release.sequence
+                              and exists (
+                                    select newerAvailability.id
+                                    from AssetReleaseAvailabilityEvent newerAvailability
+                                    where newerAvailability.releaseId = newerRelease.id
+                                      and newerAvailability.availability <> :withdrawn
+                                      and not exists (
+                                            select laterNewerAvailability.id
+                                            from AssetReleaseAvailabilityEvent laterNewerAvailability
+                                            where laterNewerAvailability.releaseId =
+                                                newerAvailability.releaseId
+                                              and (
+                                                laterNewerAvailability.effectiveAt >
+                                                    newerAvailability.effectiveAt
+                                                or (
+                                                  laterNewerAvailability.effectiveAt =
+                                                      newerAvailability.effectiveAt
+                                                  and laterNewerAvailability.createdAt >
+                                                      newerAvailability.createdAt
+                                                )
+                                              )
+                                      )
+                              )
+                      )
+                    order by
+                      case when :sort = 'NAME' then lower(release.title) end asc,
+                      case when :sort = 'RECENTLY_RELEASED' then release.releasedAt end desc,
+                      asset.id asc
+                    """,
+            countQuery = """
+                    select count(asset.id)
+                    from Asset asset
+                    join AssetRelease release
+                      on release.assetId = asset.id
+                     and release.organizationId = asset.organizationId
+                    join AssetReleaseAvailabilityEvent availabilityEvent
+                      on availabilityEvent.releaseId = release.id
+                    where asset.organizationId = :organizationId
+                      and asset.id in :ids
+                      and asset.authorizationReady = true
+                      and (:type is null or asset.type = :type)
+                      and (
+                            :query = ''
+                            or lower(concat(
+                                asset.namespace, ' ', asset.slug, ' ',
+                                release.title, ' ', release.summary))
+                               like concat('%', :query, '%')
+                      )
+                      and availabilityEvent.availability <> :withdrawn
+                      and not exists (
+                            select laterAvailability.id
+                            from AssetReleaseAvailabilityEvent laterAvailability
+                            where laterAvailability.releaseId = availabilityEvent.releaseId
+                              and (
+                                laterAvailability.effectiveAt > availabilityEvent.effectiveAt
+                                or (
+                                  laterAvailability.effectiveAt = availabilityEvent.effectiveAt
+                                  and laterAvailability.createdAt > availabilityEvent.createdAt
+                                )
+                              )
+                      )
+                      and not exists (
+                            select newerRelease.id
+                            from AssetRelease newerRelease
+                            where newerRelease.assetId = asset.id
+                              and newerRelease.organizationId = asset.organizationId
+                              and newerRelease.sequence > release.sequence
+                              and exists (
+                                    select newerAvailability.id
+                                    from AssetReleaseAvailabilityEvent newerAvailability
+                                    where newerAvailability.releaseId = newerRelease.id
+                                      and newerAvailability.availability <> :withdrawn
+                                      and not exists (
+                                            select laterNewerAvailability.id
+                                            from AssetReleaseAvailabilityEvent laterNewerAvailability
+                                            where laterNewerAvailability.releaseId =
+                                                newerAvailability.releaseId
+                                              and (
+                                                laterNewerAvailability.effectiveAt >
+                                                    newerAvailability.effectiveAt
+                                                or (
+                                                  laterNewerAvailability.effectiveAt =
+                                                      newerAvailability.effectiveAt
+                                                  and laterNewerAvailability.createdAt >
+                                                      newerAvailability.createdAt
+                                                )
+                                              )
+                                      )
+                              )
+                      )
+                    """)
+    Page<AssetRecommendation> searchAuthorizedRecommendations(
+            @Param("organizationId") UUID organizationId,
+            @Param("ids") Collection<UUID> ids,
+            @Param("query") String query,
+            @Param("type") AssetType type,
+            @Param("withdrawn") AssetAvailability withdrawn,
+            @Param("sort") String sort,
             Pageable pageable);
 }

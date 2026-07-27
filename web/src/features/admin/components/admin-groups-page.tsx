@@ -3,17 +3,15 @@ import { ChevronDown } from "lucide-react"
 import { useState } from "react"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
+import { CollectionPagination } from "@/components/patterns/collection-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { connectionLabel, formatTimestamp } from "@/features/admin/admin-labels"
-import { pageItems } from "@/features/admin/admin-collection"
+import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
 import { adminSourceGroupsQueryOptions } from "@/features/admin/admin-queries"
-import {
-  AdminPagination,
-  AdminSearch,
-} from "@/features/admin/components/admin-collection-controls"
+import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import type {
   AdminSourceGroupMemberResponse,
@@ -171,7 +169,14 @@ export function AdminGroupsPage() {
       <AdminSection
         title="Sealed source groups"
         toolbar={<AdminSearch value={query} onChange={updateQuery} placeholder="Search source groups" />}
-        footer={<AdminPagination page={page} total={filteredRows.length} onPageChange={setPage} />}
+        footer={
+          <CollectionPagination
+            page={page}
+            pageSize={ADMIN_PAGE_SIZE}
+            total={filteredRows.length}
+            onPageChange={setPage}
+          />
+        }
       >
         {filteredRows.length === 0 ? (
           rows.length === 0 ? (

@@ -5,6 +5,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
+import { CollectionPagination } from "@/components/patterns/collection-pagination"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,12 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
-import { pageItems } from "@/features/admin/admin-collection"
+import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
 import { adminUsersQueryOptions, invalidateAdminData } from "@/features/admin/admin-queries"
-import {
-  AdminPagination,
-  AdminSearch,
-} from "@/features/admin/components/admin-collection-controls"
+import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminInvitationsCard } from "@/features/admin/components/admin-invitations-card"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { avatarInitials } from "@/lib/avatar"
@@ -370,7 +368,12 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
           </div>
         )}
 
-        <AdminPagination page={page} total={filteredRows.length} onPageChange={setPage} />
+        <CollectionPagination
+          page={page}
+          pageSize={ADMIN_PAGE_SIZE}
+          total={filteredRows.length}
+          onPageChange={setPage}
+        />
       </section>
     </AdminPage>
   )

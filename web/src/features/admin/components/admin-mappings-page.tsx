@@ -3,23 +3,21 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
+import { CollectionPagination } from "@/components/patterns/collection-pagination"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { connectionLabel, formatTimestamp, principalName } from "@/features/admin/admin-labels"
-import { pageItems } from "@/features/admin/admin-collection"
+import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
 import {
   adminSourceConnectionsQueryOptions,
   adminSourcePrincipalsQueryOptions,
   adminUsersQueryOptions,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
-import {
-  AdminPagination,
-  AdminSearch,
-} from "@/features/admin/components/admin-collection-controls"
+import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import { ConfirmMappingDialog } from "@/features/admin/components/confirm-mapping-dialog"
 import { MappingBadge } from "@/features/admin/components/mapping-badge"
@@ -383,8 +381,9 @@ export function AdminMappingsPage() {
           </>
         }
         footer={
-          <AdminPagination
+          <CollectionPagination
             page={principalPage}
+            pageSize={ADMIN_PAGE_SIZE}
             total={filteredPrincipals.length}
             onPageChange={setPrincipalPage}
           />
