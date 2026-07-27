@@ -5,7 +5,8 @@
 - Anonymous `/api/session` responses do not resolve a canonical actor.
 - Authenticated OIDC sessions and bearer JWTs resolve the same explicit
   issuer/subject binding.
-- Verified email and external admin-role claims cannot create a binding.
+- Verified email can select exactly one administrator-created invitation but
+  cannot identify, elevate, or provision an uninvited/ambiguous account.
 - Inactive and unlinked users fail closed.
 - `/api/session/csrf` exposes the server-issued header, parameter, and token.
 
