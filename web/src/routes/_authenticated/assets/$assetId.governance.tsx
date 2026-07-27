@@ -15,6 +15,7 @@ function GovernanceRoute() {
     <GovernanceWorkspacePage
       assetId={assetId}
       actorKey={assetActorKey(session)}
+      currentUserId={session.userId}
     />
   )
 }

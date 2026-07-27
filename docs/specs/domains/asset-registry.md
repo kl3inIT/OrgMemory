@@ -89,7 +89,9 @@ separate `assets:write` scope and sends those bytes to the bounded
 `/skill-publications` HTTP companion. The MCP gateway exchanges the actor token
 and delegates to the same canonical multipart endpoint above. Core repeats
 validation and live `CAN_CREATE_ASSET` authorization and creates a Draft only;
-submit, review, approval, and release remain explicit Governance actions.
+submit, review, approval, and release remain explicit Governance actions. A
+successful publication returns and prints the exact same-origin Governance URL
+so the author can continue without reconstructing an Asset route.
 
 ### Federated Knowledge
 
@@ -127,7 +129,18 @@ The authenticated web application provides four generic surfaces:
   opaque access gaps, and replacement-release impact.
 - **Governance workspace** exposes revision comparison, evaluation, review,
   release history, deprecation, and withdrawal through the registry's existing
-  authorization checks.
+  authorization checks. A newly authored Draft opens in a dedicated Draft
+  section; Skill Drafts disclose their bounded package metadata and full
+  digest, and an authorized author can submit that exact Draft with a required
+  change note.
+
+Before rendering mutation controls, the web application asks Core for the
+current actor's live `can_submit_review`, `can_review`, `can_publish`, and
+`can_withdraw` decisions on the Asset. Core first requires `can_view` and does
+not return denial reasons or relationship data. These decisions are display
+affordances only: every mutation repeats authorization and remains
+authoritative. The browser never infers authority from role labels, and a
+revision author is not offered a self-review decision.
 
 Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or

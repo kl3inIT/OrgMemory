@@ -67,6 +67,20 @@ export function publicationUrl(serverUrl: URL): URL {
   return url
 }
 
+export function governanceUrl(serverUrl: URL, assetId: string): URL {
+  const expectedPath = `/assets/${assetId}/governance`
+  const url = new URL(expectedPath, serverUrl)
+  if (
+    url.origin !== serverUrl.origin ||
+    url.pathname !== expectedPath ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error("The Asset Governance URL is invalid")
+  }
+  return url
+}
+
 async function publicationError(response: Response): Promise<string> {
   const length = Number.parseInt(response.headers.get("content-length") ?? "", 10)
   if (Number.isFinite(length) && length > MAX_ERROR_BYTES) {

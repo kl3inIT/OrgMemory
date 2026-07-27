@@ -17,6 +17,7 @@ import {
 } from "./install.js"
 import { OrgMemoryMcpClient } from "./mcp.js"
 import {
+  governanceUrl,
   publishSkillDraft,
   type SkillClassification,
 } from "./publish.js"
@@ -123,6 +124,7 @@ skill
             draftId: published.draft.id,
             coordinate: `${published.namespace}/${published.slug}`,
             lockVersion: published.draft.lockVersion,
+            governanceUrl: governanceUrl(serverUrl, published.id).toString(),
             ...packageSummary(localPackage),
           }
           if (options.json) {
@@ -132,7 +134,7 @@ skill
               `Created Skill Draft ${result.coordinate}\n` +
                 `Asset ${result.assetId}\n` +
                 `SHA-256 ${result.packageDigest}\n` +
-                "Continue in OrgMemory Governance to submit, review, and release it.\n",
+                `Continue in Governance: ${result.governanceUrl}\n`,
             )
           }
         },

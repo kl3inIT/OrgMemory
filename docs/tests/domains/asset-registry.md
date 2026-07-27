@@ -13,7 +13,10 @@
 | CLI installation verifies package and per-file digests, promotes atomically, writes a token-free receipt, and preserves an active install on tampering | `install.test.ts` | covered |
 | CLI authoring validates a root Skill folder and produces deterministic bounded ZIP bytes before authentication | `skill-package.test.ts` | covered |
 | CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
+| CLI Draft publication returns an exact same-origin Governance URL for the created Asset | `publish.test.ts` | covered |
 | Skill publication requires `assets:write`, uses the publisher token-exchange registration, bounds multipart size, and delegates only to canonical Skill import | `OrgMemoryMcpContextTests`, `SkillPublicationControllerTests`, `SkillPublicationApiClientTests`, `McpApiAuthorizationTests`, `McpRateLimitFilterTests` | covered |
+| Governance action discovery first requires Asset visibility and reports actor-specific submit, review, publish, and withdrawal affordances without granting authority | `AssetRegistryServiceTests#governanceActionsUseLivePermissionsAfterRequiringAssetView` | covered |
+| A newly published Skill Draft exposes bounded package identity, submits with a required change note, and moves to review without offering author self-approval | `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
 | Prompt output contract and bounded evaluations expose pass/failure | `PromptExecutionServiceTests`, `AssetRegistryIntegrationTests` | covered |

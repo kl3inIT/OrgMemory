@@ -3,6 +3,7 @@ package com.orgmemory.api.assetregistry;
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDraftInput;
+import com.orgmemory.core.assetregistry.AssetGovernanceActions;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetRole;
@@ -171,6 +172,17 @@ class AssetRegistryController {
             @PathVariable UUID assetId,
             Authentication authentication) {
         return assets.get(actors.current(authentication), assetId);
+    }
+
+    @GetMapping("/{assetId}/governance-actions")
+    @Operation(
+            operationId = "getAssetGovernanceActions",
+            summary = "Read the current actor's available Governance actions")
+    AssetGovernanceActions governanceActions(
+            @PathVariable UUID assetId,
+            Authentication authentication) {
+        return assets.governanceActions(
+                actors.current(authentication), assetId);
     }
 
     @PutMapping("/{assetId}/draft")
