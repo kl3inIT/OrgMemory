@@ -1,8 +1,7 @@
-import { Check, Copy, ExternalLink, LockKeyhole, Plug, ShieldCheck } from "lucide-react"
+import { Copy, ExternalLink, LockKeyhole, Plug } from "lucide-react"
 import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -22,38 +21,32 @@ export function McpConnectPage() {
         icon={<Plug className="size-5" aria-hidden="true" />}
       />
 
-      <Card className="gap-4">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="success">
-              <Check aria-hidden="true" />
-              Available
-            </Badge>
-            <Badge variant="muted">Read only</Badge>
-            <Badge variant="muted">OAuth 2.1</Badge>
-          </div>
-          <CardTitle className="pt-2">OrgMemory MCP</CardTitle>
-          <CardDescription>
-            One Streamable HTTP endpoint for Claude, Codex, and compatible MCP clients.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CopyField label="Server URL" value={MCP_ENDPOINT} />
-        </CardContent>
-      </Card>
+      <PageLayout.Body>
+        <Card className="gap-4">
+          <CardHeader>
+            <CardTitle>OrgMemory MCP</CardTitle>
+            <CardDescription>
+              Read-only Streamable HTTP with OAuth 2.1 for Claude, Codex, and compatible MCP
+              clients.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CopyField label="Server URL" value={MCP_ENDPOINT} />
+          </CardContent>
+        </Card>
 
-      <Tabs defaultValue="claude" className="gap-5">
-        <TabsList aria-label="MCP clients" className="h-10">
-          <TabsTrigger value="claude" className="px-4">
-            Claude
-          </TabsTrigger>
-          <TabsTrigger value="codex" className="px-4">
-            Codex
-          </TabsTrigger>
-          <TabsTrigger value="other" className="px-4">
-            Other clients
-          </TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="claude" className="gap-5">
+          <TabsList aria-label="MCP clients" className="h-10">
+            <TabsTrigger value="claude" className="px-4">
+              Claude
+            </TabsTrigger>
+            <TabsTrigger value="codex" className="px-4">
+              Codex
+            </TabsTrigger>
+            <TabsTrigger value="other" className="px-4">
+              Other clients
+            </TabsTrigger>
+          </TabsList>
 
         <TabsContent value="claude">
           <ClientCard
@@ -81,7 +74,7 @@ export function McpConnectPage() {
               </a>
             </Button>
           </ClientCard>
-        </TabsContent>
+          </TabsContent>
 
         <TabsContent value="codex">
           <ClientCard
@@ -97,7 +90,7 @@ export function McpConnectPage() {
               <CommandBlock command={CODEX_LOGIN_COMMAND} />
             </SetupStep>
           </ClientCard>
-        </TabsContent>
+          </TabsContent>
 
         <TabsContent value="other">
           <ClientCard
@@ -120,33 +113,17 @@ export function McpConnectPage() {
               callback domain needs an administrator to approve that domain first.
             </p>
           </ClientCard>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
 
-      <Card className="gap-4 border-status-info-border bg-status-info-surface/40">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ShieldCheck className="size-4" aria-hidden="true" />
-            What the assistant can do
-          </CardTitle>
-          <CardDescription>
-            Search authorized Assets, read exact releases and Pack contents, resolve relations, and
-            render released Prompt templates with variables.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm text-content-secondary sm:grid-cols-2">
-          <SecurityPoint
-            icon={LockKeyhole}
-            title="Your permissions stay authoritative"
-            body="OAuth admits the client; OrgMemory evaluates current object access for every call."
-          />
-          <SecurityPoint
-            icon={ShieldCheck}
-            title="No mutations in this POC"
-            body="MCP cannot publish, approve, install, edit progress, or run arbitrary actions."
-          />
-        </CardContent>
-      </Card>
+        <div className="flex items-start gap-2 text-sm leading-6 text-content-muted">
+          <LockKeyhole className="mt-1 size-4 shrink-0" aria-hidden="true" />
+          <p>
+            OrgMemory checks your current permissions on every request. The connector can search
+            and render released Assets, but cannot publish or modify them.
+          </p>
+        </div>
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }
@@ -232,25 +209,5 @@ function CopyButton({ value, label }: { value: string; label: string }) {
     >
       <Copy aria-hidden="true" />
     </Button>
-  )
-}
-
-function SecurityPoint({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: typeof ShieldCheck
-  title: string
-  body: string
-}) {
-  return (
-    <div className="flex gap-3">
-      <Icon className="mt-0.5 size-4 shrink-0 text-content-primary" aria-hidden="true" />
-      <div>
-        <p className="font-medium text-content-primary">{title}</p>
-        <p className="mt-1 leading-5">{body}</p>
-      </div>
-    </div>
   )
 }

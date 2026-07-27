@@ -115,8 +115,9 @@ export function AdminUserPermissionsPage({
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <PageLayout.Body>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
           <CardHeader>
             <CardTitle>Organization permissions</CardTitle>
           </CardHeader>
@@ -145,9 +146,9 @@ export function AdminUserPermissionsPage({
               </>
             )}
           </CardContent>
-        </Card>
+          </Card>
 
-        <Card>
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-2">
               Roles
@@ -231,10 +232,11 @@ export function AdminUserPermissionsPage({
               </>
             )}
           </CardContent>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      <AccessInspector userId={userId} />
+        <AccessInspector userId={userId} />
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }

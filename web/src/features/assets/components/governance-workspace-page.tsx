@@ -100,24 +100,26 @@ export function GovernanceWorkspacePage({
         }
       />
 
-      <Tabs defaultValue="changes" className="gap-6">
-        <PageLayout.Tabs>
-          <TabsList aria-label="Governance sections">
-            <TabsTrigger value="changes">Changes</TabsTrigger>
-            <TabsTrigger value="review">Review</TabsTrigger>
-            <TabsTrigger value="releases">Releases</TabsTrigger>
-          </TabsList>
-        </PageLayout.Tabs>
-        <TabsContent value="changes">
-          <RevisionDiff asset={asset.data} />
-        </TabsContent>
-        <TabsContent value="review">
-          <ReviewWorkspace asset={asset.data} onChanged={refresh} />
-        </TabsContent>
-        <TabsContent value="releases">
-          <ReleaseHistory asset={asset.data} onChanged={refresh} />
-        </TabsContent>
-      </Tabs>
+      <PageLayout.Body>
+        <Tabs defaultValue="changes" className="gap-6">
+          <PageLayout.Tabs>
+            <TabsList aria-label="Governance sections">
+              <TabsTrigger value="changes">Changes</TabsTrigger>
+              <TabsTrigger value="review">Review</TabsTrigger>
+              <TabsTrigger value="releases">Releases</TabsTrigger>
+            </TabsList>
+          </PageLayout.Tabs>
+          <TabsContent value="changes">
+            <RevisionDiff asset={asset.data} />
+          </TabsContent>
+          <TabsContent value="review">
+            <ReviewWorkspace asset={asset.data} onChanged={refresh} />
+          </TabsContent>
+          <TabsContent value="releases">
+            <ReleaseHistory asset={asset.data} onChanged={refresh} />
+          </TabsContent>
+        </Tabs>
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }

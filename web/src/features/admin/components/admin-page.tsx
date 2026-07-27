@@ -28,7 +28,7 @@ export function AdminPage({
   return (
     <PageLayout.Root variant="wide">
       <PageLayout.Header title={title} description={description} icon={icon} actions={actions} />
-      {children}
+      <PageLayout.Body>{children}</PageLayout.Body>
     </PageLayout.Root>
   )
 }

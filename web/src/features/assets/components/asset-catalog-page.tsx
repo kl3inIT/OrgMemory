@@ -55,117 +55,119 @@ export function AssetCatalogPage({
 
   return (
     <PageLayout.Root variant="wide">
-      <PageLayout.Header title="For your role" />
+      <PageLayout.Header title="For your role">
+        <FilterBar
+          search={
+            <InputGroup>
+              <InputGroupAddon>
+                <Search aria-hidden="true" />
+              </InputGroupAddon>
+              <InputGroupInput
+                value={query}
+                onChange={(event) => onQueryChange(event.currentTarget.value)}
+                placeholder="Search by task, role, or outcome"
+                aria-label="Search visible assets"
+              />
+            </InputGroup>
+          }
+          filters={
+            <Select
+              value={type ?? "ALL"}
+              onValueChange={(value: string) =>
+                onTypeChange(value === "ALL" ? undefined : (value as AssetType))
+              }
+            >
+              <SelectTrigger aria-label="Filter asset type" className="w-full">
+                <SelectValue placeholder="All asset types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All asset types</SelectItem>
+                {ASSET_TYPES.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
+      </PageLayout.Header>
 
-      <FilterBar
-        search={
-          <InputGroup>
-            <InputGroupAddon>
-              <Search aria-hidden="true" />
-            </InputGroupAddon>
-            <InputGroupInput
-              value={query}
-              onChange={(event) => onQueryChange(event.currentTarget.value)}
-              placeholder="Search by task, role, or outcome"
-              aria-label="Search visible assets"
-            />
-          </InputGroup>
-        }
-        filters={
-          <Select
-            value={type ?? "ALL"}
-            onValueChange={(value: string) =>
-              onTypeChange(value === "ALL" ? undefined : (value as AssetType))
-            }
-          >
-            <SelectTrigger aria-label="Filter asset type" className="w-full">
-              <SelectValue placeholder="All asset types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All asset types</SelectItem>
-              {ASSET_TYPES.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        }
-      />
-
-      {recommendations.length === 0 ? (
-        <Card className="border-dashed bg-surface-subtle">
-          <EmptyState
-            title={hasFilters ? "No matches" : "No assets available"}
-            action={
-              hasFilters ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    onQueryChange("")
-                    onTypeChange(undefined)
-                  }}
-                >
-                  Clear filters
-                </Button>
-              ) : undefined
-            }
-          />
-        </Card>
-      ) : (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Visible assets">
-          {recommendations.map((asset) => {
-            if (!asset.assetId || !asset.releaseId || !asset.type) return null
-            const meta = ASSET_TYPE_META[asset.type]
-            const Icon = meta.icon
-            return (
-              <Card
-                key={`${asset.assetId}:${asset.releaseId}`}
-                className="group overflow-hidden border-border-default bg-surface-raised transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
-              >
-                <CardHeader className="gap-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <span className={`grid size-10 place-items-center rounded-xl ${meta.tone}`}>
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <Badge variant="outline" className="font-mono text-metadata">
-                      {asset.versionLabel}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-metadata font-mono text-content-muted">
-                      {formatAssetCoordinate(asset)}
-                    </p>
-                    <h2 className="mt-2 text-section-title text-content-primary">{asset.title}</h2>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="line-clamp-3 text-body text-content-secondary">{asset.summary}</p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    <Badge className={meta.tone}>{meta.label}</Badge>
-                    {asset.availability === "DEPRECATED" ? (
-                      <Badge className="bg-status-warning-surface text-status-warning-content">
-                        Update available
-                      </Badge>
-                    ) : null}
-                  </div>
-                </CardContent>
-                <CardFooter className="border-t border-border-subtle bg-surface-subtle/50 p-0">
-                  <Link
-                    to="/assets/$assetId"
-                    params={{ assetId: asset.assetId }}
-                    search={{ release: asset.releaseId }}
-                    className="flex w-full items-center justify-between px-6 py-4 text-label text-content-primary outline-none transition-colors hover:bg-action-ghost-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+      <PageLayout.Body>
+        {recommendations.length === 0 ? (
+          <Card className="border-dashed bg-surface-subtle">
+            <EmptyState
+              title={hasFilters ? "No matches" : "No assets available"}
+              action={
+                hasFilters ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      onQueryChange("")
+                      onTypeChange(undefined)
+                    }}
                   >
-                    Use exact release
-                    <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                  </Link>
-                </CardFooter>
-              </Card>
-            )
-          })}
-        </section>
-      )}
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
+            />
+          </Card>
+        ) : (
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Visible assets">
+            {recommendations.map((asset) => {
+              if (!asset.assetId || !asset.releaseId || !asset.type) return null
+              const meta = ASSET_TYPE_META[asset.type]
+              const Icon = meta.icon
+              return (
+                <Card
+                  key={`${asset.assetId}:${asset.releaseId}`}
+                  className="group overflow-hidden border-border-default bg-surface-raised transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+                >
+                  <CardHeader className="gap-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className={`grid size-10 place-items-center rounded-xl ${meta.tone}`}>
+                        <Icon className="size-5" aria-hidden="true" />
+                      </span>
+                      <Badge variant="outline" className="font-mono text-metadata">
+                        {asset.versionLabel}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-metadata font-mono text-content-muted">
+                        {formatAssetCoordinate(asset)}
+                      </p>
+                      <h2 className="mt-2 text-section-title text-content-primary">{asset.title}</h2>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="line-clamp-3 text-body text-content-secondary">{asset.summary}</p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <Badge className={meta.tone}>{meta.label}</Badge>
+                      {asset.availability === "DEPRECATED" ? (
+                        <Badge className="bg-status-warning-surface text-status-warning-content">
+                          Update available
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="border-t border-border-subtle bg-surface-subtle/50 p-0">
+                    <Link
+                      to="/assets/$assetId"
+                      params={{ assetId: asset.assetId }}
+                      search={{ release: asset.releaseId }}
+                      className="flex w-full items-center justify-between px-6 py-4 text-label text-content-primary outline-none transition-colors hover:bg-action-ghost-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                    >
+                      Use exact release
+                      <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </Link>
+                  </CardFooter>
+                </Card>
+              )
+            })}
+          </section>
+        )}
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }

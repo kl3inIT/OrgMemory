@@ -139,88 +139,92 @@ export function PackJourneyPage({
         </p>
       </PageLayout.Header>
 
-      {value.accessGap ? (
-        <Alert className="border-status-warning-border bg-status-warning-surface">
-          <ShieldAlert aria-hidden="true" />
-          <AlertTitle>Some Pack content is not currently available to you</AlertTitle>
-          <AlertDescription>
-            The hidden component count and metadata are intentionally withheld. Ask the Pack owner
-            to review your access.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <PageLayout.Body>
+        {value.accessGap ? (
+          <Alert className="border-status-warning-border bg-status-warning-surface">
+            <ShieldAlert aria-hidden="true" />
+            <AlertTitle>Some Pack content is not currently available to you</AlertTitle>
+            <AlertDescription>
+              The hidden component count and metadata are intentionally withheld. Ask the Pack
+              owner to review your access.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
-      <section className="space-y-3" aria-label="Pack items">
-        {value.items?.map((item) => {
-          const target =
-            item.kind === "REGISTRY_RELEASE" && item.resourceId
-              ? {
-                  to: "/assets/$assetId" as const,
-                  params: { assetId: item.resourceId },
-                  search: { release: item.pinnedVersionId },
-                }
-              : null
-          return (
-            <Card
-              key={item.key}
-              className={item.completed ? "border-status-success-border" : "border-border-default"}
-            >
-              <CardContent className="grid gap-4 p-5 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center">
-                <Button
-                  size="icon"
-                  variant={item.completed ? "default" : "outline"}
-                  aria-label={`${item.completed ? "Mark incomplete" : "Mark complete"}: ${item.title}`}
-                  disabled={update.isPending}
-                  onClick={() =>
-                    update.mutate({
-                      path: { assetId, releaseId, itemKey: item.key! },
-                      body: { completed: !item.completed },
-                    })
+        <section className="space-y-3" aria-label="Pack items">
+          {value.items?.map((item) => {
+            const target =
+              item.kind === "REGISTRY_RELEASE" && item.resourceId
+                ? {
+                    to: "/assets/$assetId" as const,
+                    params: { assetId: item.resourceId },
+                    search: { release: item.pinnedVersionId },
                   }
-                >
-                  {item.completed ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
-                </Button>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-label text-content-primary">{item.title}</h2>
-                    <Badge variant={item.required ? "default" : "outline"}>
-                      {item.required ? "Required" : "Optional"}
-                    </Badge>
-                    {item.availability === "DEPRECATED" ? (
-                      <Badge className="bg-status-warning-surface text-status-warning-content">
-                        Newer release may exist
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 font-mono text-metadata text-content-muted">
-                    {item.kind} · pin {item.pinnedVersionId?.slice(0, 12)}
-                  </p>
-                </div>
-                {target ? (
-                  <Button asChild variant="ghost">
-                    <Link {...target}>
-                      Open
-                      <ExternalLink aria-hidden="true" />
-                    </Link>
+                : null
+            return (
+              <Card
+                key={item.key}
+                className={
+                  item.completed ? "border-status-success-border" : "border-border-default"
+                }
+              >
+                <CardContent className="grid gap-4 p-5 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center">
+                  <Button
+                    size="icon"
+                    variant={item.completed ? "default" : "outline"}
+                    aria-label={`${item.completed ? "Mark incomplete" : "Mark complete"}: ${item.title}`}
+                    disabled={update.isPending}
+                    onClick={() =>
+                      update.mutate({
+                        path: { assetId, releaseId, itemKey: item.key! },
+                        body: { completed: !item.completed },
+                      })
+                    }
+                  >
+                    {item.completed ? <Check aria-hidden="true" /> : <Circle aria-hidden="true" />}
                   </Button>
-                ) : (
-                  <Badge variant="outline">
-                    <LockKeyhole className="mr-1 size-3" aria-hidden="true" />
-                    Knowledge
-                  </Badge>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </section>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-label text-content-primary">{item.title}</h2>
+                      <Badge variant={item.required ? "default" : "outline"}>
+                        {item.required ? "Required" : "Optional"}
+                      </Badge>
+                      {item.availability === "DEPRECATED" ? (
+                        <Badge className="bg-status-warning-surface text-status-warning-content">
+                          Newer release may exist
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 font-mono text-metadata text-content-muted">
+                      {item.kind} · pin {item.pinnedVersionId?.slice(0, 12)}
+                    </p>
+                  </div>
+                  {target ? (
+                    <Button asChild variant="ghost">
+                      <Link {...target}>
+                        Open
+                        <ExternalLink aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Badge variant="outline">
+                      <LockKeyhole className="mr-1 size-3" aria-hidden="true" />
+                      Knowledge
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </section>
 
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => void journey.refetch()}>
-          <RefreshCw aria-hidden="true" />
-          Recheck access and updates
-        </Button>
-      </div>
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => void journey.refetch()}>
+            <RefreshCw aria-hidden="true" />
+            Recheck access and updates
+          </Button>
+        </div>
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }

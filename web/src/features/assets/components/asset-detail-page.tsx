@@ -140,23 +140,25 @@ export function AssetDetailPage({
         release={selected}
         onReleaseChange={onReleaseChange}
       />
-      {selected ? (
-        <ProfilePanel asset={asset.data} release={selected} />
-      ) : (
-        <Card className="border-dashed">
-          <CardContent className="p-8">
-            <h2 className="text-section-title">No usable release yet</h2>
-            <p className="mt-2 text-body text-content-secondary">
-              This Asset is visible for authoring, but it has no release available for use.
-            </p>
-            <Button asChild variant="outline" className="mt-5">
-              <Link to="/assets/$assetId/governance" params={{ assetId }}>
-                Open governance workspace
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      <PageLayout.Body>
+        {selected ? (
+          <ProfilePanel asset={asset.data} release={selected} />
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="p-8">
+              <h2 className="text-section-title">No usable release yet</h2>
+              <p className="mt-2 text-body text-content-secondary">
+                This Asset is visible for authoring, but it has no release available for use.
+              </p>
+              <Button asChild variant="outline" className="mt-5">
+                <Link to="/assets/$assetId/governance" params={{ assetId }}>
+                  Open governance workspace
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }
@@ -179,62 +181,58 @@ function AssetIdentityHeader({
   const owner = activeAssignments.find((assignment) => assignment.role === "OWNER")
   const backupOwner = activeAssignments.find((assignment) => assignment.role === "BACKUP_OWNER")
   return (
-    <>
-      <PageLayout.Header
-        title={title}
-        description={release?.summary ?? asset.draft?.summary}
-        icon={<Icon className="size-5" aria-hidden="true" />}
-        breadcrumb={
-          <AssetBreadcrumb assetId={asset.id} assetTitle={title} />
-        }
-        metadata={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className={meta.tone}>{meta.label}</Badge>
-            <Badge variant="outline">{asset.portfolioState}</Badge>
-            {asset.ownershipHealth?.orphaned ? (
-              <Badge className="bg-status-danger-surface text-status-danger-content">
-                Orphaned
-              </Badge>
-            ) : asset.ownershipHealth?.continuityAtRisk ? (
-              <Badge className="bg-status-warning-surface text-status-warning-content">
-                Ownership gap
-              </Badge>
-            ) : null}
-            {release?.availability === "DEPRECATED" ? (
-              <Badge className="bg-status-warning-surface text-status-warning-content">
-                Deprecated
-              </Badge>
-            ) : null}
-          </div>
-        }
-        actions={
-          <div className="grid min-w-64 gap-2">
-            <Label htmlFor="asset-release">Pinned release</Label>
-            <Select
-              value={release?.id}
-              onValueChange={(value: string) => onReleaseChange(value)}
-              disabled={!asset.releases?.length}
-            >
-              <SelectTrigger id="asset-release" className="w-full">
-                <SelectValue placeholder="No release" />
-              </SelectTrigger>
-              <SelectContent>
-                {asset.releases?.map((item) => (
-                  <SelectItem key={item.id} value={item.id!}>
-                    {item.versionLabel} · {item.availability}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button asChild variant="outline">
-              <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
-                <History aria-hidden="true" />
-                Governance
-              </Link>
-            </Button>
-          </div>
-        }
-      >
+    <PageLayout.Header
+      title={title}
+      description={release?.summary ?? asset.draft?.summary}
+      icon={<Icon className="size-5" aria-hidden="true" />}
+      breadcrumb={<AssetBreadcrumb assetId={asset.id} assetTitle={title} />}
+      metadata={
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={meta.tone}>{meta.label}</Badge>
+          <Badge variant="outline">{asset.portfolioState}</Badge>
+          {asset.ownershipHealth?.orphaned ? (
+            <Badge className="bg-status-danger-surface text-status-danger-content">Orphaned</Badge>
+          ) : asset.ownershipHealth?.continuityAtRisk ? (
+            <Badge className="bg-status-warning-surface text-status-warning-content">
+              Ownership gap
+            </Badge>
+          ) : null}
+          {release?.availability === "DEPRECATED" ? (
+            <Badge className="bg-status-warning-surface text-status-warning-content">
+              Deprecated
+            </Badge>
+          ) : null}
+        </div>
+      }
+      actions={
+        <div className="grid min-w-64 gap-2">
+          <Label htmlFor="asset-release">Pinned release</Label>
+          <Select
+            value={release?.id}
+            onValueChange={(value: string) => onReleaseChange(value)}
+            disabled={!asset.releases?.length}
+          >
+            <SelectTrigger id="asset-release" className="w-full">
+              <SelectValue placeholder="No release" />
+            </SelectTrigger>
+            <SelectContent>
+              {asset.releases?.map((item) => (
+                <SelectItem key={item.id} value={item.id!}>
+                  {item.versionLabel} · {item.availability}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild variant="outline">
+            <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
+              <History aria-hidden="true" />
+              Governance
+            </Link>
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
         <div className="flex flex-wrap gap-2 text-metadata text-content-secondary">
           <span className="font-mono">{formatAssetCoordinate(asset)}</span>
           <span aria-hidden="true">·</span>
@@ -242,15 +240,15 @@ function AssetIdentityHeader({
           <span aria-hidden="true">·</span>
           <span>Backup: {backupOwner?.principalId ?? "Missing"}</span>
         </div>
-      </PageLayout.Header>
-      {release ? (
-        <div className="grid overflow-hidden rounded-xl border border-border-subtle bg-border-subtle sm:grid-cols-3 sm:gap-px">
-          <Metadata label="Version" value={release.versionLabel} />
-          <Metadata label="Released" value={formatDate(release.releasedAt)} />
-          <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
-        </div>
-      ) : null}
-    </>
+        {release ? (
+          <div className="grid overflow-hidden rounded-xl border border-border-subtle bg-border-subtle sm:grid-cols-3 sm:gap-px">
+            <Metadata label="Version" value={release.versionLabel} />
+            <Metadata label="Released" value={formatDate(release.releasedAt)} />
+            <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
+          </div>
+        ) : null}
+      </div>
+    </PageLayout.Header>
   )
 }
 
