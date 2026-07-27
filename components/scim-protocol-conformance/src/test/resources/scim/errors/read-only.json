@@ -1,0 +1,6 @@
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+  "scimType": "mutability",
+  "detail": "The requested attribute is read-only or immutable.",
+  "status": "400"
+}

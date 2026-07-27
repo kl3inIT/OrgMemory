@@ -1,0 +1,19 @@
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+  "Operations": [
+    {
+      "op": "REMOVE",
+      "path": "members[value eq \"2819c223-7f76-453a-919d-413861904646\"]"
+    },
+    {
+      "op": "add",
+      "path": "members",
+      "value": [
+        {
+          "value": "08e1d05d-121c-4561-8b96-473d93df9210",
+          "display": "Alex Example"
+        }
+      ]
+    }
+  ]
+}

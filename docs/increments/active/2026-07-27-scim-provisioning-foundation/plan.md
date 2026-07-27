@@ -22,18 +22,18 @@ Scope:
 
 Merge gate:
 
-- [ ] filter corpus covers escaping, Unicode, compound expressions, value paths,
+- [x] filter corpus covers escaping, Unicode, compound expressions, value paths,
   invalid grammar, depth, and injection;
-- [ ] PATCH corpus covers pathless and path forms without a regex parser;
-- [ ] candidate runs within Spring Boot 4/Jackson 3 tests without a second HTTP
+- [x] PATCH corpus covers pathless and path forms without a regex parser;
+- [x] candidate runs within Spring Boot 4/Jackson 3 tests without a second HTTP
   runtime;
-- [ ] Keycloak results are recorded without turning its preview API into a
+- [x] Keycloak results are recorded without turning its preview API into a
   production dependency;
-- [ ] required correlation claims use a supportable mapper path, or a new
+- [x] required correlation claims use a supportable mapper path, or a new
   Keycloak-extension decision blocks U0 explicitly;
-- [ ] dependency/static analysis and license review pass;
-- [ ] unsupported capabilities are explicitly listed and not advertised.
-- [ ] password fixtures prove explicit rejection rather than silent discard.
+- [x] dependency/static analysis and license review pass;
+- [x] unsupported capabilities are explicitly listed and not advertised.
+- [x] password fixtures prove explicit rejection rather than silent discard.
 
 ## PR F2 — Provisioning Ledger And Dual-Axis Lifecycle
 

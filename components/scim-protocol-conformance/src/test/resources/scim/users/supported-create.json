@@ -1,0 +1,30 @@
+{
+  "schemas": [
+    "urn:ietf:params:scim:schemas:core:2.0:User",
+    "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+  ],
+  "externalId": "workforce-0001",
+  "userName": "alex@example.com",
+  "name": {
+    "givenName": "Alex",
+    "familyName": "Example",
+    "formatted": "Alex Example"
+  },
+  "displayName": "Alex Example",
+  "title": "Platform Engineer",
+  "active": true,
+  "emails": [
+    {
+      "value": "alex@example.com",
+      "type": "work",
+      "primary": true
+    }
+  ],
+  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": {
+    "employeeNumber": "E-0001",
+    "department": "Platform",
+    "division": "Engineering",
+    "organization": "Example Corp",
+    "costCenter": "CC-42"
+  }
+}
