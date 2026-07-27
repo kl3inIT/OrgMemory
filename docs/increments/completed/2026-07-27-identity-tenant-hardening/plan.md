@@ -183,10 +183,14 @@ Implementation checkpoint on 2026-07-27:
 
 ## Increment Exit
 
-- [ ] H1, H2, H3, and H4 are merged in order.
+- [x] H1, H2, H3, and H4 are merged in order as PRs #80, #81, #82, and #83.
 - [x] The clean-schema and populated-schema migration rehearsals pass.
 - [x] Existing invitation, browser login, bearer login, admin-user, and logout
   flows pass.
 - [x] ADR 0016 was `Accepted` with its Fable review record before H1
   implementation started, or the project owner explicitly recorded an
   exception to that review gate.
+
+The implementation increment closed on 2026-07-27 at `main` merge
+`e2a7087`. The deployment-data preflight remains an environment rollout check,
+not unfinished application behavior.

@@ -10,7 +10,7 @@ No SCIM User or Group mutation is enabled at the end of this increment.
 
 ## Dependency
 
-The [Identity Tenant Hardening](../2026-07-27-identity-tenant-hardening/plan.md)
+The [Identity Tenant Hardening](../../completed/2026-07-27-identity-tenant-hardening/plan.md)
 increment and the architecture gate in
 [ADR 0016](../../../decisions/0016-native-scim-behind-keycloak-broker.md)
 must be complete.
