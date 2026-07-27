@@ -87,6 +87,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static final String SHA = "0".repeat(64);
     private static final Instant CAPTURED = Instant.parse("2026-07-22T00:00:00Z");
     private static final Instant EVALUATED_AT = CAPTURED.plus(1, ChronoUnit.HOURS);
+    private static final Instant AFTER_ACL_EXPIRY = CAPTURED.plus(3, ChronoUnit.HOURS);
 
     private static JdbcTemplate jdbc;
     private static SecureKnowledgeRetrievalStore store;
@@ -157,6 +158,32 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     @Test
+    void staleLiveSourceAclKeepsTheLatestSealedPermissions() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+
+        assertTrue(
+                visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                "A stale connector must keep enforcing its latest sealed permissions generation");
+    }
+
+    @Test
+    void orgMemoryOwnedDocumentDoesNotExpireWithConnectorAclTtl() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+        jdbc.update(
+                "UPDATE source_objects SET acl_authority = 'ORGMEMORY' WHERE id = ?",
+                OBJECT);
+        try {
+            assertTrue(
+                    visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "An OrgMemory-owned document must not expire with connector health metadata");
+        } finally {
+            jdbc.update(
+                    "UPDATE source_objects SET acl_authority = 'SOURCE' WHERE id = ?",
+                    OBJECT);
+        }
+    }
+
+    @Test
     void graphScopeIsCanonicalAclFilteredBeforeAnyDerivedStoreOrModel() {
         KnowledgeEvidenceScopeResolver resolver = resolverFor(CHARLIE_USER);
         CurrentActor charlie = actor(
@@ -186,8 +213,16 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     private boolean visible(UUID userId, UUID assetId, UUID objectId) {
+        return visibleAt(userId, assetId, objectId, EVALUATED_AT);
+    }
+
+    private boolean visibleAt(
+            UUID userId,
+            UUID assetId,
+            UUID objectId,
+            Instant evaluatedAt) {
         List<UUID> visible = store.visibleSourceObjectIds(new SecureKnowledgeRetrievalStore.RetrievalScope(
-                ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, EVALUATED_AT));
+                ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, evaluatedAt));
         return visible.contains(objectId);
     }
 

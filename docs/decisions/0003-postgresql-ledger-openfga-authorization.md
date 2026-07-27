@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-07-20.
+Accepted on 2026-07-20. The rule that stale ACL timestamps fail closed is
+superseded by ADR 0015; incomplete or unsealed ACL evidence still fails closed.
 
 ## Context
 

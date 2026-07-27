@@ -120,7 +120,6 @@ class SecureKnowledgeRetrievalStore {
               AND kav.orgmemory_gate = 'ALLOW'
               AND ingestion_sas.capture_status = 'COMPLETE'
               AND current_sas.capture_status = 'COMPLETE'
-              AND current_sas.valid_until > :evaluatedAt
               AND NOT EXISTS (
                   SELECT 1
                   FROM source_acl_entries sae

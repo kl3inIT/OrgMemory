@@ -5,7 +5,8 @@
 Accepted on 2026-07-22. The enforcement change applies to live connector-backed
 sources and lands with the first connector increment. Direct-upload behavior is
 unchanged. Until that increment ships, the previous static-ceiling invariant
-remains the tested behavior.
+remains the tested behavior. The hard freshness-window denial is superseded by
+ADR 0015.
 
 ## Context
 
@@ -55,12 +56,14 @@ Invariants that replace the static ceiling for live sources:
 - Effective access remains the intersection of tenant, latest source ACL
   generation, OpenFGA relationship policy, classification, and lifecycle. A
   wider source generation never bypasses OrgMemory policy gates.
-- A current head older than its freshness window fails closed.
+- Under ADR 0015, a current head older than its freshness window remains the
+  enforcement generation and is reported as stale operational evidence.
 
 Revocation and new-member latency become a declared per-source property:
-webhook-driven where the source supports it, otherwise bounded by the
-permissions re-crawl cadence, with the head freshness window as the hard upper
-bound. The declared latency is surfaced in source health rather than implied.
+webhook-driven where the source supports it, otherwise normally bounded by the
+permissions re-crawl cadence. During an outage it may exceed that cadence; the
+declared latency and stale head are surfaced in source health rather than
+silently turning into a knowledge outage.
 
 ## Consequences
 

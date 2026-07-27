@@ -410,7 +410,10 @@ class SourceIngestionPipelineIntegrationTests {
                 rawSourceId);
 
         var staleAcl = retrieval.search(ACTOR, "customer resolution", 10, "retrieval-stale-acl");
-        assertEquals(0, staleAcl.evidence().size());
+        assertEquals(
+                1,
+                staleAcl.evidence().size(),
+                "The latest complete, sealed ACL generation remains authoritative when sync health is stale");
     }
 
     @Test
