@@ -32,6 +32,7 @@ class AssetRegistryCoordinator {
     private final AssetAuditEventRepository audit;
     private final AssetPayloadReferenceRepository payloadReferences;
     private final AssetTypeProfileRegistry profiles;
+    private final SkillPackageSpecReader skillPackages;
     private final AssetPayloadDigester digester;
 
     AssetRegistryCoordinator(
@@ -47,6 +48,7 @@ class AssetRegistryCoordinator {
             AssetAuditEventRepository audit,
             AssetPayloadReferenceRepository payloadReferences,
             AssetTypeProfileRegistry profiles,
+            SkillPackageSpecReader skillPackages,
             AssetPayloadDigester digester) {
         this.assets = assets;
         this.drafts = drafts;
@@ -60,6 +62,7 @@ class AssetRegistryCoordinator {
         this.audit = audit;
         this.payloadReferences = payloadReferences;
         this.profiles = profiles;
+        this.skillPackages = skillPackages;
         this.digester = digester;
     }
 
@@ -819,13 +822,7 @@ class AssetRegistryCoordinator {
     }
 
     private SkillPackageSpec skillSpec(String payload) {
-        AssetPayloadProfile profile = profiles
-                .require(AssetType.SKILL)
-                .payloadProfile();
-        if (!(profile instanceof SkillPackageProfile skillProfile)) {
-            throw new IllegalStateException("Skill Asset profile is not configured");
-        }
-        return skillProfile.parse(payload);
+        return skillPackages.read(payload);
     }
 
     private static void requireMatchingPackage(
@@ -842,8 +839,12 @@ class AssetRegistryCoordinator {
     private static void requireMatchingPackage(
             SkillPackageSpec.Artifact artifact,
             AssetPayloadReference reference) {
-        if (!reference.getDigest().equals(artifact.sha256())
+        if (!reference.isBlobReference()
+                || reference.getDigest() == null
+                || !reference.getDigest().equals(artifact.sha256())
+                || reference.getContentLength() == null
                 || reference.getContentLength() != artifact.contentLength()
+                || reference.getMediaType() == null
                 || !reference.getMediaType().equals(artifact.mediaType())) {
             throw new AssetConflictException(
                     "The Skill package reference no longer matches its validated metadata");

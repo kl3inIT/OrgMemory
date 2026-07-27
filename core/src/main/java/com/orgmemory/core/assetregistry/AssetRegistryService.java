@@ -194,6 +194,9 @@ public class AssetRegistryService {
             UUID knowledgeSpaceId) {
         AssetConsumptionRelease source =
                 releaseForUse(actor, sourceAssetId, sourceReleaseId);
+        if (source.type() == AssetType.SKILL) {
+            throw new AssetConflictException("Skill releases cannot be forked yet.");
+        }
         return create(
                 actor,
                 source.type(),

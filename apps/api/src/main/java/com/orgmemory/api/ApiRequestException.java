@@ -18,4 +18,12 @@ public final class ApiRequestException extends BusinessException {
                 "request.invalid",
                 publicMessage);
     }
+
+    public ApiRequestException(String publicMessage, Throwable cause) {
+        super(
+                BusinessErrorCategory.VALIDATION,
+                "request.invalid",
+                publicMessage,
+                cause);
+    }
 }

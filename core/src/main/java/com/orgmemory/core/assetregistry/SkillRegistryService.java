@@ -91,19 +91,7 @@ public class SkillRegistryService {
     }
 
     private void deleteIfStored(
-            SkillPackageStoragePort.StoredSkillPackage stored, RuntimeException failure) {
-        if (stored == null) {
-            return;
-        }
-        try {
-            storage.delete(stored.objectKey());
-        } catch (RuntimeException cleanupFailure) {
-            failure.addSuppressed(cleanupFailure);
-        }
-    }
-
-    private void deleteIfStored(
-            SkillPackageStoragePort.StoredSkillPackage stored, IOException failure) {
+            SkillPackageStoragePort.StoredSkillPackage stored, Throwable failure) {
         if (stored == null) {
             return;
         }

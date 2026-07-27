@@ -151,7 +151,8 @@ class AssetRegistryController {
                     file.getSize(),
                     content);
         } catch (IOException failure) {
-            throw new ApiRequestException("The Skill package could not be read");
+            throw new ApiRequestException(
+                    "The Skill package could not be read", failure);
         }
     }
 

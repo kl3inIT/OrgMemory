@@ -298,9 +298,9 @@ class SkillPackageInspector {
             if (!(key instanceof String textKey)
                     || textKey.isBlank()
                     || textKey.length() > 256
-                    || item == null
-                    || item instanceof Map<?, ?>
-                    || item instanceof List<?>) {
+                    || !(item instanceof String
+                            || item instanceof Number
+                            || item instanceof Boolean)) {
                 throw new IllegalArgumentException(
                         "Skill metadata must contain scalar string entries");
             }

@@ -37,6 +37,14 @@ ALTER TABLE public.asset_payload_references
     ADD CONSTRAINT asset_payload_reference_length_check CHECK (
         content_length IS NULL OR content_length > 0
     ),
+    ADD CONSTRAINT asset_payload_reference_blob_metadata_check CHECK (
+        reference_kind <> 'BLOB'
+        OR (
+            digest IS NOT NULL
+            AND media_type IS NOT NULL
+            AND content_length IS NOT NULL
+        )
+    ),
     ADD CONSTRAINT fk_asset_payload_draft
         FOREIGN KEY (draft_id, organization_id)
         REFERENCES public.asset_drafts(id, organization_id);

@@ -66,6 +66,16 @@ class AssetProfileValidationTests {
                         "\"items\": [{", "\"items\": [] , \"unused\": [{")));
     }
 
+    @Test
+    void skillSchemaRejectsInvalidPackageDigests() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> skills.validate(
+                        skillPayload().replace(
+                                "\"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
+                                "\"sha256\": \"not-a-sha256\"")));
+    }
+
     static String promptPayload(String template) {
         return """
                 {

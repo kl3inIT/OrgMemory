@@ -943,6 +943,17 @@ class AssetRegistryIntegrationTests {
                 references.getLast().get("content_length"));
         assertEquals("application/zip", references.getFirst().get("media_type"));
         assertEquals(1, published.releases().size());
+
+        AssetConflictException failure = assertThrows(
+                AssetConflictException.class,
+                () -> assets.forkRelease(
+                        AUTHOR,
+                        created.id(),
+                        published.releases().getFirst().id(),
+                        "support",
+                        "support-triage-copy",
+                        SPACE_ID));
+        assertEquals("Skill releases cannot be forked yet.", failure.getMessage());
     }
 
     @Test

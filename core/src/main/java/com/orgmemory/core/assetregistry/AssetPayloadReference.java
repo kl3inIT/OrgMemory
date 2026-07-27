@@ -47,6 +47,7 @@ class AssetPayloadReference extends BaseEntity {
     @Column(name = "reference_value", nullable = false, length = 1024, updatable = false)
     private String referenceValue;
 
+    // INLINE references may omit transport metadata; BLOB references may not.
     @Column(length = 64, updatable = false)
     private String digest;
 
@@ -151,6 +152,10 @@ class AssetPayloadReference extends BaseEntity {
         return referenceValue;
     }
 
+    boolean isBlobReference() {
+        return referenceKind == ReferenceKind.BLOB;
+    }
+
     String getDigest() {
         return digest;
     }
@@ -159,7 +164,7 @@ class AssetPayloadReference extends BaseEntity {
         return mediaType;
     }
 
-    long getContentLength() {
+    Long getContentLength() {
         return contentLength;
     }
 

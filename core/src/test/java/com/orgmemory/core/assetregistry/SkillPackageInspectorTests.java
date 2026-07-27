@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
+import org.apache.commons.compress.archivers.zip.UnixStat;
 import org.junit.jupiter.api.Test;
 
 class SkillPackageInspectorTests {
@@ -148,6 +149,35 @@ class SkillPackageInspectorTests {
                         new ByteArrayInputStream(archive), archive.length));
     }
 
+    @Test
+    void rejectsEmptyOversizedAndUnreadableArchives() throws Exception {
+        byte[] empty = archive(Map.of());
+        assertThrows(
+                SkillPackageValidationException.class,
+                () -> inspector.inspect(new ByteArrayInputStream(empty), empty.length));
+
+        Map<String, byte[]> tooManyFiles = new LinkedHashMap<>();
+        tooManyFiles.put(
+                "support/SKILL.md",
+                validSkill("support").getBytes(StandardCharsets.UTF_8));
+        for (int index = 0; index < SkillPackageInspector.MAX_FILES; index++) {
+            tooManyFiles.put("support/references/" + index + ".md", new byte[] {1});
+        }
+        byte[] oversized = archive(tooManyFiles);
+        assertThrows(
+                SkillPackageValidationException.class,
+                () -> inspector.inspect(
+                        new ByteArrayInputStream(oversized), oversized.length));
+
+        byte[] encrypted = markFirstEntryEncrypted(archive(Map.of(
+                "support/SKILL.md",
+                validSkill("support").getBytes(StandardCharsets.UTF_8))));
+        assertThrows(
+                SkillPackageValidationException.class,
+                () -> inspector.inspect(
+                        new ByteArrayInputStream(encrypted), encrypted.length));
+    }
+
     private static String validSkill(String name) {
         return """
                 ---
@@ -197,11 +227,33 @@ class SkillPackageInspectorTests {
             zip.closeArchiveEntry();
 
             ZipArchiveEntry link = new ZipArchiveEntry("support/references/latest.md");
-            link.setUnixMode(0120777);
+            link.setUnixMode(UnixStat.LINK_FLAG | UnixStat.DEFAULT_LINK_PERM);
             zip.putArchiveEntry(link);
             zip.write("../secret.md".getBytes(StandardCharsets.UTF_8));
             zip.closeArchiveEntry();
         }
         return output.toByteArray();
+    }
+
+    private static byte[] markFirstEntryEncrypted(byte[] archive) {
+        byte[] mutated = archive.clone();
+        setEncryptedFlag(mutated, 0x04034b50, 6);
+        setEncryptedFlag(mutated, 0x02014b50, 8);
+        return mutated;
+    }
+
+    private static void setEncryptedFlag(byte[] archive, int signature, int flagOffset) {
+        for (int index = 0; index <= archive.length - 4; index++) {
+            int candidate = Byte.toUnsignedInt(archive[index])
+                    | Byte.toUnsignedInt(archive[index + 1]) << 8
+                    | Byte.toUnsignedInt(archive[index + 2]) << 16
+                    | Byte.toUnsignedInt(archive[index + 3]) << 24;
+            if (candidate == signature) {
+                archive[index + flagOffset] =
+                        (byte) (archive[index + flagOffset] | 0x01);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("ZIP entry header was not found");
     }
 }

@@ -6,7 +6,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 @Component
-class SkillPackageProfile implements AssetPayloadProfile {
+class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader {
 
     static final String SCHEMA_VERSION = "1";
 
@@ -24,10 +24,11 @@ class SkillPackageProfile implements AssetPayloadProfile {
 
     @Override
     public void validate(String payload) {
-        parse(payload);
+        read(payload);
     }
 
-    SkillPackageSpec parse(String payload) {
+    @Override
+    public SkillPackageSpec read(String payload) {
         try {
             return json.readValue(payload, SkillPackageSpec.class);
         } catch (RuntimeException exception) {
@@ -35,4 +36,9 @@ class SkillPackageProfile implements AssetPayloadProfile {
                     "Skill package payload does not match schema version 1", exception);
         }
     }
+}
+
+interface SkillPackageSpecReader {
+
+    SkillPackageSpec read(String payload);
 }
