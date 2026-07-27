@@ -124,7 +124,7 @@ public class SourcePrincipalAdminService {
         }
         SourcePrincipal principal = requirePrincipal(organizationId, principalId);
         // The mapping service refuses a second active mapping with an IllegalStateException.
-        // Rejecting it here keeps a routine admin mistake a 400 instead of a 500.
+        // Reject it at the use-case boundary as an explicit conflict.
         mappings.findBySourcePrincipalIdAndStatus(principalId, SourcePrincipalMappingStatus.ACTIVE)
                 .filter(active -> !active.getAppUserId().equals(appUserId))
                 .ifPresent(active -> {

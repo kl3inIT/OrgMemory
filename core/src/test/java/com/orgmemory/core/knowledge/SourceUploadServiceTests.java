@@ -16,7 +16,9 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -113,6 +115,40 @@ class SourceUploadServiceTests {
         assertThrows(
                 OrgMemoryAccessDeniedException.class,
                 () -> service.upload(command, new ByteArrayInputStream(new byte[] {1, 2, 3, 4})));
+        verifyNoInteractions(objects, registrations);
+    }
+
+    @Test
+    void rejectsAFileSystemRootAsAnInvalidUploadFileName() {
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Uploader",
+                "uploader@example.com");
+        ObjectStoragePort objects = mock(ObjectStoragePort.class);
+        SourceUploadRegistrationService registrations =
+                mock(SourceUploadRegistrationService.class);
+        SourceUploadService service = new SourceUploadService(
+                objects,
+                registrations,
+                new KnowledgePermissionPolicy(),
+                new SourceIngestionProperties(DataSize.ofMegabytes(25), 5),
+                mock(KnowledgeSpaceService.class));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.upload(
+                        new CreateUploadSourceCommand(
+                                actor,
+                                File.separator,
+                                4,
+                                KnowledgeClassification.INTERNAL,
+                                UUID.randomUUID()),
+                        new ByteArrayInputStream(
+                                new byte[] {1, 2, 3, 4})));
+
+        assertEquals("source.upload-filename-invalid", failure.code());
         verifyNoInteractions(objects, registrations);
     }
 }

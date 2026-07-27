@@ -11,6 +11,7 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.InputStream;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
@@ -123,7 +124,16 @@ public class SourceUploadService {
                     "source.upload-filename-invalid",
                     "file name is required");
         }
-        String fileName = Path.of(value).getFileName().toString().strip();
+        String fileName;
+        try {
+            Path name = Path.of(value).getFileName();
+            fileName = name == null ? "" : name.toString().strip();
+        } catch (InvalidPathException invalidPath) {
+            throw new BusinessValidationException(
+                    "source.upload-filename-invalid",
+                    "file name is invalid",
+                    invalidPath);
+        }
         if (fileName.isBlank() || fileName.length() > 255) {
             throw invalidUpload(
                     "source.upload-filename-invalid",

@@ -277,7 +277,7 @@ public class AssetRegistryService {
             String principalId,
             AssetRole role) {
         require(actor, assetId, CAN_MANAGE_ROLES);
-        if (role == null) {
+        if (role == null || principalType == null || principalId == null) {
             throw new BusinessValidationException(
                     "asset.role-assignment-invalid",
                     "The Asset role assignment is invalid");

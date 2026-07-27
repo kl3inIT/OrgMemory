@@ -5,6 +5,7 @@ import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.KnowledgeGraphCurationCommand;
 import com.orgmemory.core.knowledge.KnowledgeGraphCurationService;
 import com.orgmemory.core.knowledge.KnowledgeGraphExportService;
+import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.graphrag.curation.GraphCurationRecord;
 import com.orgmemory.graphrag.curation.GraphIdentityKind;
 import com.orgmemory.graphrag.export.GraphExportFormat;
@@ -51,8 +52,9 @@ class KnowledgeGraphManagementController {
             @PathVariable UUID knowledgeSpaceId,
             @RequestBody CurateEntityRequest request,
             Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
         return curations.apply(
-                actors.current(authentication),
+                actor,
                 new KnowledgeGraphCurationCommand.CurateEntity(
                         knowledgeSpaceId,
                         request.idempotencyKey(),
@@ -62,7 +64,7 @@ class KnowledgeGraphManagementController {
                         request.name(),
                         request.type(),
                         request.description(),
-                        evidence(request.evidence())));
+                        evidence(actor, request.evidence())));
     }
 
     @PostMapping("/curations/relations")
@@ -73,8 +75,9 @@ class KnowledgeGraphManagementController {
             @PathVariable UUID knowledgeSpaceId,
             @RequestBody CurateRelationRequest request,
             Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
         return curations.apply(
-                actors.current(authentication),
+                actor,
                 new KnowledgeGraphCurationCommand.CurateRelation(
                         knowledgeSpaceId,
                         request.idempotencyKey(),
@@ -87,7 +90,7 @@ class KnowledgeGraphManagementController {
                         request.keywords(),
                         request.description(),
                         request.weight(),
-                        evidence(request.evidence())));
+                        evidence(actor, request.evidence())));
     }
 
     @PostMapping("/curations/aliases")
@@ -215,14 +218,13 @@ class KnowledgeGraphManagementController {
     }
 
     record EvidenceRequest(
-            UUID organizationId,
             UUID knowledgeAssetId,
             UUID sourceRevisionId,
             UUID chunkId,
             UUID aclSnapshotId,
             long aclGeneration) {
 
-        EvidenceReference toReference() {
+        EvidenceReference toReference(UUID organizationId) {
             return new EvidenceReference(
                     organizationId,
                     knowledgeAssetId,
@@ -233,13 +235,14 @@ class KnowledgeGraphManagementController {
         }
     }
 
-    private static EvidenceReference evidence(EvidenceRequest request) {
+    private static EvidenceReference evidence(
+            CurrentActor actor,
+            EvidenceRequest request) {
         if (request == null) {
             throw new ApiRequestException(
                     "Governing evidence is required");
         }
-        if (request.organizationId() == null
-                || request.knowledgeAssetId() == null
+        if (request.knowledgeAssetId() == null
                 || request.sourceRevisionId() == null
                 || request.chunkId() == null
                 || request.aclSnapshotId() == null) {
@@ -247,7 +250,7 @@ class KnowledgeGraphManagementController {
                     "Governing evidence is invalid");
         }
         try {
-            return request.toReference();
+            return request.toReference(actor.organizationId());
         } catch (IllegalArgumentException invalid) {
             throw new ApiRequestException(
                     "Governing evidence is invalid",

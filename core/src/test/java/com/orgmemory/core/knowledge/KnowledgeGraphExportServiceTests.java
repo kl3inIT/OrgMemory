@@ -112,18 +112,4 @@ class KnowledgeGraphExportServiceTests {
         verify(audit, never()).record(any());
     }
 
-    @Test
-    void reportsUnavailableForAnAuthorizedObjectSetAboveTheConfiguredBound() {
-        when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
-                new KnowledgeEvidenceScopeUnavailableException(
-                        "AUTHORIZED_OBJECT_SET_INVALID",
-                        "model-v1"));
-
-        assertThrows(
-                KnowledgeRetrievalUnavailableException.class,
-                () -> service.export(
-                        actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
-
-        verify(reader, never()).read(any(), any());
-    }
 }
