@@ -181,6 +181,18 @@ public class AssetRegistryService {
         return coordinator.view(actor.organizationId(), assetId);
     }
 
+    public AssetGovernanceActions governanceActions(
+            CurrentActor actor, UUID assetId) {
+        require(actor, assetId, CAN_VIEW);
+        ResourceRef resource =
+                ResourceRef.of(actor.organizationId(), ASSET_RESOURCE, assetId);
+        return new AssetGovernanceActions(
+                allowed(actor, resource, CAN_SUBMIT_REVIEW),
+                allowed(actor, resource, CAN_REVIEW),
+                allowed(actor, resource, CAN_PUBLISH),
+                allowed(actor, resource, CAN_WITHDRAW));
+    }
+
     public AssetConsumptionRelease releaseForUse(
             CurrentActor actor,
             UUID assetId,
@@ -348,5 +360,12 @@ public class AssetRegistryService {
         if (!decision.allowed()) {
             throw new AssetNotFoundException();
         }
+    }
+
+    private boolean allowed(
+            CurrentActor actor, ResourceRef resource, PermissionKey permission) {
+        return authorization.check(new RelationshipAuthorizationQuery(
+                        actor.principal(), permission, resource))
+                .allowed();
     }
 }

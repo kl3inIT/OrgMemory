@@ -16,6 +16,45 @@ const PROMPT_ID = "a3000000-0000-0000-0000-000000000001"
 const PROMPT_RELEASE_ID = "a3000000-0000-0000-0000-000000000002"
 const KNOWLEDGE_ID = "90000000-0000-0000-0000-000000000002"
 const KNOWLEDGE_VERSION_ID = "90000000-0000-0000-0000-000000000007"
+const SKILL_ID = "b1000000-0000-0000-0000-000000000001"
+const SKILL_REVISION_ID = "b1000000-0000-0000-0000-000000000002"
+const SKILL_REVIEW_ID = "b1000000-0000-0000-0000-000000000003"
+const SKILL_DIGEST = "c".repeat(64)
+
+test("Skill publication hands the author to capability-aware Governance", async ({
+  page,
+}) => {
+  const harness = await skillGovernanceHarness(page)
+
+  await page.goto(`/assets/${SKILL_ID}/governance`)
+  await expect(page.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Draft" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
+  await expect(page.getByText("Skill package", { exact: true })).toBeVisible()
+  await expect(page.getByText(SKILL_DIGEST)).toBeVisible()
+  await expect(page.getByText("references/policy.md")).toBeVisible()
+
+  await page.getByLabel("Change note").fill("Ready for governed review")
+  await page.getByRole("button", { name: "Submit for review" }).click()
+  await page.getByRole("button", { name: "Confirm submit for review" }).click()
+
+  await expect(page.getByRole("tab", { name: "Review" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
+  await expect(page.getByText("IN_REVIEW", { exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Approve exact digest" })).toHaveCount(0)
+  expect(harness.requests).toContain(
+    `GET /api/assets/${SKILL_ID}/governance-actions`,
+  )
+  expect(harness.requests).toContain(
+    `POST /api/assets/${SKILL_ID}/submissions`,
+  )
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
 
 test("two users prove governed release and second-user Pack completion", async ({
   browser,
@@ -85,39 +124,13 @@ test("two users prove governed release and second-user Pack completion", async (
 })
 
 async function assetHarness(page: Page, actor: "owner" | "support") {
-  const requests: string[] = []
-  const unexpectedRequests: string[] = []
-  const browserErrors: string[] = []
+  const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
 
-  page.on("pageerror", (error) => browserErrors.push(error.message))
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text())
-  })
-
   await page.route("**/api/**", async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    const signature = `${request.method()} ${url.pathname}`
-    requests.push(signature)
-
-    if (url.pathname === "/api/session") {
-      await json(route, session(actor))
-      return
-    }
-    if (url.pathname === "/api/session/csrf") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: { "set-cookie": "XSRF-TOKEN=golden-poc-token; Path=/" },
-        body: JSON.stringify({
-          headerName: "X-XSRF-TOKEN",
-          parameterName: "_csrf",
-          token: "golden-poc-token",
-        }),
-      })
-      return
-    }
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { request, url, signature } = requestContext
     if (
       actor === "support" &&
       url.pathname === "/api/assets/catalog"
@@ -151,6 +164,15 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
       await json(route, packAsset())
       return
     }
+    if (url.pathname === `/api/assets/${PACK_ID}/governance-actions`) {
+      await json(route, {
+        canSubmitReview: true,
+        canReview: true,
+        canPublish: true,
+        canWithdraw: true,
+      })
+      return
+    }
     if (
       actor === "support" &&
       url.pathname ===
@@ -179,11 +201,94 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
       return
     }
 
-    unexpectedRequests.push(signature)
+    harness.unexpectedRequests.push(signature)
     await json(route, { message: "Unexpected golden POC request" }, 500)
   })
 
-  return { requests, unexpectedRequests, browserErrors }
+  return harness.result
+}
+
+async function skillGovernanceHarness(page: Page) {
+  const harness = baseHarness(page, "owner", "skill-governance-token")
+  let submitted = false
+
+  await page.route("**/api/**", async (route) => {
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { request, url, signature } = requestContext
+    if (url.pathname === `/api/assets/${SKILL_ID}`) {
+      await json(route, skillDraftAsset(submitted))
+      return
+    }
+    if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
+      await json(route, {
+        canSubmitReview: true,
+        canReview: false,
+        canPublish: false,
+        canWithdraw: false,
+      })
+      return
+    }
+    if (
+      request.method() === "POST" &&
+      url.pathname === `/api/assets/${SKILL_ID}/submissions`
+    ) {
+      submitted = true
+      await json(route, skillDraftAsset(true))
+      return
+    }
+
+    harness.unexpectedRequests.push(signature)
+    await json(route, { message: "Unexpected Skill Governance request" }, 500)
+  })
+
+  return harness.result
+}
+
+function baseHarness(
+  page: Page,
+  actor: "owner" | "support",
+  csrfToken: string,
+) {
+  const requests: string[] = []
+  const unexpectedRequests: string[] = []
+  const browserErrors: string[] = []
+
+  page.on("pageerror", (error) => browserErrors.push(error.message))
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text())
+  })
+
+  return {
+    unexpectedRequests,
+    result: { requests, unexpectedRequests, browserErrors },
+    async beginRoute(route: Route) {
+      const request = route.request()
+      const url = new URL(request.url())
+      const signature = `${request.method()} ${url.pathname}`
+      requests.push(signature)
+
+      if (url.pathname === "/api/session") {
+        await json(route, session(actor))
+        return undefined
+      }
+      if (url.pathname === "/api/session/csrf") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers: { "set-cookie": `XSRF-TOKEN=${csrfToken}; Path=/` },
+          body: JSON.stringify({
+            headerName: "X-XSRF-TOKEN",
+            parameterName: "_csrf",
+            token: csrfToken,
+          }),
+        })
+        return undefined
+      }
+
+      return { request, url, signature }
+    },
+  }
 }
 
 function session(actor: "owner" | "support") {
@@ -299,6 +404,88 @@ function packAsset() {
     },
     roleAssignments: [
       roleAssignment(SUPPORT_AGENT_ID, "OWNER"),
+      roleAssignment(BACKUP_OWNER_ID, "BACKUP_OWNER"),
+    ],
+  }
+}
+
+function skillDraftAsset(submitted: boolean) {
+  const timestamp = "2026-07-27T00:00:00Z"
+  const payload = JSON.stringify({
+    name: "expense-review",
+    description: "Review one expense using approved policy",
+    compatibility: "Claude Code and Codex",
+    allowedTools: "Read",
+    artifact: {
+      sha256: SKILL_DIGEST,
+      contentLength: 2048,
+      mediaType: "application/zip",
+    },
+    files: [
+      { path: "SKILL.md", size: 512, sha256: "d".repeat(64) },
+      { path: "references/policy.md", size: 1024, sha256: "e".repeat(64) },
+      { path: "scripts/check.js", size: 256, sha256: "f".repeat(64) },
+    ],
+  })
+  return {
+    id: SKILL_ID,
+    type: "SKILL",
+    namespace: "finance",
+    slug: "expense-review",
+    knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    portfolioState: "ACTIVE",
+    authorizationReady: true,
+    draft: {
+      id: "b1000000-0000-0000-0000-000000000004",
+      lockVersion: 0,
+      title: "Expense review",
+      summary: "Review one expense using approved policy",
+      classification: "INTERNAL",
+      schemaVersion: "agent-skill.v1",
+      payload,
+      editedByUserId: OWNER_ID,
+      updatedAt: timestamp,
+    },
+    revisions: submitted
+      ? [
+          {
+            id: SKILL_REVISION_ID,
+            sequence: 1,
+            title: "Expense review",
+            summary: "Review one expense using approved policy",
+            classification: "INTERNAL",
+            schemaVersion: "agent-skill.v1",
+            payload,
+            digest: SKILL_DIGEST,
+            changeNote: "Ready for governed review",
+            createdByUserId: OWNER_ID,
+            createdAt: timestamp,
+          },
+        ]
+      : [],
+    reviews: submitted
+      ? [
+          {
+            id: SKILL_REVIEW_ID,
+            revisionId: SKILL_REVISION_ID,
+            revisionDigest: SKILL_DIGEST,
+            state: "IN_REVIEW",
+            policyVersion: "asset-review-v1",
+            requestedByUserId: OWNER_ID,
+            createdAt: timestamp,
+            decisions: [],
+          },
+        ]
+      : [],
+    releases: [],
+    ownershipHealth: {
+      ownerPresent: true,
+      backupOwnerPresent: true,
+      orphaned: false,
+      continuityAtRisk: false,
+    },
+    roleAssignments: [
+      roleAssignment(OWNER_ID, "OWNER"),
       roleAssignment(BACKUP_OWNER_ID, "BACKUP_OWNER"),
     ],
   }

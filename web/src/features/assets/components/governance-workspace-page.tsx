@@ -1,29 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
-  CheckCircle2,
   CircleAlert,
   FlaskConical,
   GitCompareArrows,
   History,
   Rocket,
-  ShieldCheck,
   TriangleAlert,
 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,32 +22,61 @@ import { formatAssetCoordinate, formatDate } from "@/features/assets/asset-forma
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import { AssetBreadcrumb } from "@/features/assets/components/asset-breadcrumb"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
+import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
+import { GovernanceDraftWorkspace } from "@/features/assets/components/governance-draft-workspace"
+import {
+  canDecideReview,
+  initialGovernanceTab,
+  type GovernanceTab,
+} from "@/features/assets/governance-policy"
 import {
   decideAssetReviewMutation,
   deprecateAssetReleaseMutation,
+  getAssetGovernanceActionsOptions,
+  getAssetGovernanceActionsQueryKey,
   evaluatePromptReleaseMutation,
   getAssetOptions,
   getAssetQueryKey,
   publishAssetReleaseMutation,
   withdrawAssetReleaseMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
-import type { AssetView, Release, Review, Revision } from "@/lib/hey-api"
+import type {
+  AssetGovernanceActions,
+  AssetView,
+  Release,
+  Review,
+  Revision,
+} from "@/lib/hey-api"
 
 export function GovernanceWorkspacePage({
   assetId,
   actorKey,
+  currentUserId,
 }: {
   assetId: string
   actorKey: string
+  currentUserId?: string
 }) {
   const assetOptions = getAssetOptions({ path: { assetId } })
   const asset = useQuery({
     ...assetOptions,
     queryKey: scopeAssetQueryKey(assetOptions.queryKey, actorKey),
   })
+  const actionOptions = getAssetGovernanceActionsOptions({ path: { assetId } })
+  const actions = useQuery({
+    ...actionOptions,
+    queryKey: scopeAssetQueryKey(actionOptions.queryKey, actorKey),
+  })
+  const [selectedTab, setSelectedTab] = useState<GovernanceTab>()
   const queryClient = useQueryClient()
-  const refresh = async () =>
-    queryClient.invalidateQueries({ queryKey: getAssetQueryKey({ path: { assetId } }) })
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getAssetQueryKey({ path: { assetId } }) }),
+      queryClient.invalidateQueries({
+        queryKey: getAssetGovernanceActionsQueryKey({ path: { assetId } }),
+      }),
+    ])
+  }
 
   if (asset.isPending) return <AssetPageLoading />
   if (asset.isError || !asset.data?.id) {
@@ -71,6 +87,7 @@ export function GovernanceWorkspacePage({
       />
     )
   }
+  const activeTab = selectedTab ?? initialGovernanceTab(asset.data)
 
   return (
     <PageLayout.Root variant="wide">
@@ -92,31 +109,49 @@ export function GovernanceWorkspacePage({
             <Badge variant="outline">{asset.data.portfolioState}</Badge>
           </div>
         }
-        actions={
-          <div className="flex items-center gap-2 rounded-lg border border-border-default bg-surface-subtle px-4 py-3 text-supporting">
-            <ShieldCheck className="size-4 text-status-success-content" aria-hidden="true" />
-            Exact digest review
-          </div>
-        }
       />
 
       <PageLayout.Body>
-        <Tabs defaultValue="changes" className="gap-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value: string) => setSelectedTab(value as GovernanceTab)}
+          className="gap-6"
+        >
           <PageLayout.Tabs>
             <TabsList aria-label="Governance sections">
+              {asset.data.draft ? <TabsTrigger value="draft">Draft</TabsTrigger> : null}
               <TabsTrigger value="changes">Changes</TabsTrigger>
               <TabsTrigger value="review">Review</TabsTrigger>
               <TabsTrigger value="releases">Releases</TabsTrigger>
             </TabsList>
           </PageLayout.Tabs>
+          {asset.data.draft ? (
+            <TabsContent value="draft">
+              <GovernanceDraftWorkspace
+                asset={asset.data}
+                actions={actions.data}
+                onChanged={refresh}
+                onSubmitted={() => setSelectedTab("review")}
+              />
+            </TabsContent>
+          ) : null}
           <TabsContent value="changes">
             <RevisionDiff asset={asset.data} />
           </TabsContent>
           <TabsContent value="review">
-            <ReviewWorkspace asset={asset.data} onChanged={refresh} />
+            <ReviewWorkspace
+              asset={asset.data}
+              actions={actions.data}
+              currentUserId={currentUserId}
+              onChanged={refresh}
+            />
           </TabsContent>
           <TabsContent value="releases">
-            <ReleaseHistory asset={asset.data} onChanged={refresh} />
+            <ReleaseHistory
+              asset={asset.data}
+              actions={actions.data}
+              onChanged={refresh}
+            />
           </TabsContent>
         </Tabs>
       </PageLayout.Body>
@@ -227,9 +262,13 @@ function RevisionSelect({
 
 function ReviewWorkspace({
   asset,
+  actions,
+  currentUserId,
   onChanged,
 }: {
   asset: AssetView
+  actions?: AssetGovernanceActions
+  currentUserId?: string
   onChanged: () => Promise<unknown>
 }) {
   const reviews = asset.reviews ?? []
@@ -254,103 +293,130 @@ function ReviewWorkspace({
 
   return (
     <div className="space-y-5">
-      {reviews.map((review) => (
-        <Card key={review.id}>
-          <CardContent className="grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-start">
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <Badge className={reviewTone(review.state)}>{review.state}</Badge>
-                <Badge variant="outline">policy {review.policyVersion}</Badge>
+      {reviews.map((review) => {
+        const decidable = canDecideReview(
+          review,
+          asset.revisions ?? [],
+          actions,
+          currentUserId,
+        )
+        const publishable = Boolean(
+          review.state === "APPROVED" &&
+            review.revisionId &&
+            actions?.canPublish,
+        )
+        return (
+          <Card key={review.id}>
+            <CardContent
+              className={
+                decidable || publishable
+                  ? "grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-start"
+                  : "p-6"
+              }
+            >
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={reviewTone(review.state)}>{review.state}</Badge>
+                  <Badge variant="outline">policy {review.policyVersion}</Badge>
+                </div>
+                <h2 className="mt-4 text-section-title">
+                  Revision {review.revisionId?.slice(0, 8)}
+                </h2>
+                <p className="mt-2 font-mono text-metadata text-content-muted">
+                  digest {review.revisionDigest}
+                </p>
+                <p className="mt-2 text-supporting text-content-secondary">
+                  Requested {formatDate(review.createdAt)}
+                </p>
+                {review.decisions?.length ? (
+                  <div className="mt-5 space-y-3 border-l border-border-default pl-4">
+                    {review.decisions.map((decision, index) => (
+                      <div key={`${decision.reviewerUserId}:${index}`}>
+                        <p className="text-label">{decision.decision}</p>
+                        <p className="text-supporting text-content-secondary">
+                          {decision.comment}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <h2 className="mt-4 text-section-title">Revision {review.revisionId?.slice(0, 8)}</h2>
-              <p className="mt-2 font-mono text-metadata text-content-muted">
-                digest {review.revisionDigest}
-              </p>
-              <p className="mt-2 text-supporting text-content-secondary">
-                Requested {formatDate(review.createdAt)}
-              </p>
-              {review.decisions?.length ? (
-                <div className="mt-5 space-y-3 border-l border-border-default pl-4">
-                  {review.decisions.map((decision, index) => (
-                    <div key={`${decision.reviewerUserId}:${index}`}>
-                      <p className="text-label">{decision.decision}</p>
-                      <p className="text-supporting text-content-secondary">{decision.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="grid min-w-64 gap-3">
-              {review.state === "IN_REVIEW" ? (
-                <>
-                  <DecisionDialog
-                    label="Approve exact digest"
-                    description="This records approval only for the immutable digest shown on this review case."
-                    onConfirm={() =>
-                      decide.mutate({
-                        path: { assetId: asset.id!, reviewCaseId: review.id! },
-                        body: {
-                          decision: "APPROVE",
-                          comment: "Approved from governance workspace",
-                        },
-                      })
-                    }
-                  />
-                  <DecisionDialog
-                    label="Request changes"
-                    description="The submitted revision remains immutable. The author must create a new draft change."
-                    variant="outline"
-                    onConfirm={() =>
-                      decide.mutate({
-                        path: { assetId: asset.id!, reviewCaseId: review.id! },
-                        body: {
-                          decision: "REQUEST_CHANGES",
-                          comment: "Changes requested from governance workspace",
-                        },
-                      })
-                    }
-                  />
-                </>
-              ) : null}
-              {review.state === "APPROVED" && review.revisionId ? (
-                <div className="space-y-3">
-                  <Label htmlFor={`release-version-${review.id}`}>Release version</Label>
-                  <Input
-                    id={`release-version-${review.id}`}
-                    value={versionLabel}
-                    onChange={(event) => setVersionLabel(event.currentTarget.value)}
-                    placeholder="1.0.0"
-                  />
-                  <DecisionDialog
-                    label="Publish release"
-                    description="Publishing creates an immutable release from this exact approved revision."
-                    disabled={!versionLabel.trim()}
-                    icon={Rocket}
-                    onConfirm={() =>
-                      publish.mutate({
-                        path: { assetId: asset.id! },
-                        body: {
-                          revisionId: review.revisionId,
-                          versionLabel,
-                        },
-                      })
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <div className="grid min-w-64 gap-3">
+                {decidable ? (
+                  <>
+                    <GovernanceDecisionDialog
+                      label="Approve exact digest"
+                      description="This records approval only for the immutable digest shown on this review case."
+                      onConfirm={() =>
+                        decide.mutate({
+                          path: { assetId: asset.id!, reviewCaseId: review.id! },
+                          body: {
+                            decision: "APPROVE",
+                            comment: "Approved from governance workspace",
+                          },
+                        })
+                      }
+                    />
+                    <GovernanceDecisionDialog
+                      label="Request changes"
+                      description="The submitted revision remains immutable. The author must create a new draft change."
+                      variant="outline"
+                      onConfirm={() =>
+                        decide.mutate({
+                          path: { assetId: asset.id!, reviewCaseId: review.id! },
+                          body: {
+                            decision: "REQUEST_CHANGES",
+                            comment: "Changes requested from governance workspace",
+                          },
+                        })
+                      }
+                    />
+                  </>
+                ) : null}
+                {publishable ? (
+                  <div className="space-y-3">
+                    <Label htmlFor={`release-version-${review.id}`}>
+                      Release version
+                    </Label>
+                    <Input
+                      id={`release-version-${review.id}`}
+                      value={versionLabel}
+                      onChange={(event) => setVersionLabel(event.currentTarget.value)}
+                      placeholder="1.0.0"
+                    />
+                    <GovernanceDecisionDialog
+                      label="Publish release"
+                      description="Publishing creates an immutable release from this exact approved revision."
+                      disabled={!versionLabel.trim()}
+                      icon={Rocket}
+                      onConfirm={() =>
+                        publish.mutate({
+                          path: { assetId: asset.id! },
+                          body: {
+                            revisionId: review.revisionId,
+                            versionLabel,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }
 
 function ReleaseHistory({
   asset,
+  actions,
   onChanged,
 }: {
   asset: AssetView
+  actions?: AssetGovernanceActions
   onChanged: () => Promise<unknown>
 }) {
   const [reason, setReason] = useState("")
@@ -377,7 +443,13 @@ function ReleaseHistory({
       ) : null}
       {asset.releases.map((release) => (
         <Card key={release.id}>
-          <CardContent className="grid gap-6 p-6 lg:grid-cols-[1fr_18rem]">
+          <CardContent
+            className={
+              actions?.canWithdraw
+                ? "grid gap-6 p-6 lg:grid-cols-[1fr_18rem]"
+                : "p-6"
+            }
+          >
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="font-mono">
@@ -408,7 +480,7 @@ function ReleaseHistory({
                 </div>
               ) : null}
             </div>
-            {release.availability !== "WITHDRAWN" ? (
+            {actions?.canWithdraw && release.availability !== "WITHDRAWN" ? (
               <div className="space-y-3">
                 <Label htmlFor={`reason-${release.id}`}>Governance reason</Label>
                 <Textarea
@@ -419,7 +491,7 @@ function ReleaseHistory({
                   placeholder="Required for availability changes"
                 />
                 {release.availability === "AVAILABLE" ? (
-                  <DecisionDialog
+                  <GovernanceDecisionDialog
                     label="Deprecate"
                     description="Existing exact pins remain usable, but consumers will see update impact."
                     variant="outline"
@@ -432,7 +504,7 @@ function ReleaseHistory({
                     }
                   />
                 ) : null}
-                <DecisionDialog
+                <GovernanceDecisionDialog
                   label="Withdraw"
                   description="This prevents new use of the release. Existing audit and Pack pins remain historical."
                   variant="destructive"
@@ -501,45 +573,6 @@ function EvaluationCard({ assetId, releases }: { assetId: string; releases: Rele
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function DecisionDialog({
-  label,
-  description,
-  onConfirm,
-  disabled = false,
-  variant = "default",
-  icon: Icon = CheckCircle2,
-}: {
-  label: string
-  description: string
-  onConfirm: () => void
-  disabled?: boolean
-  variant?: "default" | "outline" | "destructive"
-  icon?: typeof CheckCircle2
-}) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant={variant} disabled={disabled} className="w-full">
-          <Icon aria-hidden="true" />
-          {label}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{label}?</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>
-            Confirm {label.toLocaleLowerCase()}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   )
 }
 

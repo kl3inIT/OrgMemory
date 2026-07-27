@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { publishSkillDraft, publicationUrl } from "./publish.js"
+import {
+  governanceUrl,
+  publishSkillDraft,
+  publicationUrl,
+} from "./publish.js"
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -69,6 +73,17 @@ describe("Skill Draft publication", () => {
     expect(
       publicationUrl(new URL("https://orgmemory.example/mcp")).toString(),
     ).toBe("https://orgmemory.example/skill-publications")
+  })
+
+  it("derives the exact same-origin Governance URL", () => {
+    expect(
+      governanceUrl(
+        new URL("https://orgmemory.example/mcp"),
+        "10000000-0000-0000-0000-000000000001",
+      ).toString(),
+    ).toBe(
+      "https://orgmemory.example/assets/10000000-0000-0000-0000-000000000001/governance",
+    )
   })
 
   it("reports a bounded downstream Problem detail", async () => {
