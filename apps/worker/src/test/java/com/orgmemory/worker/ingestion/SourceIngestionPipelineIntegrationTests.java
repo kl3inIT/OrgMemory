@@ -385,12 +385,12 @@ class SourceIngestionPipelineIntegrationTests {
                 INSERT INTO source_acl_entries (
                     id, organization_id, source_acl_snapshot_id,
                     principal_type, principal_key, gate, created_at
-                ) VALUES (?, ?, ?, 'ORGMEMORY_USER', ?, 'ALLOW', now() - interval '2 hours')
+                ) VALUES (?, ?, ?, 'ORGMEMORY_ORGANIZATION', ?, 'ALLOW', now() - interval '2 hours')
                 """,
                 UUID.randomUUID(),
                 ORGANIZATION_ID,
                 staleSnapshotId,
-                USER_ID.toString());
+                ORGANIZATION_ID.toString());
         jdbc.update(
                 """
                 INSERT INTO source_acl_snapshot_seals (
@@ -410,7 +410,10 @@ class SourceIngestionPipelineIntegrationTests {
                 rawSourceId);
 
         var staleAcl = retrieval.search(ACTOR, "customer resolution", 10, "retrieval-stale-acl");
-        assertEquals(0, staleAcl.evidence().size());
+        assertEquals(
+                1,
+                staleAcl.evidence().size(),
+                "The latest complete, sealed ACL generation remains authoritative when sync health is stale");
     }
 
     @Test

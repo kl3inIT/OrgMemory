@@ -87,6 +87,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static final String SHA = "0".repeat(64);
     private static final Instant CAPTURED = Instant.parse("2026-07-22T00:00:00Z");
     private static final Instant EVALUATED_AT = CAPTURED.plus(1, ChronoUnit.HOURS);
+    private static final Instant AFTER_ACL_EXPIRY = CAPTURED.plus(3, ChronoUnit.HOURS);
 
     private static JdbcTemplate jdbc;
     private static SecureKnowledgeRetrievalStore store;
@@ -157,6 +158,91 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     @Test
+    void staleLiveSourceAclKeepsTheLatestSealedPermissions() {
+        UUID staleCurrentSnapshot = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO source_acl_snapshots (
+                    id, organization_id, raw_source_object_id, acl_generation, capture_status,
+                    default_gate, acl_sha256, captured_at, valid_until)
+                VALUES (?, ?, ?, 2, 'COMPLETE', 'DENY', ?, ?, ?)
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                RAW,
+                SHA,
+                ts(CAPTURED),
+                ts(CAPTURED.plus(2, ChronoUnit.HOURS)));
+        insertEntry(staleCurrentSnapshot, "SOURCE_GROUP", CHANNEL_PRINCIPAL.toString());
+        jdbc.update("""
+                INSERT INTO source_acl_group_members (
+                    id, organization_id, source_acl_snapshot_id,
+                    group_principal_id, member_principal_id, created_at)
+                VALUES (?, ?, ?, ?, ?, now())
+                """,
+                UUID.randomUUID(),
+                ORG,
+                staleCurrentSnapshot,
+                CHANNEL_PRINCIPAL,
+                AN_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_acl_snapshot_seals (
+                    source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
+                VALUES (?, ?, 1, ?, now())
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                SHA);
+        jdbc.update(
+                """
+                UPDATE source_acl_heads
+                SET current_snapshot_id = ?, acl_generation = 2, updated_at = now(), version = version + 1
+                WHERE organization_id = ? AND current_raw_source_object_id = ?
+                """,
+                staleCurrentSnapshot,
+                ORG,
+                RAW);
+        mapActive(AN_PRINCIPAL, AN_USER);
+        mapActive(BOB_PRINCIPAL, BOB_USER);
+
+        try {
+            assertTrue(
+                    visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "A stale connector must keep grants from its latest sealed permissions generation");
+            assertFalse(
+                    visibleAt(BOB_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "An ingestion-only grant must not bypass the latest sealed permissions generation");
+        } finally {
+            jdbc.update(
+                    """
+                    UPDATE source_acl_heads
+                    SET current_snapshot_id = ?, acl_generation = 1,
+                        updated_at = now(), version = version + 1
+                    WHERE organization_id = ? AND current_raw_source_object_id = ?
+                    """,
+                    SNAPSHOT,
+                    ORG,
+                    RAW);
+        }
+    }
+
+    @Test
+    void orgMemoryOwnedDocumentDoesNotExpireWithConnectorAclTtl() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+        jdbc.update(
+                "UPDATE source_objects SET acl_authority = 'ORGMEMORY' WHERE id = ?",
+                OBJECT);
+        try {
+            assertTrue(
+                    visibleAt(AN_USER, ASSET, OBJECT, AFTER_ACL_EXPIRY),
+                    "An OrgMemory-owned document must not expire with connector health metadata");
+        } finally {
+            jdbc.update(
+                    "UPDATE source_objects SET acl_authority = 'SOURCE' WHERE id = ?",
+                    OBJECT);
+        }
+    }
+
+    @Test
     void graphScopeIsCanonicalAclFilteredBeforeAnyDerivedStoreOrModel() {
         KnowledgeEvidenceScopeResolver resolver = resolverFor(CHARLIE_USER);
         CurrentActor charlie = actor(
@@ -186,8 +272,16 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     private boolean visible(UUID userId, UUID assetId, UUID objectId) {
+        return visibleAt(userId, assetId, objectId, EVALUATED_AT);
+    }
+
+    private boolean visibleAt(
+            UUID userId,
+            UUID assetId,
+            UUID objectId,
+            Instant evaluatedAt) {
         List<UUID> visible = store.visibleSourceObjectIds(new SecureKnowledgeRetrievalStore.RetrievalScope(
-                ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, EVALUATED_AT));
+                ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, evaluatedAt));
         return visible.contains(objectId);
     }
 
