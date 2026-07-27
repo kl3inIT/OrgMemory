@@ -7,8 +7,8 @@ import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
-import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,11 +85,16 @@ class ConnectorCrawlRunner {
                 attempts.recordSucceeded(batch, result);
                 checkpoints.complete(batch);
                 return;
-            } catch (UnsupportedConnectorPayloadException | UnsupportedConnectorSourceException
-                    | IllegalArgumentException permanent) {
+            } catch (BusinessException failure) {
+                if (failure.category() == BusinessErrorCategory.UNAVAILABLE) {
+                    log.warn("Connector batch {} failed on attempt {} of {}: {}",
+                            batch.crawlCursor(), attempt, MAX_ATTEMPTS, failure.getMessage());
+                    lastFailure = failure;
+                    continue;
+                }
                 log.warn("Connector batch {} was rejected and will not be retried: {}",
-                        batch.crawlCursor(), permanent.getMessage());
-                attempts.recordRejected(batch, codeOf(permanent), permanent.getMessage());
+                        batch.crawlCursor(), failure.getMessage());
+                attempts.recordRejected(batch, failure.code(), failure.getMessage());
                 checkpoints.complete(batch);
                 return;
             } catch (RuntimeException transientFailure) {

@@ -73,7 +73,7 @@ class AssetRelease extends BaseEntity {
         this.assetId = revision.getAssetId();
         this.revisionId = revision.getId();
         this.sequence = sequence;
-        this.versionLabel = versionLabel(versionLabel);
+        this.versionLabel = validateVersionLabel(versionLabel);
         this.title = revision.getTitle();
         this.summary = revision.getSummary();
         this.classification = revision.getClassification();
@@ -136,7 +136,7 @@ class AssetRelease extends BaseEntity {
         return releasedAt;
     }
 
-    private static String versionLabel(String value) {
+    static String validateVersionLabel(String value) {
         String normalized = Objects.requireNonNull(value, "versionLabel")
                 .trim()
                 .toLowerCase(Locale.ROOT);

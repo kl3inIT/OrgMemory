@@ -97,14 +97,14 @@ class KnowledgeGraphExportServiceTests {
     }
 
     @Test
-    void rejectsUnexpectedOpenFgaObjectTypesBeforeReadingGraphData() {
+    void reportsUnavailableForUnexpectedOpenFgaObjectTypesBeforeReadingGraphData() {
         when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
                 new KnowledgeEvidenceScopeUnavailableException(
                         "AUTHORIZED_OBJECT_SET_INVALID",
                         "model-v1"));
 
         assertThrows(
-                IllegalStateException.class,
+                KnowledgeRetrievalUnavailableException.class,
                 () -> service.export(
                         actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
 
@@ -113,14 +113,14 @@ class KnowledgeGraphExportServiceTests {
     }
 
     @Test
-    void rejectsAnAuthorizedObjectSetAboveTheConfiguredBound() {
+    void reportsUnavailableForAnAuthorizedObjectSetAboveTheConfiguredBound() {
         when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
                 new KnowledgeEvidenceScopeUnavailableException(
                         "AUTHORIZED_OBJECT_SET_INVALID",
                         "model-v1"));
 
         assertThrows(
-                IllegalStateException.class,
+                KnowledgeRetrievalUnavailableException.class,
                 () -> service.export(
                         actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
 

@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -63,7 +64,9 @@ public class SourceConnectionActivityService {
 
     private static String require(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("connection " + field + " is required");
+            throw new BusinessValidationException(
+                    "connection.identifier-required",
+                    "connection " + field + " is required");
         }
         return value.trim();
     }

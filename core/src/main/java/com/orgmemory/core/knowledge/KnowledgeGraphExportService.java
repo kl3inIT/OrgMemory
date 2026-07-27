@@ -75,8 +75,8 @@ public class KnowledgeGraphExportService {
         try {
             resolved = evidenceScopes.resolve(actor, entry.policyVersion());
         } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
-            throw new IllegalStateException(
-                    "authorization changed while preparing graph export",
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Knowledge graph permissions changed while preparing the export",
                     unavailable);
         }
         ProjectionNamespace namespace = new ProjectionNamespace(

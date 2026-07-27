@@ -6,6 +6,8 @@ import com.orgmemory.core.organization.ExternalIdentityRepository;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessConflictException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -127,10 +129,14 @@ class SourcePrincipalMappingService {
             SourcePrincipalMappingMethod method,
             String evidence) {
         if (principal.getKind() != SourcePrincipalKind.SOURCE_USER) {
-            throw new IllegalArgumentException("Only SOURCE_USER principals can map to an internal user");
+            throw new BusinessValidationException(
+                    "source-principal.kind-invalid",
+                    "Only SOURCE_USER principals can map to an internal user");
         }
         if (!isActiveInOrg(appUserId, principal.getOrganizationId())) {
-            throw new IllegalArgumentException("Cannot map to an inactive or unknown internal user");
+            throw new BusinessValidationException(
+                    "source-principal.mapping-user-invalid",
+                    "Cannot map to an inactive or unknown internal user");
         }
         Optional<SourcePrincipalMapping> active = mappings.findBySourcePrincipalIdAndStatus(
                 principal.getId(), SourcePrincipalMappingStatus.ACTIVE);
@@ -138,7 +144,8 @@ class SourcePrincipalMappingService {
             if (active.get().getAppUserId().equals(appUserId)) {
                 return active.get();
             }
-            throw new IllegalStateException(
+            throw new BusinessConflictException(
+                    "source-principal.mapping-conflict",
                     "Source principal already has a different active mapping; revoke it first");
         }
         SourcePrincipalMapping mapping = mappings.save(new SourcePrincipalMapping(

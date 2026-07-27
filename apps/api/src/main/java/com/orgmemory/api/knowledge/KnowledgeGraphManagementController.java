@@ -1,5 +1,6 @@
 package com.orgmemory.api.knowledge;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.KnowledgeGraphCurationCommand;
 import com.orgmemory.core.knowledge.KnowledgeGraphCurationService;
@@ -61,7 +62,7 @@ class KnowledgeGraphManagementController {
                         request.name(),
                         request.type(),
                         request.description(),
-                        request.evidence().toReference()));
+                        evidence(request.evidence())));
     }
 
     @PostMapping("/curations/relations")
@@ -86,7 +87,7 @@ class KnowledgeGraphManagementController {
                         request.keywords(),
                         request.description(),
                         request.weight(),
-                        request.evidence().toReference()));
+                        evidence(request.evidence())));
     }
 
     @PostMapping("/curations/aliases")
@@ -229,6 +230,28 @@ class KnowledgeGraphManagementController {
                     chunkId,
                     aclSnapshotId,
                     aclGeneration);
+        }
+    }
+
+    private static EvidenceReference evidence(EvidenceRequest request) {
+        if (request == null) {
+            throw new ApiRequestException(
+                    "Governing evidence is required");
+        }
+        if (request.organizationId() == null
+                || request.knowledgeAssetId() == null
+                || request.sourceRevisionId() == null
+                || request.chunkId() == null
+                || request.aclSnapshotId() == null) {
+            throw new ApiRequestException(
+                    "Governing evidence is invalid");
+        }
+        try {
+            return request.toReference();
+        } catch (IllegalArgumentException invalid) {
+            throw new ApiRequestException(
+                    "Governing evidence is invalid",
+                    invalid);
         }
     }
 }

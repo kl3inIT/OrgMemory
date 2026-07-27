@@ -108,11 +108,6 @@ belongs in one active increment.
 
 ## Engineering Backlog
 
-- Complete the API-facing exception migration: inventory legacy validators and
-  services that still expose `IllegalArgumentException` or require dedicated
-  transport handlers, move intended business failures to the shared
-  `BusinessException` categories and stable RFC 9457 codes, add contract tests,
-  then remove the compatibility translator only after no caller depends on it.
 - Refactor oversized Spring Modulith packages into cohesive internal
   subpackages while preserving each logical module and its public named
   interface. Choose package boundaries from actual responsibilities

@@ -4,6 +4,7 @@ import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.authorization.RoleAdministrationService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessUnavailableException;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Granting and revoking the roles OrgMemory owns.
@@ -78,8 +78,9 @@ class AdminRoleController {
                 request.userId(), actor);
         var result = roles.assign(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "The role assignment was not applied: " + result.reasonCode());
+            throw new BusinessUnavailableException(
+                    "role.assignment-unavailable",
+                    "The role assignment could not be applied");
         }
     }
 
@@ -97,8 +98,9 @@ class AdminRoleController {
         AppUser user = guard.requireUserInOrganization(userId, actor);
         var result = roles.revoke(actor.organizationId(), role, user.getId());
         if (!result.applied()) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "The role revocation was not applied: " + result.reasonCode());
+            throw new BusinessUnavailableException(
+                    "role.revocation-unavailable",
+                    "The role revocation could not be applied");
         }
     }
 }

@@ -171,9 +171,9 @@ class PermissionsAdminIntegrationTests {
                         .with(foreign)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"appUserId\":\"" + AN_USER + "\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
         mvc.perform(delete("/api/admin/source-principals/{id}/mapping", AN_PRINCIPAL).with(foreign))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
 
         assertTrue(
                 jdbc.queryForObject(

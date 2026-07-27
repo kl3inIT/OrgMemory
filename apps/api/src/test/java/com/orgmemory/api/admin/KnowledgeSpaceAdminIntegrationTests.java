@@ -237,13 +237,18 @@ class KnowledgeSpaceAdminIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"relation\":\"organization\",\"kind\":\"ORGANIZATION\"}"))
                 .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"ORGANIZATION\"}"))
+                .andExpect(status().isBadRequest());
         // A department of the other tenant must not become a viewer here.
         mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"relation\":\"viewer\",\"kind\":\"DEPARTMENT\",\"subjectId\":\""
                                 + OTHER_DEPT + "\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
         // A user grant with no user named is a request error, not a null dereference.
         mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
                         .with(jwtFor(ADMIN_USER))

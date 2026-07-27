@@ -1,6 +1,7 @@
 package com.orgmemory.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.orgmemory.core.assetregistry.AssetConflictException;
@@ -11,9 +12,11 @@ import com.orgmemory.core.knowledge.CitationNotFoundException;
 import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 
 class ApiExceptionHandlerTests {
 
@@ -96,15 +99,29 @@ class ApiExceptionHandlerTests {
     }
 
     @Test
-    void legacyInvalidArgumentKeepsStatusButHidesItsMessage() {
-        var response = handler.legacyInvalidArgument(
+    void rawIllegalArgumentIsAnUnexpectedServerFailure() {
+        var response = handler.unexpected(
                 new IllegalArgumentException(
                         "private invariant and database identity"));
 
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
-        assertEquals("The request is invalid", response.getDetail());
         assertEquals(
-                "request.invalid-argument",
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                response.getStatus());
+        assertEquals("Unexpected error", response.getDetail());
+        assertEquals(
+                "internal.unexpected",
                 response.getProperties().get("code"));
+    }
+
+    @Test
+    void broadIllegalArgumentCompatibilityHandlerCannotReturn() {
+        boolean handlesIllegalArgument = Arrays.stream(
+                        ApiExceptionHandler.class.getDeclaredMethods())
+                .map(method -> method.getAnnotation(ExceptionHandler.class))
+                .filter(annotation -> annotation != null)
+                .flatMap(annotation -> Arrays.stream(annotation.value()))
+                .anyMatch(IllegalArgumentException.class::equals);
+
+        assertFalse(handlesIllegalArgument);
     }
 }

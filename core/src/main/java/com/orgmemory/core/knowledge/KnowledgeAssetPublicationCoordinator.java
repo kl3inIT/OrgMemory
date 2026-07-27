@@ -192,7 +192,8 @@ class KnowledgeAssetPublicationCoordinator {
 
     private KnowledgeAssetPublicationOutbox requiredPublication(UUID organizationId, UUID publicationId) {
         return publications.findByIdAndOrganizationId(publicationId, organizationId)
-                .orElseThrow(() -> new IllegalArgumentException("Knowledge asset publication was not found"));
+                .orElseThrow(() -> new KnowledgeAssetPublicationUnavailableException(
+                        "Knowledge asset publication state is unavailable"));
     }
 
     private KnowledgeAsset requiredAsset(

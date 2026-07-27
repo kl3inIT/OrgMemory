@@ -3,6 +3,7 @@ package com.orgmemory.core.assetregistry;
 import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.authorization.RelationshipTuple;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -105,18 +106,30 @@ class AssetRegistryCoordinator {
             AssetDraftInput input,
             SkillPackageStoragePort.StoredSkillPackage storedPackage) {
         Objects.requireNonNull(actor, "actor");
-        Objects.requireNonNull(input, "input");
-        AssetTypeProfile profile = profiles.require(type);
-        profile.validate(input.schemaVersion(), input.payload());
-        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
-                input.title(),
-                input.summary(),
-                input.classification(),
-                input.schemaVersion(),
-                input.payload());
-
-        Asset asset = new Asset(
-                actor.organizationId(), type, namespace, slug, knowledgeSpaceId);
+        if (type == null
+                || namespace == null
+                || slug == null
+                || knowledgeSpaceId == null) {
+            throw new BusinessValidationException(
+                    "asset.identity-invalid",
+                    "The Asset namespace, slug, type, or Knowledge Space is invalid");
+        }
+        AssetPayloadDigester.CanonicalAssetPayload canonical =
+                validateDraft(type, input);
+        Asset asset;
+        try {
+            asset = new Asset(
+                    actor.organizationId(),
+                    type,
+                    namespace,
+                    slug,
+                    knowledgeSpaceId);
+        } catch (IllegalArgumentException invalidIdentity) {
+            throw new BusinessValidationException(
+                    "asset.identity-invalid",
+                    "The Asset namespace, slug, type, or Knowledge Space is invalid",
+                    invalidIdentity);
+        }
         try {
             assets.saveAndFlush(asset);
         } catch (DataIntegrityViolationException duplicate) {
@@ -336,7 +349,8 @@ class AssetRegistryCoordinator {
             AssetDraftInput input) {
         Asset asset = requiredAsset(actor.organizationId(), assetId);
         if (asset.getType() == AssetType.SKILL) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "skill.generic-edit-unsupported",
                     "Skill drafts cannot be changed through the generic payload endpoint");
         }
         AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
@@ -344,14 +358,8 @@ class AssetRegistryCoordinator {
             throw new AssetConflictException(
                     "The Asset draft changed; reload it before saving");
         }
-        AssetTypeProfile profile = profiles.require(asset.getType());
-        profile.validate(input.schemaVersion(), input.payload());
-        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
-                input.title(),
-                input.summary(),
-                input.classification(),
-                input.schemaVersion(),
-                input.payload());
+        AssetPayloadDigester.CanonicalAssetPayload canonical =
+                validateDraft(asset.getType(), input);
         draft.update(
                 canonical.title(),
                 canonical.summary(),
@@ -372,6 +380,7 @@ class AssetRegistryCoordinator {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView submit(CurrentActor actor, UUID assetId, String changeNote) {
+        String validatedChangeNote = requireChangeNote(changeNote);
         Asset asset = requiredAsset(actor.organizationId(), assetId);
         if (reviews.existsByAssetIdAndOrganizationIdAndState(
                 assetId, actor.organizationId(), AssetReviewState.IN_REVIEW)) {
@@ -391,7 +400,7 @@ class AssetRegistryCoordinator {
                     draft,
                     revisions.maxSequence(assetId, actor.organizationId()) + 1,
                     canonical,
-                    changeNote,
+                    validatedChangeNote,
                     actor.userId()));
         } catch (DataIntegrityViolationException duplicate) {
             if (!causedByConstraint(duplicate, "uq_asset_revision_sequence")) {
@@ -471,6 +480,21 @@ class AssetRegistryCoordinator {
             UUID assetId,
             UUID revisionId,
             String versionLabel) {
+        if (versionLabel == null) {
+            throw new BusinessValidationException(
+                    "asset.version-label-invalid",
+                    "The release version label is invalid");
+        }
+        String validatedVersionLabel;
+        try {
+            validatedVersionLabel =
+                    AssetRelease.validateVersionLabel(versionLabel);
+        } catch (IllegalArgumentException invalidLabel) {
+            throw new BusinessValidationException(
+                    "asset.version-label-invalid",
+                    "The release version label is invalid",
+                    invalidLabel);
+        }
         Asset asset = requiredAsset(actor.organizationId(), assetId);
         AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
                         revisionId, assetId, actor.organizationId())
@@ -504,7 +528,7 @@ class AssetRegistryCoordinator {
             release = releases.saveAndFlush(new AssetRelease(
                     revision,
                     releases.maxSequence(assetId, actor.organizationId()) + 1,
-                    versionLabel,
+                    validatedVersionLabel,
                     actor.userId(),
                     now));
         } catch (DataIntegrityViolationException duplicate) {
@@ -814,9 +838,51 @@ class AssetRegistryCoordinator {
     }
 
     private static String requireReason(String reason) {
-        String normalized = Objects.requireNonNull(reason, "reason").trim();
+        String normalized = reason == null ? "" : reason.trim();
         if (normalized.isEmpty()) {
-            throw new IllegalArgumentException("An availability change needs a reason");
+            throw new BusinessValidationException(
+                    "asset.availability-reason-required",
+                    "An availability change needs a reason");
+        }
+        return normalized;
+    }
+
+    private AssetPayloadDigester.CanonicalAssetPayload validateDraft(
+            AssetType type,
+            AssetDraftInput input) {
+        if (input == null
+                || input.title() == null
+                || input.summary() == null
+                || input.classification() == null
+                || input.schemaVersion() == null
+                || input.payload() == null) {
+            throw new BusinessValidationException(
+                    "asset.draft-invalid",
+                    "The Asset draft is invalid");
+        }
+        try {
+            AssetTypeProfile profile = profiles.require(type);
+            profile.validate(input.schemaVersion(), input.payload());
+            return digester.canonicalize(
+                    input.title(),
+                    input.summary(),
+                    input.classification(),
+                    input.schemaVersion(),
+                    input.payload());
+        } catch (IllegalArgumentException invalidDraft) {
+            throw new BusinessValidationException(
+                    "asset.draft-invalid",
+                    "The Asset draft is invalid",
+                    invalidDraft);
+        }
+    }
+
+    private static String requireChangeNote(String changeNote) {
+        String normalized = changeNote == null ? "" : changeNote.trim();
+        if (normalized.isEmpty() || normalized.length() > 1024) {
+            throw new BusinessValidationException(
+                    "asset.change-note-invalid",
+                    "A change note of at most 1024 characters is required");
         }
         return normalized;
     }

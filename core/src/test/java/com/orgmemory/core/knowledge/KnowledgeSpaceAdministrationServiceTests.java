@@ -29,6 +29,7 @@ import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.knowledge.KnowledgeSpaceSubject.Kind;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -184,8 +185,11 @@ class KnowledgeSpaceAdministrationServiceTests {
     @Test
     void aNameWithNoLettersOrDigitsCannotDeriveAKey() {
         assertThrows(
-                IllegalArgumentException.class, () -> service.create(ACTOR, " --- ", null, "request-1"));
-        assertThrows(IllegalArgumentException.class, () -> service.create(ACTOR, "  ", null, "request-1"));
+                BusinessValidationException.class,
+                () -> service.create(ACTOR, " --- ", null, "request-1"));
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.create(ACTOR, "  ", null, "request-1"));
     }
 
     @Test
@@ -241,7 +245,7 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         for (String relation : List.of("organization", "organizational_unit", "can_view", "owner")) {
             assertThrows(
-                    IllegalArgumentException.class,
+                    BusinessValidationException.class,
                     () -> service.grant(ACTOR, spaceId, relation, everyone, "request-1"),
                     relation + " must not be grantable");
         }
@@ -272,14 +276,14 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         // The model accepts organizational_unit#manager for reviewer, not #member.
         var refusal = assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> service.grant(
                         ACTOR, spaceId, "reviewer", KnowledgeSpaceSubject.department(DEPT), "request-1"));
         assertTrue(refusal.getMessage().contains("DEPARTMENT_MANAGERS"));
 
         // And administering is never handed to a whole organization.
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> service.grant(
                         ACTOR,
                         spaceId,
@@ -323,11 +327,11 @@ class KnowledgeSpaceAdministrationServiceTests {
         when(users.findById(OTHER_ORG_USER)).thenReturn(Optional.of(foreign));
 
         assertThrows(
-                IllegalArgumentException.class,
+                KnowledgeResourceNotFoundException.class,
                 () -> service.grant(
                         ACTOR, spaceId, "viewer", KnowledgeSpaceSubject.department(DEPT), "request-1"));
         assertThrows(
-                IllegalArgumentException.class,
+                KnowledgeResourceNotFoundException.class,
                 () -> service.grant(
                         ACTOR,
                         spaceId,

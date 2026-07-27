@@ -4,6 +4,7 @@ import com.orgmemory.core.knowledge.ConnectorReconciler.ObjectOutcome;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -186,12 +187,18 @@ public class ConnectorIngestionService {
         // has nothing governing it and must not be allowed to write under that name.
         ConnectorSourceProfile profile = sources.require(batch.sourceSystem());
         if (!organizations.existsById(batch.organizationId())) {
-            throw new IllegalArgumentException("Organization does not exist");
+            throw new BusinessValidationException(
+                    "connector.organization-invalid",
+                    "Organization does not exist");
         }
         AppUser actor = users.findById(batch.actorUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Connector actor user does not exist"));
+                .orElseThrow(() -> new BusinessValidationException(
+                        "connector.actor-invalid",
+                        "Connector actor user does not exist"));
         if (!actor.isActive() || !actor.getOrganizationId().equals(batch.organizationId())) {
-            throw new IllegalArgumentException("Connector actor must be an active user in the organization");
+            throw new BusinessValidationException(
+                    "connector.actor-invalid",
+                    "Connector actor must be an active user in the organization");
         }
         knowledgeSpaces.requireInOrganization(batch.organizationId(), batch.knowledgeSpaceId());
         return profile;

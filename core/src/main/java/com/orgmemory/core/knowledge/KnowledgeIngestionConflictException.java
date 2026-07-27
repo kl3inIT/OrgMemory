@@ -1,8 +1,14 @@
 package com.orgmemory.core.knowledge;
 
-public class KnowledgeIngestionConflictException extends RuntimeException {
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+
+public class KnowledgeIngestionConflictException extends BusinessException {
 
     public KnowledgeIngestionConflictException(String message) {
-        super(message);
+        super(
+                BusinessErrorCategory.CONFLICT,
+                "knowledge-ingestion.conflict",
+                message);
     }
 }

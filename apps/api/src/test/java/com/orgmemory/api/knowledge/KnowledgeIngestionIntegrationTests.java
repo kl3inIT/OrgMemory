@@ -24,6 +24,7 @@ import com.orgmemory.core.knowledge.SourcePrincipalType;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -358,7 +359,9 @@ class KnowledgeIngestionIntegrationTests {
                         "source-contractors",
                         AccessGate.DENY)));
 
-        assertThrows(IllegalArgumentException.class, () -> ingestion.registerRawSource(withSourceGroup));
+        assertThrows(
+                BusinessValidationException.class,
+                () -> ingestion.registerRawSource(withSourceGroup));
     }
 
     @Test
@@ -401,7 +404,9 @@ class KnowledgeIngestionIntegrationTests {
                 "Source body with an unsafe citation scheme.",
                 KnowledgeClassification.PUBLIC,
                 DeclaredAccessScope.ALL));
-        assertThrows(IllegalArgumentException.class, () -> ingestion.registerRawSource(unsafeScheme));
+        assertThrows(
+                BusinessValidationException.class,
+                () -> ingestion.registerRawSource(unsafeScheme));
     }
 
     @Test
@@ -458,7 +463,9 @@ class KnowledgeIngestionIntegrationTests {
                 Instant.now().plus(Duration.ofHours(25)),
                 base.aclEntries());
 
-        assertThrows(IllegalArgumentException.class, () -> ingestion.registerRawSource(overlong));
+        assertThrows(
+                BusinessValidationException.class,
+                () -> ingestion.registerRawSource(overlong));
     }
 
     @Test

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -36,13 +37,13 @@ class PromptTemplateRendererTests {
         String payload = AssetProfileValidationTests.promptPayload("{{ticket_text}}");
 
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> renderer.render(payload, Map.of()));
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> renderer.render(payload, Map.of("ticket_text", 42)));
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> renderer.render(
                         payload,
                         Map.of(

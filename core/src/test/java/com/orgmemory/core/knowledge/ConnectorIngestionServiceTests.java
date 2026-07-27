@@ -16,6 +16,7 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -82,7 +83,7 @@ class ConnectorIngestionServiceTests {
         ConnectorCrawlBatch batch = batch(
                 ConnectorContractVersions.supported(), "slack", List.of(content("C1")), List.of());
 
-        assertThrows(IllegalArgumentException.class, () -> service.ingest(batch));
+        assertThrows(BusinessValidationException.class, () -> service.ingest(batch));
     }
 
     @Test
@@ -95,7 +96,7 @@ class ConnectorIngestionServiceTests {
         ConnectorCrawlBatch batch = batch(
                 ConnectorContractVersions.supported(), "slack", List.of(content("C1")), List.of());
 
-        assertThrows(IllegalArgumentException.class, () -> service.ingest(batch));
+        assertThrows(BusinessValidationException.class, () -> service.ingest(batch));
     }
 
     @Test
