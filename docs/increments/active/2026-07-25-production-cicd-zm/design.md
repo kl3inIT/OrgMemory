@@ -216,9 +216,13 @@ run independently and only when their adapter or shared GraphRAG contracts
 change.
 
 The delivery workflow uses a protected GitHub `production` environment,
-concurrency of one, exact commit input, SSH host-key verification, pre-deploy
-backup, Compose validation, OpenFGA migration, API-owned Flyway startup, health
-checks, browser/OIDC smoke, and rollback to the previous image set.
+concurrency of one, SSH host-key verification, pre-deploy backup, Compose
+validation, OpenFGA migration, API-owned Flyway startup, health checks,
+browser/OIDC smoke, and rollback to the previous image set. A successful
+`Build production images` run for the current `main` SHA starts deployment
+automatically. An explicit full-SHA input remains available for intentional
+redeploy or rollback. Stale automatic runs exit before touching the server, so
+out-of-order image builds cannot roll production backward.
 
 ## Independent Challenge
 

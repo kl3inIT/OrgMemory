@@ -27,9 +27,14 @@ Create a protected GitHub environment named `production`. Add:
 - `PRODUCTION_SSH_PRIVATE_KEY`
 - `PRODUCTION_SSH_KNOWN_HOSTS`
 
-Require a reviewer if the repository plan supports it. `Deploy production`
-accepts a full 40-character commit SHA. The SHA must already have a successful
-`Build production images` run.
+`Deploy production` runs automatically after `Build production images`
+successfully publishes a complete image set for the current `main` SHA. The
+same workflow retains a manual input for an intentional redeploy or rollback to
+an older green `main` SHA.
+
+If a required-reviewer protection rule is later added to the `production`
+environment, automatic runs will wait for that approval. The current POC
+environment has no approval rule.
 
 ## One-Time Host Preparation
 
@@ -132,11 +137,27 @@ through Nginx Proxy Manager for JWT verification.
 
 ## Normal Deployment
 
-The GitHub workflow checks out the exact commit on the server and runs:
+The normal path is fully chained:
+
+1. a pull request merges to `main`;
+2. `CI` verifies that exact merge commit;
+3. `Build production images` publishes or carries forward the complete
+   immutable image set;
+4. `Deploy production` deploys that SHA automatically.
+
+The deploy workflow ignores a completed image build when its SHA is no longer
+the current `main`, preventing a slower old build from rolling production back
+after a newer merge. Deployments remain single-flight.
+
+The workflow checks out the exact commit on the server and runs:
 
 ```bash
 ./infrastructure/deployment/scripts/deploy.sh <full-commit-sha>
 ```
+
+Use the manual `workflow_dispatch` input only for an intentional redeploy or
+rollback. Manual commits must still be ancestors of `main` with a successful
+`Build production images` run.
 
 The deployment:
 
