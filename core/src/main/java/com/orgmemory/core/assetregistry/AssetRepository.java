@@ -14,6 +14,75 @@ import org.springframework.data.repository.query.Param;
 
 interface AssetRepository extends JpaRepository<Asset, UUID> {
 
+    String CATALOG_FROM_AND_PREDICATES = """
+            from Asset asset
+            join AssetRelease release
+              on release.assetId = asset.id
+             and release.organizationId = asset.organizationId
+            join AssetReleaseAvailabilityEvent availabilityEvent
+              on availabilityEvent.releaseId = release.id
+            where asset.organizationId = :organizationId
+              and asset.id in :ids
+              and asset.authorizationReady = true
+              and (:type is null or asset.type = :type)
+              and (
+                    :query = ''
+                    or lower(concat(
+                        asset.namespace, ' ', asset.slug, ' ',
+                        release.title, ' ', release.summary))
+                       like concat('%', :query, '%')
+              )
+              and availabilityEvent.availability <> :withdrawn
+              and not exists (
+                    select laterAvailability.id
+                    from AssetReleaseAvailabilityEvent laterAvailability
+                    where laterAvailability.releaseId = availabilityEvent.releaseId
+                      and (
+                        laterAvailability.effectiveAt > availabilityEvent.effectiveAt
+                        or (
+                          laterAvailability.effectiveAt = availabilityEvent.effectiveAt
+                          and laterAvailability.createdAt > availabilityEvent.createdAt
+                        )
+                      )
+              )
+              and not exists (
+                    select newerRelease.id
+                    from AssetRelease newerRelease
+                    where newerRelease.assetId = asset.id
+                      and newerRelease.organizationId = asset.organizationId
+                      and newerRelease.sequence > release.sequence
+                      and exists (
+                            select newerAvailability.id
+                            from AssetReleaseAvailabilityEvent newerAvailability
+                            where newerAvailability.releaseId = newerRelease.id
+                              and newerAvailability.availability <> :withdrawn
+                              and not exists (
+                                    select laterNewerAvailability.id
+                                    from AssetReleaseAvailabilityEvent laterNewerAvailability
+                                    where laterNewerAvailability.releaseId =
+                                        newerAvailability.releaseId
+                                      and (
+                                        laterNewerAvailability.effectiveAt >
+                                            newerAvailability.effectiveAt
+                                        or (
+                                          laterNewerAvailability.effectiveAt =
+                                              newerAvailability.effectiveAt
+                                          and laterNewerAvailability.createdAt >
+                                              newerAvailability.createdAt
+                                        )
+                                      )
+                              )
+                      )
+              )
+            """;
+
+    String CATALOG_ORDER = """
+            order by
+              case when :sort = 'NAME' then lower(release.title) end asc,
+              case when :sort = 'RECENTLY_RELEASED' then release.releasedAt end desc,
+              asset.id asc
+            """;
+
     Optional<Asset> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -79,132 +148,10 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                         release.versionLabel,
                         release.digest,
                         availabilityEvent.availability)
-                    from Asset asset
-                    join AssetRelease release
-                      on release.assetId = asset.id
-                     and release.organizationId = asset.organizationId
-                    join AssetReleaseAvailabilityEvent availabilityEvent
-                      on availabilityEvent.releaseId = release.id
-                    where asset.organizationId = :organizationId
-                      and asset.id in :ids
-                      and asset.authorizationReady = true
-                      and (:type is null or asset.type = :type)
-                      and (
-                            :query = ''
-                            or lower(concat(
-                                asset.namespace, ' ', asset.slug, ' ',
-                                release.title, ' ', release.summary))
-                               like concat('%', :query, '%')
-                      )
-                      and availabilityEvent.availability <> :withdrawn
-                      and not exists (
-                            select laterAvailability.id
-                            from AssetReleaseAvailabilityEvent laterAvailability
-                            where laterAvailability.releaseId = availabilityEvent.releaseId
-                              and (
-                                laterAvailability.effectiveAt > availabilityEvent.effectiveAt
-                                or (
-                                  laterAvailability.effectiveAt = availabilityEvent.effectiveAt
-                                  and laterAvailability.createdAt > availabilityEvent.createdAt
-                                )
-                              )
-                      )
-                      and not exists (
-                            select newerRelease.id
-                            from AssetRelease newerRelease
-                            where newerRelease.assetId = asset.id
-                              and newerRelease.organizationId = asset.organizationId
-                              and newerRelease.sequence > release.sequence
-                              and exists (
-                                    select newerAvailability.id
-                                    from AssetReleaseAvailabilityEvent newerAvailability
-                                    where newerAvailability.releaseId = newerRelease.id
-                                      and newerAvailability.availability <> :withdrawn
-                                      and not exists (
-                                            select laterNewerAvailability.id
-                                            from AssetReleaseAvailabilityEvent laterNewerAvailability
-                                            where laterNewerAvailability.releaseId =
-                                                newerAvailability.releaseId
-                                              and (
-                                                laterNewerAvailability.effectiveAt >
-                                                    newerAvailability.effectiveAt
-                                                or (
-                                                  laterNewerAvailability.effectiveAt =
-                                                      newerAvailability.effectiveAt
-                                                  and laterNewerAvailability.createdAt >
-                                                      newerAvailability.createdAt
-                                                )
-                                              )
-                                      )
-                              )
-                      )
-                    order by
-                      case when :sort = 'NAME' then lower(release.title) end asc,
-                      case when :sort = 'RECENTLY_RELEASED' then release.releasedAt end desc,
-                      asset.id asc
-                    """,
-            countQuery = """
-                    select count(asset.id)
-                    from Asset asset
-                    join AssetRelease release
-                      on release.assetId = asset.id
-                     and release.organizationId = asset.organizationId
-                    join AssetReleaseAvailabilityEvent availabilityEvent
-                      on availabilityEvent.releaseId = release.id
-                    where asset.organizationId = :organizationId
-                      and asset.id in :ids
-                      and asset.authorizationReady = true
-                      and (:type is null or asset.type = :type)
-                      and (
-                            :query = ''
-                            or lower(concat(
-                                asset.namespace, ' ', asset.slug, ' ',
-                                release.title, ' ', release.summary))
-                               like concat('%', :query, '%')
-                      )
-                      and availabilityEvent.availability <> :withdrawn
-                      and not exists (
-                            select laterAvailability.id
-                            from AssetReleaseAvailabilityEvent laterAvailability
-                            where laterAvailability.releaseId = availabilityEvent.releaseId
-                              and (
-                                laterAvailability.effectiveAt > availabilityEvent.effectiveAt
-                                or (
-                                  laterAvailability.effectiveAt = availabilityEvent.effectiveAt
-                                  and laterAvailability.createdAt > availabilityEvent.createdAt
-                                )
-                              )
-                      )
-                      and not exists (
-                            select newerRelease.id
-                            from AssetRelease newerRelease
-                            where newerRelease.assetId = asset.id
-                              and newerRelease.organizationId = asset.organizationId
-                              and newerRelease.sequence > release.sequence
-                              and exists (
-                                    select newerAvailability.id
-                                    from AssetReleaseAvailabilityEvent newerAvailability
-                                    where newerAvailability.releaseId = newerRelease.id
-                                      and newerAvailability.availability <> :withdrawn
-                                      and not exists (
-                                            select laterNewerAvailability.id
-                                            from AssetReleaseAvailabilityEvent laterNewerAvailability
-                                            where laterNewerAvailability.releaseId =
-                                                newerAvailability.releaseId
-                                              and (
-                                                laterNewerAvailability.effectiveAt >
-                                                    newerAvailability.effectiveAt
-                                                or (
-                                                  laterNewerAvailability.effectiveAt =
-                                                      newerAvailability.effectiveAt
-                                                  and laterNewerAvailability.createdAt >
-                                                      newerAvailability.createdAt
-                                                )
-                                              )
-                                      )
-                              )
-                      )
-                    """)
+                    """
+                    + CATALOG_FROM_AND_PREDICATES
+                    + CATALOG_ORDER,
+            countQuery = "select count(asset.id)\n" + CATALOG_FROM_AND_PREDICATES)
     Page<AssetRecommendation> searchAuthorizedRecommendations(
             @Param("organizationId") UUID organizationId,
             @Param("ids") Collection<UUID> ids,

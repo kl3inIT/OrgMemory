@@ -6,11 +6,13 @@ export function CollectionPagination({
   page,
   pageSize,
   total,
+  disabled = false,
   onPageChange,
 }: {
   page: number
   pageSize: number
   total: number
+  disabled?: boolean
   onPageChange: (page: number) => void
 }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
@@ -42,13 +44,14 @@ export function CollectionPagination({
       <nav
         className="flex max-w-full items-center gap-1 self-end overflow-x-auto"
         aria-label="Pagination"
+        aria-busy={disabled}
       >
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="Previous page"
-          disabled={safePage <= 1}
+          disabled={disabled || safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
         >
           <ChevronLeft aria-hidden="true" />
@@ -70,6 +73,7 @@ export function CollectionPagination({
               size="icon-sm"
               aria-label={`Page ${token}`}
               aria-current={token === safePage ? "page" : undefined}
+              disabled={disabled}
               onClick={() => onPageChange(token)}
             >
               {token}
@@ -81,7 +85,7 @@ export function CollectionPagination({
           variant="ghost"
           size="icon-sm"
           aria-label="Next page"
-          disabled={safePage >= pageCount}
+          disabled={disabled || safePage >= pageCount}
           onClick={() => onPageChange(safePage + 1)}
         >
           <ChevronRight aria-hidden="true" />

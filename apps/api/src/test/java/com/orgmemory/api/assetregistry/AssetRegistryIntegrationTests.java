@@ -304,6 +304,7 @@ class AssetRegistryIntegrationTests {
                 "zulu-catalog",
                 promptPayloadWithoutVariables(),
                 "1.0.0");
+        AssetView.Release firstZuluRelease = zulu.releases().getFirst();
         AssetView alpha = createApprovedRelease(
                 AssetType.PROMPT_TEMPLATE,
                 "alpha-catalog",
@@ -314,6 +315,29 @@ class AssetRegistryIntegrationTests {
                 "catalog-instruction",
                 workInstructionPayload(),
                 "1.0.0");
+        assets.updateDraft(
+                AUTHOR,
+                zulu.id(),
+                zulu.draft().lockVersion(),
+                new AssetDraftInput(
+                        "Asset zulu-catalog replacement",
+                        "Withdrawn catalog replacement",
+                        "INTERNAL",
+                        "1",
+                        promptPayloadWithoutVariables()));
+        AssetView zuluSubmission =
+                assets.submit(AUTHOR, zulu.id(), "Publish catalog replacement");
+        approve(zulu.id(), zuluSubmission);
+        AssetView zuluReplacement = assets.publish(
+                AUTHOR,
+                zulu.id(),
+                zuluSubmission.revisions().getFirst().id(),
+                "2.0.0");
+        assets.withdraw(
+                AUTHOR,
+                zulu.id(),
+                zuluReplacement.releases().getFirst().id(),
+                "Replacement withdrawn");
         when(authorizationSets.listAuthorizedResources(any()))
                 .thenReturn(AuthorizedResourceSetResult.resolved(
                         List.of(
@@ -331,6 +355,9 @@ class AssetRegistryIntegrationTests {
         AssetRecommendationPage filtered =
                 assets.catalog(AUTHOR, "instruction", null,
                         AssetCatalogSort.NAME, 1, 24);
+        AssetRecommendationPage recent =
+                assets.catalog(AUTHOR, null, AssetType.PROMPT_TEMPLATE,
+                        null, 1, 24);
 
         assertEquals(2, first.total());
         assertEquals(2, first.totalPages());
@@ -340,6 +367,10 @@ class AssetRegistryIntegrationTests {
         assertEquals(zulu.id(), second.items().getFirst().assetId());
         assertEquals(1, filtered.total());
         assertEquals(instruction.id(), filtered.items().getFirst().assetId());
+        assertEquals(AssetCatalogSort.RECENTLY_RELEASED, recent.sort());
+        assertEquals(alpha.id(), recent.items().getFirst().assetId());
+        assertEquals(zulu.id(), recent.items().getLast().assetId());
+        assertEquals(firstZuluRelease.id(), recent.items().getLast().releaseId());
     }
 
     @Test

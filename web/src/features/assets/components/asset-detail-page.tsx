@@ -230,7 +230,11 @@ function AssetIdentityHeader({
               {asset.releases?.map((item) => (
                 <SelectItem key={item.id} value={item.id!}>
                   {item.versionLabel} ·{" "}
-                  {item.availability === "AVAILABLE" ? "Current" : "Deprecated"}
+                  {item.availability === "AVAILABLE"
+                    ? "Current"
+                    : item.availability === "DEPRECATED"
+                      ? "Deprecated"
+                      : item.availability}
                 </SelectItem>
               ))}
             </SelectContent>

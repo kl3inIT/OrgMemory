@@ -40,4 +40,23 @@ describe("CollectionPagination", () => {
 
     expect(onPageChange).toHaveBeenCalledWith(3)
   })
+
+  it("blocks page changes while the next server page is loading", () => {
+    render(
+      <CollectionPagination
+        page={2}
+        pageSize={24}
+        total={53}
+        disabled
+        onPageChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole("navigation", { name: "Pagination" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    )
+    expect(screen.getByRole("button", { name: "Previous page" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled()
+  })
 })

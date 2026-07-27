@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { ChevronRight, Search } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 
@@ -77,6 +77,7 @@ export function AssetCatalogPage({
   const assets = useQuery({
     ...catalogOptions,
     queryKey: scopeAssetQueryKey(catalogOptions.queryKey, actorKey),
+    placeholderData: keepPreviousData,
   })
 
   if (assets.isPending) return <AssetPageLoading />
@@ -219,6 +220,7 @@ export function AssetCatalogPage({
           page={page}
           pageSize={ASSET_PAGE_SIZE}
           total={total}
+          disabled={assets.isPlaceholderData}
           onPageChange={onPageChange}
         />
       </PageLayout.Body>
