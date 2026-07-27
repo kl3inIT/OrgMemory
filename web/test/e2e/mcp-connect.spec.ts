@@ -31,7 +31,22 @@ test("shows generic MCP onboarding for Claude, Codex, and compatible clients", a
     page.getByRole("heading", { name: "Connect AI clients" }),
   ).toBeVisible()
   await expect(page.getByText("https://om.kl3in.tech/mcp", { exact: true })).toBeVisible()
-  await expect(page.getByText("Read only", { exact: true })).toBeVisible()
+  await expect(
+    page.getByText(
+      "Read-only Streamable HTTP with OAuth 2.1 for Claude, Codex, and compatible MCP clients.",
+      { exact: true },
+    ),
+  ).toBeVisible()
+  await expect(page.getByText("Available", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("What the assistant can do", { exact: true })).toHaveCount(0)
+  await expect(
+    page.getByText("OrgMemory checks your current permissions on every request.", {
+      exact: false,
+    }),
+  ).toBeVisible()
+  await expect(
+    page.getByText("cannot publish or modify them.", { exact: false }),
+  ).toBeVisible()
 
   await page.getByRole("tab", { name: "Codex" }).click()
   await expect(
@@ -51,6 +66,5 @@ test("shows generic MCP onboarding for Claude, Codex, and compatible clients", a
     page.getByText("restricted Dynamic Client Registration", { exact: false }),
   ).toBeVisible()
   await expect(page.getByText("do not need a shared client secret", { exact: false })).toBeVisible()
-  await expect(page.getByText("No mutations in this POC", { exact: true })).toBeVisible()
   expect(browserErrors).toEqual([])
 })

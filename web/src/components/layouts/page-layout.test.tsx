@@ -35,4 +35,20 @@ describe("PageLayout", () => {
       screen.getByRole("region", { name: "Knowledge graph explorer" }),
     ).toHaveAttribute("data-slot", "page-canvas")
   })
+
+  it("keeps ordinary page content in a dedicated body region", () => {
+    render(
+      <PageLayout.Root>
+        <PageLayout.Header title="Users" />
+        <PageLayout.Body>
+          <section aria-label="User directory">Directory</section>
+        </PageLayout.Body>
+      </PageLayout.Root>,
+    )
+
+    const body = screen.getByText("Directory").closest('[data-slot="page-body"]')
+
+    expect(body).toBeInTheDocument()
+    expect(body).toHaveClass("pt-6")
+  })
 })

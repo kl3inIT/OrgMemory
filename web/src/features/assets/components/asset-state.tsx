@@ -8,13 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton"
 export function AssetPageLoading() {
   return (
     <PageLayout.Root variant="wide" aria-label="Loading assets">
-      <Skeleton className="h-10 w-56" />
-      <Skeleton className="h-28 w-full" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="h-48 w-full" />
-        ))}
-      </div>
+      <PageLayout.Body className="pt-0">
+        <Skeleton className="h-10 w-56" />
+        <Skeleton className="h-28 w-full" />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} className="h-48 w-full" />
+          ))}
+        </div>
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }
@@ -28,21 +30,23 @@ export function AssetPageError({
 }) {
   return (
     <PageLayout.Root variant="narrow">
-      <Card className="border-status-danger-border bg-status-danger-surface">
-        <CardContent className="flex items-start gap-4 p-6">
-          <AlertTriangle className="mt-0.5 size-5 text-status-danger-content" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-section-title text-content-primary">{title}</h1>
-            <p className="mt-1 text-body text-content-secondary">
-              Access may have changed, or the service may be temporarily unavailable.
-            </p>
-            <Button className="mt-4" variant="outline" onClick={onRetry}>
-              <RefreshCw aria-hidden="true" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <PageLayout.Body className="pt-0">
+        <Card className="border-status-danger-border bg-status-danger-surface">
+          <CardContent className="flex items-start gap-4 p-6">
+            <AlertTriangle className="mt-0.5 size-5 text-status-danger-content" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-section-title text-content-primary">{title}</h1>
+              <p className="mt-1 text-body text-content-secondary">
+                Access may have changed, or the service may be temporarily unavailable.
+              </p>
+              <Button className="mt-4" variant="outline" onClick={onRetry}>
+                <RefreshCw aria-hidden="true" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </PageLayout.Body>
     </PageLayout.Root>
   )
 }

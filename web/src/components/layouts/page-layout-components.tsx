@@ -124,7 +124,7 @@ export function PageBody({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="page-body"
-      className={cn("flex min-w-0 flex-col gap-6", className)}
+      className={cn("flex min-w-0 flex-col gap-6 pt-6", className)}
       {...props}
     />
   )

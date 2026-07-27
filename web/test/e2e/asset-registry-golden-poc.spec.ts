@@ -52,6 +52,13 @@ test("two users prove governed release and second-user Pack completion", async (
     supportPage.getByRole("heading", { name: "L1 Customer Support Capability Onboarding" }),
   ).toBeVisible()
   await expect(supportPage.getByText("Restricted Security Prompt")).toHaveCount(0)
+  const filterBarBox = await supportPage.locator('[data-slot="filter-bar"]').boundingBox()
+  const assetGridBox = await supportPage
+    .getByRole("region", { name: "Visible assets" })
+    .boundingBox()
+  expect(filterBarBox).not.toBeNull()
+  expect(assetGridBox).not.toBeNull()
+  expect(assetGridBox!.y - (filterBarBox!.y + filterBarBox!.height)).toBeGreaterThanOrEqual(16)
   await supportPage.getByRole("link", { name: "Use exact release" }).click()
   await expect(supportPage.getByText(`Owner: ${SUPPORT_AGENT_ID}`)).toBeVisible()
   await expect(supportPage.getByText(`Backup: ${BACKUP_OWNER_ID}`)).toBeVisible()
