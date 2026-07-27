@@ -81,6 +81,7 @@ assert document["authorization_servers"] == [
     "https://auth.kl3in.tech/realms/orgmemory"
 ]
 assert "assets:read" in document["scopes_supported"]
+assert "assets:write" in document["scopes_supported"]
 ' <<<"$protected_resource_metadata"
 
   authorization_metadata="$(
@@ -120,6 +121,28 @@ assert document.get("client_id_metadata_document_supported") is not True
     '^[[:space:]]*www-authenticate:.*resource_metadata="https://om\.kl3in\.tech/\.well-known/oauth-protected-resource/mcp"' \
     "$challenge_headers"
   rm -f "$challenge_headers"
+  trap - EXIT
+
+  publication_headers="$(mktemp)"
+  trap 'rm -f "$publication_headers"' EXIT
+  publication_status="$(
+    curl --silent --show-error \
+      --connect-timeout 5 \
+      --max-time 15 \
+      --retry 5 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      --dump-header "$publication_headers" \
+      --output /dev/null \
+      --write-out '%{http_code}' \
+      --request POST \
+      https://om.kl3in.tech/skill-publications
+  )"
+  [[ "$publication_status" == "401" ]]
+  grep -Eiq \
+    '^[[:space:]]*www-authenticate:.*resource_metadata="https://om\.kl3in\.tech/\.well-known/oauth-protected-resource/mcp"' \
+    "$publication_headers"
+  rm -f "$publication_headers"
   trap - EXIT
 fi
 

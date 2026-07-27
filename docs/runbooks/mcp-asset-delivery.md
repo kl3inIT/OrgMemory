@@ -16,7 +16,13 @@ The same protected resource exposes the binary companion route
 Skill package after the same bearer admission, token exchange, and live
 `CAN_USE` check. Binary bytes are not embedded into MCP JSON-RPC.
 
-All operations are read-only. `render_prompt` performs deterministic variable
+The protected resource also exposes `/skill-publications` for the OrgMemory
+CLI. This is an HTTP companion endpoint requiring `assets:write`; it is not an
+MCP tool. It exchanges the user token and forwards one bounded multipart
+request to the canonical Skill import API, which repeats package validation
+and live `CAN_CREATE_ASSET` authorization.
+
+All MCP operations are read-only. `render_prompt` performs deterministic variable
 validation and substitution; it does not call an AI provider. Skill tools
 return an exact manifest and package path; they do not modify a workstation.
 There is no `run_prompt`, progress update, fork, feedback, approval,
@@ -68,7 +74,7 @@ Deployment removes the retired OrgMemory CIMD policy/profile and idempotently
 merges the DCR policy without replacing unrelated realm policies. Anonymous DCR
 forces PKCE S256, consent, disabled full scope, public clients,
 approved redirect/client URI hosts, the standard OIDC `basic` plus
-`assets:read` scope allowlist, and a maximum of 50 registered clients. The
+`assets:read` and `assets:write` scope allowlist, and a maximum of 50 registered clients. The
 migration creates `basic` only when a minimal imported realm does not already
 contain it.
 
@@ -131,6 +137,10 @@ Code, and PKCE S256 flow:
 
 ```text
 orgmemory skill search onboarding
+orgmemory skill validate ./skills/expense-review
+orgmemory skill publish ./skills/expense-review \
+  --namespace finance \
+  --knowledge-space 30000000-0000-0000-0000-000000000001
 orgmemory skill add people/employee-onboarding@1.0.0 --agent claude-code
 orgmemory skill add people/employee-onboarding@1.0.0 --agent codex
 orgmemory skill list
@@ -154,8 +164,14 @@ coordinate, version, agent, target, and package digest. It never contains an
 OAuth token.
 
 OAuth registration, discovery, and tokens live in the operating system's user
-state directory, isolated by MCP server origin. They never enter the repository
-or Skill receipt.
+state directory, isolated by MCP server origin and scope set. They never enter
+the repository or Skill receipt. Read-only installation reuses its existing
+OAuth state; publication gets a distinct public DCR client and token grant.
+
+`skill validate` and `skill publish --dry-run` do not authenticate or contact
+the server. A real publication requests `assets:read assets:write`, builds the
+ZIP internally, and creates a new Draft. It never submits, approves, or
+releases the Draft.
 
 ## Authorization And Operations
 
@@ -176,10 +192,14 @@ state in the MCP process:
 - 800 requests/minute across the process;
 - at most 10,000 tracked callers, evicted after 15 minutes idle;
 - a 256 KiB body limit, enforced for both known-length and chunked requests.
+- a separate 22 MiB multipart-body limit for `/skill-publications`, while the
+  canonical package remains limited to 20 MiB.
 
 Tune these through `ORGMEMORY_MCP_CALLER_RATE_*`,
 `ORGMEMORY_MCP_GLOBAL_RATE_*`, `ORGMEMORY_MCP_MAX_TRACKED_CALLERS`, and
-`ORGMEMORY_MCP_MAX_BODY_BYTES`. This is deliberately single-replica state.
+`ORGMEMORY_MCP_MAX_BODY_BYTES`. Tune the publication transport bound through
+`ORGMEMORY_SKILL_PUBLICATION_MAX_BODY_BYTES`. This is deliberately
+single-replica state.
 Before scaling MCP horizontally, replace it with a Bucket4j distributed proxy
 manager backed by an approved shared store; do not claim a cluster-wide limit
 from independent Caffeine caches.

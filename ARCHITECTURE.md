@@ -56,9 +56,12 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
   read-only Knowledge and Asset tools, Asset resources, and released Prompt
   adapter exchange the inbound resource token for a short-lived actor token
-  scoped to canonical API contracts. Agents therefore use the same GraphRAG,
-  OpenFGA, live object authorization, and audit paths as the product without
-  bearer passthrough, repositories, database migrations, or a second delivery
+  scoped to canonical API contracts. A separate `assets:write` HTTP companion
+  accepts one bounded Skill Draft publication from the CLI; it is not an MCP
+  mutation tool and delegates package validation, authorization, and lifecycle
+  to the canonical API. Agents therefore use the same GraphRAG, OpenFGA, live
+  object authorization, and audit paths as the product without bearer
+  passthrough, repositories, database migrations, or a second lifecycle
   implementation.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, an AI

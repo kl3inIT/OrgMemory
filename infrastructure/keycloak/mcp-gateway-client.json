@@ -2,5 +2,9 @@
   "clientId": "orgmemory-mcp",
   "attributes": {
     "standard.token.exchange.enabled": "true"
-  }
+  },
+  "optionalClientScopes": [
+    "assets:read",
+    "assets:write"
+  ]
 }

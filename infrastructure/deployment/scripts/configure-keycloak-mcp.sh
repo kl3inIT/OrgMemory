@@ -10,6 +10,7 @@ profiles_source="$repo_root/infrastructure/keycloak/mcp-client-profiles.json"
 policies_source="$repo_root/infrastructure/keycloak/mcp-client-policies.json"
 registration_policy_source="$repo_root/infrastructure/keycloak/mcp-dcr-registration-policy.json"
 basic_scope_source="$repo_root/infrastructure/keycloak/mcp-basic-client-scope.json"
+write_scope_template="$repo_root/infrastructure/keycloak/mcp-assets-write-client-scope.json"
 gateway_client_source="$repo_root/infrastructure/keycloak/mcp-gateway-client.json"
 kcadm_config="/tmp/orgmemory-mcp-kcadm.config"
 tmp_root="${TMPDIR:-/tmp}"
@@ -58,6 +59,28 @@ keycloak_exec bash -ec \
     --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null'
 
 kcadm get "realms/$realm" >/dev/null
+
+resource_uri="$(
+  keycloak_exec printenv ORGMEMORY_MCP_RESOURCE_URI
+)"
+if [[ -z "$resource_uri" ]]; then
+  printf 'Keycloak is missing ORGMEMORY_MCP_RESOURCE_URI\n' >&2
+  exit 1
+fi
+write_scope_source="$tmp_dir/assets-write-scope.json"
+python3 - "$write_scope_template" "$resource_uri" >"$write_scope_source" <<'PY'
+import json
+import sys
+
+template_path, resource_uri = sys.argv[1:]
+with open(template_path, encoding="utf-8") as stream:
+    scope = json.load(stream)
+for mapper in scope.get("protocolMappers", []):
+    config = mapper.get("config", {})
+    if config.get("included.custom.audience") == "${ORGMEMORY_MCP_RESOURCE_URI}":
+        config["included.custom.audience"] = resource_uri
+json.dump(scope, sys.stdout)
+PY
 
 clients_path="$tmp_dir/clients.json"
 kcadm get clients -r "$realm" >"$clients_path"
@@ -168,6 +191,100 @@ PY
     -r "$realm" \
     -f - <"$basic_scope_synced"
 fi
+
+client_scopes_csv="$tmp_dir/client-scopes-after-basic.csv"
+kcadm get client-scopes \
+  -r "$realm" \
+  --fields id,name \
+  --format csv \
+  --noquotes \
+  | tr -d '\r' >"$client_scopes_csv"
+write_scope_id="$(
+  awk -F, '$2 == "assets:write" { print $1; exit }' "$client_scopes_csv"
+)"
+if [[ -z "$write_scope_id" ]]; then
+  kcadm create client-scopes -r "$realm" -f - <"$write_scope_source" >/dev/null
+  kcadm get client-scopes \
+    -r "$realm" \
+    --fields id,name \
+    --format csv \
+    --noquotes \
+    | tr -d '\r' >"$client_scopes_csv"
+  write_scope_id="$(
+    awk -F, '$2 == "assets:write" { print $1; exit }' "$client_scopes_csv"
+  )"
+else
+  write_scope_current="$tmp_dir/write-scope-current.json"
+  write_scope_synced="$tmp_dir/write-scope-synced.json"
+  kcadm get "client-scopes/$write_scope_id" \
+    -r "$realm" >"$write_scope_current"
+  python3 \
+    - "$write_scope_current" "$write_scope_source" >"$write_scope_synced" <<'PY'
+import json
+import sys
+
+current_path, desired_path = sys.argv[1:]
+with open(current_path, encoding="utf-8") as stream:
+    current = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    desired = json.load(stream)
+
+desired["id"] = current["id"]
+current_mapper_ids = {
+    mapper.get("name"): mapper.get("id")
+    for mapper in current.get("protocolMappers", [])
+}
+for mapper in desired.get("protocolMappers", []):
+    mapper_id = current_mapper_ids.get(mapper.get("name"))
+    if mapper_id:
+        mapper["id"] = mapper_id
+json.dump(desired, sys.stdout)
+PY
+  kcadm update "client-scopes/$write_scope_id" \
+    -r "$realm" \
+    -f - <"$write_scope_synced"
+fi
+
+if [[ -z "$write_scope_id" ]]; then
+  printf 'Failed to create the assets:write client scope\n' >&2
+  exit 1
+fi
+
+optional_scopes_path="$tmp_dir/gateway-optional-scopes.json"
+kcadm get "clients/$gateway_client_id/optional-client-scopes" \
+  -r "$realm" >"$optional_scopes_path"
+if ! python3 - "$optional_scopes_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    scopes = json.load(stream)
+raise SystemExit(0 if any(scope.get("name") == "assets:write" for scope in scopes) else 1)
+PY
+then
+  kcadm update \
+    "clients/$gateway_client_id/optional-client-scopes/$write_scope_id" \
+    -r "$realm"
+fi
+
+kcadm get "clients/$gateway_client_id/optional-client-scopes" \
+  -r "$realm" >"$optional_scopes_path"
+python3 - "$optional_scopes_path" "$gateway_client_source" <<'PY'
+import json
+import sys
+
+actual_path, desired_path = sys.argv[1:]
+with open(actual_path, encoding="utf-8") as stream:
+    actual = {scope.get("name") for scope in json.load(stream)}
+with open(desired_path, encoding="utf-8") as stream:
+    desired = set(json.load(stream).get("optionalClientScopes", []))
+missing = desired - actual
+if missing:
+    raise SystemExit(
+        "Keycloak gateway client is missing optional scopes: "
+        + ", ".join(sorted(missing))
+    )
+PY
 
 merge_client_policy_document() {
   local endpoint="$1"

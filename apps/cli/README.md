@@ -1,6 +1,7 @@
 # OrgMemory CLI
 
-Authenticated exact-version Skill installation for Claude Code and Codex.
+Authenticated Skill authoring, Draft publication, and exact-version
+installation for Claude Code and Codex.
 
 ## Requirements
 
@@ -13,6 +14,9 @@ Authenticated exact-version Skill installation for Claude Code and Codex.
 ```text
 orgmemory skill search onboarding
 orgmemory skill search onboarding --json
+orgmemory skill validate ./skills/expense-review
+orgmemory skill publish ./skills/expense-review --namespace finance --knowledge-space <uuid>
+orgmemory skill publish ./skills/expense-review --namespace finance --knowledge-space <uuid> --dry-run
 orgmemory skill add people/employee-onboarding@1.0.0 --agent claude-code
 orgmemory skill add people/employee-onboarding@1.0.0 --agent codex
 orgmemory skill list
@@ -23,12 +27,18 @@ Project-local installation is the default. Pass `--global` to target the
 current user's agent directory. Use `--server` only to select another trusted
 OrgMemory deployment; production defaults to `https://om.kl3in.tech/mcp`.
 Use `--oauth-callback-port` to select another loopback callback port when the
-default `53682` is unavailable. `--json` is supported by `skill search` and
-`skill list` for machine-readable output.
+default `53682` is unavailable. `--json` is supported by validation,
+publication, search, and list commands for machine-readable output.
+
+`skill validate` and `skill publish --dry-run` are offline. They validate the
+root `SKILL.md`, bounded file tree, and deterministic package without signing
+in. A real `skill publish` requests the separate `assets:write` OAuth scope and
+creates a Draft only. Submit, review, approval, and release remain in OrgMemory
+Governance.
 
 The first command opens the browser for OrgMemory sign-in and consent. The CLI
 persists OAuth registration/discovery/tokens in the operating system's user
-state directory, not in the repository. Skill lock receipts contain exact
+state directory, isolated by server and scope set, not in the repository. Skill lock receipts contain exact
 release and digest metadata, never credentials.
 
 ## Development

@@ -26,6 +26,9 @@ class McpSecurityConfiguration {
     static final String ASSET_READ_SCOPE = "assets:read";
     static final String ASSET_READ_AUTHORITY =
             "SCOPE_" + ASSET_READ_SCOPE;
+    static final String ASSET_WRITE_SCOPE = "assets:write";
+    static final String ASSET_WRITE_AUTHORITY =
+            "SCOPE_" + ASSET_WRITE_SCOPE;
 
     @Bean
     SecurityFilterChain mcpSecurityFilterChain(
@@ -52,6 +55,8 @@ class McpSecurityConfiguration {
                                 "/mcp/**",
                                 "/skill-packages/**")
                         .hasAuthority(ASSET_READ_AUTHORITY)
+                        .requestMatchers("/skill-publications")
+                        .hasAuthority(ASSET_WRITE_AUTHORITY)
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .authenticationEntryPoint(
@@ -65,7 +70,8 @@ class McpSecurityConfiguration {
                                         .tlsClientCertificateBoundAccessTokens(false)
                                         .scopes(scopes -> scopes.addAll(
                                                 java.util.List.of(
-                                                        ASSET_READ_SCOPE)))))
+                                                        ASSET_READ_SCOPE,
+                                                        ASSET_WRITE_SCOPE)))))
                         .jwt(Customizer.withDefaults()))
                 .addFilterAfter(
                         new McpRateLimitFilter(rateLimits, json),

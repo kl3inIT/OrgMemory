@@ -17,7 +17,6 @@ progress here. Consolidate current behavior before moving an increment to
    and the next-crawl access revocation.
 4. In the isolated identity worktree, land the accepted tenant-hardening
    increment before exposing any native SCIM endpoint.
-
 ## Native Identity Provisioning Program
 
 The selected planning direction keeps Keycloak as the OIDC/SAML broker and
