@@ -14,3 +14,7 @@ Completed increments are historical evidence. Current behavior belongs in
   authenticated exact-version manifest and package delivery, MCP discovery,
   OAuth PKCE CLI installation for Claude Code and Codex, integrity-checked
   atomic installation, receipts, and a Skill-specific Asset detail.
+- [Skill authoring and Draft publication](2026-07-27-skill-authoring-publication/plan.md):
+  folder-first offline validation, deterministic packaging, write-scoped OAuth
+  publication through the bounded HTTP companion, and canonical governed Draft
+  creation while MCP capabilities remain read-only.
