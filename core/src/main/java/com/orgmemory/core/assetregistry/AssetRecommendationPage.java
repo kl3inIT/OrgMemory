@@ -20,4 +20,3 @@ public record AssetRecommendationPage(
                 List.of(), 0, page, pageSize, 0, sort);
     }
 }
-

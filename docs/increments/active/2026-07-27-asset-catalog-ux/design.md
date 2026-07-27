@@ -34,4 +34,3 @@ primary task.
 - Page size is bounded by the server.
 - Sorting is explicit and stable; it never relies on database default order.
 - Existing immutable releases and Pack progress semantics do not change.
-

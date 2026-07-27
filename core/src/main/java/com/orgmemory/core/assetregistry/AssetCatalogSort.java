@@ -4,4 +4,3 @@ public enum AssetCatalogSort {
     RECENTLY_RELEASED,
     NAME
 }
-
