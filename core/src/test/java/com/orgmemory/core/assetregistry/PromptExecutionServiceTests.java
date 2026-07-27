@@ -118,7 +118,7 @@ class PromptExecutionServiceTests {
 
         verify(runs).fail(
                 eq(runId),
-                eq("MODEL_OR_OUTPUT_UNAVAILABLE"),
+                eq("asset.unavailable"),
                 any(Instant.class));
     }
 

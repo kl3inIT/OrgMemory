@@ -1,9 +1,9 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.curation.GraphIdentityKind;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 public sealed interface KnowledgeGraphCurationCommand {
@@ -34,11 +34,11 @@ public sealed interface KnowledgeGraphCurationCommand {
                     idempotencyKey,
                     reason,
                     authorizationGeneration);
-            Objects.requireNonNull(entityId, "entityId");
+            requireValue(entityId, "entityId");
             requireText(name, "name");
             requireText(type, "type");
             requireText(description, "description");
-            Objects.requireNonNull(governingEvidence, "governingEvidence");
+            requireValue(governingEvidence, "governingEvidence");
         }
     }
 
@@ -63,17 +63,17 @@ public sealed interface KnowledgeGraphCurationCommand {
                     idempotencyKey,
                     reason,
                     authorizationGeneration);
-            Objects.requireNonNull(relationId, "relationId");
-            Objects.requireNonNull(sourceEntityId, "sourceEntityId");
-            Objects.requireNonNull(targetEntityId, "targetEntityId");
+            requireValue(relationId, "relationId");
+            requireValue(sourceEntityId, "sourceEntityId");
+            requireValue(targetEntityId, "targetEntityId");
             requireText(type, "type");
-            keywords = List.copyOf(Objects.requireNonNull(keywords, "keywords"));
+            keywords = List.copyOf(requireValue(keywords, "keywords"));
             requireText(description, "description");
             if (!Double.isFinite(weight) || weight <= 0.0) {
-                throw new IllegalArgumentException(
+                throw invalid(
                         "weight must be finite and positive");
             }
-            Objects.requireNonNull(governingEvidence, "governingEvidence");
+            requireValue(governingEvidence, "governingEvidence");
         }
     }
 
@@ -93,9 +93,9 @@ public sealed interface KnowledgeGraphCurationCommand {
                     idempotencyKey,
                     reason,
                     authorizationGeneration);
-            Objects.requireNonNull(kind, "kind");
-            Objects.requireNonNull(sourceIdentityId, "sourceIdentityId");
-            Objects.requireNonNull(targetIdentityId, "targetIdentityId");
+            requireValue(kind, "kind");
+            requireValue(sourceIdentityId, "sourceIdentityId");
+            requireValue(targetIdentityId, "targetIdentityId");
         }
     }
 
@@ -114,8 +114,8 @@ public sealed interface KnowledgeGraphCurationCommand {
                     idempotencyKey,
                     reason,
                     authorizationGeneration);
-            Objects.requireNonNull(kind, "kind");
-            Objects.requireNonNull(identityId, "identityId");
+            requireValue(kind, "kind");
+            requireValue(identityId, "identityId");
         }
     }
 
@@ -124,20 +124,33 @@ public sealed interface KnowledgeGraphCurationCommand {
             String idempotencyKey,
             String reason,
             long authorizationGeneration) {
-        Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
+        requireValue(knowledgeSpaceId, "knowledgeSpaceId");
         requireText(idempotencyKey, "idempotencyKey");
         requireText(reason, "reason");
         if (authorizationGeneration < 0) {
-            throw new IllegalArgumentException(
+            throw invalid(
                     "authorizationGeneration must be non-negative");
         }
     }
 
     private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
+        String normalized = value == null ? "" : value.strip();
         if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
+            throw invalid(field + " must not be blank");
         }
         return normalized;
+    }
+
+    private static <T> T requireValue(T value, String field) {
+        if (value == null) {
+            throw invalid(field + " is required");
+        }
+        return value;
+    }
+
+    private static BusinessValidationException invalid(String message) {
+        return new BusinessValidationException(
+                "knowledge-graph.curation-invalid",
+                message);
     }
 }

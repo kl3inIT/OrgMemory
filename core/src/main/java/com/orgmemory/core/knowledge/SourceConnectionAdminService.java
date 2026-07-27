@@ -3,6 +3,9 @@ package com.orgmemory.core.knowledge;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessNotFoundException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.shared.secret.SecretCipher;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
@@ -91,6 +94,11 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
             UUID adminUserId) {
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
+        if (crawlEnabled && (knowledgeSpaceId == null || actorUserId == null)) {
+            throw new BusinessValidationException(
+                    "connection.crawl-target-required",
+                    "A crawl needs a Knowledge Space to publish into and a user to publish as");
+        }
         if (knowledgeSpaceId != null) {
             knowledgeSpaces.requireInOrganization(organizationId, knowledgeSpaceId);
         }
@@ -191,8 +199,10 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
         SourceConnection connection = find(organizationId, system, key)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No connection is configured for " + system + "/" + key));
+                .orElseThrow(() -> new BusinessNotFoundException(
+                        "connection.not-found",
+                        "The source connection is not available",
+                        BusinessErrorExposure.OPAQUE_RESOURCE));
         connection.requestContentCrawl(Instant.now());
         connections.save(connection);
         record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CRAWL", "CRAWL_REQUESTED");
@@ -241,14 +251,18 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
 
     private static Duration requireInterval(Duration interval) {
         if (interval == null || interval.isZero() || interval.isNegative()) {
-            throw new IllegalArgumentException("The content crawl interval must be positive");
+            throw new BusinessValidationException(
+                    "connection.crawl-interval-invalid",
+                    "The content crawl interval must be positive");
         }
         return interval;
     }
 
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("connection " + field + " is required");
+            throw new BusinessValidationException(
+                    "connection.identifier-required",
+                    "connection " + field + " is required");
         }
         return value.trim();
     }

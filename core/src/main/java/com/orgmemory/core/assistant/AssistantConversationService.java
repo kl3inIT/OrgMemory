@@ -1,6 +1,7 @@
 package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -28,6 +29,7 @@ public class AssistantConversationService {
 
     @Transactional
     public UUID beginTurn(CurrentActor actor, UUID requestedId, String userMessage) {
+        String validUserMessage = requireUserMessage(userMessage);
         Instant now = clock.instant();
         AssistantConversation conversation;
         if (requestedId == null) {
@@ -35,7 +37,7 @@ public class AssistantConversationService {
                     UUID.randomUUID(),
                     actor.organizationId(),
                     actor.userId(),
-                    firstTitle(userMessage),
+                    firstTitle(validUserMessage),
                     now));
         } else {
             conversation = requireOwned(actor, requestedId);
@@ -46,7 +48,7 @@ public class AssistantConversationService {
                 actor.organizationId(),
                 actor.userId(),
                 AssistantConversationRole.USER,
-                userMessage,
+                validUserMessage,
                 now));
         return conversation.getId();
     }
@@ -105,7 +107,7 @@ public class AssistantConversationService {
 
     @Transactional
     public void rename(CurrentActor actor, UUID conversationId, String title) {
-        requireOwned(actor, conversationId).rename(title);
+        requireOwned(actor, conversationId).rename(requireTitle(title));
     }
 
     @Transactional
@@ -123,5 +125,25 @@ public class AssistantConversationService {
     private static String firstTitle(String message) {
         String normalized = message.strip().replaceAll("\\s+", " ");
         return normalized.length() <= 80 ? normalized : normalized.substring(0, 77) + "...";
+    }
+
+    private static String requireUserMessage(String value) {
+        String normalized = value == null ? "" : value.strip();
+        if (normalized.isEmpty() || normalized.length() > 4_000) {
+            throw new BusinessValidationException(
+                    "assistant.message-invalid",
+                    "Assistant message must contain between 1 and 4000 characters");
+        }
+        return normalized;
+    }
+
+    private static String requireTitle(String value) {
+        String normalized = value == null ? "" : value.strip();
+        if (normalized.isEmpty() || normalized.length() > 120) {
+            throw new BusinessValidationException(
+                    "assistant.conversation-title-invalid",
+                    "Conversation title must contain between 1 and 120 characters");
+        }
+        return normalized;
     }
 }

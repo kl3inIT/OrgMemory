@@ -18,6 +18,7 @@ import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -148,14 +149,22 @@ public class KnowledgeSpaceAdministrationService {
         requireOrganizationPermission(actor, CAN_CREATE_SPACE);
 
         String trimmedName = requireName(name);
-        String key = KnowledgeSpaceKey.from(trimmedName);
+        String key;
+        try {
+            key = KnowledgeSpaceKey.from(trimmedName);
+        } catch (IllegalArgumentException invalidName) {
+            throw new BusinessValidationException(
+                    "knowledge-space.name-invalid",
+                    "The Knowledge Space name is invalid",
+                    invalidName);
+        }
         if (spaces.existsByOrganizationIdAndKey(actor.organizationId(), key)) {
             throw new KnowledgeSpaceKeyConflictException(
                     "A Knowledge Space with the key '" + key + "' already exists in this organization");
         }
         if (departmentId != null
                 && !departments.existsByIdAndOrganizationId(departmentId, actor.organizationId())) {
-            throw new IllegalArgumentException("Unknown department in this organization");
+            throw new KnowledgeResourceNotFoundException();
         }
 
         // The pre-check above answers the ordinary case with the key that is already taken, but it
@@ -277,12 +286,12 @@ public class KnowledgeSpaceAdministrationService {
         switch (subject.kind()) {
             case DEPARTMENT, DEPARTMENT_MANAGERS -> {
                 if (!departments.existsByIdAndOrganizationId(subject.id(), actor.organizationId())) {
-                    throw new IllegalArgumentException("Unknown department in this organization");
+                    throw new KnowledgeResourceNotFoundException();
                 }
             }
             case USER -> users.findById(subject.id())
                     .filter(candidate -> candidate.getOrganizationId().equals(actor.organizationId()))
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown user in this organization"));
+                    .orElseThrow(KnowledgeResourceNotFoundException::new);
             case ORGANIZATION, ROLE -> {
                 // ORGANIZATION resolves to the actor's own organization, and a role is a global
                 // name whose assignees are themselves organization members.
@@ -388,26 +397,32 @@ public class KnowledgeSpaceAdministrationService {
     }
 
     private static String requireRelationAccepts(String value, KnowledgeSpaceSubject.Kind kind) {
-        String normalized = Objects.requireNonNull(value, "relation").trim();
+        String normalized = value == null ? "" : value.trim();
         Set<KnowledgeSpaceSubject.Kind> accepted = GRANTABLE_SUBJECTS.get(normalized);
         if (accepted == null) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-space.grant-invalid",
                     "A Knowledge Space grant must be one of " + GRANTABLE_RELATIONS);
         }
         if (!accepted.contains(kind)) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-space.grant-invalid",
                     "A " + normalized + " grant cannot name " + kind + "; it accepts " + accepted);
         }
         return normalized;
     }
 
     private static String requireName(String value) {
-        String normalized = Objects.requireNonNull(value, "name").trim();
+        String normalized = value == null ? "" : value.trim();
         if (normalized.isEmpty()) {
-            throw new IllegalArgumentException("A Knowledge Space name is required");
+            throw new BusinessValidationException(
+                    "knowledge-space.name-invalid",
+                    "A Knowledge Space name is required");
         }
         if (normalized.length() > 255) {
-            throw new IllegalArgumentException("A Knowledge Space name may be at most 255 characters");
+            throw new BusinessValidationException(
+                    "knowledge-space.name-invalid",
+                    "A Knowledge Space name may be at most 255 characters");
         }
         return normalized;
     }

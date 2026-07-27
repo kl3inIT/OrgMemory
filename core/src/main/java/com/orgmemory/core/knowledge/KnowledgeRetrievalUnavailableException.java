@@ -11,4 +11,13 @@ public class KnowledgeRetrievalUnavailableException extends BusinessException {
                 "knowledge.retrieval-unavailable",
                 message);
     }
+
+    public KnowledgeRetrievalUnavailableException(
+            String message, Throwable cause) {
+        super(
+                BusinessErrorCategory.UNAVAILABLE,
+                "knowledge.retrieval-unavailable",
+                message,
+                cause);
+    }
 }

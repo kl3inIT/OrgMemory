@@ -1,5 +1,6 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
 import com.orgmemory.core.knowledge.ConnectorScope;
 import com.orgmemory.core.knowledge.ConnectorScopeBrowserRegistry;
@@ -302,7 +303,7 @@ class AdminConnectorController {
                 actor.organizationId(),
                 requireInstalled(sourceSystem),
                 connectionKey,
-                SecretValue.of(request.credential()),
+                credential(request),
                 actor.userId());
     }
 
@@ -352,7 +353,7 @@ class AdminConnectorController {
             Authentication authentication) {
         guard.requireSourceManager(authentication);
         return AdminConnectorProbeResponse.from(
-                probes.probe(requireInstalled(sourceSystem), SecretValue.of(request.credential())));
+                probes.probe(requireInstalled(sourceSystem), credential(request)));
     }
 
     /**
@@ -443,5 +444,18 @@ class AdminConnectorController {
 
     private String writeConfig(Map<String, Object> sourceConfig) {
         return objectMapper.writeValueAsString(sourceConfig == null ? Map.of() : sourceConfig);
+    }
+
+    private static SecretValue credential(ConnectorCredentialRequest request) {
+        if (request == null) {
+            throw new ApiRequestException("A connector credential is required");
+        }
+        try {
+            return SecretValue.of(request.credential());
+        } catch (IllegalArgumentException invalid) {
+            throw new ApiRequestException(
+                    "A connector credential is required",
+                    invalid);
+        }
     }
 }

@@ -1,7 +1,8 @@
 package com.orgmemory.core.authorization;
 
-import java.util.List;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -151,7 +152,9 @@ public class RoleAdministrationService {
         String normalized = Objects.requireNonNull(value, "role").trim();
         String relation = ROLE_RELATIONS.get(normalized);
         if (relation == null || !MANAGED_RELATIONS.contains(relation)) {
-            throw new IllegalArgumentException("Unknown organization role");
+            throw new BusinessValidationException(
+                    "role.unknown",
+                    "Unknown organization role");
         }
         return relation;
     }

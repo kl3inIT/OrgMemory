@@ -10,6 +10,7 @@ import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.export.GraphExportDocument;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.EvidenceReference;
@@ -421,7 +422,8 @@ public class KnowledgeGraphExplorerService {
         }
         String normalized = query.strip();
         if (normalized.length() > properties.maximumQueryLength()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-graph.query-invalid",
                     "q must not exceed "
                             + properties.maximumQueryLength()
                             + " characters");
@@ -434,7 +436,8 @@ public class KnowledgeGraphExplorerService {
                 ? properties.defaultEntityLimit()
                 : requested;
         if (value < 1 || value > properties.maximumEntityLimit()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-graph.entity-limit-invalid",
                     "entityLimit must be between 1 and "
                             + properties.maximumEntityLimit());
         }
@@ -446,7 +449,8 @@ public class KnowledgeGraphExplorerService {
                 ? properties.defaultMaximumDepth()
                 : requested;
         if (value < 1 || value > properties.maximumDepth()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-graph.depth-invalid",
                     "maxDepth must be between 1 and "
                             + properties.maximumDepth());
         }

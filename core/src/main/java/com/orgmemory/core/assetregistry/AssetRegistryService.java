@@ -9,6 +9,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -57,7 +58,8 @@ public class AssetRegistryService {
             UUID knowledgeSpaceId,
             AssetDraftInput input) {
         if (type == AssetType.SKILL) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "asset.creation-method-invalid",
                     "Skill Assets must be created from a validated package upload");
         }
         return createValidated(actor, type, namespace, slug, knowledgeSpaceId, input);
@@ -275,10 +277,24 @@ public class AssetRegistryService {
             String principalId,
             AssetRole role) {
         require(actor, assetId, CAN_MANAGE_ROLES);
+        if (role == null || principalType == null || principalId == null) {
+            throw new BusinessValidationException(
+                    "asset.role-assignment-invalid",
+                    "The Asset role assignment is invalid");
+        }
+        PrincipalRef principal;
+        try {
+            principal = new PrincipalRef(principalType, principalId);
+        } catch (IllegalArgumentException invalidRole) {
+            throw new BusinessValidationException(
+                    "asset.role-assignment-invalid",
+                    "The Asset role assignment is invalid",
+                    invalidRole);
+        }
         UUID projectedAssetId = coordinator.assignRole(
                 actor,
                 assetId,
-                new PrincipalRef(principalType, principalId),
+                principal,
                 role);
         projection.project(actor.organizationId(), projectedAssetId);
         return coordinator.view(actor.organizationId(), projectedAssetId);

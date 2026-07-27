@@ -8,6 +8,7 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -347,11 +348,14 @@ public class CanonicalHybridKnowledgeSearch
 
     private String normalizeQuery(String query) {
         if (query == null || query.isBlank()) {
-            throw new IllegalArgumentException("q is required");
+            throw new BusinessValidationException(
+                    "knowledge-search.query-required",
+                    "q is required");
         }
         String normalized = query.strip();
         if (normalized.length() > properties.maximumQueryLength()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-search.query-invalid",
                     "q must not exceed " + properties.maximumQueryLength() + " characters");
         }
         return normalized;
@@ -360,7 +364,8 @@ public class CanonicalHybridKnowledgeSearch
     private int validateLimit(Integer requestedLimit) {
         int limit = requestedLimit == null ? Math.min(10, properties.maximumResults()) : requestedLimit;
         if (limit < 1 || limit > properties.maximumResults()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-search.limit-invalid",
                     "limit must be between 1 and " + properties.maximumResults());
         }
         return limit;

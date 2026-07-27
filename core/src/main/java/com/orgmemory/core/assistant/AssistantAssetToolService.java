@@ -16,6 +16,7 @@ import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -327,7 +328,9 @@ public class AssistantAssetToolService {
 
     private static void requireConfirmation(boolean confirmed, String message) {
         if (!confirmed) {
-            throw new IllegalArgumentException(message + "; explicit confirmation is required");
+            throw new BusinessValidationException(
+                    "assistant.confirmation-required",
+                    message + "; explicit confirmation is required");
         }
     }
 

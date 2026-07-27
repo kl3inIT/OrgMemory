@@ -61,22 +61,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 "The resource changed while this operation was running");
     }
 
-    /**
-     * Compatibility boundary for legacy request validators.
-     *
-     * <p>New use cases must throw {@link BusinessException}. The legacy message
-     * is intentionally not disclosed because some IllegalArgumentExceptions
-     * describe internal invariants rather than caller-safe detail.
-     */
-    @ExceptionHandler(IllegalArgumentException.class)
-    ProblemDetail legacyInvalidArgument(IllegalArgumentException exception) {
-        log.debug("Legacy invalid request argument", exception);
-        return problem(
-                HttpStatus.BAD_REQUEST,
-                "request.invalid-argument",
-                "The request is invalid");
-    }
-
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception exception) {
         log.error("Unhandled exception", exception);

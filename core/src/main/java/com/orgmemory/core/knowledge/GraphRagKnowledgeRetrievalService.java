@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge;
 
-import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.ai.ChatGenerationRequest;
+import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -9,6 +9,9 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessErrorCategory;
+import com.orgmemory.core.shared.error.BusinessException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
@@ -157,7 +160,8 @@ public class GraphRagKnowledgeRetrievalService
     }
 
     private static String failureCode(RuntimeException failure) {
-        if (failure instanceof IllegalArgumentException) {
+        if (failure instanceof BusinessException business
+                && business.category() == BusinessErrorCategory.VALIDATION) {
             return "invalid_request";
         }
         if (failure instanceof KnowledgeRetrievalUnavailableException) {
@@ -631,12 +635,15 @@ public class GraphRagKnowledgeRetrievalService
 
     private String normalizeQuery(String query) {
         if (query == null || query.isBlank()) {
-            throw new IllegalArgumentException("q is required");
+            throw new BusinessValidationException(
+                    "knowledge-search.query-required",
+                    "q is required");
         }
         String normalized = query.strip();
         if (normalized.length()
                 > retrievalProperties.maximumQueryLength()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-search.query-invalid",
                     "q must not exceed "
                             + retrievalProperties.maximumQueryLength()
                             + " characters");
@@ -650,7 +657,8 @@ public class GraphRagKnowledgeRetrievalService
                 : requestedLimit;
         if (limit < 1
                 || limit > retrievalProperties.maximumResults()) {
-            throw new IllegalArgumentException(
+            throw new BusinessValidationException(
+                    "knowledge-search.limit-invalid",
                     "limit must be between 1 and "
                             + retrievalProperties.maximumResults());
         }

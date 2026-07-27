@@ -15,6 +15,8 @@ import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.ExternalIdentity;
 import com.orgmemory.core.organization.ExternalIdentityRepository;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessConflictException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -144,7 +146,7 @@ class SourcePrincipalMappingServiceTests {
                 SourcePrincipalKind.SOURCE_GROUP, null, "general", false, Instant.now());
 
         assertTrue(service.autoMap(group, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED).isEmpty());
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(BusinessValidationException.class,
                 () -> service.selfClaim(group, IDP_USER_ID, "claim"));
     }
 
@@ -159,7 +161,7 @@ class SourcePrincipalMappingServiceTests {
         when(mappings.findBySourcePrincipalIdAndStatus(PRINCIPAL_ID, SourcePrincipalMappingStatus.ACTIVE))
                 .thenReturn(Optional.of(existing));
 
-        assertThrows(IllegalStateException.class,
+        assertThrows(BusinessConflictException.class,
                 () -> service.selfClaim(principal, EMAIL_USER_ID, "claim"));
     }
 

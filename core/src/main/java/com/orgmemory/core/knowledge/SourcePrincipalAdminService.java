@@ -5,6 +5,8 @@ import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessConflictException;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -116,15 +118,18 @@ public class SourcePrincipalAdminService {
         // nobody: reject it here so it fails as a bad request instead of reaching the
         // repository, where a null identifier surfaces as a server error.
         if (appUserId == null) {
-            throw new IllegalArgumentException("An internal user is required to confirm a mapping");
+            throw new BusinessValidationException(
+                    "source-principal.mapping-user-required",
+                    "An internal user is required to confirm a mapping");
         }
         SourcePrincipal principal = requirePrincipal(organizationId, principalId);
         // The mapping service refuses a second active mapping with an IllegalStateException.
-        // Rejecting it here keeps a routine admin mistake a 400 instead of a 500.
+        // Reject it at the use-case boundary as an explicit conflict.
         mappings.findBySourcePrincipalIdAndStatus(principalId, SourcePrincipalMappingStatus.ACTIVE)
                 .filter(active -> !active.getAppUserId().equals(appUserId))
                 .ifPresent(active -> {
-                    throw new IllegalArgumentException(
+                    throw new BusinessConflictException(
+                            "source-principal.mapping-conflict",
                             "This principal is already mapped to another user; revoke that mapping first");
                 });
 
@@ -154,12 +159,16 @@ public class SourcePrincipalAdminService {
             SourceIdentityTrust identityTrust,
             UUID decidedByUserId) {
         if (identityTrust == null) {
-            throw new IllegalArgumentException("An identity trust level is required");
+            throw new BusinessValidationException(
+                    "source-connection.identity-trust-required",
+                    "An identity trust level is required");
         }
         String system = requireText(sourceSystem, "source system");
         String connectionKey = requireText(sourceConnectionKey, "source connection key");
         if (!isActiveInOrg(decidedByUserId, organizationId)) {
-            throw new IllegalArgumentException("The deciding user is not active in this organization");
+            throw new BusinessValidationException(
+                    "source-connection.deciding-user-invalid",
+                    "The deciding user is not active in this organization");
         }
 
         SourceConnection connection = connections
@@ -205,7 +214,7 @@ public class SourcePrincipalAdminService {
 
     private SourcePrincipal requirePrincipal(UUID organizationId, UUID principalId) {
         return principals.findByIdAndOrganizationId(principalId, organizationId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown source principal in this organization"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
     }
 
     private Optional<SourcePrincipalMappingView> activeMapping(UUID principalId) {
@@ -308,7 +317,9 @@ public class SourcePrincipalAdminService {
 
     private static String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("A " + field + " is required");
+            throw new BusinessValidationException(
+                    "source-connection.identifier-required",
+                    "A " + field + " is required");
         }
         return value;
     }

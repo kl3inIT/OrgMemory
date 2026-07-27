@@ -165,7 +165,7 @@ class KnowledgeGraphCurationServiceTests {
                 .thenReturn(Optional.of(mock(KnowledgeAsset.class)));
 
         assertThrows(
-                IllegalArgumentException.class,
+                KnowledgeResourceNotFoundException.class,
                 () -> service.apply(
                         actor,
                         new KnowledgeGraphCurationCommand.CurateEntity(

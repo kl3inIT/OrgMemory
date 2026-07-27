@@ -1,5 +1,6 @@
 package com.orgmemory.api.source;
 
+import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.SourceQueryService;
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/sources")
@@ -63,8 +63,9 @@ class SourceController {
                             knowledgeSpaceId),
                     content));
         } catch (IOException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "The uploaded file could not be read", exception);
+            throw new ApiRequestException(
+                    "The uploaded file could not be read",
+                    exception);
         }
     }
 }

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -86,13 +87,13 @@ class RoleAdministrationServiceTests {
     @Test
     void aRoleNameCannotSmuggleAnotherObjectReference() {
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> service.assign(
                         ORGANIZATION_ID,
                         "organization-admin:knowledge_asset",
                         MINH_ID));
         assertThrows(
-                IllegalArgumentException.class,
+                BusinessValidationException.class,
                 () -> service.assign(ORGANIZATION_ID, "  ", MINH_ID));
     }
 

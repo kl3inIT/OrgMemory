@@ -1,6 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.ai.ChatGenerationRequest;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -55,7 +56,7 @@ public class PromptTemplateRenderer {
                     : variable.defaultValue();
             if (raw == null) {
                 if (variable.required()) {
-                    throw new IllegalArgumentException(
+                    throw invalidVariables(
                             "Missing required Prompt variable: " + variable.name());
                 }
                 renderedValues.put(variable.name(), "");
@@ -73,7 +74,7 @@ public class PromptTemplateRenderer {
         }
         for (String suppliedName : supplied.keySet()) {
             if (!renderedValues.containsKey(suppliedName)) {
-                throw new IllegalArgumentException(
+                throw invalidVariables(
                         "Unknown Prompt variable: " + suppliedName);
             }
         }
@@ -153,9 +154,17 @@ public class PromptTemplateRenderer {
         return rendered;
     }
 
-    private static IllegalArgumentException invalid(PromptTemplateSpec.Variable variable) {
-        return new IllegalArgumentException(
+    private static BusinessValidationException invalid(
+            PromptTemplateSpec.Variable variable) {
+        return invalidVariables(
                 "Invalid value for Prompt variable: " + variable.name());
+    }
+
+    private static BusinessValidationException invalidVariables(
+            String message) {
+        return new BusinessValidationException(
+                "prompt.variables-invalid",
+                message);
     }
 
     private static String substitute(String template, Map<String, String> values) {

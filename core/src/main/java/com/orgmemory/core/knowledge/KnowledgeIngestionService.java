@@ -6,6 +6,7 @@ import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import jakarta.persistence.EntityManager;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -217,7 +218,7 @@ public class KnowledgeIngestionService {
 
         RawSourceObject raw = rawSources
                 .findByIdAndOrganizationId(command.rawSourceObjectId(), command.organizationId())
-                .orElseThrow(() -> new IllegalArgumentException("Raw source object was not found"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
         acquireTransactionLock(sourceIdentityLockKey(
                 raw.getOrganizationId(),
                 raw.getSourceSystem(),
@@ -292,7 +293,7 @@ public class KnowledgeIngestionService {
 
         RawSourceObject raw = rawSources
                 .findByIdAndOrganizationId(command.rawSourceObjectId(), command.organizationId())
-                .orElseThrow(() -> new IllegalArgumentException("Raw source object was not found"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
         SourceAclSnapshot snapshot = snapshots
                 .findFirstByRawSourceObjectIdOrderByAclGenerationAsc(raw.getId())
                 .orElseThrow();
@@ -333,13 +334,15 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command.sourceObjectId(), "sourceObjectId");
         Objects.requireNonNull(command.sourceRevisionId(), "sourceRevisionId");
         if (command.orgMemoryGate() != AccessGate.ALLOW) {
-            throw new IllegalArgumentException("Promotion requires an explicit OrgMemory ALLOW decision");
+            throw invalidIngestion(
+                    "knowledge-ingestion.promotion-gate-invalid",
+                    "Promotion requires an explicit OrgMemory ALLOW decision");
         }
         acquireTransactionLock("promote|" + command.normalizedRecordId());
 
         NormalizedRecord normalized = normalizedRecords
                 .findByIdAndOrganizationId(command.normalizedRecordId(), command.organizationId())
-                .orElseThrow(() -> new IllegalArgumentException("Normalized record was not found"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
         knowledgeSpaces.requireInOrganization(command.organizationId(), command.knowledgeSpaceId());
         var existing = knowledgeAssetVersions.findByNormalizedRecordId(normalized.getId());
         if (existing.isPresent()) {
@@ -381,11 +384,11 @@ public class KnowledgeIngestionService {
         SourceObject source = sourceObjects
                 .findById(command.sourceObjectId())
                 .filter(candidate -> candidate.getOrganizationId().equals(command.organizationId()))
-                .orElseThrow(() -> new IllegalArgumentException("Source object was not found"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
         SourceRevision revision = sourceRevisions
                 .findByIdAndOrganizationId(command.sourceRevisionId(), command.organizationId())
                 .filter(candidate -> candidate.getSourceObjectId().equals(source.getId()))
-                .orElseThrow(() -> new IllegalArgumentException("Source revision was not found"));
+                .orElseThrow(KnowledgeResourceNotFoundException::new);
         if (!source.getKnowledgeSpaceId().equals(command.knowledgeSpaceId())
                 || !revision.getKnowledgeSpaceId().equals(command.knowledgeSpaceId())) {
             throw new KnowledgeIngestionConflictException(
@@ -440,11 +443,15 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(command.organizationId(), "organizationId");
         if (!organizations.existsById(command.organizationId())) {
-            throw new IllegalArgumentException("Organization does not exist");
+            throw invalidIngestion(
+                    "knowledge-ingestion.organization-invalid",
+                    "Organization does not exist");
         }
         if (command.departmentId() != null
                 && !departments.existsByIdAndOrganizationId(command.departmentId(), command.organizationId())) {
-            throw new IllegalArgumentException("Department does not belong to the organization");
+            throw invalidIngestion(
+                    "knowledge-ingestion.department-invalid",
+                    "Department does not belong to the organization");
         }
         requireText(command.sourceSystem(), "sourceSystem");
         requireText(command.sourceConnectionKey(), "sourceConnectionKey");
@@ -456,7 +463,14 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command.aclCaptureStatus(), "aclCaptureStatus");
         Objects.requireNonNull(command.defaultGate(), "defaultGate");
 
-        SourceCitationUri.canonicalize(command.sourceUri());
+        try {
+            SourceCitationUri.canonicalize(command.sourceUri());
+        } catch (IllegalArgumentException invalidUri) {
+            throw new BusinessValidationException(
+                    "knowledge-ingestion.source-uri-invalid",
+                    "The source URI is invalid",
+                    invalidUri);
+        }
         validateAcl(
                 command.aclCaptureStatus(),
                 command.defaultGate(),
@@ -479,34 +493,43 @@ public class KnowledgeIngestionService {
             if (canonicalValidUntil == null
                     || !canonicalValidUntil.isAfter(now)
                     || canonicalValidUntil.isAfter(now.plus(MAX_ACL_TTL))) {
-                throw new IllegalArgumentException(
+                throw invalidIngestion(
+                        "knowledge-ingestion.acl-window-invalid",
                         "A complete ACL snapshot requires validUntil within the next 24 hours");
             }
         } else if (defaultGate != AccessGate.UNKNOWN
                 || validUntil != null
                 || !entries.isEmpty()) {
-            throw new IllegalArgumentException(
+            throw invalidIngestion(
+                    "knowledge-ingestion.acl-invalid",
                     "Unknown or unsupported ACL capture must remain UNKNOWN without entries or expiry");
         }
 
         Set<String> principals = new HashSet<>();
         for (SourceAclEntryCommand entry : entries) {
             if (entry == null || entry.principalType() == null) {
-                throw new IllegalArgumentException("ACL principal type is required");
+                throw invalidIngestion(
+                        "knowledge-ingestion.acl-invalid",
+                        "ACL principal type is required");
             }
             boolean external = entry.principalType() == SourcePrincipalType.SOURCE_USER
                     || entry.principalType() == SourcePrincipalType.SOURCE_GROUP;
             if (external && !allowExternalPrincipals) {
-                throw new IllegalArgumentException(
+                throw invalidIngestion(
+                        "knowledge-ingestion.acl-invalid",
                         "External source ACLs require an identity mapping and cannot be marked complete");
             }
             requireText(entry.principalKey(), "acl principal key");
             if (entry.gate() != AccessGate.ALLOW && entry.gate() != AccessGate.DENY) {
-                throw new IllegalArgumentException("ACL entries must be ALLOW or DENY");
+                throw invalidIngestion(
+                        "knowledge-ingestion.acl-invalid",
+                        "ACL entries must be ALLOW or DENY");
             }
             String key = entry.principalType() + ":" + entry.principalKey().trim();
             if (!principals.add(key)) {
-                throw new IllegalArgumentException("ACL principal is duplicated: " + key);
+                throw invalidIngestion(
+                        "knowledge-ingestion.acl-invalid",
+                        "ACL principal is duplicated: " + key);
             }
         }
     }
@@ -637,7 +660,7 @@ public class KnowledgeIngestionService {
                 && (validUntil == null
                         || !validUntil.isAfter(capturedAt)
                         || validUntil.isAfter(capturedAt.plus(MAX_ACL_TTL)))) {
-            throw new IllegalArgumentException(
+            throw new KnowledgeIngestionConflictException(
                     "ACL validity expired or exceeded the 24-hour refresh window while waiting to persist");
         }
     }
@@ -754,8 +777,16 @@ public class KnowledgeIngestionService {
 
     private static void requireText(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " must not be blank");
+            throw invalidIngestion(
+                    "knowledge-ingestion.field-required",
+                    field + " must not be blank");
         }
+    }
+
+    private static BusinessValidationException invalidIngestion(
+            String code,
+            String message) {
+        return new BusinessValidationException(code, message);
     }
 
     private static String blankToNull(String value) {

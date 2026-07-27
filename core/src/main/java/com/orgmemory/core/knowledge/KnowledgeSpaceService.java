@@ -103,8 +103,7 @@ public class KnowledgeSpaceService {
     @Transactional(readOnly = true)
     void requireInOrganization(UUID organizationId, UUID knowledgeSpaceId) {
         if (!spaces.existsByIdAndOrganizationIdAndActiveTrue(knowledgeSpaceId, organizationId)) {
-            throw new IllegalArgumentException(
-                    "Knowledge Space does not belong to the organization");
+            throw new KnowledgeResourceNotFoundException();
         }
     }
 

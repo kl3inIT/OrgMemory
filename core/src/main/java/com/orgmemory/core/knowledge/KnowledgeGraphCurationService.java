@@ -221,16 +221,14 @@ public class KnowledgeGraphCurationService {
             com.orgmemory.graphrag.model.EvidenceReference evidence,
             ResolvedKnowledgeEvidenceScope resolved) {
         if (!actor.organizationId().equals(evidence.organizationId())) {
-            throw new IllegalArgumentException(
-                    "governing evidence belongs to another organization");
+            throw new KnowledgeResourceNotFoundException();
         }
         KnowledgeAsset asset = assets
                 .findByIdAndOrganizationId(
                         evidence.knowledgeAssetId(), actor.organizationId())
                 .orElseThrow(KnowledgeAssetNotFoundException::new);
         if (!knowledgeSpaceId.equals(asset.getKnowledgeSpaceId())) {
-            throw new IllegalArgumentException(
-                    "governing evidence belongs to another Knowledge Space");
+            throw new KnowledgeResourceNotFoundException();
         }
         var spaceScope = resolved.forKnowledgeSpace(knowledgeSpaceId);
         if (!spaceScope.includes(

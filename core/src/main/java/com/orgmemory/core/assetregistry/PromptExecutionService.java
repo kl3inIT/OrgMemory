@@ -8,6 +8,8 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessConflictException;
+import com.orgmemory.core.shared.error.BusinessException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -94,7 +96,8 @@ public class PromptExecutionService {
                 actor, assetId, releaseId, AssetType.PROMPT_TEMPLATE);
         PromptTemplateSpec spec = renderer.parse(release.payload());
         if (spec.evaluationCases().isEmpty()) {
-            throw new IllegalArgumentException(
+            throw new BusinessConflictException(
+                    "prompt.evaluation-cases-missing",
                     "Prompt release has no bounded evaluation cases");
         }
         List<PromptEvaluationResult.CaseResult> caseResults = new ArrayList<>();
@@ -207,8 +210,7 @@ public class PromptExecutionService {
                     Math.max(0, completedAt.toEpochMilli() - startedAt.toEpochMilli()));
         } catch (RuntimeException failure) {
             runs.fail(runId, failureCode(failure), Instant.now());
-            if (failure instanceof IllegalArgumentException
-                    || failure instanceof AssetUnavailableException) {
+            if (failure instanceof BusinessException) {
                 throw failure;
             }
             throw new AssetUnavailableException(
@@ -307,7 +309,8 @@ public class PromptExecutionService {
         }
         Object type = contract.get("type");
         if (!Objects.equals(type, "object")) {
-            throw new IllegalArgumentException(
+            throw new BusinessConflictException(
+                    "prompt.output-contract-unsupported",
                     "Only object output contracts are supported in the POC");
         }
         Object parsed;
@@ -353,11 +356,8 @@ public class PromptExecutionService {
     }
 
     private static String failureCode(RuntimeException failure) {
-        if (failure instanceof IllegalArgumentException) {
-            return "INVALID_PROMPT";
-        }
-        if (failure instanceof AssetUnavailableException) {
-            return "MODEL_OR_OUTPUT_UNAVAILABLE";
+        if (failure instanceof BusinessException business) {
+            return business.code();
         }
         return "MODEL_EXECUTION_FAILED";
     }

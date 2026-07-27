@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -85,6 +86,30 @@ class AssistantConversationServiceTests {
                 () -> service.beginTurn(actor, conversationId, "Continue"));
 
         verify(messages, never()).save(any());
+    }
+
+    @Test
+    void rejectsInvalidUserInputBeforeWritingConversationState() {
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.beginTurn(actor, null, "  "));
+
+        verify(conversations, never()).save(any());
+        verify(messages, never()).save(any());
+    }
+
+    @Test
+    void rejectsAnInvalidConversationTitleAsBusinessValidation() {
+        UUID conversationId = UUID.randomUUID();
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(ownedConversation(conversationId)));
+
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.rename(actor, conversationId, "  "));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.core.shared.error.BusinessUnavailableException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
@@ -86,7 +87,10 @@ public class SkillRegistryService {
             throw failure;
         } catch (IOException failure) {
             deleteIfStored(stored, failure);
-            throw new IllegalArgumentException("Skill package could not be staged", failure);
+            throw new BusinessUnavailableException(
+                    "skill.package-staging-unavailable",
+                    "The Skill package could not be staged",
+                    failure);
         }
     }
 

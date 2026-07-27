@@ -1,5 +1,7 @@
 package com.orgmemory.core.organization;
 
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -86,7 +88,10 @@ public class UserProvisioningService {
     @Transactional
     public void revoke(UUID organizationId, UUID invitationId) {
         UserInvitation invitation = invitations.findByIdAndOrganizationId(invitationId, organizationId)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown invitation in this organization"));
+                .orElseThrow(() -> new BusinessNotFoundException(
+                        "invitation.not-found",
+                        "The invitation is not available",
+                        BusinessErrorExposure.OPAQUE_RESOURCE));
         invitation.revoke(Instant.now());
         invitations.save(invitation);
     }

@@ -9,7 +9,9 @@ import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.InputStream;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
@@ -50,7 +52,8 @@ public class SourceUploadService {
         DeclaredAccessScope declaredAccess = permissionPolicy.requiredScope(classification);
         if (classification == KnowledgeClassification.CONFIDENTIAL
                 && targetSpace.departmentId() == null) {
-            throw new IllegalArgumentException(
+            throw invalidUpload(
+                    "source.upload-space-invalid",
                     "confidential upload requires a department Knowledge Space");
         }
         UUID sourceId = UUID.randomUUID();
@@ -93,11 +96,15 @@ public class SourceUploadService {
 
     private void validate(CreateUploadSourceCommand command, InputStream content) {
         if (command == null || command.actor() == null || content == null) {
-            throw new IllegalArgumentException("actor, upload metadata, and content are required");
+            throw invalidUpload(
+                    "source.upload-request-invalid",
+                    "actor, upload metadata, and content are required");
         }
         if (command.contentLength() <= 0
                 || command.contentLength() > properties.maximumUploadSize().toBytes()) {
-            throw new IllegalArgumentException("file size must be within the configured upload limit");
+            throw invalidUpload(
+                    "source.upload-size-invalid",
+                    "file size must be within the configured upload limit");
         }
         String fileName = safeFileName(command.fileName());
         requiredUploadType(fileName);
@@ -105,17 +112,32 @@ public class SourceUploadService {
                 ? KnowledgeClassification.CONFIDENTIAL
                 : command.classification();
         if (command.knowledgeSpaceId() == null) {
-            throw new IllegalArgumentException("Knowledge Space is required");
+            throw invalidUpload(
+                    "source.upload-space-required",
+                    "Knowledge Space is required");
         }
     }
 
     private static String safeFileName(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("file name is required");
+            throw invalidUpload(
+                    "source.upload-filename-invalid",
+                    "file name is required");
         }
-        String fileName = Path.of(value).getFileName().toString().strip();
+        String fileName;
+        try {
+            Path name = Path.of(value).getFileName();
+            fileName = name == null ? "" : name.toString().strip();
+        } catch (InvalidPathException invalidPath) {
+            throw new BusinessValidationException(
+                    "source.upload-filename-invalid",
+                    "file name is invalid",
+                    invalidPath);
+        }
         if (fileName.isBlank() || fileName.length() > 255) {
-            throw new IllegalArgumentException("file name is invalid");
+            throw invalidUpload(
+                    "source.upload-filename-invalid",
+                    "file name is invalid");
         }
         return fileName.replaceAll("\\p{Cntrl}", "_");
     }
@@ -124,6 +146,14 @@ public class SourceUploadService {
         return KnowledgeContentType.fromFileName(fileName)
                 .filter(KnowledgeContentType::uploadAllowed)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("file type is not supported"));
+                        invalidUpload(
+                                "source.upload-type-unsupported",
+                                "file type is not supported"));
+    }
+
+    private static BusinessValidationException invalidUpload(
+            String code,
+            String message) {
+        return new BusinessValidationException(code, message);
     }
 }
