@@ -94,6 +94,32 @@ real exists in the repository. Nothing touches the network.
 | A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
 | Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |
 
+## GitHub Adapter Coverage
+
+Evidence classes under
+`integrations/connectors/src/test/java/com/orgmemory/connectors/github/`:
+`GitHubApiClientTests`, `GitHubConnectorBatchSourceTests`, and
+`GitHubConnectorAutoConfigurationTests`. The vertical retrieval proof is the
+GitHub phase of
+`apps/worker/src/test/java/com/orgmemory/worker/connector/ConnectorStagingIngestionIntegrationTests.java`.
+Tests generate a non-production RSA key and use recorded GitHub responses; none
+touches the network.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| GitHub App JWT is RS256, bounded to ten minutes, and private material is redacted | `signsTheDocumentedRs256JwtWithoutLeakingThePrivateKey` |
+| Installation token is cached and every collaborator page is followed through `Link` | `followsLinkPaginationAndCachesTheInstallationToken` |
+| A pagination link outside `api.github.com` is rejected before the installation token can be forwarded | `neverForwardsAnInstallationTokenToAPaginationHostGitHubDoesNotOwn` |
+| Rate limits retry, while a plain permission refusal fails closed | `waitsOutARateLimitAndRetries`, `doesNotRetryAPlainPermissionRefusal` |
+| A private repository becomes an issue/PR object, effective user identities, one repository-reader group, and a stable group ACL | `mapsARepositoryAudienceAndWorkItemToStableNativeIds` |
+| No GitHub email is trusted implicitly | same mapping test; all source users have null email and `ssoVerified=false` |
+| A collaborator removal changes the membership cursor without recrawling content | `teamDerivedReaderRemovalChangesOnlyMembershipOnTheNextPoll` |
+| Unreadable collaborators mark permission and membership incomplete and never become an empty ACL | `unreadableCollaboratorsAreIncompleteAndNeverBecomeAnEmptyAcl` |
+| Public/inadmissible repositories are rejected rather than interpreted with a narrower ACL | `configuredPublicRepositoryIsRejectedRatherThanGivenANarrowAcl` |
+| A content bound marks only content incomplete; complete authorization evidence remains usable | `issueBoundMarksOnlyContentIncomplete` |
+| The generic connector surface is contributed but classpath presence alone performs no crawl | `contributesProfileProbeScopesAndBatchSource`, `classpathPresenceDoesNotAuthorizeACrawl` |
+| Removing an explicitly mapped GitHub collaborator revokes retrieval while revision, chunks, and resource ACL generation remain unchanged | GitHub phase of `slackChannelBecomesGovernedAndConvergesOnMembership` |
+
 ## Connector Sync Correctness Coverage
 
 | Behavior | Automated evidence |

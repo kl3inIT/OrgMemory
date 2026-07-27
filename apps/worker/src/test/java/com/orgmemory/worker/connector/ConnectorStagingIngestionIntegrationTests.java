@@ -205,6 +205,39 @@ class ConnectorStagingIngestionIntegrationTests {
                         String.class,
                         ORG));
 
+        ConnectorIngestionResult gitHubInitial =
+                connector.ingest(load("github-01-initial-crawl.json"));
+        assertTrue(
+                gitHubInitial.failures().isEmpty(),
+                () -> "unexpected GitHub failures: " + gitHubInitial.failures());
+        assertEquals(List.of("77__201"), gitHubInitial.materialized());
+        assertFalse(
+                sees(AN_USER, "authorization ledger"),
+                "GitHub supplies no vouched email, so observation alone grants nothing");
+        mapSourceUser("github", "42", "101", AN_USER);
+        mapSourceUser("github", "42", "102", BOB_USER);
+        assertTrue(sees(AN_USER, "authorization ledger"));
+        assertTrue(sees(BOB_USER, "authorization ledger"));
+
+        UUID gitHubRevision = currentRevisionId("77__201");
+        long gitHubChunks = chunkCount("77__201");
+        long gitHubAcl = aclGeneration("77__201");
+        assertEquals(1L, membershipGeneration("github", "42", "repository:77:readers"));
+
+        ConnectorIngestionResult gitHubMembership =
+                connector.ingest(load("github-02-recrawl-membership.json"));
+        assertTrue(gitHubMembership.materialized().isEmpty());
+        assertTrue(gitHubMembership.rematerialized().isEmpty());
+        assertTrue(gitHubMembership.rotated().isEmpty());
+        assertTrue(sees(AN_USER, "authorization ledger"));
+        assertFalse(
+                sees(BOB_USER, "authorization ledger"),
+                "a removed effective collaborator must lose the existing GitHub work item");
+        assertEquals(gitHubRevision, currentRevisionId("77__201"));
+        assertEquals(gitHubChunks, chunkCount("77__201"));
+        assertEquals(gitHubAcl, aclGeneration("77__201"));
+        assertEquals(2L, membershipGeneration("github", "42", "repository:77:readers"));
+
         ConnectorIngestionResult tombstone = connector.ingest(load("slack-03-tombstone.json"));
         assertEquals(List.of("C-general-msg"), tombstone.retired());
         assertFalse(sees(CHI_USER), "a tombstoned object drops out of retrieval");
@@ -212,8 +245,14 @@ class ConnectorStagingIngestionIntegrationTests {
     }
 
     private boolean sees(UUID userId) {
+        return sees(userId, "onboarding runbook");
+    }
+
+    private boolean sees(UUID userId, String query) {
         CurrentActor actor = new CurrentActor(userId, ORG, DEPT, "User " + userId, emailOf(userId));
-        return !retrieval.search(actor, "onboarding runbook", 10, "req-" + userId).evidence().isEmpty();
+        return !retrieval.search(actor, query, 10, "req-" + userId + "-" + query.hashCode())
+                .evidence()
+                .isEmpty();
     }
 
     private void stubPorts() throws Exception {
@@ -297,28 +336,43 @@ class ConnectorStagingIngestionIntegrationTests {
     }
 
     private UUID currentRevisionId() {
+        return currentRevisionId("C-general-msg");
+    }
+
+    private UUID currentRevisionId(String externalObjectId) {
         return jdbc.queryForObject(
                 "SELECT current_revision_id FROM source_objects "
-                        + "WHERE organization_id = ? AND external_object_id = 'C-general-msg'",
+                        + "WHERE organization_id = ? AND external_object_id = ?",
                 UUID.class,
-                ORG);
+                ORG,
+                externalObjectId);
     }
 
     private long chunkCount() {
+        return chunkCount("C-general-msg");
+    }
+
+    private long chunkCount(String externalObjectId) {
         return jdbc.queryForObject(
                 "SELECT count(*) FROM knowledge_chunks kc "
                         + "JOIN source_objects so ON so.id = kc.source_object_id "
-                        + "WHERE so.organization_id = ? AND so.external_object_id = 'C-general-msg'",
+                        + "WHERE so.organization_id = ? AND so.external_object_id = ?",
                 Long.class,
-                ORG);
+                ORG,
+                externalObjectId);
     }
 
     private long aclGeneration() {
+        return aclGeneration("C-general-msg");
+    }
+
+    private long aclGeneration(String externalObjectId) {
         return jdbc.queryForObject(
                 "SELECT acl_generation FROM source_acl_heads "
-                        + "WHERE organization_id = ? AND external_object_id = 'C-general-msg'",
+                        + "WHERE organization_id = ? AND external_object_id = ?",
                 Long.class,
-                ORG);
+                ORG,
+                externalObjectId);
     }
 
     private long membershipGeneration() {
@@ -327,6 +381,63 @@ class ConnectorStagingIngestionIntegrationTests {
                         + "WHERE organization_id = ?",
                 Long.class,
                 ORG);
+    }
+
+    private long membershipGeneration(
+            String sourceSystem,
+            String connectionKey,
+            String nativePrincipalId) {
+        return jdbc.queryForObject(
+                """
+                SELECT head.membership_generation
+                FROM source_group_membership_heads head
+                JOIN source_principals principal
+                  ON principal.id = head.group_principal_id
+                 AND principal.organization_id = head.organization_id
+                WHERE head.organization_id = ?
+                  AND principal.source_system = ?
+                  AND principal.source_connection_key = ?
+                  AND principal.native_principal_id = ?
+                """,
+                Long.class,
+                ORG,
+                sourceSystem,
+                connectionKey,
+                nativePrincipalId);
+    }
+
+    private void mapSourceUser(
+            String sourceSystem,
+            String connectionKey,
+            String nativePrincipalId,
+            UUID appUserId) {
+        UUID sourcePrincipalId = jdbc.queryForObject(
+                """
+                SELECT id
+                FROM source_principals
+                WHERE organization_id = ?
+                  AND source_system = ?
+                  AND source_connection_key = ?
+                  AND native_principal_id = ?
+                  AND kind = 'SOURCE_USER'
+                """,
+                UUID.class,
+                ORG,
+                sourceSystem,
+                connectionKey,
+                nativePrincipalId);
+        jdbc.update(
+                """
+                INSERT INTO source_principal_mappings (
+                    id, organization_id, source_principal_id, app_user_id, method, evidence,
+                    status, verified_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 'ADMIN_CONFIRMED', 'integration-test',
+                        'ACTIVE', now(), now(), now(), 0)
+                """,
+                UUID.randomUUID(),
+                ORG,
+                sourcePrincipalId,
+                appUserId);
     }
 
     private String sourceObjectStatus() {

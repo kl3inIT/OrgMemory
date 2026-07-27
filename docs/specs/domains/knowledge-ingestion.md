@@ -61,7 +61,7 @@ ingestion-current intersection.
 
 Which of the two an object follows is `source_objects.acl_authority`
 (`SOURCE`/`ORGMEMORY`), and which system it came from is `source_objects.source_system`
-(`slack`, `upload`). One column used to answer both, so every new connector needed
+(`slack`, `google_drive`, `github`, `upload`). One column used to answer both, so every new connector needed
 DDL to widen a check constraint guarding a distinction the source's name has
 nothing to do with. The authority is recorded at ingestion and never updated: it
 is what was true when the evidence entered, not a policy an administrator can
@@ -71,7 +71,7 @@ the name, display name, classification, declared access, object type and media
 type, `ConnectorSourceRegistry` refuses a name no adapter claimed and refuses two
 adapters claiming one name, and nothing in `core` names a source.
 
-A Slack connector ingests a versioned crawl contract
+Source connectors ingest a versioned crawl contract
 (`contracts/connector/`: four separately-versioned payload kinds — content,
 identity, membership, and permissions — plus tombstones, an opaque batch cursor,
 independent content/permission/membership cursors and capture status, and a
@@ -213,7 +213,7 @@ A second adapter, Google Drive, exercises that shape rather than asserting it.
 `core/src/main` names no source, `apps/api/src/main` imports nothing from the
 connector module, no migration made room for it, and no endpoint was added: the
 adapter contributes a profile, a batch source and a credential probe, and
-`GET /api/admin/connectors/sources` reports two because two exist. It differs from
+`GET /api/admin/connectors/sources` reports the installed adapters. Drive differs from
 Slack on every axis the design abstracts over — a signed JWT exchange rather than
 a bearer token, a file tree rather than a message stream, per-object ACLs rather
 than channel membership, and content that has to be converted before it is text.
@@ -259,6 +259,30 @@ an authoritative Directory integration captures a complete member set. An `anyon
 grants nothing: a public link is a statement about people outside the
 organization, and translating it into an internal grant would widen access on the
 strength of a setting that says nothing about who inside may read.
+
+A third adapter, GitHub, proves the same kernel can mirror an effective
+entitlement set rather than a provider's explicit group graph. For every private
+organization repository with Issues enabled, the adapter creates one stable
+`repository:{numericRepositoryId}:readers` source group and fills its membership
+from GitHub's fully paginated effective-collaborator endpoint. That endpoint
+already resolves direct grants, teams, organization defaults, owners, and
+enterprise/custom roles; reconstructing those paths in OrgMemory would be a
+second, incomplete GitHub authorization engine. Issues and pull requests grant
+to the repository reader group. User and repository keys are immutable numeric
+GitHub IDs, and GitHub email is absent, so an AppUser binding must be explicitly
+confirmed or established by another trusted identity signal.
+
+GitHub authenticates with a redacted GitHub App credential. A short RS256 app
+JWT mints a cached installation token; the client follows `Link` pagination,
+bounds response bodies, retries bounded rate-limit/transport/server failures,
+and sends the pinned REST API version. The connector admits only organization
+installations and private repositories with Issues enabled. A collaborator read
+failure marks permission and membership incomplete and materializes no content,
+never seals an empty ACL. Between content crawls it refreshes collaborators and
+restates the stable repository grants for existing objects without reading issue
+bodies. Removing a team-derived collaborator therefore advances only the
+membership head and revokes retrieval without rotating the issue ACL, revising
+content, rechunking, or re-embedding.
 
 Drive rate limits and transient server errors are retried rather than surfaced: a
 429, or a 403 whose reason names a rate limit, waits out `Retry-After`, and a 5xx

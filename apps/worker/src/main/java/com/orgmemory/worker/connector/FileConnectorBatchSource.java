@@ -16,9 +16,8 @@ import org.springframework.stereotype.Component;
 /**
  * The staging {@link ConnectorBatchSource}: reads committed crawl-batch JSON from a configured
  * directory, in filename order, and deserializes each into a {@link ConnectorCrawlBatch}. This
- * is the fixture-driven producer; the live Slack adapter will implement the same port over the
- * Slack Web API next increment. An unset directory yields no batches, so the driver is inert
- * until a deployment opts in.
+ * is the fixture-driven producer; every live adapter implements the same provider-neutral port.
+ * An unset directory yields no batches, so the driver is inert until a deployment opts in.
  */
 @Component
 class FileConnectorBatchSource implements ConnectorBatchSource {

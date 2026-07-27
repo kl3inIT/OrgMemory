@@ -137,6 +137,28 @@ settings:
     },
   },
   {
+    id: "github",
+    name: "GitHub",
+    description:
+      "Crawls issue and pull-request descriptions from private organization repositories. Each repository's effective collaborators become its reader group, including access inherited through teams.",
+    icon: "github",
+    aclAuthority: "SOURCE",
+    sourceSystem: "github",
+    credential: {
+      label: "GitHub App installation",
+      placeholder:
+        '{ "appId": "12345", "installationId": 67890, "privateKey": "-----BEGIN PRIVATE KEY-----\\n…" }',
+      multiline: true,
+      keyName: "organization",
+      requirements: ["Metadata: read", "Issues: read"],
+      note: "Install the app on one organization and select only private repositories with Issues enabled. OrgMemory stores numeric GitHub ids and never treats an unverified GitHub email as an app-user binding.",
+      issuer: {
+        label: "Create a GitHub App",
+        href: "https://docs.github.com/apps/creating-github-apps/registering-a-github-app/registering-a-github-app",
+      },
+    },
+  },
+  {
     id: "upload",
     name: "File upload",
     description:

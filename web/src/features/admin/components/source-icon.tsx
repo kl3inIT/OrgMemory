@@ -1,4 +1,4 @@
-import { MonitorSmartphone, Upload } from "lucide-react"
+import { GitFork, MonitorSmartphone, Upload } from "lucide-react"
 
 /**
  * A source's mark, drawn inline.
@@ -73,9 +73,14 @@ function EdgeMark({ className }: MarkProps) {
   return <MonitorSmartphone className={className} aria-hidden="true" />
 }
 
+function GitHubMark({ className }: MarkProps) {
+  return <GitFork className={className} role="img" aria-label="GitHub" />
+}
+
 const MARKS = {
   slack: SlackMark,
   "google-drive": GoogleDriveMark,
+  github: GitHubMark,
   upload: UploadMark,
   edge: EdgeMark,
 }
