@@ -169,9 +169,9 @@ function SkillDraftPackage({ draft }: { draft: Draft }) {
           </div>
         ) : null}
         <div className="overflow-hidden rounded-xl border border-border-default">
-          {visibleFiles.map((file) => (
+          {visibleFiles.map((file, index) => (
             <div
-              key={file.path}
+              key={`${file.path ?? "unnamed"}:${index}`}
               className="flex items-center justify-between gap-4 border-b border-border-default px-4 py-3 last:border-b-0"
             >
               <span className="min-w-0 truncate font-mono text-metadata">
@@ -217,4 +217,3 @@ function formatBytes(value?: number) {
   if (kibibytes < 1_024) return `${kibibytes.toFixed(1)} KB`
   return `${(kibibytes / 1_024).toFixed(1)} MB`
 }
-

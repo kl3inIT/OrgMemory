@@ -124,39 +124,13 @@ test("two users prove governed release and second-user Pack completion", async (
 })
 
 async function assetHarness(page: Page, actor: "owner" | "support") {
-  const requests: string[] = []
-  const unexpectedRequests: string[] = []
-  const browserErrors: string[] = []
+  const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
 
-  page.on("pageerror", (error) => browserErrors.push(error.message))
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text())
-  })
-
   await page.route("**/api/**", async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    const signature = `${request.method()} ${url.pathname}`
-    requests.push(signature)
-
-    if (url.pathname === "/api/session") {
-      await json(route, session(actor))
-      return
-    }
-    if (url.pathname === "/api/session/csrf") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: { "set-cookie": "XSRF-TOKEN=golden-poc-token; Path=/" },
-        body: JSON.stringify({
-          headerName: "X-XSRF-TOKEN",
-          parameterName: "_csrf",
-          token: "golden-poc-token",
-        }),
-      })
-      return
-    }
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { request, url, signature } = requestContext
     if (
       actor === "support" &&
       url.pathname === "/api/assets/catalog"
@@ -227,47 +201,21 @@ async function assetHarness(page: Page, actor: "owner" | "support") {
       return
     }
 
-    unexpectedRequests.push(signature)
+    harness.unexpectedRequests.push(signature)
     await json(route, { message: "Unexpected golden POC request" }, 500)
   })
 
-  return { requests, unexpectedRequests, browserErrors }
+  return harness.result
 }
 
 async function skillGovernanceHarness(page: Page) {
-  const requests: string[] = []
-  const unexpectedRequests: string[] = []
-  const browserErrors: string[] = []
+  const harness = baseHarness(page, "owner", "skill-governance-token")
   let submitted = false
 
-  page.on("pageerror", (error) => browserErrors.push(error.message))
-  page.on("console", (message) => {
-    if (message.type() === "error") browserErrors.push(message.text())
-  })
-
   await page.route("**/api/**", async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
-    const signature = `${request.method()} ${url.pathname}`
-    requests.push(signature)
-
-    if (url.pathname === "/api/session") {
-      await json(route, session("owner"))
-      return
-    }
-    if (url.pathname === "/api/session/csrf") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        headers: { "set-cookie": "XSRF-TOKEN=skill-governance-token; Path=/" },
-        body: JSON.stringify({
-          headerName: "X-XSRF-TOKEN",
-          parameterName: "_csrf",
-          token: "skill-governance-token",
-        }),
-      })
-      return
-    }
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { request, url, signature } = requestContext
     if (url.pathname === `/api/assets/${SKILL_ID}`) {
       await json(route, skillDraftAsset(submitted))
       return
@@ -290,11 +238,57 @@ async function skillGovernanceHarness(page: Page) {
       return
     }
 
-    unexpectedRequests.push(signature)
+    harness.unexpectedRequests.push(signature)
     await json(route, { message: "Unexpected Skill Governance request" }, 500)
   })
 
-  return { requests, unexpectedRequests, browserErrors }
+  return harness.result
+}
+
+function baseHarness(
+  page: Page,
+  actor: "owner" | "support",
+  csrfToken: string,
+) {
+  const requests: string[] = []
+  const unexpectedRequests: string[] = []
+  const browserErrors: string[] = []
+
+  page.on("pageerror", (error) => browserErrors.push(error.message))
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text())
+  })
+
+  return {
+    unexpectedRequests,
+    result: { requests, unexpectedRequests, browserErrors },
+    async beginRoute(route: Route) {
+      const request = route.request()
+      const url = new URL(request.url())
+      const signature = `${request.method()} ${url.pathname}`
+      requests.push(signature)
+
+      if (url.pathname === "/api/session") {
+        await json(route, session(actor))
+        return undefined
+      }
+      if (url.pathname === "/api/session/csrf") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers: { "set-cookie": `XSRF-TOKEN=${csrfToken}; Path=/` },
+          body: JSON.stringify({
+            headerName: "X-XSRF-TOKEN",
+            parameterName: "_csrf",
+            token: csrfToken,
+          }),
+        })
+        return undefined
+      }
+
+      return { request, url, signature }
+    },
+  }
 }
 
 function session(actor: "owner" | "support") {

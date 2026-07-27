@@ -23,6 +23,16 @@ describe("Asset Governance policy", () => {
     ).toBe("review")
   })
 
+  it("falls back to Changes when there is no active review", () => {
+    expect(
+      initialGovernanceTab({
+        revisions: [{ id: "revision-1" }],
+        reviews: [],
+        draft: { id: "draft-1" },
+      }),
+    ).toBe("changes")
+  })
+
   it("does not offer self-approval even when the actor can review", () => {
     const review = {
       id: "review-1",
@@ -49,4 +59,3 @@ describe("Asset Governance policy", () => {
     ).toBe(true)
   })
 })
-

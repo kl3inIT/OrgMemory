@@ -293,108 +293,119 @@ function ReviewWorkspace({
 
   return (
     <div className="space-y-5">
-      {reviews.map((review) => (
-        <Card key={review.id}>
-          <CardContent
-            className={
-              canDecideReview(review, asset.revisions ?? [], actions, currentUserId) ||
-              (review.state === "APPROVED" && actions?.canPublish)
-                ? "grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-start"
-                : "p-6"
-            }
-          >
-            <div>
-              <div className="flex flex-wrap gap-2">
-                <Badge className={reviewTone(review.state)}>{review.state}</Badge>
-                <Badge variant="outline">policy {review.policyVersion}</Badge>
+      {reviews.map((review) => {
+        const decidable = canDecideReview(
+          review,
+          asset.revisions ?? [],
+          actions,
+          currentUserId,
+        )
+        const publishable = Boolean(
+          review.state === "APPROVED" &&
+            review.revisionId &&
+            actions?.canPublish,
+        )
+        return (
+          <Card key={review.id}>
+            <CardContent
+              className={
+                decidable || publishable
+                  ? "grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-start"
+                  : "p-6"
+              }
+            >
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={reviewTone(review.state)}>{review.state}</Badge>
+                  <Badge variant="outline">policy {review.policyVersion}</Badge>
+                </div>
+                <h2 className="mt-4 text-section-title">
+                  Revision {review.revisionId?.slice(0, 8)}
+                </h2>
+                <p className="mt-2 font-mono text-metadata text-content-muted">
+                  digest {review.revisionDigest}
+                </p>
+                <p className="mt-2 text-supporting text-content-secondary">
+                  Requested {formatDate(review.createdAt)}
+                </p>
+                {review.decisions?.length ? (
+                  <div className="mt-5 space-y-3 border-l border-border-default pl-4">
+                    {review.decisions.map((decision, index) => (
+                      <div key={`${decision.reviewerUserId}:${index}`}>
+                        <p className="text-label">{decision.decision}</p>
+                        <p className="text-supporting text-content-secondary">
+                          {decision.comment}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <h2 className="mt-4 text-section-title">Revision {review.revisionId?.slice(0, 8)}</h2>
-              <p className="mt-2 font-mono text-metadata text-content-muted">
-                digest {review.revisionDigest}
-              </p>
-              <p className="mt-2 text-supporting text-content-secondary">
-                Requested {formatDate(review.createdAt)}
-              </p>
-              {review.decisions?.length ? (
-                <div className="mt-5 space-y-3 border-l border-border-default pl-4">
-                  {review.decisions.map((decision, index) => (
-                    <div key={`${decision.reviewerUserId}:${index}`}>
-                      <p className="text-label">{decision.decision}</p>
-                      <p className="text-supporting text-content-secondary">{decision.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="grid min-w-64 gap-3">
-              {canDecideReview(
-                review,
-                asset.revisions ?? [],
-                actions,
-                currentUserId,
-              ) ? (
-                <>
-                  <GovernanceDecisionDialog
-                    label="Approve exact digest"
-                    description="This records approval only for the immutable digest shown on this review case."
-                    onConfirm={() =>
-                      decide.mutate({
-                        path: { assetId: asset.id!, reviewCaseId: review.id! },
-                        body: {
-                          decision: "APPROVE",
-                          comment: "Approved from governance workspace",
-                        },
-                      })
-                    }
-                  />
-                  <GovernanceDecisionDialog
-                    label="Request changes"
-                    description="The submitted revision remains immutable. The author must create a new draft change."
-                    variant="outline"
-                    onConfirm={() =>
-                      decide.mutate({
-                        path: { assetId: asset.id!, reviewCaseId: review.id! },
-                        body: {
-                          decision: "REQUEST_CHANGES",
-                          comment: "Changes requested from governance workspace",
-                        },
-                      })
-                    }
-                  />
-                </>
-              ) : null}
-              {review.state === "APPROVED" &&
-              review.revisionId &&
-              actions?.canPublish ? (
-                <div className="space-y-3">
-                  <Label htmlFor={`release-version-${review.id}`}>Release version</Label>
-                  <Input
-                    id={`release-version-${review.id}`}
-                    value={versionLabel}
-                    onChange={(event) => setVersionLabel(event.currentTarget.value)}
-                    placeholder="1.0.0"
-                  />
-                  <GovernanceDecisionDialog
-                    label="Publish release"
-                    description="Publishing creates an immutable release from this exact approved revision."
-                    disabled={!versionLabel.trim()}
-                    icon={Rocket}
-                    onConfirm={() =>
-                      publish.mutate({
-                        path: { assetId: asset.id! },
-                        body: {
-                          revisionId: review.revisionId,
-                          versionLabel,
-                        },
-                      })
-                    }
-                  />
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <div className="grid min-w-64 gap-3">
+                {decidable ? (
+                  <>
+                    <GovernanceDecisionDialog
+                      label="Approve exact digest"
+                      description="This records approval only for the immutable digest shown on this review case."
+                      onConfirm={() =>
+                        decide.mutate({
+                          path: { assetId: asset.id!, reviewCaseId: review.id! },
+                          body: {
+                            decision: "APPROVE",
+                            comment: "Approved from governance workspace",
+                          },
+                        })
+                      }
+                    />
+                    <GovernanceDecisionDialog
+                      label="Request changes"
+                      description="The submitted revision remains immutable. The author must create a new draft change."
+                      variant="outline"
+                      onConfirm={() =>
+                        decide.mutate({
+                          path: { assetId: asset.id!, reviewCaseId: review.id! },
+                          body: {
+                            decision: "REQUEST_CHANGES",
+                            comment: "Changes requested from governance workspace",
+                          },
+                        })
+                      }
+                    />
+                  </>
+                ) : null}
+                {publishable ? (
+                  <div className="space-y-3">
+                    <Label htmlFor={`release-version-${review.id}`}>
+                      Release version
+                    </Label>
+                    <Input
+                      id={`release-version-${review.id}`}
+                      value={versionLabel}
+                      onChange={(event) => setVersionLabel(event.currentTarget.value)}
+                      placeholder="1.0.0"
+                    />
+                    <GovernanceDecisionDialog
+                      label="Publish release"
+                      description="Publishing creates an immutable release from this exact approved revision."
+                      disabled={!versionLabel.trim()}
+                      icon={Rocket}
+                      onConfirm={() =>
+                        publish.mutate({
+                          path: { assetId: asset.id! },
+                          body: {
+                            revisionId: review.revisionId,
+                            versionLabel,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

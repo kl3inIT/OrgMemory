@@ -8,7 +8,7 @@
 - [x] Hide review, publish, deprecate, and withdraw actions when unavailable.
 - [x] Add focused backend, CLI, Vitest, and Playwright coverage.
 - [x] Run backend, frontend, generated-contract, and static-analysis gates.
-- [ ] Open the pull request and resolve CI/review findings.
+- [x] Open pull request #93 and resolve CI/review findings.
 
 ## Verification
 

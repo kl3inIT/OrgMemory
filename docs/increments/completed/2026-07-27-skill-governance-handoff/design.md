@@ -1,6 +1,6 @@
 # Skill Governance Handoff
 
-Status: active.
+Status: completed on 2026-07-27 via PR #93.
 
 ## Problem
 
@@ -75,4 +75,3 @@ Asset read.
   endpoint and simply let forbidden controls fail. That is rejected because it
   creates misleading UI, unnecessary mutation attempts, and role-derived
   authorization guesses in the browser.
-
