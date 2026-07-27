@@ -119,7 +119,9 @@ final class GitHubApiClient {
             String arrayField,
             int limit) {
         List<JsonNode> collected = new ArrayList<>();
-        String next = requestUri(path, parameters);
+        Map<String, String> pagedParameters = new LinkedHashMap<>(parameters);
+        pagedParameters.putIfAbsent("per_page", String.valueOf(PAGE_SIZE));
+        String next = requestUri(path, pagedParameters);
         while (next != null) {
             Response response = get(next, tokens.accessToken(), true);
             JsonNode root = parse(response.body(), path);
@@ -154,6 +156,7 @@ final class GitHubApiClient {
 
     private Response get(String uri, String bearer, boolean installationToken) {
         String currentBearer = bearer;
+        boolean tokenRefreshed = false;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             Response response;
             try {
@@ -162,7 +165,8 @@ final class GitHubApiClient {
                 if (attempt == MAX_ATTEMPTS) {
                     throw new GitHubApiException(
                             "GitHub was unreachable after " + MAX_ATTEMPTS + " attempts",
-                            "unreachable");
+                            "unreachable",
+                            dropped);
                 }
                 sleeper.sleep(backoffFor(attempt));
                 continue;
@@ -170,9 +174,10 @@ final class GitHubApiClient {
             if (response.status().is2xxSuccessful()) {
                 return response;
             }
-            if (response.status().value() == 401 && installationToken && attempt == 1) {
+            if (response.status().value() == 401 && installationToken && !tokenRefreshed) {
                 tokens.invalidate();
                 currentBearer = tokens.accessToken();
+                tokenRefreshed = true;
                 continue;
             }
             if (!isRetryable(response) || attempt == MAX_ATTEMPTS) {
@@ -212,9 +217,7 @@ final class GitHubApiClient {
     private static String requestUri(String path, Map<String, String> parameters) {
         UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(
                 GitHubInstallationTokenSource.BASE_URL + path);
-        Map<String, String> page = new LinkedHashMap<>(parameters);
-        page.putIfAbsent("per_page", String.valueOf(PAGE_SIZE));
-        page.forEach(uri::queryParam);
+        parameters.forEach(uri::queryParam);
         return uri.build().toUriString();
     }
 

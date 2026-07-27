@@ -102,7 +102,7 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                         configuration.organizationId(),
                         SOURCE_SYSTEM,
                         configuration.sourceConnectionKey(),
-                        errorCodeOf(failure),
+                        GitHubErrorCodes.of(failure),
                         failure.getMessage()));
             }
         }
@@ -111,7 +111,7 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
 
     ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
         GitHubApiClient client = clientFor(configuration);
-        JsonNode installation = requireInstallation(client, configuration);
+        requireInstallation(client, configuration);
         GitHubCrawlSettings settings = GitHubCrawlSettings.from(configuration.sourceConfig());
         List<JsonNode> repositories = repositoriesInScope(client, settings);
 
@@ -121,14 +121,6 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
         }
         ConnectorCrawlBatch batch = contentCrawl(client, configuration, repositories, settings);
         contentCadence.contentCrawled(configuration, now);
-        // Reading the installation before the token exchange is deliberate. It verifies that
-        // replacing a connection's key with another installation cannot silently repoint data.
-        if (!installation.path("account").path("id").asString("")
-                .equals(configuration.sourceConnectionKey())) {
-            throw new GitHubCredentialException(
-                    "The GitHub App installation no longer matches this connection",
-                    "connection_mismatch");
-        }
         return batch;
     }
 
@@ -224,7 +216,7 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
         return context.client();
     }
 
-    private static JsonNode requireInstallation(
+    private static void requireInstallation(
             GitHubApiClient client,
             ConnectorCrawlConfiguration configuration) {
         JsonNode installation = client.installation();
@@ -235,6 +227,8 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                     "organization_installation_required");
         }
         if (!account.path("id").asString("").equals(configuration.sourceConnectionKey())) {
+            // Validate identity before repository reads so replacing a connection's key cannot
+            // silently repoint already-governed data.
             throw new GitHubCredentialException(
                     "The GitHub App installation does not match this connection",
                     "connection_mismatch");
@@ -245,15 +239,17 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                     "The GitHub App installation needs Issues read permission",
                     "issues_read_required");
         }
-        return installation;
     }
 
     private static List<JsonNode> repositoriesInScope(
             GitHubApiClient client,
             GitHubCrawlSettings settings) {
+        if (!settings.valid()) {
+            throw new GitHubApiException(
+                    "The GitHub source configuration is invalid",
+                    "invalid_source_config");
+        }
         List<JsonNode> installed = client.repositories();
-        Map<String, JsonNode> byId = new LinkedHashMap<>();
-        installed.forEach(repository -> byId.put(repository.path("id").asString(""), repository));
         if (settings.repositoryIds().isEmpty()) {
             return installed.stream()
                     .filter(GitHubScopeBrowser::admissible)
@@ -262,6 +258,8 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                             String.CASE_INSENSITIVE_ORDER))
                     .toList();
         }
+        Map<String, JsonNode> byId = new LinkedHashMap<>();
+        installed.forEach(repository -> byId.put(repository.path("id").asString(""), repository));
         List<JsonNode> selected = new ArrayList<>();
         for (String repositoryId : settings.repositoryIds()) {
             JsonNode repository = byId.get(repositoryId);
@@ -386,16 +384,6 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
 
     private static String readerGroupId(String repositoryId) {
         return READER_PREFIX + repositoryId + READER_SUFFIX;
-    }
-
-    private static String errorCodeOf(RuntimeException failure) {
-        if (failure instanceof GitHubCredentialException credential) {
-            return credential.errorCode();
-        }
-        if (failure instanceof GitHubApiException api && api.errorCode() != null) {
-            return api.errorCode();
-        }
-        return "github_error";
     }
 
     private static String sha256(String value) {

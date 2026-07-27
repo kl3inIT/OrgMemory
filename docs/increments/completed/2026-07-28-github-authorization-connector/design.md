@@ -81,11 +81,12 @@ The stored credential is the GitHub App installation material:
 {
   "appId": "123456",
   "installationId": "789012",
-  "privateKey": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+  "privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 }
 ```
 
-It is parsed into a redacted value object. A short app JWT mints an installation
+The downloaded PKCS#1 form and converted PKCS#8 form are both parsed into a
+redacted value object. A short app JWT mints an installation
 token, which is cached with an expiry margin and never appears in a URI, log,
 response, or `toString`. The REST client:
 
@@ -139,6 +140,8 @@ counterargument and its rejection are recorded here instead.
 ## Failure semantics
 
 - malformed app credential: connection unavailable, `invalid_key`;
+- malformed explicit source configuration: crawl fails closed with
+  `invalid_source_config`, never widens to every installed repository;
 - missing installation or suspended/revoked app: connection unavailable with
   GitHub status-derived code;
 - missing `issues:read`: probe returns content access unavailable;

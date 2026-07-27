@@ -147,7 +147,7 @@ settings:
     credential: {
       label: "GitHub App installation",
       placeholder:
-        '{ "appId": "12345", "installationId": 67890, "privateKey": "-----BEGIN PRIVATE KEY-----\\n…" }',
+        '{ "appId": "12345", "installationId": 67890, "privateKey": "-----BEGIN RSA PRIVATE KEY-----\\n…" }',
       multiline: true,
       keyName: "organization",
       requirements: ["Metadata: read", "Issues: read"],

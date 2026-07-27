@@ -47,7 +47,7 @@ public class GitHubCredentialProbe implements ConnectorCredentialProbe {
             client = new GitHubApiClient(restClientBuilder, tokens, objectMapper);
             installation = client.installation();
         } catch (GitHubCredentialException | GitHubApiException refused) {
-            return ConnectorCredentialProbeResult.rejected(errorCodeOf(refused));
+            return ConnectorCredentialProbeResult.rejected(GitHubErrorCodes.of(refused));
         }
 
         JsonNode account = installation.path("account");
@@ -84,7 +84,7 @@ public class GitHubCredentialProbe implements ConnectorCredentialProbe {
                     connectionKey,
                     accountName,
                     appName,
-                    errorCodeOf(refused));
+                    GitHubErrorCodes.of(refused));
         }
         return ConnectorCredentialProbeResult.usable(connectionKey, accountName, appName);
     }
@@ -94,13 +94,4 @@ public class GitHubCredentialProbe implements ConnectorCredentialProbe {
         return "read".equals(value) || "write".equals(value);
     }
 
-    private static String errorCodeOf(RuntimeException failure) {
-        if (failure instanceof GitHubCredentialException credential) {
-            return credential.errorCode();
-        }
-        if (failure instanceof GitHubApiException api && api.errorCode() != null) {
-            return api.errorCode();
-        }
-        return "github_error";
-    }
 }

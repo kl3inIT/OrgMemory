@@ -13,7 +13,9 @@ import com.orgmemory.core.knowledge.ConnectorScopeBrowser;
 import com.orgmemory.core.knowledge.ConnectorSourceProfile;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
@@ -24,8 +26,19 @@ import org.springframework.web.client.RestClient;
 class GitHubConnectorAutoConfigurationTests {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(GitHubConnectorAutoConfiguration.class))
+            .withConfiguration(publishedGitHubAutoConfiguration())
             .withUserConfiguration(CollaboratorConfiguration.class);
+
+    private static AutoConfigurations publishedGitHubAutoConfiguration() {
+        boolean published = ImportCandidates.load(
+                        AutoConfiguration.class,
+                        GitHubConnectorAutoConfigurationTests.class.getClassLoader())
+                .getCandidates()
+                .contains(GitHubConnectorAutoConfiguration.class.getName());
+        return AutoConfigurations.of(published
+                ? new Class<?>[] {GitHubConnectorAutoConfiguration.class}
+                : new Class<?>[0]);
+    }
 
     @Test
     void contributesProfileProbeScopesAndBatchSource() {

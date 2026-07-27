@@ -78,6 +78,9 @@ public class GitHubScopeBrowser implements ConnectorScopeBrowser {
                 || !"private".equals(repository.path("visibility").asString(""))) {
             return "This connector mirrors private repository readers; public and internal visibility are not supported.";
         }
-        return "Enable Issues for this repository before selecting it.";
+        if (!repository.path("has_issues").asBoolean(false)) {
+            return "Enable Issues for this repository before selecting it.";
+        }
+        return "GitHub did not return the stable repository identity metadata this connector requires.";
     }
 }

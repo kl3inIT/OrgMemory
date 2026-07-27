@@ -1,5 +1,6 @@
 package com.orgmemory.connectors.github;
 
+import java.io.ByteArrayOutputStream;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -67,16 +68,65 @@ final class GitHubAppKey {
     }
 
     private static PrivateKey readPrivateKey(String pem) {
-        String base64 = pem.replace("-----BEGIN PRIVATE KEY-----", "")
+        boolean pkcs1 = pem.contains("-----BEGIN RSA PRIVATE KEY-----");
+        String base64 = pem.replace("-----BEGIN RSA PRIVATE KEY-----", "")
+                .replace("-----END RSA PRIVATE KEY-----", "")
+                .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
         try {
             byte[] der = Base64.getDecoder().decode(base64);
+            if (pkcs1) {
+                der = wrapPkcs1AsPkcs8(der);
+            }
             return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(der));
         } catch (IllegalArgumentException | NoSuchAlgorithmException | InvalidKeySpecException unusable) {
             // Do not chain a provider parse exception: its message may contain input fragments.
             throw new GitHubCredentialException(
                     "The GitHub App private key could not be read", "invalid_key");
+        }
+    }
+
+    /**
+     * Wraps GitHub's downloaded PKCS#1 RSAPrivateKey in the PKCS#8 PrivateKeyInfo envelope
+     * accepted by the JCA RSA key factory. The PKCS#1 bytes remain unchanged.
+     */
+    private static byte[] wrapPkcs1AsPkcs8(byte[] pkcs1) {
+        byte[] rsaAlgorithmIdentifier = {
+                0x30, 0x0d,
+                0x06, 0x09,
+                0x2a, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xf7, 0x0d, 0x01, 0x01, 0x01,
+                0x05, 0x00
+        };
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        body.writeBytes(new byte[] {0x02, 0x01, 0x00});
+        body.writeBytes(rsaAlgorithmIdentifier);
+        body.write(0x04);
+        writeDerLength(body, pkcs1.length);
+        body.writeBytes(pkcs1);
+
+        byte[] privateKeyInfo = body.toByteArray();
+        ByteArrayOutputStream sequence = new ByteArrayOutputStream();
+        sequence.write(0x30);
+        writeDerLength(sequence, privateKeyInfo.length);
+        sequence.writeBytes(privateKeyInfo);
+        return sequence.toByteArray();
+    }
+
+    private static void writeDerLength(ByteArrayOutputStream target, int length) {
+        if (length < 0x80) {
+            target.write(length);
+            return;
+        }
+        int bytes = 0;
+        int remaining = length;
+        while (remaining > 0) {
+            bytes++;
+            remaining >>>= 8;
+        }
+        target.write(0x80 | bytes);
+        for (int shift = (bytes - 1) * 8; shift >= 0; shift -= 8) {
+            target.write((length >>> shift) & 0xff);
         }
     }
 

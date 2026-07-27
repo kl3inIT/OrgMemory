@@ -11,6 +11,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.nio.charset.StandardCharsets;
+import java.security.Signature;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,7 +51,7 @@ class GitHubApiClientTests {
     }
 
     @Test
-    void signsTheDocumentedRs256JwtWithoutLeakingThePrivateKey() {
+    void signsTheDocumentedRs256JwtWithoutLeakingThePrivateKey() throws Exception {
         GitHubAppKey key = GitHubAppKey.parse(GitHubTestCredential.json());
         GitHubInstallationTokenSource source =
                 new GitHubInstallationTokenSource(builder, key, objectMapper, CLOCK);
@@ -69,7 +70,25 @@ class GitHubApiClientTests {
                 CLOCK.instant().minusSeconds(60).getEpochSecond(),
                 claims.path("iat").asLong());
         assertTrue(claims.path("exp").asLong() - claims.path("iat").asLong() <= 600);
+        Signature verifier = Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(GitHubTestCredential.publicKey());
+        verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
+        assertTrue(verifier.verify(Base64.getUrlDecoder().decode(parts[2])));
         assertFalse(key.toString().contains("BEGIN PRIVATE KEY"));
+    }
+
+    @Test
+    void acceptsThePkcs1PrivateKeyDownloadedFromGitHub() throws Exception {
+        GitHubAppKey key =
+                GitHubAppKey.parse(GitHubTestCredential.jsonWithKey(GitHubTestCredential.pkcs1Pem()));
+        String jwt = new GitHubInstallationTokenSource(builder, key, objectMapper, CLOCK).appJwt();
+        String[] parts = jwt.split("\\.");
+
+        Signature verifier = Signature.getInstance("SHA256withRSA");
+        verifier.initVerify(GitHubTestCredential.publicKey());
+        verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.UTF_8));
+
+        assertTrue(verifier.verify(Base64.getUrlDecoder().decode(parts[2])));
     }
 
     @Test
@@ -106,6 +125,43 @@ class GitHubApiClientTests {
     }
 
     @Test
+    void retriesATransientInstallationTokenFailureWithoutCallingTheCredentialInvalid() {
+        server.expect(requestTo(
+                        "https://api.github.com/app/installations/67890/access_tokens"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        expectToken();
+        GitHubInstallationTokenSource source = new GitHubInstallationTokenSource(
+                builder,
+                GitHubAppKey.parse(GitHubTestCredential.json()),
+                objectMapper,
+                CLOCK,
+                sleeps::add);
+
+        assertEquals(INSTALLATION_TOKEN, source.accessToken());
+        assertEquals(List.of(Duration.ofMillis(300)), sleeps);
+        server.verify();
+    }
+
+    @Test
+    void rejectsAnOversizedInstallationTokenResponseBeforeJsonDecoding() {
+        server.expect(requestTo(
+                        "https://api.github.com/app/installations/67890/access_tokens"))
+                .andRespond(withSuccess("x".repeat(1024 * 1024 + 1), MediaType.APPLICATION_JSON));
+        GitHubInstallationTokenSource source = new GitHubInstallationTokenSource(
+                builder,
+                GitHubAppKey.parse(GitHubTestCredential.json()),
+                objectMapper,
+                CLOCK,
+                sleeps::add);
+
+        GitHubCredentialException refused =
+                assertThrows(GitHubCredentialException.class, source::accessToken);
+
+        assertEquals("invalid_installation", refused.errorCode());
+        server.verify();
+    }
+
+    @Test
     void waitsOutARateLimitAndRetries() {
         expectToken();
         server.expect(requestTo(Matchers.containsString("/installation/repositories")))
@@ -129,6 +185,22 @@ class GitHubApiClientTests {
 
         assertEquals("github_http_403", refused.errorCode());
         assertTrue(sleeps.isEmpty());
+        server.verify();
+    }
+
+    @Test
+    void refreshesAnExpiredTokenOnceEvenAfterAnEarlierRetry() {
+        expectToken();
+        server.expect(requestTo(Matchers.containsString("/installation/repositories")))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR));
+        server.expect(requestTo(Matchers.containsString("/installation/repositories")))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+        expectToken();
+        server.expect(requestTo(Matchers.containsString("/installation/repositories")))
+                .andRespond(withSuccess("{\"repositories\":[]}", MediaType.APPLICATION_JSON));
+
+        assertTrue(client().repositories().isEmpty());
+        assertEquals(List.of(Duration.ofMillis(300)), sleeps);
         server.verify();
     }
 

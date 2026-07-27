@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -46,7 +47,6 @@ class GitHubConnectorBatchSourceTests {
     private static final UUID SPACE = UUID.fromString("bb000000-0000-4000-8000-000000000002");
     private static final UUID ACTOR = UUID.fromString("bb000000-0000-4000-8000-000000000003");
     private static final String CONNECTION = "42";
-    private static final String REPOSITORY_ID = "77";
     private static final String OBJECT_ID = "77__201";
     private static final Instant NOW = Instant.parse("2026-07-28T10:00:00Z");
 
@@ -213,6 +213,49 @@ class GitHubConnectorBatchSourceTests {
         assertEquals("no_credential", poll.unavailable().getFirst().errorCode());
     }
 
+    @Test
+    void installationForAnotherOrganizationCannotRepointTheConnection() {
+        expectInstallation("""
+                {"id":67890,"account":{"id":99,"login":"other","type":"Organization"},
+                 "app_slug":"orgmemory-test",
+                 "permissions":{"metadata":"read","issues":"read"}}
+                """);
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("connection_mismatch", poll.unavailable().getFirst().errorCode());
+        server.verify();
+    }
+
+    @Test
+    void installationWithoutIssuesReadCannotProduceContent() {
+        expectInstallation("""
+                {"id":67890,"account":{"id":42,"login":"acme","type":"Organization"},
+                 "app_slug":"orgmemory-test",
+                 "permissions":{"metadata":"read"}}
+                """);
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("issues_read_required", poll.unavailable().getFirst().errorCode());
+        server.verify();
+    }
+
+    @Test
+    void malformedExplicitScopeNeverWidensToEveryRepository() {
+        when(connections.enabledCrawls("github"))
+                .thenReturn(List.of(configuration("{\"repositoryIds\":\"77\"}")));
+        expectInstallation(1);
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("invalid_source_config", poll.unavailable().getFirst().errorCode());
+        server.verify();
+    }
+
     private GitHubConnectorBatchSource source() {
         return new GitHubConnectorBatchSource(
                 connections,
@@ -237,14 +280,21 @@ class GitHubConnectorBatchSourceTests {
     private void expectInstallation(int count) {
         server.expect(
                         ExpectedCount.times(count),
-                        requestTo("https://api.github.com/app/installations/67890?per_page=100"))
-                .andRespond(withSuccess(
-                        """
-                        {"id":67890,"account":{"id":42,"login":"acme","type":"Organization"},
-                         "app_slug":"orgmemory-test",
-                         "permissions":{"metadata":"read","issues":"read"}}
-                        """,
-                        MediaType.APPLICATION_JSON));
+                        requestTo("https://api.github.com/app/installations/67890"))
+                .andRespond(withSuccess(validInstallation(), MediaType.APPLICATION_JSON));
+    }
+
+    private void expectInstallation(String body) {
+        server.expect(requestTo("https://api.github.com/app/installations/67890"))
+                .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+    }
+
+    private static String validInstallation() {
+        return """
+                {"id":67890,"account":{"id":42,"login":"acme","type":"Organization"},
+                 "app_slug":"orgmemory-test",
+                 "permissions":{"metadata":"read","issues":"read"}}
+                """;
     }
 
     private void expectToken() {
@@ -259,9 +309,7 @@ class GitHubConnectorBatchSourceTests {
 
     private void expectRepositories(String body) {
         server.expect(requestTo(Matchers.containsString("/installation/repositories")))
-                .andExpect(org.springframework.test.web.client.match.MockRestRequestMatchers.header(
-                        HttpHeaders.AUTHORIZATION,
-                        "Bearer ghs_not-a-real-token"))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer ghs_not-a-real-token"))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 

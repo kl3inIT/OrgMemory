@@ -14,8 +14,12 @@ class GitHubApiException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    GitHubApiException(String message, String errorCode, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
+
     String errorCode() {
         return errorCode;
     }
 }
-
