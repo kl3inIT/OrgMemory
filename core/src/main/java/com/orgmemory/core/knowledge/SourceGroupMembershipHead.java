@@ -38,7 +38,7 @@ class SourceGroupMembershipHead extends BaseEntity {
     }
 
     void advance(SourceGroupMembershipSnapshot snapshot, Instant activatedAt) {
-        if (snapshot.getCaptureStatus() != MembershipCaptureStatus.COMPLETE) {
+        if (snapshot.getCaptureStatus() != ConnectorCaptureStatus.COMPLETE) {
             throw new IllegalArgumentException(
                     "only complete source group membership may become active");
         }

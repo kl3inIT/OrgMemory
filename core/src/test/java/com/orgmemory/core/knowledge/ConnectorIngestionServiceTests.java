@@ -20,6 +20,7 @@ import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -120,6 +121,50 @@ class ConnectorIngestionServiceTests {
         assertEquals(1, result.failures().size());
         assertEquals("C-fail", result.failures().getFirst().externalObjectId());
         assertTrue(result.failures().getFirst().reason().contains("unobserved principal"));
+        assertTrue(result.failures().getFirst().components().contains(ConnectorSyncComponent.CONTENT));
+        assertTrue(!result.completedComponents().contains(ConnectorSyncComponent.CONTENT));
+    }
+
+    @Test
+    void incompletePermissionEvidenceCannotMaterializeContentOrRotateAcl() {
+        stubValidEnvelope();
+        when(reconciler.resolveIdentities(any(), any()))
+                .thenReturn(new ConnectorIdentityResolution(Map.of()));
+        ConnectorContentItem content = content("C-protected");
+        ConnectorCrawlBatch batch = new ConnectorCrawlBatch(
+                ORG,
+                "slack",
+                "T-workspace",
+                SPACE,
+                ACTOR,
+                "batch-incomplete-permission",
+                ConnectorContractVersions.supported(),
+                List.of(),
+                List.of(),
+                List.of(content),
+                List.of(),
+                List.of(),
+                List.of(
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.CONTENT, "content-2"),
+                        ConnectorComponentState.incomplete(
+                                ConnectorSyncComponent.PERMISSION,
+                                "permission-2",
+                                "API_SCOPE_MISSING"),
+                        ConnectorComponentState.complete(
+                                ConnectorSyncComponent.MEMBERSHIP, "membership-2")),
+                false);
+
+        ConnectorIngestionResult result = service.ingest(batch, batch.components());
+
+        verify(reconciler, never()).reconcile(any(), any(), any(), any());
+        verify(reconciler, never()).reconcilePermissions(any(), any(), any());
+        assertEquals(1, result.failures().size());
+        assertEquals(Set.of(ConnectorSyncComponent.CONTENT),
+                result.failures().getFirst().components());
+        assertEquals(
+                Set.of(ConnectorSyncComponent.PERMISSION, ConnectorSyncComponent.MEMBERSHIP),
+                result.completedComponents());
     }
 
     @Test

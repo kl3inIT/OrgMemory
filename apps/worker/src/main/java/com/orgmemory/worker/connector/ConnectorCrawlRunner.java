@@ -1,15 +1,18 @@
 package com.orgmemory.worker.connector;
 
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
 import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.ConnectorSyncComponent;
 import com.orgmemory.core.shared.error.BusinessErrorCategory;
 import com.orgmemory.core.shared.error.BusinessException;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -17,8 +20,8 @@ import org.springframework.stereotype.Component;
 /**
  * Drives the connector: pulls pending batches from every {@link ConnectorBatchSource} and
  * ingests each through {@link ConnectorIngestionService}. Progress is checkpointed per
- * connection, so a driver that restarts resumes instead of replaying everything the producers
- * still hold.
+ * connection and component, so a driver that restarts resumes without replaying unrelated work
+ * the producers still hold.
  *
  * <p>Sources are taken as a list because a deployment can run more than one — committed
  * fixtures and a live workspace are both present in development — and because a source that
@@ -68,23 +71,42 @@ class ConnectorCrawlRunner {
             // way through.
             poll.unavailable().forEach(attempts::recordUnavailable);
             for (ConnectorCrawlBatch batch : poll.batches()) {
-                if (checkpoints.isCompleted(batch)) {
+                Set<ConnectorSyncComponent> pending = checkpoints.pendingComponents(batch);
+                if (pending.isEmpty()) {
                     continue;
                 }
-                ingestWithRetry(batch);
+                ingestWithRetry(batch, pending);
             }
         }
     }
 
-    private void ingestWithRetry(ConnectorCrawlBatch batch) {
+    private void ingestWithRetry(
+            ConnectorCrawlBatch batch, Set<ConnectorSyncComponent> initialPending) {
         RuntimeException lastFailure = null;
+        ConnectorIngestionResult lastResult = null;
+        Set<ConnectorSyncComponent> pending = initialPending;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                ConnectorIngestionResult result = ingestion.ingest(batch);
+                ConnectorIngestionResult result = ingestion.ingest(batch, pending);
                 report(batch, result);
-                attempts.recordSucceeded(batch, result);
-                checkpoints.complete(batch);
-                return;
+                lastResult = result;
+                lastFailure = null;
+                checkpoints.complete(batch, result.completedComponents());
+                pending = checkpoints.pendingComponents(batch);
+                if (result.failures().isEmpty() && pending.isEmpty()) {
+                    attempts.recordSucceeded(batch, result);
+                    return;
+                }
+                if (blockedByIncompletePermission(batch, result)) {
+                    attempts.recordPartial(batch, result);
+                    return;
+                }
+                log.warn(
+                        "Connector batch {} remains partial on attempt {} of {}: pending={}",
+                        batch.crawlCursor(),
+                        attempt,
+                        MAX_ATTEMPTS,
+                        pending);
             } catch (BusinessException failure) {
                 if (failure.category() == BusinessErrorCategory.UNAVAILABLE) {
                     log.warn("Connector batch {} failed on attempt {} of {}: {}",
@@ -95,7 +117,7 @@ class ConnectorCrawlRunner {
                 log.warn("Connector batch {} was rejected and will not be retried: {}",
                         batch.crawlCursor(), failure.getMessage());
                 attempts.recordRejected(batch, failure.code(), failure.getMessage());
-                checkpoints.complete(batch);
+                checkpoints.reject(batch, pending);
                 return;
             } catch (RuntimeException transientFailure) {
                 log.warn("Connector batch {} failed on attempt {} of {}: {}",
@@ -108,7 +130,11 @@ class ConnectorCrawlRunner {
         // One row per exhausted batch rather than one per attempt. The attempts inside a single
         // poll fail the same way; what an administrator needs is that this batch is stuck and
         // what it said, not the same sentence three times.
-        attempts.recordFailed(batch, codeOf(lastFailure), messageOf(lastFailure));
+        if (lastFailure != null) {
+            attempts.recordFailed(batch, codeOf(lastFailure), messageOf(lastFailure));
+        } else if (lastResult != null) {
+            attempts.recordPartial(batch, lastResult);
+        }
     }
 
     /**
@@ -122,6 +148,18 @@ class ConnectorCrawlRunner {
 
     private static String messageOf(RuntimeException failure) {
         return failure == null ? null : failure.getMessage();
+    }
+
+    private static boolean blockedByIncompletePermission(
+            ConnectorCrawlBatch batch, ConnectorIngestionResult result) {
+        if (!batch.components().contains(ConnectorSyncComponent.PERMISSION)
+                || batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus()
+                        != ConnectorCaptureStatus.INCOMPLETE) {
+            return false;
+        }
+        return result.failures().stream()
+                .anyMatch(failure ->
+                        failure.components().contains(ConnectorSyncComponent.CONTENT));
     }
 
     private static void report(ConnectorCrawlBatch batch, ConnectorIngestionResult result) {

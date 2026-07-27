@@ -17,7 +17,7 @@ class SourceGroupMembershipHeadTests {
                 organizationId,
                 groupPrincipalId,
                 2,
-                MembershipCaptureStatus.COMPLETE,
+                ConnectorCaptureStatus.COMPLETE,
                 null,
                 now);
         SourceGroupMembershipHead head = new SourceGroupMembershipHead(generationTwo, now);
@@ -32,7 +32,7 @@ class SourceGroupMembershipHeadTests {
                                 organizationId,
                                 groupPrincipalId,
                                 3,
-                                MembershipCaptureStatus.INCOMPLETE,
+                                ConnectorCaptureStatus.INCOMPLETE,
                                 "UPSTREAM_PARTIAL",
                                 now.plusSeconds(2)),
                         now.plusSeconds(2)));
@@ -42,7 +42,7 @@ class SourceGroupMembershipHeadTests {
             UUID organizationId,
             UUID groupPrincipalId,
             long generation,
-            MembershipCaptureStatus captureStatus,
+            ConnectorCaptureStatus captureStatus,
             String incompleteReason,
             Instant capturedAt) {
         return new SourceGroupMembershipSnapshot(

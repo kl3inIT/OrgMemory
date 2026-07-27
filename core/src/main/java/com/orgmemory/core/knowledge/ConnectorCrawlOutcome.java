@@ -11,8 +11,11 @@ package com.orgmemory.core.knowledge;
  */
 public enum ConnectorCrawlOutcome {
 
-    /** Reconciled. Individual objects inside it may still have failed. */
+    /** Every pending component reconciled or was truthfully observed as incomplete. */
     SUCCEEDED,
+
+    /** Some components advanced, while item failures left other components pending. */
+    PARTIAL,
 
     /** Refused for a reason no retry can change, and checkpointed past. */
     REJECTED,

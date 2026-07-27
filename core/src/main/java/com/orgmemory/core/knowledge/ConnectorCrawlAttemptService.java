@@ -36,6 +36,21 @@ public class ConnectorCrawlAttemptService {
         save(batch, ConnectorCrawlOutcome.SUCCEEDED, result, null, null);
     }
 
+    /** Some components advanced while failed items remain pending for a later poll. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordPartial(ConnectorCrawlBatch batch, ConnectorIngestionResult result) {
+        Objects.requireNonNull(result, "result");
+        int failed = result.failures().size();
+        save(
+                batch,
+                ConnectorCrawlOutcome.PARTIAL,
+                result,
+                failed > 0 ? "ITEM_RECONCILIATION_FAILED" : "COMPONENT_INCOMPLETE",
+                failed > 0
+                        ? failed + " connector item(s) remain pending"
+                        : "Some components did not reconcile and remain pending for the next poll.");
+    }
+
     /** A batch refused for a reason retrying cannot change, and checkpointed past. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordRejected(ConnectorCrawlBatch batch, String errorCode, String errorMessage) {

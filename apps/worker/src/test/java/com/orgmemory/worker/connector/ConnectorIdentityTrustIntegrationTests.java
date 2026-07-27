@@ -30,7 +30,7 @@ import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -182,7 +182,7 @@ class ConnectorIdentityTrustIntegrationTests {
                 List.of(member, channel),
                 List.of(new ConnectorMembershipItem(
                         "C-handbook",
-                        MembershipCaptureStatus.COMPLETE,
+                        ConnectorCaptureStatus.COMPLETE,
                         null,
                         List.of(new ConnectorMembershipMember(
                                 SourcePrincipalKind.SOURCE_USER, "U-dung")))),

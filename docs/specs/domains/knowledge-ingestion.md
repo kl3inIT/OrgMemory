@@ -73,7 +73,8 @@ adapters claiming one name, and nothing in `core` names a source.
 
 A Slack connector ingests a versioned crawl contract
 (`contracts/connector/`: four separately-versioned payload kinds — content,
-identity, membership, and permissions — plus tombstones, an opaque crawl cursor, and a
+identity, membership, and permissions — plus tombstones, an opaque batch cursor,
+independent content/permission/membership cursors and capture status, and a
 completeness claim) through a
 dedicated `ConnectorIngestionService`. It observes and matches external
 principals, reconciles group membership once per crawl, then seals resource ACL
@@ -135,15 +136,18 @@ such a batch retires the objects it omitted. The claim is absent-means-no. A
 complete crawl that enumerated nothing at all while the connection has indexed
 objects is refused and reported, because a revoked token is indistinguishable from
 an emptied workspace and retiring a whole connection is the more expensive
-mistake. Driver progress is checkpointed per connection in
-`connector_crawl_checkpoints` so a restart resumes rather than replays; a batch
-rejected for a reason retrying cannot change is checkpointed past, and any other
-failure is retried a bounded number of times and then left for the next poll.
+mistake. Driver progress is checkpointed per connection and component in one
+`connector_crawl_checkpoints` table, so membership change does not replay content
+or permissions. A `COMPLETE` component advances observed and last-successful
+state; `INCOMPLETE` source evidence advances only observed state and reason. A
+batch rejected for a reason retrying cannot change is observed past, while
+technical or per-item failure leaves the affected component pending.
 
 What each pass did is a row in `connector_crawl_attempts` rather than a log line,
 with an outcome, per-object counts, and an error code and message. The four
 outcomes are kept apart because they call for different actions: `SUCCEEDED`
-reconciled, `REJECTED` was checkpointed past and is not coming back, `FAILED` is
+handled every component, `PARTIAL` advanced some components while failed items
+remain pending, `REJECTED` was observed past and is not coming back, `FAILED` is
 still queued, and `UNAVAILABLE` means the source produced no batch for that
 connection at all — which is what a revoked or missing credential looks like, and
 which needs `ConnectorBatchSource.pendingBatches` to return a `ConnectorPoll`

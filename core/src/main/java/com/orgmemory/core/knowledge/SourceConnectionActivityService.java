@@ -39,6 +39,8 @@ public class SourceConnectionActivityService {
         String system = require(sourceSystem, "sourceSystem");
         String key = require(sourceConnectionKey, "sourceConnectionKey");
         List<SourceObjectStatusCount> counts = objects.countByStatus(organizationId, system, key);
+        List<ConnectorComponentCheckpointView> componentCheckpoints =
+                checkpoints.describe(organizationId, system, key);
         return new SourceConnectionActivityView(
                 system,
                 key,
@@ -51,7 +53,11 @@ public class SourceConnectionActivityService {
                         .filter(Objects::nonNull)
                         .max(Comparator.naturalOrder())
                         .orElse(null),
-                checkpoints.lastCompletedAt(organizationId, system, key).orElse(null),
+                componentCheckpoints.stream()
+                        .map(ConnectorComponentCheckpointView::observedAt)
+                        .max(Comparator.naturalOrder())
+                        .orElse(null),
+                componentCheckpoints,
                 attempts.recent(organizationId, system, key));
     }
 

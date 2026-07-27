@@ -51,32 +51,60 @@ public class ConnectorIngestionService {
     }
 
     public ConnectorIngestionResult ingest(ConnectorCrawlBatch batch) {
+        return ingest(batch, batch.components());
+    }
+
+    public ConnectorIngestionResult ingest(
+            ConnectorCrawlBatch batch, Set<ConnectorSyncComponent> pendingComponents) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(pendingComponents, "pendingComponents");
+        if (!batch.components().containsAll(pendingComponents)) {
+            throw new IllegalArgumentException("pending component is not declared by the batch");
+        }
         batch.versions().requireSupported();
         ConnectorSourceProfile profile = validateEnvelope(batch);
 
         ConnectorIngestionContext ctx = ConnectorIngestionContext.from(batch, profile);
         ConnectorIdentityResolution resolution =
                 perObjectTransaction.execute(status -> reconciler.resolveIdentities(ctx, batch));
-        perObjectTransaction.executeWithoutResult(
-                status -> reconciler.reconcileMemberships(ctx, batch, resolution));
+        if (pendingComponents.contains(ConnectorSyncComponent.MEMBERSHIP)) {
+            perObjectTransaction.executeWithoutResult(
+                    status -> reconciler.reconcileMemberships(ctx, batch, resolution));
+        }
 
         Map<String, ConnectorPermissionItem> permissions = new LinkedHashMap<>();
         for (ConnectorPermissionItem permission : batch.permissions()) {
             permissions.put(permission.externalObjectId(), permission);
         }
-        Set<String> contentObjectIds = new HashSet<>();
-        for (ConnectorContentItem content : batch.contents()) {
-            contentObjectIds.add(content.externalObjectId());
-        }
+        Set<String> reconciledContentObjectIds = new HashSet<>();
 
         List<String> materialized = new ArrayList<>();
         List<String> rotated = new ArrayList<>();
         List<String> rematerialized = new ArrayList<>();
         List<String> retired = new ArrayList<>();
         List<ConnectorItemFailure> failures = new ArrayList<>();
+        Set<ConnectorSyncComponent> completedComponents =
+                new HashSet<>(pendingComponents);
+        boolean contentPending = pendingComponents.contains(ConnectorSyncComponent.CONTENT);
+        boolean permissionPending =
+                pendingComponents.contains(ConnectorSyncComponent.PERMISSION);
+        boolean permissionRequired =
+                permissionPending || (contentPending && !batch.contents().isEmpty());
+        ConnectorComponentState permissionState = permissionRequired
+                ? batch.componentState(ConnectorSyncComponent.PERMISSION)
+                : null;
+        boolean permissionComplete = permissionState == null
+                || permissionState.captureStatus() == ConnectorCaptureStatus.COMPLETE;
 
-        for (ConnectorContentItem content : batch.contents()) {
+        for (ConnectorContentItem content : contentPending ? batch.contents() : List.<ConnectorContentItem>of()) {
+            if (!permissionComplete) {
+                failures.add(new ConnectorItemFailure(
+                        content.externalObjectId(),
+                        "permission evidence is incomplete: "
+                                + Objects.requireNonNull(permissionState).incompleteReason(),
+                        ConnectorSyncComponent.CONTENT));
+                continue;
+            }
             try {
                 // Deliberately not wrapped in a transaction of its own. Materializing publishes,
                 // and publication commits independently so a failed projection can be retried
@@ -89,15 +117,22 @@ public class ConnectorIngestionService {
                 ObjectOutcome outcome = reconciler.reconcile(
                         ctx, content, permissions.get(content.externalObjectId()), resolution);
                 recordOutcome(outcome, content.externalObjectId(), materialized, rotated, rematerialized);
+                reconciledContentObjectIds.add(content.externalObjectId());
             } catch (RuntimeException failure) {
-                failures.add(new ConnectorItemFailure(content.externalObjectId(), reasonOf(failure)));
+                failures.add(new ConnectorItemFailure(
+                        content.externalObjectId(),
+                        reasonOf(failure),
+                        ConnectorSyncComponent.CONTENT));
             }
         }
 
         // Objects that arrived only in the permissions payload (a permissions-only re-crawl on
         // its own cadence) reconcile their ACL without touching content.
-        for (ConnectorPermissionItem permission : batch.permissions()) {
-            if (contentObjectIds.contains(permission.externalObjectId())) {
+        for (ConnectorPermissionItem permission :
+                permissionPending && permissionComplete
+                        ? batch.permissions()
+                        : List.<ConnectorPermissionItem>of()) {
+            if (reconciledContentObjectIds.contains(permission.externalObjectId())) {
                 continue;
             }
             try {
@@ -105,19 +140,33 @@ public class ConnectorIngestionService {
                         status -> reconciler.reconcilePermissions(ctx, permission, resolution));
                 recordOutcome(outcome, permission.externalObjectId(), materialized, rotated, rematerialized);
             } catch (RuntimeException failure) {
-                failures.add(new ConnectorItemFailure(permission.externalObjectId(), reasonOf(failure)));
+                failures.add(new ConnectorItemFailure(
+                        permission.externalObjectId(),
+                        reasonOf(failure),
+                        ConnectorSyncComponent.PERMISSION));
             }
         }
 
-        for (ConnectorTombstone tombstone : batch.tombstones()) {
+        for (ConnectorTombstone tombstone :
+                contentPending ? batch.tombstones() : List.<ConnectorTombstone>of()) {
             retire(ctx, tombstone, retired, failures);
         }
 
-        if (batch.crawlComplete()) {
+        if (contentPending
+                && batch.crawlComplete()
+                && batch.componentState(ConnectorSyncComponent.CONTENT).captureStatus()
+                        == ConnectorCaptureStatus.COMPLETE) {
             prune(ctx, batch, retired, failures);
         }
 
-        return new ConnectorIngestionResult(materialized, rotated, rematerialized, retired, failures);
+        failures.forEach(failure -> completedComponents.removeAll(failure.components()));
+        return new ConnectorIngestionResult(
+                materialized,
+                rotated,
+                rematerialized,
+                retired,
+                failures,
+                completedComponents);
     }
 
     /**
@@ -146,7 +195,8 @@ public class ConnectorIngestionService {
             failures.add(new ConnectorItemFailure(
                     ctx.sourceConnectionKey(),
                     "refused to prune " + vanished.size()
-                            + " indexed objects: the crawl claimed completeness but enumerated none"));
+                            + " indexed objects: the crawl claimed completeness but enumerated none",
+                    ConnectorSyncComponent.CONTENT));
             return;
         }
         for (String externalObjectId : vanished) {
@@ -166,7 +216,10 @@ public class ConnectorIngestionService {
                 retired.add(tombstone.externalObjectId());
             }
         } catch (RuntimeException failure) {
-            failures.add(new ConnectorItemFailure(tombstone.externalObjectId(), reasonOf(failure)));
+            failures.add(new ConnectorItemFailure(
+                    tombstone.externalObjectId(),
+                    reasonOf(failure),
+                    ConnectorSyncComponent.CONTENT));
         }
     }
 

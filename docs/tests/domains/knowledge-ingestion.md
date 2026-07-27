@@ -94,6 +94,15 @@ real exists in the repository. Nothing touches the network.
 | A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
 | Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |
 
+## Connector Sync Correctness Coverage
+
+| Behavior | Automated evidence |
+| --- | --- |
+| Content, permission, and membership cursors advance independently | `ConnectorCrawlCheckpointIntegrationTests.membershipChangeDoesNotReplayUnchangedContentOrPermissions` |
+| Source-declared incomplete state is observable without becoming last-successful authorization state | `ConnectorCrawlCheckpointIntegrationTests.incompleteObservationDoesNotAdvanceLastSuccessfulAuthorizationState` |
+| Per-item failure records `PARTIAL`, advances successful components, and leaves the failed component pending | `ConnectorCrawlCheckpointIntegrationTests.aPartialBatchAdvancesOnlySuccessfulComponentsAndRetriesTheFailure` |
+| Incomplete permission evidence neither materializes content nor rotates an ACL | `ConnectorIngestionServiceTests.incompletePermissionEvidenceCannotMaterializeContentOrRotateAcl` |
+
 The shared-drive proof was verified by removing the `permissions.list` fallback
 and watching `followsPermissionIdsForASharedDriveFileInsteadOfSealingAnEmptyAcl`
 fail, then restoring it.

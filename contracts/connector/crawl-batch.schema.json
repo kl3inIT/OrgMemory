@@ -12,7 +12,8 @@
     "knowledgeSpaceId",
     "actorUserId",
     "crawlCursor",
-    "versions"
+    "versions",
+    "componentStates"
   ],
   "properties": {
     "organizationId": { "type": "string", "format": "uuid" },
@@ -22,6 +23,30 @@
     "actorUserId": { "type": "string", "format": "uuid", "description": "Connection owner recorded as author, publication owner, and audit actor." },
     "crawlCursor": { "type": "string", "minLength": 1, "description": "Opaque per-connection idempotency/resume marker owned by the batch producer." },
     "versions": { "$ref": "#/$defs/versions" },
+    "componentStates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/componentState" },
+      "allOf": [
+        {
+          "contains": { "properties": { "component": { "const": "CONTENT" } } },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "contains": { "properties": { "component": { "const": "PERMISSION" } } },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        {
+          "contains": { "properties": { "component": { "const": "MEMBERSHIP" } } },
+          "minContains": 0,
+          "maxContains": 1
+        }
+      ],
+      "description": "Independent source cursor and completeness evidence for each component carried by this batch."
+    },
     "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" }, "default": [] },
     "memberships": { "type": "array", "items": { "$ref": "#/$defs/membership" }, "default": [] },
     "contents": { "type": "array", "items": { "$ref": "#/$defs/content" }, "default": [] },
@@ -34,6 +59,30 @@
     }
   },
   "$defs": {
+    "componentState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "cursor", "captureStatus"],
+      "properties": {
+        "component": { "type": "string", "enum": ["CONTENT", "PERMISSION", "MEMBERSHIP"] },
+        "cursor": { "type": "string", "minLength": 1 },
+        "captureStatus": { "type": "string", "enum": ["COMPLETE", "INCOMPLETE"] },
+        "incompleteReason": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "captureStatus": { "const": "COMPLETE" } } },
+          "then": { "properties": { "incompleteReason": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "captureStatus": { "const": "INCOMPLETE" } } },
+          "then": {
+            "required": ["incompleteReason"],
+            "properties": { "incompleteReason": { "type": "string", "minLength": 1 } }
+          }
+        }
+      ]
+    },
     "versions": {
       "type": "object",
       "additionalProperties": false,

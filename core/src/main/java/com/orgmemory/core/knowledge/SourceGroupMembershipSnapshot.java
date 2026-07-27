@@ -28,7 +28,7 @@ class SourceGroupMembershipSnapshot extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "capture_status", nullable = false, length = 16, updatable = false)
-    private MembershipCaptureStatus captureStatus;
+    private ConnectorCaptureStatus captureStatus;
 
     @Column(name = "incomplete_reason", length = 128, updatable = false)
     private String incompleteReason;
@@ -44,7 +44,7 @@ class SourceGroupMembershipSnapshot extends BaseEntity {
             UUID syncRunId,
             UUID groupPrincipalId,
             long membershipGeneration,
-            MembershipCaptureStatus captureStatus,
+            ConnectorCaptureStatus captureStatus,
             String incompleteReason,
             Instant capturedAt) {
         super(UUID.randomUUID());
@@ -69,7 +69,7 @@ class SourceGroupMembershipSnapshot extends BaseEntity {
         return membershipGeneration;
     }
 
-    MembershipCaptureStatus getCaptureStatus() {
+    ConnectorCaptureStatus getCaptureStatus() {
         return captureStatus;
     }
 }
