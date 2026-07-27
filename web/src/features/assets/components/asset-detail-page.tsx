@@ -6,11 +6,14 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
+  Copy,
   History,
   MessageSquareWarning,
+  PackageCheck,
   Play,
   Send,
   ShieldCheck,
+  Terminal,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -64,6 +67,7 @@ import {
   getCapabilityPackDefinitionOptions,
   getAssetOptions,
   getAssetQueryKey,
+  getReleasedSkillManifestOptions,
   renderAssistantPromptMutation,
   runAssistantPromptMutation,
   submitAssistantAssetFeedbackMutation,
@@ -301,7 +305,13 @@ function ProfilePanel({ asset, release }: { asset: AssetView; release: Release }
   if (asset.type === "WORK_INSTRUCTION") {
     return <WorkInstructionPanel assetId={asset.id} release={release} />
   }
-  return <PackPanel assetId={asset.id} release={release} />
+  if (asset.type === "CAPABILITY_PACK") {
+    return <PackPanel assetId={asset.id} release={release} />
+  }
+  if (asset.type === "SKILL") {
+    return <SkillPanel assetId={asset.id} release={release} />
+  }
+  return <InvalidPayload />
 }
 
 function PromptPanel({ assetId, release }: { assetId: string; release: Release }) {
@@ -759,6 +769,164 @@ function PackPanel({ assetId, release }: { assetId: string; release: Release }) 
       <FeedbackCard assetId={assetId} release={release} />
     </div>
   )
+}
+
+function SkillPanel({ assetId, release }: { assetId: string; release: Release }) {
+  const manifest = useQuery(
+    getReleasedSkillManifestOptions({
+      path: { assetId, releaseId: release.id! },
+    }),
+  )
+  if (manifest.isPending) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-supporting text-content-muted">
+          Loading Skill install contract...
+        </CardContent>
+      </Card>
+    )
+  }
+  if (manifest.isError) {
+    return (
+      <Card>
+        <CardContent className="space-y-4 py-10 text-center">
+          <p className="text-supporting text-content-secondary">
+            This Skill install contract could not be loaded.
+          </p>
+          <Button variant="outline" onClick={() => void manifest.refetch()}>
+            Try again
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const skill = manifest.data
+  const reference = `${skill.coordinate}@${skill.version}`
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle>Install this exact Skill</CardTitle>
+              <p className="mt-1 text-supporting text-content-secondary">
+                Use the OrgMemory CLI to authenticate, verify the released package, and write an
+                installation receipt.
+              </p>
+            </div>
+            <PackageCheck className="size-5 text-content-muted" aria-hidden="true" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3">
+            <Metadata label="Package" value={formatBytes(skill.packageLength)} />
+            <Metadata label="Files" value={String(skill.files?.length ?? 0)} />
+            <Metadata label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
+          </div>
+
+          <div className="space-y-3">
+            <InstallCommand
+              agent="Claude Code"
+              command={`orgmemory skill add ${reference} --agent claude-code`}
+            />
+            <InstallCommand
+              agent="Codex"
+              command={`orgmemory skill add ${reference} --agent codex`}
+            />
+          </div>
+
+          <Alert>
+            <ShieldCheck aria-hidden="true" />
+            <AlertTitle>Authenticated and reproducible</AlertTitle>
+            <AlertDescription>
+              Installation uses your current OrgMemory access, pins this version and package
+              digest, verifies every released file, then promotes the staged directory atomically.
+            </AlertDescription>
+          </Alert>
+
+          <Collapsible className="rounded-lg border border-border-subtle">
+            <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-supporting font-medium outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus-ring">
+              Package files
+              <ChevronDown
+                className="size-4 text-content-muted transition-transform group-data-[state=open]:rotate-180"
+                aria-hidden="true"
+              />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border-subtle">
+              <ul className="divide-y divide-border-subtle">
+                {skill.files?.map((file) => (
+                  <li key={file.path} className="flex items-center justify-between gap-4 px-4 py-3">
+                    <code className="min-w-0 truncate text-supporting text-content-primary">
+                      {file.path}
+                    </code>
+                    <span className="shrink-0 font-mono text-metadata text-content-muted">
+                      {formatBytes(file.size)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Skill contract</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Definition label="Compatibility" value={skill.compatibility || "Not specified"} />
+            <Definition label="Allowed tools" value={skill.allowedTools || "Not restricted"} />
+            <Definition label="License" value={skill.license || "Not specified"} />
+          </CardContent>
+        </Card>
+        <FeedbackCard assetId={assetId} release={release} />
+      </div>
+    </div>
+  )
+}
+
+function InstallCommand({ agent, command }: { agent: string; command: string }) {
+  return (
+    <div className="rounded-lg border border-border-default bg-surface-subtle p-4">
+      <div className="mb-2 flex items-center gap-2 text-label text-content-primary">
+        <Terminal className="size-4" aria-hidden="true" />
+        {agent}
+      </div>
+      <div className="flex min-w-0 items-center gap-2">
+        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-supporting text-content-secondary">
+          {command}
+        </code>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={`Copy ${agent} install command`}
+          onClick={() => {
+            if (!navigator.clipboard?.writeText) {
+              toast.error("Could not copy command")
+              return
+            }
+            void navigator.clipboard
+              .writeText(command)
+              .then(() => toast.success("Install command copied"))
+              .catch(() => toast.error("Could not copy command"))
+          }}
+        >
+          <Copy aria-hidden="true" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function formatBytes(value?: number) {
+  if (value === undefined) return "—"
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`
+  return `${(value / (1024 * 1024)).toFixed(1)} MiB`
 }
 
 function FeedbackCard({ assetId, release }: { assetId: string; release: Release }) {

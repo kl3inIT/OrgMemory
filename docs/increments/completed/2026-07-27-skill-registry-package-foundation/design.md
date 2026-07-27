@@ -1,5 +1,7 @@
 # Skill Registry Package Foundation
 
+Status: completed on 2026-07-27 via PR #77.
+
 ## Outcome
 
 OrgMemory accepts one portable Agent Skill package as a governed `SKILL` Asset.

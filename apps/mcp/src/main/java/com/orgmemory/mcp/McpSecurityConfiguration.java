@@ -47,7 +47,10 @@ class McpSecurityConfiguration {
                                 "/actuator/health/readiness",
                                 "/.well-known/oauth-protected-resource/**")
                         .permitAll()
-                        .requestMatchers("/mcp", "/mcp/**")
+                        .requestMatchers(
+                                "/mcp",
+                                "/mcp/**",
+                                "/skill-packages/**")
                         .hasAuthority(ASSET_READ_AUTHORITY)
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(oauth2 -> oauth2

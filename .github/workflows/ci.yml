@@ -25,6 +25,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
+      cli: ${{ steps.filter.outputs.cli }}
       openfga: ${{ steps.filter.outputs.openfga }}
       evaluation: ${{ steps.filter.outputs.evaluation }}
       postgres: ${{ steps.filter.outputs.postgres }}
@@ -53,6 +54,7 @@ jobs:
               - "build.gradle.kts"
             backend:
               - "apps/**"
+              - "!apps/cli/**"
               - "components/**"
               - "core/**"
               - "integrations/**"
@@ -64,6 +66,10 @@ jobs:
               - "web/**"
               - "contracts/**"
               - "apps/api/src/main/**"
+            cli:
+              - "apps/cli/**"
+              - "apps/mcp/src/main/**"
+              - "contracts/**"
             openfga:
               - "integrations/authorization-openfga/**"
               - "core/src/**/authorization/**"
@@ -175,6 +181,45 @@ jobs:
 
       - name: Check generated route tree
         run: git diff --exit-code -- src/routeTree.gen.ts
+
+  cli:
+    name: CLI · Node 24
+    needs: changes
+    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/cli
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 11.9.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: apps/cli/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Run focused tests
+        run: pnpm test
+
+      - name: Build distributable
+        run: pnpm build
 
   openfga:
     name: OpenFGA model
@@ -406,6 +451,7 @@ jobs:
       - changes
       - backend
       - web
+      - cli
       - openfga
       - evaluation
       - postgres
@@ -421,6 +467,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           WEB_RESULT: ${{ needs.web.result }}
+          CLI_RESULT: ${{ needs.cli.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
           EVALUATION_RESULT: ${{ needs.evaluation.result }}
           POSTGRES_RESULT: ${{ needs.postgres.result }}
@@ -433,6 +480,7 @@ jobs:
           for result in \
             "$BACKEND_RESULT" \
             "$WEB_RESULT" \
+            "$CLI_RESULT" \
             "$OPENFGA_RESULT" \
             "$EVALUATION_RESULT" \
             "$POSTGRES_RESULT" \

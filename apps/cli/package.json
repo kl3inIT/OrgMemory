@@ -1,0 +1,33 @@
+{
+  "name": "@orgmemory/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authenticated OrgMemory Skill installer for AI coding agents",
+  "type": "module",
+  "bin": {
+    "orgmemory": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "commander": "14.0.3",
+    "fflate": "0.8.2",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "~7.0.2",
+    "vitest": "4.1.10"
+  },
+  "packageManager": "pnpm@11.9.0"
+}

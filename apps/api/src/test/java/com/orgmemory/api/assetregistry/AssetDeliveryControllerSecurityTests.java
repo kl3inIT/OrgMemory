@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
+import com.orgmemory.core.assetregistry.SkillDistributionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,23 @@ class AssetDeliveryControllerSecurityTests {
                         authentication));
     }
 
+    @Test
+    void skillDistributionRejectsTokensWithoutAssetsReadScope() {
+        Authentication authentication = authentication("SCOPE_profile");
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        java.util.UUID assetId = java.util.UUID.randomUUID();
+        java.util.UUID releaseId = java.util.UUID.randomUUID();
+
+        assertThrows(
+                AuthorizationDeniedException.class,
+                () -> controller.skillManifest(
+                        assetId, releaseId, authentication));
+        assertThrows(
+                AuthorizationDeniedException.class,
+                () -> controller.skillPackage(
+                        assetId, releaseId, authentication));
+    }
+
     private static Authentication authentication(String authority) {
         return new TestingAuthenticationToken(
                 "actor", "token", new SimpleGrantedAuthority(authority));
@@ -75,6 +93,11 @@ class AssetDeliveryControllerSecurityTests {
         }
 
         @Bean
+        SkillDistributionService skills() {
+            return mock(SkillDistributionService.class);
+        }
+
+        @Bean
         CurrentActorProvider actors() {
             return mock(CurrentActorProvider.class);
         }
@@ -83,8 +106,10 @@ class AssetDeliveryControllerSecurityTests {
         AssetDeliveryController controller(
                 AssetDeliveryService delivery,
                 PromptExecutionService prompts,
+                SkillDistributionService skills,
                 CurrentActorProvider actors) {
-            return new AssetDeliveryController(delivery, prompts, actors);
+            return new AssetDeliveryController(
+                    delivery, prompts, skills, actors);
         }
     }
 }

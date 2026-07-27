@@ -38,7 +38,7 @@ class AssetDeliveryTools {
                     String query,
             @McpToolParam(
                             required = false,
-                            description = "Optional PROMPT_TEMPLATE, WORK_INSTRUCTION, or CAPABILITY_PACK filter")
+                            description = "Optional PROMPT_TEMPLATE, WORK_INSTRUCTION, CAPABILITY_PACK, or SKILL filter")
                     String type,
             McpTransportContext context) {
         return new AssetSearchResults(assets.search(
@@ -82,6 +82,57 @@ class AssetDeliveryTools {
             McpTransportContext context) {
         return assets.getRelease(
                 authorization.require(context), assetId, releaseId);
+    }
+
+    @McpTool(
+            name = "get_skill_manifest",
+            title = "Get Skill install manifest",
+            description = "Gets the exact authorized Skill package identity and inspected file manifest.",
+            generateOutputSchema = true,
+            annotations = @McpAnnotations(
+                    title = "Get Skill install manifest",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    SkillManifestLink getSkillManifest(
+            @McpToolParam(description = "Skill Asset UUID") UUID assetId,
+            @McpToolParam(description = "Pinned Skill release UUID")
+                    UUID releaseId,
+            McpTransportContext context) {
+        var manifest = assets.getSkillManifest(
+                authorization.require(context), assetId, releaseId);
+        return new SkillManifestLink(
+                manifest,
+                SkillPackageController.packagePath(assetId, releaseId));
+    }
+
+    @McpTool(
+            name = "resolve_skill",
+            title = "Resolve exact Skill",
+            description = "Resolves one exact authorized Skill coordinate and version to its immutable install manifest.",
+            generateOutputSchema = true,
+            annotations = @McpAnnotations(
+                    title = "Resolve exact Skill",
+                    readOnlyHint = true,
+                    destructiveHint = false,
+                    idempotentHint = true,
+                    openWorldHint = false))
+    SkillManifestLink resolveSkill(
+            @McpToolParam(description = "Skill namespace") String namespace,
+            @McpToolParam(description = "Skill slug") String slug,
+            @McpToolParam(description = "Exact version label") String version,
+            McpTransportContext context) {
+        var manifest = assets.resolveSkillManifest(
+                authorization.require(context),
+                namespace,
+                slug,
+                version);
+        return new SkillManifestLink(
+                manifest,
+                SkillPackageController.packagePath(
+                        manifest.assetId(),
+                        manifest.releaseId()));
     }
 
     @McpTool(
@@ -165,4 +216,9 @@ class AssetDeliveryTools {
     }
 
     record AssetSearchResults(List<AssetLink> assets) {}
+
+    record SkillManifestLink(
+            AssetDeliveryApiClient.SkillManifest manifest,
+            String packagePath) {
+    }
 }

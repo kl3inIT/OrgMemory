@@ -1,12 +1,15 @@
 package com.orgmemory.core.assetregistry;
 
 import java.io.InputStream;
+import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
 
 public interface SkillPackageStoragePort {
 
     StoredSkillPackage put(SkillPackageWriteRequest request, InputStream content);
+
+    StoredSkillPackageContent open(String objectKey);
 
     void delete(String objectKey);
 
@@ -42,6 +45,22 @@ public interface SkillPackageStoragePort {
             }
             mediaType = requireText(mediaType, "mediaType", 128);
             sha256 = requireSha256(sha256);
+        }
+    }
+
+    record StoredSkillPackageContent(
+            InputStream content,
+            StoredSkillPackage metadata)
+            implements AutoCloseable {
+
+        public StoredSkillPackageContent {
+            content = java.util.Objects.requireNonNull(content, "content");
+            metadata = java.util.Objects.requireNonNull(metadata, "metadata");
+        }
+
+        @Override
+        public void close() throws IOException {
+            content.close();
         }
     }
 

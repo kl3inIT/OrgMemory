@@ -16,6 +16,9 @@ interface AssetReleaseRepository extends JpaRepository<AssetRelease, UUID> {
     Optional<AssetRelease> findByRevisionIdAndOrganizationId(
             UUID revisionId, UUID organizationId);
 
+    Optional<AssetRelease> findByAssetIdAndOrganizationIdAndVersionLabel(
+            UUID assetId, UUID organizationId, String versionLabel);
+
     List<AssetRelease> findByAssetIdAndOrganizationIdOrderBySequenceDesc(
             UUID assetId, UUID organizationId);
 

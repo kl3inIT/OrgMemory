@@ -52,6 +52,19 @@ final class MinioSkillPackageStorageAdapter implements SkillPackageStoragePort {
     }
 
     @Override
+    public StoredSkillPackageContent open(String objectKey) {
+        var content = objects.open(new ObjectKey(objectKey));
+        var stored = content.metadata();
+        return new StoredSkillPackageContent(
+                content.stream(),
+                new StoredSkillPackage(
+                        stored.key().value(),
+                        stored.contentLength(),
+                        stored.mediaType(),
+                        stored.sha256()));
+    }
+
+    @Override
     public void delete(String objectKey) {
         objects.delete(new ObjectKey(objectKey));
     }

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
+import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import java.io.ByteArrayInputStream;
@@ -75,5 +76,31 @@ class MinioSkillPackageStorageAdapterTests {
                         new ByteArrayInputStream(new byte[] {1, 2, 3})));
 
         verify(objects).delete(key);
+    }
+
+    @Test
+    void opensStoredPackageContentWithoutLeakingStorageTypesToCore() {
+        ObjectStoragePort objects = mock(ObjectStoragePort.class);
+        ObjectKey key = new ObjectKey("assets/skills/org/package.zip");
+        String digest = "a".repeat(64);
+        ByteArrayInputStream stream =
+                new ByteArrayInputStream(new byte[] {1, 2, 3});
+        when(objects.open(key)).thenReturn(new ObjectContent(
+                stream,
+                new StoredObject(
+                        key,
+                        3,
+                        "application/zip",
+                        digest,
+                        "etag",
+                        "version")));
+        MinioSkillPackageStorageAdapter adapter =
+                new MinioSkillPackageStorageAdapter(objects);
+
+        var content = adapter.open(key.value());
+
+        assertEquals(key.value(), content.metadata().objectKey());
+        assertEquals(digest, content.metadata().sha256());
+        assertEquals(stream, content.content());
     }
 }

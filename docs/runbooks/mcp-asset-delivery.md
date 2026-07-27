@@ -5,15 +5,22 @@
 The remote endpoint is `/mcp`. It exposes:
 
 - tools: `search_assets`, `get_asset`, `get_asset_release`,
-  `get_capability_pack`, `resolve_asset_relations`, and `render_prompt`;
+  `get_capability_pack`, `resolve_asset_relations`, `render_prompt`,
+  `get_skill_manifest`, and `resolve_skill`;
 - resources: `orgmemory://assets/{assetId}` and
   `orgmemory://assets/{assetId}/releases/{releaseId}`;
 - prompt: `released_prompt(asset_id, release_id, variables_json)`.
 
+The same protected resource exposes the binary companion route
+`/skill-packages/{assetId}/releases/{releaseId}`. It streams the exact released
+Skill package after the same bearer admission, token exchange, and live
+`CAN_USE` check. Binary bytes are not embedded into MCP JSON-RPC.
+
 All operations are read-only. `render_prompt` performs deterministic variable
-validation and substitution; it does not call an AI provider. There is no
-`run_prompt`, progress update, fork, feedback, install, approval, publication,
-withdrawal, permission mutation, or arbitrary execution tool.
+validation and substitution; it does not call an AI provider. Skill tools
+return an exact manifest and package path; they do not modify a workstation.
+There is no `run_prompt`, progress update, fork, feedback, approval,
+publication, withdrawal, permission mutation, or arbitrary execution tool.
 
 ## OAuth Setup
 
@@ -116,6 +123,39 @@ challenge pointing to that metadata URL.
 Authenticated users can open `/connect` in OrgMemory for the canonical server
 URL and client-specific steps. This page contains no client secret and does not
 replace the OAuth consent screen.
+
+## Skill CLI
+
+The Node 24 CLI uses the same protected resource, restricted DCR, Authorization
+Code, and PKCE S256 flow:
+
+```text
+orgmemory skill search onboarding
+orgmemory skill add people/employee-onboarding@1.0.0 --agent claude-code
+orgmemory skill add people/employee-onboarding@1.0.0 --agent codex
+orgmemory skill list
+```
+
+Project-local installation is the default:
+
+- Claude Code: `.claude/skills/<skill-name>`;
+- Codex: `.agents/skills/<skill-name>`.
+
+`--global` selects the corresponding user-level agent directory. Targets come
+from this fixed mapping and the validated Skill slug; neither server metadata
+nor archive paths select an arbitrary filesystem location.
+
+Before promotion, the installer verifies the package length and SHA-256, safe
+archive paths, the exact file set, and each file's length and SHA-256 against
+the released manifest. It stages beside the destination, atomically replaces
+the active directory with rollback on failure, and only then writes
+`.orgmemory/skills.lock.json`. The receipt pins server, Asset, release,
+coordinate, version, agent, target, and package digest. It never contains an
+OAuth token.
+
+OAuth registration, discovery, and tokens live in the operating system's user
+state directory, isolated by MCP server origin. They never enter the repository
+or Skill receipt.
 
 ## Authorization And Operations
 

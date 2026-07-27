@@ -20,6 +20,7 @@ HELP.md
 
 # --- Node / web ---
 node_modules/
+apps/cli/dist/
 web/dist/
 web/.vite/
 web/src/lib/hey-api/
