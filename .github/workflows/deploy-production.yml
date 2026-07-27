@@ -1,10 +1,17 @@
 name: Deploy production
 
 on:
+  workflow_run:
+    workflows:
+      - Build production images
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: Full green main commit SHA whose production images exist
+        description: Full green main commit SHA to redeploy or roll back to
         required: true
         type: string
 
@@ -20,6 +27,9 @@ concurrency:
 jobs:
   deploy:
     name: Deploy exact image set
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -32,20 +42,51 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate commit input
+      - name: Resolve deployment commit
+        id: release
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AUTOMATIC_COMMIT_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_COMMIT_SHA: ${{ inputs.commit_sha || '' }}
         run: |
           set -euo pipefail
-          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
-          git cat-file -e "$COMMIT_SHA^{commit}"
-          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            commit_sha="$MANUAL_COMMIT_SHA"
+            automatic=false
+          else
+            commit_sha="$AUTOMATIC_COMMIT_SHA"
+            automatic=true
+          fi
+          [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]]
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+          printf 'automatic=%s\n' "$automatic" >> "$GITHUB_OUTPUT"
 
-      - name: Require a green production image set
+      - name: Validate commit input
+        id: validate
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AUTOMATIC: ${{ steps.release.outputs.automatic }}
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git cat-file -e "$COMMIT_SHA^{commit}"
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+          if [[ "$AUTOMATIC" == "true" &&
+                "$COMMIT_SHA" != "$(git rev-parse origin/main)" ]]; then
+            printf 'Skipping stale automatic deployment %s; main is now %s.\n' \
+              "$COMMIT_SHA" "$(git rev-parse origin/main)"
+            printf 'should_deploy=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf 'should_deploy=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Require a green production image set
+        if: steps.validate.outputs.should_deploy == 'true'
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -60,6 +101,7 @@ jobs:
           [[ "$successful_runs" -gt 0 ]]
 
       - name: Configure SSH
+        if: steps.validate.outputs.should_deploy == 'true'
         shell: bash
         env:
           SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
@@ -73,6 +115,7 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
       - name: Authenticate server to GHCR for this deployment
+        if: steps.validate.outputs.should_deploy == 'true'
         shell: bash
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -86,9 +129,10 @@ jobs:
               "docker login ghcr.io --username '${{ github.actor }}' --password-stdin"
 
       - name: Deploy and verify
+        if: steps.validate.outputs.should_deploy == 'true'
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
@@ -101,7 +145,9 @@ jobs:
              ./infrastructure/deployment/scripts/deploy.sh '$COMMIT_SHA'"
 
       - name: Remove temporary registry credentials
-        if: always()
+        if: >-
+          always() &&
+          steps.validate.outputs.should_deploy == 'true'
         shell: bash
         env:
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}

@@ -32,6 +32,9 @@
   digests forward, and emit one complete release manifest.
 - [x] Add a protected, single-flight production deployment workflow with exact
   commit selection, health checks, and rollback.
+- [x] Chain a green immutable image release into automatic deployment of the
+  current `main` SHA, retain manual redeploy/rollback, and reject stale
+  out-of-order automatic runs before server access.
 - [x] Update delivery/testing documentation to match implemented behavior.
 
 ## Server Preparation
