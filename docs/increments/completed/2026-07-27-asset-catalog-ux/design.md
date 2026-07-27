@@ -1,5 +1,7 @@
 # Asset Catalog UX
 
+Status: completed on 2026-07-27 via PR #79.
+
 ## Problem
 
 The current employee-facing Asset page is titled **For your role**, although

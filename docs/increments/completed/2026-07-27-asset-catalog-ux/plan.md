@@ -8,7 +8,7 @@
 - [x] Regenerate the OpenAPI contract and client, then run backend, frontend,
   and browser gates.
 - [x] Consolidate current specs and test evidence.
-- [ ] Merge the reviewed pull request and move this increment to completed.
+- [x] Merge the reviewed pull request and move this increment to completed.
 
 ## Verification
 
@@ -21,3 +21,5 @@
 - `PLAYWRIGHT_PORT=4187` focused Asset golden-flow Playwright test
 - missing-package, zero-byte source/config/migration, migration-name, and
   `git diff --check` mechanical gates
+- `origin/main` through PR #83 merged into the feature branch without conflict
+- GitHub Actions run `30255743581`: Backend, Web, and CI Gate passed
