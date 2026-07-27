@@ -30,7 +30,9 @@ class AssetRegistryCoordinator {
     private final AssetRoleAssignmentRepository roles;
     private final AssetAuthorizationOutboxRepository outbox;
     private final AssetAuditEventRepository audit;
+    private final AssetPayloadReferenceRepository payloadReferences;
     private final AssetTypeProfileRegistry profiles;
+    private final SkillPackageSpecReader skillPackages;
     private final AssetPayloadDigester digester;
 
     AssetRegistryCoordinator(
@@ -44,7 +46,9 @@ class AssetRegistryCoordinator {
             AssetRoleAssignmentRepository roles,
             AssetAuthorizationOutboxRepository outbox,
             AssetAuditEventRepository audit,
+            AssetPayloadReferenceRepository payloadReferences,
             AssetTypeProfileRegistry profiles,
+            SkillPackageSpecReader skillPackages,
             AssetPayloadDigester digester) {
         this.assets = assets;
         this.drafts = drafts;
@@ -56,7 +60,9 @@ class AssetRegistryCoordinator {
         this.roles = roles;
         this.outbox = outbox;
         this.audit = audit;
+        this.payloadReferences = payloadReferences;
         this.profiles = profiles;
+        this.skillPackages = skillPackages;
         this.digester = digester;
     }
 
@@ -68,6 +74,36 @@ class AssetRegistryCoordinator {
             String slug,
             UUID knowledgeSpaceId,
             AssetDraftInput input) {
+        return create(
+                actor, type, namespace, slug, knowledgeSpaceId, input, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    UUID createSkill(
+            CurrentActor actor,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId,
+            AssetDraftInput input,
+            SkillPackageStoragePort.StoredSkillPackage storedPackage) {
+        return create(
+                actor,
+                AssetType.SKILL,
+                namespace,
+                slug,
+                knowledgeSpaceId,
+                input,
+                Objects.requireNonNull(storedPackage, "storedPackage"));
+    }
+
+    private UUID create(
+            CurrentActor actor,
+            AssetType type,
+            String namespace,
+            String slug,
+            UUID knowledgeSpaceId,
+            AssetDraftInput input,
+            SkillPackageStoragePort.StoredSkillPackage storedPackage) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(input, "input");
         AssetTypeProfile profile = profiles.require(type);
@@ -97,6 +133,16 @@ class AssetRegistryCoordinator {
                 canonical.schemaVersion(),
                 canonical.payload(),
                 actor.userId()));
+        if (storedPackage != null) {
+            if (type != AssetType.SKILL) {
+                throw new IllegalArgumentException(
+                        "Only Skill Assets may carry a package reference");
+            }
+            SkillPackageSpec spec = skillSpec(canonical.payload());
+            requireMatchingPackage(spec.artifact(), storedPackage);
+            payloadReferences.saveAndFlush(
+                    AssetPayloadReference.forDraft(draft, storedPackage));
+        }
         Instant now = Instant.now();
         AssetRoleAssignment owner = roles.saveAndFlush(new AssetRoleAssignment(
                 actor.organizationId(),
@@ -289,6 +335,10 @@ class AssetRegistryCoordinator {
             long expectedLockVersion,
             AssetDraftInput input) {
         Asset asset = requiredAsset(actor.organizationId(), assetId);
+        if (asset.getType() == AssetType.SKILL) {
+            throw new IllegalArgumentException(
+                    "Skill drafts cannot be changed through the generic payload endpoint");
+        }
         AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
         if (draft.getVersion() != expectedLockVersion) {
             throw new AssetConflictException(
@@ -353,6 +403,17 @@ class AssetRegistryCoordinator {
         }
         AssetReviewCase review = reviews.saveAndFlush(new AssetReviewCase(
                 revision, REVIEW_POLICY_VERSION, actor.userId()));
+        if (asset.getType() == AssetType.SKILL) {
+            SkillPackageSpec spec = skillSpec(draft.getPayload());
+            AssetPayloadReference draftReference = payloadReferences
+                    .findByDraftIdAndOrganizationId(
+                            draft.getId(), actor.organizationId())
+                    .orElseThrow(() -> new AssetConflictException(
+                            "The Skill draft is missing its package reference"));
+            requireMatchingPackage(spec.artifact(), draftReference);
+            payloadReferences.saveAndFlush(
+                    AssetPayloadReference.forRevision(revision, draftReference));
+        }
         recordAudit(
                 actor,
                 assetId,
@@ -464,6 +525,17 @@ class AssetRegistryCoordinator {
                 "Initial release",
                 actor.userId(),
                 now));
+        if (asset.getType() == AssetType.SKILL) {
+            AssetPayloadReference revisionReference = payloadReferences
+                    .findByRevisionIdAndOrganizationId(
+                            revision.getId(), actor.organizationId())
+                    .orElseThrow(() -> new AssetConflictException(
+                            "The approved Skill revision is missing its package reference"));
+            SkillPackageSpec spec = skillSpec(revision.getPayload());
+            requireMatchingPackage(spec.artifact(), revisionReference);
+            payloadReferences.saveAndFlush(
+                    AssetPayloadReference.forRelease(release, revisionReference));
+        }
         asset.activate();
         assets.save(asset);
         recordAudit(
@@ -747,6 +819,36 @@ class AssetRegistryCoordinator {
             throw new IllegalArgumentException("An availability change needs a reason");
         }
         return normalized;
+    }
+
+    private SkillPackageSpec skillSpec(String payload) {
+        return skillPackages.read(payload);
+    }
+
+    private static void requireMatchingPackage(
+            SkillPackageSpec.Artifact artifact,
+            SkillPackageStoragePort.StoredSkillPackage stored) {
+        if (!stored.sha256().equals(artifact.sha256())
+                || stored.contentLength() != artifact.contentLength()
+                || !stored.mediaType().equals(artifact.mediaType())) {
+            throw new AssetConflictException(
+                    "The stored Skill package does not match its validated metadata");
+        }
+    }
+
+    private static void requireMatchingPackage(
+            SkillPackageSpec.Artifact artifact,
+            AssetPayloadReference reference) {
+        if (!reference.isBlobReference()
+                || reference.getDigest() == null
+                || !reference.getDigest().equals(artifact.sha256())
+                || reference.getContentLength() == null
+                || reference.getContentLength() != artifact.contentLength()
+                || reference.getMediaType() == null
+                || !reference.getMediaType().equals(artifact.mediaType())) {
+            throw new AssetConflictException(
+                    "The Skill package reference no longer matches its validated metadata");
+        }
     }
 
     private static boolean causedByConstraint(

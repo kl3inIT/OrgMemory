@@ -25,6 +25,8 @@ import com.orgmemory.core.assetregistry.PackJourney;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
 import com.orgmemory.core.assetregistry.PromptEvaluationResult;
 import com.orgmemory.core.assetregistry.PromptRunResult;
+import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
+import com.orgmemory.core.assetregistry.SkillRegistryService;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.assetregistry.AssetConflictException;
@@ -54,6 +56,11 @@ import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -134,6 +141,9 @@ class AssetRegistryIntegrationTests {
     AssetRegistryService assets;
 
     @Autowired
+    SkillRegistryService skills;
+
+    @Autowired
     AssetDeliveryService delivery;
 
     @Autowired
@@ -175,6 +185,9 @@ class AssetRegistryIntegrationTests {
     @MockitoBean
     ChatModelPort chat;
 
+    @MockitoBean
+    SkillPackageStoragePort skillStorage;
+
     @BeforeEach
     void prepare() {
         clearAssetRegistry();
@@ -188,6 +201,19 @@ class AssetRegistryIntegrationTests {
                         eq(PROMPT_ROUTE),
                         any(ChatGenerationRequest.class)))
                 .thenReturn(Flux.just("{\"category\":\"access\"}"));
+        when(skillStorage.put(any(), any())).thenAnswer(invocation -> {
+            SkillPackageStoragePort.SkillPackageWriteRequest request =
+                    invocation.getArgument(0);
+            return new SkillPackageStoragePort.StoredSkillPackage(
+                    "assets/skills/"
+                            + request.organizationId()
+                            + "/"
+                            + request.packageId()
+                            + ".zip",
+                    request.contentLength(),
+                    "application/zip",
+                    request.expectedSha256());
+        });
         when(knowledgeSearch.search(any(), any(), any(), any()))
                 .thenReturn(new SecureKnowledgeSearchResult(
                         "asset-registry-empty-grounding", List.of()));
@@ -864,6 +890,73 @@ class AssetRegistryIntegrationTests {
     }
 
     @Test
+    void skillImportPinsTheValidatedBlobToRevisionAndRelease() throws Exception {
+        byte[] archive = skillArchive(
+                "support-triage",
+                "Triage a support ticket using the approved company workflow.");
+        AssetView created = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                archive.length,
+                new ByteArrayInputStream(archive));
+        assertEquals(AssetType.SKILL, created.type());
+        assertEquals("support-triage", created.slug());
+        assertFalse(created.draft().payload().contains("assets/skills/"));
+        grantWorkflowRoles(created.id());
+
+        AssetView submitted =
+                assets.submit(AUTHOR, created.id(), "Import support triage Skill");
+        approve(created.id(), submitted);
+        AssetView published = assets.publish(
+                AUTHOR,
+                created.id(),
+                submitted.revisions().getFirst().id(),
+                "1.0.0");
+
+        List<Map<String, Object>> references = jdbc.queryForList(
+                """
+                SELECT owner_kind, reference_kind, reference_value, digest,
+                       media_type, content_length
+                FROM asset_payload_references
+                WHERE organization_id = ?
+                ORDER BY owner_kind DESC
+                """,
+                ORGANIZATION_ID);
+        assertEquals(3, references.size());
+        assertEquals("REVISION", references.getFirst().get("owner_kind"));
+        assertEquals("RELEASE", references.get(1).get("owner_kind"));
+        assertEquals("DRAFT", references.getLast().get("owner_kind"));
+        assertEquals("BLOB", references.getFirst().get("reference_kind"));
+        assertEquals(
+                references.getFirst().get("reference_value"),
+                references.get(1).get("reference_value"));
+        assertEquals(
+                references.getFirst().get("digest"),
+                references.get(1).get("digest"));
+        assertEquals(
+                references.getFirst().get("digest"),
+                references.getLast().get("digest"));
+        assertEquals(
+                references.getFirst().get("content_length"),
+                references.getLast().get("content_length"));
+        assertEquals("application/zip", references.getFirst().get("media_type"));
+        assertEquals(1, published.releases().size());
+
+        AssetConflictException failure = assertThrows(
+                AssetConflictException.class,
+                () -> assets.forkRelease(
+                        AUTHOR,
+                        created.id(),
+                        published.releases().getFirst().id(),
+                        "support",
+                        "support-triage-copy",
+                        SPACE_ID));
+        assertEquals("Skill releases cannot be forked yet.", failure.getMessage());
+    }
+
+    @Test
     void goldenPocTransfersAReleasedSupportCapabilityToASecondUser()
             throws IOException {
         List<MockTicket> tickets = JSON.readValue(
@@ -1246,6 +1339,26 @@ class AssetRegistryIntegrationTests {
                   "knownLimitations": "Integration fixture"
                 }
                 """.formatted(escapedPayload));
+    }
+
+    private static byte[] skillArchive(String name, String description)
+            throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            ZipEntry skill = new ZipEntry(name + "/SKILL.md");
+            zip.putNextEntry(skill);
+            zip.write("""
+                    ---
+                    name: %s
+                    description: %s
+                    metadata:
+                      owner: support-operations
+                    ---
+                    # Support triage
+                    """.formatted(name, description).getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+        return output.toByteArray();
     }
 
     private static String promptPayloadWithEvaluation() {

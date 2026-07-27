@@ -12,6 +12,8 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-jpa")
     // Vetted AES-GCM rather than hand-rolled: the standalone crypto module, not the web stack.
     implementation("org.springframework.security:spring-security-crypto")
+    implementation(libs.commons.compress)
+    implementation(libs.snakeyaml)
 
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("org.junit.jupiter:junit-jupiter")

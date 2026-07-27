@@ -79,8 +79,11 @@ the pinned OpenFGA model; no generic event framework has been introduced.
 The side-by-side `core.assetregistry` module owns stable Asset identity,
 accountable roles, mutable drafts, immutable digest-pinned revisions, distinct
 review decisions, immutable releases, append-only availability history, and
-actor-scoped consumption evidence. Prompt Template, Work Instruction, and
-Capability Pack are code-owned profiles over this common kernel. Existing
+actor-scoped consumption evidence. Prompt Template, Work Instruction,
+Capability Pack, and Skill Package are code-owned profiles over this common
+kernel. A Skill import validates one bounded Agent Skills ZIP before its
+original bytes enter object storage; immutable revision and release references
+pin the exact object key and SHA-256. Existing
 Knowledge remains in its canonical ledger and is federated by exact visible
 version; it is not copied into registry tables.
 

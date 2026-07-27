@@ -4,9 +4,9 @@
 
 The Asset Registry stores generic Asset identity, ownership, authorization,
 drafts, immutable revisions, review decisions, and immutable releases.
-`PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and `CAPABILITY_PACK` are the enabled
-payload profiles. Each profile validates its own versioned JSON contract while
-the shared registry remains free of type-specific columns.
+`PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, `CAPABILITY_PACK`, and `SKILL` are the
+enabled payload profiles. Each profile validates its own versioned JSON
+contract while the shared registry remains free of type-specific columns.
 
 Consumers always address an exact authorized release. A withdrawn release
 cannot start new consumption. Forking creates a new Asset draft from an exact
@@ -58,6 +58,28 @@ authorized independently when the journey is read or updated. Accessible items
 retain order; inaccessible components collapse into one opaque access-gap flag
 without exposing denied titles, types, or counts. A replacement release never
 rewrites an existing Pack pin.
+
+### Skill Package
+
+A Skill is imported through a dedicated multipart endpoint rather than the
+generic JSON draft endpoint. The server accepts one bounded ZIP, requires
+exactly one Agent Skills `SKILL.md` at the archive root or in one top-level
+directory, validates its allowed frontmatter and directory-name identity, and
+rejects unsafe paths, case collisions, symbolic links, encrypted or unsupported
+entries, invalid UTF-8/YAML, and packages over the compressed, unpacked,
+file-count, or `SKILL.md` limits. Package files are read for validation and
+hashing but are never extracted or executed.
+The experimental `allowed-tools` field is preserved as portability metadata;
+it does not grant OrgMemory or an assistant permission to invoke a tool.
+
+The original ZIP is stored behind the Asset Registry storage port. Portable
+Skill metadata, SHA-256, size, media type, and file manifest form a
+server-generated draft payload; the storage object key remains only in the
+internal payload-reference ledger. The draft reference is created atomically
+with the Asset. Submission copies that exact blob reference to the immutable
+revision; publication copies it to the immutable release after verifying that
+it still matches the approved payload. Generic create, draft update, and fork
+cannot manufacture a `SKILL` payload.
 
 ### Federated Knowledge
 
@@ -158,4 +180,7 @@ separate owner and support-agent sessions.
 ## Explicitly Deferred
 
 - controlled SOP effectivity
-- Skill package installation and public marketplace behavior
+- Skill draft package replacement and orphan cleanup
+- authenticated Skill discovery/download and local installer CLI
+- Skill install/update/remove receipts and client compatibility policy
+- cross-company public marketplace, ratings, and social publishing
