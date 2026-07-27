@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -37,8 +39,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * Exercises the real {@link SecureKnowledgeRetrievalStore} SQL against PostgreSQL with a
  * Slack-shaped ledger (acl_authority SOURCE, SOURCE_GROUP + SOURCE_USER ACL entries, sealed
  * group membership). Proves external-principal resolution: unmapped denies, a verified
- * mapping grants existing documents without re-ingestion, revocation closes access, direct
- * SOURCE_USER entries resolve, and a mapped non-member is not over-granted.
+ * mapping grants existing documents without re-ingestion, membership removal closes access
+ * without rotating resource ACLs, direct SOURCE_USER entries resolve, and a mapped non-member is
+ * not over-granted.
  */
 @Testcontainers
 class ExternalPrincipalRetrievalIntegrationTests {
@@ -82,6 +85,10 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static final UUID AN_PRINCIPAL = UUID.fromString("a0000000-0000-4000-8000-000000000002");
     private static final UUID BOB_PRINCIPAL = UUID.fromString("a0000000-0000-4000-8000-000000000003");
     private static final UUID CHARLIE_PRINCIPAL = UUID.fromString("a0000000-0000-4000-8000-000000000004");
+    private static final UUID MEMBERSHIP_SNAPSHOT =
+            UUID.fromString("a0000000-0000-4000-8000-000000000005");
+    private static final UUID MEMBERSHIP_HEAD =
+            UUID.fromString("a0000000-0000-4000-8000-000000000006");
 
     private static final String MODEL_ID = "test-model";
     private static final String SHA = "0".repeat(64);
@@ -135,6 +142,57 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     @Test
+    void membershipRemovalRevokesWithoutResourceAclRotation() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+        assertTrue(visibleAs(AN_USER));
+        Long aclGenerationBefore = jdbc.queryForObject(
+                "SELECT acl_generation FROM source_acl_heads "
+                        + "WHERE organization_id = ? AND current_raw_source_object_id = ?",
+                Long.class,
+                ORG,
+                RAW);
+
+        UUID emptySnapshot = createMembershipSnapshot(2, List.of());
+        jdbc.update("""
+                UPDATE source_group_membership_heads
+                SET current_snapshot_id = ?, membership_generation = 2,
+                    activated_at = now(), updated_at = now(), version = version + 1
+                WHERE id = ?
+                """, emptySnapshot, MEMBERSHIP_HEAD);
+        try {
+            assertFalse(
+                    visibleAs(AN_USER),
+                    "removing An from the active membership head must revoke the existing document");
+            assertEquals(
+                    aclGenerationBefore,
+                    jdbc.queryForObject(
+                            "SELECT acl_generation FROM source_acl_heads "
+                                    + "WHERE organization_id = ? AND current_raw_source_object_id = ?",
+                            Long.class,
+                            ORG,
+                            RAW),
+                    "membership convergence must not rotate the resource ACL");
+        } finally {
+            jdbc.update("""
+                    UPDATE source_group_membership_heads
+                    SET current_snapshot_id = ?, membership_generation = 1,
+                        activated_at = now(), updated_at = now(), version = version + 1
+                    WHERE id = ?
+                    """, MEMBERSHIP_SNAPSHOT, MEMBERSHIP_HEAD);
+        }
+    }
+
+    @Test
+    void sealedMembershipRejectsAdditionalMembers() {
+        assertThrows(DataAccessException.class, () -> jdbc.update("""
+                INSERT INTO source_group_membership_members (
+                    id, organization_id, membership_snapshot_id,
+                    member_principal_id, member_principal_kind, created_at)
+                VALUES (?, ?, ?, ?, 'SOURCE_USER', now())
+                """, UUID.randomUUID(), ORG, MEMBERSHIP_SNAPSHOT, BOB_PRINCIPAL));
+    }
+
+    @Test
     void directSourceUserEntryResolvesThroughMapping() {
         mapActive(BOB_PRINCIPAL, BOB_USER);
         assertTrue(visibleAs(BOB_USER),
@@ -173,17 +231,6 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 ts(CAPTURED),
                 ts(CAPTURED.plus(2, ChronoUnit.HOURS)));
         insertEntry(staleCurrentSnapshot, "SOURCE_GROUP", CHANNEL_PRINCIPAL.toString());
-        jdbc.update("""
-                INSERT INTO source_acl_group_members (
-                    id, organization_id, source_acl_snapshot_id,
-                    group_principal_id, member_principal_id, created_at)
-                VALUES (?, ?, ?, ?, ?, now())
-                """,
-                UUID.randomUUID(),
-                ORG,
-                staleCurrentSnapshot,
-                CHANNEL_PRINCIPAL,
-                AN_PRINCIPAL);
         jdbc.update("""
                 INSERT INTO source_acl_snapshot_seals (
                     source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
@@ -410,14 +457,9 @@ class ExternalPrincipalRetrievalIntegrationTests {
         insertPrincipal(BOB_PRINCIPAL, "U-bob", "SOURCE_USER");
         insertPrincipal(CHARLIE_PRINCIPAL, "U-charlie", "SOURCE_USER");
 
-        // Channel membership sealed with this generation: An is a member, Bob and Charlie are not.
-        jdbc.update("""
-                INSERT INTO source_acl_group_members (
-                    id, organization_id, source_acl_snapshot_id, group_principal_id, member_principal_id, created_at)
-                VALUES (?, ?, ?, ?, ?, now())
-                """, UUID.randomUUID(), ORG, SNAPSHOT, CHANNEL_PRINCIPAL, AN_PRINCIPAL);
+        createInitialMembership();
 
-        // Seal after entries and membership are in place (triggers reject later inserts).
+        // Seal after entries are in place (triggers reject later inserts).
         jdbc.update("""
                 INSERT INTO source_acl_snapshot_seals (
                     source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
@@ -552,11 +594,6 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 VALUES (?, ?, ?, 2, 'COMPLETE', 'DENY', ?, ?, ?)
                 """, CUR_SNAPSHOT, ORG, RAW2, SHA, ts(CAPTURED), ts(CAPTURED.plus(2, ChronoUnit.HOURS)));
         insertEntry(CUR_SNAPSHOT, "SOURCE_GROUP", CHANNEL_PRINCIPAL.toString());
-        jdbc.update("""
-                INSERT INTO source_acl_group_members (
-                    id, organization_id, source_acl_snapshot_id, group_principal_id, member_principal_id, created_at)
-                VALUES (?, ?, ?, ?, ?, now())
-                """, UUID.randomUUID(), ORG, CUR_SNAPSHOT, CHANNEL_PRINCIPAL, AN_PRINCIPAL);
         jdbc.update("""
                 INSERT INTO source_acl_snapshot_seals (
                     source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
@@ -708,13 +745,81 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 """, UUID.randomUUID(), ORG, snapshotId, type, key);
     }
 
-    private static void insertPrincipal(UUID id, String externalKey, String kind) {
+    private static void insertPrincipal(UUID id, String nativePrincipalId, String kind) {
         jdbc.update("""
                 INSERT INTO source_principals (
-                    id, organization_id, source_system, source_connection_key, external_key, kind,
+                    id, organization_id, source_system, source_connection_key, native_principal_id, kind,
                     sso_verified, last_seen_at, created_at, updated_at, version)
                 VALUES (?, ?, 'slack', 'T-workspace', ?, ?, false, now(), now(), now(), 0)
-                """, id, ORG, externalKey, kind);
+                """, id, ORG, nativePrincipalId, kind);
+    }
+
+    private static void createInitialMembership() {
+        UUID syncRun = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO source_membership_sync_runs (
+                    id, organization_id, source_system, source_connection_key, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, 'slack', 'T-workspace', now(), now(), now(), 0)
+                """, syncRun, ORG);
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshots (
+                    id, organization_id, sync_run_id, group_principal_id,
+                    membership_generation, capture_status, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 1, 'COMPLETE', now(), now(), now(), 0)
+                """, MEMBERSHIP_SNAPSHOT, ORG, syncRun, CHANNEL_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_group_membership_members (
+                    id, organization_id, membership_snapshot_id,
+                    member_principal_id, member_principal_kind, created_at)
+                VALUES (?, ?, ?, ?, 'SOURCE_USER', now())
+                """, UUID.randomUUID(), ORG, MEMBERSHIP_SNAPSHOT, AN_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshot_seals (
+                    membership_snapshot_id, organization_id, group_principal_id,
+                    membership_generation, member_count, members_sha256, sealed_at)
+                VALUES (?, ?, ?, 1, 1, ?, now())
+                """, MEMBERSHIP_SNAPSHOT, ORG, CHANNEL_PRINCIPAL, SHA);
+        jdbc.update("""
+                INSERT INTO source_group_membership_heads (
+                    id, organization_id, group_principal_id, current_snapshot_id,
+                    membership_generation, activated_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 1, now(), now(), now(), 0)
+                """, MEMBERSHIP_HEAD, ORG, CHANNEL_PRINCIPAL, MEMBERSHIP_SNAPSHOT);
+    }
+
+    private static UUID createMembershipSnapshot(long generation, List<UUID> members) {
+        UUID syncRun = UUID.randomUUID();
+        UUID snapshot = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO source_membership_sync_runs (
+                    id, organization_id, source_system, source_connection_key, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, 'slack', 'T-workspace', now(), now(), now(), 0)
+                """, syncRun, ORG);
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshots (
+                    id, organization_id, sync_run_id, group_principal_id,
+                    membership_generation, capture_status, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, 'COMPLETE', now(), now(), now(), 0)
+                """, snapshot, ORG, syncRun, CHANNEL_PRINCIPAL, generation);
+        for (UUID member : members) {
+            jdbc.update("""
+                    INSERT INTO source_group_membership_members (
+                        id, organization_id, membership_snapshot_id,
+                        member_principal_id, member_principal_kind, created_at)
+                    VALUES (?, ?, ?, ?, 'SOURCE_USER', now())
+                    """, UUID.randomUUID(), ORG, snapshot, member);
+        }
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshot_seals (
+                    membership_snapshot_id, organization_id, group_principal_id,
+                    membership_generation, member_count, members_sha256, sealed_at)
+                VALUES (?, ?, ?, ?, ?, ?, now())
+                """, snapshot, ORG, CHANNEL_PRINCIPAL, generation, members.size(), SHA);
+        return snapshot;
     }
 
     private static java.sql.Timestamp ts(Instant instant) {

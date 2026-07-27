@@ -25,10 +25,13 @@ import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -183,15 +186,21 @@ class ConnectorPruningIntegrationTests {
 
     private ConnectorCrawlBatch crawl(String cursor, List<String> objectIds, boolean complete) {
         List<ConnectorIdentityItem> identities = new ArrayList<>();
+        List<ConnectorMembershipItem> memberships = new ArrayList<>();
         identities.add(new ConnectorIdentityItem(
-                SourcePrincipalKind.SOURCE_USER, "U-lan", LAN_EMAIL, "Lan", true, null, null, List.of()));
+                SourcePrincipalKind.SOURCE_USER, "U-lan", LAN_EMAIL, "Lan", true, null, null));
         List<ConnectorContentItem> contents = new ArrayList<>();
         List<ConnectorPermissionItem> permissions = new ArrayList<>();
         for (String objectId : objectIds) {
             String channel = channelOf(objectId);
             identities.add(new ConnectorIdentityItem(
-                    SourcePrincipalKind.SOURCE_GROUP, channel, null, "#" + channel, false, null, null,
-                    List.of("U-lan")));
+                    SourcePrincipalKind.SOURCE_GROUP, channel, null, "#" + channel, false, null, null));
+            memberships.add(new ConnectorMembershipItem(
+                    channel,
+                    MembershipCaptureStatus.COMPLETE,
+                    null,
+                    List.of(new ConnectorMembershipMember(
+                            SourcePrincipalKind.SOURCE_USER, "U-lan"))));
             contents.add(new ConnectorContentItem(objectId, "Channel digest", bodyOf(objectId), "rev-1"));
             permissions.add(new ConnectorPermissionItem(
                     objectId,
@@ -206,6 +215,7 @@ class ConnectorPruningIntegrationTests {
                 cursor,
                 ConnectorContractVersions.supported(),
                 identities,
+                memberships,
                 contents,
                 permissions,
                 List.of(),

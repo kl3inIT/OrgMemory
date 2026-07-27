@@ -36,7 +36,7 @@ export const MAPPING_METHODS: Record<string, { label: string; hint: string }> = 
 }
 
 export function principalName(principal: AdminSourcePrincipalResponse) {
-  return principal.observedDisplayName?.trim() || principal.externalKey || "Unknown principal"
+  return principal.observedDisplayName?.trim() || principal.nativePrincipalId || "Unknown principal"
 }
 
 export function connectionLabel(sourceSystem?: string, sourceConnectionKey?: string) {

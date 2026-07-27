@@ -26,12 +26,15 @@ import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
-import com.orgmemory.core.knowledge.ConnectorTombstone;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
+import com.orgmemory.core.knowledge.ConnectorTombstone;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;
@@ -199,10 +202,9 @@ class ConnectorContentEditIntegrationTests {
     private ConnectorCrawlBatch crawl(
             String cursor, String objectId, String channelKey, String body, String contentRevision) {
         ConnectorIdentityItem member = new ConnectorIdentityItem(
-                SourcePrincipalKind.SOURCE_USER, "U-mai", MAI_EMAIL, "Mai", true, null, null, List.of());
+                SourcePrincipalKind.SOURCE_USER, "U-mai", MAI_EMAIL, "Mai", true, null, null);
         ConnectorIdentityItem channel = new ConnectorIdentityItem(
-                SourcePrincipalKind.SOURCE_GROUP, channelKey, null, "#" + channelKey, false, null, null,
-                List.of("U-mai"));
+                SourcePrincipalKind.SOURCE_GROUP, channelKey, null, "#" + channelKey, false, null, null);
         return new ConnectorCrawlBatch(
                 ORG,
                 "slack",
@@ -212,6 +214,12 @@ class ConnectorContentEditIntegrationTests {
                 cursor,
                 ConnectorContractVersions.supported(),
                 List.of(member, channel),
+                List.of(new ConnectorMembershipItem(
+                        channelKey,
+                        MembershipCaptureStatus.COMPLETE,
+                        null,
+                        List.of(new ConnectorMembershipMember(
+                                SourcePrincipalKind.SOURCE_USER, "U-mai")))),
                 List.of(new ConnectorContentItem(objectId, "Channel digest", body, contentRevision)),
                 List.of(new ConnectorPermissionItem(
                         objectId,
@@ -229,6 +237,7 @@ class ConnectorContentEditIntegrationTests {
                 CONNECTOR_USER,
                 cursor,
                 ConnectorContractVersions.supported(),
+                List.of(),
                 List.of(),
                 List.of(),
                 List.of(),

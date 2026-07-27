@@ -47,22 +47,80 @@ final class PostgresAuthorizedGraphSql {
                 )
                 OR (
                     entry.principal_type = 'SOURCE_GROUP'
-                    AND EXISTS (
-                        SELECT 1
-                        FROM source_acl_group_members membership
-                        JOIN source_principal_mappings mapping
-                          ON mapping.organization_id =
-                                membership.organization_id
-                         AND mapping.source_principal_id =
-                                membership.member_principal_id
-                         AND mapping.app_user_id = :actorUserId
-                         AND mapping.status = 'ACTIVE'
-                        WHERE membership.organization_id =
-                                entry.organization_id
-                          AND membership.source_acl_snapshot_id =
-                                entry.source_acl_snapshot_id
-                          AND membership.group_principal_id =
-                                entry.principal_key::uuid
+                    AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM source_group_membership_heads
+                                membership_head
+                            JOIN source_group_membership_snapshots
+                                membership_snapshot
+                              ON membership_snapshot.id =
+                                    membership_head.current_snapshot_id
+                             AND membership_snapshot.organization_id =
+                                    membership_head.organization_id
+                             AND membership_snapshot.group_principal_id =
+                                    membership_head.group_principal_id
+                             AND membership_snapshot.membership_generation =
+                                    membership_head.membership_generation
+                             AND membership_snapshot.capture_status =
+                                    'COMPLETE'
+                            JOIN source_group_membership_snapshot_seals
+                                membership_seal
+                              ON membership_seal.membership_snapshot_id =
+                                    membership_snapshot.id
+                             AND membership_seal.organization_id =
+                                    membership_snapshot.organization_id
+                            JOIN source_group_membership_members membership
+                              ON membership.membership_snapshot_id =
+                                    membership_snapshot.id
+                             AND membership.organization_id =
+                                    membership_snapshot.organization_id
+                            JOIN source_principal_mappings mapping
+                              ON mapping.organization_id =
+                                    membership.organization_id
+                             AND mapping.source_principal_id =
+                                    membership.member_principal_id
+                             AND mapping.app_user_id = :actorUserId
+                             AND mapping.status = 'ACTIVE'
+                            WHERE membership_head.organization_id =
+                                    entry.organization_id
+                              AND membership_head.group_principal_id =
+                                    entry.principal_key::uuid
+                              AND membership_head.capture_status =
+                                    'COMPLETE'
+                        )
+                        OR (
+                            entry.gate = 'DENY'
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM source_group_membership_heads
+                                    membership_head
+                                JOIN source_group_membership_snapshots
+                                    membership_snapshot
+                                  ON membership_snapshot.id =
+                                        membership_head.current_snapshot_id
+                                 AND membership_snapshot.organization_id =
+                                        membership_head.organization_id
+                                 AND membership_snapshot.group_principal_id =
+                                        membership_head.group_principal_id
+                                 AND membership_snapshot.membership_generation =
+                                        membership_head.membership_generation
+                                 AND membership_snapshot.capture_status =
+                                        'COMPLETE'
+                                JOIN source_group_membership_snapshot_seals
+                                    membership_seal
+                                  ON membership_seal.membership_snapshot_id =
+                                        membership_snapshot.id
+                                 AND membership_seal.organization_id =
+                                        membership_snapshot.organization_id
+                                WHERE membership_head.organization_id =
+                                        entry.organization_id
+                                  AND membership_head.group_principal_id =
+                                        entry.principal_key::uuid
+                                  AND membership_head.capture_status =
+                                        'COMPLETE'
+                            )
+                        )
                     )
                 )
             )

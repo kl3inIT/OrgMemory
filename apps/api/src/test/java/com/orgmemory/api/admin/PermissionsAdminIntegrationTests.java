@@ -259,9 +259,9 @@ class PermissionsAdminIntegrationTests {
     void sourceGroupsReportTheirSealedMembership() throws Exception {
         mvc.perform(get("/api/admin/source-groups").with(jwtFor(ADMIN_USER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].externalKey").value("C-channel"))
-                .andExpect(jsonPath("$[0].aclGeneration").value(1))
-                .andExpect(jsonPath("$[0].members[0].externalKey").value("U-an"))
+                .andExpect(jsonPath("$[0].nativePrincipalId").value("C-channel"))
+                .andExpect(jsonPath("$[0].membershipGeneration").value(1))
+                .andExpect(jsonPath("$[0].members[0].nativePrincipalId").value("U-an"))
                 .andExpect(jsonPath("$[0].members[0].appUserId").doesNotExist());
     }
 
@@ -368,11 +368,7 @@ class PermissionsAdminIntegrationTests {
                     id, organization_id, source_acl_snapshot_id, principal_type, principal_key, gate, created_at)
                 VALUES (?, ?, ?, 'SOURCE_GROUP', ?, 'ALLOW', now())
                 """, UUID.randomUUID(), ORG, SNAPSHOT, CHANNEL_PRINCIPAL.toString());
-        jdbc.update("""
-                INSERT INTO source_acl_group_members (
-                    id, organization_id, source_acl_snapshot_id, group_principal_id, member_principal_id, created_at)
-                VALUES (?, ?, ?, ?, ?, now())
-                """, UUID.randomUUID(), ORG, SNAPSHOT, CHANNEL_PRINCIPAL, AN_PRINCIPAL);
+        insertMembership();
         jdbc.update("""
                 INSERT INTO source_acl_snapshot_seals (
                     source_acl_snapshot_id, organization_id, entry_count, entries_sha256, sealed_at)
@@ -505,12 +501,48 @@ class PermissionsAdminIntegrationTests {
                 """, UUID.randomUUID(), userId, ISSUER, userId.toString());
     }
 
-    private void insertPrincipal(UUID id, String externalKey, String kind, String displayName) {
+    private void insertPrincipal(UUID id, String nativePrincipalId, String kind, String displayName) {
         jdbc.update("""
                 INSERT INTO source_principals (
-                    id, organization_id, source_system, source_connection_key, external_key, kind,
+                    id, organization_id, source_system, source_connection_key, native_principal_id, kind,
                     observed_display_name, sso_verified, last_seen_at, created_at, updated_at, version)
                 VALUES (?, ?, 'slack', 'T-workspace', ?, ?, ?, false, now(), now(), now(), 0)
-                """, id, ORG, externalKey, kind, displayName);
+                """, id, ORG, nativePrincipalId, kind, displayName);
+    }
+
+    private void insertMembership() {
+        UUID run = UUID.randomUUID();
+        UUID membershipSnapshot = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO source_membership_sync_runs (
+                    id, organization_id, source_system, source_connection_key, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, 'slack', 'T-workspace', now(), now(), now(), 0)
+                """, run, ORG);
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshots (
+                    id, organization_id, sync_run_id, group_principal_id,
+                    membership_generation, capture_status, captured_at,
+                    created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 1, 'COMPLETE', now(), now(), now(), 0)
+                """, membershipSnapshot, ORG, run, CHANNEL_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_group_membership_members (
+                    id, organization_id, membership_snapshot_id,
+                    member_principal_id, member_principal_kind, created_at)
+                VALUES (?, ?, ?, ?, 'SOURCE_USER', now())
+                """, UUID.randomUUID(), ORG, membershipSnapshot, AN_PRINCIPAL);
+        jdbc.update("""
+                INSERT INTO source_group_membership_snapshot_seals (
+                    membership_snapshot_id, organization_id, group_principal_id,
+                    membership_generation, member_count, members_sha256, sealed_at)
+                VALUES (?, ?, ?, 1, 1, ?, now())
+                """, membershipSnapshot, ORG, CHANNEL_PRINCIPAL, SHA);
+        jdbc.update("""
+                INSERT INTO source_group_membership_heads (
+                    id, organization_id, group_principal_id, current_snapshot_id,
+                    membership_generation, activated_at, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, 1, now(), now(), now(), 0)
+                """, UUID.randomUUID(), ORG, CHANNEL_PRINCIPAL, membershipSnapshot);
     }
 }

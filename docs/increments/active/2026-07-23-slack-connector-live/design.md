@@ -32,8 +32,8 @@ semantics; it earns its keep on reliability and credentials.
 - **Slack Web API adapter** implementing `ConnectorBatchSource`: three-crawl
   separation (content via `conversations.history`/`replies`, identity via
   `users.list` + `conversations.members`, permissions from channel visibility),
-  rendering messages to text and channels/members to identity + permission
-  payloads on the `content/v1`, `identity/v1`, `permissions/v1` shapes.
+  rendering messages to text and channels/members to independently versioned
+  `content/v1`, `identity/v2`, `membership/v1`, and `permissions/v1` payloads.
 - **Credential storage**: an encrypted bot/OAuth token provider with a refresh
   lock (Onyx pattern), never logged, resolved per connection.
 - **Rate limiting**: honor `Retry-After`, bounded backoff, and a slim ID+ACL

@@ -91,7 +91,7 @@ class SlackConnectorBatchSourceTests {
                 "a thread carries its replies, not just the root");
 
         assertEquals(1, batch.permissions().size());
-        assertEquals("C-eng", batch.permissions().getFirst().grants().getFirst().principalExternalKey());
+        assertEquals("C-eng", batch.permissions().getFirst().grants().getFirst().principalNativeId());
     }
 
     @Test
@@ -107,7 +107,9 @@ class SlackConnectorBatchSourceTests {
         List<ConnectorIdentityItem> users = batch.identities().stream()
                 .filter(identity -> identity.kind() == SourcePrincipalKind.SOURCE_USER)
                 .toList();
-        assertEquals(List.of("U-mai", "U-lan"), users.stream().map(ConnectorIdentityItem::externalKey).toList());
+        assertEquals(
+                List.of("U-mai", "U-lan"),
+                users.stream().map(ConnectorIdentityItem::nativePrincipalId).toList());
         assertEquals("mai@example.com", users.getFirst().email());
         assertTrue(users.getFirst().ssoVerified(),
                 "Slack confirms address ownership before an account exists, so it vouches");
@@ -116,8 +118,12 @@ class SlackConnectorBatchSourceTests {
                 .filter(identity -> identity.kind() == SourcePrincipalKind.SOURCE_GROUP)
                 .findFirst()
                 .orElseThrow();
-        assertEquals("C-eng", channel.externalKey());
-        assertEquals(List.of("U-mai", "U-lan"), channel.memberExternalKeys());
+        assertEquals("C-eng", channel.nativePrincipalId());
+        assertEquals(
+                List.of("U-mai", "U-lan"),
+                batch.memberships().getFirst().members().stream()
+                        .map(member -> member.nativePrincipalId())
+                        .toList());
     }
 
     @Test
@@ -131,10 +137,10 @@ class SlackConnectorBatchSourceTests {
         ConnectorCrawlBatch batch = crawl(List.of());
 
         assertTrue(
-                batch.identities().stream().noneMatch(identity -> identity.externalKey().equals("U-bot")),
+                batch.identities().stream().noneMatch(identity -> identity.nativePrincipalId().equals("U-bot")),
                 "a bot has no person to map to");
         assertTrue(
-                batch.identities().stream().noneMatch(identity -> identity.externalKey().equals("U-gone")),
+                batch.identities().stream().noneMatch(identity -> identity.nativePrincipalId().equals("U-gone")),
                 "a deactivated account is not a member to grant through");
         assertEquals(1, batch.contents().size(), "a join message is not a thread worth indexing");
     }
@@ -339,7 +345,7 @@ class SlackConnectorBatchSourceTests {
                 "it re-states the grants of objects the ledger already holds");
         assertEquals(
                 "C-eng",
-                permissions.permissions().getFirst().grants().getFirst().principalExternalKey());
+                permissions.permissions().getFirst().grants().getFirst().principalNativeId());
     }
 
     /**

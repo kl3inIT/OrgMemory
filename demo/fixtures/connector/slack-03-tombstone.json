@@ -7,10 +7,12 @@
   "crawlCursor": "cursor-03-tombstone",
   "versions": {
     "content": "content/v1",
-    "identity": "identity/v1",
+    "identity": "identity/v2",
+    "membership": "membership/v1",
     "permission": "permissions/v1"
   },
   "identities": [],
+  "memberships": [],
   "contents": [],
   "permissions": [],
   "tombstones": [

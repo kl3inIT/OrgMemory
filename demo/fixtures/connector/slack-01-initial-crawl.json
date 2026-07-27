@@ -7,39 +7,50 @@
   "crawlCursor": "cursor-01-initial",
   "versions": {
     "content": "content/v1",
-    "identity": "identity/v1",
+    "identity": "identity/v2",
+    "membership": "membership/v1",
     "permission": "permissions/v1"
   },
   "identities": [
     {
       "kind": "SOURCE_USER",
-      "externalKey": "U-an",
+      "nativePrincipalId": "U-an",
       "email": "an@slackfix.example",
       "displayName": "An",
       "ssoVerified": true,
       "idpIssuer": null,
-      "idpSubject": null,
-      "memberExternalKeys": []
+      "idpSubject": null
     },
     {
       "kind": "SOURCE_USER",
-      "externalKey": "U-bob",
+      "nativePrincipalId": "U-bob",
       "email": "bob@slackfix.example",
       "displayName": "Bob",
       "ssoVerified": true,
       "idpIssuer": null,
-      "idpSubject": null,
-      "memberExternalKeys": []
+      "idpSubject": null
     },
     {
       "kind": "SOURCE_GROUP",
-      "externalKey": "C-general",
+      "nativePrincipalId": "C-general",
       "email": null,
       "displayName": "#general",
       "ssoVerified": false,
       "idpIssuer": null,
-      "idpSubject": null,
-      "memberExternalKeys": ["U-an"]
+      "idpSubject": null
+    }
+  ],
+  "memberships": [
+    {
+      "groupNativePrincipalId": "C-general",
+      "captureStatus": "COMPLETE",
+      "incompleteReason": null,
+      "members": [
+        {
+          "kind": "SOURCE_USER",
+          "nativePrincipalId": "U-an"
+        }
+      ]
     }
   ],
   "contents": [
@@ -56,7 +67,7 @@
       "grants": [
         {
           "principalKind": "SOURCE_GROUP",
-          "principalExternalKey": "C-general",
+          "principalNativeId": "C-general",
           "gate": "ALLOW"
         }
       ]

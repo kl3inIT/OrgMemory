@@ -106,8 +106,9 @@ source ledger (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob`
 metadata), leased ingestion jobs, source-shaped raw and normalized records,
 stable `KnowledgeAsset` roots, immutable `KnowledgeAssetVersion` records,
 append-only evidence links, versioned chunks and embedding profiles, sealed ACL snapshots and entries,
-mutable ACL heads, an observed external source-principal registry with verified
-principal mappings and sealed per-generation group membership, per-connection
+mutable ACL heads, an observed external source-principal registry keyed by stable
+typed native IDs with verified principal mappings, independently sealed
+per-group membership snapshots and atomic active heads, per-connection
 identity trust decisions consumed by the crawl matcher, durable per-connection
 crawl checkpoints, a per-batch record of what each crawl did
 (`connector_crawl_attempts`), publication outbox evidence, and append-only
@@ -174,7 +175,9 @@ an administrator governs that ledger from `/api/admin/**`.
 
 Source ACL evidence accepts namespaced OrgMemory user, department, and
 organization principals plus external `SOURCE_USER` and `SOURCE_GROUP`
-principals, the latter resolved through sealed per-generation membership.
+principals, the latter resolved through the active independently sealed complete
+membership head. A membership change therefore grants or revokes on the next
+request without rotating a resource ACL or rebuilding content projections.
 Permission-aware MCP search is implemented. Multi-source derivation and
 mutation tools are not implemented.
 

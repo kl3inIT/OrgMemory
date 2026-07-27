@@ -79,7 +79,7 @@ real exists in the repository. Nothing touches the network.
 | --- | --- |
 | A Drive becomes files, owners and per-file grants on the crawl contract | `turnsADriveIntoTheCrawlContract`, `observesOwnersAndSharedUsersAsVerifiedPeople` |
 | A user, a group and a domain grant; an anyone-with-the-link permission grants nothing | `grantsUsersGroupsAndDomainsButNeverAPublicLink` |
-| A domain group's membership is the users the crawl actually saw, and a group address is not one of them | `aDomainGroupIsMadeOfTheUsersTheCrawlActuallySaw` |
+| Drive uses stable permission IDs and leaves Google Group/domain membership incomplete rather than guessing from observed emails | `grantsUsersGroupsAndDomainsButNeverAPublicLink`, `aDomainGroupIsStableButItsMembershipRemainsIncomplete` |
 | Completeness is claimed only by an unfiltered, uninterrupted crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeFoldersWereAskedFor`, `withdrawsTheCompletenessClaimWhenAFileCouldNotBeRead` |
 | Between content crawls no document body is read, and that pass never claims completeness | `readsNoDocumentBodiesBetweenContentCrawls`, `reissuesAContentCrawlOnceTheIntervalElapses` |
 | The content revision is the text, so an unchanged document costs nothing and an edit is a new revision | `anEditedDocumentGetsANewContentRevisionAndAnUnchangedOneDoesNot` |

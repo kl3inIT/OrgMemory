@@ -11,7 +11,7 @@ public record SourcePrincipalView(
         UUID id,
         String sourceSystem,
         String sourceConnectionKey,
-        String externalKey,
+        String nativePrincipalId,
         SourcePrincipalKind kind,
         String observedEmail,
         String observedDisplayName,

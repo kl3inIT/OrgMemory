@@ -58,7 +58,8 @@ class ConnectorIngestionServiceTests {
     @Test
     void unknownPayloadVersionFailsClosedBeforeAnyWork() {
         ConnectorCrawlBatch batch = batch(
-                new ConnectorContractVersions("content/v2", "identity/v1", "permissions/v1"),
+                new ConnectorContractVersions(
+                        "content/v2", "identity/v2", "membership/v1", "permissions/v1"),
                 "slack",
                 List.of(content("C1")),
                 List.of());
@@ -103,7 +104,7 @@ class ConnectorIngestionServiceTests {
     void perObjectFailureIsIsolatedFromTheRestOfTheBatch() {
         stubValidEnvelope();
         when(reconciler.resolveIdentities(any(), any()))
-                .thenReturn(new ConnectorIdentityResolution(Map.of(), Map.of()));
+                .thenReturn(new ConnectorIdentityResolution(Map.of()));
         ConnectorContentItem failing = content("C-fail");
         ConnectorContentItem healthy = content("C-ok");
         when(reconciler.reconcile(any(), eq(failing), any(), any()))
@@ -125,7 +126,7 @@ class ConnectorIngestionServiceTests {
     void outcomesAndTombstonesAggregateIntoTheResult() {
         stubValidEnvelope();
         when(reconciler.resolveIdentities(any(), any()))
-                .thenReturn(new ConnectorIdentityResolution(Map.of(), Map.of()));
+                .thenReturn(new ConnectorIdentityResolution(Map.of()));
         ConnectorContentItem fresh = content("C-new");
         ConnectorContentItem converged = content("C-existing");
         when(reconciler.reconcile(any(), eq(fresh), any(), any())).thenReturn(ObjectOutcome.MATERIALIZED);
@@ -162,6 +163,6 @@ class ConnectorIngestionServiceTests {
             List<ConnectorTombstone> tombstones) {
         return new ConnectorCrawlBatch(
                 ORG, sourceSystem, "T-workspace", SPACE, ACTOR, "cursor-1", versions,
-                List.of(), contents, List.of(), tombstones);
+                List.of(), List.of(), contents, List.of(), tombstones);
     }
 }

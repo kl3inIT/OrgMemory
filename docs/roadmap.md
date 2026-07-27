@@ -35,6 +35,11 @@ belongs in one active increment.
 - Two source adapters — Slack and Google Drive — proving the connector shape
   holds: an adapter contributes a profile, a batch source and a credential probe,
   and nothing in `core`, the API or the schema learns its name.
+- Source authorization core V2: typed provider-native principal IDs,
+  independently versioned identity/membership/permission payloads, immutable
+  complete membership snapshots with an atomic active head, incomplete evidence
+  that cannot activate, and membership revocation without resource ACL rotation
+  or content re-embedding.
 - Drive crawl correctness found by review rather than by failure: shared-drive
   sharing resolved through `permissionIds` instead of sealing an ACL that grants
   nobody, a crawl cursor that names its grants rather than counting them, folder

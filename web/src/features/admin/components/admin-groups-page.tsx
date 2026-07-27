@@ -21,12 +21,12 @@ import type {
 const memberColumns: ColumnDef<AdminSourceGroupMemberResponse>[] = [
   {
     id: "member",
-    accessorFn: (member) => member.observedDisplayName?.trim() || member.externalKey || "",
+    accessorFn: (member) => member.observedDisplayName?.trim() || member.nativePrincipalId || "",
     header: "Member",
     enableSorting: true,
     cell: ({ row }) => (
       <span className="font-medium">
-        {row.original.observedDisplayName?.trim() || row.original.externalKey}
+        {row.original.observedDisplayName?.trim() || row.original.nativePrincipalId}
       </span>
     ),
   },
@@ -68,7 +68,7 @@ function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
         >
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">
-              {group.observedDisplayName?.trim() || group.externalKey || "Unnamed group"}
+              {group.observedDisplayName?.trim() || group.nativePrincipalId || "Unnamed group"}
             </span>
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
               {connectionLabel(group.sourceSystem, group.sourceConnectionKey)} · sealed{" "}
@@ -76,7 +76,7 @@ function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
             </span>
           </span>
           <span className="hidden items-center gap-2 sm:flex">
-            <Badge variant="outline">Generation {group.aclGeneration ?? 0}</Badge>
+            <Badge variant="outline">Generation {group.membershipGeneration ?? 0}</Badge>
             <Badge variant={unresolved ? "warning" : "secondary"}>
               {group.members?.length ?? 0} members
             </Badge>
@@ -139,7 +139,7 @@ export function AdminGroupsPage() {
       ? true
       : [
           group.observedDisplayName,
-          group.externalKey,
+          group.nativePrincipalId,
           group.sourceSystem,
           group.sourceConnectionKey,
         ]

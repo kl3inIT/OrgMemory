@@ -45,8 +45,9 @@ how many source principals resolve to them; it changes role and activation but
 never creates users, refusing self-edits so an organization cannot be locked out
 of its own administration. It lists observed source principals with the tier that
 mapped them, records administrator-confirmed mappings and revocations through the
-existing mapping service, records the per-connection identity trust decision, and
-exposes sealed source-group membership read-only. Administrators can create,
+existing mapping service, records the per-connection identity trust decision,
+and exposes each source group's native ID plus its canonical active membership
+snapshot ID and generation read-only. Administrators can create,
 list, and revoke invitation expectations; first verified sign-in atomically
 creates or links the application user and accepts the invitation. There is no
 open registration or application-managed directory group. SCIM provisioning is
@@ -82,6 +83,8 @@ abort API startup before traffic is accepted.
 - Administration is authorized by OpenFGA, never by the app role a browser reads.
 - Administration resolves existing sealed grants; it never creates a grant, an
   account, or a group.
+- Source email and display name are mutable observations; authorization identity
+  is the typed source-native principal ID.
 
 ## Related Decisions
 

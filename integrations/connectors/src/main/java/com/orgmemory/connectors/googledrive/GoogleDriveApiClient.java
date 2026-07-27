@@ -59,7 +59,7 @@ class GoogleDriveApiClient {
      */
     static final String FILE_FIELDS =
             "nextPageToken, incompleteSearch, files(id, name, mimeType, modifiedTime, webViewLink, "
-                    + "trashed, driveId, size, owners(emailAddress, displayName), permissionIds, "
+                    + "trashed, driveId, size, owners(permissionId, emailAddress, displayName), permissionIds, "
                     + "permissions(id, type, emailAddress, domain, role, deleted))";
 
     private static final String PERMISSION_FIELDS =
@@ -99,7 +99,7 @@ class GoogleDriveApiClient {
 
     /** Who this credential is acting as, which is what the connection is keyed on. */
     JsonNode about() {
-        return get("/about", Map.of("fields", "user(emailAddress, displayName)"));
+        return get("/about", Map.of("fields", "user(permissionId, emailAddress, displayName)"));
     }
 
     /**

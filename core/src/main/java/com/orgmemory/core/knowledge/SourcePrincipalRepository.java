@@ -7,11 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface SourcePrincipalRepository extends JpaRepository<SourcePrincipal, UUID> {
 
-    Optional<SourcePrincipal> findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalKey(
+    Optional<SourcePrincipal>
+            findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndKindAndNativePrincipalId(
             UUID organizationId,
             String sourceSystem,
             String sourceConnectionKey,
-            String externalKey);
+            SourcePrincipalKind kind,
+            String nativePrincipalId);
 
     Optional<SourcePrincipal> findByIdAndOrganizationId(UUID id, UUID organizationId);
 

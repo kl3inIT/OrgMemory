@@ -254,6 +254,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 List.of());
     }
 

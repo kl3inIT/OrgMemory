@@ -46,7 +46,6 @@ public class KnowledgeIngestionService {
     private final SourceRevisionRepository sourceRevisions;
     private final KnowledgePermissionPolicy permissionPolicy;
     private final KnowledgeSpaceService knowledgeSpaces;
-    private final SourcePrincipalService sourcePrincipals;
     private final EntityManager entityManager;
 
     public KnowledgeIngestionService(
@@ -65,7 +64,6 @@ public class KnowledgeIngestionService {
             SourceRevisionRepository sourceRevisions,
             KnowledgePermissionPolicy permissionPolicy,
             KnowledgeSpaceService knowledgeSpaces,
-            SourcePrincipalService sourcePrincipals,
             EntityManager entityManager) {
         this.organizations = organizations;
         this.departments = departments;
@@ -82,32 +80,29 @@ public class KnowledgeIngestionService {
         this.sourceRevisions = sourceRevisions;
         this.permissionPolicy = permissionPolicy;
         this.knowledgeSpaces = knowledgeSpaces;
-        this.sourcePrincipals = sourcePrincipals;
         this.entityManager = entityManager;
     }
 
     @Transactional
     public RawSourceRef registerRawSource(RegisterRawSourceCommand command) {
-        return doRegister(command, false, List.of());
+        return doRegister(command, false);
     }
 
     /**
      * Registers a source whose ACL carries external principals ({@code SOURCE_USER} /
-     * {@code SOURCE_GROUP}) and seals the given group membership with the new generation.
+     * {@code SOURCE_GROUP}). Membership is governed independently by its own snapshot/head.
      * The public {@link #registerRawSource} path rejects external principals because an
      * upload has no verified identity behind them; the connector is the trusted path that
      * carries that evidence, having observed and matched the principals first.
      */
     @Transactional
-    RawSourceRef registerConnectorSource(
-            RegisterRawSourceCommand command, List<SealedGroupMembership> membership) {
-        return doRegister(command, true, membership);
+    RawSourceRef registerConnectorSource(RegisterRawSourceCommand command) {
+        return doRegister(command, true);
     }
 
     private RawSourceRef doRegister(
             RegisterRawSourceCommand command,
-            boolean allowExternalPrincipals,
-            List<SealedGroupMembership> membership) {
+            boolean allowExternalPrincipals) {
         validateRawCommand(command, allowExternalPrincipals);
         String sourceSystem = command.sourceSystem().trim();
         String connectionKey = command.sourceConnectionKey().trim();
@@ -121,7 +116,6 @@ public class KnowledgeIngestionService {
                 ? aclSha(
                         command.aclCaptureStatus(),
                         command.defaultGate(),
-                        aclValidUntil,
                         command.aclEntries())
                 : null;
         acquireTransactionLock(sourceIdentityLockKey(
@@ -173,7 +167,6 @@ public class KnowledgeIngestionService {
                 .map(entry -> new SourceAclEntry(command.organizationId(), snapshot.getId(), entry, capturedAt))
                 .toList();
         aclEntries.saveAllAndFlush(entries);
-        recordMembership(snapshot, membership, capturedAt);
         sealSnapshot(snapshot, command.aclEntries(), capturedAt);
         if (head == null) {
             aclHeads.save(new SourceAclHead(raw, snapshot));
@@ -186,25 +179,22 @@ public class KnowledgeIngestionService {
 
     @Transactional
     public SourceAclRotationRef rotateSourceAcl(RotateSourceAclCommand command) {
-        return doRotate(command, false, List.of());
+        return doRotate(command, false);
     }
 
     /**
      * Rotates a source ACL to a new generation whose entries may carry external principals
-     * and seals the given group membership with it. Used by the connector reconciliation
-     * loop so a membership change converges without re-materializing content, under the
-     * ADR 0009 live-source ceiling.
+     * without changing content. Source-group membership is reconciled independently before
+     * this path is called.
      */
     @Transactional
-    SourceAclRotationRef rotateConnectorAcl(
-            RotateSourceAclCommand command, List<SealedGroupMembership> membership) {
-        return doRotate(command, true, membership);
+    SourceAclRotationRef rotateConnectorAcl(RotateSourceAclCommand command) {
+        return doRotate(command, true);
     }
 
     private SourceAclRotationRef doRotate(
             RotateSourceAclCommand command,
-            boolean allowExternalPrincipals,
-            List<SealedGroupMembership> membership) {
+            boolean allowExternalPrincipals) {
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(command.organizationId(), "organizationId");
         Objects.requireNonNull(command.rawSourceObjectId(), "rawSourceObjectId");
@@ -236,24 +226,23 @@ public class KnowledgeIngestionService {
                 ? aclSha(
                         command.aclCaptureStatus(),
                         command.defaultGate(),
-                        validUntil,
                         command.aclEntries())
                 : null;
         SourceAclSnapshot current = snapshots
                 .findByIdAndOrganizationId(head.getCurrentSnapshotId(), command.organizationId())
                 .orElseThrow();
-        // The connector path always appends a generation: sealed group membership is part
-        // of a snapshot's meaning but not of the entry hash sameAcl compares, so a
-        // membership-only change (An leaves, Chi joins the same channel) must not be
-        // mistaken for a no-op. No-op suppression for connectors is deferred to the live
-        // increment; here every crawl reconciles to an explicit generation.
-        if (!allowExternalPrincipals
-                && sameAcl(
-                        current,
-                        command.aclCaptureStatus(),
-                        command.defaultGate(),
-                        validUntil,
-                        aclSha)) {
+        if ((allowExternalPrincipals
+                        && sameConnectorAcl(
+                                current,
+                                command.aclCaptureStatus(),
+                                command.defaultGate(),
+                                aclSha))
+                || sameAcl(
+                current,
+                command.aclCaptureStatus(),
+                command.defaultGate(),
+                validUntil,
+                aclSha)) {
             return rotationRef(current);
         }
         if (!command.expectedCurrentSnapshotId().equals(current.getId())) {
@@ -276,7 +265,6 @@ public class KnowledgeIngestionService {
                 .map(entry -> new SourceAclEntry(
                         command.organizationId(), snapshot.getId(), entry, capturedAt))
                 .toList());
-        recordMembership(snapshot, membership, capturedAt);
         sealSnapshot(snapshot, command.aclEntries(), capturedAt);
         head.advance(raw, snapshot);
         aclHeads.save(head);
@@ -552,18 +540,6 @@ public class KnowledgeIngestionService {
                                 .orElse(null)));
     }
 
-    private void recordMembership(
-            SourceAclSnapshot snapshot, List<SealedGroupMembership> membership, Instant recordedAt) {
-        for (SealedGroupMembership group : membership) {
-            sourcePrincipals.recordGroupMembership(
-                    snapshot.getOrganizationId(),
-                    snapshot.getId(),
-                    group.groupPrincipalId(),
-                    group.memberPrincipalIds(),
-                    recordedAt);
-        }
-    }
-
     private NormalizationIssue normalizationIssue(
             RawSourceObject raw,
             SourceAclSnapshot snapshot,
@@ -638,6 +614,16 @@ public class KnowledgeIngestionService {
                 && Objects.equals(snapshot.getAclSha256(), aclSha);
     }
 
+    private static boolean sameConnectorAcl(
+            SourceAclSnapshot snapshot,
+            AclCaptureStatus captureStatus,
+            AccessGate defaultGate,
+            String aclSha) {
+        return snapshot.getCaptureStatus() == captureStatus
+                && snapshot.getDefaultGate() == defaultGate
+                && Objects.equals(snapshot.getAclSha256(), aclSha);
+    }
+
     private static void requireExpectedHead(UUID expectedSnapshotId, SourceAclHead head) {
         if (head == null) {
             if (expectedSnapshotId != null) {
@@ -691,11 +677,9 @@ public class KnowledgeIngestionService {
     private static String aclSha(
             AclCaptureStatus captureStatus,
             AccessGate defaultGate,
-            Instant validUntil,
             List<SourceAclEntryCommand> aclEntries) {
         return sha256(captureStatus
                 + "|" + defaultGate
-                + "|" + validUntil
                 + "|" + canonicalEntries(aclEntries));
     }
 

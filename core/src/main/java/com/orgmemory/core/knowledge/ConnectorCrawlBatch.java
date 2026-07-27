@@ -19,6 +19,7 @@ import java.util.UUID;
  * @param crawlCursor        opaque per-connection cursor for idempotency and resume
  * @param versions           the declared payload versions (rejected if unsupported)
  * @param identities         observed users and groups (with group membership)
+ * @param memberships        independently captured source-group member lists
  * @param contents           content objects found by this crawl
  * @param permissions        per-object access control lists
  * @param tombstones         objects removed at the source since the last crawl
@@ -37,6 +38,7 @@ public record ConnectorCrawlBatch(
         String crawlCursor,
         ConnectorContractVersions versions,
         List<ConnectorIdentityItem> identities,
+        List<ConnectorMembershipItem> memberships,
         List<ConnectorContentItem> contents,
         List<ConnectorPermissionItem> permissions,
         List<ConnectorTombstone> tombstones,
@@ -59,6 +61,7 @@ public record ConnectorCrawlBatch(
             throw new IllegalArgumentException("connector batch versions are required");
         }
         identities = identities == null ? List.of() : List.copyOf(identities);
+        memberships = memberships == null ? List.of() : List.copyOf(memberships);
         contents = contents == null ? List.of() : List.copyOf(contents);
         permissions = permissions == null ? List.of() : List.copyOf(permissions);
         tombstones = tombstones == null ? List.of() : List.copyOf(tombstones);
@@ -74,6 +77,7 @@ public record ConnectorCrawlBatch(
             String crawlCursor,
             ConnectorContractVersions versions,
             List<ConnectorIdentityItem> identities,
+            List<ConnectorMembershipItem> memberships,
             List<ConnectorContentItem> contents,
             List<ConnectorPermissionItem> permissions,
             List<ConnectorTombstone> tombstones) {
@@ -86,6 +90,7 @@ public record ConnectorCrawlBatch(
                 crawlCursor,
                 versions,
                 identities,
+                memberships,
                 contents,
                 permissions,
                 tombstones,

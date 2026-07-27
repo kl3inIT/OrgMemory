@@ -37,7 +37,7 @@ public class SourcePrincipalAdminService {
     private final SourcePrincipalRepository principals;
     private final SourcePrincipalMappingRepository mappings;
     private final SourceConnectionRepository connections;
-    private final SourceAclGroupMemberRepository groupMembers;
+    private final SourceGroupMembershipHeadRepository membershipHeads;
     private final SourcePrincipalMappingService mappingService;
     private final AppUserRepository users;
     private final PermissionAuditService audit;
@@ -46,14 +46,14 @@ public class SourcePrincipalAdminService {
             SourcePrincipalRepository principals,
             SourcePrincipalMappingRepository mappings,
             SourceConnectionRepository connections,
-            SourceAclGroupMemberRepository groupMembers,
+            SourceGroupMembershipHeadRepository membershipHeads,
             SourcePrincipalMappingService mappingService,
             AppUserRepository users,
             PermissionAuditService audit) {
         this.principals = principals;
         this.mappings = mappings;
         this.connections = connections;
-        this.groupMembers = groupMembers;
+        this.membershipHeads = membershipHeads;
         this.mappingService = mappingService;
         this.users = users;
         this.audit = audit;
@@ -102,12 +102,14 @@ public class SourcePrincipalAdminService {
         Map<UUID, SourcePrincipal> byId = principals.findByOrganizationId(organizationId).stream()
                 .collect(Collectors.toMap(SourcePrincipal::getId, Function.identity()));
         Map<UUID, SourcePrincipalMappingView> byPrincipal = activeMappings(organizationId);
-        Map<UUID, List<SealedMembershipRow>> latest =
-                latestGenerationPerGroup(groupMembers.findSealedMembership(organizationId));
+        Map<UUID, List<ActiveGroupMembershipRow>> active =
+                membershipHeads.findActiveMembership(organizationId).stream()
+                        .collect(Collectors.groupingBy(
+                                ActiveGroupMembershipRow::groupPrincipalId));
 
         return byId.values().stream()
                 .filter(principal -> principal.getKind() == SourcePrincipalKind.SOURCE_GROUP)
-                .map(group -> groupView(group, latest.get(group.getId()), byId, byPrincipal))
+                .map(group -> groupView(group, active.get(group.getId()), byId, byPrincipal))
                 .sorted(GROUP_ORDER)
                 .toList();
     }
@@ -234,31 +236,21 @@ public class SourcePrincipalAdminService {
                 mapping -> mappingView(mapping, byUserId.get(mapping.getAppUserId()))));
     }
 
-    private static Map<UUID, List<SealedMembershipRow>> latestGenerationPerGroup(List<SealedMembershipRow> rows) {
-        Map<UUID, Long> highest = new HashMap<>();
-        for (SealedMembershipRow row : rows) {
-            highest.merge(row.groupPrincipalId(), row.aclGeneration(), Math::max);
-        }
-        return rows.stream()
-                .filter(row -> highest.get(row.groupPrincipalId()) == row.aclGeneration())
-                .collect(Collectors.groupingBy(SealedMembershipRow::groupPrincipalId));
-    }
-
     private static SourceGroupView groupView(
             SourcePrincipal group,
-            List<SealedMembershipRow> membership,
+            List<ActiveGroupMembershipRow> membership,
             Map<UUID, SourcePrincipal> byId,
             Map<UUID, SourcePrincipalMappingView> byPrincipal) {
-        List<SealedMembershipRow> rows = membership == null ? List.of() : membership;
-        SealedMembershipRow sealed = rows.isEmpty() ? null : rows.getFirst();
+        List<ActiveGroupMembershipRow> rows = membership == null ? List.of() : membership;
+        ActiveGroupMembershipRow sealed = rows.isEmpty() ? null : rows.getFirst();
         return new SourceGroupView(
                 group.getId(),
                 group.getSourceSystem(),
                 group.getSourceConnectionKey(),
-                group.getExternalKey(),
+                group.getNativePrincipalId(),
                 group.getObservedDisplayName(),
-                sealed == null ? null : sealed.sourceAclSnapshotId(),
-                sealed == null ? 0L : sealed.aclGeneration(),
+                sealed == null ? null : sealed.membershipSnapshotId(),
+                sealed == null ? 0L : sealed.membershipGeneration(),
                 sealed == null ? null : sealed.sealedAt(),
                 rows.stream()
                         .map(row -> memberView(
@@ -275,7 +267,7 @@ public class SourcePrincipalAdminService {
         }
         return new SourceGroupView.SourceGroupMemberView(
                 member.getId(),
-                member.getExternalKey(),
+                member.getNativePrincipalId(),
                 member.getObservedDisplayName(),
                 member.getObservedEmail(),
                 mapping == null ? null : mapping.appUserId(),
@@ -287,7 +279,7 @@ public class SourcePrincipalAdminService {
                 principal.getId(),
                 principal.getSourceSystem(),
                 principal.getSourceConnectionKey(),
-                principal.getExternalKey(),
+                principal.getNativePrincipalId(),
                 principal.getKind(),
                 principal.getObservedEmail(),
                 principal.getObservedDisplayName(),
@@ -330,7 +322,7 @@ public class SourcePrincipalAdminService {
                     .thenComparing((SourcePrincipalView view) -> view.sourceSystem())
                     .thenComparing((SourcePrincipalView view) -> view.sourceConnectionKey())
                     .thenComparing((SourcePrincipalView view) -> view.kind())
-                    .thenComparing((SourcePrincipalView view) -> view.externalKey());
+                    .thenComparing((SourcePrincipalView view) -> view.nativePrincipalId());
 
     private static final Comparator<SourceConnectionView> CONNECTION_ORDER =
             Comparator.comparing((SourceConnectionView view) -> view.sourceSystem())
@@ -339,10 +331,11 @@ public class SourcePrincipalAdminService {
     private static final Comparator<SourceGroupView> GROUP_ORDER =
             Comparator.comparing((SourceGroupView view) -> view.sourceSystem())
                     .thenComparing((SourceGroupView view) -> view.sourceConnectionKey())
-                    .thenComparing((SourceGroupView view) -> view.externalKey());
+                    .thenComparing((SourceGroupView view) -> view.nativePrincipalId());
 
     private static final Comparator<SourceGroupView.SourceGroupMemberView> MEMBER_ORDER =
-            Comparator.comparing((SourceGroupView.SourceGroupMemberView view) -> view.externalKey());
+            Comparator.comparing(
+                    (SourceGroupView.SourceGroupMemberView view) -> view.nativePrincipalId());
 
     private record ConnectionKey(String sourceSystem, String sourceConnectionKey) {
 

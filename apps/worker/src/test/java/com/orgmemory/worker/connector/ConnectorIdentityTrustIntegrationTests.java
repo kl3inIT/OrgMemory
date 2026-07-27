@@ -25,10 +25,13 @@ import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.ConnectorPermissionItem;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.MembershipCaptureStatus;
+import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -165,10 +168,9 @@ class ConnectorIdentityTrustIntegrationTests {
      */
     private ConnectorCrawlBatch crawl(String cursor, boolean withContent) {
         ConnectorIdentityItem member = new ConnectorIdentityItem(
-                SourcePrincipalKind.SOURCE_USER, "U-dung", DUNG_EMAIL, "Dung", false, null, null, List.of());
+                SourcePrincipalKind.SOURCE_USER, "U-dung", DUNG_EMAIL, "Dung", false, null, null);
         ConnectorIdentityItem channel = new ConnectorIdentityItem(
-                SourcePrincipalKind.SOURCE_GROUP, "C-handbook", null, "#handbook", false, null, null,
-                List.of("U-dung"));
+                SourcePrincipalKind.SOURCE_GROUP, "C-handbook", null, "#handbook", false, null, null);
         return new ConnectorCrawlBatch(
                 ORG,
                 "slack",
@@ -178,6 +180,12 @@ class ConnectorIdentityTrustIntegrationTests {
                 cursor,
                 ConnectorContractVersions.supported(),
                 List.of(member, channel),
+                List.of(new ConnectorMembershipItem(
+                        "C-handbook",
+                        MembershipCaptureStatus.COMPLETE,
+                        null,
+                        List.of(new ConnectorMembershipMember(
+                                SourcePrincipalKind.SOURCE_USER, "U-dung")))),
                 withContent
                         ? List.of(new ConnectorContentItem(
                                 OBJECT_ID,
