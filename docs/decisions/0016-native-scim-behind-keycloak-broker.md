@@ -104,14 +104,20 @@ but the external subject remains globally bound to one application actor. A
 future multi-organization membership requirement must first separate a global
 person/external identity from tenant memberships in another ADR.
 
-A SCIM user is not linked to login by email, `userName`, or an arbitrary
-display attribute. The provisioning connection must define an immutable
-workforce correlation key. Keycloak must emit the same value in an
-administrator-controlled signed claim after broker login. A live correlation
-probe must prove that the value comes from an immutable upstream identifier
-before the connection can be enabled. An existing `(issuer, subject)` binding
-always wins; a new binding requires exactly one active, unbound SCIM resource
-for the trusted connection and workforce key.
+A trusted, tenant-scoped SCIM request may create a new application user or
+adopt exactly one unmanaged user with the same normalized organization email.
+Any matching open invitation is consumed in the same transaction. Email is a
+brownfield and first-sign-in correlation attribute, not the durable identity:
+an existing `(issuer, subject)` binding always wins, and the first verified
+email match writes that binding for every later login. Ambiguous matches fail
+closed.
+
+Connections may additionally define an immutable workforce correlation key and
+have Keycloak emit the same value in an administrator-controlled signed claim.
+That mode is preferred for high-assurance deployments but is not mandatory for
+the first verified-email profile. One application user can belong to at most
+one SCIM provisioning authority; a second connection must not adopt it by
+email.
 
 Directory groups are a new identity-provisioning aggregate. They are neither
 departments nor sealed Source Groups. Creating a group or changing membership
@@ -158,6 +164,9 @@ broker-linking semantics are proven.
   separate reviewable increment.
 - Invitation onboarding remains available for unmanaged users. It cannot adopt
   a SCIM-managed user by email.
+- SCIM may adopt an unmanaged invitation user by exact organization-scoped
+  email; the adoption and invitation consumption are audited as one lifecycle
+  transition.
 - All schema changes are additive and feature-disabled until their live gates
   pass. Rollback suspends connections and rolls back binaries without dropping
   the provisioning ledger.

@@ -10,4 +10,15 @@ interface ScimUserResourceRepository extends Repository<ScimUserResource, UUID> 
 
     Optional<ScimUserResource> findByIdAndOrganizationIdAndConnectionId(
             UUID id, UUID organizationId, UUID connectionId);
+
+    Optional<ScimUserResource>
+            findByOrganizationIdAndConnectionIdAndExternalId(
+                    UUID organizationId, UUID connectionId, String externalId);
+
+    Optional<ScimUserResource>
+            findByOrganizationIdAndConnectionIdAndNormalizedUserName(
+                    UUID organizationId, UUID connectionId, String normalizedUserName);
+
+    boolean existsByOrganizationIdAndAppUserId(
+            UUID organizationId, UUID appUserId);
 }

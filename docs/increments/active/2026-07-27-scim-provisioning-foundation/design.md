@@ -73,9 +73,10 @@ alternative. It records:
 This evidence may justify a future Keycloak adapter. It cannot become the
 production provisioning path without a new accepted decision.
 
-If the required signed correlation claims need an unversioned custom Keycloak
-SPI rather than supported configuration, implementation pauses for a separate
-deployment/upgrade decision; the plan does not hide that dependency in U0.
+If a deployment selects immutable-claim correlation and the signed claims need
+an unversioned custom Keycloak SPI rather than supported configuration, that
+profile pauses for a separate deployment/upgrade decision. The verified-email
+profile does not depend on a custom SPI.
 
 ## Provisioning Ledger
 
@@ -126,7 +127,7 @@ rate limits. The raw token is shown once.
 - connection-scoped `external_id` and normalized `user_name`;
 - normalized primary email and allowlisted profile attributes;
 - directory lifecycle, tombstone, internal version, and timestamps;
-- trusted workforce correlation key in a connection namespace;
+- optional trusted workforce correlation key in a connection namespace;
 - no raw payload or arbitrary extension JSON.
 
 Unique constraints cover resource ID and connection-scoped `externalId`,
@@ -255,7 +256,8 @@ from `CurrentActor` and requires OpenFGA `can_manage_members`. A SCIM token
 cannot call those browser administration endpoints.
 
 General enablement is unavailable until tenant-isolation tests, a trusted
-correlation probe, and a non-SCIM recovery administrator are recorded.
+verified-email or immutable-claim correlation profile, and a non-SCIM recovery
+administrator are recorded.
 `VALIDATING` is reserved for one allowlisted probe resource and is defined by
 the User increment. There is no Group or authorization mapping UI in this
 increment.

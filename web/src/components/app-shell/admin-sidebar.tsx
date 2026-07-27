@@ -4,7 +4,6 @@ import {
   Library,
   Link2,
   Plug,
-  ScanSearch,
   ShieldCheck,
   UserRoundCog,
   Users,
@@ -30,7 +29,7 @@ import {
 
 const GROUPS = [
   {
-    label: "Evidence",
+    label: "Integrations",
     items: [{ label: "Sources", to: "/admin/connectors" as const, icon: Plug }],
   },
   {
@@ -38,7 +37,6 @@ const GROUPS = [
     items: [
       { label: "Knowledge Spaces", to: "/admin/spaces" as const, icon: Library },
       { label: "Users", to: "/admin/users" as const, icon: Users },
-      { label: "Access check", to: "/admin/access" as const, icon: ScanSearch },
       { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },
       { label: "Source groups", to: "/admin/groups" as const, icon: ShieldCheck },
       { label: "SCIM", to: "/admin/scim" as const, icon: KeyRound },

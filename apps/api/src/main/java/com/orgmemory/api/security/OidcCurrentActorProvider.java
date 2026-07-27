@@ -36,13 +36,12 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
     @Transactional
     public CurrentActor current(Authentication authentication) {
         ExternalSubject external = externalSubject(authentication);
-        // An unlinked identity is not automatically a stranger: an administrator may have
-        // invited the address in advance. Accepting that invitation writes the
-        // (issuer, subject) binding, so this runs once and every later sign-in takes the
-        // branch above. With no open invitation the refusal is exactly what it was before.
+        // An unlinked identity may be a pre-provisioned directory user or an
+        // invited unmanaged user. Verified email is used once to choose exactly
+        // one actor; every later sign-in resolves only the issuer/subject binding.
         AppUser user = identities.findByIssuerAndSubject(external.issuer(), external.subject())
                 .map(identity -> findUser(identity.getAppUserId()))
-                .orElseGet(() -> provisionVerifiedInvitation(external));
+                .orElseGet(() -> provisionVerifiedSignIn(external));
         if (!user.isActive()) {
             throw new OrgMemoryAccessDeniedException("The linked OrgMemory user is inactive");
         }
@@ -87,13 +86,13 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
                 issuerUrl.toString(), subject, email, emailVerified);
     }
 
-    private AppUser provisionVerifiedInvitation(ExternalSubject external) {
+    private AppUser provisionVerifiedSignIn(ExternalSubject external) {
         if (!external.emailVerified() || !StringUtils.hasText(external.email())) {
             throw new OrgMemoryAccessDeniedException(
-                    "A verified OIDC email is required to accept an invitation");
+                    "A verified OIDC email is required for first sign-in");
         }
         return provisioning
-                .provisionFromInvitation(
+                .provisionForVerifiedSignIn(
                         external.issuer(),
                         external.subject(),
                         external.email())
@@ -106,7 +105,7 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
                 .orElseThrow(() -> new OrgMemoryAccessDeniedException("The linked OrgMemory user no longer exists"));
     }
 
-    /** The address is only used to find an invitation; the identity is always the subject. */
+    /** The address is only used for first-sign-in matching; the identity is the subject. */
     private record ExternalSubject(
             String issuer,
             String subject,

@@ -26,6 +26,10 @@ import {
   listAdminUsersOptions,
   listAdminUsersQueryKey,
   listKnowledgeSpaceUploadTargetsOptions,
+  listProvisioningConnectionsOptions,
+  listProvisioningConnectionsQueryKey,
+  listProvisioningCredentialsOptions,
+  listProvisioningCredentialsQueryKey,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
 // Administration data is small and changes only when an administrator acts, so it is
@@ -86,6 +90,17 @@ export function adminSourceConnectionsQueryOptions() {
 
 export function adminSourceGroupsQueryOptions() {
   return queryOptions({ ...listAdminSourceGroupsOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function provisioningConnectionsQueryOptions() {
+  return queryOptions({ ...listProvisioningConnectionsOptions(), staleTime: ADMIN_STALE_TIME })
+}
+
+export function provisioningCredentialsQueryOptions(connectionId: string) {
+  return queryOptions({
+    ...listProvisioningCredentialsOptions({ path: { connectionId } }),
+    staleTime: ADMIN_STALE_TIME,
+  })
 }
 
 /** A source's connections. The path is the source system, so every source uses this one. */
@@ -171,6 +186,10 @@ export async function invalidateAdminData(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: listAdminSourcePrincipalsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceConnectionsQueryKey() }),
     queryClient.invalidateQueries({ queryKey: listAdminSourceGroupsQueryKey() }),
+    queryClient.invalidateQueries({ queryKey: listProvisioningConnectionsQueryKey() }),
+    queryClient.invalidateQueries({
+      queryKey: listProvisioningCredentialsQueryKey({ path: { connectionId: "" } }).slice(0, 1),
+    }),
     queryClient.invalidateQueries({
       queryKey: everySourceOf(listAdminConnectionsQueryKey({ path: { sourceSystem: "" } })),
     }),

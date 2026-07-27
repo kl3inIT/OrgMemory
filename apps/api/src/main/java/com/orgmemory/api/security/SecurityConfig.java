@@ -1,5 +1,8 @@
 package com.orgmemory.api.security;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -29,9 +32,11 @@ import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -48,7 +53,7 @@ class SecurityConfig {
     };
 
     @Bean
-    @Order(1)
+    @Order(2)
     SecurityFilterChain bearerApiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher(bearerApiRequest())
@@ -57,7 +62,10 @@ class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .addFilterBefore(
+                        new RejectScimCredentialOnProductApiFilter(),
+                        BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
@@ -74,7 +82,7 @@ class SecurityConfig {
     }
 
     @Bean
-    @Order(2)
+    @Order(3)
     SecurityFilterChain browserSecurityFilterChain(
             HttpSecurity http,
             OrgMemoryOidcProperties oidc,
@@ -179,5 +187,28 @@ class SecurityConfig {
         response.getWriter().write("""
                 {"type":"about:blank","title":"%s","status":%d,"detail":"%s"}
                 """.formatted(status.getReasonPhrase(), status.value(), detail));
+    }
+
+    private static final class RejectScimCredentialOnProductApiFilter
+            extends OncePerRequestFilter {
+
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                FilterChain filterChain)
+                throws ServletException, java.io.IOException {
+            String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authorization != null
+                    && authorization.regionMatches(
+                            true, 0, "Bearer omscim_", 0, "Bearer omscim_".length())) {
+                writeProblem(
+                        response,
+                        HttpStatus.UNAUTHORIZED,
+                        "This credential is not valid for the product API");
+                return;
+            }
+            filterChain.doFilter(request, response);
+        }
     }
 }

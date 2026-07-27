@@ -1,5 +1,6 @@
 package com.orgmemory.api.security;
 
+import com.orgmemory.api.scim.ScimSecurityProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.integrations.ai.openai.AiGatewayProperties;
 import com.orgmemory.integrations.authorization.openfga.OpenFgaAuthorizationProperties;
@@ -21,7 +22,8 @@ class ProductionSecurityConfiguration {
             ObjectProvider<OpenFgaAuthorizationProperties> openFga,
             ObjectProvider<MinioObjectStorageProperties> objectStorage,
             AiGatewayProperties ai,
-            SecretCipherProperties secrets) {
+            SecretCipherProperties secrets,
+            ScimSecurityProperties scim) {
         OpenFgaAuthorizationProperties requiredOpenFga = openFga.getIfAvailable();
         if (requiredOpenFga == null) {
             throw new IllegalStateException("OpenFGA configuration is required in production");
@@ -36,6 +38,7 @@ class ProductionSecurityConfiguration {
                 requiredOpenFga,
                 requiredObjectStorage,
                 ai,
-                secrets);
+                secrets,
+                scim);
     }
 }

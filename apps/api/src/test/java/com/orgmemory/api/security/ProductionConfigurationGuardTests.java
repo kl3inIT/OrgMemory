@@ -3,6 +3,7 @@ package com.orgmemory.api.security;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.orgmemory.api.scim.ScimSecurityProperties;
 import com.orgmemory.core.ai.AiGatewayCapability;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.integrations.ai.openai.AiGatewayProperties;
@@ -10,6 +11,8 @@ import com.orgmemory.integrations.authorization.openfga.OpenFgaAuthorizationProp
 import com.orgmemory.integrations.storage.minio.MinioObjectStorageProperties;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -53,6 +56,46 @@ class ProductionConfigurationGuardTests {
     }
 
     @Test
+    void rejectsTheDevelopmentScimVerifierAndTlsOff() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> guardWithScim(scim(new byte[32], true)).afterPropertiesSet());
+        byte[] productionKey = new byte[32];
+        Arrays.fill(productionKey, (byte) 7);
+        assertThrows(
+                IllegalStateException.class,
+                () -> guardWithScim(scim(productionKey, false)).afterPropertiesSet());
+    }
+
+    @Test
+    void rejectsMissingScimVerifierConfiguration() {
+        byte[] key = new byte[32];
+        Arrays.fill(key, (byte) 7);
+        String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(key);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ScimSecurityProperties(
+                        null,
+                        1,
+                        true,
+                        DataSize.ofKilobytes(256),
+                        120,
+                        Duration.ofDays(365),
+                        Duration.ofMinutes(15)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ScimSecurityProperties(
+                        encoded,
+                        0,
+                        true,
+                        DataSize.ofKilobytes(256),
+                        120,
+                        Duration.ofDays(365),
+                        Duration.ofMinutes(15)));
+    }
+
+    @Test
     void rejectsAnEmbeddingRouteWithoutAnEmbeddingCapableGateway() {
         var dataSource = new DataSourceProperties();
         dataSource.setUrl("jdbc:postgresql://db.example.test/orgmemory");
@@ -79,7 +122,8 @@ class ProductionConfigurationGuardTests {
                 openFga(),
                 objectStorage("object-secret"),
                 ai,
-                secrets("a-production-encryption-key"));
+                secrets("a-production-encryption-key"),
+                productionScim());
 
         assertThrows(IllegalStateException.class, guard::afterPropertiesSet);
     }
@@ -123,7 +167,13 @@ class ProductionConfigurationGuardTests {
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
         return new ProductionConfigurationGuard(
-                dataSource, oidc, openFga, objectStorage, ai, secrets("a-production-encryption-key"));
+                dataSource,
+                oidc,
+                openFga,
+                objectStorage,
+                ai,
+                secrets("a-production-encryption-key"),
+                productionScim());
     }
 
     private static ProductionConfigurationGuard guardWithSecretsKey(String key) {
@@ -141,7 +191,27 @@ class ProductionConfigurationGuardTests {
                 openFga(),
                 objectStorage("object-secret"),
                 productionAi(),
-                secrets(key));
+                secrets(key),
+                productionScim());
+    }
+
+    private static ProductionConfigurationGuard guardWithScim(ScimSecurityProperties scim) {
+        var dataSource = new DataSourceProperties();
+        dataSource.setUrl("jdbc:postgresql://db.example.test/orgmemory");
+        dataSource.setUsername("orgmemory_app");
+        dataSource.setPassword("database-secret");
+        return new ProductionConfigurationGuard(
+                dataSource,
+                new OrgMemoryOidcProperties(
+                        URI.create("https://id.example.test/realms/orgmemory"),
+                        "orgmemory-web",
+                        "oidc-secret",
+                        URI.create("https://memory.example.test")),
+                openFga(),
+                objectStorage("object-secret"),
+                productionAi(),
+                secrets("a-production-encryption-key"),
+                scim);
     }
 
     private static AiGatewayProperties productionAi() {
@@ -160,6 +230,23 @@ class ProductionConfigurationGuardTests {
 
     private static SecretCipherProperties secrets(String key) {
         return new SecretCipherProperties(key, null, 1);
+    }
+
+    private static ScimSecurityProperties productionScim() {
+        byte[] key = new byte[32];
+        Arrays.fill(key, (byte) 7);
+        return scim(key, true);
+    }
+
+    private static ScimSecurityProperties scim(byte[] key, boolean requireTls) {
+        return new ScimSecurityProperties(
+                Base64.getUrlEncoder().withoutPadding().encodeToString(key),
+                1,
+                requireTls,
+                DataSize.ofKilobytes(256),
+                120,
+                Duration.ofDays(365),
+                Duration.ofMinutes(15));
     }
 
     private static OpenFgaAuthorizationProperties openFga() {

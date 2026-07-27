@@ -46,6 +46,10 @@ orgmemory:
       secret-key: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY}
       bucket: ${ORGMEMORY_OBJECT_STORAGE_BUCKET}
   security:
+    scim:
+      verifier-key: ${ORGMEMORY_SCIM_VERIFIER_KEY}
+      current-key-version: ${ORGMEMORY_SCIM_VERIFIER_KEY_VERSION}
+      require-tls: true
     oidc:
       issuer-uri: ${ORGMEMORY_OIDC_ISSUER_URI}
       client-id: ${ORGMEMORY_OIDC_CLIENT_ID}
