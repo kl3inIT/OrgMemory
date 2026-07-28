@@ -186,6 +186,10 @@ Read-only preflight evidence:
 - automatic product deployment run `30399267433` later timed out connecting
   from its GitHub-hosted runner before SSH authentication; its deploy step was
   skipped and no runtime mutation occurred;
+- follow-up run `30400831397` reached the same host and successfully deployed
+  the product commit `c5d4797939fb93b7c95ed6516b29bc03804179fc`; public
+  product health returned `200 ok`, all product containers were healthy, the
+  ephemeral GHCR config was removed, and the docs service remained absent;
 - `docs.om.kl3in.tech` does not resolve, while DNS-provider and Nginx Proxy
   Manager configuration access remain unproven.
 
@@ -239,8 +243,8 @@ Published release evidence:
 
 Pending owner-controlled evidence:
 
-- make the ZM SSH endpoint reachable from the selected GitHub Actions runner or
-  move deployment to an approved runner/VPN path;
+- confirm reliable GitHub-runner SSH reachability; one runner timed out while a
+  later run succeeded;
 - DNS, certificate, and Nginx Proxy Manager host;
 - live health, mobile navigation, 24-route crawl, negative publication scan,
   product before/after health, and deployed-revision record.

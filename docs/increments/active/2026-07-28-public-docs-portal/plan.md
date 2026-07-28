@@ -161,10 +161,10 @@ publication boundary.
   Stop before mutation if any required capability is absent.
   The repository, network, Docker/Compose, resources, Nginx Proxy Manager
   attachment, and SSH secret names are present. GHCR authentication is
-  intentionally deployment-scoped. A later GitHub-hosted production runner
-  timed out before SSH authentication, DNS does not resolve, and DNS/Nginx
-  Proxy Manager configuration access is not proven, so live mutation remains
-  stopped.
+  intentionally deployment-scoped. One GitHub-hosted production runner timed
+  out before SSH authentication and a later runner completed successfully.
+  DNS does not resolve and DNS/Nginx Proxy Manager configuration access is not
+  proven, so the docs live mutation remains stopped.
 - [x] Add docs path filtering to CI so docs-only changes run the correct gates.
 - [x] Add `.github/workflows/build-docs.yml` and publish
   `ghcr.io/kl3init/orgmemory-docs:sha-<commit>` with revision metadata, SBOM,

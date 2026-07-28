@@ -67,7 +67,9 @@ jobs:
         shell: bash
         env:
           AUTOMATIC: ${{ steps.release.outputs.automatic }}
+          AUTOMATIC_BUILD_RUN_ID: ${{ github.event.workflow_run.id || '' }}
           COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
@@ -80,6 +82,24 @@ jobs:
             printf 'should_deploy=false\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [[ "$AUTOMATIC" == "true" ]]; then
+            release_jobs="$(
+              gh run view "$AUTOMATIC_BUILD_RUN_ID" \
+                --json jobs \
+                --jq '[.jobs[] |
+                  select(
+                    .name == "Verify immutable image set" and
+                    .conclusion == "success"
+                  )
+                ] | length'
+            )"
+            if [[ "$release_jobs" -eq 0 ]]; then
+              printf 'Skipping deployment: build run %s produced no image set.\n' \
+                "$AUTOMATIC_BUILD_RUN_ID"
+              printf 'should_deploy=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
           printf 'should_deploy=true\n' >> "$GITHUB_OUTPUT"
 
       - name: Require a green production image set
@@ -90,15 +110,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          successful_runs="$(
+          candidate_runs="$(
             gh run list \
               --workflow "Build production images" \
               --commit "$COMMIT_SHA" \
               --limit 20 \
-              --json conclusion \
-              --jq '[.[] | select(.conclusion == "success")] | length'
+              --json conclusion,databaseId \
+              --jq '.[] |
+                select(.conclusion == "success") |
+                .databaseId'
           )"
-          [[ "$successful_runs" -gt 0 ]]
+          release_found=false
+          while IFS= read -r run_id; do
+            [[ -n "$run_id" ]] || continue
+            release_jobs="$(
+              gh run view "$run_id" \
+                --json jobs \
+                --jq '[.jobs[] |
+                  select(
+                    .name == "Verify immutable image set" and
+                    .conclusion == "success"
+                  )
+                ] | length'
+            )"
+            if [[ "$release_jobs" -gt 0 ]]; then
+              release_found=true
+              break
+            fi
+          done <<< "$candidate_runs"
+          [[ "$release_found" == "true" ]]
 
       - name: Configure SSH
         if: steps.validate.outputs.should_deploy == 'true'

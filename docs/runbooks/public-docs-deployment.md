@@ -36,16 +36,17 @@ On 2026-07-29 the ZM host was inspected without changing runtime state:
   workflow uses a run-scoped Docker config under `/tmp` and removes it with a
   remote-shell exit trap after the exact pull/deployment transaction;
 - GitHub-hosted product deployment run `30399267433` timed out before SSH
-  authentication and skipped its deploy step, proving that the current runner
-  cannot reach the managed SSH endpoint;
+  authentication and skipped its deploy step; later run `30400831397`
+  connected and completed, so runner reachability is intermittent rather than
+  absent;
 - `docs.om.kl3in.tech` did not resolve yet.
 
-GitHub-runner SSH reachability, DNS control, and Nginx Proxy Manager
-configuration access were not proven. Those are the current stop conditions,
-not permission to guess or mutate them. Choose an approved fix before
-deployment: expose the managed SSH endpoint to GitHub-hosted runners with an
-appropriate firewall policy, or run the workflow on an approved
-self-hosted/VPN-connected runner.
+Reliable GitHub-runner SSH reachability, DNS control, and Nginx Proxy Manager
+configuration access are not yet proven. Those are the current stop
+conditions, not permission to guess or mutate them. If the SSH timeout recurs,
+choose an approved fix before deployment: expose the managed SSH endpoint to
+GitHub-hosted runners with an appropriate firewall policy, or run the workflow
+on an approved self-hosted/VPN-connected runner.
 
 ## Publish An Immutable Image
 
