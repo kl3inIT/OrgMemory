@@ -1,5 +1,14 @@
 # Identity And Organization Coverage
 
+Source: `core/src/test/java/com/orgmemory/core/organization`,
+`core/src/test/java/com/orgmemory/core/identityprovisioning`,
+`apps/api/src/test/java/com/orgmemory/api/organization`,
+`apps/api/src/test/java/com/orgmemory/api/security`,
+`apps/api/src/test/java/com/orgmemory/api/scim`,
+`apps/api/src/test/java/com/orgmemory/api/admin`, and `web/test/e2e`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 | Behavior | Evidence |
 | --- | --- |
 | JWT/session email and IdP roles are ignored in favor of explicit binding | `OidcCurrentActorProviderTests#resolvesOnlyTheExplicitIssuerSubjectBindingAndIgnoresJwtRolesAndEmail`, `#resolvesTheSameBindingForAnOidcBrowserSession` |
@@ -18,6 +27,13 @@
 | Source groups report their active membership snapshot and generation | `#sourceGroupsReportTheirSealedMembership` |
 | The committed product and SCIM OpenAPI contracts match their live groups | `OpenApiContractTests` |
 
-Gap: no self-service source-principal claim flow for end users (`selfClaim`
-still has no API surface), no SCIM provisioning, and no browser test for the
-administration screens — they are covered only through the API they call.
+Browser-authentication contracts additionally prove anonymous session denial,
+issuer/subject parity between OIDC sessions and bearer JWTs, invitation-only
+first sign-in, inactive-user denial, CSRF token publication, exact provider
+logout, dev-only Swagger, and production startup guards. The live browser
+check covers protected-route redirect, login, JDBC session restore, theme
+switching, and local plus provider logout.
+
+Gaps: `selfClaim` still has no end-user API; SCIM User and Group mutations are
+not exposed; and the administration screens have no dedicated browser test
+beyond the APIs and shared shell they use.

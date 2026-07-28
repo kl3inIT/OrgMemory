@@ -42,7 +42,7 @@
 - [x] Create a neutral `shared-infra` Docker network and attach the retained
   PostgreSQL container with aliases `postgres` and `shared-postgres`.
 - [x] Keep Nginx Proxy Manager on `proxy-network`.
-- [ ] Disable the obsolete Zero Mail GitHub runner with administrator access.
+- [x] Disable the obsolete Zero Mail GitHub runner with administrator access.
 - [x] Create DNS A records for both production hostnames.
 - [ ] Create Nginx Proxy Manager hosts and certificates only after the runtime
   services are healthy on the private proxy network.
@@ -73,7 +73,7 @@
 - [x] API is the only Flyway owner.
 - [ ] Keycloak reports ready on its management endpoint and emits the expected
   public issuer.
-- [ ] Web login redirects through `auth.kl3in.tech` and returns to
+- [x] Web login redirects through `auth.kl3in.tech` and returns to
   `om.kl3in.tech`.
 - [ ] One upload reaches `READY`, GraphRAG indexing completes, Assistant
   retrieval returns a citation, and denied evidence remains absent.

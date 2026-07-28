@@ -1,133 +1,63 @@
 # OrgMemory Roadmap
 
-Statuses use `shipped`, `active`, `next`, or `later`. Implementation detail
-belongs in one active increment.
+This file tracks delivery status, execution order, and future backlog. Product
+intent and increment descriptions belong in [vision](vision.md); current
+behavior belongs in [architecture](../ARCHITECTURE.md) and domain specs.
+Subtasks belong only in the linked active plan.
 
-## Shipped Foundation
+Statuses are `shipped`, `active`, `next`, or `later`.
 
-- OIDC issuer/subject identity linking with server-derived current actor, and
-  invitation-gated provisioning that writes the binding on a first sign-in
-  without letting the address become the identity.
-- An administration surface that reads effective permissions, explains a decision
-  as its decisive derivation, distinguishes an unanswered check from a refusal,
-  and confines administrative tuple writes to organizations and roles.
-- Canonical source ledger with stable Knowledge Asset identities, immutable
-  versions, append-only evidence links, and monotonically increasing source
-  revisions.
-- Sealed ACL evidence, rotating current head, fail-closed SQL prefilter, Java
-  recheck, generic denied resource `404`, and append-only retrieval audit.
-- Knowledge Space-targeted upload with OpenFGA `can_create_asset` pre-write
-  authorization and durable Space/owner publication tuples.
-- Deployable API and worker runtimes plus an authenticated stateless MCP server
-  exposing the same permission-aware knowledge search boundary.
-- Northstar-style repository harness and current dependency baseline.
-- Exact OIDC provider logout, dev-only Swagger, production configuration
-  fail-fast guards, and explicit issuer/subject identity binding.
-- A versioned connector staging contract with a fixture-driven Slack crawl that
-  converges membership through sealed generations.
-- An administration surface over the identity ledger: users with their sign-in
-  linkage, observed source principals with confirm/revoke, read-only sealed
-  source-group membership, and a per-connection identity trust decision.
-- Connections configured from the browser rather than from environment
-  variables: an encrypted write-only credential, a source catalogue showing what
-  this deployment can ingest, one endpoint per operation rather than per source,
-  and a per-connection page reporting what each crawl actually did.
-- Three source adapters — Slack, Google Drive, and GitHub — proving the connector shape
-  holds: an adapter contributes a profile, a batch source and a credential probe,
-  and nothing in `core`, the API or the schema learns its name.
-- GitHub repository authorization mirrored through one effective-reader source
-  group per private organization repository. Direct, team-derived, organization,
-  owner, and enterprise access paths converge through GitHub's effective
-  collaborators, and a membership-only refresh revokes retrieval without
-  rotating ACL evidence or rebuilding content projections.
-- Source authorization core V2: typed provider-native principal IDs,
-  independently versioned identity/membership/permission payloads, immutable
-  complete membership snapshots with an atomic active head, incomplete evidence
-  that cannot activate, and membership revocation without resource ACL rotation
-  or content re-embedding.
-- Drive crawl correctness found by review rather than by failure: shared-drive
-  sharing resolved through `permissionIds` instead of sealing an ACL that grants
-  nobody, a crawl cursor that names its grants rather than counting them, folder
-  scope that means the subtree, Google's own incomplete-search flag honoured, and
-  bounded retry and response size.
-- A framework-neutral secure GraphRAG kernel/testkit and a versioned Spring AI
-  structured extraction adapter with deterministic, network-free tests.
-- A secure PostgreSQL GraphRAG projection with evidence-level ACL/provenance,
-  pgvector entity/relation indexes, Apache AGE topology candidates, bounded
-  recursive fallback, atomic revision replacement, and bounded batches.
-- Independent publication transactions plus worker reconciliation for retry,
-  obsolete OpenFGA model repair, and managed orphan-tuple cleanup.
-- The twelve-PR LightRAG `v1.5.4` semantic-port program: parsing, chunking,
-  multimodal extraction, indexing, lifecycle, every query mode, PostgreSQL,
-  OpenSearch and Neo4j adapters, secure Assistant/MCP delivery, server-declared
-  citations, the permission-aware graph explorer, evaluation harness, and
-  OpenTelemetry-compatible events. Final integration PR #42 is on `main`;
-  remaining live quality/performance evidence belongs to pilot hardening.
-- The five-PR
-  [prompt-first unified Asset Registry POC](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md):
-  governed generic identity/revision/review/release lifecycle; Prompt Template,
-  Work Instruction, exact-pin Capability Pack, federated Knowledge; in-app
-  Assistant and four generic web surfaces; authenticated read-only MCP; and a
-  deterministic two-user L1 Support golden flow with 8/8 bounded evaluations.
-- A shared web page system derived from the local Onyx layout contracts:
-  centralized width/scroll variants, responsive split and canvas layouts,
-  conditional breadcrumbs, common filter/empty/content patterns, and a
-  TanStack Table-backed semantic table wrapper.
-- A governed Skill package profile with bounded validation, immutable
-  exact-version delivery, OAuth PKCE discovery/installation for Claude Code and
-  Codex, and folder-first deterministic Draft publication through the same
-  canonical Asset lifecycle.
+## Shipped
 
-## Active Delivery
+| Increment or program | Status | Historical evidence |
+| --- | --- | --- |
+| Repository operating-model refresh | shipped | [completed verification](increments/completed/2026-07-29-repository-operating-model-refresh/verification.md) |
+| Repository harness and secure knowledge foundation | shipped | [completed increments](increments/completed/README.md) |
+| Browser authentication, AI gateway, Assistant, secure hybrid retrieval, and MCP | shipped | [completed increments](increments/completed/README.md) |
+| Generic source contract plus Slack, Google Drive, and GitHub adapters | shipped | [completed increments](increments/completed/README.md) |
+| Source authorization core V2 and GitHub authorization synchronization | shipped | [source core](increments/completed/2026-07-28-source-authorization-core-v2/plan.md), [sync correctness](increments/completed/2026-07-28-source-authorization-sync-correctness/plan.md), [GitHub connector](increments/completed/2026-07-28-github-authorization-connector/plan.md) |
+| Secure Java LightRAG semantic port and replaceable storage adapters | shipped | [LightRAG parity history](increments/completed/2026-07-23-full-lightrag-semantic-port/plan.md) |
+| Governed Asset Registry, shared page system, and catalog UX | shipped | [Asset Registry](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md), [catalog UX](increments/completed/2026-07-27-asset-catalog-ux/plan.md) |
+| Governed Skill packaging, distribution, authoring, publication, and handoff | shipped | [package foundation](increments/completed/2026-07-27-skill-registry-package-foundation/plan.md), [distribution](increments/completed/2026-07-27-skill-registry-distribution/plan.md), [publication](increments/completed/2026-07-27-skill-authoring-publication/plan.md), [handoff](increments/completed/2026-07-27-skill-governance-handoff/plan.md) |
+| Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
 
-- [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md):
-  restore one keyword plan and one embedding batch per logical query across
-  authorized Knowledge Space snapshots, remove transaction/SQL amplification,
-  and prove the production latency change without weakening permission
-  rechecks.
-- [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md):
-  import the synthetic document manifest through the public ingestion API,
-  derive its declared access relationships, and run the permission evaluation
-  suite against the indexed documents.
-- [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md):
-  run the already-tested adapter against a real workspace and prove that the
-  next crawl closes access after membership removal.
-- [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md):
-  PR #44 is merged and its repository/CI scope is shipped; the increment remains
-  active until the guarded shared-PostgreSQL cutover and live runtime gates pass.
-- [Native identity provisioning program](increments/active/README.md#native-identity-provisioning-program):
-  ADR 0016 is accepted and H1 implementation is active in an isolated worktree.
-  The first code boundary is tenant identity hardening; native SCIM remains
-  disabled until its staged security and live gates pass.
+The table is a delivery index, not a second description of current behavior.
+
+## Active
+
+| Increment | Status | Remaining gate |
+| --- | --- | --- |
+| [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
+| [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
+| [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
+| [Asset projection generation repair](increments/active/2026-07-25-asset-projection-generation/plan.md) | active | production Assistant/citation/permission verification |
+| [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
+| [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
+| [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
+| [Public documentation portal](increments/active/2026-07-28-public-docs-portal/plan.md) | active | implement the independent Fumadocs application and publication boundary |
+
+The other SCIM directories under `increments/active/` are dependency-ordered
+future designs inside the active native identity program. They do not become
+implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Complete the guarded ZM database cutover, runtime health, browser login,
-   upload, GraphRAG, Assistant/citation, backup/rollback, and
-   resource-observation gates. This first requires administrator access to
-   disable the obsolete Zero Mail runner and a bounded writer-stop window.
-2. Complete the reproducible demo's real ingestion and permission-evaluation
-   path. This creates the repeatable dataset needed for later quality and load
-   comparisons.
-3. Run the Slack live proof. Keep live credentials outside the repository and
-   capture only the reusable runbook and redacted evidence.
-4. Use the completed
-   [Identity tenant hardening](increments/completed/2026-07-27-identity-tenant-hardening/plan.md)
-   as the compatibility floor for the native provisioning program.
-5. Continue the dependency-ordered
-   [native identity provisioning program](increments/active/README.md#native-identity-provisioning-program):
-   machine foundation, Users private beta, inert Directory Groups, optional
-   explicit authorization mapping, then vendor/operations certification.
-6. Finish what the admin permission surface left open: reachable containers
-   with their ACL authority, generation and capture time; a permission audit
-   event per role mutation; resolved names and a resource picker instead of
-   pasted UUIDs; and relabelling `app_users.role`, which reads as an OpenFGA
-   grant even though it is a separate business/classification attribute. The
-   gaps are listed in
-   [the completed increment](increments/completed/2026-07-24-admin-permission-surface/plan.md).
-7. Give a Knowledge Space a lifecycle. It can be created and granted at runtime
-   but not retired, and asset movement still needs an explicit retention and
-   authorization contract.
+1. Run a separate repository-layout increment that creates the root pnpm
+   workspace, moves `web` to `apps/web`, and establishes `apps/docs` without
+   mixing the move with public-content authoring.
+2. Continue the Fumadocs portal plan against the normalized `apps/docs` path.
+3. Complete the guarded ZM database cutover, runtime health, browser login,
+   upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
+4. Complete the reproducible demo's real ingestion and permission-evaluation
+   path.
+5. Run the Slack live proof with credentials outside the repository and retain
+   only redacted evidence.
+6. Close the production proofs for asset projection generation, LightRAG
+   latency, and MCP search reliability.
+7. Continue the dependency-ordered native identity program: provisioning
+   foundation, Users private beta, inert Directory Groups, optional explicit
+   authorization mapping, then vendor/operations certification.
+
 ## Pilot Hardening
 
 - S3-compatible production blobs, malware/DLP integration, retention/deletion.
@@ -139,49 +69,44 @@ belongs in one active increment.
 
 ## Engineering Backlog
 
+- Finish the admin permission surface: reachable containers with ACL authority,
+  generation, and capture time; a permission audit event per role mutation;
+  resolved names and a resource picker instead of pasted UUIDs; and relabel
+  `app_users.role`, which is a business/classification attribute rather than an
+  OpenFGA grant.
+- Give a Knowledge Space a lifecycle. It can be created and granted at runtime
+  but not retired, and asset movement needs an explicit retention and
+  authorization contract.
 - Audit outbound adapters that call stable remote APIs through direct Spring
   `RestClient`, and migrate selectively to typed `@HttpExchange` HTTP Service
-  interfaces backed by the existing `RestClient` configuration. Prioritize
-  repeated endpoint families with stable DTOs and shared error policy; retain
-  direct `RestClient` for streaming/uploads, runtime-dynamic requests, and
-  provider-specific retry/error flows. Do not apply this mechanically to
-  inbound MVC endpoints or public standards such as SCIM, where it would couple
-  the server contract to an internal client interface.
+  interfaces backed by the existing `RestClient` configuration. Retain direct
+  `RestClient` for streaming/uploads, runtime-dynamic requests, and
+  provider-specific retry/error flows.
 - Refactor oversized Spring Modulith packages into cohesive internal
-  subpackages while preserving each logical module and its public named
-  interface. Choose package boundaries from actual responsibilities
-  (application use cases, domain model, inbound API, outbound infrastructure),
-  document allowed dependencies, and keep Modulith verification in CI; do not
-  create one Gradle module or one top-level Modulith module per class or asset
-  profile.
-- Add Storybook only when the reusable component catalog is large enough to
-  justify a second preview/build surface. Vitest and Testing Library are now
-  installed for focused shared-component contracts; grow that suite only where
-  a stable behavior has meaningful fan-out or regression risk.
+  subpackages while preserving each logical module and public named interface.
+  Choose boundaries from actual responsibilities; do not create one Gradle
+  module or top-level Modulith module per class or Asset profile.
+- Add Storybook only when the reusable component catalog justifies a second
+  preview/build surface.
 - Add authoring interaction libraries only with their owning workflows:
-  `dnd-kit` for ordered Pack/Workflow/Skill composition, `react-dropzone` for a
-  measured multi-file ingestion queue, and `date-fns`/`react-day-picker` for SOP
-  effectivity, release validity, ownership expiry, or review scheduling.
+  `dnd-kit` for ordered composition, `react-dropzone` for a measured multi-file
+  queue, and `date-fns`/`react-day-picker` for lifecycle scheduling.
 - Keep simple UI transitions in CSS. Introduce Motion only for a concrete
-  presence, interruptible layout, or gesture requirement; load features lazily
-  and honor the user's reduced-motion preference from the application root.
+  presence, interruptible layout, or gesture requirement; load it lazily and
+  honor reduced motion.
 - Decide frontend telemetry as a governed product capability before adding
-  Sentry or product analytics: define PII redaction, prompt/content exclusion,
-  tenant boundaries, data residency, retention, and administrator controls.
+  Sentry or product analytics: PII redaction, prompt/content exclusion, tenant
+  boundaries, residency, retention, and administrator controls are required.
 - Add document preview and arbitrary rich-content rendering only behind an
-  explicit untrusted-content contract. Evaluate `docx-preview` for source
-  inspection and use a maintained HTML sanitizer when rendered content can
-  contain HTML; never treat preview output as trusted application markup.
+  explicit untrusted-content contract and maintained HTML sanitization.
 
 ## Later, Only With Evidence
 
 Screenpipe capture, controlled SOP effectivity, executable
 Workflow/Agent/Tool packages, Airflow, Kafka, more providers/connectors,
-mutation MCP tools, and multi-agent orchestration require measured need or the
-completed browser-native Asset POC. SCIM Bulk/sort/ETag, nested directory
+mutation MCP tools, and multi-agent orchestration require measured need or a
+completed browser-native Asset proof. SCIM Bulk/sort/ETag, nested directory
 groups, multi-organization membership for one OIDC subject, and Keycloak preview
-SCIM as a production adapter remain evidence-gated follow-ons to the native
-provisioning program. OpenSearch and Neo4j adapters are already in the full
-LightRAG port program; production backend selection is still evidence-driven.
-Search and graph remain rebuildable projections behind stable ledger/permission
-contracts.
+SCIM as a production adapter remain evidence-gated follow-ons. Production
+OpenSearch/Neo4j selection remains evidence-driven; search and graph remain
+rebuildable projections behind the canonical ledger and permission contracts.

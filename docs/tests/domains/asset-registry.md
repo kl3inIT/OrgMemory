@@ -1,5 +1,12 @@
 # Asset Registry Coverage
 
+Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
+`apps/api/src/test/java/com/orgmemory/api/assetregistry`,
+`apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
+`web/src/features/assets/**/*.test.ts`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |

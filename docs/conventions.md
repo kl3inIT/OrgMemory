@@ -1,19 +1,5 @@
 # Repository Conventions
 
-## Source Of Truth
-
-`ARCHITECTURE.md` and specs record only implemented facts. Vision and roadmap
-record intent. Active increments contain design and execution plans. Decisions
-are append-only; supersede them explicitly instead of silently rewriting history.
-Do not create status-summary documents that duplicate those sources.
-
-Material decisions about domain boundaries, authorization, persistence,
-publication, concurrency, cache isolation, or parity scope require an
-independent Claude Fable 5 architecture debate before implementation. Record
-the proposal, strongest counterargument, repository evidence, final decision,
-and rejected alternative in the active increment or an ADR. Routine local
-implementation choices do not require this review.
-
 ## Backend
 
 - Java package root is `com.orgmemory`.
@@ -110,3 +96,13 @@ Pop-Location
 
 Use a real browser flow when UI behavior changes. Do not claim runtime behavior
 from compilation alone.
+
+## Commits
+
+- Keep each commit to one coherent change and stage files intentionally.
+- Use an imperative subject; prefer the established `type(scope): subject`
+  form when a useful scope exists.
+- Do not mix generated artifacts, unrelated formatting, or another worktree's
+  changes into the commit.
+- A commit that changes durable behavior also carries its documentation
+  consolidation and relevant verification evidence.

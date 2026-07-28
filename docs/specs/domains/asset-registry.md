@@ -1,5 +1,12 @@
 # Asset Registry Spec
 
+Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
+`apps/api/src/main/java/com/orgmemory/api/assetregistry`,
+`apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
+`web/src/features/assets`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Behavior
 
 The Asset Registry stores generic Asset identity, ownership, authorization,

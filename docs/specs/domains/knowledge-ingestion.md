@@ -1,5 +1,13 @@
 # Knowledge Ingestion Spec
 
+Source: `core/src/main/java/com/orgmemory/core/knowledge`,
+`apps/api/src/main/java/com/orgmemory/api/knowledge`,
+`apps/api/src/main/java/com/orgmemory/api/source`,
+`apps/worker/src/main/java/com/orgmemory/worker/connector`,
+`integrations/connectors/src/main`, and `contracts/connector`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Behavior
 
 An authenticated user can upload PDF, DOCX, PPTX, TXT, or Markdown through the

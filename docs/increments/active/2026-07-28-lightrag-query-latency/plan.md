@@ -43,7 +43,7 @@ reranker call without restoring per-space provider amplification.
   original timing, model-route fingerprint, hashed scope fingerprint and cache
   status. Live collector ingestion remains part of release proof.
 
-## 5. Verify and release — in progress
+## 5. Verify and release — repository release complete; live proof pending
 
 - JetBrains MCP was unavailable; the repository fallback compile/core gates and
   mechanical static floor passed.
@@ -51,6 +51,6 @@ reranker call without restoring per-space provider amplification.
   OpenTelemetry and PostgreSQL integration tests passed.
 - Production Compose interpolation/config validation passed.
 - The terminating `clean test` gate passed in 10m48s.
-- Open the PR, process actionable review and CI feedback, merge, deploy the
-  immutable image, and repeat the production MCP search with before/after
-  timings.
+- PR #102 passed review/CI and merged to `main` as `7cf1c8a`.
+- Deploy the immutable image and repeat the production MCP search with
+  before/after timings.

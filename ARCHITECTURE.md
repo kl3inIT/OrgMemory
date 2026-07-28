@@ -1,7 +1,8 @@
 # OrgMemory Architecture
 
-This document records behavior and structure that exist in the repository on
-2026-07-25. Intended changes belong in [docs/vision.md](docs/vision.md) and the
+This document records behavior and structure verified in the repository.
+Reconciled against `7cf1c8a` by the repository operating-model refresh.
+Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
 ## System Shape
@@ -19,21 +20,25 @@ flowchart LR
     API -. optional .-> LLM[OpenAI-compatible model]
 ```
 
-The Gradle build contains `core`, `apps:api`, `apps:mcp`, `apps:worker`,
-the framework-neutral `components:graph-rag-core` and
-`components:graph-rag-testkit`, `integrations:graph-rag-spring-ai`,
-`integrations:graph-rag-postgres`, `integrations:authorization-openfga`,
-`integrations:object-storage-minio`, and `integrations:connectors` (one module,
-a package per source adapter). The web client is a separate Vite
-workspace. API owns Flyway execution and the worker validates the existing
-schema with Flyway disabled in normal runtime.
+The Gradle build contains `core`; the deployable `apps:api`, `apps:mcp`, and
+`apps:worker`; the framework-neutral `components:graph-rag-core`,
+`components:graph-rag-testkit`, and `components:scim-protocol-conformance`;
+and replaceable integrations for OpenFGA authorization, connectors,
+OpenAI-compatible AI, MinIO object storage, Spring AI GraphRAG, PostgreSQL,
+OpenSearch, Neo4j, observability, and sidecar JSON.
+
+The React client is a separate Vite project under `web`. `apps/cli` is an
+independent Node/pnpm command-line application and is not a Gradle subproject.
+API owns Flyway execution; worker and MCP validate the existing schema with
+Flyway disabled in normal runtime.
 
 Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
-2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL 18 with pgvector 0.8.2
-and Apache AGE 1.7.0, React 19.2.7,
-TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, and pnpm 11.9.0.
+2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL 18 with pgvector 0.8.4
+and Apache AGE commit `e43dc1a12b78fba4acef9835b2b10379b8d243b4`,
+React 19.2.7, TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, Node 24 in
+CI, and pnpm 11.9.0.
 
-Dependency direction is currently `apps/* -> core`. The intended adapter rule is
+Dependency direction is `apps/* -> core`. The adapter rule in force is
 `apps -> core + selected integrations`, `integrations -> core ports` (or the
 framework-neutral graph core), and never `core -> apps/integrations`.
 
@@ -63,6 +68,9 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   object authorization, and audit paths as the product without bearer
   passthrough, repositories, database migrations, or a second lifecycle
   implementation.
+- `apps/cli`: an OAuth PKCE command-line client for MCP connection, exact Skill
+  package installation, and bounded Skill Draft publication through the HTTP
+  companion. It consumes public contracts and owns no domain persistence.
 - `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, an AI
   Elements assistant workspace, and generic Asset catalog, detail/use, Pack
@@ -340,6 +348,14 @@ selects which invitation applies and never becomes the identity. Two open
 invitations for one address provision nothing rather than choosing a tenant, and
 an address that already has an account is linked rather than duplicated.
 
+A separate highest-priority stateless SCIM chain protects `/scim/v2/**`.
+Organization-bound connection tokens are hashed at rest, scoped, expiring,
+rotatable, immediately revocable, and rejected on browser or ordinary bearer
+routes. The provisioning ledger separates local, directory, readiness, and
+effective activity, stores append-only redacted events, and keeps new
+connections disabled. Authenticated discovery is generated from the implemented
+capability registry; User and Group mutation endpoints are not yet exposed.
+
 An administrator reads effective access rather than a stored copy. Organization
 `can_*` permissions and a single `(user, permission, resource)` question are
 resolved through the check ports when asked, and `RelationshipExpansionPort` over
@@ -366,10 +382,13 @@ browser-navigation logout retain thin handwritten transports because they are
 not ordinary request/response contracts. There is no durable streaming
 conversation store.
 
-The repository is a prototype, not an approved production deployment. Backup and
-restore, malware/DLP upload scanning, live Slack credentials/rate-limit handling,
-full source-principal tuple convergence, full retrieval-surface audit coverage,
-load testing, and an enterprise security review remain absent.
+The repository contains a production Compose topology, immutable six-image
+build set, automatic green-main deployment workflow, rollback-aware deploy
+script, and mandatory public health/OIDC/MCP smoke. These mechanics do not by
+themselves certify pilot readiness. Restore rehearsal, malware/DLP upload
+scanning, the live Slack revocation proof, full retrieval-surface audit
+coverage, load/latency evidence, and an enterprise security review remain open
+gates.
 
 OpenFGA SDK `0.9.9` is pinned in the dependency catalog. The official CLI is
 installed reproducibly by `scripts/install-openfga-cli.ps1` and ignored from

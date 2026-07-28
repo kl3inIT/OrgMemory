@@ -1,5 +1,15 @@
 # Identity And Organization Spec
 
+Source: `core/src/main/java/com/orgmemory/core/organization`,
+`core/src/main/java/com/orgmemory/core/identityprovisioning`,
+`apps/api/src/main/java/com/orgmemory/api/organization`,
+`apps/api/src/main/java/com/orgmemory/api/security`,
+`apps/api/src/main/java/com/orgmemory/api/scim`,
+`apps/api/src/main/java/com/orgmemory/api/admin`, and
+`core/src/main/resources/db/migration`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Behavior
 
 OIDC issuer/subject is the durable external identity for both browser sessions
@@ -50,8 +60,18 @@ and exposes each source group's native ID plus its canonical active membership
 snapshot ID and generation read-only. Administrators can create,
 list, and revoke invitation expectations; first verified sign-in atomically
 creates or links the application user and accepts the invitation. There is no
-open registration or application-managed directory group. SCIM provisioning is
-not implemented.
+open registration or application-managed directory group.
+
+The native SCIM foundation stores organization-bound provisioning connections,
+hashed credential metadata, independently versioned local/directory/readiness
+state, SCIM User resource identities, and append-only redacted provisioning
+events. A highest-priority stateless `/scim/v2/**` security chain accepts only
+the connection token, applies media-type, request-size, rate, TLS, scope,
+expiry, rotation, and revocation guards, and never falls through to browser or
+OIDC bearer authentication. Authenticated discovery reflects the implemented
+capability registry. Product OpenAPI excludes SCIM routes and the separate SCIM
+contract covers them. User and Group mutation endpoints remain disabled, and
+every connection defaults disabled.
 
 OpenAPI and Swagger are disabled by default and public only in the `dev`
 profile. The committed `contracts/openapi.json` is generated from the running
@@ -85,6 +105,10 @@ abort API startup before traffic is accepted.
   account, or a group.
 - Source email and display name are mutable observations; authorization identity
   is the typed source-native principal ID.
+- SCIM credentials are organization/connection bound, stored only as verifier
+  material, and valid only on the dedicated SCIM chain.
+- SCIM discovery may advertise only implemented capabilities; User and Group
+  mutation remains unreachable until its later gated increment.
 
 ## Related Decisions
 

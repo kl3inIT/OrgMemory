@@ -1,5 +1,13 @@
 # Permission Evidence And Audit Spec
 
+Source: `core/src/main/java/com/orgmemory/core/permission`,
+`core/src/main/java/com/orgmemory/core/authorization`,
+`core/src/main/java/com/orgmemory/core/knowledge`,
+`apps/api/src/main/java/com/orgmemory/api/admin`, and
+`integrations/authorization-openfga`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Behavior
 
 Source ACL snapshots/entries are sealed immutable evidence. A compare-and-set

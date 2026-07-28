@@ -105,7 +105,7 @@ Merge gate:
 
 ## Increment Exit
 
-- [ ] F1, F2, and F3 are merged in order.
+- [x] F1, F2, and F3 are merged in order.
 - [x] No User or Group mutation is reachable.
 - [x] Every connection remains disabled by default.
 - [ ] A two-organization negative test, credential-rotation rehearsal, and

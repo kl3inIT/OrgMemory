@@ -1,5 +1,12 @@
 # Secure Retrieval Spec
 
+Source: `core/src/main/java/com/orgmemory/core/knowledge`,
+`core/src/main/java/com/orgmemory/core/permission`,
+`apps/api/src/main/java/com/orgmemory/api/knowledge`, and
+`integrations/authorization-openfga`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Behavior
 
 Knowledge search evaluates tenant, the stable Knowledge Asset's current-version

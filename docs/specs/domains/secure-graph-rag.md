@@ -1,5 +1,12 @@
 # Secure GraphRAG
 
+Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
+`integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
+`core/src/main/java/com/orgmemory/core/knowledge`, and
+`web/src/features/knowledge`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Current Contract
 
 - `graph-rag-core` is pure Java and owns canonical graph identity, immutable
@@ -68,8 +75,10 @@
   traversal filters every edge by authorized Knowledge Asset; all returned IDs
   remain candidates requiring relational evidence recheck.
 - A globally bounded breadth-first relational traversal implements the same
-  topology port when AGE is disabled. A future Neo4j projection can implement
-  that port without changing core retrieval contracts.
+  topology port when AGE is disabled. The Neo4j and OpenSearch adapters
+  implement replaceable graph/search storage ports under the shared
+  contribution-level authorization conformance suite; neither changes core
+  retrieval contracts or becomes an authorization authority.
 
 ## Worker Publication
 
@@ -131,3 +140,19 @@
 - Payload-free OpenTelemetry stages separate keyword planning/cache status,
   embedding, hashed per-snapshot retrieval, consolidation, authorization and
   provider-only reranking duration.
+
+## Graph Explorer
+
+The Sources UI reads the same permission-scoped published projection and never
+creates node-owned ACLs or a permission-independent merged description. The
+explorer fills the remaining shared app-shell canvas, wraps controls on narrow
+screens, and opens selected entities or relations through the responsive split
+layout without changing graph authorization or query state.
+
+## Related Decisions
+
+- [0005](../../decisions/0005-secure-java-graph-kernel.md)
+- [0010](../../decisions/0010-internal-retrieval-strategies-one-hop-graph.md)
+- [0011](../../decisions/0011-postgresql-multimodel-graph-projection.md)
+- [0012](../../decisions/0012-stable-knowledge-assets-and-immutable-versions.md)
+- [0013](../../decisions/0013-full-lightrag-semantic-port.md)

@@ -4,7 +4,7 @@
 - [x] Derive a missing forwarded port from the forwarded scheme.
 - [x] Add a Docker-backed Nginx regression.
 - [x] Run static, build, and focused deployment gates.
-- [ ] Open a reviewed pull request and merge after green CI.
-- [ ] Deploy the immutable main SHA.
-- [ ] Verify TLS, OIDC discovery, login redirect, and callback host publicly.
-- [ ] Enable mandatory public smoke for later deployments.
+- [x] Open reviewed PR #49 and merge after green CI.
+- [x] Deploy the immutable main SHA.
+- [x] Verify TLS, OIDC discovery, login redirect, and callback host publicly.
+- [x] Enable mandatory public smoke for later deployments.

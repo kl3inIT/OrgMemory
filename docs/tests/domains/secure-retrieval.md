@@ -1,5 +1,12 @@
 # Secure Retrieval Coverage
 
+Source: `core/src/test/java/com/orgmemory/core/knowledge`,
+`core/src/test/java/com/orgmemory/core/permission`,
+`apps/api/src/test/java/com/orgmemory/api/knowledge`, and
+`integrations/authorization-openfga/src/test`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
 | Behavior | Automated evidence |

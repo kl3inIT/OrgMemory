@@ -7,15 +7,15 @@
 - Correlate Claude attempts with MCP and API logs.
 - Confirm the effective production timeout and downstream GraphRAG budget.
 
-## 2. Repair the timeout chain — in progress
+## 2. Repair the timeout chain — complete
 
-- Split connect and response timeouts.
-- Raise the bounded MCP request budget to 75 seconds.
-- Pass both settings through production Compose.
-- Add regression tests for safe defaults and invalid values.
+- [x] Split connect and response timeouts.
+- [x] Raise the bounded MCP request budget to 75 seconds.
+- [x] Pass both settings through production Compose.
+- [x] Add regression tests for safe defaults, zero, and negative values.
 
-## 3. Verify and release — pending
+## 3. Verify and release — repository release complete; live proof pending
 
-- Run focused tests, edited-Java static analysis, and the terminating full suite.
-- Open the PR and process actionable CodeRabbit/CI feedback.
-- Merge, deploy the immutable image, and verify the production MCP call.
+- [x] Run focused tests, the repository static floor, and terminating suite.
+- [x] Merge PR #98 and its reviewed reliability follow-ups to `main`.
+- [ ] Deploy the immutable image and verify the production MCP call.

@@ -1,5 +1,13 @@
 # Secure GraphRAG Test Evidence
 
+Source: `components/graph-rag-core/src/test`,
+`components/graph-rag-testkit/src/test`, `integrations/graph-rag-*/src/test`,
+`apps/worker/src/test/java/com/orgmemory/worker/graph`,
+`core/src/test/java/com/orgmemory/core/knowledge`, and
+`web/test/e2e`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 ## Automated
 
 - Graph-core unit tests cover extraction-result invariants, internal retrieval
@@ -63,6 +71,10 @@ Provider-backed evaluation and load/latency evidence remain operational gaps.
 The deterministic suite requires no provider key and keeps restricted,
 cross-tenant, stale-generation, and model-mismatched evidence out of the final
 grounding.
+
+The exact graph node/edge response and permission-negative metadata contract is
+covered at the API/service layer; a focused real-browser graph rendering and
+interaction test remains a gap.
 
 `PostgresAuthorizedGraphSqlTests.graphVisibilityUsesTheLatestSealedCompleteAclAfterFreshnessExpiry`
 pins ADR 0015 parity: GraphRAG requires the current sealed `COMPLETE` ACL but does

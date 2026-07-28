@@ -1,5 +1,12 @@
 # Assistant And MCP Coverage
 
+Source: `core/src/test/java/com/orgmemory/core/assistant`,
+`apps/api/src/test/java/com/orgmemory/api/assistant`,
+`apps/mcp/src/test/java/com/orgmemory/mcp`, and
+`web/src/features/assistant`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | API context boots without provider key | `OrgMemoryApiContextLoadTests` | covered |

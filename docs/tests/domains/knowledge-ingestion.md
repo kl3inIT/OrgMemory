@@ -1,5 +1,12 @@
 # Knowledge Ingestion Coverage
 
+Source: `core/src/test/java/com/orgmemory/core/knowledge`,
+`apps/api/src/test/java/com/orgmemory/api/knowledge`,
+`apps/worker/src/test/java/com/orgmemory/worker/connector`, and
+`integrations/connectors/src/test`.
+
+Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
 | Behavior | Automated evidence |

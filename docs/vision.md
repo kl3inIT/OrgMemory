@@ -1,5 +1,9 @@
 # OrgMemory Vision
 
+This document records product intent and target architecture, not current
+implementation status. [ARCHITECTURE.md](../ARCHITECTURE.md) is authoritative
+for what exists; the roadmap is authoritative for delivery status.
+
 ## Product Thesis
 
 OrgMemory turns work evidence and enterprise knowledge into governed,
@@ -20,9 +24,10 @@ governance systems. Manual authoring creates an Asset draft. Passive or
 machine-discovered work remains a private proposal until accepted; approval
 controls release and never creates the stable identity.
 
-The shipped repository implements secure Knowledge Assets. The shared Asset
-Registry and Prompt/Work Instruction/Pack profiles are target product intent
-and require the active implementation design and architecture-debate gate.
+The product direction extends secure Knowledge Assets into a shared Asset
+Registry with typed Prompt Template, Work Instruction, Capability Pack, Skill,
+and later executable profiles. Each profile retains its own payload and
+consumption semantics while reusing the governed lifecycle.
 
 ## Product Boundary
 
@@ -94,14 +99,14 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `KnowledgeAsset`: stable governed identity for approved knowledge.
 - `KnowledgeAssetVersion`: immutable content and security provenance selected
   by the stable asset's current-version pointer.
-- `Asset`: target shared registry identity for organizationally valuable,
-  reusable items; not part of the current implementation.
-- `AssetDraft`: target mutable working content for any Asset type.
-- `AssetRevision`: target immutable submitted snapshot and digest reviewed by
+- `Asset`: shared registry identity for organizationally valuable, reusable
+  items.
+- `AssetDraft`: mutable working content for any Asset type.
+- `AssetRevision`: immutable submitted snapshot and digest reviewed by
   an exact policy and reviewer set.
-- `AssetRelease`: target immutable released payload, digest, provenance, and
+- `AssetRelease`: immutable released payload, digest, provenance, and
   dependency set created only from an approved revision.
-- `AssetTypeProfile`: target typed schema, renderer, validation, review policy,
+- `AssetTypeProfile`: typed schema, renderer, validation, review policy,
   and consumption adapters.
 
 The first new types are `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and
@@ -187,15 +192,15 @@ bypass authorization.
 
 ## Web Direction
 
-The POC implements an agent-first workspace centered on one Asset Registry with
-four generic surfaces: **For you / Asset catalog**, **Asset detail / use**,
-**Pack journey**, and **Governance workspace**. Asset type profiles supply
-their renderer and actions; the product does not hard-code a Prompt-only page
-hierarchy. Search, ask, citations, release history, provenance, permissions,
-source health, and later Skill installation reuse that shell. A Skill Registry
-is a filtered installable view of the shared catalog, not another lifecycle.
-Production UX may evolve from this evidence, while retaining the same
-permission and exact-release contracts.
+The intended product experience is an agent-first workspace centered on one
+Asset Registry with four generic surfaces: **For you / Asset catalog**,
+**Asset detail / use**, **Pack journey**, and **Governance workspace**. Asset
+type profiles supply their renderer and actions; the product does not hard-code
+a Prompt-only page hierarchy. Search, ask, citations, release history,
+provenance, permissions, source health, and Skill installation reuse that
+shell. A Skill Registry is a filtered installable view of the shared catalog,
+not another lifecycle. The UX may evolve while retaining the same permission
+and exact-release contracts.
 
 ## Non-Goals For The First Pilot
 
