@@ -88,6 +88,7 @@ jobs:
               - "scripts/check_docs.py"
             public_docs:
               - "apps/docs/**"
+              - "patches/**"
               - "contracts/openapi.json"
               - "package.json"
               - "pnpm-lock.yaml"

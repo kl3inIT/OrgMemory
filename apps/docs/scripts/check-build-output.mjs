@@ -26,7 +26,6 @@ const forbidden = [
 
 for (const file of listFiles(staticRoot)) {
   const content = fs.readFileSync(file);
-  if (content.includes(0)) continue;
   const text = content.toString('utf8');
   for (const [label, pattern] of forbidden) {
     if (pattern.test(text)) {
