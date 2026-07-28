@@ -241,10 +241,33 @@ Published release evidence:
   512 MiB memory limit, became healthy, and passed the 24-route plus five-output
   publication verifier.
 
+Delivery hardening evidence:
+
+- [PR #116](https://github.com/kl3inIT/OrgMemory/pull/116), merged as
+  `24ad7600df843dcd52eed5830852e77a6d7901cc`, restored the pnpm patch inputs to
+  the web image build context. PR CI run `30398075432`, merge CI run
+  `30398397065`, and production image run `30398668686` passed;
+- [PR #117](https://github.com/kl3inIT/OrgMemory/pull/117), merged as
+  `c5d4797939fb93b7c95ed6516b29bc03804179fc`, added bounded fail-fast SSH and
+  run-scoped GHCR credentials with remote exit cleanup. PR CI run
+  `30400189816`, merge CI run `30400496867`, production image run
+  `30400748095`, and product deployment run `30400831397` passed;
+- [PR #118](https://github.com/kl3inIT/OrgMemory/pull/118), merged as
+  `d3acfac409ca393206a7574a13cc79e5648899d3`, made commits with no product image
+  input changes release no-ops. PR CI run `30401379312`, merge CI run
+  `30401660634`, the final workflow-change image run `30401899319`, and its
+  exact product deployment run `30402079951` passed;
+- the final product runtime reported commit
+  `d3acfac409ca393206a7574a13cc79e5648899d3`; API, Keycloak, MCP, and web were
+  healthy, worker was running, `https://om.kl3in.tech/healthz` returned
+  `200 ok`, the default Docker config contained no GHCR credential, and no docs
+  container existed;
+- the docs-only commit containing this evidence is the release-isolation probe:
+  production image carry-forward, immutable-set release, and product SSH
+  deployment must all remain skipped.
+
 Pending owner-controlled evidence:
 
-- confirm reliable GitHub-runner SSH reachability; one runner timed out while a
-  later run succeeded;
 - DNS, certificate, and Nginx Proxy Manager host;
 - live health, mobile navigation, 24-route crawl, negative publication scan,
   product before/after health, and deployed-revision record.

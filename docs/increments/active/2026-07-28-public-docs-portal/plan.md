@@ -162,7 +162,8 @@ publication boundary.
   The repository, network, Docker/Compose, resources, Nginx Proxy Manager
   attachment, and SSH secret names are present. GHCR authentication is
   intentionally deployment-scoped. One GitHub-hosted production runner timed
-  out before SSH authentication and a later runner completed successfully.
+  out before SSH authentication and later bounded, run-scoped deployments
+  completed successfully. Docs-only commits are product release no-ops.
   DNS does not resolve and DNS/Nginx Proxy Manager configuration access is not
   proven, so the docs live mutation remains stopped.
 - [x] Add docs path filtering to CI so docs-only changes run the correct gates.
