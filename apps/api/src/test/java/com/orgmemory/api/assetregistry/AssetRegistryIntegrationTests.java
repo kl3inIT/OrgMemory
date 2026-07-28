@@ -199,6 +199,7 @@ class AssetRegistryIntegrationTests {
         when(tupleWrites.write(any())).thenReturn(
                 RelationshipTupleWriteResult.applied(MODEL_ID));
         when(chat.stream(
+                        eq(ORGANIZATION_ID),
                         eq(AiWorkload.PROMPT_EXECUTION),
                         eq(PROMPT_ROUTE),
                         any(ChatGenerationRequest.class)))
@@ -1066,11 +1067,12 @@ class AssetRegistryIntegrationTests {
                                 : invocation.getArgument(3),
                         List.of(goldenKnowledgeEvidence())));
         when(chat.stream(
+                        eq(ORGANIZATION_ID),
                         eq(AiWorkload.PROMPT_EXECUTION),
                         eq(PROMPT_ROUTE),
                         any(ChatGenerationRequest.class)))
                 .thenAnswer(invocation -> {
-                    ChatGenerationRequest request = invocation.getArgument(2);
+                    ChatGenerationRequest request = invocation.getArgument(3);
                     MockTicket ticket = tickets.stream()
                             .filter(candidate ->
                                     request.userPrompt().contains(candidate.id()))

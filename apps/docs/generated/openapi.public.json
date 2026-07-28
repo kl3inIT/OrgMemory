@@ -390,6 +390,185 @@
         }
       }
     },
+    "/api/admin/ai/routes/{workload}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Set an editable organization AI route",
+        "operationId": "setAdminAiRoute",
+        "parameters": [
+          {
+            "name": "workload",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASSISTANT_CHAT",
+                "PROMPT_EXECUTION",
+                "KEYWORD_PLANNING",
+                "GRAPH_EXTRACTION",
+                "QUERY_EMBEDDING",
+                "DOCUMENT_EMBEDDING"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Restore the deployment default for an editable AI route",
+        "operationId": "clearAdminAiRoute",
+        "parameters": [
+          {
+            "name": "workload",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ASSISTANT_CHAT",
+                "PROMPT_EXECUTION",
+                "KEYWORD_PLANNING",
+                "GRAPH_EXTRACTION",
+                "QUERY_EMBEDDING",
+                "DOCUMENT_EMBEDDING"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/ai/gateways/{profileId}": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Update an organization AI gateway",
+        "operationId": "updateAdminAiGateway",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Disable an unused organization AI gateway",
+        "operationId": "disableAdminAiGateway",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/ai/gateways/{profileId}/credential": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Set or rotate an organization AI gateway credential",
+        "operationId": "setAdminAiGatewayCredential",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/sources": {
       "get": {
         "tags": [
@@ -2479,6 +2658,122 @@
         }
       }
     },
+    "/api/admin/ai/gateways": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "List organization AI gateway profiles",
+        "operationId": "listAdminAiGateways",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GatewayResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Connect an organization AI gateway",
+        "operationId": "createAdminAiGateway",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai/gateways/{profileId}/test": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Test a stored organization AI gateway",
+        "operationId": "testStoredAdminAiGateway",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai/gateways/test": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Test an AI gateway credential without storing it",
+        "operationId": "testAdminAiGateway",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestGatewayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/access/explain": {
       "post": {
         "tags": [
@@ -4182,6 +4477,75 @@
         }
       }
     },
+    "/api/admin/ai/routes": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "List effective organization AI routes",
+        "operationId": "listAdminAiRoutes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RouteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai/providers": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "List provider presets implemented by this deployment",
+        "operationId": "listAdminAiProviderPresets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderPresetResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai/index-settings": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Read immutable deployment-managed embedding settings",
+        "operationId": "getAdminAiIndexSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/{curationId}": {
       "delete": {
         "tags": [
@@ -5123,6 +5487,147 @@
         }
       },
       "ConnectorCredentialRequest": {
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": "string"
+          }
+        }
+      },
+      "SetRouteRequest": {
+        "type": "object",
+        "properties": {
+          "gatewayProfileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelId": {
+            "type": "string"
+          }
+        }
+      },
+      "RouteResponse": {
+        "type": "object",
+        "properties": {
+          "workload": {
+            "type": "string",
+            "enum": [
+              "ASSISTANT_CHAT",
+              "PROMPT_EXECUTION",
+              "KEYWORD_PLANNING",
+              "GRAPH_EXTRACTION",
+              "QUERY_EMBEDDING",
+              "DOCUMENT_EMBEDDING"
+            ]
+          },
+          "gatewayKey": {
+            "type": "string"
+          },
+          "gatewayProfileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "UpdateGatewayRequest": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "requestTimeoutSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "credential": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gatewayKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "OPENAI",
+              "ANTHROPIC",
+              "NINE_ROUTER",
+              "OPENROUTER",
+              "LITELLM",
+              "OLLAMA",
+              "OPENAI_COMPATIBLE"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "DIRECT_PROVIDER",
+              "GATEWAY_ROUTER",
+              "SELF_HOSTED_CUSTOM"
+            ]
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "OPENAI_COMPATIBLE",
+              "ANTHROPIC_MESSAGES"
+            ]
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "requestTimeoutSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "credentialSet": {
+            "type": "boolean"
+          },
+          "credentialSetByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "credentialSetAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "GatewayCredentialRequest": {
         "type": "object",
         "properties": {
           "credential": {
@@ -6540,6 +7045,116 @@
             "type": "boolean"
           },
           "errorCode": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateGatewayRequest": {
+        "type": "object",
+        "properties": {
+          "gatewayKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "OPENAI",
+              "ANTHROPIC",
+              "NINE_ROUTER",
+              "OPENROUTER",
+              "LITELLM",
+              "OLLAMA",
+              "OPENAI_COMPATIBLE"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "DIRECT_PROVIDER",
+              "GATEWAY_ROUTER",
+              "SELF_HOSTED_CUSTOM"
+            ]
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "OPENAI_COMPATIBLE",
+              "ANTHROPIC_MESSAGES"
+            ]
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "requestTimeoutSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "credential": {
+            "type": "string"
+          }
+        }
+      },
+      "ModelRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "ProbeResponse": {
+        "type": "object",
+        "properties": {
+          "authenticated": {
+            "type": "boolean"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelRef"
+            }
+          },
+          "errorCode": {
+            "type": "string"
+          }
+        }
+      },
+      "TestGatewayRequest": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "OPENAI",
+              "ANTHROPIC",
+              "NINE_ROUTER",
+              "OPENROUTER",
+              "LITELLM",
+              "OLLAMA",
+              "OPENAI_COMPATIBLE"
+            ]
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "OPENAI_COMPATIBLE",
+              "ANTHROPIC_MESSAGES"
+            ]
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "requestTimeoutSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "credential": {
             "type": "string"
           }
         }
@@ -7993,6 +8608,77 @@
             "type": "string"
           },
           "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderPresetResponse": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "OPENAI",
+              "ANTHROPIC",
+              "NINE_ROUTER",
+              "OPENROUTER",
+              "LITELLM",
+              "OLLAMA",
+              "OPENAI_COMPATIBLE"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "vendorName": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "DIRECT_PROVIDER",
+              "GATEWAY_ROUTER",
+              "SELF_HOSTED_CUSTOM"
+            ]
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "OPENAI_COMPATIBLE",
+              "ANTHROPIC_MESSAGES"
+            ]
+          },
+          "defaultBaseUrl": {
+            "type": "string"
+          },
+          "baseUrlEditable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IndexSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "embeddingProvider": {
+            "type": "string"
+          },
+          "embeddingModel": {
+            "type": "string"
+          },
+          "dimensions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distanceMetric": {
+            "type": "string"
+          },
+          "managementMode": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "lifecycleNote": {
             "type": "string"
           }
         }

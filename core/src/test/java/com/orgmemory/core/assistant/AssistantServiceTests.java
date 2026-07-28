@@ -56,6 +56,7 @@ class AssistantServiceTests {
         when(retrieval.search(actor, "What is the probation policy?", 5, "request-1"))
                 .thenReturn(new SecureKnowledgeSearchResult("request-1", List.of(evidence)));
         when(chat.stream(
+                        eq(actor.organizationId()),
                         eq(AiWorkload.ASSISTANT_CHAT),
                         any(),
                         eq(CONVERSATION_ID)))
@@ -80,6 +81,7 @@ class AssistantServiceTests {
                         .toList());
         ArgumentCaptor<ChatGenerationRequest> request = ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(
+                eq(actor.organizationId()),
                 eq(AiWorkload.ASSISTANT_CHAT),
                 request.capture(),
                 eq(CONVERSATION_ID));
@@ -119,6 +121,7 @@ class AssistantServiceTests {
                         "request-budget",
                         evidence));
         when(chat.stream(
+                        eq(actor.organizationId()),
                         eq(AiWorkload.ASSISTANT_CHAT),
                         any(),
                         eq(CONVERSATION_ID)))
@@ -142,6 +145,7 @@ class AssistantServiceTests {
         ArgumentCaptor<ChatGenerationRequest> request =
                 ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(
+                eq(actor.organizationId()),
                 eq(AiWorkload.ASSISTANT_CHAT),
                 request.capture(),
                 eq(CONVERSATION_ID));
@@ -170,6 +174,7 @@ class AssistantServiceTests {
                                 3,
                                 120))));
         when(chat.stream(
+                        eq(actor.organizationId()),
                         eq(AiWorkload.ASSISTANT_CHAT),
                         any(),
                         eq(CONVERSATION_ID)))
@@ -188,6 +193,7 @@ class AssistantServiceTests {
         ArgumentCaptor<ChatGenerationRequest> request =
                 ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(
+                eq(actor.organizationId()),
                 eq(AiWorkload.ASSISTANT_CHAT),
                 request.capture(),
                 eq(CONVERSATION_ID));
@@ -221,6 +227,7 @@ class AssistantServiceTests {
 
         assertEquals(List.of(AssistantService.NO_ACCESSIBLE_EVIDENCE), turn.content().collectList().block());
         verify(chat, never()).stream(
+                any(UUID.class),
                 any(AiWorkload.class),
                 any(ChatGenerationRequest.class),
                 any(String.class));
@@ -231,6 +238,7 @@ class AssistantServiceTests {
         when(retrieval.search(actor, "Question", 5, "request-3"))
                 .thenReturn(new SecureKnowledgeSearchResult("request-3", List.of(evidence())));
         when(chat.stream(
+                        eq(actor.organizationId()),
                         eq(AiWorkload.ASSISTANT_CHAT),
                         any(),
                         eq(CONVERSATION_ID)))
@@ -266,6 +274,7 @@ class AssistantServiceTests {
                         "request-injection",
                         List.of(hostileEvidence)));
         when(chat.stream(
+                        eq(hostileProfile.organizationId()),
                         eq(AiWorkload.ASSISTANT_CHAT),
                         any(),
                         eq(CONVERSATION_ID)))
@@ -281,6 +290,7 @@ class AssistantServiceTests {
         ArgumentCaptor<ChatGenerationRequest> request =
                 ArgumentCaptor.forClass(ChatGenerationRequest.class);
         verify(chat).stream(
+                eq(hostileProfile.organizationId()),
                 eq(AiWorkload.ASSISTANT_CHAT),
                 request.capture(),
                 eq(CONVERSATION_ID));

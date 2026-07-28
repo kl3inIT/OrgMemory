@@ -56,6 +56,7 @@ public class AssistantService {
         Flux<String> content;
         try {
             content = chat.stream(
+                            actor.organizationId(),
                             AiWorkload.ASSISTANT_CHAT,
                             prepared.request(),
                             conversationId)

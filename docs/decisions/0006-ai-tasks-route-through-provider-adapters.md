@@ -23,6 +23,15 @@ OrgMemory learns Northstar's route/adapter/tool-reuse pattern without copying
 its personal-assistant feature set. A missing provider is explicit for
 authoritative production work; demo fallback cannot publish trusted knowledge.
 
-The first enterprise slice uses deployment secret references/admin configuration.
-Encrypted runtime credential CRUD, dynamic model catalogs, and dynamic tool
-discovery are deferred until a real multi-provider/tool-scale requirement exists.
+Deployment routes remain the explicit baseline. Organization administrators may
+add organization-scoped chat gateway profiles, encrypted write-only credentials,
+and explicit Assistant/Prompt route overrides at runtime. These overrides are
+resolved at call time and fail closed: an unavailable selected gateway never
+silently falls through to the deployment route.
+
+Provider presentation is separate from wire protocol. OpenAI, 9Router,
+OpenRouter, LiteLLM, Ollama, and custom endpoints share the verified
+OpenAI-compatible adapter; Anthropic uses its native Messages adapter.
+Embedding geometry remains deployment-managed because changing it is an index
+lifecycle operation, not a chat-routing setting. Per-user selection, automatic
+failover, dynamic tools, and mutable embedding profiles remain deferred.

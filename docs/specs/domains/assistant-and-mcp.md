@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
 
 ## Current Behavior
 
@@ -26,6 +26,13 @@ is read through an authenticated backend endpoint instead of exposing
 object-storage URLs. Every open performs one fresh canonical authorization and
 integrity check; missing, changed, and denied citations are wire-equivalent
 opaque `404` responses.
+
+Assistant chat and governed Prompt execution now resolve their model route with
+the current `organizationId`. An organization override selects one encrypted
+gateway profile and model id; absence means the read-only deployment default.
+An explicit override is fail-closed, so provider failure does not silently send
+organization prompts to a different provider. Keyword planning, graph
+extraction, and embedding remain deployment-managed in this increment.
 The citation response derives its media type from a closed extension allowlist,
 never from upload metadata. Text, PDF, and known raster images may render
 inline; Office and unknown formats are forced to download as binary content.

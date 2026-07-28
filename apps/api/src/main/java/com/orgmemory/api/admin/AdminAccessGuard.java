@@ -24,6 +24,7 @@ class AdminAccessGuard {
 
     private static final PermissionKey CAN_MANAGE_MEMBERS = PermissionKey.of("can_manage_members");
     private static final PermissionKey CAN_MANAGE_SOURCES = PermissionKey.of("can_manage_sources");
+    private static final PermissionKey CAN_MANAGE_AI = PermissionKey.of("can_manage_ai");
 
     private final CurrentActorProvider actors;
     private final EffectiveAuthorizationService authorization;
@@ -50,6 +51,13 @@ class AdminAccessGuard {
                 authentication,
                 CAN_MANAGE_SOURCES,
                 "The current user cannot administer organization sources");
+    }
+
+    CurrentActor requireAiAdministrator(Authentication authentication) {
+        return require(
+                authentication,
+                CAN_MANAGE_AI,
+                "The current user cannot administer organization AI models");
     }
 
     AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {

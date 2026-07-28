@@ -198,6 +198,31 @@ tests:
         assertions:
           can_curate_graph: []
 
+  - name: AI model administration is restricted to organization administrators
+    check:
+      - user: user:orgadmin
+        object: organization:acme
+        assertions:
+          can_manage_ai: true
+      - user: user:laura
+        object: organization:acme
+        assertions:
+          can_manage_ai: false
+      - user: user:priya
+        object: organization:acme
+        assertions:
+          can_manage_ai: false
+    list_objects:
+      - user: user:orgadmin
+        type: organization
+        assertions:
+          can_manage_ai:
+            - organization:acme
+      - user: user:laura
+        type: organization
+        assertions:
+          can_manage_ai: []
+
   - name: Organization and unit roles are resource-scoped relations
     check:
       - user: user:laura
