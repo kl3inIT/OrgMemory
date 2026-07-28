@@ -394,7 +394,9 @@ conversation store.
 The repository contains a production Compose topology, immutable six-image
 build set, automatic green-main deployment workflow, rollback-aware deploy
 script, and mandatory public health/OIDC/MCP smoke. These mechanics do not by
-themselves certify pilot readiness. The independent docs portal has a separate
+themselves certify pilot readiness. Main commits that change no product-image
+input are explicit release no-ops: they neither copy six manifests nor trigger
+the product SSH deployment. The independent docs portal has a separate
 immutable GHCR image workflow, manual exact-commit production workflow,
 single-service Compose project, 512 MiB limit, 60-second health gate, public
 allowlist verifier, and docs-only rollback state. It shares only the existing

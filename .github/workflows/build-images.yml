@@ -53,17 +53,30 @@ jobs:
               --branch main \
               --status success \
               --limit 50 \
-              --json conclusion,headSha \
+              --json conclusion,databaseId,headSha \
               --jq ".[] |
                 select(.conclusion == \"success\" and .headSha != \"$HEAD_SHA\") |
-                .headSha"
+                [.databaseId, .headSha] |
+                @tsv"
           )"
-          while IFS= read -r candidate; do
+          while IFS=$'\t' read -r run_id candidate; do
             [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || continue
             if git cat-file -e "$candidate^{commit}" 2>/dev/null &&
               git merge-base --is-ancestor "$candidate" "$HEAD_SHA"; then
-              base_sha="$candidate"
-              break
+              release_jobs="$(
+                gh run view "$run_id" \
+                  --json jobs \
+                  --jq '[.jobs[] |
+                    select(
+                      .name == "Verify immutable image set" and
+                      .conclusion == "success"
+                    )
+                  ] | length'
+              )"
+              if [[ "$release_jobs" -gt 0 ]]; then
+                base_sha="$candidate"
+                break
+              fi
             fi
           done <<< "$candidates"
           printf 'base_sha=%s\n' "$base_sha" >> "$GITHUB_OUTPUT"
@@ -196,6 +209,9 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           printf 'Changed images: %s\n' "$changed"
           printf 'Carried-forward images: %s\n' "$unchanged"
+          if [[ "$changed" == "[]" ]]; then
+            printf 'No product image inputs changed; release is a no-op.\n'
+          fi
 
   images:
     name: Image · ${{ matrix.name }}
@@ -293,7 +309,9 @@ jobs:
   carry-forward:
     name: Carry forward unchanged image digests
     needs: plan
-    if: needs.plan.outputs.unchanged != '[]'
+    if: >-
+      needs.plan.outputs.changed != '[]' &&
+      needs.plan.outputs.unchanged != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -330,6 +348,7 @@ jobs:
     if: >-
       always() &&
       needs.plan.result == 'success' &&
+      needs.plan.outputs.changed != '[]' &&
       (needs.images.result == 'success' || needs.images.result == 'skipped') &&
       (needs.carry-forward.result == 'success' || needs.carry-forward.result == 'skipped')
     needs:
