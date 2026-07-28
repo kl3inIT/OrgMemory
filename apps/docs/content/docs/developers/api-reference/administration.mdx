@@ -14,6 +14,21 @@ _openapi:
     - orgmemory-public
   toc:
     - depth: 2
+      title: Restore the deployment default for an editable AI route
+      url: '#restore-the-deployment-default-for-an-editable-ai-route'
+    - depth: 2
+      title: Set an editable organization AI route
+      url: '#set-an-editable-organization-ai-route'
+    - depth: 2
+      title: Disable an unused organization AI gateway
+      url: '#disable-an-unused-organization-ai-gateway'
+    - depth: 2
+      title: Update an organization AI gateway
+      url: '#update-an-organization-ai-gateway'
+    - depth: 2
+      title: Set or rotate an organization AI gateway credential
+      url: '#set-or-rotate-an-organization-ai-gateway-credential'
+    - depth: 2
       title: Assign a user to a role
       url: '#assign-a-user-to-a-role'
     - depth: 2
@@ -35,6 +50,18 @@ _openapi:
       title: Expect an address to sign in
       url: '#expect-an-address-to-sign-in'
     - depth: 2
+      title: List organization AI gateway profiles
+      url: '#list-organization-ai-gateway-profiles'
+    - depth: 2
+      title: Connect an organization AI gateway
+      url: '#connect-an-organization-ai-gateway'
+    - depth: 2
+      title: Test a stored organization AI gateway
+      url: '#test-a-stored-organization-ai-gateway'
+    - depth: 2
+      title: Test an AI gateway credential without storing it
+      url: '#test-an-ai-gateway-credential-without-storing-it'
+    - depth: 2
       title: Answer whether a user holds a permission on one resource, and by which
         derivation
       url: '#answer-whether-a-user-holds-a-permission-on-one-resource-and-by-which-derivation'
@@ -55,6 +82,15 @@ _openapi:
       title: List the subject shapes each Knowledge Space relation accepts
       url: '#list-the-subject-shapes-each-knowledge-space-relation-accepts'
     - depth: 2
+      title: List effective organization AI routes
+      url: '#list-effective-organization-ai-routes'
+    - depth: 2
+      title: List provider presets implemented by this deployment
+      url: '#list-provider-presets-implemented-by-this-deployment'
+    - depth: 2
+      title: Read immutable deployment-managed embedding settings
+      url: '#read-immutable-deployment-managed-embedding-settings'
+    - depth: 2
       title: Remove a user from a role
       url: '#remove-a-user-from-a-role'
     - depth: 2
@@ -62,6 +98,16 @@ _openapi:
       url: '#withdraw-an-invitation-that-has-not-been-used'
   structuredData:
     headings:
+      - content: Restore the deployment default for an editable AI route
+        id: restore-the-deployment-default-for-an-editable-ai-route
+      - content: Set an editable organization AI route
+        id: set-an-editable-organization-ai-route
+      - content: Disable an unused organization AI gateway
+        id: disable-an-unused-organization-ai-gateway
+      - content: Update an organization AI gateway
+        id: update-an-organization-ai-gateway
+      - content: Set or rotate an organization AI gateway credential
+        id: set-or-rotate-an-organization-ai-gateway-credential
       - content: Assign a user to a role
         id: assign-a-user-to-a-role
       - content: List Knowledge Spaces and the grants stored against them
@@ -76,6 +122,14 @@ _openapi:
         id: list-invited-addresses-and-their-status
       - content: Expect an address to sign in
         id: expect-an-address-to-sign-in
+      - content: List organization AI gateway profiles
+        id: list-organization-ai-gateway-profiles
+      - content: Connect an organization AI gateway
+        id: connect-an-organization-ai-gateway
+      - content: Test a stored organization AI gateway
+        id: test-a-stored-organization-ai-gateway
+      - content: Test an AI gateway credential without storing it
+        id: test-an-ai-gateway-credential-without-storing-it
       - content: Answer whether a user holds a permission on one resource, and by which
           derivation
         id: answer-whether-a-user-holds-a-permission-on-one-resource-and-by-which-derivation
@@ -90,6 +144,12 @@ _openapi:
         id: list-roles-and-who-is-assigned-to-them
       - content: List the subject shapes each Knowledge Space relation accepts
         id: list-the-subject-shapes-each-knowledge-space-relation-accepts
+      - content: List effective organization AI routes
+        id: list-effective-organization-ai-routes
+      - content: List provider presets implemented by this deployment
+        id: list-provider-presets-implemented-by-this-deployment
+      - content: Read immutable deployment-managed embedding settings
+        id: read-immutable-deployment-managed-embedding-settings
       - content: Remove a user from a role
         id: remove-a-user-from-a-role
       - content: Withdraw an invitation that has not been used
@@ -106,7 +166,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/ai/routes/{workload}","method":"delete"},{"path":"/api/admin/ai/routes/{workload}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}","method":"delete"},{"path":"/api/admin/ai/gateways/{profileId}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/credential","method":"put"},{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/ai/gateways","method":"get"},{"path":"/api/admin/ai/gateways","method":"post"},{"path":"/api/admin/ai/gateways/{profileId}/test","method":"post"},{"path":"/api/admin/ai/gateways/test","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/ai/routes","method":"get"},{"path":"/api/admin/ai/providers","method":"get"},{"path":"/api/admin/ai/index-settings","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }
