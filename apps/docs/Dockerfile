@@ -7,6 +7,7 @@ WORKDIR /workspace
 RUN corepack enable
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY patches patches
 COPY apps/cli/package.json apps/cli/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY apps/docs/package.json apps/docs/package.json
@@ -22,6 +23,7 @@ ENV DOCS_DEPLOYMENT_MODE=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY apps/docs apps/docs
+COPY contracts/openapi.json contracts/openapi.json
 
 RUN pnpm --filter @orgmemory/docs lint \
     && pnpm --filter @orgmemory/docs typecheck \

@@ -3,6 +3,7 @@ import { loader } from 'fumadocs-core/source';
 import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { toFumadocsSource } from 'fumadocs-mdx/runtime/server';
 import { docsContentRoute, docsImageRoute, docsRoute } from './shared';
+import { openapi } from './openapi';
 
 export const includeDrafts = process.env.DOCS_INCLUDE_DRAFTS === 'true';
 const visibleDocs = includeDrafts
@@ -12,7 +13,7 @@ const visibleDocs = includeDrafts
 export const source = loader({
   baseUrl: docsRoute,
   source: toFumadocsSource(visibleDocs, docs.meta),
-  plugins: [lucideIconsPlugin()],
+  plugins: [openapi.loaderPlugin(), lucideIconsPlugin()],
 });
 
 export function getPageImageUrl(page: (typeof source)['$inferPage']) {

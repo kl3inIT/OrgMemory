@@ -66,6 +66,22 @@
       "reviewOwner": "assistant-and-mcp-maintainers"
     },
     {
+      "route": "/docs/developers/api-reference",
+      "content": "content/docs/developers/api-reference/index.mdx",
+      "area": "developers",
+      "order": 20,
+      "status": "public",
+      "reviewOwner": "developer-experience"
+    },
+    {
+      "route": "/docs/developers/api-reference/authentication",
+      "content": "content/docs/developers/api-reference/authentication.mdx",
+      "area": "developers",
+      "order": 30,
+      "status": "public",
+      "reviewOwner": "identity-and-authorization-maintainers"
+    },
+    {
       "route": "/docs/architecture-security/system-description",
       "content": "content/docs/architecture-security/system-description.mdx",
       "area": "architecture-security",

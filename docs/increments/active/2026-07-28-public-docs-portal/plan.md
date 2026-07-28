@@ -124,20 +124,20 @@ Exit gate:
 Purpose: make the corpus useful to humans, integrations, search engines, and AI
 agents without adding a new AI answer boundary.
 
-- [ ] Add the server-side Orama search route from the Fumadocs source.
-- [ ] Tune searchable titles, descriptions, headings, and structured content.
-- [ ] Add generated OpenAPI pages from `contracts/openapi.json`.
-- [ ] Generate a sanitized docs OpenAPI input and reject unapproved servers,
+- [x] Add the server-side Orama search route from the Fumadocs source.
+- [x] Tune searchable titles, descriptions, headings, and structured content.
+- [x] Add generated OpenAPI pages from `contracts/openapi.json`.
+- [x] Generate a sanitized docs OpenAPI input and reject unapproved servers,
   internal hostnames, secret-bearing examples, and private operational text.
-- [ ] Add authored authentication, error, permission, and integration guidance
+- [x] Add authored authentication, error, permission, and integration guidance
   before the generated reference.
-- [ ] Disable live API execution unless a safe public test origin exists.
-- [ ] Add `/llms.txt`, `/llms-full.txt`, and per-page Markdown output for all
+- [x] Disable live API execution unless a safe public test origin exists.
+- [x] Add `/llms.txt`, `/llms-full.txt`, and per-page Markdown output for all
   fifteen authored first-release pages.
-- [ ] Add canonical metadata, Open Graph metadata, sitemap, and robots behavior.
-- [ ] Add link and heading-anchor validation.
-- [ ] Add OpenAPI generation drift and `sourceRefs` existence checks.
-- [ ] Crawl generated routes, HTML, sitemap, search records, API pages, and LLM
+- [x] Add canonical metadata, Open Graph metadata, sitemap, and robots behavior.
+- [x] Add link and heading-anchor validation.
+- [x] Add OpenAPI generation drift and `sourceRefs` existence checks.
+- [x] Crawl generated routes, HTML, sitemap, search records, API pages, and LLM
   outputs; require their route set to match the public manifest and run secret,
   private-host, and forbidden-path scans.
 

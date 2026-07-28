@@ -1,0 +1,16 @@
+{
+  "title": "HTTP API",
+  "description": "Integrate with the permission-aware OrgMemory HTTP API.",
+  "pages": [
+    "index",
+    "authentication",
+    "---Generated endpoint groups---",
+    "administration",
+    "sources-connections",
+    "assets",
+    "assistant",
+    "knowledge-graph",
+    "search-catalog",
+    "platform"
+  ]
+}

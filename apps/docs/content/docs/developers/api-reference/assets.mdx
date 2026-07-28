@@ -1,0 +1,229 @@
+---
+title: Assets
+description: Governed asset registry, lifecycle, release, delivery, and
+  consumption endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Idempotently update actor-derived progress for one accessible Pack item
+      url: '#idempotently-update-actor-derived-progress-for-one-accessible-pack-item'
+    - depth: 2
+      title: Update a mutable Asset draft
+      url: '#update-a-mutable-asset-draft'
+    - depth: 2
+      title: Ensure graph indexing uses the current processing profile
+      url: '#ensure-graph-indexing-uses-the-current-processing-profile'
+    - depth: 2
+      title: Resume unfinished graph indexing
+      url: '#resume-unfinished-graph-indexing'
+    - depth: 2
+      title: Cancel queued or in-flight graph indexing
+      url: '#cancel-queued-or-in-flight-graph-indexing'
+    - depth: 2
+      title: List released or authoring Assets visible to the actor
+      url: '#list-released-or-authoring-assets-visible-to-the-actor'
+    - depth: 2
+      title: Create an Asset and its mutable draft
+      url: '#create-an-asset-and-its-mutable-draft'
+    - depth: 2
+      title: Submit an immutable Asset revision for review
+      url: '#submit-an-immutable-asset-revision-for-review'
+    - depth: 2
+      title: Assign an accountable role on an Asset
+      url: '#assign-an-accountable-role-on-an-asset'
+    - depth: 2
+      title: Record a decision against an exact revision digest
+      url: '#record-a-decision-against-an-exact-revision-digest'
+    - depth: 2
+      title: Publish an approved immutable Asset revision
+      url: '#publish-an-approved-immutable-asset-revision'
+    - depth: 2
+      title: Idempotently acknowledge an exact Work Instruction release
+      url: '#idempotently-acknowledge-an-exact-work-instruction-release'
+    - depth: 2
+      title: Withdraw an Asset release from new use
+      url: '#withdraw-an-asset-release-from-new-use'
+    - depth: 2
+      title: Run an exact Prompt release through the provider-neutral AI gateway
+      url: '#run-an-exact-prompt-release-through-the-provider-neutral-ai-gateway'
+    - depth: 2
+      title: Deterministically render an exact authorized Prompt release
+      url: '#deterministically-render-an-exact-authorized-prompt-release'
+    - depth: 2
+      title: Run the bounded evaluation cases pinned in a Prompt release
+      url: '#run-the-bounded-evaluation-cases-pinned-in-a-prompt-release'
+    - depth: 2
+      title: Start or resume an exact authorized Capability Pack release
+      url: '#start-or-resume-an-exact-authorized-capability-pack-release'
+    - depth: 2
+      title: Fork an exact authorized release into a new mutable draft
+      url: '#fork-an-exact-authorized-release-into-a-new-mutable-draft'
+    - depth: 2
+      title: Deprecate an Asset release
+      url: '#deprecate-an-asset-release'
+    - depth: 2
+      title: Compare bounded evaluation results for two exact Prompt releases
+      url: '#compare-bounded-evaluation-results-for-two-exact-prompt-releases'
+    - depth: 2
+      title: Validate and import one Agent Skill package
+      url: '#validate-and-import-one-agent-skill-package'
+    - depth: 2
+      title: Deterministically render an exact authorized Prompt release
+      url: '#deterministically-render-an-exact-authorized-prompt-release-1'
+    - depth: 2
+      title: Read graph indexing lifecycle status
+      url: '#read-graph-indexing-lifecycle-status'
+    - depth: 2
+      title: Read an authorized Asset and its governance history
+      url: '#read-an-authorized-asset-and-its-governance-history'
+    - depth: 2
+      title: Follow an exact authorized Work Instruction release
+      url: '#follow-an-exact-authorized-work-instruction-release'
+    - depth: 2
+      title: Read the browser install contract for one exact authorized Skill release
+      url: '#read-the-browser-install-contract-for-one-exact-authorized-skill-release'
+    - depth: 2
+      title: Read an actor-scoped Capability Pack journey
+      url: '#read-an-actor-scoped-capability-pack-journey'
+    - depth: 2
+      title: Read the ordered authorized items pinned by a Capability Pack release
+      url: '#read-the-ordered-authorized-items-pinned-by-a-capability-pack-release'
+    - depth: 2
+      title: Read the current actor's available Governance actions
+      url: '#read-the-current-actors-available-governance-actions'
+    - depth: 2
+      title: List exact usable Asset releases authorized for the current actor
+      url: '#list-exact-usable-asset-releases-authorized-for-the-current-actor'
+    - depth: 2
+      title: Search exact released Assets authorized for the current actor
+      url: '#search-exact-released-assets-authorized-for-the-current-actor'
+    - depth: 2
+      title: Read the latest usable immutable release for an Asset
+      url: '#read-the-latest-usable-immutable-release-for-an-asset'
+    - depth: 2
+      title: Read one exact usable immutable Asset release
+      url: '#read-one-exact-usable-immutable-asset-release'
+    - depth: 2
+      title: Stream the verified package for one exact usable Skill release
+      url: '#stream-the-verified-package-for-one-exact-usable-skill-release'
+    - depth: 2
+      title: Read the install manifest for one exact usable Skill release
+      url: '#read-the-install-manifest-for-one-exact-usable-skill-release'
+    - depth: 2
+      title: Resolve only independently authorized relations of an exact release
+      url: '#resolve-only-independently-authorized-relations-of-an-exact-release'
+    - depth: 2
+      title: Read a Pack definition with independently authorized pinned items
+      url: '#read-a-pack-definition-with-independently-authorized-pinned-items'
+    - depth: 2
+      title: Resolve an exact usable Skill release by coordinate and version
+      url: '#resolve-an-exact-usable-skill-release-by-coordinate-and-version'
+    - depth: 2
+      title: Retire a Knowledge Asset and remove its derived graph
+      url: '#retire-a-knowledge-asset-and-remove-its-derived-graph'
+  structuredData:
+    headings:
+      - content: Idempotently update actor-derived progress for one accessible Pack item
+        id: idempotently-update-actor-derived-progress-for-one-accessible-pack-item
+      - content: Update a mutable Asset draft
+        id: update-a-mutable-asset-draft
+      - content: Ensure graph indexing uses the current processing profile
+        id: ensure-graph-indexing-uses-the-current-processing-profile
+      - content: Resume unfinished graph indexing
+        id: resume-unfinished-graph-indexing
+      - content: Cancel queued or in-flight graph indexing
+        id: cancel-queued-or-in-flight-graph-indexing
+      - content: List released or authoring Assets visible to the actor
+        id: list-released-or-authoring-assets-visible-to-the-actor
+      - content: Create an Asset and its mutable draft
+        id: create-an-asset-and-its-mutable-draft
+      - content: Submit an immutable Asset revision for review
+        id: submit-an-immutable-asset-revision-for-review
+      - content: Assign an accountable role on an Asset
+        id: assign-an-accountable-role-on-an-asset
+      - content: Record a decision against an exact revision digest
+        id: record-a-decision-against-an-exact-revision-digest
+      - content: Publish an approved immutable Asset revision
+        id: publish-an-approved-immutable-asset-revision
+      - content: Idempotently acknowledge an exact Work Instruction release
+        id: idempotently-acknowledge-an-exact-work-instruction-release
+      - content: Withdraw an Asset release from new use
+        id: withdraw-an-asset-release-from-new-use
+      - content: Run an exact Prompt release through the provider-neutral AI gateway
+        id: run-an-exact-prompt-release-through-the-provider-neutral-ai-gateway
+      - content: Deterministically render an exact authorized Prompt release
+        id: deterministically-render-an-exact-authorized-prompt-release
+      - content: Run the bounded evaluation cases pinned in a Prompt release
+        id: run-the-bounded-evaluation-cases-pinned-in-a-prompt-release
+      - content: Start or resume an exact authorized Capability Pack release
+        id: start-or-resume-an-exact-authorized-capability-pack-release
+      - content: Fork an exact authorized release into a new mutable draft
+        id: fork-an-exact-authorized-release-into-a-new-mutable-draft
+      - content: Deprecate an Asset release
+        id: deprecate-an-asset-release
+      - content: Compare bounded evaluation results for two exact Prompt releases
+        id: compare-bounded-evaluation-results-for-two-exact-prompt-releases
+      - content: Validate and import one Agent Skill package
+        id: validate-and-import-one-agent-skill-package
+      - content: Deterministically render an exact authorized Prompt release
+        id: deterministically-render-an-exact-authorized-prompt-release-1
+      - content: Read graph indexing lifecycle status
+        id: read-graph-indexing-lifecycle-status
+      - content: Read an authorized Asset and its governance history
+        id: read-an-authorized-asset-and-its-governance-history
+      - content: Follow an exact authorized Work Instruction release
+        id: follow-an-exact-authorized-work-instruction-release
+      - content: Read the browser install contract for one exact authorized Skill
+          release
+        id: read-the-browser-install-contract-for-one-exact-authorized-skill-release
+      - content: Read an actor-scoped Capability Pack journey
+        id: read-an-actor-scoped-capability-pack-journey
+      - content: Read the ordered authorized items pinned by a Capability Pack release
+        id: read-the-ordered-authorized-items-pinned-by-a-capability-pack-release
+      - content: Read the current actor's available Governance actions
+        id: read-the-current-actors-available-governance-actions
+      - content: List exact usable Asset releases authorized for the current actor
+        id: list-exact-usable-asset-releases-authorized-for-the-current-actor
+      - content: Search exact released Assets authorized for the current actor
+        id: search-exact-released-assets-authorized-for-the-current-actor
+      - content: Read the latest usable immutable release for an Asset
+        id: read-the-latest-usable-immutable-release-for-an-asset
+      - content: Read one exact usable immutable Asset release
+        id: read-one-exact-usable-immutable-asset-release
+      - content: Stream the verified package for one exact usable Skill release
+        id: stream-the-verified-package-for-one-exact-usable-skill-release
+      - content: Read the install manifest for one exact usable Skill release
+        id: read-the-install-manifest-for-one-exact-usable-skill-release
+      - content: Resolve only independently authorized relations of an exact release
+        id: resolve-only-independently-authorized-relations-of-an-exact-release
+      - content: Read a Pack definition with independently authorized pinned items
+        id: read-a-pack-definition-with-independently-authorized-pinned-items
+      - content: Resolve an exact usable Skill release by coordinate and version
+        id: resolve-an-exact-usable-skill-release-by-coordinate-and-version
+      - content: Retire a Knowledge Asset and remove its derived graph
+        id: retire-a-knowledge-asset-and-remove-its-derived-graph
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-progress/{itemKey}","method":"put"},{"path":"/api/assets/{assetId}/draft","method":"put"},{"path":"/api/knowledge-assets/{knowledgeAssetId}/graph-index","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/resume","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/cancel","method":"post"},{"path":"/api/assets","method":"get"},{"path":"/api/assets","method":"post"},{"path":"/api/assets/{assetId}/submissions","method":"post"},{"path":"/api/assets/{assetId}/role-assignments","method":"post"},{"path":"/api/assets/{assetId}/reviews/{reviewCaseId}/decisions","method":"post"},{"path":"/api/assets/{assetId}/releases","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction/acknowledgement","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/withdrawal","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/runs","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/render","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/evaluations","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-assignment","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/forks","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/deprecation","method":"post"},{"path":"/api/assets/{assetId}/prompt/evaluation-comparisons","method":"post"},{"path":"/api/assets/skills","method":"post"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}","method":"get"},{"path":"/api/assets/{assetId}","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-journey","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-definition","method":"get"},{"path":"/api/assets/{assetId}/governance-actions","method":"get"},{"path":"/api/assets/catalog","method":"get"},{"path":"/api/asset-delivery","method":"get"},{"path":"/api/asset-delivery/{assetId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-package","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/relations","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/asset-delivery/skills/{namespace}/{slug}/versions/{version}/manifest","method":"get"},{"path":"/api/knowledge-assets/{knowledgeAssetId}","method":"delete"}]} showTitle showDescription />
+    </>
+  );
+}

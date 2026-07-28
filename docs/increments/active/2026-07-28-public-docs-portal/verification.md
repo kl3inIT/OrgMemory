@@ -105,3 +105,54 @@ Image generation input:
   people, lock/shield imagery, or fake UI;
 - repository asset:
   `apps/docs/public/images/governed-memory-hero.png`.
+
+## PR 4 — Search, API, And Machine-Readable Docs
+
+Branch: `feat/public-docs-discovery`
+
+Base: `origin/main@a489a2db948c7ec9dd12919c7fefcaeb2173c467`
+
+Implementation evidence:
+
+- the server-side Orama route returns useful results for Asset, OpenFGA,
+  GraphRAG, MCP, and connector;
+- two authored integration pages explain the deployment-scoped contract,
+  session/CSRF flow, permission semantics, safe retries, and errors;
+- Fumadocs OpenAPI generates seven domain pages from all 101 committed paths;
+- the committed public OpenAPI input removes examples and private runtime
+  servers, rejects private hosts, paths, and secret assignments, and uses only
+  the reserved `api.example.invalid` origin;
+- the API playground is disabled;
+- generation drift is checked before validation and every production build;
+- all 24 public routes have HTML, Open Graph, canonical, sitemap, search, and
+  per-page Markdown coverage, plus aggregate `llms.txt` and `llms-full.txt`;
+- runtime and client-output audits reject repository evidence metadata,
+  private working paths, and Windows workspace paths;
+- docs changes and `contracts/openapi.json` changes select the public-docs CI
+  surface.
+
+Fumadocs OpenAPI `11.2.2` is retained for compatibility with Fumadocs Core
+`16.13.0`. Its published bundle contains four invalid inlined dependency
+imports, and `@fumadocs/api-docs` contains one equivalent import. The repository
+uses deterministic pnpm patches plus explicit exact dependencies until an
+upstream fixed package is available.
+
+Passed local gates:
+
+| Gate | Evidence |
+| --- | --- |
+| Docs contracts | OpenAPI drift, lint, Fumadocs generation, Next route types, TypeScript, 24-page content, manifest, publication, routes, and links |
+| Search | Asset, OpenFGA, GraphRAG, MCP, and connector return results |
+| Route boundary | `24 public, 0 draft`; 17 authored and seven generated |
+| OpenAPI | 101 sanitized paths grouped into seven generated pages; playground absent |
+| Browser | Desktop and mobile navigation, generated API rendering, search, machine outputs, and accessibility passed |
+| Production build | Next.js 16.2.11 Turbopack generated 82 static outputs, including 24 docs, Markdown, and OG routes |
+| Client audit | `.next/static` contains no `sourceRefs` or repository evidence paths |
+| Docker policy | `docker buildx build --check --file apps/docs/Dockerfile .` passed |
+| Docker image | Full Node 24.14.0 image build passed with frozen lockfile and pnpm patches |
+| Runtime crawl | healthy as `nextjs`; 24/24 manifest routes and all machine-readable/public assets returned 200 |
+
+Context7 was attempted first and returned its quota-exhausted response. Current
+official Fumadocs OpenAPI, Orama, and LLM-output documentation, official Next.js
+metadata/sitemap documentation, installed package types, and production runtime
+evidence were used instead.

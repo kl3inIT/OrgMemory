@@ -1,0 +1,68 @@
+---
+title: Knowledge graph
+description: Knowledge graph indexing, exploration, curation, job control, and
+  export endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Delete an effective graph identity without deleting evidence
+      url: '#delete-an-effective-graph-identity-without-deleting-evidence'
+    - depth: 2
+      title: Create or edit a governed graph relation
+      url: '#create-or-edit-a-governed-graph-relation'
+    - depth: 2
+      title: Create or edit a governed graph entity
+      url: '#create-or-edit-a-governed-graph-entity'
+    - depth: 2
+      title: Merge graph identities through a reversible alias
+      url: '#merge-graph-identities-through-a-reversible-alias'
+    - depth: 2
+      title: Export only graph evidence visible to the current user
+      url: '#export-only-graph-evidence-visible-to-the-current-user'
+    - depth: 2
+      title: Read a bounded permission-filtered graph view
+      url: '#read-a-bounded-permission-filtered-graph-view'
+    - depth: 2
+      title: Reverse a graph curation record
+      url: '#reverse-a-graph-curation-record'
+  structuredData:
+    headings:
+      - content: Delete an effective graph identity without deleting evidence
+        id: delete-an-effective-graph-identity-without-deleting-evidence
+      - content: Create or edit a governed graph relation
+        id: create-or-edit-a-governed-graph-relation
+      - content: Create or edit a governed graph entity
+        id: create-or-edit-a-governed-graph-entity
+      - content: Merge graph identities through a reversible alias
+        id: merge-graph-identities-through-a-reversible-alias
+      - content: Export only graph evidence visible to the current user
+        id: export-only-graph-evidence-visible-to-the-current-user
+      - content: Read a bounded permission-filtered graph view
+        id: read-a-bounded-permission-filtered-graph-view
+      - content: Reverse a graph curation record
+        id: reverse-a-graph-curation-record
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/suppressions","method":"post"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/relations","method":"post"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/entities","method":"post"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/aliases","method":"post"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/export","method":"get"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/explorer","method":"get"},{"path":"/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/{curationId}","method":"delete"}]} showTitle showDescription />
+    </>
+  );
+}

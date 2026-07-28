@@ -1,0 +1,115 @@
+---
+title: Assistant
+description: Permission-aware conversations and assistant tool endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Update actor-derived Pack progress after explicit confirmation
+      url: '#update-actor-derived-pack-progress-after-explicit-confirmation'
+    - depth: 2
+      title: Search canonical permission-aware Knowledge and return citation
+        references
+      url: '#search-canonical-permission-aware-knowledge-and-return-citation-references'
+    - depth: 2
+      title: Run an exact Prompt release after explicit external-provider confirmation
+      url: '#run-an-exact-prompt-release-after-explicit-external-provider-confirmation'
+    - depth: 2
+      title: Render an exact Prompt release after variable validation
+      url: '#render-an-exact-prompt-release-after-variable-validation'
+    - depth: 2
+      title: Read an actor-scoped exact Pack journey
+      url: '#read-an-actor-scoped-exact-pack-journey'
+    - depth: 2
+      title: Start an exact Pack after explicit state-change confirmation
+      url: '#start-an-exact-pack-after-explicit-state-change-confirmation'
+    - depth: 2
+      title: Fork an exact release after explicit draft-creation confirmation
+      url: '#fork-an-exact-release-after-explicit-draft-creation-confirmation'
+    - depth: 2
+      title: Submit feedback against an exact release after explicit confirmation
+      url: '#submit-feedback-against-an-exact-release-after-explicit-confirmation'
+    - depth: 2
+      title: Stream an answer from permission-verified knowledge
+      url: '#stream-an-answer-from-permission-verified-knowledge'
+    - depth: 2
+      title: Rename the current actor's conversation
+      url: '#rename-the-current-actors-conversation'
+    - depth: 2
+      title: Delete the current actor's transcript and bounded model memory
+      url: '#delete-the-current-actors-transcript-and-bounded-model-memory'
+    - depth: 2
+      title: Guide an exact Work Instruction release
+      url: '#guide-an-exact-work-instruction-release'
+    - depth: 2
+      title: Resolve the variables required by an exact Prompt release
+      url: '#resolve-the-variables-required-by-an-exact-prompt-release'
+    - depth: 2
+      title: Recommend exact usable Asset releases without leaking denied candidates
+      url: '#recommend-exact-usable-asset-releases-without-leaking-denied-candidates'
+    - depth: 2
+      title: List the current actor's conversations by recent activity
+      url: '#list-the-current-actors-conversations-by-recent-activity'
+    - depth: 2
+      title: Replay a tenant- and actor-scoped full conversation transcript
+      url: '#replay-a-tenant--and-actor-scoped-full-conversation-transcript'
+  structuredData:
+    headings:
+      - content: Update actor-derived Pack progress after explicit confirmation
+        id: update-actor-derived-pack-progress-after-explicit-confirmation
+      - content: Search canonical permission-aware Knowledge and return citation
+          references
+        id: search-canonical-permission-aware-knowledge-and-return-citation-references
+      - content: Run an exact Prompt release after explicit external-provider
+          confirmation
+        id: run-an-exact-prompt-release-after-explicit-external-provider-confirmation
+      - content: Render an exact Prompt release after variable validation
+        id: render-an-exact-prompt-release-after-variable-validation
+      - content: Read an actor-scoped exact Pack journey
+        id: read-an-actor-scoped-exact-pack-journey
+      - content: Start an exact Pack after explicit state-change confirmation
+        id: start-an-exact-pack-after-explicit-state-change-confirmation
+      - content: Fork an exact release after explicit draft-creation confirmation
+        id: fork-an-exact-release-after-explicit-draft-creation-confirmation
+      - content: Submit feedback against an exact release after explicit confirmation
+        id: submit-feedback-against-an-exact-release-after-explicit-confirmation
+      - content: Stream an answer from permission-verified knowledge
+        id: stream-an-answer-from-permission-verified-knowledge
+      - content: Rename the current actor's conversation
+        id: rename-the-current-actors-conversation
+      - content: Delete the current actor's transcript and bounded model memory
+        id: delete-the-current-actors-transcript-and-bounded-model-memory
+      - content: Guide an exact Work Instruction release
+        id: guide-an-exact-work-instruction-release
+      - content: Resolve the variables required by an exact Prompt release
+        id: resolve-the-variables-required-by-an-exact-prompt-release
+      - content: Recommend exact usable Asset releases without leaking denied candidates
+        id: recommend-exact-usable-asset-releases-without-leaking-denied-candidates
+      - content: List the current actor's conversations by recent activity
+        id: list-the-current-actors-conversations-by-recent-activity
+      - content: Replay a tenant- and actor-scoped full conversation transcript
+        id: replay-a-tenant--and-actor-scoped-full-conversation-transcript
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"}]} showTitle showDescription />
+    </>
+  );
+}

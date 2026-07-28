@@ -7,9 +7,12 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "next build",
+    "build": "pnpm check:api && next build",
     "dev": "next dev",
     "start": "next start",
+    "generate:api": "tsx scripts/generate-openapi.ts",
+    "check:api": "tsx scripts/generate-openapi.ts --check",
+    "check:output": "node scripts/check-build-output.mjs",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "check:content": "node scripts/check-docs.mjs content",
     "check:manifest": "node scripts/check-docs.mjs manifest",
@@ -17,19 +20,25 @@
     "check:routes": "node scripts/check-docs.mjs routes",
     "check:links": "tsx scripts/check-links.ts",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:content && pnpm check:manifest && pnpm check:publication && pnpm check:routes && pnpm check:links",
+    "check": "pnpm check:api && pnpm lint && pnpm typecheck && pnpm check:content && pnpm check:manifest && pnpm check:publication && pnpm check:routes && pnpm check:links",
     "postinstall": "fumadocs-mdx",
     "lint": "oxlint"
   },
   "dependencies": {
+    "@fastify/deepmerge": "3.2.1",
+    "@scalar/openapi-upgrader": "0.2.9",
     "cnfast": "^0.0.8",
+    "fast-content-type-parse": "3.0.0",
     "fumadocs-core": "16.13.0",
     "fumadocs-mdx": "15.2.0",
+    "fumadocs-openapi": "11.2.2",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.13.0",
     "lucide-react": "^1.25.0",
     "next": "16.2.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "shiki": "4.3.1",
+    "xml-js": "1.6.11",
     "zod": "4.4.3"
   },
   "devDependencies": {

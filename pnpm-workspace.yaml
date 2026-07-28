@@ -51,3 +51,7 @@ minimumReleaseAgeExclude:
   - '@radix-ui/react-use-controllable-state@1.2.4'
   - '@radix-ui/react-visually-hidden@1.2.8'
   - radix-ui@1.6.3
+
+patchedDependencies:
+  '@fumadocs/api-docs@0.2.1': patches/@fumadocs__api-docs@0.2.1.patch
+  fumadocs-openapi@11.2.2: patches/fumadocs-openapi@11.2.2.patch

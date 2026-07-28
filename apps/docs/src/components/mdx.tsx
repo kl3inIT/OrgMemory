@@ -8,6 +8,7 @@ import {
   FlowDiagram,
   VerificationBlock,
 } from './docs-patterns';
+import { OpenAPIPage } from './openapi-page';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
@@ -16,6 +17,7 @@ export function getMDXComponents(components?: MDXComponents) {
     CapabilityGrid,
     DiagramFrame,
     FlowDiagram,
+    OpenAPIPage,
     Step,
     Steps,
     VerificationBlock,

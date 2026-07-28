@@ -10,6 +10,17 @@ export const metadata: Metadata = {
   },
   description:
     'Architecture, deployment, administration, and integration guidance for OrgMemory.',
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: 'OrgMemory Documentation',
+    description:
+      'Architecture, deployment, administration, and integration guidance for OrgMemory.',
+    url: '/',
+    siteName: 'OrgMemory Documentation',
+    type: 'website',
+  },
 };
 
 export default function Layout({ children }: LayoutProps<'/'>) {

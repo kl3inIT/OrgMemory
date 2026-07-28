@@ -2,6 +2,10 @@
 !package.json
 !pnpm-workspace.yaml
 !pnpm-lock.yaml
+!patches/
+!patches/**
+!contracts/
+!contracts/openapi.json
 !apps/
 !apps/cli/
 !apps/cli/package.json

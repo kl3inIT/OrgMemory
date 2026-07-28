@@ -1,0 +1,48 @@
+---
+title: Authentication and errors
+description: Apply OrgMemory browser-session, CSRF, authorization, and error-handling rules safely.
+audience:
+  - developer
+  - administrator
+status: public
+sourceRefs:
+  - apps/api/src/main/java/com/orgmemory/api/security/ProductionSecurityConfiguration.java
+  - apps/api/src/main/java/com/orgmemory/api/ApiExceptionHandler.java
+  - integrations/authorization-openfga/src/main/openfga/model.fga
+lastReviewed: '2026-07-29'
+---
+
+OrgMemory's web API is session-oriented. A successful login establishes an HTTP-only session cookie; state-changing browser requests also require the CSRF token issued by the session endpoint. Do not invent a bearer-token flow from the generated schema.
+
+## Browser-session flow
+
+1. Establish an authenticated session through the configured identity provider.
+2. Keep cookies enabled for the OrgMemory origin.
+3. Fetch the CSRF endpoint before a state-changing request.
+4. Send the returned token in the required request header and keep the session cookie.
+5. Treat `401` as missing or expired authentication and `403` as an authenticated request that is not authorized.
+
+<Callout type="info" title="Authorization remains server-side">
+  Hiding a button is not an authorization control. OrgMemory evaluates permissions at the API boundary and, for governed resources, filters access through its authorization model.
+</Callout>
+
+## Permission-aware integration
+
+- Use a dedicated least-privilege identity for automation.
+- Never infer visibility from an object identifier or a previous search result.
+- Preserve the caller's identity across multi-step flows; do not replace it with a broader service identity.
+- Expect search, assistant, citation, graph, and asset responses to be filtered by the caller's current access.
+
+## Error handling
+
+Handle errors by HTTP status and the response contract, not by matching human-readable messages:
+
+- `400` — request validation or malformed input; correct the request before retrying.
+- `401` — authentication is absent or expired; re-establish the session.
+- `403` — the identity lacks permission; do not retry with the same authority.
+- `404` — the resource is missing or intentionally undisclosed.
+- `409` — the request conflicts with current state; reload state before deciding whether to retry.
+- `429` — back off and retry with jitter.
+- `5xx` — retry only idempotent operations, using bounded exponential backoff and a correlation identifier.
+
+Do not log cookies, CSRF values, connector credentials, provisioning credentials, or response bodies that may contain governed content.
