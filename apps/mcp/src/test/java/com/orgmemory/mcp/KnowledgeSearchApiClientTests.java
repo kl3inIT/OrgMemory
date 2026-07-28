@@ -123,6 +123,7 @@ class KnowledgeSearchApiClientTests {
                 builder,
                 new McpGatewayProperties(
                         URI.create("https://api.example.test"),
+                        Duration.ofSeconds(2),
                         Duration.ofSeconds(5),
                         URI.create("https://mcp.example.test/mcp"),
                         URI.create("https://id.example.test/realms/orgmemory"),

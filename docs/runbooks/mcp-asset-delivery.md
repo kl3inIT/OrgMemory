@@ -185,6 +185,15 @@ API with the exchanged token. Successful API delivery emits a sanitized
 structured audit line. Do not log bearer tokens, Prompt variables, payloads,
 or denial details.
 
+Keep `ORGMEMORY_MCP_CONNECT_TIMEOUT` short (5 seconds by default) so an
+unreachable API fails fast. `ORGMEMORY_MCP_REQUEST_TIMEOUT` bounds both the MCP
+request and its canonical API response (75 seconds by default). It must remain
+longer than the 60-second AI gateway budget because `search_knowledge` may
+perform bounded GraphRAG keyword planning and query embedding before
+permission-rechecked evidence is serialized. If the MCP budget is shorter, the
+API finishes into a closed connection and logs `Broken pipe` while the MCP
+client sees a generic tool failure.
+
 The POC limiter uses Bucket4j token buckets with bounded, expiring Caffeine
 state in the MCP process:
 

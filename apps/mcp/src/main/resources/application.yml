@@ -35,7 +35,7 @@ spring:
         version: 0.1.0
         protocol: STATELESS
         type: SYNC
-        request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+        request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:75s}
         instructions: >-
           OrgMemory exposes read-only, permission-aware organization knowledge
           and immutable released Assets. Every result is constrained to the
@@ -60,7 +60,8 @@ management:
 orgmemory:
   mcp:
     api-base-url: ${ORGMEMORY_API_BASE_URL:http://localhost:8080}
-    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+    connect-timeout: ${ORGMEMORY_MCP_CONNECT_TIMEOUT:5s}
+    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:75s}
     resource-uri: ${ORGMEMORY_MCP_RESOURCE_URI:http://localhost:8090/mcp}
     authorization-server: ${ORGMEMORY_OIDC_ISSUER_URI:http://localhost:8180/realms/orgmemory}
     jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI:http://localhost:8180/realms/orgmemory/protocol/openid-connect/certs}

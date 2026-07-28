@@ -44,7 +44,8 @@ management:
 orgmemory:
   mcp:
     api-base-url: ${ORGMEMORY_API_BASE_URL}
-    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:20s}
+    connect-timeout: ${ORGMEMORY_MCP_CONNECT_TIMEOUT:5s}
+    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:75s}
     resource-uri: ${ORGMEMORY_MCP_RESOURCE_URI}
     authorization-server: ${ORGMEMORY_OIDC_ISSUER_URI}
     jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI}
