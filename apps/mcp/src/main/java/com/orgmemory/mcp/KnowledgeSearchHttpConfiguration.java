@@ -13,7 +13,7 @@ class KnowledgeSearchHttpConfiguration {
     RestClient.Builder orgMemoryApiRestClientBuilder(
             McpGatewayProperties properties) {
         var httpClient = HttpClient.newBuilder()
-                .connectTimeout(properties.requestTimeout())
+                .connectTimeout(properties.connectTimeout())
                 .build();
         var requestFactory =
                 new JdkClientHttpRequestFactory(httpClient);

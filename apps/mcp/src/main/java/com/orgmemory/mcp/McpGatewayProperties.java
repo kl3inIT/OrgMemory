@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("orgmemory.mcp")
 record McpGatewayProperties(
         URI apiBaseUrl,
+        Duration connectTimeout,
         Duration requestTimeout,
         URI resourceUri,
         URI authorizationServer,
@@ -19,13 +20,14 @@ record McpGatewayProperties(
                 ? URI.create("http://localhost:8080")
                 : apiBaseUrl;
         requireHttpUri(apiBaseUrl, "api-base-url");
+        connectTimeout = connectTimeout == null
+                ? Duration.ofSeconds(5)
+                : connectTimeout;
+        requirePositive(connectTimeout, "connect-timeout");
         requestTimeout = requestTimeout == null
-                ? Duration.ofSeconds(20)
+                ? Duration.ofSeconds(75)
                 : requestTimeout;
-        if (requestTimeout.isNegative() || requestTimeout.isZero()) {
-            throw new IllegalArgumentException(
-                    "orgmemory.mcp.request-timeout must be positive");
-        }
+        requirePositive(requestTimeout, "request-timeout");
         resourceUri = resourceUri == null
                 ? URI.create("http://localhost:8090/mcp")
                 : resourceUri;
@@ -61,6 +63,14 @@ record McpGatewayProperties(
             throw new IllegalArgumentException(
                     "orgmemory.mcp." + property
                             + " must be an absolute HTTP(S) URI without query or fragment");
+        }
+    }
+
+    private static void requirePositive(
+            Duration value, String property) {
+        if (value.isNegative() || value.isZero()) {
+            throw new IllegalArgumentException(
+                    "orgmemory.mcp." + property + " must be positive");
         }
     }
 }
