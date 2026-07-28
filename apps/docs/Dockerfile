@@ -51,6 +51,7 @@ RUN addgroup --system --gid 1001 nodejs \
 
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/docs/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /workspace/apps/docs/.next/static ./apps/docs/.next/static
+COPY --from=build --chown=nextjs:nodejs /workspace/apps/docs/public ./apps/docs/public
 
 USER nextjs
 

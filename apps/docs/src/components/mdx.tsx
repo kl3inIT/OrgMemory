@@ -5,6 +5,7 @@ import {
   ApiExample,
   CapabilityGrid,
   DiagramFrame,
+  FlowDiagram,
   VerificationBlock,
 } from './docs-patterns';
 
@@ -14,6 +15,7 @@ export function getMDXComponents(components?: MDXComponents) {
     ApiExample,
     CapabilityGrid,
     DiagramFrame,
+    FlowDiagram,
     Step,
     Steps,
     VerificationBlock,

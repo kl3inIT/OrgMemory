@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -10,12 +11,6 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
-  const includeDrafts = process.env.DOCS_INCLUDE_DRAFTS === 'true';
-  const quickstartUrl = includeDrafts ? '/docs/overview/quickstart' : '/docs';
-  const architectureUrl = includeDrafts
-    ? '/docs/architecture-security/system-description'
-    : '/docs';
-
   return (
     <div className="flex w-full flex-1 flex-col">
       <section className="relative isolate overflow-hidden border-b border-fd-border">
@@ -36,7 +31,7 @@ export default function HomePage() {
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link
-                href={quickstartUrl}
+                href="/docs/overview/quickstart"
                 className="inline-flex items-center gap-2 rounded-lg bg-fd-primary px-5 py-3 text-sm font-medium text-fd-primary-foreground"
               >
                 Start the quickstart
@@ -50,35 +45,28 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div
-            aria-label="OrgMemory governance flow"
-            className="rounded-3xl border border-fd-border bg-fd-card/80 p-5 shadow-2xl shadow-fd-primary/5 backdrop-blur"
-          >
-            <div className="grid gap-3">
+          <div className="relative overflow-hidden rounded-3xl border border-fd-border bg-[#020c18] shadow-2xl shadow-fd-primary/10">
+            <Image
+              alt="Abstract documents pass through a permission boundary and become a connected knowledge constellation."
+              className="h-full min-h-80 w-full object-cover"
+              height={1024}
+              priority
+              src="/images/governed-memory-hero.png"
+              width={1680}
+            />
+            <div className="absolute inset-x-4 bottom-4 grid grid-cols-2 gap-2">
               {[
-                [Network, 'Connect', 'Discover knowledge and source permissions.'],
-                [LockKeyhole, 'Govern', 'Preserve identity and access evidence.'],
-                [Boxes, 'Understand', 'Build searchable graph and vector context.'],
-                [Braces, 'Deliver', 'Serve verified context through supported clients.'],
-              ].map(([Icon, title, description], index) => (
+                [Network, 'Connect'],
+                [LockKeyhole, 'Govern'],
+                [Boxes, 'Understand'],
+                [Braces, 'Deliver'],
+              ].map(([Icon, title]) => (
                 <div
+                  className="flex items-center gap-2 rounded-lg border border-white/15 bg-black/45 px-3 py-2 text-xs text-white backdrop-blur"
                   key={String(title)}
-                  className="flex items-start gap-4 rounded-2xl border border-fd-border bg-fd-background/75 p-4"
                 >
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-fd-primary/10 text-fd-primary">
-                    <Icon aria-hidden="true" className="size-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-fd-muted-foreground">
-                        0{index + 1}
-                      </span>
-                      <h2 className="font-medium">{String(title)}</h2>
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-fd-muted-foreground">
-                      {String(description)}
-                    </p>
-                  </div>
+                  <Icon aria-hidden="true" className="size-4 text-cyan-300" />
+                  {String(title)}
                 </div>
               ))}
             </div>
@@ -94,7 +82,7 @@ export default function HomePage() {
             </h2>
           </div>
           <Link
-            href={architectureUrl}
+            href="/docs/architecture-security/system-description"
             className="inline-flex items-center gap-2 text-sm font-medium text-fd-primary"
           >
             Explore system architecture

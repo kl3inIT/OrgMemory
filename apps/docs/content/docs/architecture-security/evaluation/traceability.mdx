@@ -4,26 +4,72 @@ description: Trace reader requirements through architecture, implementation boun
 audience:
   - evaluator
   - developer
-status: draft
+status: public
 sourceRefs:
   - docs/vision.md
   - ARCHITECTURE.md
+  - contracts/openapi.json
   - docs/tests/domains/asset-registry.md
+  - docs/tests/domains/assistant-and-mcp.md
+  - docs/tests/domains/knowledge-ingestion.md
+  - docs/tests/domains/permission-evidence-and-audit.md
   - docs/tests/domains/secure-retrieval.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  This is the public evidence matrix for evaluators; it is not a raw SRS or SDD
-  export.
-</Callout>
+This is the public requirements-to-evidence view for evaluators and thesis
+review. It presents reader goals, current component responsibility, and
+verification without turning the product navigation into a raw SRS or SDD.
 
-## Traceability model
+## Product requirements
 
-Each published requirement will link to a reader-visible behavior, responsible
-component boundary, test or runtime evidence, and known limitation.
+| ID | Requirement | Implementation boundary | Verification evidence |
+| --- | --- | --- | --- |
+| FR-01 | Ingest uploads and supported source evidence without bypassing governance | API upload, connector contract, worker ingestion, source ledger | Ingestion idempotency, incomplete evidence, connector checkpoint, and adapter suites |
+| FR-02 | Preserve immutable source revisions and permission evidence | PostgreSQL ledger, sealed ACL generations, object storage | Database immutability, stale-writer, revision conflict, and ACL rotation tests |
+| FR-03 | Return only content visible to the current actor | OIDC binding, OpenFGA, canonical SQL policy | Identity negative tests, OpenFGA model tests, pre-ranking retrieval integration |
+| FR-04 | Produce grounded Assistant answers with current citations | Secure GraphRAG, evidence-closure recheck, Assistant streaming | Graph closure, model mismatch, citation ordering, revoked-citation browser tests |
+| FR-05 | Govern reusable organizational capability as exact releases | Asset Registry and four profile validators | Domain integration, review/release/withdrawal, golden POC browser tests |
+| FR-06 | Deliver Knowledge and Assets to external AI clients safely | MCP protected resource, token exchange, canonical delivery API | Issuer/audience/scope tests, tool/resource schemas, opaque denial, rate limits |
+| FR-07 | Let administrators govern identities, source mappings, invitations, connections, and audit | Admin API, identity/source ledgers, OpenFGA administrator gate | API-wide denial, concurrent binding, mapping grant/revoke, credential redaction |
+| FR-08 | Deploy and recover components independently | Immutable images, Compose, health/smoke and rollback scripts | CI Gate, image build, deployment smokes, product rollback path |
+
+## Quality requirements
+
+| ID | Quality attribute | Measurable interpretation | Current evidence |
+| --- | --- | --- | --- |
+| QR-01 | Confidentiality | Denied/cross-tenant evidence cannot affect ranking, graph context, citation, or Asset output | Permission-negative SQL, graph conformance, opaque REST/MCP tests |
+| QR-02 | Integrity | Immutable revisions, releases, ACLs, package digests, and publication generations cannot be silently rewritten | Database guards, exact-pin tests, Skill digest tests, publication CAS |
+| QR-03 | Accountability | Security and Asset actions identify actor, object, decision, and immutable coordinates without raw secrets | Append-only permission audit and sanitized Asset trace tests |
+| QR-04 | Availability | Retries are bounded; restarts resume; failed projection/deploy preserves a known-good predecessor | Connector checkpoint, leased job, atomic publish, health/rollback checks |
+| QR-05 | Usability | Primary reader and operator journeys remain keyboard/mobile accessible and observable | Web and docs browser suites plus automated accessibility smoke |
+| QR-06 | Performance | Requests and background work have explicit resource/time/cardinality bounds | Configured limits and deterministic tests; production latency targets not yet measured |
+
+## Design evidence map
+
+The public software-design view is distributed by reader concern:
+
+- [System description](/docs/architecture-security/system-description) owns
+  components, stores, integration ports, and deployment responsibilities.
+- [Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle) owns
+  source, job, checkpoint, evidence, and publication flow.
+- [Authorization architecture](/docs/architecture-security/authorization) owns
+  identity, relationship, source ACL, classification, denial, and audit.
+- [Secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag)
+  owns candidate filtering, graph contributions, closure recheck, prompts, and
+  citations.
+- [Governed Asset lifecycle](/docs/overview/asset-lifecycle) owns reusable
+  capability states, review, exact releases, and delivery.
+
+## Evidence discipline
+
+Automated evidence is named in the repository's mirrored domain coverage files.
+Runtime availability is verified separately from behavioral tests. Recorded
+external-provider responses are labelled as such, and missing live or measured
+evidence remains visible in [Limitations](/docs/architecture-security/evaluation/limitations).
 
 <VerificationBlock title="Honesty gate">
   A roadmap item, design, or unchecked plan is never presented as shipped
-  behavior.
+  behavior. A passing test supports only the boundary it exercises; it does not
+  imply production certification.
 </VerificationBlock>

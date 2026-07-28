@@ -4,26 +4,127 @@ description: Learn how organizations, users, groups, and permission evidence gov
 audience:
   - administrator
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - docs/specs/domains/identity-and-organization.md
   - docs/specs/domains/permission-evidence-and-audit.md
   - docs/tests/domains/identity-and-organization.md
+  - docs/tests/domains/permission-evidence-and-audit.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  The final procedure will distinguish identity binding, business
-  classification, authorization relationships, and audit evidence.
-</Callout>
+OrgMemory separates sign-in identity, internal user state, product
+relationships, source-native permission evidence, and audit. Administrators can
+govern these layers, but cannot turn an observed email or group name into an
+implicit grant.
 
 ## Administrative model
 
-The authored page will explain organization isolation, trusted identity
-correlation, permission synchronization, and permission-aware not-found
-behavior.
+<CapabilityGrid
+  items={[
+    {
+      title: 'Authentication',
+      description:
+        'Keycloak authenticates; an explicit issuer/subject binding selects one active internal actor.',
+    },
+    {
+      title: 'Organization administration',
+      description:
+        'OpenFGA can_manage_members gates every administration endpoint.',
+    },
+    {
+      title: 'Source identities',
+      description:
+        'Stable source-native users and groups are observed first, then mapped only through verified trust.',
+    },
+    {
+      title: 'Permission evidence',
+      description:
+        'Sealed ACL and group-membership generations preserve what a source actually reported.',
+    },
+  ]}
+/>
+
+## Invite and bind a user
+
+<Steps>
+  <Step>
+    Create an invitation expectation for the user's organization, address, and
+    initial local business role. Only one open invitation may exist for that
+    address in the organization.
+  </Step>
+  <Step>
+    Ask the user to sign in through the configured identity provider. A verified
+    address may select exactly one invitation, but never becomes the durable
+    identity key.
+  </Step>
+  <Step>
+    Confirm that the user now reports a linked external identity. The durable
+    binding is the provider's issuer and subject.
+  </Step>
+</Steps>
+
+Zero eligible invitations or ambiguity across organizations provisions nothing.
+An existing linked identity always wins. There is no open registration.
+
+## User and role administration
+
+The administration API lists internal users, activation, local role, whether a
+sign-in binding exists, and how many source principals resolve to the user. An
+administrator may change another user's activation or local role, but cannot
+self-edit and accidentally remove the organization's last viable administrator.
+
+The local role is business/classification state. It is not a Keycloak role and
+not an OpenFGA relationship. Changing it cannot grant organization or Knowledge
+Space authority.
+
+## Correlate source identities
+
+Source adapters report users and groups by stable, typed provider-native IDs.
+Email and display name may assist review but are mutable observations.
+
+<Steps>
+  <Step>
+    Inspect the observed source principal and the connection that reported it.
+  </Step>
+  <Step>
+    Confirm a mapping only when the source itself vouches for the identity or an
+    administrator has recorded the connection-level trust decision.
+  </Step>
+  <Step>
+    Review the active sealed group-membership snapshot and generation. A complete
+    replacement advances the head atomically.
+  </Step>
+  <Step>
+    Revoke a wrong mapping. Retrieval closes on the next request without
+    rewriting source content.
+  </Step>
+</Steps>
+
+Observation alone grants nothing. An unmapped user or incomplete group
+membership fails closed.
+
+## Explain effective access
+
+Administration can ask whether one user has one permission on one supported
+resource and inspect the OpenFGA relationship expansion behind the answer.
+Enforcement continues to use canonical check ports; the explanation does not
+become a second policy engine.
+
+A verdict may be allowed, denied, or unknown. Unknown preserves the distinction
+between an unavailable answer and an explicit refusal.
+
+## Audit expectations
+
+Mapping, revocation, role, activation, invitation, source-credential, and trust
+changes append redacted events attributed to the acting administrator. Audit
+records identify the affected object and decision but do not retain credentials
+or raw search text.
 
 <VerificationBlock title="Security review">
-  Every access claim must be supported by current authorization code, model, or
-  test evidence.
+  Automated evidence covers issuer/subject-only lookup, invitation ambiguity,
+  concurrent first sign-in, inactive-user denial, API-wide administrator gates,
+  source mapping grant/revoke, current group heads, self-edit refusal, and
+  append-only audit behavior. Dedicated browser tests for the administration
+  screens remain a documented gap.
 </VerificationBlock>

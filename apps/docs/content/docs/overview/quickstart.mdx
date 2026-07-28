@@ -5,33 +5,96 @@ audience:
   - adopter
   - developer
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - README.md
+  - .env.example
+  - demo/README.md
   - compose.yaml
-  - docs/vision.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  Commands, prerequisites, expected results, and failure recovery are verified
-  before this page becomes public.
-</Callout>
+This path starts the local infrastructure, API, deterministic demo identities,
+and web application from a clean checkout. It intentionally keeps OIDC and
+OpenFGA enabled; OrgMemory has no permit-all development profile.
 
 ## Prerequisites
 
-The final guide will identify the supported runtime, required services, and
-which credentials remain outside the repository.
+- Docker with Compose;
+- Java 25;
+- Node.js 24 and Corepack;
+- Git and a PowerShell terminal;
+- local-only object-storage and MCP client credentials created outside Git;
+- an OpenAI-compatible chat and embedding provider for the default GraphRAG
+  path.
 
-## Demonstration journey
+Copy `.env.example` to `.env`, replace every placeholder locally, and never
+commit the result. To start the API without a model provider, the example file
+documents an explicit canonical-hybrid configuration; GraphRAG and model-backed
+answers are unavailable in that mode.
+
+## 1. Bootstrap governed infrastructure
 
 <Steps>
-  <Step>Start the supported local stack.</Step>
-  <Step>Ingest governed knowledge with permission evidence.</Step>
-  <Step>Verify retrieval, citations, and read-only MCP delivery.</Step>
+  <Step>
+    From the repository root, run `.\gradlew.bat demoBootstrap`. This recreates
+    only the ephemeral local Keycloak container, creates a local OpenFGA store
+    and model, and retains PostgreSQL, MinIO, and their named volumes.
+  </Step>
+  <Step>
+    Start the API with
+    `.\gradlew.bat :apps:api:bootRun --args='--spring.profiles.active=dev'`.
+    Wait until Flyway completes and the health endpoint is available.
+  </Step>
+  <Step>
+    In another terminal, run `.\gradlew.bat demoSeed`. The seed is idempotent
+    and uses synthetic repository-owned identities and relationships.
+  </Step>
 </Steps>
 
-<VerificationBlock title="Release gate">
-  Every command must be executable from a clean checkout and every expected
-  result must be observable.
+<VerificationBlock title="Infrastructure check">
+  `http://localhost:8080/api/health` should answer successfully. Swagger is
+  available only in the development profile at
+  `http://localhost:8080/swagger-ui.html`.
 </VerificationBlock>
+
+## 2. Start the web application
+
+```powershell
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @orgmemory/web gen:api
+corepack pnpm --filter @orgmemory/web dev --host 127.0.0.1 --port 5173
+```
+
+Open `http://localhost:5173`. A protected route should redirect through
+Keycloak and return to the application after sign-in. The browser stores an
+HttpOnly server session, not OAuth access or refresh tokens.
+
+## 3. Run the demonstration journey
+
+The deterministic fixture supports a small L1 support capability:
+
+1. an owner reviews exact Knowledge and Asset revisions;
+2. a second user discovers only releases they may use;
+3. the user runs a permission-aware Prompt Template with citations;
+4. they acknowledge a Work Instruction and complete an exact-pin Capability
+   Pack;
+5. a replacement release does not silently rewrite the Pack;
+6. withdrawal prevents new consumption while preserving history.
+
+Documents are not inserted directly into chunk, vector, or graph tables. Use
+the product upload flow so the original evidence, revision, ACL, embeddings, and
+publication state are created by the same path used outside the demo.
+
+## Common failures
+
+| Symptom | Check |
+| --- | --- |
+| Compose stops before Keycloak or MinIO starts | Confirm every local placeholder in `.env` was replaced. |
+| API refuses to start | Confirm Java 25, the `dev` profile, database health, OpenFGA identifiers, and the selected AI route. |
+| Sign-in succeeds but the app denies access | Run `demoSeed` after Flyway and confirm the explicit issuer/subject binding exists. |
+| GraphRAG reports unavailable | Configure both chat and embedding routes, or select canonical hybrid explicitly for a provider-free boot. |
+| A document cannot be searched | Confirm it entered through upload/ingestion and reached a published active version. |
+
+Next, read [Core concepts](/docs/overview/core-concepts) before changing
+authorization or ingestion behavior.

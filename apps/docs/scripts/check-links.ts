@@ -5,6 +5,7 @@ import {
   validateFiles,
 } from 'next-validate-link';
 import { register } from 'fumadocs-mdx/node';
+import path from 'node:path';
 
 process.env.DOCS_INCLUDE_DRAFTS = 'true';
 register();
@@ -13,6 +14,7 @@ async function checkLinks() {
   const { source } = await import('../src/lib/source');
   const scanned = await scanURLs({
     preset: 'next',
+    pages: [path.join('docs', '[[...slug]]', 'page.tsx')],
     populate: {
       'docs/[[...slug]]': source.getPages().map((page) => ({
         value: {

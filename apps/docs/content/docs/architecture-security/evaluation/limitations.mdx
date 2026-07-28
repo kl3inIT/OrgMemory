@@ -5,7 +5,7 @@ audience:
   - evaluator
   - adopter
   - developer
-status: draft
+status: public
 sourceRefs:
   - docs/vision.md
   - docs/roadmap.md
@@ -13,16 +13,72 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="warn">
-  Planned capabilities remain explicitly separate from current behavior.
-</Callout>
+OrgMemory is a production-shaped POC, not an approved enterprise deployment.
+The following constraints are intentionally explicit so architecture and test
+coverage are not mistaken for operational certification.
 
 ## Current limitations
 
-The final page will list verified constraints that materially affect adoption,
-operation, security, performance, or integration.
+### Operational evidence
+
+- database and object-storage restore rehearsal remains open;
+- malware and DLP scanning are not integrated into the upload path;
+- production load, latency, capacity, and high-concurrency revocation timing
+  have not been measured against service-level targets;
+- provider-backed retrieval quality evaluation and an enterprise security review
+  remain open;
+- complete audit/export leak coverage across every retrieval surface is not yet
+  claimed.
+
+### Connectors and identity
+
+- Slack, Google Drive, and GitHub adapters are extensively tested with recorded
+  responses, but current evidence does not include a live production workspace
+  proof;
+- incremental webhooks, credential-rotation automation, OCR, Airbyte staging,
+  and malware/DLP integrations are not implemented;
+- SCIM discovery and the protected connection foundation exist, but User and
+  Group mutation endpoints remain disabled;
+- one external issuer/subject belongs to one application user and organization;
+  one person across multiple organizations needs a future global-person model;
+- source-derived permissions for content composed from multiple source objects
+  do not yet have a complete intersection contract.
+
+### Product and API
+
+- general Assistant chat-turn idempotency is not implemented;
+- historical conversation answers remain snapshots; citation opening rechecks
+  current access, while purge-on-revocation would require a separate retention
+  policy;
+- administration screens and the graph explorer lack focused real-browser
+  coverage beyond their API/service and shared-shell tests;
+- controlled SOP effectivity, Skill package replacement/removal, public package
+  signing, and a cross-company marketplace are deferred;
+- public product versioning and a compatibility policy are not established.
+
+### Retrieval and evaluation
+
+- multi-space candidate-level reranking remains fail-closed until one global
+  contract exists;
+- graph strategy selection is internal rather than a public tuning surface;
+- the optional VChordRQ index requires an extension absent from the pinned local
+  image and fails startup when selected;
+- one preserved public evaluation fixture contains a known expected-denial
+  inconsistency; the product does not hard-code an exception for it.
 
 ## Evidence-gated future work
 
-Future capabilities will be grouped by the evidence required to justify them,
-not presented as promised release dates.
+| Area | Evidence required before the claim changes |
+| --- | --- |
+| Pilot readiness | Restore rehearsal, upload scanning, live connector revocation, complete audit review, capacity results, and security sign-off |
+| Live connectors | Sanitized end-to-end runs against controlled Slack, Drive, and GitHub tenants, including grant and revoke |
+| SCIM provisioning | Mutation contract, readiness policy, conformance suite, rollback, and guarded production enablement |
+| Performance SLOs | Representative corpus/workload, repeatable environment, percentile latency, throughput, saturation, and failure behavior |
+| Retrieval quality | Versioned evaluation set, provider/model coordinates, permission-negative cases, citation quality, and reproducible results |
+| Multi-organization identity | Explicit global-person/membership model with migration and tenant-isolation evidence |
+| Public versioning | Supported compatibility policy and genuinely incompatible released generations |
+
+<Callout title="No hidden roadmap promise" type="info">
+  These items describe evidence needed to close a limitation. They are not
+  release dates or commitments.
+</Callout>

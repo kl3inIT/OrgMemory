@@ -8,6 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
+  timeout: 60_000,
+  workers: process.env.CI ? 2 : 4,
   reporter: process.env.CI
     ? [['html', { outputFolder: '../../output/playwright/docs-report', open: 'never' }]]
     : 'list',
@@ -18,7 +20,8 @@ export default defineConfig({
   webServer: {
     command: `corepack pnpm dev --hostname 127.0.0.1 --port ${port}`,
     env: {
-      DOCS_INCLUDE_DRAFTS: 'true',
+      DOCS_DEPLOYMENT_MODE: 'production',
+      DOCS_INCLUDE_DRAFTS: 'false',
     },
     url: `http://127.0.0.1:${port}/healthz`,
     reuseExistingServer: !process.env.CI,

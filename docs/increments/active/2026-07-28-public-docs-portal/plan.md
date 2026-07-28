@@ -89,24 +89,24 @@ Exit gate:
 Purpose: ship the smallest credible public corpus, grounded only in current
 repository facts.
 
-- [ ] Author Welcome, Quickstart and POC Demo, and Core Concepts.
-- [ ] Author the governed Asset lifecycle from current Asset Registry behavior.
-- [ ] Author System Description using the Onyx presentation pattern.
-- [ ] Add an accessible high-level architecture diagram.
-- [ ] Author ingestion lifecycle, authorization architecture, and secure
+- [x] Author Welcome, Quickstart and POC Demo, and Core Concepts.
+- [x] Author the governed Asset lifecycle from current Asset Registry behavior.
+- [x] Author System Description using the Onyx presentation pattern.
+- [x] Add an accessible high-level architecture diagram.
+- [x] Author ingestion lifecycle, authorization architecture, and secure
   retrieval/GraphRAG.
-- [ ] Author identity/permission administration and source/connection guides.
-- [ ] Author Assistant and MCP integration.
-- [ ] Author the self-hosting overview without exposing private production
+- [x] Author identity/permission administration and source/connection guides.
+- [x] Author Assistant and MCP integration.
+- [x] Author the self-hosting overview without exposing private production
   values or internal operational evidence.
-- [ ] Author functional and quality coverage.
-- [ ] Author the requirement-to-implementation-to-test traceability page.
-- [ ] Author limitations and future work with current behavior separated from
+- [x] Author functional and quality coverage.
+- [x] Author the requirement-to-implementation-to-test traceability page.
+- [x] Author limitations and future work with current behavior separated from
   planned work.
-- [ ] Add `sourceRefs` to `docs/vision.md`, `ARCHITECTURE.md`, current domain
+- [x] Add `sourceRefs` to `docs/vision.md`, `ARCHITECTURE.md`, current domain
   specs, verification docs, accepted decisions, the OpenAPI contract, and
   selected sanitized runbook facts.
-- [ ] Perform a fact review against code, schema, contracts, and tests before
+- [x] Perform a fact review against code, schema, contracts, and tests before
   calling any behavior current.
 
 Exit gate:
