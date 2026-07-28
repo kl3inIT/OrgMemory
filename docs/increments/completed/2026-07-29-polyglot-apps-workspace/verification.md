@@ -54,9 +54,18 @@ mechanical floor passed.
   API reference generation, and full output auditing remain in the public docs
   portal plan.
 
-## Remaining Closeout
+## Delivery Evidence
 
-- push the branch and open the pull request;
-- require the aggregate CI gate, including the new Public docs job, to pass;
-- move this increment to completed and merge after final CI;
-- verify `origin/main` and record the checkpoint in Northstar.
+- Pull request: [#103](https://github.com/kl3inIT/OrgMemory/pull/103)
+- CI run: `30386700211`
+- CI result: all required jobs passed, including `Public docs · Node 24`,
+  `Web · Node 24`, `Deployment contracts`, and the aggregate `CI Gate`.
+- Merge commit: `3d02828ffddff32d243d1f2cc6f5c0820ae93966`
+- Remote verification: `origin/main` resolved to the merge commit after fetch.
+- Northstar checkpoint: `orgmemory-repository-operating-model-checkpoint-2026-07-29`
+  (note id `92e42df8-7319-4190-9aec-30abc2e0434b`).
+
+The public documentation portal remains active. Its next gate is the reviewed,
+Onyx-style information architecture and public corpus; API reference
+generation, search/output auditing, and production deployment follow that
+content boundary.

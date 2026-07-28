@@ -11,6 +11,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 
 | Increment or program | Status | Historical evidence |
 | --- | --- | --- |
+| Polyglot apps workspace and Fumadocs foundation | shipped | [completed verification](increments/completed/2026-07-29-polyglot-apps-workspace/verification.md) |
 | Repository operating-model refresh | shipped | [completed verification](increments/completed/2026-07-29-repository-operating-model-refresh/verification.md) |
 | Repository harness and secure knowledge foundation | shipped | [completed increments](increments/completed/README.md) |
 | Browser authentication, AI gateway, Assistant, secure hybrid retrieval, and MCP | shipped | [completed increments](increments/completed/README.md) |
@@ -27,7 +28,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Polyglot apps workspace](increments/active/2026-07-29-polyglot-apps-workspace/plan.md) | active | normalize pnpm ownership, move web, establish the Fumadocs foundation, and pass all product/deployment gates |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
 | [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
@@ -43,19 +43,17 @@ implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Complete the active repository-layout increment without mixing the move with
-   public-content authoring.
-2. Continue the Fumadocs portal information architecture and content plan
+1. Continue the Fumadocs portal information architecture and content plan
    against the normalized `apps/docs` foundation.
-3. Complete the guarded ZM database cutover, runtime health, browser login,
+2. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
-4. Complete the reproducible demo's real ingestion and permission-evaluation
+3. Complete the reproducible demo's real ingestion and permission-evaluation
    path.
-5. Run the Slack live proof with credentials outside the repository and retain
+4. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-6. Close the production proofs for asset projection generation, LightRAG
+5. Close the production proofs for asset projection generation, LightRAG
    latency, and MCP search reliability.
-7. Continue the dependency-ordered native identity program: provisioning
+6. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
 

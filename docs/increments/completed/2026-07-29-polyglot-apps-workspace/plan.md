@@ -93,10 +93,10 @@ docker buildx build --check --file apps/docs/Dockerfile .
 - [x] Record exact verification evidence in `verification.md`.
 - [x] Mark the corresponding foundation items in the public docs portal plan
   complete only where evidence exists.
-- [ ] Move this increment to `completed/` and update roadmap status.
-- [ ] Commit, push, open a pull request, require green CI, merge, and verify
+- [x] Move this increment to `completed/` and update roadmap status.
+- [x] Commit, push, open a pull request, require green CI, merge, and verify
   `origin/main`.
-- [ ] Record the durable checkpoint in Northstar.
+- [x] Record the durable checkpoint in Northstar.
 
 Completion gate: every checked item has command, commit, CI, or runtime evidence;
 no docs production claim is made.
