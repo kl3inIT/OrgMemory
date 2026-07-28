@@ -34,10 +34,17 @@ On 2026-07-29 the ZM host was inspected without changing runtime state:
   names;
 - the host intentionally retains no persistent GHCR credential; the deployment
   workflow logs in for one exact pull and logs out afterward;
+- GitHub-hosted product deployment run `30399267433` timed out before SSH
+  authentication and skipped its deploy step, proving that the current runner
+  cannot reach the managed SSH endpoint;
 - `docs.om.kl3in.tech` did not resolve yet.
 
-DNS control and Nginx Proxy Manager configuration access were not proven.
-That is the current stop condition, not permission to guess or mutate them.
+GitHub-runner SSH reachability, DNS control, and Nginx Proxy Manager
+configuration access were not proven. Those are the current stop conditions,
+not permission to guess or mutate them. Choose an approved fix before
+deployment: expose the managed SSH endpoint to GitHub-hosted runners with an
+appropriate firewall policy, or run the workflow on an approved
+self-hosted/VPN-connected runner.
 
 ## Publish An Immutable Image
 
