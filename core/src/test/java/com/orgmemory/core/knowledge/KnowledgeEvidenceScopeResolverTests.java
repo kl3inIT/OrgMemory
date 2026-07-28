@@ -67,10 +67,14 @@ class KnowledgeEvidenceScopeResolverTests {
                 .thenReturn(List.of(new KnowledgeAssetAuthorizationScope(
                         ASSET_ID,
                         SPACE_ID)));
-        when(snapshots.maximumCurrentAclGeneration(
+        KnowledgeSpaceAclGeneration generation =
+                mock(KnowledgeSpaceAclGeneration.class);
+        when(generation.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
+        when(generation.getAclGeneration()).thenReturn(7L);
+        when(snapshots.maximumCurrentAclGenerations(
                         ORGANIZATION_ID,
-                        Set.of(ASSET_ID)))
-                .thenReturn(7L);
+                        List.of(ASSET_ID)))
+                .thenReturn(List.of(generation));
         when(canonical.visibleKnowledgeAssetIds(any()))
                 .thenReturn(List.of(ASSET_ID));
         when(clocks.getIfAvailable(any())).thenReturn(Clock.fixed(

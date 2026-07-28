@@ -1,6 +1,7 @@
 package com.orgmemory.graphrag.query;
 
 import com.orgmemory.graphrag.model.EvidenceReference;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +106,7 @@ public record LightRagQueryResult(
             int selectedChunkCount,
             boolean rerankAttempted,
             boolean rerankFallback,
+            Duration rerankDuration,
             List<ChunkSignal> chunkSignals,
             String authorizationFingerprint,
             long projectionGeneration,
@@ -122,6 +124,15 @@ public record LightRagQueryResult(
                     || selectedChunkCount < 0
                     || projectionGeneration <= 0) {
                 throw new IllegalArgumentException("trace counts and generation must be valid");
+            }
+            Objects.requireNonNull(rerankDuration, "rerankDuration");
+            if (rerankDuration.isNegative()) {
+                throw new IllegalArgumentException(
+                        "rerankDuration must not be negative");
+            }
+            if (!rerankAttempted && !rerankDuration.isZero()) {
+                throw new IllegalArgumentException(
+                        "unattempted reranking must have zero duration");
             }
             chunkSignals = List.copyOf(Objects.requireNonNull(chunkSignals, "chunkSignals"));
             authorizationFingerprint =

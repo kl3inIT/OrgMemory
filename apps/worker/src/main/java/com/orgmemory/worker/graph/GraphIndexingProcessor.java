@@ -256,6 +256,8 @@ class GraphIndexingProcessor {
                     inputCount,
                     outputCount,
                     null,
+                    null,
+                    null,
                     failureCode,
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {

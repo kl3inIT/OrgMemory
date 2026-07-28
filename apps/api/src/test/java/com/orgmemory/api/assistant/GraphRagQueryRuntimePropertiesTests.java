@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class GraphRagQueryRuntimePropertiesTests {
@@ -21,6 +22,8 @@ class GraphRagQueryRuntimePropertiesTests {
         assertFalse(policy.rerank().enabled());
         assertEquals("none", policy.rerank().provider());
         assertEquals(2_000, policy.maximumEvidenceClosure());
+        assertEquals(4, policy.maximumConcurrentSpaces());
+        assertEquals(Duration.ofHours(24), properties.keywordCacheTtl());
     }
 
     @Test
@@ -61,8 +64,10 @@ class GraphRagQueryRuntimePropertiesTests {
                 null,
                 null,
                 null,
+                null,
                 rerankEnabled,
                 rerankProvider,
-                minimumRerankScore);
+                minimumRerankScore,
+                null);
     }
 }

@@ -3,6 +3,7 @@ package com.orgmemory.core.ai;
 public enum AiWorkload {
     ASSISTANT_CHAT(AiGatewayCapability.CHAT),
     PROMPT_EXECUTION(AiGatewayCapability.CHAT),
+    KEYWORD_PLANNING(AiGatewayCapability.CHAT),
     GRAPH_EXTRACTION(AiGatewayCapability.CHAT),
     QUERY_EMBEDDING(AiGatewayCapability.EMBEDDING),
     DOCUMENT_EMBEDDING(AiGatewayCapability.EMBEDDING);

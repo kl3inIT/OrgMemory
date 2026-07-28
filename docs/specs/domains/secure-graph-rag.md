@@ -18,6 +18,10 @@
 - One deterministic renderer applies the final input-token budget across all
   selected Knowledge Spaces and assigns references to every contributing
   evidence item.
+- One logical query prepares its keyword plan and distinct embedding batch once,
+  then reuses that immutable provider output across authorized, pinned
+  Knowledge Space snapshots. The prepared value contains no authorization
+  decision or evidence.
 
 ## Structured Extraction
 
@@ -51,6 +55,9 @@
   embeddings are stored relationally. Every query applies organization and the
   pre-authorized Knowledge Asset set before aggregation, distance threshold, and
   limit.
+- Vector nearest-neighbor ordering uses the raw pgvector cosine-distance
+  operator ascending so an eligible approximate index remains usable;
+  similarity is derived only from the selected nearest rows.
 - Revision replacement is atomic and generation-monotonic under a transaction
   advisory lock. Contribution and embedding writes are bounded by both record
   count and estimated payload bytes.
@@ -97,6 +104,14 @@
 
 - Assistant retrieval resolves the full canonical ACL/classification/lifecycle
   scope before the graph engine or model sees evidence.
+- Keyword planning has its own AI workload route and an exact organization-
+  scoped cache keyed by query, language, strategy, route and prompt profile.
+  Trusted caller keywords bypass both provider and cache.
+- Published snapshots execute with bounded concurrency after provider
+  preparation and outside a provider-spanning database transaction. Results
+  remain deterministic by sorted Knowledge Space order; one failed snapshot
+  fails the whole request closed. Multi-space reranking remains fail-closed
+  until a global candidate-level rerank contract exists.
 - The complete selected entity/relation/chunk evidence closure is BatchChecked
   and re-read from the canonical ledger after ranking. Scope, OpenFGA model,
   ACL snapshot, source revision, and projection generation must still match.
@@ -113,3 +128,6 @@
   presigned storage URL.
 - Read-only MCP search uses the same application retrieval boundary. Graph
   explorer access stays curator/admin-only.
+- Payload-free OpenTelemetry stages separate keyword planning/cache status,
+  embedding, hashed per-snapshot retrieval, consolidation, authorization and
+  provider-only reranking duration.

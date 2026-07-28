@@ -37,6 +37,10 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
             AttributeKey.longKey("orgmemory.graph_rag.output_count");
     static final AttributeKey<String> MODEL_ROUTE_FINGERPRINT =
             AttributeKey.stringKey("orgmemory.graph_rag.model_route_fingerprint");
+    static final AttributeKey<String> SCOPE_FINGERPRINT =
+            AttributeKey.stringKey("orgmemory.graph_rag.scope_fingerprint");
+    static final AttributeKey<String> CACHE_STATUS =
+            AttributeKey.stringKey("orgmemory.graph_rag.cache_status");
     static final AttributeKey<String> FAILURE_CODE =
             AttributeKey.stringKey("orgmemory.graph_rag.failure_code");
 
@@ -69,6 +73,14 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
             span.setAttribute(
                     MODEL_ROUTE_FINGERPRINT,
                     event.modelRouteFingerprint());
+        }
+        if (event.scopeFingerprint() != null) {
+            span.setAttribute(
+                    SCOPE_FINGERPRINT,
+                    event.scopeFingerprint());
+        }
+        if (event.cacheStatus() != null) {
+            span.setAttribute(CACHE_STATUS, enumValue(event.cacheStatus()));
         }
         if (event.failureCode() != null) {
             span.setAttribute(FAILURE_CODE, event.failureCode());

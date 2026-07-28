@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +15,9 @@ interface SourceAclSnapshotRepository extends JpaRepository<SourceAclSnapshot, U
     Optional<SourceAclSnapshot> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     @Query(value = """
-            SELECT COALESCE(MAX(snapshot.acl_generation), 0)
+            SELECT
+                asset.knowledge_space_id AS "knowledgeSpaceId",
+                COALESCE(MAX(snapshot.acl_generation), 0) AS "aclGeneration"
             FROM source_acl_snapshots snapshot
             JOIN knowledge_asset_versions asset_version
               ON asset_version.source_acl_snapshot_id = snapshot.id
@@ -26,8 +29,9 @@ interface SourceAclSnapshotRepository extends JpaRepository<SourceAclSnapshot, U
              AND asset.archived_at IS NULL
             WHERE snapshot.organization_id = :organizationId
               AND asset.id IN (:assetIds)
+            GROUP BY asset.knowledge_space_id
             """, nativeQuery = true)
-    long maximumCurrentAclGeneration(
+    List<KnowledgeSpaceAclGeneration> maximumCurrentAclGenerations(
             @Param("organizationId") UUID organizationId,
             @Param("assetIds") Collection<UUID> assetIds);
 }

@@ -38,6 +38,8 @@ class GraphRagEventSinkTests {
                 1,
                 2,
                 routeFingerprint,
+                null,
+                null,
                 failureCode,
                 Instant.now());
     }

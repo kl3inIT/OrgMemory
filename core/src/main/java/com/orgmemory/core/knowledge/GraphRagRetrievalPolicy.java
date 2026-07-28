@@ -10,6 +10,7 @@ import java.util.Objects;
  */
 public record GraphRagRetrievalPolicy(
         int maximumKnowledgeSpaces,
+        int maximumConcurrentSpaces,
         int topK,
         int chunkTopK,
         int relatedChunkNumber,
@@ -22,6 +23,8 @@ public record GraphRagRetrievalPolicy(
 
     public GraphRagRetrievalPolicy {
         if (maximumKnowledgeSpaces <= 0
+                || maximumConcurrentSpaces <= 0
+                || maximumConcurrentSpaces > maximumKnowledgeSpaces
                 || topK <= 0
                 || chunkTopK <= 0
                 || relatedChunkNumber <= 0
@@ -65,6 +68,7 @@ public record GraphRagRetrievalPolicy(
     public static GraphRagRetrievalPolicy defaults() {
         return new GraphRagRetrievalPolicy(
                 20,
+                4,
                 60,
                 20,
                 5,

@@ -9,6 +9,8 @@ import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -59,26 +61,80 @@ public final class LightRagQueryEngine {
     }
 
     public LightRagQueryResult execute(LightRagQueryRequest request) {
+        return executePrepared(request, prepare(request));
+    }
+
+    /**
+     * Performs keyword planning and embedding exactly once for one logical
+     * query. The returned value contains no authorization or evidence state.
+     */
+    public LightRagPreparedQuery prepare(LightRagQueryRequest request) {
         Objects.requireNonNull(request, "request");
+        long keywordStartedAt = System.nanoTime();
+        LightRagKeywordPlanner.PlanningResult keywordPlanning =
+                request.options().mode().usesGraph()
+                ? keywordPlanner.planWithTrace(
+                        request.query(),
+                        request.trustedKeywords(),
+                        request.scope().organizationId(),
+                        request.options().mode().name())
+                : new LightRagKeywordPlanner.PlanningResult(
+                        KeywordPlan.empty(KeywordPlan.Source.MODEL),
+                        GraphRagEventSink.CacheStatus.BYPASS);
+        Duration keywordDuration = Duration.ofNanos(Math.max(
+                0,
+                System.nanoTime() - keywordStartedAt));
+        KeywordPlan keywords = keywordPlanning.plan();
+        long embeddingStartedAt = System.nanoTime();
+        EmbeddingPlan embeddingPlan =
+                request.options().mode() == LightRagQueryMode.BYPASS
+                        ? new EmbeddingPlan(List.of(), null, null, null)
+                        : embed(request, keywords);
+        Duration embeddingDuration = Duration.ofNanos(Math.max(
+                0,
+                System.nanoTime() - embeddingStartedAt));
+        return new LightRagPreparedQuery(
+                request.query(),
+                request.options(),
+                request.embeddingProfileId(),
+                request.embeddingDimensions(),
+                keywords,
+                embeddingPlan.inputs(),
+                embeddingPlan.query(),
+                embeddingPlan.lowLevel(),
+                embeddingPlan.highLevel(),
+                request.conversationHistory(),
+                keywordDuration,
+                embeddingDuration,
+                keywordPlanning.cacheStatus(),
+                keywordPlanner.modelRouteFingerprint());
+    }
+
+    /**
+     * Executes snapshot-scoped retrieval from an already prepared query.
+     * Authorization scope and publication snapshot are still request-specific.
+     */
+    public LightRagQueryResult executePrepared(
+            LightRagQueryRequest request,
+            LightRagPreparedQuery prepared) {
+        Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(prepared, "prepared").requireMatches(request);
         if (request.options().mode() == LightRagQueryMode.BYPASS) {
             return bypass(request);
         }
 
-        KeywordPlan keywords = request.options().mode().usesGraph()
-                ? keywordPlanner.plan(request.query(), request.trustedKeywords())
-                : KeywordPlan.empty(KeywordPlan.Source.MODEL);
+        KeywordPlan keywords = prepared.keywords();
         if (request.options().mode().usesGraph()
                 && !request.options().mode().usesChunkSeeds()
                 && keywords.empty()) {
             return noResults(request, keywords, List.of(), "keywords_empty");
         }
 
-        EmbeddingPlan embeddingPlan = embed(request, keywords);
         Branch local = request.options().mode().usesEntitySeeds()
-                ? localBranch(request, embeddingPlan.lowLevel())
+                ? localBranch(request, prepared.lowLevelEmbedding())
                 : Branch.empty();
         Branch global = request.options().mode().usesRelationSeeds()
-                ? globalBranch(request, embeddingPlan.highLevel())
+                ? globalBranch(request, prepared.highLevelEmbedding())
                 : Branch.empty();
 
         List<RankedItem<PermissionScopedGraphView.EntityView>> entities =
@@ -91,7 +147,7 @@ public final class LightRagQueryEngine {
                 entities.stream().map(RankedItem::value).toList(),
                 LightRagQueryResult.Origin.ENTITY,
                 Set.of(),
-                embeddingPlan.query());
+                prepared.queryEmbedding());
         Set<UUID> entityChunkIds =
                 entityChunks.stream().map(state -> state.chunk().id()).collect(Collectors.toSet());
         List<ChunkState> relationChunks = supportChunks(
@@ -99,9 +155,9 @@ public final class LightRagQueryEngine {
                 relations.stream().map(RankedItem::value).toList(),
                 LightRagQueryResult.Origin.RELATION,
                 entityChunkIds,
-                embeddingPlan.query());
+                prepared.queryEmbedding());
         List<ChunkState> vectorChunks = request.options().mode().usesChunkSeeds()
-                ? vectorChunks(request, embeddingPlan.query())
+                ? vectorChunks(request, prepared.queryEmbedding())
                 : List.of();
         List<ChunkState> chunks =
                 interleaveChunks(vectorChunks, entityChunks, relationChunks);
@@ -110,7 +166,7 @@ public final class LightRagQueryEngine {
         return assemble(
                 request,
                 keywords,
-                embeddingPlan.inputs(),
+                prepared.embeddingInputs(),
                 local.seedCount(),
                 global.seedCount(),
                 vectorChunks.size(),
@@ -168,6 +224,7 @@ public final class LightRagQueryEngine {
                 0,
                 false,
                 false,
+                Duration.ZERO,
                 List.of(),
                 "");
         return new LightRagQueryResult(
@@ -296,13 +353,10 @@ public final class LightRagQueryEngine {
         LinkedHashSet<UUID> relationIds = seeds.stream()
                 .map(item -> item.value().id())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-        List<RelationContribution> relationContributions =
-                projection.loadRelationContributions(
-                        request.scope(), request.snapshot(), relationIds);
         LinkedHashSet<UUID> entityIds = new LinkedHashSet<>();
-        relationContributions.forEach(contribution -> {
-            entityIds.add(contribution.relation().sourceEntityId());
-            entityIds.add(contribution.relation().targetEntityId());
+        seeds.forEach(seed -> {
+            entityIds.add(seed.value().sourceEntityId());
+            entityIds.add(seed.value().targetEntityId());
         });
         PermissionScopedGraphView view = scopedView(request, entityIds, relationIds);
         Map<UUID, PermissionScopedGraphView.EntityView> entityViews =
@@ -490,8 +544,10 @@ public final class LightRagQueryEngine {
             return new RerankOutcome(
                     chunks.stream().limit(request.options().chunkTopK()).toList(),
                     false,
-                    false);
+                    false,
+                    Duration.ZERO);
         }
+        long startedAt = System.nanoTime();
         try {
             List<ChunkReranker.Score> scores = reranker.rerank(
                     request.query(),
@@ -504,7 +560,8 @@ public final class LightRagQueryEngine {
                 return new RerankOutcome(
                         chunks.stream().limit(request.options().chunkTopK()).toList(),
                         true,
-                        true);
+                        true,
+                        elapsed(startedAt));
             }
             Map<UUID, Double> byChunk = scores.stream().collect(Collectors.toMap(
                     ChunkReranker.Score::chunkId,
@@ -522,14 +579,19 @@ public final class LightRagQueryEngine {
                             .thenComparing(item -> item.chunk().id()))
                     .limit(request.options().chunkTopK())
                     .toList();
-            return new RerankOutcome(reranked, true, false);
+            return new RerankOutcome(
+                    reranked,
+                    true,
+                    false,
+                    elapsed(startedAt));
         } catch (RuntimeException providerFailure) {
             // The immutable trace records this fail-open path; the delivery shell
             // records provider diagnostics without exposing them to the answer.
             return new RerankOutcome(
                     chunks.stream().limit(request.options().chunkTopK()).toList(),
                     true,
-                    true);
+                    true,
+                    elapsed(startedAt));
         }
     }
 
@@ -574,6 +636,7 @@ public final class LightRagQueryEngine {
                 prepared.grounding().chunks().size(),
                 reranked.attempted(),
                 reranked.fallback(),
+                reranked.duration(),
                 signals,
                 "");
         LightRagQueryResult.Answer answer = switch (request.options().outputMode()) {
@@ -619,6 +682,7 @@ public final class LightRagQueryEngine {
                         0,
                         false,
                         false,
+                        Duration.ZERO,
                         List.of(),
                         reason));
     }
@@ -635,6 +699,7 @@ public final class LightRagQueryEngine {
             int selectedChunkCount,
             boolean rerankAttempted,
             boolean rerankFallback,
+            Duration rerankDuration,
             List<LightRagQueryResult.ChunkSignal> signals,
             String failureReason) {
         return new LightRagQueryResult.Trace(
@@ -649,6 +714,7 @@ public final class LightRagQueryEngine {
                 selectedChunkCount,
                 rerankAttempted,
                 rerankFallback,
+                rerankDuration,
                 signals,
                 request.scope().authorizationFingerprint(),
                 request.snapshot().generation(),
@@ -917,14 +983,26 @@ public final class LightRagQueryEngine {
     private record RerankOutcome(
             List<ChunkState> chunks,
             boolean attempted,
-            boolean fallback) {
+            boolean fallback,
+            Duration duration) {
 
         private RerankOutcome {
             chunks = List.copyOf(chunks);
+            Objects.requireNonNull(duration, "duration");
+            if (duration.isNegative()) {
+                throw new IllegalArgumentException(
+                        "rerank duration must not be negative");
+            }
             if (fallback && !attempted) {
                 throw new IllegalArgumentException(
                         "rerank fallback requires an attempted rerank");
             }
         }
+    }
+
+    private static Duration elapsed(long startedAt) {
+        return Duration.ofNanos(Math.max(
+                0,
+                System.nanoTime() - startedAt));
     }
 }

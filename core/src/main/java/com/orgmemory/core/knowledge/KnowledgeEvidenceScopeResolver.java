@@ -173,11 +173,28 @@ class KnowledgeEvidenceScopeResolver {
             Instant evaluatedAt,
             Map<UUID, Set<UUID>> bySpace) {
         Map<UUID, Long> aclGenerations = new LinkedHashMap<>();
-        bySpace.forEach((spaceId, assetIds) -> aclGenerations.put(
-                spaceId,
-                aclSnapshots.maximumCurrentAclGeneration(
-                        actor.organizationId(),
-                        assetIds)));
+        bySpace.keySet().forEach(spaceId ->
+                aclGenerations.put(spaceId, 0L));
+        List<UUID> assetIds = bySpace.values().stream()
+                .flatMap(Set::stream)
+                .distinct()
+                .toList();
+        if (!assetIds.isEmpty()) {
+            for (KnowledgeSpaceAclGeneration generation :
+                    aclSnapshots.maximumCurrentAclGenerations(
+                            actor.organizationId(),
+                            assetIds)) {
+                if (!aclGenerations.containsKey(
+                        generation.getKnowledgeSpaceId())) {
+                    throw unavailable(
+                            "CANONICAL_AUTHORIZATION_SCOPE_INVALID",
+                            authorizationModelId);
+                }
+                aclGenerations.put(
+                        generation.getKnowledgeSpaceId(),
+                        generation.getAclGeneration());
+            }
+        }
         return new ResolvedKnowledgeEvidenceScope(
                 actor.organizationId(),
                 actor.userId(),

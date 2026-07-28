@@ -29,6 +29,8 @@ public interface GraphRagEventSink {
             int inputCount,
             int outputCount,
             String modelRouteFingerprint,
+            String scopeFingerprint,
+            CacheStatus cacheStatus,
             String failureCode,
             Instant occurredAt) {
 
@@ -45,11 +47,17 @@ public interface GraphRagEventSink {
                 throw new IllegalArgumentException("counts must be non-negative");
             }
             modelRouteFingerprint = normalizeOptional(modelRouteFingerprint);
+            scopeFingerprint = normalizeOptional(scopeFingerprint);
             failureCode = normalizeOptional(failureCode);
             if (modelRouteFingerprint != null
                     && !SHA_256.matcher(modelRouteFingerprint).matches()) {
                 throw new IllegalArgumentException(
                         "modelRouteFingerprint must be a lowercase SHA-256 value");
+            }
+            if (scopeFingerprint != null
+                    && !SHA_256.matcher(scopeFingerprint).matches()) {
+                throw new IllegalArgumentException(
+                        "scopeFingerprint must be a lowercase SHA-256 value");
             }
             if (outcome == Outcome.FAILED && failureCode == null) {
                 throw new IllegalArgumentException(
@@ -72,6 +80,9 @@ public interface GraphRagEventSink {
         MERGE,
         EMBED,
         PUBLISH,
+        AUTHORIZE,
+        PREPARE_QUERY,
+        RETRIEVE_SNAPSHOT,
         RETRIEVE,
         RERANK,
         ASSEMBLE_CONTEXT,
@@ -82,6 +93,12 @@ public interface GraphRagEventSink {
         SUCCEEDED,
         FAILED,
         CANCELLED
+    }
+
+    enum CacheStatus {
+        HIT,
+        MISS,
+        BYPASS
     }
 
     private static String normalizeOptional(String value) {
