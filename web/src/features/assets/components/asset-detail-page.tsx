@@ -67,7 +67,7 @@ import {
   getCapabilityPackDefinitionOptions,
   getAssetOptions,
   getAssetQueryKey,
-  getReleasedSkillManifestOptions,
+  getSkillInstallContractOptions,
   renderAssistantPromptMutation,
   runAssistantPromptMutation,
   submitAssistantAssetFeedbackMutation,
@@ -773,7 +773,7 @@ function PackPanel({ assetId, release }: { assetId: string; release: Release }) 
 
 function SkillPanel({ assetId, release }: { assetId: string; release: Release }) {
   const manifest = useQuery(
-    getReleasedSkillManifestOptions({
+    getSkillInstallContractOptions({
       path: { assetId, releaseId: release.id! },
     }),
   )

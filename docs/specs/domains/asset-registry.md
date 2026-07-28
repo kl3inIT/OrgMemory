@@ -191,6 +191,11 @@ object-storage key never crosses the core boundary. A bearer-protected binary
 companion route on the MCP resource proxies the canonical API stream instead of
 base64-encoding a bounded archive into JSON-RPC.
 
+The authenticated web Asset detail reads the same exact manifest through a
+browser-session-only consumption endpoint. It still applies live object
+authorization, while bearer clients must use the delivery endpoint with
+`assets:read`; the browser route cannot bypass that coarse OAuth scope.
+
 The Node CLI resolves and searches through MCP, downloads the exact package
 through that companion route, verifies the archive and every file against the
 manifest, then installs through an adjacent staging directory. Project-local
