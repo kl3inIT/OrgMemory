@@ -9,6 +9,14 @@ html {
     sans-serif;
 }
 
+:root {
+  --color-fd-muted-foreground: hsl(0, 0%, 41%);
+}
+
+.dark {
+  --color-fd-muted-foreground: hsl(0, 0%, 75%);
+}
+
 html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;

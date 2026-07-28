@@ -1,0 +1,9 @@
+{
+  "title": "Admins",
+  "description": "Operate identity, permissions, and governed sources.",
+  "root": true,
+  "pages": [
+    "identity-permissions",
+    "sources-connections"
+  ]
+}

@@ -1,0 +1,26 @@
+---
+title: Configure sources and connections
+description: Connect governed source systems and understand crawl, checkpoint, permission, and revocation behavior.
+audience:
+  - administrator
+  - developer
+status: draft
+sourceRefs:
+  - contracts/connector/README.md
+  - docs/specs/domains/knowledge-ingestion.md
+  - docs/tests/domains/knowledge-ingestion.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  Provider-specific setup is published only after the generic source contract
+  and supported connector behavior are reconciled.
+</Callout>
+
+## Connection journey
+
+<Steps>
+  <Step>Select a supported source system.</Step>
+  <Step>Configure credentials in the managed secret boundary.</Step>
+  <Step>Verify crawl completeness, permission evidence, and revocation.</Step>
+</Steps>

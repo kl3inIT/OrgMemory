@@ -1,0 +1,8 @@
+{
+  "title": "Developers",
+  "description": "Integrate with OrgMemory through supported contracts.",
+  "root": true,
+  "pages": [
+    "assistant-mcp"
+  ]
+}

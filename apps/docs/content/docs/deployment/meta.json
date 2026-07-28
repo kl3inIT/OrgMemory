@@ -1,0 +1,8 @@
+{
+  "title": "Deployment",
+  "description": "Run OrgMemory with explicit operational boundaries.",
+  "root": true,
+  "pages": [
+    "self-hosting"
+  ]
+}

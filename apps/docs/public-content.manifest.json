@@ -8,6 +8,126 @@
       "order": 0,
       "status": "public",
       "reviewOwner": "documentation-maintainers"
+    },
+    {
+      "route": "/docs/overview",
+      "content": "content/docs/overview/index.mdx",
+      "area": "overview",
+      "order": 10,
+      "status": "draft",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/docs/overview/quickstart",
+      "content": "content/docs/overview/quickstart.mdx",
+      "area": "overview",
+      "order": 20,
+      "status": "draft",
+      "reviewOwner": "developer-experience"
+    },
+    {
+      "route": "/docs/overview/core-concepts",
+      "content": "content/docs/overview/core-concepts.mdx",
+      "area": "overview",
+      "order": 30,
+      "status": "draft",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/docs/overview/asset-lifecycle",
+      "content": "content/docs/overview/asset-lifecycle.mdx",
+      "area": "overview",
+      "order": 40,
+      "status": "draft",
+      "reviewOwner": "asset-registry-maintainers"
+    },
+    {
+      "route": "/docs/deployment/self-hosting",
+      "content": "content/docs/deployment/self-hosting.mdx",
+      "area": "deployment",
+      "order": 10,
+      "status": "draft",
+      "reviewOwner": "operations-maintainers"
+    },
+    {
+      "route": "/docs/admins/identity-permissions",
+      "content": "content/docs/admins/identity-permissions.mdx",
+      "area": "admins",
+      "order": 10,
+      "status": "draft",
+      "reviewOwner": "identity-and-authorization-maintainers"
+    },
+    {
+      "route": "/docs/admins/sources-connections",
+      "content": "content/docs/admins/sources-connections.mdx",
+      "area": "admins",
+      "order": 20,
+      "status": "draft",
+      "reviewOwner": "connector-maintainers"
+    },
+    {
+      "route": "/docs/developers/assistant-mcp",
+      "content": "content/docs/developers/assistant-mcp.mdx",
+      "area": "developers",
+      "order": 10,
+      "status": "draft",
+      "reviewOwner": "assistant-and-mcp-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/system-description",
+      "content": "content/docs/architecture-security/system-description.mdx",
+      "area": "architecture-security",
+      "order": 10,
+      "status": "draft",
+      "reviewOwner": "architecture-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/ingestion-lifecycle",
+      "content": "content/docs/architecture-security/ingestion-lifecycle.mdx",
+      "area": "architecture-security",
+      "order": 20,
+      "status": "draft",
+      "reviewOwner": "ingestion-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/authorization",
+      "content": "content/docs/architecture-security/authorization.mdx",
+      "area": "architecture-security",
+      "order": 30,
+      "status": "draft",
+      "reviewOwner": "identity-and-authorization-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/secure-retrieval-graphrag",
+      "content": "content/docs/architecture-security/secure-retrieval-graphrag.mdx",
+      "area": "architecture-security",
+      "order": 40,
+      "status": "draft",
+      "reviewOwner": "retrieval-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/evaluation/coverage",
+      "content": "content/docs/architecture-security/evaluation/coverage.mdx",
+      "area": "architecture-security",
+      "order": 50,
+      "status": "draft",
+      "reviewOwner": "quality-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/evaluation/traceability",
+      "content": "content/docs/architecture-security/evaluation/traceability.mdx",
+      "area": "architecture-security",
+      "order": 60,
+      "status": "draft",
+      "reviewOwner": "quality-maintainers"
+    },
+    {
+      "route": "/docs/architecture-security/evaluation/limitations",
+      "content": "content/docs/architecture-security/evaluation/limitations.mdx",
+      "area": "architecture-security",
+      "order": 70,
+      "status": "draft",
+      "reviewOwner": "product-and-documentation"
     }
   ]
 }

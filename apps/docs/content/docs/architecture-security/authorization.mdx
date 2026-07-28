@@ -1,0 +1,31 @@
+---
+title: Authorization architecture
+description: Understand how identity, permission evidence, OpenFGA, and application checks constrain every read path.
+audience:
+  - developer
+  - administrator
+  - evaluator
+status: draft
+sourceRefs:
+  - docs/specs/domains/identity-and-organization.md
+  - docs/specs/domains/permission-evidence-and-audit.md
+  - docs/tests/domains/permission-evidence-and-audit.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  The published page will clearly separate authentication, identity binding,
+  relationship authorization, source evidence, and audit.
+</Callout>
+
+## Invariants
+
+- tenant and organization boundaries are explicit;
+- permission evidence is synchronized from governed sources;
+- authorization filtering happens before content reaches the reader;
+- unauthorized and missing resources do not leak existence.
+
+<VerificationBlock title="Required evidence">
+  Claims are traced to the authorization model, service checks, and negative
+  tests.
+</VerificationBlock>

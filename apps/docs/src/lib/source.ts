@@ -4,7 +4,7 @@ import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { toFumadocsSource } from 'fumadocs-mdx/runtime/server';
 import { docsContentRoute, docsImageRoute, docsRoute } from './shared';
 
-const includeDrafts = process.env.DOCS_INCLUDE_DRAFTS === 'true';
+export const includeDrafts = process.env.DOCS_INCLUDE_DRAFTS === 'true';
 const visibleDocs = includeDrafts
   ? docs.docs
   : docs.docs.filter((page) => page.status === 'public');

@@ -1,0 +1,31 @@
+---
+title: Assistant and MCP integration
+description: Integrate permission-aware answers and read-only governed Asset delivery into supported clients.
+audience:
+  - developer
+  - administrator
+status: draft
+sourceRefs:
+  - docs/specs/domains/assistant-and-mcp.md
+  - docs/tests/domains/assistant-and-mcp.md
+  - docs/runbooks/mcp-asset-delivery.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  Authentication boundaries, tool schemas, citations, and read-only guarantees
+  will be checked against the current MCP and Assistant contracts.
+</Callout>
+
+## Integration path
+
+The final page will separate browser Assistant behavior from MCP client
+integration and identify where identity, authorization, retrieval, and
+citations are enforced.
+
+<ApiExample
+  title="Illustrative MCP result"
+  code={`{
+  "content": [{ "type": "text", "text": "Permission-filtered result" }]
+}`}
+/>

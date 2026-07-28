@@ -239,14 +239,49 @@ function checkPublication() {
   console.log('Publication policy check passed');
 }
 
+function checkRoutes() {
+  const manifest = readManifest();
+  const publicRoutes = manifest.entries
+    .filter((entry) => entry.status === 'public')
+    .map((entry) => entry.route)
+    .sort();
+  const draftRoutes = manifest.entries
+    .filter((entry) => entry.status === 'draft')
+    .map((entry) => entry.route)
+    .sort();
+
+  if (draftRoutes.length !== 15) {
+    fail(`Expected 15 first-release draft routes, found ${draftRoutes.length}`);
+  }
+  if (publicRoutes.some((route) => draftRoutes.includes(route))) {
+    fail('A route cannot be both public and draft');
+  }
+  if (!publicRoutes.includes('/docs')) {
+    fail('The public documentation foundation route is required before content release');
+  }
+
+  const sourceImplementation = fs.readFileSync(
+    path.join(docsRoot, 'src', 'lib', 'source.ts'),
+    'utf8',
+  );
+  if (!sourceImplementation.includes("page.status === 'public'")) {
+    fail('Production routes must be derived from public frontmatter status');
+  }
+
+  console.log(
+    `Route boundary passed: ${publicRoutes.length} public, ${draftRoutes.length} draft`,
+  );
+}
+
 const checks = {
   content: checkContent,
   manifest: checkManifest,
   publication: checkPublication,
+  routes: checkRoutes,
 };
 
 if (!checks[mode]) {
-  fail('Usage: node scripts/check-docs.mjs <content|manifest|publication>');
+  fail('Usage: node scripts/check-docs.mjs <content|manifest|publication|routes>');
 }
 
 checks[mode]();

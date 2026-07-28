@@ -1,0 +1,9 @@
+{
+  "title": "Evaluation",
+  "description": "Trace current capability and quality claims to evidence.",
+  "pages": [
+    "coverage",
+    "traceability",
+    "limitations"
+  ]
+}

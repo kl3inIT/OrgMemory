@@ -1,0 +1,11 @@
+{
+  "title": "Overview",
+  "description": "Understand OrgMemory and reach a useful first workflow.",
+  "root": true,
+  "pages": [
+    "index",
+    "quickstart",
+    "core-concepts",
+    "asset-lifecycle"
+  ]
+}

@@ -288,6 +288,12 @@ jobs:
       - name: Validate publication contracts
         run: pnpm --filter @orgmemory/docs check
 
+      - name: Install Playwright browser
+        run: pnpm --filter @orgmemory/docs exec playwright install --with-deps chromium
+
+      - name: Test documentation navigation and accessibility
+        run: pnpm --filter @orgmemory/docs test:e2e
+
       - name: Build production documentation
         env:
           DOCS_DEPLOYMENT_MODE: production
