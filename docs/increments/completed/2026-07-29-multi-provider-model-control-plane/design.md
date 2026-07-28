@@ -1,5 +1,8 @@
 # Multi-provider Model Control Plane
 
+Status: completed by pull request
+[#113](https://github.com/kl3inIT/OrgMemory/pull/113).
+
 ## Outcome
 
 Let an organization administrator connect chat-model providers, verify the

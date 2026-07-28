@@ -2,8 +2,9 @@
 
 ## Status
 
-Implementation active on `feat/multi-provider-model-settings` from
-`origin/main` at `d7ca979`.
+Completed in pull request
+[#113](https://github.com/kl3inIT/OrgMemory/pull/113), based on
+`origin/main` at `eb870a9`.
 
 ## 1. Contract and Persistence
 
@@ -49,6 +50,6 @@ Implementation active on `feat/multi-provider-model-settings` from
 - [x] Run focused core, integration, API, OpenFGA, and web tests.
 - [x] Run affected backend compile/test and frontend lint/typecheck/build.
 - [x] Reconcile architecture, specs, test maps, and ADR 0006 consequences.
-- [ ] Add `verification.md`, archive this increment, and update the roadmap.
-- [ ] Commit, push, open a PR, address CodeRabbit/review feedback, wait for green
+- [x] Add `verification.md`, archive this increment, and update the roadmap.
+- [x] Commit, push, open a PR, address CodeRabbit/review feedback, wait for green
   CI, merge to `main`, and verify the remote merge.

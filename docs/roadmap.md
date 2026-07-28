@@ -21,6 +21,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Governed Asset Registry, shared page system, and catalog UX | shipped | [Asset Registry](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md), [catalog UX](increments/completed/2026-07-27-asset-catalog-ux/plan.md) |
 | Governed Skill packaging, distribution, authoring, publication, and handoff | shipped | [package foundation](increments/completed/2026-07-27-skill-registry-package-foundation/plan.md), [distribution](increments/completed/2026-07-27-skill-registry-distribution/plan.md), [publication](increments/completed/2026-07-27-skill-authoring-publication/plan.md), [handoff](increments/completed/2026-07-27-skill-governance-handoff/plan.md) |
 | Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
+| Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -36,7 +37,6 @@ The table is a delivery index, not a second description of current behavior.
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public documentation portal](increments/active/2026-07-28-public-docs-portal/plan.md) | active | author the Onyx-style information architecture and reviewed public corpus, then add API/search delivery |
-| [Multi-provider model control plane](increments/active/2026-07-29-multi-provider-model-control-plane/plan.md) | active | organization-scoped provider profiles, native adapters, admin API/UI, and immutable embedding settings |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
@@ -44,20 +44,17 @@ implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Deliver the multi-provider model control plane so an organization
-   administrator can connect and change the default chat model without a
-   restart, while keeping embedding geometry immutable.
-2. Continue the Fumadocs portal information architecture and content plan
+1. Continue the Fumadocs portal information architecture and content plan
    against the normalized `apps/docs` foundation.
-3. Complete the guarded ZM database cutover, runtime health, browser login,
+2. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
-4. Complete the reproducible demo's real ingestion and permission-evaluation
+3. Complete the reproducible demo's real ingestion and permission-evaluation
    path.
-5. Run the Slack live proof with credentials outside the repository and retain
+4. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-6. Close the production proofs for asset projection generation, LightRAG
+5. Close the production proofs for asset projection generation, LightRAG
    latency, and MCP search reliability.
-7. Continue the dependency-ordered native identity program: provisioning
+6. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
 

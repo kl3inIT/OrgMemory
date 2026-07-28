@@ -81,3 +81,14 @@ No real OpenAI, Anthropic, 9Router, or other provider credential was available
 to this deterministic verification run. An operator must still allow the
 intended custom origin where applicable and run the built-in connection test
 with a managed credential in the target environment.
+
+## Remote Delivery
+
+- Pull request [#113](https://github.com/kl3inIT/OrgMemory/pull/113) was
+  rebased onto `origin/main` at `eb870a9`.
+- GitHub CI passed its aggregate gate plus Backend Java 25, Web Node 24,
+  Public docs Node 24, PostgreSQL GraphRAG, OpenFGA, CLI, and documentation
+  jobs.
+- CodeRabbit reported success but explicitly skipped review because its review
+  limit was reached; it produced no review thread or actionable comment. The
+  project owner had already authorized merge on green CI in this condition.
