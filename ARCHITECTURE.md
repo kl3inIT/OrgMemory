@@ -394,7 +394,13 @@ conversation store.
 The repository contains a production Compose topology, immutable six-image
 build set, automatic green-main deployment workflow, rollback-aware deploy
 script, and mandatory public health/OIDC/MCP smoke. These mechanics do not by
-themselves certify pilot readiness. Restore rehearsal, malware/DLP upload
+themselves certify pilot readiness. The independent docs portal has a separate
+immutable GHCR image workflow, manual exact-commit production workflow,
+single-service Compose project, 512 MiB limit, 60-second health gate, public
+allowlist verifier, and docs-only rollback state. It shares only the existing
+edge proxy network and cannot recreate product services. DNS, TLS, proxy-host
+configuration, and live publication proof remain operator-controlled gates.
+Restore rehearsal, malware/DLP upload
 scanning, the live Slack revocation proof, full retrieval-surface audit
 coverage, load/latency evidence, and an enterprise security review remain open
 gates.

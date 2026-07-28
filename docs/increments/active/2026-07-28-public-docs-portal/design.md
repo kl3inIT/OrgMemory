@@ -385,6 +385,38 @@ headers include HSTS after TLS is proven, `X-Content-Type-Options: nosniff`,
 `Permissions-Policy`, and framing denial. Immutable Next.js assets receive
 long-lived caching; HTML, search, sitemap, and LLM outputs remain revalidatable.
 
+### PR 5 Architecture Challenge
+
+Proposal: publish and deploy the docs image through a separate workflow,
+Compose project, lock, environment file, and rollback ledger while reusing only
+the protected SSH secrets and external proxy network.
+
+Strongest counterargument: add docs to the existing six-image build set and
+production Compose project. That would reuse mature image carry-forward,
+deployment, and rollback mechanics and would avoid another workflow and host
+state directory.
+
+Repository evidence: `apps/docs` has no product runtime dependency, while the
+product deployment intentionally runs database bootstrap, backup, migrations,
+Keycloak configuration, six-image pulls, and `--remove-orphans`. Coupling a
+documentation release to that path would expand its failure and maintenance
+surface and make a docs rollback capable of changing application services.
+
+Final choice: keep the independent docs delivery boundary. Exact-commit and
+known-host checks are mirrored from the production workflow, but every remote
+Compose command names only `orgmemory-docs`. A failed-canary contract test
+rejects product service operations. This adds a small amount of workflow code
+in exchange for independently reviewable releases and rollback.
+
+Rejected alternative: one combined product/docs release train. It remains
+appropriate only if docs later acquires a hard compatibility dependency on the
+same runtime commit.
+
+An independent reviewer was unavailable under the active no-delegation
+constraint. The project owner explicitly selected an independent `apps/docs`
+application, authorized the delivery loop, and directed that work stop before
+live deployment and DNS mutation.
+
 ## Content Style
 
 Every task page follows:

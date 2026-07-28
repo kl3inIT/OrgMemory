@@ -1,0 +1,130 @@
+name: Build docs image
+run-name: Build docs image - ${{ inputs.commit_sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full green main commit SHA to publish
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  packages: write
+
+concurrency:
+  group: orgmemory-docs-build-${{ inputs.commit_sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish immutable docs image
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out main history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate green main commit
+        id: release
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin main
+          git cat-file -e "$COMMIT_SHA^{commit}"
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+          successful_runs="$(
+            gh run list \
+              --workflow CI \
+              --commit "$COMMIT_SHA" \
+              --limit 20 \
+              --json conclusion \
+              --jq '[.[] | select(.conclusion == "success")] | length'
+          )"
+          [[ "$successful_runs" -gt 0 ]]
+          printf 'commit_sha=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Check out verified source
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit_sha }}
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4.5.1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable docs image
+        id: build
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          file: apps/docs/Dockerfile
+          push: true
+          tags: ghcr.io/kl3init/orgmemory-docs:sha-${{ steps.release.outputs.commit_sha }}
+          build-args: |
+            VCS_REF=${{ steps.release.outputs.commit_sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+          cache-from: type=gha,scope=docs
+          cache-to: type=gha,mode=max,scope=docs
+          provenance: mode=max
+          sbom: true
+
+      - name: Scan published image
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ghcr.io/kl3init/orgmemory-docs:sha-${{ steps.release.outputs.commit_sha }}
+          format: table
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Record immutable docs release
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg commitSha "$COMMIT_SHA" \
+            --arg reference "ghcr.io/kl3init/orgmemory-docs:sha-$COMMIT_SHA" \
+            --arg digest "$DIGEST" \
+            '{
+              commitSha: $commitSha,
+              image: {
+                reference: $reference,
+                digest: $digest
+              }
+            }' > docs-release.json
+          jq -e \
+            '.image.digest | test("^sha256:[0-9a-f]{64}$")' \
+            docs-release.json >/dev/null
+          jq . docs-release.json
+
+      - name: Upload docs release manifest
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: docs-release-${{ steps.release.outputs.commit_sha }}
+          path: docs-release.json
+          if-no-files-found: error
+          retention-days: 30

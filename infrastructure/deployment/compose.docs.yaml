@@ -1,0 +1,40 @@
+name: orgmemory-docs
+
+services:
+  orgmemory-docs:
+    image: ${ORGMEMORY_DOCS_IMAGE:?Set ORGMEMORY_DOCS_IMAGE to an immutable sha tag}
+    user: "1001:1001"
+    restart: unless-stopped
+    expose:
+      - "3000"
+    networks:
+      proxy:
+        aliases:
+          - orgmemory-docs
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -T 5 -O - http://127.0.0.1:3000/healthz | grep -Fxq ok
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 6
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          memory: 64M
+
+networks:
+  proxy:
+    external: true
+    name: ${ORGMEMORY_PROXY_NETWORK:-proxy-network}

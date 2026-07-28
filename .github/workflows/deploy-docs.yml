@@ -1,0 +1,129 @@
+name: Deploy docs
+run-name: Deploy docs - ${{ inputs.commit_sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Full green main commit SHA with a published docs image
+        required: true
+        type: string
+      confirm_deploy:
+        description: Confirm live docs-only deployment
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+  packages: read
+
+concurrency:
+  group: orgmemory-docs-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact docs image
+    if: inputs.confirm_deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://docs.om.kl3in.tech
+    steps:
+      - name: Check out main history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate green release
+        id: release
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin main
+          git cat-file -e "$COMMIT_SHA^{commit}"
+          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+          successful_ci="$(
+            gh run list \
+              --workflow CI \
+              --commit "$COMMIT_SHA" \
+              --limit 20 \
+              --json conclusion \
+              --jq '[.[] | select(.conclusion == "success")] | length'
+          )"
+          successful_build="$(
+            gh run list \
+              --workflow "Build docs image" \
+              --limit 100 \
+              --json conclusion,displayTitle \
+              --jq "[.[] |
+                select(
+                  .conclusion == \"success\" and
+                  .displayTitle == \"Build docs image - $COMMIT_SHA\"
+                )
+              ] | length"
+          )"
+          [[ "$successful_ci" -gt 0 ]]
+          [[ "$successful_build" -gt 0 ]]
+          printf 'commit_sha=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Configure verified SSH host
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 0700 ~/.ssh
+          install -m 0600 /dev/null ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          install -m 0600 /dev/null ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Authenticate server to GHCR for this deployment
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" |
+            ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+              "docker login ghcr.io --username '${{ github.actor }}' --password-stdin"
+
+      - name: Deploy and verify docs only
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          set -euo pipefail
+          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+            "cd /apps/orgmemory &&
+             git fetch --no-tags origin '$COMMIT_SHA' &&
+             git checkout --detach '$COMMIT_SHA' &&
+             ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE=true \
+               ./infrastructure/deployment/scripts/deploy-docs.sh '$COMMIT_SHA'"
+
+      - name: Remove temporary registry credentials
+        if: always()
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+            "docker logout ghcr.io >/dev/null 2>&1 || true"

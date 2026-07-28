@@ -87,6 +87,8 @@ jobs:
               - "docs/**"
               - "scripts/check_docs.py"
             public_docs:
+              - ".github/workflows/build-docs.yml"
+              - ".github/workflows/deploy-docs.yml"
               - "apps/docs/**"
               - "patches/**"
               - "contracts/openapi.json"
@@ -117,6 +119,8 @@ jobs:
             deployment:
               - ".dockerignore"
               - ".github/workflows/build-images.yml"
+              - ".github/workflows/build-docs.yml"
+              - ".github/workflows/deploy-docs.yml"
               - ".github/workflows/deploy-production.yml"
               - "compose.yaml"
               - "infrastructure/deployment/**"
@@ -508,6 +512,19 @@ jobs:
           --file infrastructure/deployment/compose.production.yaml
           --env-file infrastructure/deployment/production.env.example
           config --quiet
+
+      - name: Validate docs Compose interpolation
+        run: >-
+          docker compose
+          --file infrastructure/deployment/compose.docs.yaml
+          --env-file infrastructure/deployment/docs.env.example
+          config --quiet
+
+      - name: Prove docs-only failed-canary rollback
+        run: infrastructure/deployment/scripts/test-deploy-docs-rollback.sh
+
+      - name: Validate publication verifier
+        run: python3 -m py_compile infrastructure/deployment/scripts/verify-docs-publication.py
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.2.0

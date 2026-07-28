@@ -155,23 +155,27 @@ Exit gate:
 Purpose: deploy the independent portal and prove both availability and the
 publication boundary.
 
-- [ ] Run a read-only production preflight for the `/apps/orgmemory` paths,
+- [x] Run a read-only production preflight for the `/apps/orgmemory` paths,
   external `proxy-network`, GHCR pull access, available memory, GitHub
   production-environment secrets, DNS control, and Nginx Proxy Manager access.
   Stop before mutation if any required capability is absent.
-- [ ] Add docs path filtering to CI so docs-only changes run the correct gates.
+  The repository, network, Docker/Compose, resources, Nginx Proxy Manager
+  attachment, and SSH secret names are present. GHCR authentication is
+  intentionally deployment-scoped. DNS does not resolve and DNS/Nginx Proxy
+  Manager configuration access is not proven, so live mutation remains stopped.
+- [x] Add docs path filtering to CI so docs-only changes run the correct gates.
 - [ ] Add `.github/workflows/build-docs.yml` and publish
   `ghcr.io/kl3init/orgmemory-docs:sha-<commit>` with revision metadata, SBOM,
   provenance, and the repository vulnerability-scan policy.
-- [ ] Add `.github/workflows/deploy-docs.yml` with its own production concurrency
+- [x] Add `.github/workflows/deploy-docs.yml` with its own production concurrency
   lock, exact green commit input, SSH host verification, and docs-only rollback.
-- [ ] Add `infrastructure/deployment/compose.docs.yaml` with only
+- [x] Add `infrastructure/deployment/compose.docs.yaml` with only
   `orgmemory-docs`, the existing external `proxy-network`, container port 3000,
   `/healthz`, restart policy, non-root hardening, and an initial 512 MiB memory
   limit.
-- [ ] Add `/apps/orgmemory/.env.docs.production` as the host-managed image
+- [x] Add `/apps/orgmemory/.env.docs.production` as the host-managed image
   reference file with mode `0600`; commit only an example contract.
-- [ ] Add `deploy-docs.sh` and `smoke-docs.sh`. Poll health for at most 60
+- [x] Add `deploy-docs.sh` and `smoke-docs.sh`. Poll health for at most 60
   seconds; use 5-second connection and 15-second request timeouts.
 - [ ] Configure DNS and TLS for `docs.om.kl3in.tech`.
 - [ ] Configure Nginx Proxy Manager to forward
@@ -183,10 +187,10 @@ publication boundary.
   navigation, and container health.
 - [ ] Crawl every public route and compare it with the committed allowlist; scan
   all reachable outputs for internal paths, secrets, and private hosts.
-- [ ] Force one failed canary deployment and prove `deploy-docs.sh` restores the
+- [x] Force one failed canary deployment and prove `deploy-docs.sh` restores the
   previous image, reruns health/smoke checks, and does not recreate product
   services.
-- [ ] Retain at least the two most recent verified docs images and record the
+- [x] Retain at least the two most recent verified docs images and record the
   previous reference before every deployment.
 - [ ] Record the deployed revision and public verification evidence.
 
