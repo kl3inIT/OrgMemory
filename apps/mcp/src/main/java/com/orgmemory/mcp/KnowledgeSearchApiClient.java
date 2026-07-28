@@ -1,8 +1,10 @@
 package com.orgmemory.mcp;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -68,15 +70,16 @@ class KnowledgeSearchApiClient {
         }
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record Evidence(
             UUID citationId,
             UUID knowledgeAssetId,
             String title,
             String content,
-            String sourceUri,
-            Integer startPage,
-            Integer endPage,
-            String heading,
+            @Nullable String sourceUri,
+            @Nullable Integer startPage,
+            @Nullable Integer endPage,
+            @Nullable String heading,
             double relevanceScore) {
     }
 
