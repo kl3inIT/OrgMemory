@@ -27,7 +27,17 @@ class McpGatewayPropertiesTests {
                 () -> properties(Duration.ZERO, Duration.ofSeconds(75)));
         assertThrows(
                 IllegalArgumentException.class,
+                () -> properties(
+                        Duration.ofSeconds(-1),
+                        Duration.ofSeconds(75)));
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> properties(Duration.ofSeconds(5), Duration.ZERO));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> properties(
+                        Duration.ofSeconds(5),
+                        Duration.ofSeconds(-1)));
     }
 
     private static McpGatewayProperties properties(
