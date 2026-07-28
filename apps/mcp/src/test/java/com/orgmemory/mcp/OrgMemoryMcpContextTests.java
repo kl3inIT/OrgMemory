@@ -1,6 +1,8 @@
 package com.orgmemory.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -8,8 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
+import io.modelcontextprotocol.json.schema.jackson3.DefaultJsonSchemaValidator;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -85,6 +89,37 @@ class OrgMemoryMcpContextTests {
         assertEquals(2, resources.size());
         assertEquals(1, prompts.size());
         assertEquals("released_prompt", prompts.getFirst().prompt().name());
+    }
+
+    @Test
+    void knowledgeSearchOutputAcceptsAbsentOptionalCitationMetadata() {
+        var searchTool = tools.stream()
+                .filter(spec -> spec.tool().name().equals("search_knowledge"))
+                .findFirst()
+                .orElseThrow();
+        var result = new KnowledgeSearchApiClient.SearchResult(
+                "request-1",
+                List.of(new KnowledgeSearchApiClient.Evidence(
+                        UUID.fromString(
+                                "40000000-0000-0000-0000-000000000001"),
+                        UUID.fromString(
+                                "10000000-0000-0000-0000-000000000001"),
+                        "Onboarding guide",
+                        "IT provisions the account after manager approval.",
+                        null,
+                        null,
+                        null,
+                        null,
+                        0.91)));
+
+        var validation = new DefaultJsonSchemaValidator()
+                .validate(searchTool.tool().outputSchema(), result);
+
+        assertTrue(validation.valid(), validation.errorMessage());
+        assertFalse(validation.jsonStructuredOutput().contains("sourceUri"));
+        assertFalse(validation.jsonStructuredOutput().contains("startPage"));
+        assertFalse(validation.jsonStructuredOutput().contains("endPage"));
+        assertFalse(validation.jsonStructuredOutput().contains("heading"));
     }
 
     @Test
