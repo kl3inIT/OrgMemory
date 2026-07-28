@@ -5,7 +5,7 @@ audience:
   - adopter
   - user
   - developer
-status: draft
+status: public
 sourceRefs:
   - docs/vision.md
   - ARCHITECTURE.md
@@ -13,29 +13,89 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  Definitions on this page will be checked against current domain contracts.
-</Callout>
-
-## Concept map
-
-The authored page will connect source records, immutable revisions, permission
-evidence, knowledge projections, governed Assets, Assistant answers, and MCP
-delivery without exposing implementation detail too early.
+OrgMemory separates durable evidence from the derived structures that make it
+useful. These concepts form the vocabulary used across the product and this
+documentation.
 
 <CapabilityGrid
   items={[
     {
       title: 'Sources',
-      description: 'Where governed knowledge enters the system.',
+      description:
+        'Uploads, Slack, Google Drive, and GitHub adapters contribute versioned content and source-native permission evidence.',
     },
     {
-      title: 'Assets',
-      description: 'How reusable organizational knowledge is governed.',
+      title: 'Knowledge Asset',
+      description:
+        'A stable identity over immutable versions derived from the governed source ledger.',
+    },
+    {
+      title: 'Registry Asset',
+      description:
+        'A governed reusable Prompt, Work Instruction, Capability Pack, or Skill with reviews and exact releases.',
     },
     {
       title: 'Permission-aware retrieval',
-      description: 'How access remains part of every answer path.',
+      description:
+        'A query path that filters tenant, lifecycle, classification, source ACL, and OpenFGA relationships before evidence leaves the system.',
     },
   ]}
 />
+
+## Evidence and identity
+
+**Source Object** is the stable record for something observed in a source
+system. **Source Revision** is immutable content for one source version.
+**Evidence Blob** records the original bytes in object storage. Query strings,
+fragments, and embedded credentials are removed from persisted source URIs.
+
+An external user becomes an OrgMemory actor only through an explicit OIDC
+`(issuer, subject)` binding. Source-native users and groups have their own typed,
+stable identifiers and reach the actor model only through verified mappings.
+Display names and email addresses are observations, not authorization keys.
+
+## Permissions
+
+OrgMemory intersects multiple controls:
+
+- OpenFGA relationships govern organization, Knowledge Space, Knowledge Asset,
+  and registry Asset actions;
+- immutable source ACL snapshots preserve what the external source allowed;
+- the current ACL head applies grants and revocations without rewriting content;
+- classification policy adds role and department constraints;
+- the canonical ledger rechecks lifecycle, revision, and projection identity.
+
+Passing one control never bypasses another. A product administrator is not
+automatically an Executive and cannot read source content solely because they
+manage the deployment.
+
+## Canonical data and projections
+
+PostgreSQL stores canonical identities, revisions, ACL evidence, publication
+state, and audit records. MinIO stores original evidence bytes. Full-text,
+pgvector, graph, OpenSearch, and Neo4j structures are rebuildable projections:
+they accelerate retrieval but do not become permission authorities.
+
+## Two kinds of Asset
+
+The name is intentionally shared but the lifecycles differ:
+
+| Concept | Purpose | Ownership |
+| --- | --- | --- |
+| Knowledge Asset | Searchable organizational knowledge derived from source evidence | Knowledge ledger |
+| Registry Asset | A reviewed reusable capability delivered as an exact release | Asset Registry |
+
+Capability Packs may pin both exact registry releases and exact Knowledge Asset
+versions. A denied component becomes an opaque access gap; its title, type, and
+count are not disclosed.
+
+## Retrieval and delivery
+
+The Assistant, REST search, graph explorer, and MCP search converge on the same
+permission-aware retrieval service. Registry Asset delivery separately resolves
+the caller, required OAuth scope, exact release, live `CAN_USE` authorization,
+and component-level access.
+
+The model never authorizes a fact. It receives only the evidence closure already
+approved for the current request, and citations point back to authenticated API
+routes that recheck current access when opened.

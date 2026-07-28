@@ -17,6 +17,10 @@ html {
   --color-fd-muted-foreground: hsl(0, 0%, 75%);
 }
 
+header span.truncate[class*='transition-[opacity,translate,color]'] {
+  color: var(--color-fd-foreground);
+}
+
 html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;

@@ -4,7 +4,7 @@ description: Connect governed source systems and understand crawl, checkpoint, p
 audience:
   - administrator
   - developer
-status: draft
+status: public
 sourceRefs:
   - contracts/connector/README.md
   - docs/specs/domains/knowledge-ingestion.md
@@ -12,15 +12,93 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  Provider-specific setup is published only after the generic source contract
-  and supported connector behavior are reconciled.
-</Callout>
+Source connections tell the worker which provider to crawl, what scope to use,
+where to publish, and how to authenticate. The generic administration surface
+is adapter-driven: installing an adapter contributes its profile, configuration
+fields, credential probe, scopes, and crawl source.
+
+## Supported adapters
+
+The current repository includes Slack, Google Drive, and GitHub adapters.
+Manual upload remains a first-class source. A deployment offers only the
+sources whose adapters are installed; naming an unavailable source is a request
+error.
 
 ## Connection journey
 
 <Steps>
-  <Step>Select a supported source system.</Step>
-  <Step>Configure credentials in the managed secret boundary.</Step>
-  <Step>Verify crawl completeness, permission evidence, and revocation.</Step>
+  <Step>
+    Select a source reported by the deployment and create a disabled connection
+    for the current organization.
+  </Step>
+  <Step>
+    Configure the adapter-specific scope and a target Knowledge Space. Enabling
+    a crawl with nowhere to publish is refused.
+  </Step>
+  <Step>
+    Submit the provider credential through the write-only credential field. It
+    is encrypted at rest and is never returned by list, detail, test, or audit
+    responses.
+  </Step>
+  <Step>
+    Run the adapter-owned credential probe. Confirm the remote workspace or
+    installation identity without exposing the submitted credential.
+  </Step>
+  <Step>
+    Enable the connection and inspect the next crawl attempt, independent
+    content, permission, and membership checkpoints, and any completeness
+    reason.
+  </Step>
 </Steps>
+
+## Credential boundary
+
+Credentials use an authenticated AES-256-GCM envelope in a separate ledger
+table. A row that fails its authentication tag is refused. The worker loads
+current configuration and credentials on each poll, so rotation or scope
+changes apply without a process restart.
+
+The API reports whether a credential is present and whether its probe succeeds;
+it does not reveal the credential in any form. Every mutation records only that
+a credential changed.
+
+## Crawl completeness
+
+The connector contract versions identity, membership, content, and permissions
+independently. Each component carries its own cursor and completeness state.
+Unsupported versions fail before work begins.
+
+- `COMPLETE` permission evidence may seal a new resource ACL generation.
+- `COMPLETE` membership may atomically advance a source-group head.
+- `INCOMPLETE` observations remain visible for health but cannot become the last
+  successful authorization state.
+- a permissions-only refresh does not need to read document bodies;
+- a complete crawl may retire objects it no longer observes;
+- an incomplete crawl never treats absence as deletion.
+
+## Provider-specific trust
+
+**Slack** maps messages and whole threads, stable users, and channel membership.
+Bot/deactivated accounts and Slack markup are removed. A channel that cannot be
+read is omitted rather than interpreted as an empty ACL.
+
+**Google Drive** maps supported files and stable permission IDs. User, group, and
+domain grants are preserved; anyone-with-link does not grant public access.
+Incomplete search or unreadable sharing withdraws completeness.
+
+**GitHub** admits organization installations and private repositories with
+Issues enabled. Issues and pull requests inherit a repository-reader group
+derived from effective collaborators. GitHub email is never trusted implicitly.
+
+## Verify a connection
+
+<VerificationBlock title="Healthy connection">
+  The credential probe identifies the expected remote account, the connection
+  has a target Space, recent crawl attempts explain what changed, successful
+  component cursors advance, and permission/membership completeness is explicit.
+</VerificationBlock>
+
+Recorded-response and integration tests cover rate limits, pagination,
+credential redaction, restart resume, changed content, group revocation,
+tombstones, and incomplete evidence. A live Slack workspace, live Drive, and
+live GitHub production proof are not claimed by those tests.

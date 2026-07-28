@@ -5,6 +5,11 @@ interface Capability {
   description: string;
 }
 
+interface FlowStep {
+  title: string;
+  detail: string;
+}
+
 export function CapabilityGrid({ items }: { items: Capability[] }) {
   return (
     <div className="not-prose my-6 grid gap-3 sm:grid-cols-2">
@@ -42,6 +47,49 @@ export function DiagramFrame({
         <span className="mt-1 block text-sm leading-6 text-fd-muted-foreground">
           {description}
         </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+export function FlowDiagram({
+  label,
+  steps,
+}: {
+  label: string;
+  steps: FlowStep[];
+}) {
+  return (
+    <figure className="not-prose my-6 rounded-xl border border-fd-border bg-fd-card p-5">
+      <div
+        aria-label={label}
+        className="grid gap-3 lg:grid-flow-col lg:auto-cols-fr"
+        role="img"
+      >
+        {steps.map((step, index) => (
+          <div className="flex min-w-0 items-stretch gap-3" key={step.title}>
+            <div className="min-w-0 flex-1 rounded-lg border border-fd-border bg-fd-background p-4">
+              <span className="text-xs font-semibold text-fd-primary">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <p className="mt-2 font-medium text-fd-foreground">{step.title}</p>
+              <p className="mt-1 text-xs leading-5 text-fd-muted-foreground">
+                {step.detail}
+              </p>
+            </div>
+            {index < steps.length - 1 ? (
+              <span
+                aria-hidden="true"
+                className="hidden self-center text-fd-muted-foreground lg:block"
+              >
+                →
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <figcaption className="mt-4 text-sm leading-6 text-fd-muted-foreground">
+        {label}
       </figcaption>
     </figure>
   );

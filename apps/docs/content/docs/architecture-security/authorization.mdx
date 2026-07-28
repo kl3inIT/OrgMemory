@@ -5,27 +5,98 @@ audience:
   - developer
   - administrator
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - docs/specs/domains/identity-and-organization.md
   - docs/specs/domains/permission-evidence-and-audit.md
+  - docs/specs/domains/secure-retrieval.md
   - docs/tests/domains/permission-evidence-and-audit.md
+  - docs/decisions/0009-dynamic-source-acl-ceiling.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  The published page will clearly separate authentication, identity binding,
-  relationship authorization, source evidence, and audit.
-</Callout>
+OrgMemory does not reduce access control to one role or one prefilter. A content
+read succeeds only when identity, tenant, relationships, source evidence,
+classification, lifecycle, and projection identity agree.
 
-## Invariants
+<FlowDiagram
+  label="Authorization is a layered intersection. Failure or ambiguity at any layer denies the request."
+  steps={[
+    { title: 'Authenticate', detail: 'Keycloak validates the browser session or bearer token.' },
+    { title: 'Bind identity', detail: 'Issuer and subject resolve one active internal actor and organization.' },
+    { title: 'Check relationships', detail: 'OpenFGA resolves control-plane and object relationships.' },
+    { title: 'Apply evidence', detail: 'Canonical SQL enforces source ACL snapshots, classification, lifecycle, and version state.' },
+    { title: 'Audit and disclose', detail: 'Only approved evidence leaves the boundary; missing and denied objects stay opaque.' },
+  ]}
+/>
 
-- tenant and organization boundaries are explicit;
-- permission evidence is synchronized from governed sources;
-- authorization filtering happens before content reaches the reader;
-- unauthorized and missing resources do not leak existence.
+## Authentication is not authorization
+
+OIDC issuer and subject are the only automatic identity lookup key. A verified
+email may select exactly one open invitation during first sign-in, but the
+durable binding is still issuer/subject. Email, display name, identity-provider
+roles, and the local application role cannot grant organization or Knowledge
+access.
+
+Browser and bearer paths resolve the same server-derived actor. Unknown,
+inactive, stale, or ambiguous identity state fails closed.
+
+## Relationship authorization
+
+OpenFGA relationships govern organization administration, Knowledge Spaces,
+stable Knowledge Assets, and registry Assets. The versioned model is exercised
+with allow, deny, list-object, and type-restriction tests.
+
+An administrator can create a Knowledge Space and author supported grants, but
+cannot write arbitrary `knowledge_asset` tuples. Connected sources own the ACL
+ceiling for their content; a second writer would allow source and product
+permissions to diverge.
+
+## Source evidence and classification
+
+Canonical retrieval intersects:
+
+1. organization and active actor;
+2. OpenFGA candidate Assets;
+3. immutable ingestion ACL;
+4. current sealed complete ACL head;
+5. source-principal mappings and current group membership;
+6. lifecycle, current version, source revision, model, and projection state;
+7. classification policy.
+
+Control-plane roles and knowledge roles are separate. In particular, an Admin
+is not automatically an Executive.
+
+| Classification | Ordinary knowledge roles | Executive |
+| --- | --- | --- |
+| Public | Allowed, subject to every other gate | Allowed, subject to every other gate |
+| Internal | All employees, subject to every other gate | Allowed, subject to every other gate |
+| Confidential | Own department only | May cross departments when the other gates allow |
+| Restricted | Denied | Allowed when the other gates allow |
+
+## Opaque denial
+
+Eligible callers receive the same generic not-found response for missing,
+changed, or unauthorized object identifiers. Citation content is served through
+an opaque API route that performs a fresh authorization and integrity check.
+Object-store addresses and denial reasons are not disclosed.
+
+A caller missing the control-plane role is rejected at the request boundary;
+that is distinct from hiding whether a specific protected object exists.
+
+## Audit evidence
+
+Permission audit is append-only and commits independently of the surrounding
+business transaction. It stores actor, resource, operation, decision, reason,
+policy, request fingerprint, query fingerprint, and exact ACL snapshot IDs.
+Raw query text and unrestricted metadata are not stored.
+
+An audit attempt proves that a decision was recorded, not that the surrounding
+business transaction committed.
 
 <VerificationBlock title="Required evidence">
-  Claims are traced to the authorization model, service checks, and negative
-  tests.
+  Negative tests prove tenant isolation, pre-ranking SQL authorization, stale
+  writer rejection, sealed evidence immutability, missing/denied opacity,
+  complete graph-closure recheck, and removal of denied evidence at the final
+  citation boundary.
 </VerificationBlock>

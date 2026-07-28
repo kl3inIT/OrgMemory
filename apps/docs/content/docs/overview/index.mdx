@@ -5,25 +5,83 @@ audience:
   - adopter
   - evaluator
   - user
-status: draft
+status: public
 sourceRefs:
   - docs/vision.md
   - ARCHITECTURE.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  This page shell defines the first-release reader journey. Verified product
-  content is authored in the next documentation phase.
+OrgMemory is a self-hosted, governed memory layer for enterprise AI. It turns
+uploads and approved connector evidence into versioned, citable knowledge while
+preserving source permissions across search, Assistant, API, and MCP delivery.
+
+<Callout title="Current maturity" type="warn">
+  OrgMemory is a production-shaped proof of concept. Its architecture, automated
+  security checks, deployment pipeline, and rollback path are real; pilot
+  readiness still depends on the operational evidence listed under
+  [Limitations](/docs/architecture-security/evaluation/limitations).
 </Callout>
 
-## What you will learn
+## The problem
 
-- why governed organizational memory exists;
-- which reader problems OrgMemory addresses;
-- how to choose a quickstart, administration, integration, or evaluation path.
+Enterprise AI systems often copy content into an index and lose the context that
+made the content trustworthy: which source revision was read, who could read it,
+which model created a projection, and which evidence supported an answer.
+OrgMemory keeps those facts inside the retrieval boundary.
 
-## Planned outcome
+It is designed for three related jobs:
 
-Readers should be able to decide whether OrgMemory fits their use case and reach
-their first useful task in no more than two choices.
+- preserve source evidence as immutable revisions rather than mutable blobs;
+- make authorization part of candidate selection, ranking, graph expansion,
+  citations, and Asset delivery;
+- package reusable organizational capability as governed releases instead of
+  unreviewed prompts or files.
+
+## What is available
+
+<CapabilityGrid
+  items={[
+    {
+      title: 'Governed knowledge',
+      description:
+        'Manual uploads and supported connectors enter one immutable source ledger with permission evidence.',
+    },
+    {
+      title: 'Secure retrieval',
+      description:
+        'Keyword, vector, and graph retrieval operate only over the current actor’s authorized evidence scope.',
+    },
+    {
+      title: 'Reusable Assets',
+      description:
+        'Prompt Templates, Work Instructions, Capability Packs, and Skills move through draft, review, release, and controlled delivery.',
+    },
+    {
+      title: 'Multiple delivery surfaces',
+      description:
+        'The web product, REST API, Assistant, MCP server, and CLI reuse canonical authorization and audit boundaries.',
+    },
+  ]}
+/>
+
+## Choose your path
+
+- **Evaluate the product:** start with the
+  [system description](/docs/architecture-security/system-description), then
+  review [coverage](/docs/architecture-security/evaluation/coverage) and
+  [limitations](/docs/architecture-security/evaluation/limitations).
+- **Run it locally:** follow the [POC quickstart](/docs/overview/quickstart).
+- **Administer a deployment:** read
+  [identity and permissions](/docs/admins/identity-permissions) and
+  [sources and connections](/docs/admins/sources-connections).
+- **Integrate an AI client:** use the
+  [Assistant and MCP guide](/docs/developers/assistant-mcp).
+
+## Scope boundaries
+
+OrgMemory is not a source-of-truth replacement, a public content marketplace, or
+an authorization system inferred from email addresses. It does not grant access
+because an AI model found a relevant chunk. Source systems remain authoritative
+for their content permissions, OpenFGA governs product relationships, and the
+canonical ledger decides what may enter a response.

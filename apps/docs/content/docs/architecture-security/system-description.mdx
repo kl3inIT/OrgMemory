@@ -5,31 +5,118 @@ audience:
   - adopter
   - developer
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - ARCHITECTURE.md
   - docs/vision.md
+  - docs/decisions/0002-one-domain-three-deployables.md
+  - docs/decisions/0003-postgresql-ledger-openfga-authorization.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  This page follows the Onyx presentation pattern: one system view, layered
-  responsibilities, trust boundaries, and links to focused deep dives.
-</Callout>
+OrgMemory is a modular, self-hosted system that preserves source evidence and
+authorization context from ingestion through AI delivery. Product services
+share one canonical domain model; public documentation is an independent
+application with no runtime dependency on them.
 
 ## System context
 
-The final page will explain the delivery, governance, data, AI, and
-infrastructure layers before introducing implementation detail.
+<FlowDiagram
+  label="High-level OrgMemory architecture. Sources enter a governed ledger, derived projections are built by the worker, and every delivery surface reuses canonical authorization."
+  steps={[
+    {
+      title: 'Sources',
+      detail: 'Uploads, Slack, Google Drive, and GitHub contribute content plus source-native ACL evidence.',
+    },
+    {
+      title: 'Ingestion',
+      detail: 'Worker leases jobs, validates revisions, seals ACL snapshots, chunks, embeds, and publishes projections.',
+    },
+    {
+      title: 'Canonical governance',
+      detail: 'PostgreSQL, OpenFGA, and object storage retain identity, relationships, immutable evidence, and audit.',
+    },
+    {
+      title: 'Secure retrieval',
+      detail: 'Full-text, vector, and graph candidates are constrained and rechecked before model context.',
+    },
+    {
+      title: 'Delivery',
+      detail: 'Web, REST, Assistant, MCP, and CLI receive only actor-authorized content or exact Asset releases.',
+    },
+  ]}
+/>
 
-<DiagramFrame
-  title="OrgMemory at a glance"
-  description="The reviewed diagram will show data and authorization flow across the system boundary."
->
-  Sources → Governance → Retrieval → Web, API, Assistant, and MCP
-</DiagramFrame>
+The important direction is not simply left to right. A current actor and
+authorization scope also flow from the delivery boundary back into candidate
+selection, graph expansion, evidence closure, and citation reads.
+
+## Delivery components
+
+| Component | Responsibility |
+| --- | --- |
+| `apps/web` | React product shell for search, Assistant, Assets, governance, administration, and MCP connection |
+| `apps/api` | REST, OIDC BFF and bearer boundaries, canonical application services, OpenAPI, health, and Flyway ownership |
+| `apps/worker` | Connector polling, leased ingestion, parsing, embeddings, authorization projection, and graph publication |
+| `apps/mcp` | Stateless authenticated MCP adapter for permission-aware Knowledge and immutable Asset delivery |
+| `apps/cli` | OAuth PKCE client for MCP connection and bounded Skill validation, publication, and installation |
+| `apps/docs` | Independent Next.js/Fumadocs publication surface; it never reads product databases or private engineering docs at runtime |
+
+API, worker, and MCP depend on the shared `core` domain. Core never depends on a
+deployable application or provider integration.
+
+## Governance layer
+
+Keycloak authenticates browser and bearer principals. OrgMemory maps an external
+principal through an explicit issuer/subject binding. OpenFGA then answers
+relationship questions for organizations, spaces, Knowledge Assets, and
+registry Assets. Source ACL snapshots remain a separate, immutable permission
+ceiling.
+
+The API derives the actor, organization, and department server-side. Browser
+requests use a confidential OIDC BFF and an HttpOnly JDBC-backed session;
+stateless bearer requests serve MCP, CLI, and integrations. Both paths converge
+on the same canonical actor.
+
+## Data layer
+
+| Store | Canonical responsibility |
+| --- | --- |
+| PostgreSQL 18 | Identity, source and Asset ledgers, immutable versions, ACL heads, jobs, projection publication state, audit, vectors, and canonical graph contributions |
+| MinIO | Original source bytes and exact Skill packages behind opaque application routes |
+| OpenFGA | Relationship authorization tuples and versioned authorization model |
+| Apache AGE | Tenant-separated topology candidates only; never descriptions, ACLs, or provenance |
+
+Full-text, vector, graph, OpenSearch, and Neo4j records are rebuildable
+projections. PostgreSQL ledger rows and immutable object bytes remain the
+evidence authority.
+
+## AI and retrieval layer
+
+Provider-neutral routes separate Assistant chat, graph extraction, keyword
+planning, reranking, and document embeddings. The current adapter supports
+OpenAI-compatible providers through Spring AI. Provider output is untrusted:
+structured extraction validates limits and provenance before publication, and
+retrieval evidence is authorized before it enters a model prompt.
+
+`SECURE_MIX` is the internal default GraphRAG strategy. Strategy selection,
+authorization scope, and citation numbering remain server-owned.
 
 ## Replacement boundaries
 
-The authored page will distinguish canonical stores from rebuildable
-projections and replaceable provider adapters.
+Replaceable integrations implement core ports: model providers, object storage,
+OpenFGA, graph/search stores, observability, connectors, and sidecar JSON.
+Replacing one does not move authorization authority into the adapter.
+
+Deliberate couplings remain:
+
+- API is the only Flyway migration owner;
+- worker owns ingestion and derived-index publication;
+- PostgreSQL owns canonical evidence identities and publication heads;
+- OpenFGA owns product relationships, while source ACL evidence caps content
+  reads;
+- exact Asset releases and Knowledge versions are immutable coordinates.
+
+Continue with [Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle),
+[Authorization architecture](/docs/architecture-security/authorization), or
+[Secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag).

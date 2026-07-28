@@ -4,34 +4,110 @@ description: Review the functional capabilities and quality attributes supported
 audience:
   - evaluator
   - adopter
-status: draft
+status: public
 sourceRefs:
   - docs/tests/domains/asset-registry.md
   - docs/tests/domains/assistant-and-mcp.md
+  - docs/tests/domains/identity-and-organization.md
+  - docs/tests/domains/knowledge-ingestion.md
   - docs/tests/domains/secure-retrieval.md
+  - docs/tests/domains/secure-graph-rag.md
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  Coverage will distinguish automated, integration, browser, operational, and
-  not-yet-proven evidence.
-</Callout>
+This page summarizes what current repository evidence demonstrates. “Covered”
+means a named automated, integration, browser, contract, or deployment check
+exists. It does not mean every production environment or quality target has
+been certified.
 
-## Evaluation dimensions
+## Functional coverage
 
 <CapabilityGrid
   items={[
     {
       title: 'Functional',
-      description: 'Implemented reader and administrator capabilities.',
+      description:
+        'Source ingestion, secure retrieval, Assistant, Asset governance, MCP delivery, identity, and administration have automated paths.',
     },
     {
       title: 'Security',
-      description: 'Permission, tenant isolation, and negative evidence.',
+      description:
+        'Negative tests cover tenant isolation, opaque denial, ACL immutability, graph contribution filtering, and token boundary failures.',
     },
     {
       title: 'Reliability',
-      description: 'Recovery, checkpoint, retry, and deployment behavior.',
+      description:
+        'Leases, idempotency, independent connector checkpoints, atomic publication, CI images, health checks, and product rollback are exercised.',
+    },
+    {
+      title: 'User experience',
+      description:
+        'Core authenticated, Assistant, Asset, Pack, governance, and MCP connection journeys have focused browser evidence.',
     },
   ]}
 />
+
+| Capability | Evidence class | Current status |
+| --- | --- | --- |
+| Identity and organization | Unit, database integration, API contract, browser authentication | Covered; SCIM mutations deferred |
+| Upload and connector ingestion | Database integration plus recorded Slack, Drive, and GitHub responses | Covered without live external workspaces |
+| Permission-aware retrieval | OpenFGA model, canonical SQL integration, citation and policy tests | Covered; high-concurrency revocation latency not measured |
+| Secure GraphRAG | Pure-Java conformance, PostgreSQL/AGE integration, worker and application tests | Covered without provider-backed quality/load evaluation |
+| Asset Registry | Domain integration, API, MCP, CLI, and real-browser golden POC | Covered for four current profiles |
+| Assistant and MCP | Service, streaming, browser citation, token-exchange, tool/resource contract tests | Covered; general chat-turn idempotency absent |
+| Production delivery | CI, immutable images, health/OIDC/MCP smokes, rollback-aware scripts | Implemented; restore and broader pilot gates remain |
+
+## Security quality
+
+Security evidence concentrates on negative paths:
+
+- an identity-provider role or email cannot bootstrap authority;
+- SQL filters authorization before keyword, vector, or graph ranking;
+- denied contributions cannot affect graph seeds, adjacency, degree, weight, or
+  citations;
+- missing and unauthorized objects share opaque responses;
+- sealed ACL and audit rows reject update, delete, and truncate;
+- Skill archives reject traversal, links, collisions, invalid encodings, and
+  size-bound violations without extraction;
+- wrong OAuth issuer, audience, expiry, scope, or live object authorization
+  denies MCP delivery;
+- raw query text, Prompt variables, provider output, credentials, and bearer
+  values are excluded from the relevant audit/trace records.
+
+## Reliability quality
+
+Connector retries are bounded, one unusable connection does not consume another
+connection's poll, and content/permission/membership checkpoints advance
+independently. Worker jobs use leases and current-version rechecks. Projection
+publication is atomic: losing or aborted batches remain invisible, and a failed
+graph publish leaves the previous generation intact.
+
+The delivery pipeline builds immutable images and runs aggregate CI, production
+health, OIDC, web, and MCP smokes. Product rollback mechanics exist. A full
+database/object-store restore rehearsal is not yet reported as complete.
+
+## Performance and usability
+
+The implementation has explicit bounds for connector bodies, retries, graph
+traversal, model context, extraction concurrency, MCP requests, rate limits, and
+worker JDBC batches. PostgreSQL vector strategies are configurable and fail
+startup if an unavailable strategy is selected.
+
+These are engineering controls, not measured service-level objectives.
+Provider-backed retrieval quality, production load/latency, and high-concurrency
+revocation timing remain open evidence.
+
+Browser checks cover authenticated navigation, session restore, Assistant
+citations and abort/failure behavior, Asset catalog/detail/governance, Pack
+progress, owner/support-agent separation, responsive docs navigation, keyboard
+focus, and automated accessibility rules. Administration screens and focused
+graph rendering still lack dedicated browser coverage.
+
+## How to interpret a claim
+
+<VerificationBlock title="Evidence hierarchy">
+  Current source and executable tests outrank a roadmap, design, or checklist.
+  Recorded provider responses prove adapter behavior deterministically, but do
+  not prove a live tenant. A startup or deployment smoke proves availability,
+  not business correctness or pilot readiness.
+</VerificationBlock>

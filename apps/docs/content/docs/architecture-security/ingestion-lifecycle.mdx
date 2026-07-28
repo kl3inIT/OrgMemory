@@ -5,7 +5,7 @@ audience:
   - developer
   - administrator
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - docs/specs/domains/knowledge-ingestion.md
   - docs/tests/domains/knowledge-ingestion.md
@@ -13,15 +13,92 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  The final lifecycle will identify checkpoints, immutable source revisions,
-  permission evidence, enrichment, projections, retries, and deletion effects.
-</Callout>
+Ingestion turns source content into governed Knowledge without treating a search
+index as the source of truth. Uploads and connectors converge on the same ledger
+and derived-index publication rules.
 
 ## Lifecycle stages
 
-<Steps>
-  <Step>Discover source records and checkpoint crawl progress.</Step>
-  <Step>Persist immutable revisions and permission evidence.</Step>
-  <Step>Build derived search, graph, and vector projections.</Step>
-</Steps>
+<FlowDiagram
+  label="Governed ingestion preserves source identity and permissions before publishing searchable projections."
+  steps={[
+    { title: 'Observe', detail: 'A source adapter or upload identifies content, revision, native principals, and completeness.' },
+    { title: 'Record', detail: 'The ledger appends immutable source revision, evidence metadata, ACL snapshot, and a leased job.' },
+    { title: 'Normalize', detail: 'The worker validates, parses, normalizes, chunks, and pins processing profiles.' },
+    { title: 'Project', detail: 'Embeddings, full-text records, graph contributions, and OpenFGA relationships stage together.' },
+    { title: 'Publish', detail: 'A compare-and-set head exposes one complete generation; stale or partial batches remain invisible.' },
+  ]}
+/>
+
+## Source contract
+
+A connector contributes a versioned crawl batch. Each object separates:
+
+- `source_system`: the adapter-owned origin, such as Slack, Google Drive, or
+  GitHub;
+- `acl_authority`: whether source permissions or OrgMemory permissions govern
+  the content;
+- immutable source-native object and revision identifiers;
+- permission principals with typed stable native IDs;
+- independent content, permission, and membership cursors;
+- completeness claims for each component.
+
+An adapter that cannot establish an object's ACL omits that object. It never
+sends an empty grant list as a substitute, because a sealed empty ACL means the
+source explicitly granted nobody.
+
+## Checkpoints and convergence
+
+The worker reads enabled connection configuration and encrypted credentials from
+the ledger on every poll. A configuration change applies on the next poll
+without a restart.
+
+Per-connection checkpoints distinguish observed state from successfully
+reconciled content, permissions, and membership. A permanent per-item rejection
+can be checkpointed past while a transient failure remains pending. A restarted
+worker resumes rather than replaying completed work.
+
+Membership is independently sealed. Removing a user from a source group can
+revoke access on the next request without rewriting content, rotating the
+object's stable group ACL, rechunking, or re-embedding.
+
+## Immutable evidence
+
+One source revision cannot change content. ACL rotation appends a new sealed
+generation and compare-and-set advances the current head. Database constraints
+reject mutation of sealed ACL evidence. Original bytes are retained through the
+object-storage port; chunks, vectors, graph topology, and search indexes are
+rebuildable.
+
+Direct uploads first verify `can_create_asset` on a Knowledge Space and preserve
+that Space identity through the source ledger. Publication keeps new versions
+inactive until required OpenFGA relationships are confirmed.
+
+## Graph publication
+
+When a source revision becomes ready, the worker creates a durable graph-index
+job pinned to:
+
+- the current Knowledge Asset version and source revision;
+- active chunks and ACL generation;
+- immutable embedding and graph-processing profiles;
+- exact model and prompt coordinates.
+
+Multi-replica workers claim jobs with leases. Contributions and embeddings
+publish atomically after a current-version recheck. A failed publish leaves the
+previous generation available; a stale version is superseded rather than made
+current.
+
+## Deletion and incompleteness
+
+A complete crawl may retire content the source stopped mentioning. An
+incomplete crawl retires nothing merely because it was not observed. A
+tombstoned object is archived out of retrieval and cannot be revived by a later
+content revision.
+
+<VerificationBlock title="What is proven">
+  Integration tests cover idempotency, concurrent convergence, sealed ACL
+  immutability, independent checkpoints, restart resume, incomplete evidence,
+  tombstones, membership-only revocation, and recorded-response behavior for
+  Slack, Google Drive, and GitHub.
+</VerificationBlock>

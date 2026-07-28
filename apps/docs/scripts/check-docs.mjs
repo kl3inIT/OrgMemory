@@ -250,14 +250,17 @@ function checkRoutes() {
     .map((entry) => entry.route)
     .sort();
 
-  if (draftRoutes.length !== 15) {
-    fail(`Expected 15 first-release draft routes, found ${draftRoutes.length}`);
+  if (manifest.entries.length !== 15) {
+    fail(`Expected exactly 15 first-release routes, found ${manifest.entries.length}`);
   }
   if (publicRoutes.some((route) => draftRoutes.includes(route))) {
     fail('A route cannot be both public and draft');
   }
-  if (!publicRoutes.includes('/docs')) {
-    fail('The public documentation foundation route is required before content release');
+  if (draftRoutes.length !== 0 || publicRoutes.length !== 15) {
+    fail(
+      `First-release content must contain 15 public routes and no drafts; ` +
+        `found ${publicRoutes.length} public and ${draftRoutes.length} draft`,
+    );
   }
 
   const sourceImplementation = fs.readFileSync(

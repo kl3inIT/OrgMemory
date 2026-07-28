@@ -4,7 +4,7 @@ description: Understand permission-filtered retrieval, graph context, vector con
 audience:
   - developer
   - evaluator
-status: draft
+status: public
 sourceRefs:
   - docs/specs/domains/secure-retrieval.md
   - docs/specs/domains/secure-graph-rag.md
@@ -12,20 +12,89 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-<Callout title="Editorial preview" type="info">
-  The final page will separate the canonical ledger from rebuildable search,
-  graph, and vector projections and explain where authorization is enforced.
-</Callout>
+Secure retrieval treats authorization as part of relevance computation, not a
+filter added after ranking. Graph nodes and relations have no independent ACL:
+their evidence contributions remain tied to authorized Knowledge Assets.
 
 ## Retrieval model
 
-The authored page will cover query intent, permission filtering, hybrid
-retrieval, graph expansion, answer generation, citations, and observable
-failure behavior.
+<FlowDiagram
+  label="One Assistant turn prepares a query, retrieves only within an authorized scope, rechecks the complete evidence closure, and then renders the model prompt."
+  steps={[
+    { title: 'Resolve scope', detail: 'OpenFGA ListObjects and canonical SQL identify eligible current Knowledge Assets.' },
+    { title: 'Prepare query', detail: 'Keyword planning and embeddings are computed once without embedding authorization decisions.' },
+    { title: 'Retrieve', detail: 'Full-text, vector, entity, relation, and topology reads prefilter organization and authorized Asset IDs.' },
+    { title: 'Recheck closure', detail: 'OpenFGA BatchCheck and canonical SQL validate every selected chunk and graph contribution.' },
+    { title: 'Render and stream', detail: 'One token budget and deterministic citation order create the prompt and streamed answer.' },
+  ]}
+/>
 
-<DiagramFrame
-  title="Permission-aware retrieval"
-  description="A reviewed sequence diagram will show authorization before context reaches the model."
->
-  Query → Authorized candidates → Hybrid context → Answer with citations
-</DiagramFrame>
+## Canonical scope before ranking
+
+Search first resolves candidate stable Knowledge Asset IDs through OpenFGA.
+Canonical SQL then checks organization, lifecycle, current-version pointer,
+source revision, ingestion and current ACLs, classification, and publication,
+model, and profile state before full-text, vector, or graph ranking.
+
+This order prevents a denied chunk, neighbor, degree, edge weight, or hidden
+entity description from affecting visible results.
+
+## Graph evidence model
+
+Canonical entities and relations do not hold merged authorization-free
+descriptions. Each description, keyword, confidence, source revision, chunk,
+Knowledge Asset, ACL coordinate, model, prompt, and extraction time remains on
+an immutable evidence contribution.
+
+`SECURE_MIX` combines chunk, entity, and relation evidence under one internal
+retrieval plan. The strategy is not a public request option. Results keep their
+structured contributions until the final pure-Java renderer assigns references
+and applies one model-context budget across every selected Knowledge Space.
+
+## Projection boundaries
+
+PostgreSQL owns canonical graph identities, contributions, publication heads,
+and entity/relation vectors. Apache AGE stores topology identifiers for bounded
+candidate traversal. OpenSearch and Neo4j are replaceable adapters under the
+same contribution-level authorization conformance suite.
+
+Every adapter returns candidates, not authorization decisions. AGE candidates
+are edge-filtered by authorized Knowledge Asset and then rechecked relationally.
+A bounded relational breadth-first traversal supplies the same port when AGE is
+disabled.
+
+## Request authorization snapshot
+
+After ranking, the application BatchChecks and re-reads the complete
+entity/relation/chunk closure. Organization, OpenFGA model, ACL snapshot, source
+revision, and projection generation must still match. If authorization changes
+during retrieval, the request retries without sending evidence to the model.
+
+The verified closure becomes an immutable snapshot for that Assistant turn.
+Revocation applies to the next turn. An already-started turn may finish under
+its snapshot and remains bounded by the configured turn timeout.
+
+## Citations
+
+Only evidence that fits the final prompt budget receives a citation number.
+The browser makes interactive only the markers declared by the server.
+Opening a citation runs a fresh canonical check, validates revision and blob
+integrity, and streams original bytes through an authenticated no-store route.
+Missing, changed, and denied citations are indistinguishable.
+
+## Failure behavior
+
+- a missing model route, mismatched immutable profile, malformed extraction, or
+  failed snapshot closes the request;
+- GraphRAG never silently falls back to canonical hybrid retrieval;
+- reranking defaults off and cannot start without a named adapter;
+- a transient reranker failure may retain the already-authorized order while
+  emitting sanitized telemetry;
+- one failed Knowledge Space fails a multi-space request closed.
+
+<VerificationBlock title="Security conformance">
+  Pure-Java and adapter suites prove that restricted contributions, seeds,
+  neighbors, degrees, weights, stale generations, and cross-tenant evidence
+  cannot influence the visible result. Provider-backed quality and load
+  evaluation remain separate operational gaps.
+</VerificationBlock>

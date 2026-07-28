@@ -2,19 +2,11 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "route": "/docs",
-      "content": "content/docs/index.mdx",
-      "area": "overview",
-      "order": 0,
-      "status": "public",
-      "reviewOwner": "documentation-maintainers"
-    },
-    {
       "route": "/docs/overview",
       "content": "content/docs/overview/index.mdx",
       "area": "overview",
       "order": 10,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "product-and-documentation"
     },
     {
@@ -22,7 +14,7 @@
       "content": "content/docs/overview/quickstart.mdx",
       "area": "overview",
       "order": 20,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "developer-experience"
     },
     {
@@ -30,7 +22,7 @@
       "content": "content/docs/overview/core-concepts.mdx",
       "area": "overview",
       "order": 30,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "product-and-documentation"
     },
     {
@@ -38,7 +30,7 @@
       "content": "content/docs/overview/asset-lifecycle.mdx",
       "area": "overview",
       "order": 40,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "asset-registry-maintainers"
     },
     {
@@ -46,7 +38,7 @@
       "content": "content/docs/deployment/self-hosting.mdx",
       "area": "deployment",
       "order": 10,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "operations-maintainers"
     },
     {
@@ -54,7 +46,7 @@
       "content": "content/docs/admins/identity-permissions.mdx",
       "area": "admins",
       "order": 10,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "identity-and-authorization-maintainers"
     },
     {
@@ -62,7 +54,7 @@
       "content": "content/docs/admins/sources-connections.mdx",
       "area": "admins",
       "order": 20,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "connector-maintainers"
     },
     {
@@ -70,7 +62,7 @@
       "content": "content/docs/developers/assistant-mcp.mdx",
       "area": "developers",
       "order": 10,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "assistant-and-mcp-maintainers"
     },
     {
@@ -78,7 +70,7 @@
       "content": "content/docs/architecture-security/system-description.mdx",
       "area": "architecture-security",
       "order": 10,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "architecture-maintainers"
     },
     {
@@ -86,7 +78,7 @@
       "content": "content/docs/architecture-security/ingestion-lifecycle.mdx",
       "area": "architecture-security",
       "order": 20,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "ingestion-maintainers"
     },
     {
@@ -94,7 +86,7 @@
       "content": "content/docs/architecture-security/authorization.mdx",
       "area": "architecture-security",
       "order": 30,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "identity-and-authorization-maintainers"
     },
     {
@@ -102,7 +94,7 @@
       "content": "content/docs/architecture-security/secure-retrieval-graphrag.mdx",
       "area": "architecture-security",
       "order": 40,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "retrieval-maintainers"
     },
     {
@@ -110,7 +102,7 @@
       "content": "content/docs/architecture-security/evaluation/coverage.mdx",
       "area": "architecture-security",
       "order": 50,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "quality-maintainers"
     },
     {
@@ -118,7 +110,7 @@
       "content": "content/docs/architecture-security/evaluation/traceability.mdx",
       "area": "architecture-security",
       "order": 60,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "quality-maintainers"
     },
     {
@@ -126,7 +118,7 @@
       "content": "content/docs/architecture-security/evaluation/limitations.mdx",
       "area": "architecture-security",
       "order": 70,
-      "status": "draft",
+      "status": "public",
       "reviewOwner": "product-and-documentation"
     }
   ]
