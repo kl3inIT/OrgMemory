@@ -7,7 +7,7 @@ Source: `core/src/test/java/com/orgmemory/core/organization`,
 `apps/api/src/test/java/com/orgmemory/api/scim`,
 `apps/api/src/test/java/com/orgmemory/api/admin`, and `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 
 | Behavior | Evidence |
 | --- | --- |

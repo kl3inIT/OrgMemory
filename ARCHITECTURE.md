@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure verified in the repository.
-Reconciled against the polyglot workspace foundation on 2026-07-29.
+Reconciled against the polyglot workspace foundation `7acda3a` on 2026-07-29.
 Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 

@@ -35,7 +35,7 @@ The table is a delivery index, not a second description of current behavior.
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
-| [Public documentation portal](increments/active/2026-07-28-public-docs-portal/plan.md) | active | implement the independent Fumadocs application and publication boundary |
+| [Public documentation portal](increments/active/2026-07-28-public-docs-portal/plan.md) | active | author the Onyx-style information architecture and reviewed public corpus, then add API/search delivery |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become

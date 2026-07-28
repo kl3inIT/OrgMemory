@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 
 ## Current Contract
 

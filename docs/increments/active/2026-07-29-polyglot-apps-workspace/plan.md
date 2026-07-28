@@ -18,14 +18,14 @@ Gate: design and plan exist before filesystem moves or scaffolding.
 
 ## Phase 2 — Normalize The Workspace
 
-- [ ] Move tracked `web/` to `apps/web/` with history-preserving Git changes.
-- [ ] Rename the package to `@orgmemory/web`.
-- [ ] Add the private root `package.json` and explicit
+- [x] Move tracked `web/` to `apps/web/` with history-preserving Git changes.
+- [x] Rename the package to `@orgmemory/web`.
+- [x] Add the private root `package.json` and explicit
   `pnpm-workspace.yaml`.
-- [ ] Merge CLI and web dependency graphs into one root lockfile and remove
+- [x] Merge CLI and web dependency graphs into one root lockfile and remove
   package-local lockfiles/workspace configuration.
-- [ ] Add root filtered scripts for CLI, web, and docs gates.
-- [ ] Update ignore rules and package-local guidance.
+- [x] Add root filtered scripts for CLI, web, and docs gates.
+- [x] Update ignore rules and package-local guidance.
 
 Gate:
 
@@ -42,14 +42,14 @@ corepack pnpm --filter @orgmemory/web build
 
 ## Phase 3 — Establish The Docs Application
 
-- [ ] Scaffold `apps/docs` from the current official Fumadocs Next.js shape.
-- [ ] Pin the supported Node/pnpm/Next.js/Fumadocs/React baseline.
-- [ ] Configure Fumadocs MDX, typed frontmatter, explicit navigation, home/docs
+- [x] Scaffold `apps/docs` from the current official Fumadocs Next.js shape.
+- [x] Pin the supported Node/pnpm/Next.js/Fumadocs/React baseline.
+- [x] Configure Fumadocs MDX, typed frontmatter, explicit navigation, home/docs
   layouts, and `/healthz`.
-- [ ] Add the minimal public manifest and placeholder content.
-- [ ] Add manifest/content/publication/source-reference validation.
-- [ ] Configure standalone output and the non-root multi-stage Dockerfile.
-- [ ] Add thin package guidance and architecture.
+- [x] Add the minimal public manifest and placeholder content.
+- [x] Add manifest/content/publication/source-reference validation.
+- [x] Configure standalone output and the non-root multi-stage Dockerfile.
+- [x] Add thin package guidance and architecture.
 
 Gate:
 
@@ -64,13 +64,13 @@ docker build --file apps/docs/Dockerfile .
 
 ## Phase 4 — Rewire Automation And Operations
 
-- [ ] Update CI path filters and install Node dependencies once at workspace
+- [x] Update CI path filters and install Node dependencies once at workspace
   root.
-- [ ] Add an independent docs CI job to the aggregate `CI Gate`.
-- [ ] Update production web image filters and Dockerfile path.
-- [ ] Update the web Dockerfile and forwarded-port contract test.
-- [ ] Update CodeRabbit and all other current automation references.
-- [ ] Validate workflow syntax, Dockerfiles, Compose interpolation, and shell
+- [x] Add an independent docs CI job to the aggregate `CI Gate`.
+- [x] Update production web image filters and Dockerfile path.
+- [x] Update the web Dockerfile and forwarded-port contract test.
+- [x] Update CodeRabbit and all other current automation references.
+- [x] Validate workflow syntax, Dockerfiles, Compose interpolation, and shell
   scripts.
 
 Gate:
@@ -84,14 +84,14 @@ docker buildx build --check --file apps/docs/Dockerfile .
 
 ## Phase 5 — Consolidate And Close
 
-- [ ] Reconcile `ARCHITECTURE.md`, `README.md`, conventions, roadmap, and
+- [x] Reconcile `ARCHITECTURE.md`, `README.md`, conventions, roadmap, and
   affected spec/test provenance to the new paths.
-- [ ] Confirm current files contain no stale live `web/` reference while
+- [x] Confirm current files contain no stale live `web/` reference while
   preserving immutable completed history.
-- [ ] Run the full Gradle suite, all Node package gates, browser tests,
+- [x] Run the full Gradle suite, all Node package gates, browser tests,
   documentation checks, Docker builds, and deployment contract tests.
-- [ ] Record exact verification evidence in `verification.md`.
-- [ ] Mark the corresponding foundation items in the public docs portal plan
+- [x] Record exact verification evidence in `verification.md`.
+- [x] Mark the corresponding foundation items in the public docs portal plan
   complete only where evidence exists.
 - [ ] Move this increment to `completed/` and update roadmap status.
 - [ ] Commit, push, open a pull request, require green CI, merge, and verify
