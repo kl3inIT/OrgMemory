@@ -1,0 +1,35 @@
+---
+title: System description
+description: See how OrgMemory components work together to deliver governed, permission-aware organizational memory.
+audience:
+  - adopter
+  - developer
+  - evaluator
+status: draft
+sourceRefs:
+  - ARCHITECTURE.md
+  - docs/vision.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  This page follows the Onyx presentation pattern: one system view, layered
+  responsibilities, trust boundaries, and links to focused deep dives.
+</Callout>
+
+## System context
+
+The final page will explain the delivery, governance, data, AI, and
+infrastructure layers before introducing implementation detail.
+
+<DiagramFrame
+  title="OrgMemory at a glance"
+  description="The reviewed diagram will show data and authorization flow across the system boundary."
+>
+  Sources → Governance → Retrieval → Web, API, Assistant, and MCP
+</DiagramFrame>
+
+## Replacement boundaries
+
+The authored page will distinguish canonical stores from rebuildable
+projections and replaceable provider adapters.

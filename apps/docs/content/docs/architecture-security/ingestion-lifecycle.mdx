@@ -1,0 +1,27 @@
+---
+title: Ingestion lifecycle
+description: Follow governed knowledge from source discovery through immutable revisions and searchable projections.
+audience:
+  - developer
+  - administrator
+  - evaluator
+status: draft
+sourceRefs:
+  - docs/specs/domains/knowledge-ingestion.md
+  - docs/tests/domains/knowledge-ingestion.md
+  - contracts/connector/crawl-batch.schema.json
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  The final lifecycle will identify checkpoints, immutable source revisions,
+  permission evidence, enrichment, projections, retries, and deletion effects.
+</Callout>
+
+## Lifecycle stages
+
+<Steps>
+  <Step>Discover source records and checkpoint crawl progress.</Step>
+  <Step>Persist immutable revisions and permission evidence.</Step>
+  <Step>Build derived search, graph, and vector projections.</Step>
+</Steps>

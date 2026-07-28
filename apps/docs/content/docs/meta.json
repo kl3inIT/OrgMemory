@@ -1,6 +1,12 @@
 {
   "title": "OrgMemory",
   "pages": [
-    "index"
+    "index",
+    "overview",
+    "deployment",
+    "admins",
+    "developers",
+    "architecture-security",
+    "external:[Changelog](https://github.com/kl3inIT/OrgMemory/releases)"
   ]
 }

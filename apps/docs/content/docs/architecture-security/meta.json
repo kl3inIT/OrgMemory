@@ -1,0 +1,12 @@
+{
+  "title": "Architecture & Security",
+  "description": "Understand system responsibilities, trust boundaries, and verification.",
+  "root": true,
+  "pages": [
+    "system-description",
+    "ingestion-lifecycle",
+    "authorization",
+    "secure-retrieval-graphrag",
+    "evaluation"
+  ]
+}

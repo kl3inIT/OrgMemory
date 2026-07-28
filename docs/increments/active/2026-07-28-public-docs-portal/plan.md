@@ -59,21 +59,21 @@ Exit gate:
 
 Purpose: establish the complete reader journey before writing many pages.
 
-- [ ] Implement root navigation for Overview, Deployment, Admins, Developers,
+- [x] Implement root navigation for Overview, Deployment, Admins, Developers,
   Architecture and Security, and Changelog.
-- [ ] Implement the left page tree, right table of contents, previous/next
+- [x] Implement the left page tree, right table of contents, previous/next
   navigation, search trigger, GitHub link, and theme control.
-- [ ] Build the audience-oriented home page with Quickstart and Demo as the
+- [x] Build the audience-oriented home page with Quickstart and Demo as the
   primary actions.
-- [ ] Add all fifteen first-release entries to the release manifest.
-- [ ] Create draft page shells with real titles, descriptions, audience, status,
+- [x] Add all fifteen first-release entries to the release manifest.
+- [x] Create draft page shells with real titles, descriptions, audience, status,
   source references, and review metadata; keep them out of production routes,
   search, sitemap, and LLM outputs.
-- [ ] Add reusable MDX patterns for procedure steps, callouts, capability cards,
+- [x] Add reusable MDX patterns for procedure steps, callouts, capability cards,
   diagrams, API examples, and verification blocks.
-- [ ] Add link/anchor validation and the first Playwright +
+- [x] Add link/anchor validation and the first Playwright +
   `@axe-core/playwright` navigation tests.
-- [ ] Verify keyboard and mobile navigation before substantive content makes
+- [x] Verify keyboard and mobile navigation before substantive content makes
   structural changes expensive.
 
 Exit gate:

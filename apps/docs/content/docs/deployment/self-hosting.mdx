@@ -1,0 +1,30 @@
+---
+title: Self-hosting overview
+description: Understand the supported deployment topology, prerequisites, health boundaries, and recovery model.
+audience:
+  - adopter
+  - administrator
+  - evaluator
+status: draft
+sourceRefs:
+  - compose.yaml
+  - ARCHITECTURE.md
+  - docs/runbooks/production-zm-deployment.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="warn">
+  Private hosts, credentials, production evidence, and operator-only recovery
+  details are excluded from the public guide.
+</Callout>
+
+## Deployment boundary
+
+The public overview will describe service responsibilities, persistent data,
+health contracts, resource expectations, and rollback concepts without
+publishing private production values.
+
+<VerificationBlock title="Publication gate">
+  Examples must use safe placeholder origins and name only managed secret
+  locations, never secret values.
+</VerificationBlock>

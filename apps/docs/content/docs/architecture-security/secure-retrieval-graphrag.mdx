@@ -1,0 +1,31 @@
+---
+title: Secure retrieval and GraphRAG
+description: Understand permission-filtered retrieval, graph context, vector context, citations, and projection boundaries.
+audience:
+  - developer
+  - evaluator
+status: draft
+sourceRefs:
+  - docs/specs/domains/secure-retrieval.md
+  - docs/specs/domains/secure-graph-rag.md
+  - docs/tests/domains/secure-graph-rag.md
+lastReviewed: 2026-07-29
+---
+
+<Callout title="Editorial preview" type="info">
+  The final page will separate the canonical ledger from rebuildable search,
+  graph, and vector projections and explain where authorization is enforced.
+</Callout>
+
+## Retrieval model
+
+The authored page will cover query intent, permission filtering, hybrid
+retrieval, graph expansion, answer generation, citations, and observable
+failure behavior.
+
+<DiagramFrame
+  title="Permission-aware retrieval"
+  description="A reviewed sequence diagram will show authorization before context reaches the model."
+>
+  Query → Authorized candidates → Hybrid context → Answer with citations
+</DiagramFrame>

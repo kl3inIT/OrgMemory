@@ -1,9 +1,22 @@
 import defaultMdxComponents from 'fumadocs-ui/mdx';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
 import type { MDXComponents } from 'mdx/types';
+import {
+  ApiExample,
+  CapabilityGrid,
+  DiagramFrame,
+  VerificationBlock,
+} from './docs-patterns';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    ApiExample,
+    CapabilityGrid,
+    DiagramFrame,
+    Step,
+    Steps,
+    VerificationBlock,
     ...components,
   } satisfies MDXComponents;
 }

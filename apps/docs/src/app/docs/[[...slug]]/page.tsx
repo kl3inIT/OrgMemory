@@ -5,6 +5,7 @@ import {
   DocsPage,
   DocsTitle,
   MarkdownCopyButton,
+  PageLastUpdate,
   ViewOptionsPopover,
 } from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
@@ -22,10 +23,22 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const markdownUrl = getPageMarkdownUrl(page).url;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage
+      role="main"
+      toc={page.data.toc}
+      full={page.data.full}
+      tableOfContent={{ enabled: true }}
+      tableOfContentPopover={{ enabled: true }}
+      footer={{ enabled: true }}
+    >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-      <div className="flex flex-row gap-2 items-center border-b pb-6">
+      <div className="flex flex-wrap items-center gap-2 border-b pb-6">
+        {page.data.status === 'draft' ? (
+          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-900 dark:text-amber-200">
+            Editorial preview
+          </span>
+        ) : null}
         <MarkdownCopyButton markdownUrl={markdownUrl} />
         <ViewOptionsPopover
           markdownUrl={markdownUrl}
@@ -40,6 +53,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           })}
         />
       </DocsBody>
+      <PageLastUpdate date={new Date(`${page.data.lastReviewed}T00:00:00Z`)} />
     </DocsPage>
   );
 }
