@@ -164,7 +164,7 @@ publication boundary.
   intentionally deployment-scoped. DNS does not resolve and DNS/Nginx Proxy
   Manager configuration access is not proven, so live mutation remains stopped.
 - [x] Add docs path filtering to CI so docs-only changes run the correct gates.
-- [ ] Add `.github/workflows/build-docs.yml` and publish
+- [x] Add `.github/workflows/build-docs.yml` and publish
   `ghcr.io/kl3init/orgmemory-docs:sha-<commit>` with revision metadata, SBOM,
   provenance, and the repository vulnerability-scan policy.
 - [x] Add `.github/workflows/deploy-docs.yml` with its own production concurrency

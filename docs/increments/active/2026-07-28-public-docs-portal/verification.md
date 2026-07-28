@@ -165,7 +165,12 @@ evidence were used instead.
 
 Branch: `feat/public-docs-deployment`
 
-Base: `origin/main@eb870a905529a1cb7fc886dc1c189ecc21f5598d`
+Base: `origin/main@dfb4be455947bd9b0b2ead7e1b18a9a662f0253b`
+
+Delivered in [PR #115](https://github.com/kl3inIT/OrgMemory/pull/115),
+merged as `1178c5e19f5d6ad84107a8cb9a93f886b302c529`. PR CI run
+`30396857472` and merge-commit CI run `30397138921` passed every selected job
+and `CI Gate`.
 
 Read-only preflight evidence:
 
@@ -215,9 +220,22 @@ Passed local gates:
 | Publication | local proxy crawl matched all 24 allowlisted routes and five machine/public outputs |
 | Python | publication verifier compiled under Python 3.13 |
 
+Published release evidence:
+
+- `Build docs image` run `30397457422` completed successfully for the exact
+  merge commit;
+- image:
+  `ghcr.io/kl3init/orgmemory-docs:sha-1178c5e19f5d6ad84107a8cb9a93f886b302c529`;
+- digest:
+  `sha256:7f5c7e894adca3b207d496c7cb536f7eb35f606964323b51a07ef1d87af0d5a5`;
+- the published image was pulled by immutable tag and its digest and OCI
+  revision matched the release manifest;
+- the exact image ran locally as `nextjs` with a read-only root filesystem and
+  512 MiB memory limit, became healthy, and passed the 24-route plus five-output
+  publication verifier.
+
 Pending owner-controlled evidence:
 
-- published GHCR docs release from the merged PR 5 commit;
 - DNS, certificate, and Nginx Proxy Manager host;
 - live health, mobile navigation, 24-route crawl, negative publication scan,
   product before/after health, and deployed-revision record.
