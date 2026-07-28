@@ -130,8 +130,11 @@ jobs:
             web:
               - ".dockerignore"
               - ".github/workflows/build-images.yml"
+              - "apps/cli/package.json"
+              - "apps/docs/package.json"
               - "contracts/**"
               - "package.json"
+              - "patches/**"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
               - "apps/web/**"

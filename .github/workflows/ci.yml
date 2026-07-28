@@ -127,6 +127,7 @@ jobs:
               - "infrastructure/images/**"
               - "infrastructure/keycloak/**"
               - "infrastructure/postgres-rag/**"
+              - "patches/**"
               - "apps/web/Dockerfile"
               - "apps/web/nginx.conf"
               - "apps/docs/Dockerfile"
@@ -541,6 +542,13 @@ jobs:
           docker buildx build --check --file apps/docs/Dockerfile .
           docker buildx build --check --file infrastructure/keycloak/Dockerfile .
           docker buildx build --check --file infrastructure/postgres-rag/Dockerfile .
+
+      - name: Build web Docker dependency contract
+        run: >-
+          docker buildx build
+          --file apps/web/Dockerfile
+          --target build
+          .
 
       - name: Test web forwarded-port handling
         run: infrastructure/deployment/scripts/test-web-forwarded-port.sh
