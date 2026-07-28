@@ -3,7 +3,7 @@
 Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
-`web/src/features/knowledge`.
+`apps/web/src/features/knowledge`.
 
 Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
 

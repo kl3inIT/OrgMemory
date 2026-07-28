@@ -69,7 +69,7 @@ reviews:
         or wildcard relation that can broaden source access. Require negative
         Check and ListObjects coverage for every new permission path.
 
-    - path: "web/src/**/*.{ts,tsx}"
+    - path: "apps/web/src/**/*.{ts,tsx}"
       instructions: |
         OAuth access and refresh tokens must never enter browser JavaScript or
         browser storage. Use the HttpOnly BFF session, CSRF-protected mutations,

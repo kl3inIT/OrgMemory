@@ -25,7 +25,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  *
  * <p>Refresh them after changing an endpoint by setting {@code ORGMEMORY_OPENAPI_WRITE=true} and
  * running {@code .\gradlew.bat :apps:api:test --tests "*OpenApiContractTests*"}, then regenerate
- * the browser client with {@code pnpm -C web gen:api}.
+ * the browser client with {@code pnpm --filter @orgmemory/web gen:api}.
  */
 @SpringBootTest(properties = {"springdoc.api-docs.enabled=true", "springdoc.swagger-ui.enabled=false"})
 @AutoConfigureMockMvc(addFilters = false)

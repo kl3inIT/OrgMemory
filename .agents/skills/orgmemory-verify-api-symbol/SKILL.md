@@ -35,13 +35,14 @@ This project uses recent major versions where older examples can be wrong.
 - API app: `apps/api`
 - MCP app: `apps/mcp`
 - Worker app: `apps/worker`
-- Web app: `web`
+- Web app: `apps/web`
+- Documentation app: `apps/docs`
 
 When in doubt, verify by compiling:
 
 ```powershell
 .\gradlew.bat --no-daemon compileJava
-pnpm -C web typecheck
+pnpm --filter @orgmemory/web typecheck
 ```
 
 ## Known Stack Traps

@@ -9,7 +9,7 @@ api_container="orgmemory-forwarded-port-api-${run_id}"
 web_container="orgmemory-forwarded-port-web-${run_id}"
 tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-forwarded-port.XXXXXX")"
-web_config_path="$repo_root/web/nginx.conf"
+web_config_path="$repo_root/apps/web/nginx.conf"
 api_config_path="$tmp_dir/api.conf"
 
 if command -v cygpath >/dev/null 2>&1; then

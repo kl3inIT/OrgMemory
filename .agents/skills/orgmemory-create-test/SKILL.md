@@ -29,8 +29,8 @@ frontend contract, run at least:
 ```powershell
 .\gradlew.bat --no-daemon :core:test :apps:api:test :apps:worker:test
 .\gradlew.bat --no-daemon clean test
-corepack pnpm -C web typecheck
-corepack pnpm -C web build
+corepack pnpm --filter @orgmemory/web typecheck
+corepack pnpm --filter @orgmemory/web build
 ```
 
 The terminating `clean test` command is the Spring context gate. Never use

@@ -27,6 +27,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Polyglot apps workspace](increments/active/2026-07-29-polyglot-apps-workspace/plan.md) | active | normalize pnpm ownership, move web, establish the Fumadocs foundation, and pass all product/deployment gates |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
 | [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
@@ -42,10 +43,10 @@ implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Run a separate repository-layout increment that creates the root pnpm
-   workspace, moves `web` to `apps/web`, and establishes `apps/docs` without
-   mixing the move with public-content authoring.
-2. Continue the Fumadocs portal plan against the normalized `apps/docs` path.
+1. Complete the active repository-layout increment without mixing the move with
+   public-content authoring.
+2. Continue the Fumadocs portal information architecture and content plan
+   against the normalized `apps/docs` foundation.
 3. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
 4. Complete the reproducible demo's real ingestion and permission-evaluation

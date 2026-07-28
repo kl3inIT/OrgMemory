@@ -13,8 +13,9 @@ deployment.
 ## Current Stack
 
 Java 25, Spring Boot 4.1, Spring Modulith 2.1, Spring AI 2.0, PostgreSQL with
-pgvector, Flyway, Gradle 9.6, pnpm 11, React 19, Vite 8, TypeScript 7, Tailwind
-CSS 4, shadcn/ui, TanStack Query/Router, and AI SDK UI components.
+pgvector, Flyway, Gradle 9.6, pnpm 11, React 19, Vite 8, Next.js 16, Fumadocs,
+TypeScript, Tailwind CSS 4, shadcn/ui, TanStack Query/Router, and AI SDK UI
+components.
 
 ## Repository
 
@@ -23,9 +24,13 @@ core/          domain, application services, JPA, and Flyway
 apps/api/      REST, OIDC, secure search, OpenAPI, migration owner
 apps/worker/   background source ingestion and indexing boundary
 apps/mcp/      authenticated read-only MCP delivery adapter
+apps/cli/      authenticated Skill and MCP command-line client
+apps/web/      React product shell, secure search, and Asset management
+apps/docs/     independent public Fumadocs portal
 integrations/  provider adapters, including the official OpenFGA Java SDK
-web/           React app shell, secure search, and document management
 docs/          vision, roadmap, decisions, specs, tests, and increments
+package.json + pnpm-workspace.yaml + pnpm-lock.yaml
+               root ownership for the three Node packages
 ```
 
 ## Local Development
@@ -35,12 +40,16 @@ docs/          vision, roadmap, decisions, specs, tests, and increments
 .\gradlew.bat :apps:api:bootRun --args='--spring.profiles.active=dev'
 # In another terminal after Flyway has created the schema:
 .\gradlew.bat demoSeed
-corepack pnpm -C web install
-corepack pnpm -C web gen:api
-corepack pnpm -C web dev --host 127.0.0.1 --port 5173
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @orgmemory/web gen:api
+corepack pnpm --filter @orgmemory/web dev --host 127.0.0.1 --port 5173
+corepack pnpm --filter @orgmemory/docs dev
+# Containerized docs without starting product dependencies:
+docker compose --profile docs up --build docs
 ```
 
 - Web: http://localhost:5173
+- Docs: http://localhost:3000
 - API health: http://localhost:8080/api/health
 - API docs in `dev` only: http://localhost:8080/swagger-ui.html
 
@@ -74,8 +83,10 @@ contract.
 ```powershell
 .\gradlew.bat --no-daemon compileJava
 .\gradlew.bat --no-daemon clean test
-corepack pnpm -C web typecheck
-corepack pnpm -C web build
+corepack pnpm --filter @orgmemory/web typecheck
+corepack pnpm --filter @orgmemory/web build
+corepack pnpm --filter @orgmemory/docs check
+corepack pnpm --filter @orgmemory/docs build
 ```
 
 ## Documentation

@@ -54,13 +54,13 @@ because the Modulith verification test protects module boundaries.
 ## 3. Web Static Analysis And Build
 
 ```powershell
-pnpm -C web lint
-pnpm -C web typecheck
-pnpm -C web build
+pnpm --filter @orgmemory/web lint
+pnpm --filter @orgmemory/web typecheck
+pnpm --filter @orgmemory/web build
 ```
 
 Oxlint and TypeScript are the static-analysis authority for web code.
-`pnpm -C web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
+`pnpm --filter @orgmemory/web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
 type-check the app. Use a real browser flow when behavior or layout changes.
 
 ## 4. Migration And Persistence Checks

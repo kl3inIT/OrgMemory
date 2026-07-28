@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/organization`,
 `apps/api/src/test/java/com/orgmemory/api/organization`,
 `apps/api/src/test/java/com/orgmemory/api/security`,
 `apps/api/src/test/java/com/orgmemory/api/scim`,
-`apps/api/src/test/java/com/orgmemory/api/admin`, and `web/test/e2e`.
+`apps/api/src/test/java/com/orgmemory/api/admin`, and `apps/web/test/e2e`.
 
 Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
 

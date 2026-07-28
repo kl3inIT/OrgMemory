@@ -17,9 +17,9 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
-    ? [["line"], ["html", { open: "never", outputFolder: "../output/playwright/report" }]]
+    ? [["line"], ["html", { open: "never", outputFolder: "../../output/playwright/report" }]]
     : "list",
-  outputDir: "../output/playwright/test-results",
+  outputDir: "../../output/playwright/test-results",
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     trace: "on-first-retry",

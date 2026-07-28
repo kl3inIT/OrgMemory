@@ -27,6 +27,7 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       cli: ${{ steps.filter.outputs.cli }}
       docs: ${{ steps.filter.outputs.docs }}
+      public_docs: ${{ steps.filter.outputs.public_docs }}
       openfga: ${{ steps.filter.outputs.openfga }}
       evaluation: ${{ steps.filter.outputs.evaluation }}
       postgres: ${{ steps.filter.outputs.postgres }}
@@ -56,6 +57,8 @@ jobs:
             backend:
               - "apps/**"
               - "!apps/cli/**"
+              - "!apps/web/**"
+              - "!apps/docs/**"
               - "components/**"
               - "core/**"
               - "integrations/**"
@@ -64,19 +67,30 @@ jobs:
               - "!integrations/graph-rag-opensearch/**"
               - "!integrations/graph-rag-neo4j/**"
             web:
-              - "web/**"
+              - "apps/web/**"
               - "contracts/**"
               - "apps/api/src/main/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
             cli:
               - "apps/cli/**"
               - "apps/mcp/src/main/**"
               - "contracts/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
             docs:
               - "AGENTS.md"
               - "CLAUDE.md"
               - "ARCHITECTURE.md"
               - "docs/**"
               - "scripts/check_docs.py"
+            public_docs:
+              - "apps/docs/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
             openfga:
               - "integrations/authorization-openfga/**"
               - "core/src/**/authorization/**"
@@ -107,8 +121,10 @@ jobs:
               - "infrastructure/images/**"
               - "infrastructure/keycloak/**"
               - "infrastructure/postgres-rag/**"
-              - "web/Dockerfile"
-              - "web/nginx.conf"
+              - "apps/web/Dockerfile"
+              - "apps/web/nginx.conf"
+              - "apps/docs/Dockerfile"
+              - "apps/docs/Dockerfile.dockerignore"
 
   backend:
     name: Backend · Java 25
@@ -144,9 +160,6 @@ jobs:
     if: needs.changes.outputs.web == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
     steps:
       - name: Check out repository
         uses: actions/checkout@v7.0.1
@@ -163,31 +176,31 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Check generated API client
-        run: pnpm check:api
+        run: pnpm --filter @orgmemory/web check:api
 
       - name: Type-check
-        run: pnpm typecheck
+        run: pnpm --filter @orgmemory/web typecheck
 
       - name: Run focused component tests
-        run: pnpm test:unit
+        run: pnpm --filter @orgmemory/web test:unit
 
       - name: Build production bundle
-        run: pnpm build
+        run: pnpm --filter @orgmemory/web build
 
       - name: Install Playwright browser
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter @orgmemory/web exec playwright install --with-deps chromium
 
       - name: Run browser tests
-        run: pnpm test:e2e
+        run: pnpm --filter @orgmemory/web test:e2e
 
       - name: Check generated route tree
-        run: git diff --exit-code -- src/routeTree.gen.ts
+        run: git diff --exit-code -- apps/web/src/routeTree.gen.ts
 
   cli:
     name: CLI · Node 24
@@ -195,9 +208,6 @@ jobs:
     if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.all == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: apps/cli
     steps:
       - name: Check out repository
         uses: actions/checkout@v7.0.1
@@ -214,19 +224,19 @@ jobs:
         with:
           node-version: "24"
           cache: pnpm
-          cache-dependency-path: apps/cli/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Type-check
-        run: pnpm typecheck
+        run: pnpm --filter @orgmemory/cli typecheck
 
       - name: Run focused tests
-        run: pnpm test
+        run: pnpm --filter @orgmemory/cli test
 
       - name: Build distributable
-        run: pnpm build
+        run: pnpm --filter @orgmemory/cli build
 
   docs:
     name: Documentation operating model
@@ -247,6 +257,42 @@ jobs:
 
       - name: Validate documentation structure and links
         run: python scripts/check_docs.py
+
+  public_docs:
+    name: Public docs · Node 24
+    needs: changes
+    if: needs.changes.outputs.public_docs == 'true' || needs.changes.outputs.all == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 11.9.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate publication contracts
+        run: pnpm --filter @orgmemory/docs check
+
+      - name: Build production documentation
+        env:
+          DOCS_DEPLOYMENT_MODE: production
+          DOCS_INCLUDE_DRAFTS: "false"
+        run: pnpm --filter @orgmemory/docs build
 
   openfga:
     name: OpenFGA model
@@ -463,7 +509,8 @@ jobs:
             --file infrastructure/images/spring-boot-app.Dockerfile \
             --build-arg APP_NAME=api \
             .
-          docker buildx build --check --file web/Dockerfile .
+          docker buildx build --check --file apps/web/Dockerfile .
+          docker buildx build --check --file apps/docs/Dockerfile .
           docker buildx build --check --file infrastructure/keycloak/Dockerfile .
           docker buildx build --check --file infrastructure/postgres-rag/Dockerfile .
 
@@ -482,6 +529,7 @@ jobs:
       - web
       - cli
       - docs
+      - public_docs
       - openfga
       - evaluation
       - postgres
@@ -499,6 +547,7 @@ jobs:
           WEB_RESULT: ${{ needs.web.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           DOCS_RESULT: ${{ needs.docs.result }}
+          PUBLIC_DOCS_RESULT: ${{ needs.public_docs.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
           EVALUATION_RESULT: ${{ needs.evaluation.result }}
           POSTGRES_RESULT: ${{ needs.postgres.result }}
@@ -513,6 +562,7 @@ jobs:
             "$WEB_RESULT" \
             "$CLI_RESULT" \
             "$DOCS_RESULT" \
+            "$PUBLIC_DOCS_RESULT" \
             "$OPENFGA_RESULT" \
             "$EVALUATION_RESULT" \
             "$POSTGRES_RESULT" \

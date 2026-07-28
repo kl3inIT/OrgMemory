@@ -21,9 +21,12 @@ HELP.md
 # --- Node / web ---
 node_modules/
 apps/cli/dist/
-web/dist/
-web/.vite/
-web/src/lib/hey-api/
+apps/web/dist/
+apps/web/.vite/
+apps/web/src/lib/hey-api/
+apps/docs/.next/
+apps/docs/.source/
+apps/docs/next-env.d.ts
 *.local
 .env
 .env.*

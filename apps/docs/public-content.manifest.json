@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "route": "/docs",
+      "content": "content/docs/index.mdx",
+      "area": "overview",
+      "order": 0,
+      "status": "public",
+      "reviewOwner": "documentation-maintainers"
+    }
+  ]
+}

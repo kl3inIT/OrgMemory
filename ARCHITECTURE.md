@@ -1,7 +1,7 @@
 # OrgMemory Architecture
 
 This document records behavior and structure verified in the repository.
-Reconciled against `7cf1c8a` by the repository operating-model refresh.
+Reconciled against the polyglot workspace foundation on 2026-07-29.
 Intended changes belong in [docs/vision.md](docs/vision.md) and the
 [active increments](docs/increments/active/README.md).
 
@@ -9,8 +9,9 @@ Intended changes belong in [docs/vision.md](docs/vision.md) and the
 
 ```mermaid
 flowchart LR
-    WEB[web React SPA] --> API[apps/api]
+    WEB[apps/web React SPA] --> API[apps/api]
     MCP[apps/mcp] -->|exchanged actor token| API
+    DOCS[apps/docs Fumadocs] -. independent public surface .- WEB
     API --> CORE
     WORKER[apps/worker] --> CORE
     CORE --> PG[(PostgreSQL 18<br/>pgvector + AGE)]
@@ -27,16 +28,19 @@ and replaceable integrations for OpenFGA authorization, connectors,
 OpenAI-compatible AI, MinIO object storage, Spring AI GraphRAG, PostgreSQL,
 OpenSearch, Neo4j, observability, and sidecar JSON.
 
-The React client is a separate Vite project under `web`. `apps/cli` is an
-independent Node/pnpm command-line application and is not a Gradle subproject.
-API owns Flyway execution; worker and MCP validate the existing schema with
-Flyway disabled in normal runtime.
+All runnable product surfaces live under `apps/`. The React client in
+`apps/web`, Fumadocs portal in `apps/docs`, and command-line client in
+`apps/cli` are packages in the root pnpm workspace; they are not Gradle
+subprojects. `apps/api`, `apps/worker`, and `apps/mcp` remain Gradle
+subprojects. API owns Flyway execution; worker and MCP validate the existing
+schema with Flyway disabled in normal runtime.
 
 Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
 2.1.0, Spring AI 2.0.0, springdoc 3.0.3, PostgreSQL 18 with pgvector 0.8.4
 and Apache AGE commit `e43dc1a12b78fba4acef9835b2b10379b8d243b4`,
 React 19.2.7, TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, Node 24 in
-CI, and pnpm 11.9.0.
+CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
+15.2.0.
 
 Dependency direction is `apps/* -> core`. The adapter rule in force is
 `apps -> core + selected integrations`, `integrations -> core ports` (or the
@@ -71,7 +75,7 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `apps/cli`: an OAuth PKCE command-line client for MCP connection, exact Skill
   package installation, and bounded Skill Draft publication through the HTTP
   companion. It consumes public contracts and owns no domain persistence.
-- `web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
+- `apps/web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, an AI
   Elements assistant workspace, and generic Asset catalog, detail/use, Pack
   journey, governance, and MCP connection surfaces. The protected route layout owns session
@@ -79,6 +83,11 @@ framework-neutral graph core), and never `core -> apps/integrations`.
   does not repeat authentication gates. A separate `/admin` area reuses the same
   shell with a Permissions sidebar and is hidden from non-administrators by the
   session role, which is a rendering hint over the server-side gate.
+- `apps/docs`: an independent Next.js/Fumadocs public documentation portal. It
+  loads only curated MDX under its own content tree, validates an explicit
+  publication manifest and source references, excludes drafts by default, and
+  has no runtime dependency on the product services. Turbopack is its default
+  Next.js bundler, not a repository task runner.
 
 `core` uses Spring Modulith package boundaries and a verification test. Leased
 database jobs carry ingestion work across processes. A specific Knowledge Asset
@@ -404,6 +413,9 @@ docker compose up -d
 .\gradlew.bat --no-daemon compileJava
 .\gradlew.bat --no-daemon clean test
 .\gradlew.bat :apps:api:bootRun --args='--spring.profiles.active=dev'
-corepack pnpm -C web typecheck
-corepack pnpm -C web build
+corepack pnpm install --frozen-lockfile
+corepack pnpm --filter @orgmemory/web typecheck
+corepack pnpm --filter @orgmemory/web build
+corepack pnpm --filter @orgmemory/docs check
+corepack pnpm --filter @orgmemory/docs build
 ```

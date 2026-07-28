@@ -1,5 +1,5 @@
 export default {
-  input: "../contracts/openapi.json",
+  input: "../../contracts/openapi.json",
   output: "src/lib/hey-api",
   plugins: [
     "@hey-api/client-fetch",
