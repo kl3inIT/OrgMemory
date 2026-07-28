@@ -183,6 +183,9 @@ Read-only preflight evidence:
 - the GitHub `production` environment has all five required SSH secret names;
 - GHCR credentials are intentionally absent at rest and supplied temporarily by
   the deployment workflow;
+- automatic product deployment run `30399267433` later timed out connecting
+  from its GitHub-hosted runner before SSH authentication; its deploy step was
+  skipped and no runtime mutation occurred;
 - `docs.om.kl3in.tech` does not resolve, while DNS-provider and Nginx Proxy
   Manager configuration access remain unproven.
 
@@ -236,6 +239,8 @@ Published release evidence:
 
 Pending owner-controlled evidence:
 
+- make the ZM SSH endpoint reachable from the selected GitHub Actions runner or
+  move deployment to an approved runner/VPN path;
 - DNS, certificate, and Nginx Proxy Manager host;
 - live health, mobile navigation, 24-route crawl, negative publication scan,
   product before/after health, and deployed-revision record.

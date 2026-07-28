@@ -88,42 +88,47 @@ jobs:
           install -m 0600 /dev/null ~/.ssh/known_hosts
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      - name: Authenticate server to GHCR for this deployment
+      - name: Deploy and verify docs with ephemeral registry credentials
         shell: bash
         env:
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
         run: |
           set -euo pipefail
-          printf '%s' "$GHCR_TOKEN" |
-            ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
-              "docker login ghcr.io --username '${{ github.actor }}' --password-stdin"
-
-      - name: Deploy and verify docs only
-        shell: bash
-        env:
-          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
-          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
-          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-        run: |
-          set -euo pipefail
-          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
-            "cd /apps/orgmemory &&
+          printf '%s\n' "$GHCR_TOKEN" |
+            ssh \
+              -o BatchMode=yes \
+              -o ConnectTimeout=10 \
+              -o ConnectionAttempts=1 \
+              -p "${SSH_PORT:-22}" \
+              "$SSH_USER@$SSH_HOST" \
+              "set -Eeuo pipefail
+             docker_config=\$(mktemp -d /tmp/orgmemory-docs-docker.XXXXXX)
+             cleanup() {
+               case \"\$docker_config\" in
+                 /tmp/orgmemory-docs-docker.*)
+                   rm -rf -- \"\$docker_config\"
+                   ;;
+                 *)
+                   printf 'Refusing unsafe Docker config cleanup: %s\n' \
+                     \"\$docker_config\" >&2
+                   return 1
+                   ;;
+               esac
+             }
+             trap cleanup EXIT
+             export DOCKER_CONFIG=\"\$docker_config\"
+             IFS= read -r ghcr_token
+             printf '%s' \"\$ghcr_token\" |
+               docker login ghcr.io \
+                 --username '${{ github.actor }}' \
+                 --password-stdin
+             unset ghcr_token
+             cd /apps/orgmemory
              git fetch --no-tags origin '$COMMIT_SHA' &&
              git checkout --detach '$COMMIT_SHA' &&
              ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE=true \
                ./infrastructure/deployment/scripts/deploy-docs.sh '$COMMIT_SHA'"
-
-      - name: Remove temporary registry credentials
-        if: always()
-        shell: bash
-        env:
-          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
-          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
-          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-        run: |
-          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
-            "docker logout ghcr.io >/dev/null 2>&1 || true"
