@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/permission`,
 `apps/api/src/main/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
 
 ## Current Behavior
 
@@ -26,6 +26,11 @@ acting administrator alongside the mapping service's event attributed to the
 affected user; the pair answers who acted and who was affected. A per-connection
 identity trust decision is audited the same way, and any non-default trust level
 also records on the connection row who decided it and when.
+
+AI gateway create/update/disable, credential rotation, route selection, and
+connection probes append sanitized audit events. Events identify the profile,
+preset, or workload and a bounded machine outcome; API keys, ciphertext,
+provider response bodies, prompts, and completions are never audit fields.
 
 ## Source Modules
 

@@ -169,7 +169,9 @@ public class PromptExecutionService {
                 actor, rendered.spec(), knowledgeQuery, requestId);
         ChatGenerationRequest request =
                 withEvidence(rendered.request(), evidence);
-        AiRoute route = routes.resolve(AiWorkload.PROMPT_EXECUTION);
+        AiRoute route = routes.resolve(
+                actor.organizationId(),
+                AiWorkload.PROMPT_EXECUTION);
         String citationRefs = citationRefs(evidence);
         Instant startedAt = Instant.now();
         UUID runId = runs.start(
@@ -181,6 +183,7 @@ public class PromptExecutionService {
                 startedAt);
         try {
             String output = chat.stream(
+                            actor.organizationId(),
                             AiWorkload.PROMPT_EXECUTION,
                             route,
                             request)

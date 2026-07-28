@@ -6,7 +6,7 @@ Source: `core/src/test/java/com/orgmemory/core/permission`,
 `apps/api/src/test/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
 
 | Behavior | Evidence |
 | --- | --- |
@@ -17,3 +17,5 @@ Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
 | Database rejects free-form metadata | `#databaseRejectsFreeFormAuditMetadata` |
 | Permission matrix/fail-closed rules | `KnowledgePermissionPolicyTests` |
 | Denied evidence is omitted at the final citation boundary | `CanonicalHybridKnowledgeSearchTests#citationMissingAtCanonicalRecheckIsOmitted` |
+| AI administration is limited to organization administrators | OpenFGA `store.fga.yaml` AI management case and `PermissionsAdminIntegrationTests` |
+| AI secret storage is encrypted/redacted and tenant scoped | `AiGatewayAdministrationServiceTests` |

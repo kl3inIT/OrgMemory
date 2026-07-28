@@ -53,7 +53,8 @@ class PromptExecutionServiceTests {
         when(assets.releaseForUse(
                         ACTOR, ASSET_ID, RELEASE_ID, AssetType.PROMPT_TEMPLATE))
                 .thenReturn(release());
-        when(routes.resolve(AiWorkload.PROMPT_EXECUTION)).thenReturn(route);
+        when(routes.resolve(ORGANIZATION_ID, AiWorkload.PROMPT_EXECUTION))
+                .thenReturn(route);
         when(runs.start(
                         eq(ACTOR),
                         any(),
@@ -63,6 +64,7 @@ class PromptExecutionServiceTests {
                         any()))
                 .thenReturn(runId);
         when(chat.stream(
+                        eq(ORGANIZATION_ID),
                         eq(AiWorkload.PROMPT_EXECUTION),
                         eq(route),
                         any(ChatGenerationRequest.class)))
@@ -91,7 +93,8 @@ class PromptExecutionServiceTests {
         when(assets.releaseForUse(
                         ACTOR, ASSET_ID, RELEASE_ID, AssetType.PROMPT_TEMPLATE))
                 .thenReturn(release());
-        when(routes.resolve(AiWorkload.PROMPT_EXECUTION)).thenReturn(route);
+        when(routes.resolve(ORGANIZATION_ID, AiWorkload.PROMPT_EXECUTION))
+                .thenReturn(route);
         when(runs.start(
                         eq(ACTOR),
                         any(),
@@ -101,6 +104,7 @@ class PromptExecutionServiceTests {
                         any()))
                 .thenReturn(runId);
         when(chat.stream(
+                        eq(ORGANIZATION_ID),
                         eq(AiWorkload.PROMPT_EXECUTION),
                         eq(route),
                         any(ChatGenerationRequest.class)))

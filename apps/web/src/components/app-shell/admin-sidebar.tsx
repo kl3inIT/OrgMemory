@@ -1,5 +1,7 @@
 import {
   ArrowLeft,
+  Bot,
+  DatabaseZap,
   KeyRound,
   Library,
   Link2,
@@ -29,18 +31,25 @@ import {
 
 const GROUPS = [
   {
-    label: "Integrations",
-    items: [{ label: "Sources", to: "/admin/connectors" as const, icon: Plug }],
+    label: "Knowledge",
+    items: [
+      { label: "Sources", to: "/admin/connectors" as const, icon: Plug },
+      { label: "Knowledge Spaces", to: "/admin/spaces" as const, icon: Library },
+      { label: "Index Settings", to: "/admin/index-settings" as const, icon: DatabaseZap },
+    ],
   },
   {
-    label: "Permissions",
+    label: "Organization",
     items: [
-      { label: "Knowledge Spaces", to: "/admin/spaces" as const, icon: Library },
       { label: "Users", to: "/admin/users" as const, icon: Users },
       { label: "Source mappings", to: "/admin/mappings" as const, icon: Link2 },
       { label: "Source groups", to: "/admin/groups" as const, icon: ShieldCheck },
       { label: "SCIM", to: "/admin/scim" as const, icon: KeyRound },
     ],
+  },
+  {
+    label: "AI",
+    items: [{ label: "Language Models", to: "/admin/language-models" as const, icon: Bot }],
   },
 ]
 

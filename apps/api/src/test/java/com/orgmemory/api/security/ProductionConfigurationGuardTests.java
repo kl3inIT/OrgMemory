@@ -113,7 +113,8 @@ class ProductionConfigurationGuardTests {
                 new AiGatewayProperties.Routes(
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
-                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
+                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")),
+                Set.of());
         ProductionConfigurationGuard guard = new ProductionConfigurationGuard(
                 dataSource,
                 new OrgMemoryOidcProperties(
@@ -167,7 +168,8 @@ class ProductionConfigurationGuardTests {
                 new AiGatewayProperties.Routes(
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
-                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
+                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")),
+                Set.of());
         return new ProductionConfigurationGuard(
                 dataSource,
                 oidc,
@@ -227,7 +229,8 @@ class ProductionConfigurationGuardTests {
                 new AiGatewayProperties.Routes(
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
                         new AiGatewayProperties.Route("openai", "gpt-5.6-sol"),
-                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")));
+                        new AiGatewayProperties.Route("openai", "text-embedding-3-large")),
+                Set.of());
     }
 
     private static SecretCipherProperties secrets(String key) {

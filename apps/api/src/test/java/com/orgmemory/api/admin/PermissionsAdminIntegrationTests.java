@@ -2,6 +2,7 @@ package com.orgmemory.api.admin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -34,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -120,7 +122,81 @@ class PermissionsAdminIntegrationTests {
         }
         jdbc.update("DELETE FROM source_principal_mappings");
         jdbc.update("DELETE FROM source_connections");
+        jdbc.update("DELETE FROM ai_route_overrides");
+        jdbc.update("DELETE FROM ai_gateway_credentials");
+        jdbc.update("DELETE FROM ai_gateway_profiles");
         stubPorts();
+    }
+
+    @Test
+    void aiControlPlaneActorReferencesCannotCrossTenantBoundaries() {
+        UUID gatewayProfileId = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO ai_gateway_profiles (
+                    id, organization_id, gateway_key, display_name, preset,
+                    category, protocol, base_url, request_timeout_seconds,
+                    enabled, runtime_revision, created_by_user_id,
+                    updated_by_user_id, created_at, updated_at, version)
+                VALUES (?, ?, 'tenant-safe', 'Tenant safe', 'OPENAI',
+                    'DIRECT_PROVIDER', 'OPENAI_COMPATIBLE',
+                    'https://api.openai.com/v1', 60, true, 1, ?, ?,
+                    now(), now(), 0)
+                """,
+                gatewayProfileId,
+                ORG,
+                ADMIN_USER,
+                ADMIN_USER);
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> jdbc.update("""
+                        INSERT INTO ai_gateway_credentials (
+                            id, organization_id, gateway_profile_id,
+                            cipher_text, key_version, set_by_user_id, set_at,
+                            created_at, updated_at, version)
+                        VALUES (?, ?, ?, 'ciphertext', 1, ?, now(),
+                            now(), now(), 0)
+                        """,
+                        UUID.randomUUID(),
+                        ORG,
+                        gatewayProfileId,
+                        OTHER_ADMIN));
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> jdbc.update("""
+                        INSERT INTO ai_route_overrides (
+                            id, organization_id, workload, gateway_profile_id,
+                            model_id, set_by_user_id, set_at, created_at,
+                            updated_at, version)
+                        VALUES (?, ?, 'ASSISTANT_CHAT', ?, 'model', ?, now(),
+                            now(), now(), 0)
+                        """,
+                        UUID.randomUUID(),
+                        ORG,
+                        gatewayProfileId,
+                        OTHER_ADMIN));
+
+        jdbc.update(
+                "DELETE FROM ai_gateway_profiles WHERE id = ?",
+                gatewayProfileId);
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> jdbc.update("""
+                        INSERT INTO ai_gateway_profiles (
+                            id, organization_id, gateway_key, display_name,
+                            preset, category, protocol, base_url,
+                            request_timeout_seconds, enabled, runtime_revision,
+                            created_by_user_id, updated_by_user_id, created_at,
+                            updated_at, version)
+                        VALUES (?, ?, 'foreign-actor', 'Foreign actor',
+                            'OPENAI', 'DIRECT_PROVIDER', 'OPENAI_COMPATIBLE',
+                            'https://api.openai.com/v1', 60, true, 1, ?, ?,
+                            now(), now(), 0)
+                        """,
+                        UUID.randomUUID(),
+                        ORG,
+                        OTHER_ADMIN,
+                        OTHER_ADMIN));
     }
 
     @Test
@@ -131,6 +207,7 @@ class PermissionsAdminIntegrationTests {
         mvc.perform(get("/api/admin/source-principals").with(employee)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/source-connections").with(employee)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/source-groups").with(employee)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/ai/providers").with(employee)).andExpect(status().isForbidden());
         mvc.perform(patch("/api/admin/users/{id}", ADMIN_USER)
                         .with(employee)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -196,6 +273,18 @@ class PermissionsAdminIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')].signInLinked").value(true))
                 .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')].role").value("EMPLOYEE"));
+    }
+
+    @Test
+    void organizationAdministratorsCanReadOnlyImplementedAiProviderPresets() throws Exception {
+        mvc.perform(get("/api/admin/ai/providers").with(jwtFor(ADMIN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.preset == 'OPENAI')].protocol")
+                        .value("OPENAI_COMPATIBLE"))
+                .andExpect(jsonPath("$[?(@.preset == 'ANTHROPIC')].protocol")
+                        .value("ANTHROPIC_MESSAGES"))
+                .andExpect(jsonPath("$[?(@.preset == 'NINE_ROUTER')].category")
+                        .value("GATEWAY_ROUTER"));
     }
 
     @Test
@@ -271,15 +360,16 @@ class PermissionsAdminIntegrationTests {
     }
 
     private void stubPorts() {
-        // Only can_manage_members is scoped to the administrator. Everything else is open so
-        // the sealed source ACL is the only gate the retrieval assertions can be failing on.
+        // Administration permissions are scoped to the administrator. Retrieval permissions
+        // remain open so the sealed source ACL is the only gate in the retrieval assertions.
         when(entryAuthorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             // The foreign administrator passes the gate too, so cross-tenant refusal has to
             // come from the ledger scoping rather than from the permission check.
             boolean administrativePermission =
                     "can_manage_members".equals(query.permission().value())
-                            || "can_manage_sources".equals(query.permission().value());
+                            || "can_manage_sources".equals(query.permission().value())
+                            || "can_manage_ai".equals(query.permission().value());
             boolean allowed = !administrativePermission
                     || ADMIN_USER.toString().equals(query.principal().id())
                     || OTHER_ADMIN.toString().equals(query.principal().id());

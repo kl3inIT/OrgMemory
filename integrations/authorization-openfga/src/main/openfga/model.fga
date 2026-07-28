@@ -20,6 +20,7 @@ type organization
     define source_manager: [user, group#member]
     define can_manage_members: administrator
     define can_manage_sources: source_manager or administrator
+    define can_manage_ai: administrator
     define can_create_knowledge_space: administrator
     define can_search_knowledge: knowledge_reader or member or administrator
     define can_view_directory: member

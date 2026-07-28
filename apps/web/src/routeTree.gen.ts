@@ -17,6 +17,8 @@ import { Route as AuthenticatedConnectRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSourcesRouteImport } from './routes/_authenticated/sources'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
+import { Route as AdminIndexSettingsRouteImport } from './routes/admin/index-settings'
+import { Route as AdminLanguageModelsRouteImport } from './routes/admin/language-models'
 import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
 import { Route as AdminSpacesRouteImport } from './routes/admin/spaces'
@@ -68,6 +70,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminGroupsRoute = AdminGroupsRouteImport.update({
   id: '/groups',
   path: '/groups',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminIndexSettingsRoute = AdminIndexSettingsRouteImport.update({
+  id: '/index-settings',
+  path: '/index-settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLanguageModelsRoute = AdminLanguageModelsRouteImport.update({
+  id: '/language-models',
+  path: '/language-models',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminMappingsRoute = AdminMappingsRouteImport.update({
@@ -149,6 +161,8 @@ export interface FileRoutesByFullPath {
   '/connect': typeof AuthenticatedConnectRoute
   '/sources': typeof AuthenticatedSourcesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/index-settings': typeof AdminIndexSettingsRoute
+  '/admin/language-models': typeof AdminLanguageModelsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
   '/admin/spaces': typeof AdminSpacesRoute
@@ -169,6 +183,8 @@ export interface FileRoutesByTo {
   '/connect': typeof AuthenticatedConnectRoute
   '/sources': typeof AuthenticatedSourcesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/index-settings': typeof AdminIndexSettingsRoute
+  '/admin/language-models': typeof AdminLanguageModelsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
   '/admin/spaces': typeof AdminSpacesRoute
@@ -193,6 +209,8 @@ export interface FileRoutesById {
   '/_authenticated/connect': typeof AuthenticatedConnectRoute
   '/_authenticated/sources': typeof AuthenticatedSourcesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/index-settings': typeof AdminIndexSettingsRoute
+  '/admin/language-models': typeof AdminLanguageModelsRoute
   '/admin/mappings': typeof AdminMappingsRoute
   '/admin/scim': typeof AdminScimRoute
   '/admin/spaces': typeof AdminSpacesRoute
@@ -218,6 +236,8 @@ export interface FileRouteTypes {
     | '/connect'
     | '/sources'
     | '/admin/groups'
+    | '/admin/index-settings'
+    | '/admin/language-models'
     | '/admin/mappings'
     | '/admin/scim'
     | '/admin/spaces'
@@ -238,6 +258,8 @@ export interface FileRouteTypes {
     | '/connect'
     | '/sources'
     | '/admin/groups'
+    | '/admin/index-settings'
+    | '/admin/language-models'
     | '/admin/mappings'
     | '/admin/scim'
     | '/admin/spaces'
@@ -261,6 +283,8 @@ export interface FileRouteTypes {
     | '/_authenticated/connect'
     | '/_authenticated/sources'
     | '/admin/groups'
+    | '/admin/index-settings'
+    | '/admin/language-models'
     | '/admin/mappings'
     | '/admin/scim'
     | '/admin/spaces'
@@ -340,6 +364,20 @@ declare module '@tanstack/react-router' {
       path: '/groups'
       fullPath: '/admin/groups'
       preLoaderRoute: typeof AdminGroupsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/index-settings': {
+      id: '/admin/index-settings'
+      path: '/index-settings'
+      fullPath: '/admin/index-settings'
+      preLoaderRoute: typeof AdminIndexSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/language-models': {
+      id: '/admin/language-models'
+      path: '/language-models'
+      fullPath: '/admin/language-models'
+      preLoaderRoute: typeof AdminLanguageModelsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/mappings': {
@@ -464,6 +502,8 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminGroupsRoute: typeof AdminGroupsRoute
+  AdminIndexSettingsRoute: typeof AdminIndexSettingsRoute
+  AdminLanguageModelsRoute: typeof AdminLanguageModelsRoute
   AdminMappingsRoute: typeof AdminMappingsRoute
   AdminScimRoute: typeof AdminScimRoute
   AdminSpacesRoute: typeof AdminSpacesRoute
@@ -478,6 +518,8 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminGroupsRoute: AdminGroupsRoute,
+  AdminIndexSettingsRoute: AdminIndexSettingsRoute,
+  AdminLanguageModelsRoute: AdminLanguageModelsRoute,
   AdminMappingsRoute: AdminMappingsRoute,
   AdminScimRoute: AdminScimRoute,
   AdminSpacesRoute: AdminSpacesRoute,
