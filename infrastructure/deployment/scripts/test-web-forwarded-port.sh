@@ -119,4 +119,15 @@ grep -Eiq \
   '^[[:space:]]*X-Seen-Forwarded-Port:[[:space:]]*443[[:space:]]*$' \
   <<<"$publication_headers"
 
+package_headers="$(
+  docker exec "$web_container" \
+    wget -S -O /dev/null \
+    --header="X-Forwarded-Proto: https" \
+    http://127.0.0.1:8080/skill-packages/85000000-0000-0000-0000-000000000003/releases/85000000-0000-0000-0000-000000000004 \
+    2>&1
+)"
+grep -Eiq \
+  '^[[:space:]]*X-Seen-Forwarded-Port:[[:space:]]*443[[:space:]]*$' \
+  <<<"$package_headers"
+
 printf 'Web forwarded-port regression passed.\n'
