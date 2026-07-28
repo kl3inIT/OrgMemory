@@ -3,6 +3,7 @@
   "description": "Integrate with OrgMemory through supported contracts.",
   "root": true,
   "pages": [
-    "assistant-mcp"
+    "assistant-mcp",
+    "api-reference"
   ]
 }

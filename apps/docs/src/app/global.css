@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+@import 'fumadocs-openapi/css/preset.css';
 
 html {
   scrollbar-gutter: stable;
@@ -17,8 +18,12 @@ html {
   --color-fd-muted-foreground: hsl(0, 0%, 75%);
 }
 
-header span.truncate[class*='transition-[opacity,translate,color]'] {
-  color: var(--color-fd-foreground);
+header span.truncate {
+  color: hsl(0, 0%, 25%) !important;
+}
+
+.dark header span.truncate {
+  color: hsl(0, 0%, 90%) !important;
 }
 
 html > body[data-scroll-locked] {

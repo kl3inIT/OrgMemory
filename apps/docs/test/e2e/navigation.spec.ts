@@ -1,5 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const authoredManifest = JSON.parse(
+  fs.readFileSync(path.resolve('public-content.manifest.json'), 'utf8'),
+) as { entries: { route: string }[] };
+const generatedManifest = JSON.parse(
+  fs.readFileSync(path.resolve('generated-api.manifest.json'), 'utf8'),
+) as { entries: { route: string }[] };
+const publicRoutes = [...authoredManifest.entries, ...generatedManifest.entries].map(
+  (entry) => entry.route,
+);
 
 test('home routes readers to quickstart and product', async ({ page }) => {
   await page.goto('/');
@@ -80,5 +92,59 @@ test('home and docs page pass automated accessibility smoke checks', async ({ pa
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
     expect(results.violations, `Accessibility violations on ${route}`).toEqual([]);
+  }
+});
+
+test('generated API reference renders with its playground disabled', async ({ page }) => {
+  await page.goto('/docs/developers/api-reference/search-catalog');
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Search and catalog' }),
+  ).toBeVisible();
+  await expect(page.getByText('/api/knowledge/search', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /send request/i })).toHaveCount(0);
+});
+
+test('server-side search discovers the key product vocabulary', async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Run the corpus contract once');
+
+  for (const term of ['Asset', 'OpenFGA', 'GraphRAG', 'MCP', 'connector']) {
+    const response = await request.get(`/api/search?query=${encodeURIComponent(term)}`);
+    expect(response.ok(), `Search request failed for ${term}`).toBeTruthy();
+    expect((await response.text()).toLowerCase(), `No search result for ${term}`).toContain(
+      term.toLowerCase(),
+    );
+  }
+});
+
+test('every manifest route and machine-readable output is public-safe', async ({
+  request,
+}, testInfo) => {
+  test.setTimeout(180_000);
+  test.skip(testInfo.project.name !== 'chromium', 'Run the publication audit once');
+
+  const forbidden = /sourceRefs|contracts\/openapi\.json|docs\/increments\/active\/|docs\/research\/|[A-Z]:\\(?:Users|OrgMemory|apps)\\/i;
+  for (const route of publicRoutes) {
+    const response = await request.get(route);
+    expect(response.status(), route).toBe(200);
+    expect(await response.text(), `${route} leaked repository evidence`).not.toMatch(forbidden);
+
+    const markdownRoute = `/llms.mdx${route}/content.md`;
+    const markdown = await request.get(markdownRoute);
+    expect(markdown.status(), markdownRoute).toBe(200);
+    expect(await markdown.text(), `${markdownRoute} leaked repository evidence`).not.toMatch(
+      forbidden,
+    );
+  }
+
+  for (const route of ['/llms.txt', '/llms-full.txt', '/sitemap.xml', '/robots.txt']) {
+    const response = await request.get(route);
+    expect(response.status(), route).toBe(200);
+    expect(await response.text(), `${route} leaked repository evidence`).not.toMatch(forbidden);
+  }
+
+  const sitemap = await (await request.get('/sitemap.xml')).text();
+  for (const route of publicRoutes) {
+    expect(sitemap, `Sitemap is missing ${route}`).toContain(route);
   }
 });

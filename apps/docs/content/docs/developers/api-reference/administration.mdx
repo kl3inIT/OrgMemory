@@ -1,0 +1,112 @@
+---
+title: Administration
+description: Identity, roles, invitations, permissions, and organization
+  administration endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Assign a user to a role
+      url: '#assign-a-user-to-a-role'
+    - depth: 2
+      title: List Knowledge Spaces and the grants stored against them
+      url: '#list-knowledge-spaces-and-the-grants-stored-against-them'
+    - depth: 2
+      title: Create a Knowledge Space
+      url: '#create-a-knowledge-space'
+    - depth: 2
+      title: Grant a subject access to a Knowledge Space
+      url: '#grant-a-subject-access-to-a-knowledge-space'
+    - depth: 2
+      title: Revoke a subject's access to a Knowledge Space
+      url: '#revoke-a-subjects-access-to-a-knowledge-space'
+    - depth: 2
+      title: List invited addresses and their status
+      url: '#list-invited-addresses-and-their-status'
+    - depth: 2
+      title: Expect an address to sign in
+      url: '#expect-an-address-to-sign-in'
+    - depth: 2
+      title: Answer whether a user holds a permission on one resource, and by which
+        derivation
+      url: '#answer-whether-a-user-holds-a-permission-on-one-resource-and-by-which-derivation'
+    - depth: 2
+      title: Change a user's role or activation
+      url: '#change-a-users-role-or-activation'
+    - depth: 2
+      title: List internal users with their sign-in and mapping status
+      url: '#list-internal-users-with-their-sign-in-and-mapping-status'
+    - depth: 2
+      title: Resolve a user's organization permissions as the engine currently answers
+        them
+      url: '#resolve-a-users-organization-permissions-as-the-engine-currently-answers-them'
+    - depth: 2
+      title: List roles and who is assigned to them
+      url: '#list-roles-and-who-is-assigned-to-them'
+    - depth: 2
+      title: List the subject shapes each Knowledge Space relation accepts
+      url: '#list-the-subject-shapes-each-knowledge-space-relation-accepts'
+    - depth: 2
+      title: Remove a user from a role
+      url: '#remove-a-user-from-a-role'
+    - depth: 2
+      title: Withdraw an invitation that has not been used
+      url: '#withdraw-an-invitation-that-has-not-been-used'
+  structuredData:
+    headings:
+      - content: Assign a user to a role
+        id: assign-a-user-to-a-role
+      - content: List Knowledge Spaces and the grants stored against them
+        id: list-knowledge-spaces-and-the-grants-stored-against-them
+      - content: Create a Knowledge Space
+        id: create-a-knowledge-space
+      - content: Grant a subject access to a Knowledge Space
+        id: grant-a-subject-access-to-a-knowledge-space
+      - content: Revoke a subject's access to a Knowledge Space
+        id: revoke-a-subjects-access-to-a-knowledge-space
+      - content: List invited addresses and their status
+        id: list-invited-addresses-and-their-status
+      - content: Expect an address to sign in
+        id: expect-an-address-to-sign-in
+      - content: Answer whether a user holds a permission on one resource, and by which
+          derivation
+        id: answer-whether-a-user-holds-a-permission-on-one-resource-and-by-which-derivation
+      - content: Change a user's role or activation
+        id: change-a-users-role-or-activation
+      - content: List internal users with their sign-in and mapping status
+        id: list-internal-users-with-their-sign-in-and-mapping-status
+      - content: Resolve a user's organization permissions as the engine currently
+          answers them
+        id: resolve-a-users-organization-permissions-as-the-engine-currently-answers-them
+      - content: List roles and who is assigned to them
+        id: list-roles-and-who-is-assigned-to-them
+      - content: List the subject shapes each Knowledge Space relation accepts
+        id: list-the-subject-shapes-each-knowledge-space-relation-accepts
+      - content: Remove a user from a role
+        id: remove-a-user-from-a-role
+      - content: Withdraw an invitation that has not been used
+        id: withdraw-an-invitation-that-has-not-been-used
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
+    </>
+  );
+}

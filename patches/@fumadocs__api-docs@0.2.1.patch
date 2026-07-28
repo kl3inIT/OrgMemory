@@ -1,0 +1,13 @@
+diff --git a/dist/utils/deep-merge.js b/dist/utils/deep-merge.js
+index 516e774f0a2b660cbc2ce7e785bdad0b8759b47a..251b820b1c4d711d7a2cb86d08e533b3772e2db6 100644
+--- a/dist/utils/deep-merge.js
++++ b/dist/utils/deep-merge.js
+@@ -1,6 +1,6 @@
+ import { isPlainObject } from "./is-plain-object.js";
+-import { require_deepmerge } from "../node_modules/.pnpm/@fastify_deepmerge@3.2.1/node_modules/@fastify/deepmerge/index.js";
+-const mergeDeep = (0, require_deepmerge().deepmerge)({
++import deepmerge from "@fastify/deepmerge";
++const mergeDeep = deepmerge({
+ 	all: true,
+ 	isMergeableObject: isPlainObject
+ });

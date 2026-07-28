@@ -8,6 +8,7 @@ const docsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const repositoryRoot = path.resolve(docsRoot, '..', '..');
 const contentRoot = path.join(docsRoot, 'content', 'docs');
 const manifestPath = path.join(docsRoot, 'public-content.manifest.json');
+const generatedManifestPath = path.join(docsRoot, 'generated-api.manifest.json');
 const allowedStatuses = new Set(['public', 'draft']);
 const allowedAudiences = new Set([
   'adopter',
@@ -51,12 +52,23 @@ function readFrontmatter(file) {
   return { data, raw };
 }
 
-function readManifest() {
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+function readOneManifest(file) {
+  const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.entries)) {
-    fail('public-content.manifest.json must use schemaVersion 1 with an entries array');
+    fail(`${path.basename(file)} must use schemaVersion 1 with an entries array`);
   }
   return manifest;
+}
+
+function readManifest() {
+  const authored = readOneManifest(manifestPath);
+  const generated = readOneManifest(generatedManifestPath);
+  return {
+    schemaVersion: 1,
+    entries: [...authored.entries, ...generated.entries],
+    authoredEntries: authored.entries,
+    generatedEntries: generated.entries,
+  };
 }
 
 function checkContent() {
@@ -250,15 +262,18 @@ function checkRoutes() {
     .map((entry) => entry.route)
     .sort();
 
-  if (manifest.entries.length !== 15) {
-    fail(`Expected exactly 15 first-release routes, found ${manifest.entries.length}`);
+  if (manifest.authoredEntries.length !== 17) {
+    fail(`Expected 17 authored routes, found ${manifest.authoredEntries.length}`);
+  }
+  if (manifest.generatedEntries.length !== 7) {
+    fail(`Expected 7 generated API routes, found ${manifest.generatedEntries.length}`);
   }
   if (publicRoutes.some((route) => draftRoutes.includes(route))) {
     fail('A route cannot be both public and draft');
   }
-  if (draftRoutes.length !== 0 || publicRoutes.length !== 15) {
+  if (draftRoutes.length !== 0 || publicRoutes.length !== 24) {
     fail(
-      `First-release content must contain 15 public routes and no drafts; ` +
+      `First-release content must contain 24 public routes and no drafts; ` +
         `found ${publicRoutes.length} public and ${draftRoutes.length} draft`,
     );
   }

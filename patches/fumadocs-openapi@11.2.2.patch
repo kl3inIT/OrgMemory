@@ -1,0 +1,62 @@
+diff --git a/dist/playground/components/result-display.js b/dist/playground/components/result-display.js
+index e00b2926b501d9b85e2c63cc58454c16055e3c28..e649bd387056cacbaa7011f7b992f291c1c8e257 100644
+--- a/dist/playground/components/result-display.js
++++ b/dist/playground/components/result-display.js
+@@ -2,7 +2,7 @@
+ import { useStatusInfo } from "../status-info.js";
+ import { cn } from "../../utils/cn.js";
+ import { ClientCodeBlock } from "../../ui/components/codeblock.js";
+-import { require_fast_content_type_parse } from "../../node_modules/.pnpm/fast-content-type-parse@3.0.0/node_modules/fast-content-type-parse/index.js";
++import fastContentTypeParse from "fast-content-type-parse";
+ import { useEffect, useMemo, useState } from "react";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { CircleX } from "lucide-react";
+@@ -10,7 +10,7 @@ import { useTranslations } from "@fuma-translate/react";
+ import { buttonVariants } from "fumadocs-ui/components/ui/button";
+ import { cva } from "class-variance-authority";
+ //#region src/playground/components/result-display.tsx
+-var import_fast_content_type_parse = require_fast_content_type_parse();
++var import_fast_content_type_parse = fastContentTypeParse;
+ const panelVariants = cva("flex flex-col gap-2 mt-2 px-3 py-2 border-y bg-fd-secondary text-fd-secondary-foreground");
+ function DefaultResultDisplay({ data, reset, ...rest }) {
+ 	const t = useTranslations({ note: "playground result display" });
+diff --git a/dist/requests/media/adapter.js b/dist/requests/media/adapter.js
+index 0cf3fa572daad64f1ffda97ac2591738466c3a51..422664f3e6bba35a6cf57a84970e33a6d3229ccf 100644
+--- a/dist/requests/media/adapter.js
++++ b/dist/requests/media/adapter.js
+@@ -1,9 +1,8 @@
+-import { __toESM } from "../../_virtual/_rolldown/runtime.js";
+-import { require_js2xml } from "../../node_modules/.pnpm/xml-js@1.6.11/node_modules/xml-js/lib/js2xml.js";
++import js2xml from "xml-js/lib/js2xml.js";
+ import { backtickQuote, inputToString, rustRawStringLiteral, tripleDoubleQuote } from "../string-utils.js";
+ import { isMediaTypeSupported, resolveMediaAdapter } from "./resolve-adapter.js";
+ //#region src/requests/media/adapter.ts
+-var import_js2xml = /* @__PURE__ */ __toESM(require_js2xml(), 1);
++var import_js2xml = { default: js2xml };
+ const defaultAdapters = {
+ 	"application/json": {
+ 		encode(data) {
+diff --git a/dist/requests/string-utils.js b/dist/requests/string-utils.js
+index 2964c6560362065c960c2d7ec9f932a35003e6f9..68d7c571c2de27aeb81ce822e26ec0b8e4b76e58 100644
+--- a/dist/requests/string-utils.js
++++ b/dist/requests/string-utils.js
+@@ -1,7 +1,6 @@
+-import { __toESM } from "../_virtual/_rolldown/runtime.js";
+-import { require_js2xml } from "../node_modules/.pnpm/xml-js@1.6.11/node_modules/xml-js/lib/js2xml.js";
++import js2xml from "xml-js/lib/js2xml.js";
+ //#region src/requests/string-utils.ts
+-var import_js2xml = /* @__PURE__ */ __toESM(require_js2xml(), 1);
++var import_js2xml = { default: js2xml };
+ /**
+ * Convert input value to hardcoded string (with quotes)
+ */
+diff --git a/dist/utils/document/load.js b/dist/utils/document/load.js
+index 8fa1a94fcac5409483b05b4091781d8ff9d833a8..725337ae3d97bcd1b15a9ed65d2d92c8b00b60d8 100644
+--- a/dist/utils/document/load.js
++++ b/dist/utils/document/load.js
+@@ -1,4 +1,4 @@
+-import { upgrade } from "../../node_modules/.pnpm/@scalar_openapi-upgrader@0.2.9/node_modules/@scalar/openapi-upgrader/dist/upgrade.js";
++import { upgrade } from "@scalar/openapi-upgrader";
+ import { bundle } from "@fumadocs/api-docs/schema/bundle";
+ //#region src/utils/document/load.ts
+ /**

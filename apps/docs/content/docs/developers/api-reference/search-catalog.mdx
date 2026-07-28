@@ -1,0 +1,47 @@
+---
+title: Search and catalog
+description: Permission-aware knowledge search, catalog, and citation-content endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Search permission-verified knowledge evidence
+      url: '#search-permission-verified-knowledge-evidence'
+    - depth: 2
+      title: List current permission-verified Knowledge versions for composition
+      url: '#list-current-permission-verified-knowledge-versions-for-composition'
+    - depth: 2
+      title: Stream permission-verified source evidence
+      url: '#stream-permission-verified-source-evidence'
+  structuredData:
+    headings:
+      - content: Search permission-verified knowledge evidence
+        id: search-permission-verified-knowledge-evidence
+      - content: List current permission-verified Knowledge versions for composition
+        id: list-current-permission-verified-knowledge-versions-for-composition
+      - content: Stream permission-verified source evidence
+        id: stream-permission-verified-source-evidence
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/knowledge/search","method":"get"},{"path":"/api/knowledge/catalog","method":"get"},{"path":"/api/citations/{chunkId}/content","method":"get"}]} showTitle showDescription />
+    </>
+  );
+}

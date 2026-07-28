@@ -1,0 +1,158 @@
+---
+title: Sources and connections
+description: Source registration, connector credentials, crawls, provisioning,
+  and access mapping endpoints.
+full: true
+audience:
+  - developer
+status: public
+sourceRefs:
+  - contracts/openapi.json
+lastReviewed: '2026-07-29'
+_openapi:
+  preload:
+    - orgmemory-public
+  toc:
+    - depth: 2
+      title: Revoke a principal's active mapping
+      url: '#revoke-a-principals-active-mapping'
+    - depth: 2
+      title: Confirm a principal maps to an internal user
+      url: '#confirm-a-principal-maps-to-an-internal-user'
+    - depth: 2
+      title: Record the identity trust for a connection
+      url: '#record-the-identity-trust-for-a-connection'
+    - depth: 2
+      title: Record how a connection is crawled
+      url: '#record-how-a-connection-is-crawled'
+    - depth: 2
+      title: Forget a connection's stored credential
+      url: '#forget-a-connections-stored-credential'
+    - depth: 2
+      title: Store a credential for a connection
+      url: '#store-a-credential-for-a-connection'
+    - depth: 2
+      title: List sources visible to the current user
+      url: '#list-sources-visible-to-the-current-user'
+    - depth: 2
+      title: Upload a source for asynchronous ingestion
+      url: '#upload-a-source-for-asynchronous-ingestion'
+    - depth: 2
+      title: List SCIM provisioning connections
+      url: '#list-scim-provisioning-connections'
+    - depth: 2
+      title: Create a disabled SCIM connection
+      url: '#create-a-disabled-scim-connection'
+    - depth: 2
+      title: List SCIM credential metadata
+      url: '#list-scim-credential-metadata'
+    - depth: 2
+      title: Issue a one-time SCIM credential
+      url: '#issue-a-one-time-scim-credential'
+    - depth: 2
+      title: Rotate a SCIM credential with bounded overlap
+      url: '#rotate-a-scim-credential-with-bounded-overlap'
+    - depth: 2
+      title: Check a connection's stored credential
+      url: '#check-a-connections-stored-credential'
+    - depth: 2
+      title: Ask for a content crawl on the next poll
+      url: '#ask-for-a-content-crawl-on-the-next-poll'
+    - depth: 2
+      title: Check a credential without storing it
+      url: '#check-a-credential-without-storing-it'
+    - depth: 2
+      title: Compare-and-set SCIM connection state
+      url: '#compare-and-set-scim-connection-state'
+    - depth: 2
+      title: List observed principals and their mapping
+      url: '#list-observed-principals-and-their-mapping'
+    - depth: 2
+      title: List source groups with their sealed membership
+      url: '#list-source-groups-with-their-sealed-membership'
+    - depth: 2
+      title: List observed connections and their trust level
+      url: '#list-observed-connections-and-their-trust-level'
+    - depth: 2
+      title: List a source's connections and their crawl settings
+      url: '#list-a-sources-connections-and-their-crawl-settings'
+    - depth: 2
+      title: List what a connection can be pointed at
+      url: '#list-what-a-connection-can-be-pointed-at'
+    - depth: 2
+      title: Read what a connection has crawled and what went wrong
+      url: '#read-what-a-connection-has-crawled-and-what-went-wrong'
+    - depth: 2
+      title: List the sources this deployment can ingest
+      url: '#list-the-sources-this-deployment-can-ingest'
+    - depth: 2
+      title: Immediately revoke a SCIM credential
+      url: '#immediately-revoke-a-scim-credential'
+  structuredData:
+    headings:
+      - content: Revoke a principal's active mapping
+        id: revoke-a-principals-active-mapping
+      - content: Confirm a principal maps to an internal user
+        id: confirm-a-principal-maps-to-an-internal-user
+      - content: Record the identity trust for a connection
+        id: record-the-identity-trust-for-a-connection
+      - content: Record how a connection is crawled
+        id: record-how-a-connection-is-crawled
+      - content: Forget a connection's stored credential
+        id: forget-a-connections-stored-credential
+      - content: Store a credential for a connection
+        id: store-a-credential-for-a-connection
+      - content: List sources visible to the current user
+        id: list-sources-visible-to-the-current-user
+      - content: Upload a source for asynchronous ingestion
+        id: upload-a-source-for-asynchronous-ingestion
+      - content: List SCIM provisioning connections
+        id: list-scim-provisioning-connections
+      - content: Create a disabled SCIM connection
+        id: create-a-disabled-scim-connection
+      - content: List SCIM credential metadata
+        id: list-scim-credential-metadata
+      - content: Issue a one-time SCIM credential
+        id: issue-a-one-time-scim-credential
+      - content: Rotate a SCIM credential with bounded overlap
+        id: rotate-a-scim-credential-with-bounded-overlap
+      - content: Check a connection's stored credential
+        id: check-a-connections-stored-credential
+      - content: Ask for a content crawl on the next poll
+        id: ask-for-a-content-crawl-on-the-next-poll
+      - content: Check a credential without storing it
+        id: check-a-credential-without-storing-it
+      - content: Compare-and-set SCIM connection state
+        id: compare-and-set-scim-connection-state
+      - content: List observed principals and their mapping
+        id: list-observed-principals-and-their-mapping
+      - content: List source groups with their sealed membership
+        id: list-source-groups-with-their-sealed-membership
+      - content: List observed connections and their trust level
+        id: list-observed-connections-and-their-trust-level
+      - content: List a source's connections and their crawl settings
+        id: list-a-sources-connections-and-their-crawl-settings
+      - content: List what a connection can be pointed at
+        id: list-what-a-connection-can-be-pointed-at
+      - content: Read what a connection has crawled and what went wrong
+        id: read-what-a-connection-has-crawled-and-what-went-wrong
+      - content: List the sources this deployment can ingest
+        id: list-the-sources-this-deployment-can-ingest
+      - content: Immediately revoke a SCIM credential
+        id: immediately-revoke-a-scim-credential
+    contents: []
+---
+
+{/* This file is generated from contracts\/openapi.json by scripts\/generate-openapi.ts. Do not edit it directly. */}
+
+export default function Layout(props) {
+  const { APIPage, OpenAPIPage } = props.components ?? {};
+  // "APIPage" is the old name from v10, this allows both for backward compatibility
+  const Comp = OpenAPIPage ?? APIPage;
+  return (
+    <>
+      {props.children}
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/source-principals/{principalId}/mapping","method":"delete"},{"path":"/api/admin/source-principals/{principalId}/mapping","method":"put"},{"path":"/api/admin/source-connections/identity-trust","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"put"},{"path":"/api/sources","method":"get"},{"path":"/api/sources","method":"post"},{"path":"/api/admin/provisioning/connections","method":"get"},{"path":"/api/admin/provisioning/connections","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}/rotate","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/test","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/crawl","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/test","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/state","method":"patch"},{"path":"/api/admin/source-principals","method":"get"},{"path":"/api/admin/source-groups","method":"get"},{"path":"/api/admin/source-connections","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/scopes","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/activity","method":"get"},{"path":"/api/admin/connectors/sources","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}","method":"delete"}]} showTitle showDescription />
+    </>
+  );
+}
