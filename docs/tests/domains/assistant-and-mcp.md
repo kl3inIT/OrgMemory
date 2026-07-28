@@ -3,9 +3,9 @@
 Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
-`web/src/features/assistant`.
+`apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

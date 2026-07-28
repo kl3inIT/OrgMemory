@@ -1,0 +1,16 @@
+**
+!package.json
+!pnpm-workspace.yaml
+!pnpm-lock.yaml
+!apps/
+!apps/cli/
+!apps/cli/package.json
+!apps/web/
+!apps/web/package.json
+!apps/docs/
+!apps/docs/**
+apps/docs/.next
+apps/docs/.source
+apps/docs/node_modules
+apps/docs/next-env.d.ts
+apps/docs/*.tsbuildinfo

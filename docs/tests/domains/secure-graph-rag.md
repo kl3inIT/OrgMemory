@@ -4,9 +4,9 @@ Source: `components/graph-rag-core/src/test`,
 `components/graph-rag-testkit/src/test`, `integrations/graph-rag-*/src/test`,
 `apps/worker/src/test/java/com/orgmemory/worker/graph`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
-`web/test/e2e`.
+`apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 
 ## Automated
 

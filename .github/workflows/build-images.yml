@@ -131,7 +131,10 @@ jobs:
               - ".dockerignore"
               - ".github/workflows/build-images.yml"
               - "contracts/**"
-              - "web/**"
+              - "package.json"
+              - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
+              - "apps/web/**"
             keycloak:
               - ".dockerignore"
               - ".github/workflows/build-images.yml"
@@ -231,7 +234,7 @@ jobs:
               build_args="APP_NAME=$IMAGE_NAME"
               ;;
             web)
-              file="web/Dockerfile"
+              file="apps/web/Dockerfile"
               build_args=""
               ;;
             keycloak)

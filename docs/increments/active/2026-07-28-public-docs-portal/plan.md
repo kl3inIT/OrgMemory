@@ -29,22 +29,22 @@ No phase publishes internal repository documentation by default.
 Purpose: create an independent, reproducible Fumadocs application without
 publishing substantive content.
 
-- [ ] Create `apps/docs` from the current official Fumadocs Next.js template.
-- [ ] Pin Node, pnpm, Next.js, Fumadocs, and related dependencies in the lockfile.
-- [ ] Configure Fumadocs MDX and a typed frontmatter schema.
-- [ ] Add the base home layout, docs layout, theme, OrgMemory branding, and
+- [x] Create `apps/docs` from the current official Fumadocs Next.js template.
+- [x] Pin Node, pnpm, Next.js, Fumadocs, and related dependencies in the lockfile.
+- [x] Configure Fumadocs MDX and a typed frontmatter schema.
+- [x] Add the base home layout, docs layout, theme, OrgMemory branding, and
   mobile navigation.
-- [ ] Add explicit `meta.json` navigation rather than alphabetical discovery.
-- [ ] Add `public-content.manifest.json` as the release allowlist and create the
+- [x] Add explicit `meta.json` navigation rather than alphabetical discovery.
+- [x] Add `public-content.manifest.json` as the release allowlist and create the
   validator that compares manifest, frontmatter, page files, and page tree.
-- [ ] Add draft filtering; `DOCS_INCLUDE_DRAFTS=true` is preview-only and cannot
+- [x] Add draft filtering; `DOCS_INCLUDE_DRAFTS=true` is preview-only and cannot
   be set in production.
-- [ ] Add `Dockerfile.dockerignore` with deny-by-default build inputs.
-- [ ] Add a minimal health endpoint.
-- [ ] Add TypeScript, production-build, MDX-schema, manifest, publication-policy,
+- [x] Add `Dockerfile.dockerignore` with deny-by-default build inputs.
+- [x] Add a minimal health endpoint.
+- [x] Add TypeScript, production-build, MDX-schema, manifest, publication-policy,
   and `sourceRefs` scripts.
-- [ ] Add a multi-stage, non-root standalone Node Dockerfile with OCI labels.
-- [ ] Add a local Compose profile for the docs container without coupling it to
+- [x] Add a multi-stage, non-root standalone Node Dockerfile with OCI labels.
+- [x] Add a local Compose profile for the docs container without coupling it to
   product startup.
 
 Exit gate:

@@ -36,10 +36,10 @@ when it is generic, tested, and compatible with the new information architecture
 
 ## Semantic Theme Contract
 
-- `web/src/styles/tokens.css` owns primitive values and light/dark semantic
+- `apps/web/src/styles/tokens.css` owns primitive values and light/dark semantic
   roles. Product components consume semantic roles, never primitive palette
   values or per-component mode colors.
-- `web/src/styles/theme.css` only exposes those roles to Tailwind. Existing
+- `apps/web/src/styles/theme.css` only exposes those roles to Tailwind. Existing
   shadcn names remain compatibility aliases while product-specific surfaces use
   explicit names such as `assistant-composer`, `citation`, and `permission`.
 - `AppToaster` is the only Sonner host. Features may call Sonner's public
