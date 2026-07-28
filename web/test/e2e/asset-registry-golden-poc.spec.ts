@@ -19,6 +19,7 @@ const KNOWLEDGE_VERSION_ID = "90000000-0000-0000-0000-000000000007"
 const SKILL_ID = "b1000000-0000-0000-0000-000000000001"
 const SKILL_REVISION_ID = "b1000000-0000-0000-0000-000000000002"
 const SKILL_REVIEW_ID = "b1000000-0000-0000-0000-000000000003"
+const SKILL_RELEASE_ID = "b1000000-0000-0000-0000-000000000005"
 const SKILL_DIGEST = "c".repeat(64)
 
 test("Skill publication hands the author to capability-aware Governance", async ({
@@ -52,6 +53,30 @@ test("Skill publication hands the author to capability-aware Governance", async 
   expect(harness.requests).toContain(
     `POST /api/assets/${SKILL_ID}/submissions`,
   )
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("authenticated Skill detail reads its install contract through the browser endpoint", async ({
+  page,
+}) => {
+  const harness = await releasedSkillHarness(page)
+
+  await page.goto(`/assets/${SKILL_ID}?release=${SKILL_RELEASE_ID}`)
+
+  await expect(page.getByRole("heading", { name: "decision-record-writer" })).toBeVisible()
+  await expect(page.getByText("Install this exact Skill")).toBeVisible()
+  await expect(
+    page.getByText(
+      "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent codex",
+    ),
+  ).toBeVisible()
+  expect(harness.requests).toContain(
+    `GET /api/assets/${SKILL_ID}/releases/${SKILL_RELEASE_ID}/skill-manifest`,
+  )
+  expect(
+    harness.requests.some((request) => request.includes("/api/asset-delivery/")),
+  ).toBe(false)
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })
@@ -335,6 +360,32 @@ async function skillGovernanceHarness(page: Page) {
   return harness.result
 }
 
+async function releasedSkillHarness(page: Page) {
+  const harness = baseHarness(page, "owner", "released-skill-token")
+
+  await page.route("**/api/**", async (route) => {
+    const requestContext = await harness.beginRoute(route)
+    if (!requestContext) return
+    const { url, signature } = requestContext
+    if (url.pathname === `/api/assets/${SKILL_ID}`) {
+      await json(route, releasedSkillAsset())
+      return
+    }
+    if (
+      url.pathname ===
+      `/api/assets/${SKILL_ID}/releases/${SKILL_RELEASE_ID}/skill-manifest`
+    ) {
+      await json(route, skillInstallManifest())
+      return
+    }
+
+    harness.unexpectedRequests.push(signature)
+    await json(route, { message: "Unexpected released Skill request" }, 500)
+  })
+
+  return harness.result
+}
+
 function baseHarness(
   page: Page,
   actor: "owner" | "support",
@@ -577,6 +628,69 @@ function skillDraftAsset(submitted: boolean) {
     roleAssignments: [
       roleAssignment(OWNER_ID, "OWNER"),
       roleAssignment(BACKUP_OWNER_ID, "BACKUP_OWNER"),
+    ],
+  }
+}
+
+function releasedSkillAsset() {
+  const asset = skillDraftAsset(true)
+  const releasedAt = "2026-07-28T00:00:00Z"
+  return {
+    ...asset,
+    namespace: "productivity",
+    slug: "decision-record-writer",
+    releases: [
+      {
+        id: SKILL_RELEASE_ID,
+        revisionId: SKILL_REVISION_ID,
+        sequence: 1,
+        versionLabel: "1.0.0",
+        title: "decision-record-writer",
+        summary: "Turn a completed discussion into a concise decision record",
+        classification: "INTERNAL",
+        schemaVersion: "agent-skill.v1",
+        payload: asset.revisions[0]!.payload,
+        digest: SKILL_DIGEST,
+        releasedByUserId: OWNER_ID,
+        releasedAt,
+        availability: "AVAILABLE",
+        availabilityHistory: [
+          {
+            availability: "AVAILABLE",
+            reason: "Initial release",
+            changedByUserId: OWNER_ID,
+            effectiveAt: releasedAt,
+          },
+        ],
+      },
+    ],
+  }
+}
+
+function skillInstallManifest() {
+  return {
+    assetId: SKILL_ID,
+    releaseId: SKILL_RELEASE_ID,
+    namespace: "productivity",
+    slug: "decision-record-writer",
+    coordinate: "productivity/decision-record-writer",
+    version: "1.0.0",
+    title: "decision-record-writer",
+    description: "Turn a completed discussion into a concise decision record",
+    releaseDigest: SKILL_DIGEST,
+    packageDigest: "d".repeat(64),
+    packageLength: 1040,
+    mediaType: "application/zip",
+    license: "MIT",
+    compatibility: "Claude Code and Codex",
+    allowedTools: "Read",
+    metadata: {},
+    files: [
+      {
+        path: "SKILL.md",
+        size: 512,
+        sha256: "e".repeat(64),
+      },
     ],
   }
 }

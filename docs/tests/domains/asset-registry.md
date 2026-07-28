@@ -9,6 +9,8 @@
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Skill submission and publication pin the same exact blob reference and digest | `AssetRegistryIntegrationTests#skillImportPinsTheValidatedBlobToRevisionAndRelease` | covered |
 | Exact Skill manifests omit storage keys and package streaming rejects payload, release-reference, and stored-object mismatches | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
+| Browser Skill detail reads the exact manifest through an OIDC-session-only endpoint without weakening bearer `assets:read` admission | `AssetConsumptionControllerTests`, `asset-registry-golden-poc.spec.ts` | covered |
+| Method-level authorization denial returns a stable opaque HTTP 403 instead of an internal HTTP 500 | `ApiExceptionHandlerTests#methodAuthorizationDenialUsesTheStableForbiddenContract` | covered |
 | MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |
 | CLI installation verifies package and per-file digests, promotes atomically, writes a token-free receipt, and preserves an active install on tampering | `install.test.ts` | covered |
 | CLI authoring validates a root Skill folder and produces deterministic bounded ZIP bytes before authentication | `skill-package.test.ts` | covered |

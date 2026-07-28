@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 class ApiExceptionHandlerTests {
@@ -110,6 +111,18 @@ class ApiExceptionHandlerTests {
         assertEquals("Unexpected error", response.getDetail());
         assertEquals(
                 "internal.unexpected",
+                response.getProperties().get("code"));
+    }
+
+    @Test
+    void methodAuthorizationDenialUsesTheStableForbiddenContract() {
+        var response = handler.accessDenied(
+                new AccessDeniedException("private authorization detail"));
+
+        assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus());
+        assertEquals("Access denied", response.getDetail());
+        assertEquals(
+                "access.denied",
                 response.getProperties().get("code"));
     }
 

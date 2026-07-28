@@ -14,13 +14,19 @@ import com.orgmemory.core.assetregistry.PromptEvaluationResult;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
 import com.orgmemory.core.assetregistry.PromptRenderResult;
 import com.orgmemory.core.assetregistry.PromptRunResult;
+import com.orgmemory.core.assetregistry.SkillDistributionService;
+import com.orgmemory.core.assetregistry.SkillInstallManifest;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,18 +46,21 @@ class AssetConsumptionController {
     private final PromptExecutionService prompts;
     private final WorkInstructionService instructions;
     private final CapabilityPackService packs;
+    private final SkillDistributionService skills;
 
     AssetConsumptionController(
             CurrentActorProvider actors,
             AssetRegistryService assets,
             PromptExecutionService prompts,
             WorkInstructionService instructions,
-            CapabilityPackService packs) {
+            CapabilityPackService packs,
+            SkillDistributionService skills) {
         this.actors = actors;
         this.assets = assets;
         this.prompts = prompts;
         this.instructions = instructions;
         this.packs = packs;
+        this.skills = skills;
     }
 
     record PromptVariablesRequest(Map<String, Object> variables) {
@@ -218,6 +227,25 @@ class AssetConsumptionController {
             Authentication authentication) {
         return packs.describe(
                 actors.current(authentication), assetId, releaseId);
+    }
+
+    @GetMapping("/{assetId}/releases/{releaseId}/skill-manifest")
+    @Operation(
+            operationId = "getSkillInstallContract",
+            summary = "Read the browser install contract for one exact authorized Skill release")
+    ResponseEntity<SkillInstallManifest> getSkillInstallContract(
+            @PathVariable UUID assetId,
+            @PathVariable UUID releaseId,
+            Authentication authentication) {
+        if (!(authentication instanceof OAuth2AuthenticationToken)) {
+            throw new AccessDeniedException("Browser session required");
+        }
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(skills.manifest(
+                        actors.current(authentication),
+                        assetId,
+                        releaseId));
     }
 
     @PutMapping("/{assetId}/releases/{releaseId}/pack-progress/{itemKey}")
