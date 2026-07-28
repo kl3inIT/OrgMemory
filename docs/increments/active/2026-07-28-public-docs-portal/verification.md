@@ -112,6 +112,10 @@ Branch: `feat/public-docs-discovery`
 
 Base: `origin/main@a489a2db948c7ec9dd12919c7fefcaeb2173c467`
 
+Delivered in [PR #112](https://github.com/kl3inIT/OrgMemory/pull/112),
+merged as `eb870a905529a1cb7fc886dc1c189ecc21f5598d`. Aggregate CI run
+`30394815922` passed, including Public docs, deployment contracts, and CI Gate.
+
 Implementation evidence:
 
 - the server-side Orama route returns useful results for Asset, OpenFGA,
@@ -156,3 +160,64 @@ Context7 was attempted first and returned its quota-exhausted response. Current
 official Fumadocs OpenAPI, Orama, and LLM-output documentation, official Next.js
 metadata/sitemap documentation, installed package types, and production runtime
 evidence were used instead.
+
+## PR 5 — Production Delivery Readiness
+
+Branch: `feat/public-docs-deployment`
+
+Base: `origin/main@eb870a905529a1cb7fc886dc1c189ecc21f5598d`
+
+Read-only preflight evidence:
+
+- `/apps/orgmemory` exists on the ZM host;
+- the existing `proxy-network` is available and the running Nginx Proxy Manager
+  container is attached;
+- Docker 29.5.1 and Compose 5.1.3 are available;
+- approximately 10 GiB memory and 100 GiB disk were available;
+- the existing product environment is protected with mode `0600`;
+- the GitHub `production` environment has all five required SSH secret names;
+- GHCR credentials are intentionally absent at rest and supplied temporarily by
+  the deployment workflow;
+- `docs.om.kl3in.tech` does not resolve, while DNS-provider and Nginx Proxy
+  Manager configuration access remain unproven.
+
+The final two facts are the explicit stop condition. No DNS, TLS, proxy,
+production environment, container, or product-runtime mutation was performed.
+
+Implementation evidence:
+
+- `Build docs image` accepts only a full green `main` commit, publishes one
+  immutable SHA tag with revision metadata, SBOM, provenance, the repository
+  Trivy policy, and a digest manifest;
+- `Deploy docs` is manual-only, requires an explicit confirmation, validates
+  the green CI and docs-image run, uses verified SSH host keys, and has a
+  separate production concurrency lock;
+- the `orgmemory-docs` Compose project contains one service, exposes only port
+  3000 to the existing proxy network, runs read-only/non-root without Linux
+  capabilities, and enforces a 512 MiB memory limit;
+- host state uses a mode-`0600` docs-only environment, separate runtime
+  directory and lock, a previous-image record, and five retained release
+  snapshots;
+- failed canaries restore the last verified environment, start only
+  `orgmemory-docs`, and rerun health/smoke checks;
+- the publication verifier compares sitemap routes with both committed
+  manifests and scans all 24 routes plus five public machine outputs.
+
+Passed local gates:
+
+| Gate | Evidence |
+| --- | --- |
+| Compose | docs-only interpolation passed with the committed example contract |
+| Forced canary | previous immutable image restored; smoke ran twice; no product service command observed |
+| Shell | ShellCheck 0.11.0 passed for all new Bash scripts |
+| Workflows | actionlint 1.7.12 passed |
+| Runtime | existing PR 4 image healthy as `nextjs`, read-only, 512 MiB limited; internal home, deep link, API, search, and LLM smoke passed |
+| Publication | local proxy crawl matched all 24 allowlisted routes and five machine/public outputs |
+| Python | publication verifier compiled under Python 3.13 |
+
+Pending owner-controlled evidence:
+
+- published GHCR docs release from the merged PR 5 commit;
+- DNS, certificate, and Nginx Proxy Manager host;
+- live health, mobile navigation, 24-route crawl, negative publication scan,
+  product before/after health, and deployed-revision record.
