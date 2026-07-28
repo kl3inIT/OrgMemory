@@ -33,7 +33,8 @@ On 2026-07-29 the ZM host was inspected without changing runtime state:
 - the GitHub `production` environment exposes all five required SSH secret
   names;
 - the host intentionally retains no persistent GHCR credential; the deployment
-  workflow logs in for one exact pull and logs out afterward;
+  workflow uses a run-scoped Docker config under `/tmp` and removes it with a
+  remote-shell exit trap after the exact pull/deployment transaction;
 - GitHub-hosted product deployment run `30399267433` timed out before SSH
   authentication and skipped its deploy step, proving that the current runner
   cannot reach the managed SSH endpoint;
@@ -114,7 +115,8 @@ not become sticky.
 Run `Deploy docs` manually with the same full commit SHA and explicitly enable
 `confirm_deploy`. The workflow requires successful `CI` and `Build docs image`
 runs, verifies the SSH host against the managed known-hosts value, checks out
-the exact commit on the server, logs in to GHCR temporarily, and invokes:
+the exact commit on the server, uses an ephemeral GHCR Docker config, and
+invokes:
 
 ```bash
 ./infrastructure/deployment/scripts/deploy-docs.sh <full-commit-sha>
