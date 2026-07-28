@@ -80,6 +80,11 @@ belongs in one active increment.
 
 ## Active Delivery
 
+- [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md):
+  restore one keyword plan and one embedding batch per logical query across
+  authorized Knowledge Space snapshots, remove transaction/SQL amplification,
+  and prove the production latency change without weakening permission
+  rechecks.
 - [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md):
   import the synthetic document manifest through the public ingestion API,
   derive its declared access relationships, and run the permission evaluation

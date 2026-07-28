@@ -183,7 +183,7 @@ public final class PostgresVectorIndex implements VectorIndex {
                 "vector(" + request.dimensions() + ")";
         return jdbc.query(
                 """
-                WITH ranked AS (
+                WITH nearest AS (
                     SELECT
                         record_id,
                         subject_id,
@@ -194,14 +194,12 @@ public final class PostgresVectorIndex implements VectorIndex {
                         acl_snapshot_id,
                         acl_generation,
                         vector_kind,
-                        1.0 - (
-                            embedding::"""
+                        embedding::"""
                         + typedVector
                         + " <=> CAST(:queryVector AS "
                         + typedVector
                         + """
-                            )
-                        ) AS similarity
+                            ) AS distance
                     FROM projection_vector_records
                     WHERE batch_id = :batchId
                       AND organization_id = :organizationId
@@ -212,12 +210,30 @@ public final class PostgresVectorIndex implements VectorIndex {
                 """
                         + candidatePredicate
                         + """
+                    ORDER BY
+                        embedding::"""
+                        + typedVector
+                        + " <=> CAST(:queryVector AS "
+                        + typedVector
+                        + """
+                            ) ASC,
+                        record_id
+                    LIMIT :limit
                 )
-                SELECT *
-                FROM ranked
-                WHERE similarity >= :minimumSimilarity
-                ORDER BY similarity DESC, record_id
-                LIMIT :limit
+                SELECT
+                    record_id,
+                    subject_id,
+                    organization_id,
+                    knowledge_asset_id,
+                    source_revision_id,
+                    chunk_id,
+                    acl_snapshot_id,
+                    acl_generation,
+                    vector_kind,
+                    1.0 - distance AS similarity
+                FROM nearest
+                WHERE distance <= 1.0 - :minimumSimilarity
+                ORDER BY distance ASC, record_id
                 """,
                 parameters,
                 (resultSet, rowNumber) -> vectorHit(resultSet));

@@ -28,11 +28,20 @@
   traversal, denied-edge exclusion, and revision removal.
 - LightRAG runtime conformance tests prove contribution-level references,
   complete evidence closure, one final input-token budget, disabled reranker
-  non-invocation, threshold behavior, and bounded provider fallback.
+  non-invocation, threshold behavior, bounded provider fallback, and one
+  keyword-model call plus one embedding batch across repeated snapshot
+  executions of one prepared query.
 - Application tests prove entity/relation/chunk closure BatchCheck plus
   canonical recheck, authorization-model mismatch denial before rendering,
   request-scope revocation retry, exact Assistant handoff, and sanitized rerank
-  fallback telemetry.
+  fallback telemetry. Multi-space tests additionally prove one preparation,
+  bounded concurrent snapshot execution, deterministic collection, fail-closed
+  multi-space reranking and hashed snapshot-stage telemetry.
+- Keyword-cache tests prove exact hit/miss isolation across organization,
+  language, query strategy, route and query, plus trusted-keyword bypass.
+- OpenTelemetry adapter tests prove the closed payload-free attribute set,
+  original stage timing, cache status, model-route fingerprint and hashed scope
+  fingerprint.
 
 ## Verification
 

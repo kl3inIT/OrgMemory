@@ -4,6 +4,8 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.GraphRagRetrievalPolicy;
 import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
+import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
+import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.chunking.TextEmbeddingPort;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.query.ChunkReranker;
@@ -19,7 +21,9 @@ import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
 import com.orgmemory.integrations.graphrag.springai.SpringAiKeywordPlanningModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiQueryAnswerModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
+import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -55,6 +59,8 @@ class GraphRagRuntimeConfiguration {
             AiRouteResolver routes,
             EmbeddingModel embeddingModel,
             KnowledgeEmbeddingProperties embedding,
+            ModelInvocationCache modelInvocationCache,
+            ObjectProvider<Clock> clocks,
             ObjectProvider<ChunkReranker> rerankers,
             GraphRagQueryRuntimeProperties properties) {
         var projection = new StoreBackedAuthorizedQueryProjection(
@@ -63,9 +69,17 @@ class GraphRagRuntimeConfiguration {
                 graph);
         var chatRoute = routes.resolve(AiWorkload.ASSISTANT_CHAT);
         var chatModel = chatModels.resolve(AiWorkload.ASSISTANT_CHAT);
+        var keywordRoute = routes.resolve(AiWorkload.KEYWORD_PLANNING);
+        var keywordChatModel =
+                chatModels.resolve(AiWorkload.KEYWORD_PLANNING);
         var keywordModel = new SpringAiKeywordPlanningModel(
-                chatRoute.modelId(),
-                chatModel);
+                keywordRoute.modelId(),
+                keywordChatModel);
+        String keywordRouteFingerprint = CanonicalCacheKeyHasher.sha256(
+                "orgmemory.ai.keyword-route.v1",
+                Map.of(
+                        "gatewayId", keywordRoute.gatewayId(),
+                        "modelId", keywordRoute.modelId()));
         TextEmbeddingPort embeddings = new SpringAiTextEmbeddingPort(
                 embeddingModel,
                 embedding.provider(),
@@ -78,7 +92,12 @@ class GraphRagRuntimeConfiguration {
                 projection,
                 new LightRagKeywordPlanner(
                         keywordModel,
-                        properties.language()),
+                        properties.language(),
+                        new LightRagKeywordPlanner.CachePolicy(
+                                modelInvocationCache,
+                                keywordRouteFingerprint,
+                                properties.keywordCacheTtl(),
+                                clocks.getIfAvailable(Clock::systemUTC))),
                 embeddings,
                 new JtokkitTextTokenizer(
                         properties.tokenizerEncoding()),

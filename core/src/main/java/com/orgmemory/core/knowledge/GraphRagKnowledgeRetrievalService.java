@@ -17,6 +17,7 @@ import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
+import com.orgmemory.graphrag.query.LightRagPreparedQuery;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
@@ -33,9 +34,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Permission-aware application shell around the framework-neutral LightRAG
@@ -89,7 +93,6 @@ public class GraphRagKnowledgeRetrievalService
         this.events = Objects.requireNonNull(events, "events");
     }
 
-    @Transactional(readOnly = true)
     @Override
     public SecureKnowledgeSearchResult search(
             CurrentActor actor,
@@ -103,10 +106,18 @@ public class GraphRagKnowledgeRetrievalService
             String requestId = requestId(suppliedRequestId);
             String normalizedQuery = normalizeQuery(query);
             int limit = validateLimit(requestedLimit);
+            long authorizationStartedAt = System.nanoTime();
             String authorizationModelId = searchAuthorization.require(
                     actor,
                     requestId,
                     normalizedQuery);
+            emitStage(
+                    operationId,
+                    actor.organizationId(),
+                    GraphRagEventSink.Stage.AUTHORIZE,
+                    authorizationStartedAt,
+                    1,
+                    1);
             SecureKnowledgeSearchResult result = search(
                     actor,
                     normalizedQuery,
@@ -152,6 +163,8 @@ public class GraphRagKnowledgeRetrievalService
                     1,
                     outputCount,
                     null,
+                    null,
+                    null,
                     failureCode,
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {
@@ -179,7 +192,12 @@ public class GraphRagKnowledgeRetrievalService
             UUID operationId,
             int attempt) {
         ResolvedKnowledgeEvidenceScope initial =
-                resolve(actor, authorizationModelId, requestId, query);
+                resolve(
+                        actor,
+                        authorizationModelId,
+                        requestId,
+                        query,
+                        operationId);
         if (initial.allAssetIds().isEmpty()) {
             audit.record(searchAuthorization.command(
                     actor,
@@ -225,11 +243,19 @@ public class GraphRagKnowledgeRetrievalService
                     initial.authorizationModelId()));
             return new SecureKnowledgeSearchResult(requestId, List.of());
         }
+        long consolidationStartedAt = System.nanoTime();
         LightRagGroundingAssembler.PreparedGrounding consolidated =
                 engine.consolidateGrounding(
                         query,
                         queryOptions,
                         spaceGroundings);
+        emitStage(
+                operationId,
+                actor.organizationId(),
+                GraphRagEventSink.Stage.ASSEMBLE_CONTEXT,
+                consolidationStartedAt,
+                spaceGroundings.size(),
+                consolidated.grounding().chunks().size());
         if (consolidated.grounding().empty()
                 || consolidated.grounding().chunks().isEmpty()) {
             audit.record(searchAuthorization.command(
@@ -243,7 +269,12 @@ public class GraphRagKnowledgeRetrievalService
         }
 
         ResolvedKnowledgeEvidenceScope current =
-                resolve(actor, authorizationModelId, requestId, query);
+                resolve(
+                        actor,
+                        authorizationModelId,
+                        requestId,
+                        query,
+                        operationId);
         if (!sameAuthorizationScope(initial, current)) {
             return retryOrFail(
                     actor,
@@ -266,12 +297,20 @@ public class GraphRagKnowledgeRetrievalService
                     "GROUNDING_EVIDENCE_CLOSURE_EXCEEDED",
                     current.authorizationModelId());
         }
+        long finalAuthorizationStartedAt = System.nanoTime();
         verifyOpenFga(
                 actor,
                 query,
                 requestId,
                 current.authorizationModelId(),
                 closure);
+        emitStage(
+                operationId,
+                actor.organizationId(),
+                GraphRagEventSink.Stage.AUTHORIZE,
+                finalAuthorizationStartedAt,
+                closure.size(),
+                closure.size());
         List<SecureRetrievalCandidate> verified =
                 recheckCanonical(current, closure);
         if (!sameEvidence(closure, verified)) {
@@ -357,7 +396,7 @@ public class GraphRagKnowledgeRetrievalService
             throw new KnowledgeRetrievalUnavailableException(
                     "Secure knowledge retrieval is temporarily unavailable");
         }
-        List<LightRagGrounding> groundings = new ArrayList<>();
+        List<LightRagQueryRequest> requests = new ArrayList<>();
         for (UUID knowledgeSpaceId :
                 scope.knowledgeSpaceIds().stream().sorted().toList()) {
             var evidenceScope = scope.forKnowledgeSpace(knowledgeSpaceId);
@@ -368,9 +407,7 @@ public class GraphRagKnowledgeRetrievalService
             if (snapshot.isEmpty()) {
                 continue;
             }
-            long rerankStartedAt = System.nanoTime();
-            LightRagQueryResult result = engine.execute(
-                    new LightRagQueryRequest(
+            requests.add(new LightRagQueryRequest(
                             evidenceScope,
                             snapshot.orElseThrow(),
                             query,
@@ -379,25 +416,135 @@ public class GraphRagKnowledgeRetrievalService
                             profile.dimensions(),
                             null,
                             List.of()));
-            emitRerank(
-                    operationId,
-                    scope.organizationId(),
-                    result,
-                    rerankStartedAt);
-            if (!result.grounding().empty()) {
-                groundings.add(result.grounding());
+        }
+        if (requests.isEmpty()) {
+            return List.of();
+        }
+        if (requests.size() > 1 && policy.rerank().enabled()) {
+            throw new KnowledgeRetrievalUnavailableException(
+                    "Secure knowledge retrieval is temporarily unavailable");
+        }
+
+        LightRagPreparedQuery prepared = engine.prepare(requests.getFirst());
+        emitPreparedStage(
+                operationId,
+                scope.organizationId(),
+                GraphRagEventSink.Stage.PREPARE_QUERY,
+                prepared.keywordPlanningDuration(),
+                1,
+                prepared.keywords().highLevel().size()
+                        + prepared.keywords().lowLevel().size(),
+                prepared.keywordModelRouteFingerprint(),
+                prepared.keywordCacheStatus());
+        emitPreparedStage(
+                operationId,
+                scope.organizationId(),
+                GraphRagEventSink.Stage.EMBED,
+                prepared.embeddingDuration(),
+                prepared.embeddingInputs().size(),
+                prepared.embeddingInputs().size(),
+                null,
+                null);
+        List<LightRagGrounding> groundings = new ArrayList<>();
+        try (ExecutorService executor =
+                Executors.newVirtualThreadPerTaskExecutor()) {
+            for (int offset = 0;
+                    offset < requests.size();
+                    offset += policy.maximumConcurrentSpaces()) {
+                int end = Math.min(
+                        requests.size(),
+                        offset + policy.maximumConcurrentSpaces());
+                List<Future<SnapshotQueryResult>> futures =
+                        requests.subList(offset, end)
+                                .stream()
+                                .map(request -> executor.submit(() ->
+                                        queryPublishedSpace(request, prepared)))
+                                .toList();
+                try {
+                    for (Future<SnapshotQueryResult> future : futures) {
+                        SnapshotQueryResult snapshotResult = future.get();
+                        emitSnapshotStage(
+                                operationId,
+                                scope.organizationId(),
+                                snapshotResult.duration(),
+                                snapshotResult.inputCount(),
+                                snapshotResult.result()
+                                        .grounding()
+                                        .chunks()
+                                        .size(),
+                                snapshotResult.namespace());
+                        emitRerank(
+                                operationId,
+                                scope.organizationId(),
+                                snapshotResult.result());
+                        LightRagGrounding grounding =
+                                snapshotResult.result().grounding();
+                        if (!grounding.empty()) {
+                            groundings.add(grounding);
+                        }
+                    }
+                } catch (ExecutionException | InterruptedException
+                        | RuntimeException failure) {
+                    futures.forEach(future -> future.cancel(true));
+                    throw retrievalFailure(failure);
+                }
             }
         }
         return List.copyOf(groundings);
+    }
+
+    private SnapshotQueryResult queryPublishedSpace(
+            LightRagQueryRequest request,
+            LightRagPreparedQuery prepared) {
+        long startedAt = System.nanoTime();
+        LightRagQueryResult result =
+                engine.executePrepared(request, prepared);
+        return new SnapshotQueryResult(
+                result,
+                Duration.ofNanos(Math.max(
+                        0,
+                        System.nanoTime() - startedAt)),
+                request.scope().authorizedAssetIds().size(),
+                request.snapshot().namespace());
+    }
+
+    private static RuntimeException retrievalFailure(Exception failure) {
+        if (failure instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+            return new KnowledgeRetrievalUnavailableException(
+                    "Secure knowledge retrieval is temporarily unavailable");
+        }
+        Throwable cause = failure instanceof ExecutionException
+                ? failure.getCause()
+                : failure;
+        if (cause instanceof RuntimeException runtime) {
+            return runtime;
+        }
+        if (cause instanceof Error error) {
+            throw error;
+        }
+        return new KnowledgeRetrievalUnavailableException(
+                "Secure knowledge retrieval is temporarily unavailable");
     }
 
     private ResolvedKnowledgeEvidenceScope resolve(
             CurrentActor actor,
             String authorizationModelId,
             String requestId,
-            String query) {
+            String query,
+            UUID operationId) {
+        long startedAt = System.nanoTime();
         try {
-            return evidenceScopes.resolve(actor, authorizationModelId);
+            ResolvedKnowledgeEvidenceScope resolved =
+                    evidenceScopes.resolve(actor, authorizationModelId);
+            emitStage(
+                    operationId,
+                    actor.organizationId(),
+                    GraphRagEventSink.Stage.AUTHORIZE,
+                    startedAt,
+                    1,
+                    resolved.allAssetIds().size());
+            return resolved;
         } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
             throw searchAuthorization.unavailable(
                     actor,
@@ -405,6 +552,114 @@ public class GraphRagKnowledgeRetrievalService
                     query,
                     unavailable.reasonCode(),
                     unavailable.policyVersion());
+        }
+    }
+
+    private void emitStage(
+            UUID operationId,
+            UUID organizationId,
+            GraphRagEventSink.Stage stage,
+            long startedAt,
+            int inputCount,
+            int outputCount) {
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    stage,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    Duration.ofNanos(Math.max(
+                            0,
+                            System.nanoTime() - startedAt)),
+                    inputCount,
+                    outputCount,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
+    }
+
+    private void emitPreparedStage(
+            UUID operationId,
+            UUID organizationId,
+            GraphRagEventSink.Stage stage,
+            Duration duration,
+            int inputCount,
+            int outputCount,
+            String modelRouteFingerprint,
+            GraphRagEventSink.CacheStatus cacheStatus) {
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    stage,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    duration,
+                    inputCount,
+                    outputCount,
+                    modelRouteFingerprint,
+                    null,
+                    cacheStatus,
+                    null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
+    }
+
+    private void emitSnapshotStage(
+            UUID operationId,
+            UUID organizationId,
+            Duration duration,
+            int inputCount,
+            int outputCount,
+            ProjectionNamespace namespace) {
+        String scopeFingerprint = CanonicalCacheKeyHasher.sha256(
+                "orgmemory.graph-rag.snapshot-scope.v1",
+                Map.of(
+                        "organizationId",
+                        namespace.organizationId().toString(),
+                        "workspace",
+                        namespace.workspace(),
+                        "collection",
+                        namespace.collection()));
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    GraphRagEventSink.Stage.RETRIEVE_SNAPSHOT,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    duration,
+                    inputCount,
+                    outputCount,
+                    null,
+                    scopeFingerprint,
+                    null,
+                    null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
+    }
+
+    private record SnapshotQueryResult(
+            LightRagQueryResult result,
+            Duration duration,
+            int inputCount,
+            ProjectionNamespace namespace) {
+
+        private SnapshotQueryResult {
+            Objects.requireNonNull(result, "result");
+            Objects.requireNonNull(duration, "duration");
+            if (duration.isNegative() || inputCount < 0) {
+                throw new IllegalArgumentException(
+                        "snapshot query metrics must be non-negative");
+            }
+            Objects.requireNonNull(namespace, "namespace");
         }
     }
 
@@ -501,8 +756,7 @@ public class GraphRagKnowledgeRetrievalService
     private void emitRerank(
             UUID operationId,
             UUID organizationId,
-            LightRagQueryResult result,
-            long startedAt) {
+            LightRagQueryResult result) {
         if (!result.trace().rerankAttempted()) {
             return;
         }
@@ -521,12 +775,12 @@ public class GraphRagKnowledgeRetrievalService
                     organizationId,
                     GraphRagEventSink.Stage.RERANK,
                     outcome,
-                    Duration.ofNanos(Math.max(
-                            0,
-                            System.nanoTime() - startedAt)),
+                    result.trace().rerankDuration(),
                     result.trace().chunkSignals().size(),
                     result.grounding().chunks().size(),
                     routeFingerprint,
+                    null,
+                    null,
                     failureCode,
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {

@@ -2,6 +2,7 @@ package com.orgmemory.api.assistant;
 
 import com.orgmemory.core.knowledge.GraphRagRetrievalPolicy;
 import com.orgmemory.graphrag.query.SecureContextBudget;
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("orgmemory.graph-rag.query")
@@ -10,6 +11,7 @@ record GraphRagQueryRuntimeProperties(
         String tokenizerEncoding,
         Integer maximumEmbeddingBatchSize,
         Integer maximumKnowledgeSpaces,
+        Integer maximumConcurrentSpaces,
         Integer topK,
         Integer chunkTopK,
         Integer relatedChunkNumber,
@@ -19,7 +21,8 @@ record GraphRagQueryRuntimeProperties(
         Boolean includeHeadings,
         Boolean rerankEnabled,
         String rerankProvider,
-        Double minimumRerankScore) {
+        Double minimumRerankScore,
+        Duration keywordCacheTtl) {
 
     GraphRagQueryRuntimeProperties {
         language = text(
@@ -34,6 +37,14 @@ record GraphRagQueryRuntimeProperties(
                 maximumKnowledgeSpaces,
                 20,
                 "maximumKnowledgeSpaces");
+        maximumConcurrentSpaces = positive(
+                maximumConcurrentSpaces,
+                4,
+                "maximumConcurrentSpaces");
+        if (maximumConcurrentSpaces > maximumKnowledgeSpaces) {
+            throw new IllegalArgumentException(
+                    "maximumConcurrentSpaces must not exceed maximumKnowledgeSpaces");
+        }
         topK = positive(topK, 60, "topK");
         chunkTopK = positive(chunkTopK, 20, "chunkTopK");
         relatedChunkNumber = positive(
@@ -72,11 +83,21 @@ record GraphRagQueryRuntimeProperties(
             throw new IllegalArgumentException(
                     "enabled reranking requires a provider");
         }
+        keywordCacheTtl = keywordCacheTtl == null
+                ? Duration.ofHours(24)
+                : keywordCacheTtl;
+        if (keywordCacheTtl.isZero()
+                || keywordCacheTtl.isNegative()
+                || keywordCacheTtl.compareTo(Duration.ofDays(30)) > 0) {
+            throw new IllegalArgumentException(
+                    "keywordCacheTtl must be between 1 ns and 30 days");
+        }
     }
 
     GraphRagRetrievalPolicy toPolicy() {
         return new GraphRagRetrievalPolicy(
                 maximumKnowledgeSpaces,
+                maximumConcurrentSpaces,
                 topK,
                 chunkTopK,
                 relatedChunkNumber,

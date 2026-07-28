@@ -157,6 +157,34 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void onePreparedQueryReusesKeywordAndEmbeddingEffectsAcrossSnapshotExecutions() {
+        LightRagQueryRequest request = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                null);
+
+        var prepared = engine.prepare(request);
+        LightRagQueryResult first =
+                engine.executePrepared(request, prepared);
+        LightRagQueryResult second =
+                engine.executePrepared(request, prepared);
+
+        assertEquals(LightRagQueryResult.Status.SUCCESS, first.status());
+        assertEquals(first.grounding(), second.grounding());
+        assertEquals(1, keywordModel.calls);
+        assertEquals(1, embeddings.batches.size());
+        assertEquals(
+                List.of(
+                        "What is the probation policy?",
+                        "probation",
+                        "workplace policy"),
+                embeddings.batches.getFirst());
+    }
+
+    @Test
     void mixFallsBackToChunkSeedsWhenKeywordPlanningReturnsNoGraphKeywords() {
         RecordingKeywordModel emptyKeywordModel =
                 new RecordingKeywordModel(KeywordPlan.empty(KeywordPlan.Source.MODEL));

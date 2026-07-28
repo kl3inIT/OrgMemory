@@ -42,6 +42,8 @@ class OpenTelemetryGraphRagEventSinkTests {
                     4,
                     2,
                     "a".repeat(64),
+                    "b".repeat(64),
+                    GraphRagEventSink.CacheStatus.HIT,
                     "retrieval_failed",
                     endedAt));
 
@@ -67,6 +69,8 @@ class OpenTelemetryGraphRagEventSinkTests {
                     "orgmemory.graph_rag.input_count",
                     "orgmemory.graph_rag.output_count",
                     "orgmemory.graph_rag.model_route_fingerprint",
+                    "orgmemory.graph_rag.scope_fingerprint",
+                    "orgmemory.graph_rag.cache_status",
                     "orgmemory.graph_rag.failure_code"), keys);
             assertFalse(keys.stream().anyMatch(key ->
                     key.contains("query")

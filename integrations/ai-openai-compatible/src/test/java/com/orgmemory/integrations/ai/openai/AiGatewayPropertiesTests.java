@@ -25,6 +25,37 @@ class AiGatewayPropertiesTests {
     }
 
     @Test
+    void keywordPlanningCanUseAnIndependentChatRoute() {
+        var configured = new AiGatewayProperties(
+                Map.of("openai", new AiGatewayProperties.Gateway(
+                        "OpenAI",
+                        "https://api.openai.com/v1",
+                        "top-secret-key",
+                        Set.of(AiGatewayCapability.CHAT),
+                        Duration.ofSeconds(60))),
+                new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route(
+                                "openai",
+                                "assistant-model"),
+                        new AiGatewayProperties.Route(
+                                "openai",
+                                "keyword-model"),
+                        new AiGatewayProperties.Route(
+                                "openai",
+                                "graph-model"),
+                        new AiGatewayProperties.Route(
+                                "openai",
+                                "embedding-model")));
+
+        assertEquals(
+                "keyword-model",
+                configured.route(AiWorkload.KEYWORD_PLANNING).modelId());
+        assertEquals(
+                "assistant-model",
+                configured.route(AiWorkload.ASSISTANT_CHAT).modelId());
+    }
+
+    @Test
     void credentialNeverAppearsInConfigurationRendering() {
         var properties = properties(Set.of(AiGatewayCapability.CHAT));
 

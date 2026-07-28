@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -24,6 +26,7 @@ import com.orgmemory.graphrag.query.ContextTokenUsage;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
+import com.orgmemory.graphrag.query.LightRagPreparedQuery;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
@@ -31,11 +34,14 @@ import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -61,9 +67,148 @@ class GraphRagKnowledgeRetrievalServiceTests {
             UUID.fromString("40000000-0000-0000-0000-000000000007");
     private static final UUID PROFILE_ID =
             UUID.fromString("40000000-0000-0000-0000-000000000008");
+    private static final UUID SECOND_SPACE_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000011");
+    private static final UUID SECOND_ASSET_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000012");
     private static final String MODEL_ID = "model-v1";
     private static final Instant NOW =
             Instant.parse("2026-07-24T00:00:00Z");
+
+    @Test
+    void multipleSpacesPrepareOneLogicalQueryBeforeSnapshotRetrieval() {
+        CurrentActor actor = new CurrentActor(
+                USER_ID,
+                ORGANIZATION_ID,
+                null,
+                "User",
+                "user@example.test");
+        PermissionAuditService audit =
+                mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        ResolvedKnowledgeEvidenceScope multiSpace =
+                new ResolvedKnowledgeEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        MODEL_ID,
+                        NOW,
+                        Map.of(
+                                SPACE_ID, Set.of(ASSET_ID),
+                                SECOND_SPACE_ID, Set.of(SECOND_ASSET_ID)),
+                        Map.of(
+                                SPACE_ID, 1L,
+                                SECOND_SPACE_ID, 1L));
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(multiSpace);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery prepared =
+                preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(prepared);
+        CountDownLatch bothSpacesStarted = new CountDownLatch(2);
+        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+            bothSpacesStarted.countDown();
+            assertTrue(
+                    bothSpacesStarted.await(2, TimeUnit.SECONDS),
+                    "space retrievals should run concurrently");
+            return noResults();
+        });
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
+
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                mock(RelationshipAuthorizationSetPort.class),
+                mock(SecureKnowledgeRetrievalStore.class),
+                engine,
+                GraphRagRetrievalPolicy.defaults(),
+                audit,
+                events);
+
+        SecureKnowledgeSearchResult result = service.search(
+                actor,
+                "What is the leave policy?",
+                10,
+                "request-multi-space");
+
+        assertEquals(List.of(), result.evidence());
+        verify(engine).prepare(any());
+        verify(engine, times(2))
+                .executePrepared(any(), any());
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, atLeastOnce()).emit(captured.capture());
+        GraphRagEventSink.GraphRagEvent keywordStage =
+                captured.getAllValues().stream()
+                        .filter(event -> event.stage()
+                                == GraphRagEventSink.Stage.PREPARE_QUERY)
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals(
+                GraphRagEventSink.CacheStatus.MISS,
+                keywordStage.cacheStatus());
+        assertTrue(captured.getAllValues().stream().anyMatch(event ->
+                event.stage() == GraphRagEventSink.Stage.EMBED));
+        List<GraphRagEventSink.GraphRagEvent> snapshotStages =
+                captured.getAllValues().stream()
+                .filter(event -> event.stage()
+                        == GraphRagEventSink.Stage.RETRIEVE_SNAPSHOT)
+                .toList();
+        assertEquals(2, snapshotStages.size());
+        assertTrue(snapshotStages.stream()
+                .allMatch(event -> event.scopeFingerprint() != null));
+    }
+
+    @Test
+    void multipleSpacesDoNotInvokePerSpaceReranking() {
+        CurrentActor actor = new CurrentActor(
+                USER_ID,
+                ORGANIZATION_ID,
+                null,
+                "User",
+                "user@example.test");
+        PermissionAuditService audit =
+                mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        ResolvedKnowledgeEvidenceScope multiSpace =
+                new ResolvedKnowledgeEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        MODEL_ID,
+                        NOW,
+                        Map.of(
+                                SPACE_ID, Set.of(ASSET_ID),
+                                SECOND_SPACE_ID, Set.of(SECOND_ASSET_ID)),
+                        Map.of(
+                                SPACE_ID, 1L,
+                                SECOND_SPACE_ID, 1L));
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(multiSpace);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                mock(RelationshipAuthorizationSetPort.class),
+                mock(SecureKnowledgeRetrievalStore.class),
+                engine,
+                rerankPolicy(),
+                audit,
+                mock(GraphRagEventSink.class));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.search(
+                        actor,
+                        "What is the leave policy?",
+                        10,
+                        "request-multi-space-rerank"));
+
+        verify(engine, never()).prepare(any());
+        verify(engine, never()).executePrepared(any(), any());
+    }
 
     @Test
     void revocationBetweenRetrievalAndCitationCausesAFullRetryWithoutEgress() {
@@ -104,10 +249,13 @@ class GraphRagKnowledgeRetrievalServiceTests {
         when(publications.current(any()))
                 .thenReturn(java.util.Optional.of(snapshot));
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery queryPlan = preparedQueryPlan();
+        when(engine.prepare(any()))
+                .thenReturn(queryPlan);
         LightRagGrounding grounding = grounding();
         LightRagGroundingAssembler.PreparedGrounding prepared =
                 prepared(grounding);
-        when(engine.execute(any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -160,16 +308,22 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 "request-1");
 
         assertEquals(List.of(), result.evidence());
-        verify(engine).execute(any());
+        verify(engine).prepare(any());
+        verify(engine).executePrepared(any(), any());
         verify(finalAuthorization, never()).batchCheck(any());
         assertEquals(0, canonical.recheckCount);
         ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
                 ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
-        verify(events).emit(captured.capture());
-        assertEquals(GraphRagEventSink.Stage.RETRIEVE, captured.getValue().stage());
-        assertEquals(GraphRagEventSink.Outcome.SUCCEEDED, captured.getValue().outcome());
-        assertEquals(0, captured.getValue().outputCount());
-        assertNotNull(captured.getValue().operationId());
+        verify(events, atLeastOnce()).emit(captured.capture());
+        GraphRagEventSink.GraphRagEvent overall = captured.getAllValues()
+                .stream()
+                .filter(value ->
+                        value.stage() == GraphRagEventSink.Stage.RETRIEVE)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(GraphRagEventSink.Outcome.SUCCEEDED, overall.outcome());
+        assertEquals(0, overall.outputCount());
+        assertNotNull(overall.operationId());
     }
 
     @Test
@@ -191,7 +345,10 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagGroundingAssembler.PreparedGrounding prepared =
                 prepared(grounding);
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
-        when(engine.execute(any())).thenReturn(queryResult(
+        LightRagPreparedQuery queryPlan = preparedQueryPlan();
+        when(engine.prepare(any()))
+                .thenReturn(queryPlan);
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -254,7 +411,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 value.chunkId().equals(ENTITY_CHUNK_ID)));
         ArgumentCaptor<GraphRagEventSink.GraphRagEvent> graphEvents =
                 ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
-        verify(events, org.mockito.Mockito.times(2))
+        verify(events, atLeastOnce())
                 .emit(graphEvents.capture());
         GraphRagEventSink.GraphRagEvent fallbackEvent =
                 graphEvents.getAllValues()
@@ -289,7 +446,10 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 .thenReturn(allowed, allowed);
         LightRagGrounding grounding = grounding();
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
-        when(engine.execute(any())).thenReturn(queryResult(
+        LightRagPreparedQuery queryPlan = preparedQueryPlan();
+        when(engine.prepare(any()))
+                .thenReturn(queryPlan);
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -398,6 +558,9 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         1,
                         rerankAttempted,
                         rerankFallback,
+                        rerankAttempted
+                                ? Duration.ofMillis(5)
+                                : Duration.ZERO,
                         List.of(new LightRagQueryResult.ChunkSignal(
                                 CHUNK_ID,
                                 LightRagQueryResult.Origin.VECTOR,
@@ -410,11 +573,56 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         ""));
     }
 
+    private static LightRagPreparedQuery preparedQueryPlan() {
+        LightRagPreparedQuery prepared =
+                mock(LightRagPreparedQuery.class);
+        when(prepared.keywordPlanningDuration())
+                .thenReturn(Duration.ofMillis(3));
+        when(prepared.embeddingDuration())
+                .thenReturn(Duration.ofMillis(4));
+        when(prepared.keywordCacheStatus())
+                .thenReturn(GraphRagEventSink.CacheStatus.MISS);
+        when(prepared.keywords()).thenReturn(KeywordPlan.model(
+                List.of("leave"),
+                List.of("policy")));
+        when(prepared.embeddingInputs()).thenReturn(List.of("query"));
+        return prepared;
+    }
+
+    private static LightRagQueryResult noResults() {
+        return new LightRagQueryResult(
+                LightRagQueryResult.Status.NO_RESULTS,
+                "",
+                "",
+                new LightRagQueryResult.NoAnswer(),
+                List.of(),
+                new LightRagQueryResult.Trace(
+                        LightRagQueryMode.MIX,
+                        KeywordPlan.model(
+                                List.of("policy"),
+                                List.of("leave")),
+                        List.of("query"),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        false,
+                        false,
+                        Duration.ZERO,
+                        List.of(),
+                        "authorization-fingerprint",
+                        1L,
+                        "no_authorized_context"));
+    }
+
     private static GraphRagRetrievalPolicy rerankPolicy() {
         GraphRagRetrievalPolicy defaults =
                 GraphRagRetrievalPolicy.defaults();
         return new GraphRagRetrievalPolicy(
                 defaults.maximumKnowledgeSpaces(),
+                defaults.maximumConcurrentSpaces(),
                 defaults.topK(),
                 defaults.chunkTopK(),
                 defaults.relatedChunkNumber(),

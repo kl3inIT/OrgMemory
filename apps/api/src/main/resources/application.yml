@@ -83,6 +83,9 @@ orgmemory:
       assistant-chat:
         gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
+      keyword-planning:
+        gateway-id: ${ORGMEMORY_KEYWORD_GATEWAY:${ORGMEMORY_ASSISTANT_GATEWAY:openai}}
+        model-id: ${ORGMEMORY_KEYWORD_MODEL:${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}}
       graph-extraction:
         gateway-id: ${ORGMEMORY_GRAPH_EXTRACTION_GATEWAY:openai}
         model-id: ${ORGMEMORY_GRAPH_EXTRACTION_MODEL:${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}}
@@ -118,7 +121,9 @@ orgmemory:
       language: ${ORGMEMORY_GRAPH_QUERY_LANGUAGE:the same language as the user query}
       tokenizer-encoding: ${ORGMEMORY_GRAPH_QUERY_TOKENIZER:o200k_base}
       maximum-embedding-batch-size: ${ORGMEMORY_GRAPH_QUERY_EMBEDDING_BATCH_SIZE:64}
+      keyword-cache-ttl: ${ORGMEMORY_GRAPH_QUERY_KEYWORD_CACHE_TTL:24h}
       maximum-knowledge-spaces: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_SPACES:20}
+      maximum-concurrent-spaces: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_CONCURRENT_SPACES:4}
       top-k: ${ORGMEMORY_GRAPH_QUERY_TOP_K:60}
       chunk-top-k: ${ORGMEMORY_GRAPH_QUERY_CHUNK_TOP_K:20}
       related-chunk-number: ${ORGMEMORY_GRAPH_QUERY_RELATED_CHUNKS:5}

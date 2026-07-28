@@ -371,8 +371,12 @@ class ExternalPrincipalRetrievalIntegrationTests {
                         new KnowledgeAssetAuthorizationScope(
                                 ASSET2,
                                 SPACE)));
-        when(snapshots.maximumCurrentAclGeneration(any(), any()))
-                .thenReturn(2L);
+        KnowledgeSpaceAclGeneration generation =
+                mock(KnowledgeSpaceAclGeneration.class);
+        when(generation.getKnowledgeSpaceId()).thenReturn(SPACE);
+        when(generation.getAclGeneration()).thenReturn(2L);
+        when(snapshots.maximumCurrentAclGenerations(any(), any()))
+                .thenReturn(List.of(generation));
         when(clocks.getIfAvailable(any())).thenReturn(Clock.fixed(
                 EVALUATED_AT,
                 ZoneOffset.UTC));
