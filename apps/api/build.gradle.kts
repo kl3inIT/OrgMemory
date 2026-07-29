@@ -36,6 +36,11 @@ dependencies {
     testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+    // Both arrive at runtime through the OpenTelemetry starter; the context test names
+    // their types to assert which telemetry beans the running application does and does
+    // not have.
+    testImplementation("io.micrometer:micrometer-registry-otlp")
+    testImplementation("io.opentelemetry:opentelemetry-sdk")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

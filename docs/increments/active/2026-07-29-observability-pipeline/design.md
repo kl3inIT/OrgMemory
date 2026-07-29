@@ -205,9 +205,15 @@ missing outright rather than merely unwired.
 - **One collector.** Alloy receives metrics and traces. Langfuse was rejected as
   the primary destination because it does not accept JVM, HTTP, or database
   metrics and would require a second pipeline.
-- **Standard configuration.** `OTEL_EXPORTER_OTLP_ENDPOINT` maps to metrics,
-  traces, and logs through Boot's environment post-processor. OTLP log export is
-  disabled explicitly because Alloy already tails the `json-file` driver.
+- **Explicit configuration over the conventional variable.** This paragraph
+  originally said `OTEL_EXPORTER_OTLP_ENDPOINT` would carry the endpoint through
+  Boot's environment post-processor. Production sets
+  `management.opentelemetry.map-environment-variables: false` instead, because
+  that mapping is a way for OrgMemory telemetry to acquire a destination nobody
+  chose for it — and this host already runs an unrelated OpenTelemetry stack. The
+  convention is worth less than knowing, from one file, where telemetry goes.
+  OTLP log export is disabled explicitly because the collector already tails the
+  `json-file` driver.
 - **Silent when unconfigured.** No endpoint must mean no exporter and no
   recurring log line. Tracing already behaves this way; metrics must match.
 - **Readiness stays independent of exporter health.**
