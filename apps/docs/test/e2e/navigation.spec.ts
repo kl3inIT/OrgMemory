@@ -160,8 +160,14 @@ test('responses carry the application-owned security headers', async ({ request 
       'camera=(), microphone=(), geolocation=()',
     );
     expect(response.headers().vary).toContain('Accept');
-    expect(response.headers()['cache-control']).toContain('no-cache');
-    expect(response.headers()['cache-control']).toContain('must-revalidate');
+
+    const markdown = await request.get(route, {
+      headers: {
+        Accept: 'text/markdown',
+      },
+    });
+    expect(markdown.headers()['content-type']).toContain('text/markdown');
+    expect(markdown.headers().vary).toContain('Accept');
   }
 });
 

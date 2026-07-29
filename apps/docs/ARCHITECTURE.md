@@ -22,8 +22,10 @@ dependency on the product API, worker, MCP server, CLI, or Vite web application.
   global health, search, sitemap, and robots handlers.
 - `public/images/architecture`: reviewed architecture visuals with adjacent
   captions and useful alternative text in the owning MDX pages.
-- `next.config.mjs`: standalone output plus application-owned response security
-  headers. The reverse proxy owns TLS and routing, not duplicate header policy.
+- `next.config.mjs`: standalone output, application-owned response security
+  headers, and the `Vary: Accept` boundary for HTML/Markdown negotiation. The
+  reverse proxy owns TLS and routing, caches only immutable `/_next/static/`
+  assets, and must preserve the negotiation header.
 
 The root pnpm workspace owns dependency installation and the lockfile.
 Turbopack is Next.js 16's default bundler; no explicit flag or Turborepo layer is
@@ -34,6 +36,10 @@ System Design, Deploy & Operate, Govern & Administer, and Build & Integrate.
 Their Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese
 route may inherit reviewed English content until its matching `.vi.mdx` is
 authored; the reader shows that fallback state explicitly.
+
+Playwright starts the production build rather than the development server so
+response-header and content-negotiation checks cover static-rendering behavior
+before the standalone container is built.
 
 ## Publication Invariant
 

@@ -18,7 +18,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `corepack pnpm dev --hostname 127.0.0.1 --port ${port}`,
+    command: `corepack pnpm start --hostname 127.0.0.1 --port ${port}`,
     env: {
       DOCS_DEPLOYMENT_MODE: 'production',
       DOCS_INCLUDE_DRAFTS: 'false',
