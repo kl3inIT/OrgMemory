@@ -36,6 +36,14 @@ Their Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese
 route may inherit reviewed English content until its matching `.vi.mdx` is
 authored; the reader shows that fallback state explicitly.
 
+Each root also has a stable visual identity shared by English and Vietnamese.
+Localized metadata owns its label, description, and Lucide icon;
+`src/lib/docs-category.ts` maps the stable folder ID to a body class;
+`DocsLayout.tabs.transform` colors the root icon; and `global.css` maps that
+class to an accessible light/dark `--color-fd-primary`. Page backgrounds and
+content remain neutral, so category color communicates location without turning
+the reader into a marketing surface.
+
 CI Playwright starts the generated standalone server with the same public and
 static-asset layout used by the container. Response-header and
 representation-routing checks therefore cover the deployed Linux runtime

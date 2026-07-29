@@ -54,6 +54,36 @@ test('public corpus exposes the section switcher and focused page tree', async (
   }
 });
 
+test('category visual identity follows the active root and locale', async ({ page }) => {
+  const categories = {
+    overview: '/docs/overview',
+    'architecture-security': '/docs/architecture-security/system-description',
+    deployment: '/docs/deployment/self-hosting',
+    admins: '/docs/admins/identity-permissions',
+    developers: '/docs/developers/assistant-mcp',
+  } as const;
+  const colors = new Map<string, string>();
+
+  for (const [category, route] of Object.entries(categories)) {
+    await page.goto(route);
+    await expect(page.locator('body')).toHaveClass(new RegExp(`\\b${category}\\b`));
+    const color = await page.locator('body').evaluate((body) =>
+      getComputedStyle(body).getPropertyValue('--color-fd-primary').trim(),
+    );
+    expect(color, route).not.toBe('');
+    colors.set(category, color);
+  }
+
+  expect(new Set(colors.values()).size).toBe(Object.keys(categories).length);
+
+  await page.goto('/vi/docs/architecture-security/system-description');
+  await expect(page.locator('body')).toHaveClass(/\barchitecture-security\b/);
+  await expect(page.locator('body')).toHaveCSS(
+    '--color-fd-primary',
+    colors.get('architecture-security')!,
+  );
+});
+
 test('Vietnamese shell is localized while untranslated pages fall back explicitly', async ({
   page,
 }, testInfo) => {
