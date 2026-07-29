@@ -21,6 +21,12 @@ x-oidc-environment: &oidc-environment
 x-spring-environment: &spring-environment
   <<: *oidc-environment
   SPRING_PROFILES_ACTIVE: prod
+  # Telemetry resource attributes. deploy.sh pins ORGMEMORY_SERVICE_VERSION to the released
+  # commit alongside the image tags, so the version a collector reports cannot drift from the
+  # image actually running. Without these the applications fall back to their local defaults
+  # and label production as "local", which is worse than an absent attribute.
+  ORGMEMORY_DEPLOYMENT_ENVIRONMENT: production
+  ORGMEMORY_SERVICE_VERSION: ${ORGMEMORY_SERVICE_VERSION:-unknown}
   ORGMEMORY_DB_URL: jdbc:postgresql://postgres:5432/${ORGMEMORY_DB_NAME:-orgmemory}
   ORGMEMORY_DB_USER: ${ORGMEMORY_DB_USER:-orgmemory}
   ORGMEMORY_DB_PASSWORD: ${ORGMEMORY_DB_PASSWORD:?Set ORGMEMORY_DB_PASSWORD}
