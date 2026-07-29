@@ -9,6 +9,6 @@
   rotation eviction.
 - [x] Add dispatcher tests for both protocols, missing factories, and duplicate
   registrations.
-- [ ] Reconcile architecture, domain spec, coverage, and roadmap.
-- [ ] Run focused module tests, API/worker compile, full backend/static/docs
+- [x] Reconcile architecture, domain spec, coverage, and roadmap.
+- [x] Run focused module tests, API/worker compile, full backend/static/docs
   gates, then resolve PR review and CI.
