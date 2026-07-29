@@ -53,9 +53,21 @@ environment that sets nothing would resolve them.
 Gate: `:apps:api:test --tests '*OrgMemoryApiContextLoadTests'`,
 `:apps:worker:test --tests '*TelemetryExportDefaultsTests'`, `:core:test`.
 
-Still unproven in production: the deployment has not been restarted with this
-configuration, so "no recurring exporter warning" remains an exit criterion
-rather than an observation.
+Verified in production on 2026-07-29. `88c35cc` deployed to ZM; four minutes
+after restart both `orgmemory-api-1` and `orgmemory-worker-1` reported zero
+occurrences of `Failed to publish metrics` and zero mentions of `4318`, where the
+previous behaviour produced one per service per minute. No ERROR lines and no
+provider prompt-leak signatures either, so `ProviderLoggingBoundaryVerifier` also
+passed against the real configuration rather than only under test.
+
+The same check found what the code change alone had missed: neither
+`ORGMEMORY_SERVICE_VERSION` nor `ORGMEMORY_DEPLOYMENT_ENVIRONMENT` was set on the
+containers, so the attributes carried their local defaults and labelled
+production `deployment.environment.name=local`. A misleading label is worse than
+an absent one. `deploy.sh` now pins `ORGMEMORY_SERVICE_VERSION` to the released
+commit in the same rewrite that pins the image tags, so the reported version
+cannot drift from the running image, and the production compose sets the
+environment explicitly.
 
 ## 2. Metrics that answer stage latency — partly done
 

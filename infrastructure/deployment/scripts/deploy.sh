@@ -67,32 +67,36 @@ with open(path, encoding="utf-8") as stream:
 PY
 }
 
-replace_image_references() {
+# Pins everything this deployment derives from the released commit: the image set, and the
+# version telemetry reports. They are written together because they must not disagree — a
+# service.version that lags the running image is worse than none at all.
+pin_release_values() {
   local temporary_file
   temporary_file="$(mktemp)"
 
   awk -v sha="$commit_sha" '
     BEGIN {
-      images["ORGMEMORY_API_IMAGE"] = "ghcr.io/kl3init/orgmemory-api:sha-" sha
-      images["ORGMEMORY_WORKER_IMAGE"] = "ghcr.io/kl3init/orgmemory-worker:sha-" sha
-      images["ORGMEMORY_MCP_IMAGE"] = "ghcr.io/kl3init/orgmemory-mcp:sha-" sha
-      images["ORGMEMORY_WEB_IMAGE"] = "ghcr.io/kl3init/orgmemory-web:sha-" sha
-      images["ORGMEMORY_KEYCLOAK_IMAGE"] = "ghcr.io/kl3init/orgmemory-keycloak:sha-" sha
-      images["ORGMEMORY_POSTGRES_IMAGE"] = "ghcr.io/kl3init/orgmemory-postgres-rag:sha-" sha
+      pinned["ORGMEMORY_API_IMAGE"] = "ghcr.io/kl3init/orgmemory-api:sha-" sha
+      pinned["ORGMEMORY_WORKER_IMAGE"] = "ghcr.io/kl3init/orgmemory-worker:sha-" sha
+      pinned["ORGMEMORY_MCP_IMAGE"] = "ghcr.io/kl3init/orgmemory-mcp:sha-" sha
+      pinned["ORGMEMORY_WEB_IMAGE"] = "ghcr.io/kl3init/orgmemory-web:sha-" sha
+      pinned["ORGMEMORY_KEYCLOAK_IMAGE"] = "ghcr.io/kl3init/orgmemory-keycloak:sha-" sha
+      pinned["ORGMEMORY_POSTGRES_IMAGE"] = "ghcr.io/kl3init/orgmemory-postgres-rag:sha-" sha
+      pinned["ORGMEMORY_SERVICE_VERSION"] = sha
     }
     {
       split($0, parts, "=")
-      if (parts[1] in images) {
-        print parts[1] "=" images[parts[1]]
+      if (parts[1] in pinned) {
+        print parts[1] "=" pinned[parts[1]]
         seen[parts[1]] = 1
       } else {
         print
       }
     }
     END {
-      for (key in images) {
+      for (key in pinned) {
         if (!seen[key]) {
-          print key "=" images[key]
+          print key "=" pinned[key]
         }
       }
     }
@@ -161,7 +165,7 @@ rollback() {
 
 trap rollback ERR
 
-replace_image_references
+pin_release_values
 
 openfga_store_id="$(read_environment_value ORGMEMORY_OPENFGA_STORE_ID)"
 openfga_model_id="$(read_environment_value ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID)"
