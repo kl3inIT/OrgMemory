@@ -158,9 +158,14 @@ Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
   holding query, evidence or provider-response text. It applies to all spans, not
   only GraphRAG ones, and has no toggle. Span attributes are not filtered.
 - The OpenAI and Anthropic client packages are pinned above WARN in both apps,
-  without an environment override, because their own logging concatenates the
-  prompt or the response content into messages that Spring AI's
-  `log-prompt`/`log-completion` settings do not govern.
+  because their own logging concatenates the prompt or the response content into
+  messages that Spring AI's `log-prompt`/`log-completion` settings do not govern.
+  That pin is the default, not the boundary: `LOGGING_LEVEL_*` variables, system
+  properties, logback configuration and a level on a more specific logger all
+  outrank it. `ProviderLoggingBoundaryVerifier` asks each class holding such a
+  call site whether WARN is enabled on its own logger and fails startup if any
+  is, so the check is against the resolved level rather than any source of it.
+  It has no disable property.
 
 ## Graph Explorer
 

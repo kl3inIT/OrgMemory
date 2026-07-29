@@ -67,10 +67,17 @@ Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
   pass. Wiring tests prove the auto-configuration stays discoverable, wraps every
   declared exporter, and is ordered ahead of Spring Boot's unwrapped collection.
 - Provider-logging tests in each app read the shipped `application.yml` and fail
-  if the pin is absent or if any profile lowers `org.springframework.ai.openai`
-  or `org.springframework.ai.anthropic` back to WARN. They assert that at least
-  one profile file was scanned, so an unreadable resource directory cannot make
-  them pass vacuously.
+  if the pin is absent, or if any `.yml`/`.yaml` profile lowers
+  `org.springframework.ai.openai` or `org.springframework.ai.anthropic` — or any
+  ancestor or descendant of them — back to WARN. They assert that at least one
+  profile file was scanned, so an unreadable resource directory cannot make them
+  pass vacuously. They cover the shipped default only.
+- Boundary-verifier tests set levels the way an operator override would, against
+  the real provider classes and a real logging backend, and prove startup fails
+  when a leak site is at WARN or below, that a class set back to WARN is caught
+  even under a package pinned to ERROR, that the message names both the class and
+  the override to look for, that the auto-configuration stays discoverable, and
+  that the application context itself fails rather than starting.
 - Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
   Neo4j stay discoverable through their registration files, that PostgreSQL owns
   the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port

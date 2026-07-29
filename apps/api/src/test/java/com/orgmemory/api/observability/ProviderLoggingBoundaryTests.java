@@ -21,10 +21,11 @@ import org.springframework.core.io.FileSystemResource;
  * the prompt and the response content. {@code spring.ai.chat.observations.log-prompt}
  * does not reach them because it only governs Spring AI observation handlers.
  *
- * <p>Every such call site is guarded by {@code isWarnEnabled()}, so the level
- * configured for those packages is what keeps the payload from being built at all.
- * That makes the configured level part of the payload-free boundary rather than an
- * operator preference, and this test is what stops it from drifting.
+ * <p>Every such call site is guarded by {@code isWarnEnabled()}, so the level decides
+ * whether the payload is built at all. This test covers the shipped default only.
+ * The default is not the enforcement — environment variables and system properties
+ * outrank it — which is what {@code ProviderLoggingBoundaryVerifier} checks at startup
+ * against the resolved level. This test stops the default from drifting.
  */
 class ProviderLoggingBoundaryTests {
 
@@ -65,7 +66,11 @@ class ProviderLoggingBoundaryTests {
                     return;
                 }
                 String logger = key.substring("logging.level.".length());
-                if (PAYLOAD_LOGGING_PACKAGES.stream().noneMatch(p -> p.equals(logger) || p.startsWith(logger + "."))) {
+                // Ancestors and descendants both matter: a parent pinned above the packages
+                // relaxes them, and a child such as org.springframework.ai.openai.api overrides
+                // the parent pin for everything under it.
+                if (PAYLOAD_LOGGING_PACKAGES.stream().noneMatch(
+                        p -> p.equals(logger) || p.startsWith(logger + ".") || logger.startsWith(p + "."))) {
                     return;
                 }
                 assertTrue(
@@ -93,8 +98,8 @@ class ProviderLoggingBoundaryTests {
      */
     private static File[] profileConfigurationFiles() throws IOException {
         File resources = new ClassPathResource("application.yml").getFile().getParentFile();
-        File[] profiles = resources.listFiles(
-                (directory, name) -> name.startsWith("application-") && name.endsWith(".yml"));
+        File[] profiles = resources.listFiles((directory, name) -> name.startsWith("application-")
+                && (name.endsWith(".yml") || name.endsWith(".yaml")));
         return profiles == null ? new File[0] : profiles;
     }
 }

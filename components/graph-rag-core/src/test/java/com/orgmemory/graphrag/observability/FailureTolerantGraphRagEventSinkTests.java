@@ -54,6 +54,28 @@ class FailureTolerantGraphRagEventSinkTests {
     }
 
     @Test
+    void keepsCountingAndReportingTheLatestKindWhenTheBackendAlternatesFailures() {
+        var kinds = new java.util.ArrayDeque<RuntimeException>(java.util.List.of(
+                new IllegalStateException("timeout"),
+                new IllegalArgumentException("connection refused"),
+                new IllegalStateException("timeout again")));
+        var sink = GraphRagEventSink.failureTolerant(event -> {
+            throw kinds.removeFirst();
+        });
+
+        sink.emit(event());
+        sink.emit(event());
+        sink.emit(event());
+
+        // A -> B -> A is what a timeout that retries as a connection failure looks like.
+        // Every one is counted; the recurrence of A must not produce a second log line, which
+        // is why reporting is keyed on the set of kinds seen rather than on the previous one.
+        assertEquals(3, sink.swallowedFailureCount());
+        assertEquals(2, sink.reportedFailureTypeCount(), "the recurrence of A must not log again");
+        assertEquals(IllegalStateException.class.getName(), sink.lastFailureType());
+    }
+
+    @Test
     void namesOnlyTheFailureTypeSoATelemetryErrorCannotQuoteTheEventItCouldNotSend() {
         var sink = GraphRagEventSink.failureTolerant(event -> {
             throw new IllegalStateException(

@@ -186,8 +186,12 @@ logging:
     # WARN messages of their own, which `spring.ai.chat.observations.log-prompt`
     # does not reach because it only governs Spring AI observation handlers.
     # Every such site is guarded by isWarnEnabled(), so pinning these packages
-    # above WARN stops the payload from being built at all. Deliberately not
-    # environment-overridable: the payload-free boundary is not a per-deployment
-    # setting. See docs/runbooks/graph-rag-production-hardening.md.
+    # above WARN stops the payload from being built at all.
+    #
+    # This is the safe default, not the enforcement: LOGGING_LEVEL_* environment
+    # variables, system properties and logback configuration all outrank it.
+    # ProviderLoggingBoundaryVerifier checks the resolved level at startup and
+    # refuses to run with these open.
+    # See docs/runbooks/graph-rag-production-hardening.md.
     org.springframework.ai.openai: ERROR
     org.springframework.ai.anthropic: ERROR
