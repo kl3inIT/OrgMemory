@@ -179,3 +179,15 @@ management:
     web:
       exposure:
         include: health,info,modulith
+
+logging:
+  level:
+    # The provider libraries concatenate the prompt and the response content into
+    # WARN messages of their own, which `spring.ai.chat.observations.log-prompt`
+    # does not reach because it only governs Spring AI observation handlers.
+    # Every such site is guarded by isWarnEnabled(), so pinning these packages
+    # above WARN stops the payload from being built at all. Deliberately not
+    # environment-overridable: the payload-free boundary is not a per-deployment
+    # setting. See docs/runbooks/graph-rag-production-hardening.md.
+    org.springframework.ai.openai: ERROR
+    org.springframework.ai.anthropic: ERROR
