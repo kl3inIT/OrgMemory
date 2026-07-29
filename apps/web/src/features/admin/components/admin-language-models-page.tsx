@@ -100,7 +100,7 @@ const WORKLOADS = [
 ]
 
 function safeKey(preset: ProviderPresetResponse) {
-  const base = (preset.preset ?? "gateway").toLocaleLowerCase().replaceAll("_", "-")
+  const base = (preset.preset ?? "gateway").toLowerCase().replaceAll("_", "-")
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
 
@@ -775,7 +775,7 @@ function Field({
   value: string
   onChange: (value: string) => void
 } & Omit<React.ComponentProps<typeof Input>, "value" | "onChange">) {
-  const id = useMemo(() => `ai-${label.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`, [label])
+  const id = useMemo(() => `ai-${label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`, [label])
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
