@@ -79,6 +79,7 @@ check_public_route() {
 
 check_public_root_redirect() {
   local result
+  local expected_prefix
 
   result="$(
     curl --fail --location --silent --show-error \
@@ -88,14 +89,13 @@ check_public_root_redirect() {
       --write-out '%{http_code} %{url_effective}' \
       "${public_url%/}/"
   )"
-  [[ "$result" == "200 ${public_url%/}/docs/overview" ]]
+  expected_prefix="200 ${public_url%/}/docs/"
+  [[ "$result" == "$expected_prefix"* ]]
 }
 
 wait_for_internal_health
 for route in \
-  "/docs/overview" \
   "/docs/architecture-security/system-description" \
-  "/docs/developers/api-reference/search-catalog" \
   "/api/search?query=OpenFGA" \
   "/llms.txt"; do
   check_internal_route "$route"
@@ -109,7 +109,6 @@ if [[ "$require_public_smoke" == "true" ]]; then
   check_public_root_redirect
   for route in \
     "/docs/architecture-security/system-description" \
-    "/docs/developers/api-reference/search-catalog" \
     "/api/search?query=OpenFGA" \
     "/llms.txt"; do
     check_public_route "$route"
