@@ -1,6 +1,7 @@
 package com.orgmemory.graphrag.opensearch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,6 +18,7 @@ import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
 import com.orgmemory.graphrag.storage.ContentStore;
+import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
@@ -36,6 +38,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -606,6 +612,55 @@ class OpenSearchProjectionPublicationIntegrationTests {
                         2,
                         10));
         assertTrue(ppl.successfulExecutions() > executionsBefore);
+    }
+
+    /**
+     * The rest of this class builds adapters directly, which proves they work but
+     * not that Spring produces them. Enabling the adapter has to contribute every
+     * port it declares, because each one it claims is a port PostgreSQL no longer
+     * gets to serve.
+     */
+    @Test
+    void autoConfigurationContributesEveryPortItClaimsOnceEnabled() {
+        new ApplicationContextRunner()
+                .withConfiguration(
+                        AutoConfigurations.of(OpenSearchGraphRagAutoConfiguration.class))
+                .withUserConfiguration(ObjectMapperConfiguration.class)
+                .withPropertyValues(
+                        "orgmemory.graph-rag.opensearch.enabled=true",
+                        "orgmemory.graph-rag.opensearch.endpoint=http://%s:%d"
+                                .formatted(
+                                        opensearch.getHost(),
+                                        opensearch.getMappedPort(9200)),
+                        "orgmemory.graph-rag.opensearch.index-prefix=orgmemory-wiring-test")
+                .run(context -> {
+                    assertInstanceOf(
+                            OpenSearchProjectionPublicationStore.class,
+                            context.getBean(
+                                    com.orgmemory.graphrag.storage.ProjectionPublicationStore
+                                            .class));
+                    assertInstanceOf(
+                            OpenSearchContentStore.class, context.getBean(ContentStore.class));
+                    assertInstanceOf(
+                            OpenSearchGraphStore.class, context.getBean(GraphStore.class));
+                    assertInstanceOf(
+                            OpenSearchLexicalIndex.class, context.getBean(LexicalIndex.class));
+                    assertInstanceOf(
+                            OpenSearchVectorIndex.class, context.getBean(VectorIndex.class));
+                    assertInstanceOf(
+                            OpenSearchProcessingStatusIndex.class,
+                            context.getBean(ProcessingStatusIndex.class));
+                });
+    }
+
+    /** The collaborator an application already owns before this adapter loads. */
+    @Configuration(proxyBeanMethods = false)
+    static class ObjectMapperConfiguration {
+
+        @Bean
+        ObjectMapper wiringTestObjectMapper() {
+            return new ObjectMapper();
+        }
     }
 
     private static ProjectionBatch batch(
