@@ -142,7 +142,7 @@ management:
       # Without these a collector cannot tell one build or environment from
       # another. Image tags already carry the commit SHA.
       service.version: ${ORGMEMORY_SERVICE_VERSION:unknown}
-      deployment.environment: ${ORGMEMORY_DEPLOYMENT_ENVIRONMENT:local}
+      deployment.environment.name: ${ORGMEMORY_DEPLOYMENT_ENVIRONMENT:local}
 
 logging:
   level:

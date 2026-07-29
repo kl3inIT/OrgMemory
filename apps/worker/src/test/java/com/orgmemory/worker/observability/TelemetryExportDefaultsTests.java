@@ -54,7 +54,7 @@ class TelemetryExportDefaultsTests {
     void telemetryCarriesEnoughIdentityForACollectorToTellDeploymentsApart() throws IOException {
         Map<String, Object> configuration = configuration();
 
-        for (String attribute : List.of("service.version", "deployment.environment")) {
+        for (String attribute : List.of("service.version", "deployment.environment.name")) {
             assertEquals(
                     true,
                     configuration.containsKey(

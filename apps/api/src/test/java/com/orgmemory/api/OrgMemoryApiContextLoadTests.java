@@ -48,6 +48,12 @@ class OrgMemoryApiContextLoadTests {
         // which inside a container is that container. Production ran this way for weeks,
         // failing and logging every minute. An application with no collector configured
         // must create no exporter at all.
+        //
+        // No @AutoConfigureMetrics is needed here, and adding it would not make the
+        // assertion stronger. The context customizer that disables metrics export in tests
+        // ships in spring-boot-micrometer-metrics-test, which this module does not depend
+        // on, so OtlpMetricsExportAutoConfiguration really does run. Verified by flipping
+        // management.otlp.metrics.export.enabled to true, which fails this assertion.
         assertTrue(
                 context.getBeansOfType(OtlpMeterRegistry.class).isEmpty(),
                 "an OTLP meter registry exists with no collector configured, so it is "
@@ -59,7 +65,7 @@ class OrgMemoryApiContextLoadTests {
         Attributes attributes = context.getBean(Resource.class).getAttributes();
 
         assertNotNull(attributes.get(AttributeKey.stringKey("service.version")));
-        assertNotNull(attributes.get(AttributeKey.stringKey("deployment.environment")));
+        assertNotNull(attributes.get(AttributeKey.stringKey("deployment.environment.name")));
     }
 
     @Test
