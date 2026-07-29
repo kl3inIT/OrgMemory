@@ -149,6 +149,45 @@ The policy is unchanged but the repository currently claims more than it
 enforces. The bypasses above must close before any release describes the
 deployment as payload-free.
 
+## What LightRAG instruments, and what it does not
+
+The semantic port came from LightRAG, so its tracing was checked directly against
+the pinned `v1.5.4` checkout rather than from recollection. An earlier reading in
+this increment recorded that it has no observability at all; that was wrong.
+
+Its only instrumentation is Langfuse, and only for the OpenAI-compatible binding.
+`lightrag/llm/openai.py:44-66` swaps `openai.AsyncOpenAI` for
+`langfuse.openai.AsyncOpenAI` when `LANGFUSE_PUBLIC_KEY` and
+`LANGFUSE_SECRET_KEY` are both present at import time. That drop-in captures the
+full request and response, so enabling it exports prompts and completions
+verbatim. `git grep -ln langfuse -- 'lightrag/llm/*.py'` returns that one file:
+Anthropic, Gemini, Bedrock, Ollama and the rest are not traced at all. There is
+no masking, redaction or scrubbing anywhere in the tree, no OpenTelemetry, no
+metrics, and no spans over LightRAG's own pipeline stages.
+
+Two consequences.
+
+First, the upstream does precisely what the decision above rejects, at LLM-call
+granularity, and reaches it through a vendor drop-in rather than a designed
+boundary. It strengthens rather than weakens the finding that
+"no comparable system chose never" describes an absence of deliberation, not a
+considered industry position. It is not a precedent to adopt.
+
+Second, LightRAG is no source of stage coverage, because it instruments none.
+Comparing the two pipelines instead surfaced a gap on this side:
+`GraphRagEventSink.Stage` declares fourteen stages and production emits ten.
+`PARSE`, `CHUNK`, `GLEAN` and `GENERATE` have no producer outside tests, so a
+dashboard grouped by stage would show four permanently empty series and no
+parsing, chunking, gleaning or answer-generation latency at all. Parsing and
+chunking happen in the ingestion pipeline, which holds no sink; gleaning runs
+inside extraction and is folded into it; generation is never reported, because
+retrieval stops at `ASSEMBLE_CONTEXT`.
+
+Deletion and rebuild are absent from both the enum and the producers. LightRAG
+tracks that path through `pipeline_status`, and the hardening runbook requires a
+deletion-then-rebuild drill, so it is the one stage the comparison says is
+missing outright rather than merely unwired.
+
 ## Pipeline architecture
 
 - **Push over pull.** OTLP export is already wired and the worker has no HTTP

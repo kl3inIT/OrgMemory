@@ -1,22 +1,31 @@
 # Observability pipeline plan
 
-## 0. Close the payload bypasses — not started
+## 0. Close the payload bypasses — code done, production evidence outstanding
 
 Highest priority. These are live paths, independent of the pipeline work.
 
-- [ ] Pin `org.springframework.ai.openai` and `org.springframework.ai.anthropic`
-      logger levels to `ERROR` in API and worker production configuration, so the
-      provider WARN paths that concatenate the prompt cannot emit.
-- [ ] Search retained production logs for those three WARN signatures. Treat a
-      hit as a data incident, not a defect: record scope and affected
-      organizations before changing anything.
-- [ ] Decide how `OtelSpan.error` is handled. Either suppress exception recording
-      for observations that can carry OrgMemory content, or amend the runbook
-      gate that currently cannot pass.
-- [ ] Add a payload-free health signal for swallowed `GraphRagEventSink`
-      failures. Producers currently catch and ignore them
-      (`GraphRagKnowledgeRetrievalService:149-172,565-610,630-646,772-788`,
-      `GraphIndexingProcessor:249-265`), so a broken sink is invisible.
+- [x] Pin `org.springframework.ai.openai` and `org.springframework.ai.anthropic`
+      logger levels to `ERROR`. Done in the base configuration of both apps
+      rather than the production profile, because a development database holds
+      real uploaded documents too, and without an environment override, because
+      the boundary is not a per-deployment setting. `ProviderLoggingBoundaryTests`
+      in each app reads the shipped YAML and fails if a profile lowers either
+      package. A fourth site was found during the sweep,
+      `AnthropicChatModel:1018`, which logs a response content block.
+- [ ] Search retained production logs for those WARN signatures. Treat a hit as a
+      data incident, not a defect: record scope and affected organizations before
+      changing anything. **Needs the owner's go-ahead — it runs on production and
+      may surface customer content.**
+- [x] Decide how `OtelSpan.error` is handled. Suppressed, not tolerated:
+      `ExceptionSanitizingSpanExporter` drops every event attribute except
+      `exception.type` and clears the status description, as the last gate before
+      egress. The runbook's wording still needs the amendment in phase 5, because
+      the event itself now survives with its type.
+- [x] Add a payload-free health signal for swallowed `GraphRagEventSink`
+      failures. `FailureTolerantGraphRagEventSink` counts them, records the
+      failure type and logs once per change of kind. Publishing that count as a
+      metric belongs with the Micrometer sink in phase 2; until then the signal
+      is the log line.
 
 ## 1. Silence the unconfigured exporter — not started
 
@@ -45,6 +54,14 @@ Depends on the composite sink merged in PR #132.
 - [ ] Export `ContextTokenUsage`, which core already computes and nothing
       publishes, plus a counter for `finish_reason=length` truncation.
 - [ ] Time to first token on the streaming assistant path.
+- [ ] Publish `FailureTolerantGraphRagEventSink.swallowedFailureCount()` as a
+      counter, so a broken sink is a number rather than only a log line.
+- [ ] Close the stage gap the LightRAG comparison surfaced. `Stage` declares
+      fourteen and production emits ten: `PARSE` and `CHUNK` need a sink in the
+      ingestion pipeline, `GLEAN` needs separating from extraction, and
+      `GENERATE` needs emitting where retrieval currently stops at
+      `ASSEMBLE_CONTEXT`. Decide deletion and rebuild separately — it is missing
+      from the enum entirely and the runbook requires a drill for it.
 - [ ] Tests: both sinks enabled receive the event; both disabled compose to
       `NO_OP`.
 
@@ -85,6 +102,14 @@ Highest regression risk; run it last, once a collector can show the result.
 - [ ] Correct the runbook's field list — it omits `scopeFingerprint`,
       `cacheStatus` and `occurredAt`, and describes counts as bounded when only
       non-negativity is checked.
+- [ ] Amend the runbook's "no exception event or stack trace" gate. The event now
+      survives carrying `exception.type` alone, which is what the exporter
+      enforces; the gate should say that rather than something stricter than the
+      code.
+- [ ] Resolve where telemetry egress lives. `integrations/graph-rag-observability`
+      is named for one domain but now owns the span sanitizer, which protects
+      every span in the process. Renaming it is a module-boundary change and
+      needs its own challenge, so it is recorded here rather than done quietly.
 - [ ] Record the payload-boundary decision under `docs/decisions/`, superseding
       nothing but documenting the challenge outcome.
 
