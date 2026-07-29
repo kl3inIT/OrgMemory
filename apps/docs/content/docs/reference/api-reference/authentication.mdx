@@ -1,6 +1,6 @@
 ---
 title: Authentication and errors
-description: Apply OrgMemory browser-session, CSRF, authorization, and error-handling rules safely.
+description: Apply Organizational AI Memory browser-session, CSRF, authorization, and error-handling rules safely.
 audience:
   - developer
   - administrator
@@ -12,18 +12,18 @@ sourceRefs:
 lastReviewed: '2026-07-29'
 ---
 
-OrgMemory's web API is session-oriented. A successful login establishes an HTTP-only session cookie; state-changing browser requests also require the CSRF token issued by the session endpoint. Do not invent a bearer-token flow from the generated schema.
+Organizational AI Memory's web API is session-oriented. A successful login establishes an HTTP-only session cookie; state-changing browser requests also require the CSRF token issued by the session endpoint. Do not invent a bearer-token flow from the generated schema.
 
 ## Browser-session flow
 
 1. Establish an authenticated session through the configured identity provider.
-2. Keep cookies enabled for the OrgMemory origin.
+2. Keep cookies enabled for the Organizational AI Memory origin.
 3. Fetch the CSRF endpoint before a state-changing request.
 4. Send the returned token in the required request header and keep the session cookie.
 5. Treat `401` as missing or expired authentication and `403` as an authenticated request that is not authorized.
 
 <Callout type="info" title="Authorization remains server-side">
-  Hiding a button is not an authorization control. OrgMemory evaluates permissions at the API boundary and, for governed resources, filters access through its authorization model.
+  Hiding a button is not an authorization control. Organizational AI Memory evaluates permissions at the API boundary and, for governed resources, filters access through its authorization model.
 </Callout>
 
 ## Permission-aware integration

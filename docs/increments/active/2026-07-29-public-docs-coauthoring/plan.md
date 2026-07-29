@@ -11,7 +11,7 @@ English/Vietnamese pair. Taxonomy-only work is a separate structural PR.
 - [x] Create the durable page register in `apps/docs/AUTHORING.md`.
 - [x] Transfer unfinished content follow-ups from the completed portal
   increment.
-- [ ] Merge the program foundation and taxonomy migration.
+- [x] Merge the program foundation and taxonomy migration.
 
 ## Taxonomy Migration
 

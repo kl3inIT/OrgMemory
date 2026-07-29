@@ -134,14 +134,14 @@ function sanitizeContract(contract: JsonObject): JsonObject {
 
   sanitized.info = {
     ...(sanitized.info as JsonObject),
-    title: 'OrgMemory HTTP API',
+    title: 'Organizational AI Memory HTTP API',
     description:
-      'Sanitized, deployment-neutral HTTP contract for OrgMemory. Authorization is evaluated for every caller and governed resource.',
+      'Sanitized, deployment-neutral HTTP contract for Organizational AI Memory. Authorization is evaluated for every caller and governed resource.',
   };
   sanitized.servers = [
     {
       url: 'https://api.example.invalid',
-      description: 'Deployment-specific OrgMemory API origin',
+      description: 'Deployment-specific Organizational AI Memory API origin',
     },
   ];
   sanitized.tags = domains.map(({ title, description }) => ({ name: title, description }));
@@ -211,7 +211,7 @@ const files = await generateFilesOnly({
     return {
       description:
         description ??
-        `${title} endpoints generated from the sanitized OrgMemory OpenAPI contract.`,
+        `${title} endpoints generated from the sanitized Organizational AI Memory OpenAPI contract.`,
       audience: ['developer'],
       status: 'public',
       sourceRefs: ['contracts/openapi.json'],

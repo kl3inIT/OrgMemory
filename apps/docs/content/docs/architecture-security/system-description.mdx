@@ -1,6 +1,6 @@
 ---
 title: System description
-description: See how OrgMemory components work together to deliver governed, permission-aware organizational memory.
+description: See how Organizational AI Memory components work together to deliver governed, permission-aware organizational memory.
 audience:
   - adopter
   - developer
@@ -14,7 +14,7 @@ sourceRefs:
 lastReviewed: 2026-07-29
 ---
 
-OrgMemory is a modular, self-hosted system that preserves source evidence and
+Organizational AI Memory is a modular, self-hosted system that preserves source evidence and
 authorization context from ingestion through AI delivery. Product services
 share one canonical domain model; public documentation is an independent
 application with no runtime dependency on them.
@@ -22,11 +22,11 @@ application with no runtime dependency on them.
 ## System context
 
 <ArchitectureDiagram
-  alt="High-level OrgMemory architecture: sources pass through ingestion into canonical governance, secure retrieval, and delivery, while actor authorization flows back into retrieval."
+  alt="High-level Organizational AI Memory architecture: sources pass through ingestion into canonical governance, secure retrieval, and delivery, while actor authorization flows back into retrieval."
   description="Sources contribute content and ACL evidence. The worker publishes governed projections, and every delivery surface sends the current actor and authorization scope back through secure retrieval."
   height={887}
   src="/images/architecture/system-overview.webp"
-  title="OrgMemory system context"
+  title="Organizational AI Memory system context"
   width={1774}
 />
 
@@ -50,7 +50,7 @@ deployable application or provider integration.
 
 ## Governance layer
 
-Keycloak authenticates browser and bearer principals. OrgMemory maps an external
+Keycloak authenticates browser and bearer principals. Organizational AI Memory maps an external
 principal through an explicit issuer/subject binding. OpenFGA then answers
 relationship questions for organizations, spaces, Knowledge Assets, and
 registry Assets. Source ACL snapshots remain a separate, immutable permission

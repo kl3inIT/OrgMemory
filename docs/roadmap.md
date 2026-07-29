@@ -39,8 +39,8 @@ The table is a delivery index, not a second description of current behavior.
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
-| [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | migrate the four-root taxonomy, then co-author What is OrgMemory? with the owner |
-| [Observability pipeline and payload boundary](increments/active/2026-07-29-observability-pipeline/plan.md) | active | close the provider-library prompt logging bypass, then reach a collector and prove a sanitized whole-export |
+| [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
+| [Observability pipeline and payload boundary](increments/active/2026-07-29-observability-pipeline/plan.md) | active | reach a collector, emit the four declared stages that have no producer, and prove a sanitized whole-export |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
@@ -48,8 +48,8 @@ implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Complete the public docs taxonomy migration, then begin the owner-led
-   page-by-page authoring queue with What is OrgMemory?.
+1. Begin the owner-led public-docs queue with the context and outline
+   checkpoints for What is OrgMemory?.
 2. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
 3. Complete the reproducible demo's real ingestion and permission-evaluation
