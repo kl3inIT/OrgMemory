@@ -8,7 +8,17 @@ Run commands from the repository root:
 
 ```powershell
 corepack pnpm install --frozen-lockfile
+```
+
+Start the local reader in its own terminal:
+
+```powershell
 corepack pnpm docs:dev
+```
+
+Run verification in another terminal:
+
+```powershell
 corepack pnpm --filter @orgmemory/docs check
 corepack pnpm --filter @orgmemory/docs build
 ```
@@ -27,5 +37,6 @@ PowerShell draft preview:
 ```powershell
 $env:DOCS_INCLUDE_DRAFTS = 'true'
 corepack pnpm docs:dev
+# Press Ctrl+C to stop the preview server before cleaning the parent shell.
 Remove-Item Env:DOCS_INCLUDE_DRAFTS
 ```

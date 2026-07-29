@@ -40,6 +40,7 @@ For a draft-only page, use a local preview session:
 ```powershell
 $env:DOCS_INCLUDE_DRAFTS = 'true'
 corepack pnpm docs:dev
+# Press Ctrl+C to stop the preview server before cleaning the parent shell.
 Remove-Item Env:DOCS_INCLUDE_DRAFTS
 ```
 
