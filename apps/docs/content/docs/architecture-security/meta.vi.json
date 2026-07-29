@@ -1,6 +1,6 @@
 {
-  "title": "System Design",
-  "description": "Understand architecture, data flows, trust boundaries, and evidence.",
+  "title": "Thiết kế hệ thống",
+  "description": "Hiểu kiến trúc, luồng dữ liệu, ranh giới tin cậy và bằng chứng.",
   "icon": "Network",
   "root": true,
   "pages": [

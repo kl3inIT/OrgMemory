@@ -14,10 +14,11 @@ async function checkLinks() {
   const { source } = await import('../src/lib/source');
   const scanned = await scanURLs({
     preset: 'next',
-    pages: [path.join('docs', '[[...slug]]', 'page.tsx')],
+    pages: [path.join('[lang]', 'docs', '[[...slug]]', 'page.tsx')],
     populate: {
-      'docs/[[...slug]]': source.getPages().map((page) => ({
+      '[lang]/docs/[[...slug]]': source.getPages().map((page) => ({
         value: {
+          lang: page.locale ?? 'en',
           slug: page.slugs,
         },
         hashes: page.data.toc.map((item) => item.url.slice(1)),

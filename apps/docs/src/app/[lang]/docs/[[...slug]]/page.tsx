@@ -1,4 +1,9 @@
-import { getPageImageUrl, getPageMarkdownUrl, source } from '@/lib/source';
+import {
+  getPageImageUrl,
+  getPageMarkdownUrl,
+  isFallbackTranslation,
+  source,
+} from '@/lib/source';
 import {
   DocsBody,
   DocsDescription,
@@ -15,13 +20,15 @@ import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
 import { openapi } from '@/lib/openapi';
 import { OpenAPIPage } from '@/components/openapi-page';
+import { docsHome, i18n, isDocsLanguage } from '@/lib/i18n';
 
-export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
+export default async function Page(props: PageProps<'/[lang]/docs/[[...slug]]'>) {
   const params = await props.params;
+  if (!isDocsLanguage(params.lang)) notFound();
   if (!params.slug || params.slug.length === 0) {
-    redirect('/docs/overview');
+    redirect(docsHome(params.lang));
   }
-  const page = source.getPage(params.slug);
+  const page = source.getPage(params.slug, params.lang);
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -38,6 +45,12 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
     >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+      {isFallbackTranslation(page, params.lang) ? (
+        <div className="mb-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-fd-muted-foreground">
+          Trang này chưa có bản dịch tiếng Việt đã được duyệt. Nội dung tiếng Anh đang được
+          hiển thị tạm thời.
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2 border-b pb-6">
         {page.data.status === 'draft' ? (
           <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-900 dark:text-amber-200">
@@ -73,9 +86,12 @@ export async function generateStaticParams() {
   return source.generateParams();
 }
 
-export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): Promise<Metadata> {
+export async function generateMetadata(
+  props: PageProps<'/[lang]/docs/[[...slug]]'>,
+): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug);
+  if (!isDocsLanguage(params.lang)) notFound();
+  const page = source.getPage(params.slug, params.lang);
   if (!page) notFound();
 
   return {
@@ -83,6 +99,12 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
     description: page.data.description,
     alternates: {
       canonical: page.url,
+      languages: Object.fromEntries(
+        i18n.languages.map((language) => [
+          language,
+          source.getPage(params.slug, language)?.url ?? page.url,
+        ]),
+      ),
     },
     openGraph: {
       title: page.data.title,

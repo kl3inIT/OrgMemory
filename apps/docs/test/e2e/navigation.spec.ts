@@ -21,7 +21,7 @@ test('site root enters the technical documentation directly', async ({ page }) =
   ).toBeVisible();
 });
 
-test('public corpus exposes the complete audience-oriented page tree', async ({
+test('public corpus exposes the section switcher and focused page tree', async ({
   page,
 }, testInfo) => {
   await page.goto('/docs/architecture-security/system-description');
@@ -39,13 +39,53 @@ test('public corpus exposes the complete audience-oriented page tree', async ({
   if (testInfo.project.name === 'mobile-chromium') {
     await page.getByRole('button', { name: 'Open Sidebar' }).click();
   }
-  await expect(page.getByRole('link', { name: 'Overview', exact: true }).first()).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Architecture & Security', exact: true }).first(),
-  ).toBeVisible();
+  await page.getByRole('button', { name: /System Design/ }).first().click();
+  for (const section of [
+    'Start Here',
+    'System Design',
+    'Deploy & Operate',
+    'Govern & Administer',
+    'Build & Integrate',
+  ]) {
+    await expect(page.getByText(section, { exact: true }).last()).toBeVisible();
+  }
   if (testInfo.project.name === 'chromium') {
     await expect(page.getByText('On this page')).toBeVisible();
   }
+});
+
+test('Vietnamese shell is localized while untranslated pages fall back explicitly', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/vi/docs/overview');
+
+  await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
+  await expect(
+    page.getByText(
+      'Trang này chưa có bản dịch tiếng Việt đã được duyệt. Nội dung tiếng Anh đang được hiển thị tạm thời.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: 'Mở thanh bên' }).click();
+  }
+
+  await page.getByRole('button', { name: /Bắt đầu/ }).first().click();
+  for (const section of [
+    'Bắt đầu',
+    'Thiết kế hệ thống',
+    'Triển khai & vận hành',
+    'Quản trị & kiểm soát',
+    'Phát triển & tích hợp',
+  ]) {
+    await expect(page.getByText(section, { exact: true }).last()).toBeVisible();
+  }
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Chọn ngôn ngữ' }).first().click();
+  await page.getByRole('button', { name: 'English', exact: true }).last().click();
+  await expect(page).toHaveURL(/\/docs\/overview$/);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
 test('docs root redirects to the published overview', async ({ page }) => {
@@ -67,17 +107,27 @@ test('quickstart exposes executable commands and observable health', async ({ pa
 
 test('keyboard navigation reaches the primary action', async ({ page }) => {
   await page.goto('/');
-  await page.keyboard.press('Tab');
+  let focusedHref: string | null = null;
+  for (let attempt = 0; attempt < 8 && !focusedHref; attempt += 1) {
+    await page.keyboard.press('Tab');
+    focusedHref = await page.evaluate(() => {
+      const activeElement = document.activeElement;
+      return activeElement instanceof HTMLAnchorElement ? activeElement.getAttribute('href') : null;
+    });
+  }
 
-  const focused = page.locator(':focus');
-  await expect(focused).toBeVisible();
-  await expect(focused).toHaveAttribute('href');
+  expect(focusedHref).toBeTruthy();
 });
 
 test('root and docs pages pass automated accessibility smoke checks', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
-  for (const route of ['/', '/docs/overview', '/docs/architecture-security/system-description']) {
+  for (const route of [
+    '/',
+    '/docs/overview',
+    '/vi/docs/overview',
+    '/docs/architecture-security/system-description',
+  ]) {
     await page.goto(route);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.evaluate(async () => {
@@ -120,11 +170,16 @@ test('server-side search discovers the key product vocabulary', async ({ request
   test.skip(testInfo.project.name !== 'chromium', 'Run the corpus contract once');
 
   for (const term of ['Asset', 'OpenFGA', 'GraphRAG', 'MCP', 'connector']) {
-    const response = await request.get(`/api/search?query=${encodeURIComponent(term)}`);
-    expect(response.ok(), `Search request failed for ${term}`).toBeTruthy();
-    expect((await response.text()).toLowerCase(), `No search result for ${term}`).toContain(
-      term.toLowerCase(),
-    );
+    for (const locale of ['en', 'vi']) {
+      const response = await request.get(
+        `/api/search?query=${encodeURIComponent(term)}&locale=${locale}`,
+      );
+      expect(response.ok(), `Search request failed for ${term} in ${locale}`).toBeTruthy();
+      expect(
+        (await response.text()).toLowerCase(),
+        `No search result for ${term} in ${locale}`,
+      ).toContain(term.toLowerCase());
+    }
   }
 });
 
@@ -146,6 +201,24 @@ test('every manifest route and machine-readable output is public-safe', async ({
     expect(await markdown.text(), `${markdownRoute} leaked repository evidence`).not.toMatch(
       forbidden,
     );
+
+    if (route.startsWith('/docs/')) {
+      const vietnameseRoute = `/vi${route}`;
+      const vietnamese = await request.get(vietnameseRoute);
+      expect(vietnamese.status(), vietnameseRoute).toBe(200);
+      expect(
+        await vietnamese.text(),
+        `${vietnameseRoute} leaked repository evidence`,
+      ).not.toMatch(forbidden);
+
+      const vietnameseMarkdownRoute = `/vi/llms.mdx${route}/content.md`;
+      const vietnameseMarkdown = await request.get(vietnameseMarkdownRoute);
+      expect(vietnameseMarkdown.status(), vietnameseMarkdownRoute).toBe(200);
+      expect(
+        await vietnameseMarkdown.text(),
+        `${vietnameseMarkdownRoute} leaked repository evidence`,
+      ).not.toMatch(forbidden);
+    }
   }
 
   for (const route of ['/llms.txt', '/llms-full.txt', '/sitemap.xml', '/robots.txt']) {
@@ -157,5 +230,8 @@ test('every manifest route and machine-readable output is public-safe', async ({
   const sitemap = await (await request.get('/sitemap.xml')).text();
   for (const route of publicRoutes) {
     expect(sitemap, `Sitemap is missing ${route}`).toContain(route);
+    if (route.startsWith('/docs/')) {
+      expect(sitemap, `Sitemap is missing /vi${route}`).toContain(`/vi${route}`);
+    }
   }
 });

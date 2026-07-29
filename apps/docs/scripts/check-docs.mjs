@@ -10,6 +10,8 @@ const contentRoot = path.join(docsRoot, 'content', 'docs');
 const manifestPath = path.join(docsRoot, 'public-content.manifest.json');
 const generatedManifestPath = path.join(docsRoot, 'generated-api.manifest.json');
 const allowedStatuses = new Set(['public', 'draft']);
+const supportedLocales = new Set(['en', 'vi']);
+const i18nDefaultLanguage = 'en';
 const allowedAudiences = new Set([
   'adopter',
   'user',
@@ -69,6 +71,16 @@ function readManifest() {
     authoredEntries: authored.entries,
     generatedEntries: generated.entries,
   };
+}
+
+function contentLocale(content) {
+  const match = content.match(/\.([a-z]{2})\.mdx$/);
+  return match?.[1] ?? 'en';
+}
+
+function routeLocale(route) {
+  const match = route.match(/^\/([a-z]{2})\/docs(?:\/|$)/);
+  return match?.[1] ?? 'en';
 }
 
 function checkContent() {
@@ -155,7 +167,9 @@ function checkManifest() {
     }
     if (
       typeof entry.route !== 'string' ||
-      (entry.route !== '/docs' && !entry.route.startsWith('/docs/'))
+      (entry.route !== '/docs' &&
+        !entry.route.startsWith('/docs/') &&
+        !/^\/[a-z]{2}\/docs(?:\/|$)/.test(entry.route))
     ) {
       fail(`Invalid public route: ${String(entry.route)}`);
     }
@@ -176,6 +190,13 @@ function checkManifest() {
     contentPaths.add(entry.content);
     if (!fs.existsSync(path.join(docsRoot, entry.content))) {
       fail(`Manifest content does not exist: ${entry.content}`);
+    }
+    const locale = contentLocale(entry.content);
+    if (!supportedLocales.has(locale)) {
+      fail(`${entry.content}: unsupported locale ${locale}`);
+    }
+    if (routeLocale(entry.route) !== locale) {
+      fail(`${entry.route}: route locale must match ${entry.content}`);
     }
 
     if (!allowedStatuses.has(entry.status)) {
@@ -262,19 +283,37 @@ function checkRoutes() {
     .map((entry) => entry.route)
     .sort();
 
-  if (manifest.authoredEntries.length !== 17) {
-    fail(`Expected 17 authored routes, found ${manifest.authoredEntries.length}`);
+  const englishAuthored = manifest.authoredEntries.filter(
+    (entry) => contentLocale(entry.content) === 'en',
+  );
+  const englishGenerated = manifest.generatedEntries.filter(
+    (entry) => contentLocale(entry.content) === 'en',
+  );
+  if (englishAuthored.length !== 17) {
+    fail(`Expected 17 English authored routes, found ${englishAuthored.length}`);
   }
-  if (manifest.generatedEntries.length !== 7) {
-    fail(`Expected 7 generated API routes, found ${manifest.generatedEntries.length}`);
+  if (englishGenerated.length !== 7) {
+    fail(`Expected 7 English generated API routes, found ${englishGenerated.length}`);
   }
   if (publicRoutes.some((route) => draftRoutes.includes(route))) {
     fail('A route cannot be both public and draft');
   }
-  if (draftRoutes.length !== 0 || publicRoutes.length !== 24) {
+  const englishPublicRoutes = manifest.entries
+    .filter(
+      (entry) =>
+        entry.status === 'public' && contentLocale(entry.content) === i18nDefaultLanguage,
+    )
+    .map((entry) => entry.route);
+  const englishDraftRoutes = manifest.entries
+    .filter(
+      (entry) =>
+        entry.status === 'draft' && contentLocale(entry.content) === i18nDefaultLanguage,
+    )
+    .map((entry) => entry.route);
+  if (englishDraftRoutes.length !== 0 || englishPublicRoutes.length !== 24) {
     fail(
-      `First-release content must contain 24 public routes and no drafts; ` +
-        `found ${publicRoutes.length} public and ${draftRoutes.length} draft`,
+      `English baseline must contain 24 public routes and no drafts; ` +
+        `found ${englishPublicRoutes.length} public and ${englishDraftRoutes.length} draft`,
     );
   }
 
