@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
 
 ## Automated
 
@@ -50,6 +50,15 @@ Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 - OpenTelemetry adapter tests prove the closed payload-free attribute set,
   original stage timing, cache status, model-route fingerprint and hashed scope
   fingerprint.
+- Event-sink composition tests prove every registered backend receives the
+  event, that one failing backend neither silences the others nor hides its own
+  failure, and that an application with no backend emits nothing.
+- Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
+  Neo4j stay discoverable through their registration files, that PostgreSQL owns
+  the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port
+  until enabled, and that an enabled Neo4j without a password fails startup.
+  The OpenSearch wiring assertion runs against the container because its
+  publication store creates an index while the bean is built.
 
 ## Verification
 
