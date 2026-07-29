@@ -21,30 +21,13 @@ application with no runtime dependency on them.
 
 ## System context
 
-<FlowDiagram
-  label="High-level OrgMemory architecture. Sources enter a governed ledger, derived projections are built by the worker, and every delivery surface reuses canonical authorization."
-  steps={[
-    {
-      title: 'Sources',
-      detail: 'Uploads, Slack, Google Drive, and GitHub contribute content plus source-native ACL evidence.',
-    },
-    {
-      title: 'Ingestion',
-      detail: 'Worker leases jobs, validates revisions, seals ACL snapshots, chunks, embeds, and publishes projections.',
-    },
-    {
-      title: 'Canonical governance',
-      detail: 'PostgreSQL, OpenFGA, and object storage retain identity, relationships, immutable evidence, and audit.',
-    },
-    {
-      title: 'Secure retrieval',
-      detail: 'Full-text, vector, and graph candidates are constrained and rechecked before model context.',
-    },
-    {
-      title: 'Delivery',
-      detail: 'Web, REST, Assistant, MCP, and CLI receive only actor-authorized content or exact Asset releases.',
-    },
-  ]}
+<ArchitectureDiagram
+  alt="High-level OrgMemory architecture: sources pass through ingestion into canonical governance, secure retrieval, and delivery, while actor authorization flows back into retrieval."
+  description="Sources contribute content and ACL evidence. The worker publishes governed projections, and every delivery surface sends the current actor and authorization scope back through secure retrieval."
+  height={887}
+  src="/images/architecture/system-overview.webp"
+  title="OrgMemory system context"
+  width={1774}
 />
 
 The important direction is not simply left to right. A current actor and

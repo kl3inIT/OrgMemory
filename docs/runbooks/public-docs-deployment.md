@@ -93,25 +93,15 @@ Then create one Nginx Proxy Manager host:
 - certificate: Let's Encrypt for `docs.kl3in.tech`;
 - Force SSL and HTTP/2: enabled after certificate issuance.
 
-The advanced configuration should deny framing, avoid MIME sniffing, and keep
-documents revalidatable while allowing immutable Next.js assets to be cached:
+Leave the Nginx Proxy Manager advanced configuration empty. The application
+owns `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and
+`Permissions-Policy` for every route, while Next.js owns immutable caching for
+its fingerprinted `/_next/static/` assets. Defining a second raw `location`
+would bypass Nginx Proxy Manager's generated proxy include, and a nested
+`add_header` would also stop inheriting server-level headers.
 
-```nginx
-add_header X-Content-Type-Options "nosniff" always;
-add_header X-Frame-Options "DENY" always;
-add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-
-location /_next/static/ {
-    proxy_pass http://orgmemory-docs:3000;
-    proxy_set_header Host $host;
-    add_header Cache-Control "public, max-age=31536000, immutable" always;
-}
-```
-
-Leave application documents revalidatable. Enable HSTS only after HTTPS and
-deep-link verification pass, so an incorrect certificate or proxy route does
-not become sticky.
+Enable HSTS at the proxy only after HTTPS and deep-link verification pass, so
+an incorrect certificate or proxy route does not become sticky.
 
 ## Deploy And Roll Back
 
@@ -144,9 +134,9 @@ python3 infrastructure/deployment/scripts/verify-docs-publication.py \
 ```
 
 The verifier compares the sitemap with both committed public manifests, fetches
-all 24 allowlisted routes plus the home, robots, sitemap, and LLM outputs, and
-rejects internal evidence paths, private hosts, workspace paths, and
-secret-shaped assignments.
+all 24 allowlisted routes plus the root redirect, robots, sitemap, and LLM
+outputs, and rejects internal evidence paths, private hosts, workspace paths,
+and secret-shaped assignments.
 
 Also run the browser suite against the released source before recording the
 deployed revision. Confirm mobile navigation manually at a narrow viewport.

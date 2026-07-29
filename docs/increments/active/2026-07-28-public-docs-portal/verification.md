@@ -277,8 +277,47 @@ Delivery hardening evidence:
   production image carry-forward, immutable-set release, and product SSH
   deployment must all remain skipped.
 
-Pending owner-controlled evidence:
+Production publication evidence:
 
-- certificate and Nginx Proxy Manager host;
-- live health, mobile navigation, 24-route crawl, negative publication scan,
-  product before/after health, and deployed-revision record.
+- DNS and a Let's Encrypt certificate now publish
+  `https://docs.kl3in.tech` through Nginx Proxy Manager to the isolated
+  `orgmemory-docs` container;
+- [PR #120](https://github.com/kl3inIT/OrgMemory/pull/120) merged as
+  `d4d6dc355eabee9f5c0d1a5346d0342b139e4662`;
+- `Build docs image` published
+  `ghcr.io/kl3init/orgmemory-docs:sha-d4d6dc355eabee9f5c0d1a5346d0342b139e4662`
+  with digest
+  `sha256:b97613d967be41c6babc9f4ba48ce03c6fb4cb1c13fbe264e40713dd889c5835`;
+- `Deploy docs` run `30430837907` completed successfully;
+- the live container is healthy, runs as `1001:1001` with a read-only root
+  filesystem, all capabilities dropped, `no-new-privileges`, and a 512 MiB
+  memory limit;
+- the public verifier passed all 24 allowlisted routes plus five public
+  machine-readable outputs, while `https://om.kl3in.tech/healthz` remained
+  `200 ok`.
+
+## Technical Reader Entry And Architecture Visuals
+
+The project owner rejected a marketing landing page on the documentation host.
+The technical correction:
+
+- redirects `/` to `/docs/overview`;
+- replaces the generated landing hero with four reviewed architecture visuals
+  for system context, ingestion, authorization, and secure retrieval;
+- keeps captions and useful alternative text adjacent to every visual;
+- applies `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and
+  `Permissions-Policy` from Next.js on every route, leaving Nginx Proxy Manager
+  advanced configuration empty;
+- disables Fumadocs transitions when the reader requests reduced motion.
+
+Passed local gates:
+
+| Gate | Evidence |
+| --- | --- |
+| Docs contracts | API drift, Oxlint, Fumadocs generation, route types, TypeScript, content, manifest, publication, route boundary, and links passed for 24 public pages |
+| Browser | Playwright desktop and mobile: 18 passed, two corpus-only mobile cases intentionally skipped |
+| Accessibility | axe WCAG 2 A/AA, WCAG 2.1 A/AA, and WCAG 2.2 AA passed; reduced-motion smoke repeated three times per browser |
+| Repository docs | `python scripts/check_docs.py` passed for 290 Markdown files and eight mirrored domain pairs |
+| Docker policy | Buildx check completed with no warnings |
+| Node 24 build | Docker build completed with zero Oxlint warnings/errors and generated all 82 static routes/outputs |
+| Hardened runtime | read-only local container returned `307` from `/` to `/docs/overview`, all four security headers on the Overview response, and `200` for the architecture asset |

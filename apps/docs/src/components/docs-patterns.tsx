@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { ReactNode } from 'react';
 
 interface Capability {
@@ -8,6 +9,42 @@ interface Capability {
 interface FlowStep {
   title: string;
   detail: string;
+}
+
+export function ArchitectureDiagram({
+  alt,
+  description,
+  height,
+  src,
+  title,
+  width,
+}: {
+  alt: string;
+  description: string;
+  height: number;
+  src: string;
+  title: string;
+  width: number;
+}) {
+  return (
+    <figure className="not-prose my-6 overflow-hidden rounded-xl border border-fd-border bg-fd-card">
+      <Image
+        alt={alt}
+        className="block h-auto w-full"
+        height={height}
+        loading="eager"
+        src={src}
+        unoptimized
+        width={width}
+      />
+      <figcaption className="border-t border-fd-border px-5 py-4">
+        <span className="block font-medium text-fd-foreground">{title}</span>
+        <span className="mt-1 block text-sm leading-6 text-fd-muted-foreground">
+          {description}
+        </span>
+      </figcaption>
+    </figure>
+  );
 }
 
 export function CapabilityGrid({ items }: { items: Capability[] }) {

@@ -18,15 +18,13 @@ their evidence contributions remain tied to authorized Knowledge Assets.
 
 ## Retrieval model
 
-<FlowDiagram
-  label="One Assistant turn prepares a query, retrieves only within an authorized scope, rechecks the complete evidence closure, and then renders the model prompt."
-  steps={[
-    { title: 'Resolve scope', detail: 'OpenFGA ListObjects and canonical SQL identify eligible current Knowledge Assets.' },
-    { title: 'Prepare query', detail: 'Keyword planning and embeddings are computed once without embedding authorization decisions.' },
-    { title: 'Retrieve', detail: 'Full-text, vector, entity, relation, and topology reads prefilter organization and authorized Asset IDs.' },
-    { title: 'Recheck closure', detail: 'OpenFGA BatchCheck and canonical SQL validate every selected chunk and graph contribution.' },
-    { title: 'Render and stream', detail: 'One token budget and deterministic citation order create the prompt and streamed answer.' },
-  ]}
+<ArchitectureDiagram
+  alt="Secure retrieval and GraphRAG pipeline resolving an authorized scope before ranking, retrieving parallel full-text, vector, and graph candidates, rechecking the complete evidence closure, and only then rendering the model prompt."
+  description="Authorization constrains candidate generation and is rechecked across every selected chunk, entity, and relation. Unauthorized evidence never enters the model prompt."
+  height={941}
+  src="/images/architecture/secure-retrieval-graphrag.webp"
+  title="Permission-aware retrieval"
+  width={1672}
 />
 
 ## Canonical scope before ranking

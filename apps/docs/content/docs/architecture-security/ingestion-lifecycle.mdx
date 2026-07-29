@@ -19,15 +19,13 @@ and derived-index publication rules.
 
 ## Lifecycle stages
 
-<FlowDiagram
-  label="Governed ingestion preserves source identity and permissions before publishing searchable projections."
-  steps={[
-    { title: 'Observe', detail: 'A source adapter or upload identifies content, revision, native principals, and completeness.' },
-    { title: 'Record', detail: 'The ledger appends immutable source revision, evidence metadata, ACL snapshot, and a leased job.' },
-    { title: 'Normalize', detail: 'The worker validates, parses, normalizes, chunks, and pins processing profiles.' },
-    { title: 'Project', detail: 'Embeddings, full-text records, graph contributions, and OpenFGA relationships stage together.' },
-    { title: 'Publish', detail: 'A compare-and-set head exposes one complete generation; stale or partial batches remain invisible.' },
-  ]}
+<ArchitectureDiagram
+  alt="Governed ingestion lifecycle from source observation through immutable recording, worker normalization, projection staging, and compare-and-set publication."
+  description="Only a complete generation becomes visible. Incomplete crawls retire nothing, while stale or partial batches remain unpublished."
+  height={941}
+  src="/images/architecture/ingestion-lifecycle.webp"
+  title="Governed ingestion lifecycle"
+  width={1672}
 />
 
 ## Source contract
