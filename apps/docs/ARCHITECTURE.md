@@ -12,8 +12,13 @@ dependency on the product API, worker, MCP server, CLI, or Vite web application.
 - `scripts/check-docs.mjs`: content, manifest, source-reference, and publication
   policy gates.
 - `src/lib/source.ts`: Fumadocs loader and draft filtering.
-- `src/app`: home, docs, health, search, Open Graph, and machine-readable routes
-  provided by the current Fumadocs foundation.
+- `src/app`: a root redirect into the technical overview plus docs, health,
+  search, Open Graph, and machine-readable routes provided by the current
+  Fumadocs foundation.
+- `public/images/architecture`: reviewed architecture visuals with adjacent
+  captions and useful alternative text in the owning MDX pages.
+- `next.config.mjs`: standalone output plus application-owned response security
+  headers. The reverse proxy owns TLS and routing, not duplicate header policy.
 
 The root pnpm workspace owns dependency installation and the lockfile.
 Turbopack is Next.js 16's default bundler; no explicit flag or Turborepo layer is

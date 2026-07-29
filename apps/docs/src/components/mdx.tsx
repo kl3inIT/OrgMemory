@@ -3,6 +3,7 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 import type { MDXComponents } from 'mdx/types';
 import {
   ApiExample,
+  ArchitectureDiagram,
   CapabilityGrid,
   DiagramFrame,
   FlowDiagram,
@@ -14,6 +15,7 @@ export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     ApiExample,
+    ArchitectureDiagram,
     CapabilityGrid,
     DiagramFrame,
     FlowDiagram,

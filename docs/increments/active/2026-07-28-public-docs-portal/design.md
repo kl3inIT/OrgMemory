@@ -163,9 +163,10 @@ The desktop layout uses:
 Mobile preserves the same hierarchy through a compact navigation drawer and
 does not rely on hover interactions.
 
-The home page is different from a regular documentation page. It presents the
-product promise, a primary quickstart action, a demo action, six capability
-cards, and routes for users, administrators, developers, and evaluators.
+The documentation host is a technical reader surface, not a product marketing
+site. `/` redirects to `/docs/overview`; audience paths, Quickstart, product
+links, and evaluation material remain discoverable through the Fumadocs
+navigation and Overview page.
 
 ## Fumadocs Architecture
 
@@ -174,7 +175,7 @@ Create an independent application:
 ```text
 apps/docs/
 ├── app/
-│   ├── (home)/
+│   ├── page.tsx              Redirect to /docs/overview
 │   ├── docs/[[...slug]]/
 │   ├── api/search/
 │   ├── llms.txt/
@@ -473,7 +474,8 @@ and application by PR follow the authoritative matrix in `plan.md`;
 - Docker image build and container health check;
 - `git diff --check`.
 
-The production gate additionally verifies DNS, TLS, the home page, one deep
+The production gate additionally verifies DNS, TLS, the root-to-Overview
+redirect, one deep
 link, search, `llms.txt`, the API reference, mobile navigation, and that a known
 internal document is not publicly reachable.
 
@@ -538,7 +540,8 @@ appear in the production sidebar, search, sitemap, or LLM outputs.
 The increment is complete when:
 
 1. `docs.kl3in.tech` serves the independent docs container over valid TLS.
-2. The home page routes each primary audience to an appropriate first action.
+2. The site root enters Overview, where each primary audience reaches an
+   appropriate first action through the docs navigation.
 3. The top-level navigation and page layout provide the Onyx-like
    audience-oriented experience on desktop and mobile.
 4. The fifteen first-release pages contain verified OrgMemory facts and the
