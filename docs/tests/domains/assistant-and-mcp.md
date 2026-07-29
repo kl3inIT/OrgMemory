@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-mcp-scoped-completion (2f6b0f8)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
