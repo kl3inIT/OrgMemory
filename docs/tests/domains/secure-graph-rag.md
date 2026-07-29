@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
+Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
 
 ## Automated
 
@@ -55,6 +55,29 @@ Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
   failure, that the first failure is the one propagated with later ones
   suppressed, that two backends raising one shared failure instance do not trip
   self-suppression, and that an application with no backend emits nothing.
+- Failure-tolerance tests prove the observed work still succeeds while the
+  backend is down, that every dropped event is counted, that a healthy backend
+  still receives the event and reports nothing, and that only the failure's class
+  name is retained when its message quotes the query it could not send.
+- Span sanitization tests drive Micrometer's real `OtelSpan.error` through the
+  SDK and prove the exported span keeps `exception.type` and the error status
+  while losing the message, the stack trace and the status description, that the
+  stripped attributes still report as dropped rather than as never recorded, that
+  a successful span is untouched, and that an unmodelled event attribute does not
+  pass. Wiring tests prove the auto-configuration stays discoverable, wraps every
+  declared exporter, and is ordered ahead of Spring Boot's unwrapped collection.
+- Provider-logging tests in each app read the shipped `application.yml` and fail
+  if the pin is absent, or if any `.yml`/`.yaml` profile lowers
+  `org.springframework.ai.openai` or `org.springframework.ai.anthropic` — or any
+  ancestor or descendant of them — back to WARN. They assert that at least one
+  profile file was scanned, so an unreadable resource directory cannot make them
+  pass vacuously. They cover the shipped default only.
+- Boundary-verifier tests set levels the way an operator override would, against
+  the real provider classes and a real logging backend, and prove startup fails
+  when a leak site is at WARN or below, that a class set back to WARN is caught
+  even under a package pinned to ERROR, that the message names both the class and
+  the override to look for, that the auto-configuration stays discoverable, and
+  that the application context itself fails rather than starting.
 - Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
   Neo4j stay discoverable through their registration files, that PostgreSQL owns
   the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port
@@ -86,6 +109,13 @@ grounding.
 The exact graph node/edge response and permission-negative metadata contract is
 covered at the API/service layer; a focused real-browser graph rendering and
 interaction test remains a gap.
+
+No test asserts the whole telemetry export against the payload allowlist. Span
+attributes, resource attributes, instrumentation-scope attributes and the log
+stream are each unchecked; only the GraphRAG adapter's own attribute set, the
+exception paths and the provider logger levels are covered. Until that test
+exists, "payload-free" is enforced at the points listed above rather than proven
+end to end.
 
 `PostgresAuthorizedGraphSqlTests.graphVisibilityUsesTheLatestSealedCompleteAclAfterFreshnessExpiry`
 pins ADR 0015 parity: GraphRAG requires the current sealed `COMPLETE` ACL but does

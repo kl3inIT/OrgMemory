@@ -79,7 +79,8 @@ class GraphIndexingProcessor {
                 embeddingModels,
                 routes,
                 properties,
-                GraphRagEventSink.composite(eventSinks.orderedStream().toList()));
+                GraphRagEventSink.failureTolerant(
+                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())));
     }
 
     GraphIndexingProcessor(
