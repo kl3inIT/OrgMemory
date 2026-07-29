@@ -29,19 +29,33 @@ Highest priority. These are live paths, independent of the pipeline work.
       metric belongs with the Micrometer sink in phase 2; until then the signal
       is the log line.
 
-## 1. Silence the unconfigured exporter — not started
+## 1. Silence the unconfigured exporter — done
 
-- [ ] `management.otlp.metrics.export.enabled` defaults to false; enabling it
-      requires an explicit endpoint.
-- [ ] `management.logging.export.otlp.enabled: false` — Alloy tails `json-file`.
-- [ ] `management.opentelemetry.map-environment-variables: false` in production
-      so host `OTEL_*` cannot enable export implicitly.
-- [ ] Declare `spring.ai.chat.observations.include-error-logging: false`
-      explicitly rather than relying on the framework default.
-- [ ] Add `service.version` and `deployment.environment` resource attributes.
-- [ ] Worker tracing sampling to 1.0; API stays at 0.1.
+- [x] `management.otlp.metrics.export.enabled` defaults to false. This is the
+      change that stops the production symptom.
+- [x] `management.logging.export.otlp.enabled: false` — the collector tails
+      `json-file`. Precautionary: that exporter has the same failure mode.
+- [x] `management.opentelemetry.map-environment-variables: false` in production.
+      This contradicts the design's "standard configuration" paragraph, which
+      assumed `OTEL_EXPORTER_OTLP_ENDPOINT` would carry the endpoint; the design
+      now records why explicit configuration won.
+- [x] Declare `spring.ai.chat.observations.include-error-logging: false`
+      explicitly. It was already the framework default.
+- [x] Add `service.version` and `deployment.environment` resource attributes.
+- [x] Worker tracing sampling to 1.0; API stays at 0.1.
 
-Gate: `compileJava`, `:core:test`.
+Proof: the API context test starts the real application and asserts no
+`OtlpMeterRegistry` bean exists and that both resource attributes reach the
+OpenTelemetry `Resource`. The worker has no bootable context test, so its
+defaults are asserted against the shipped YAML with placeholders resolved as an
+environment that sets nothing would resolve them.
+
+Gate: `:apps:api:test --tests '*OrgMemoryApiContextLoadTests'`,
+`:apps:worker:test --tests '*TelemetryExportDefaultsTests'`, `:core:test`.
+
+Still unproven in production: the deployment has not been restarted with this
+configuration, so "no recurring exporter warning" remains an exit criterion
+rather than an observation.
 
 ## 2. Metrics that answer stage latency — partly done
 

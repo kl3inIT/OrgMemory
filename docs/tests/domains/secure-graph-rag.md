@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
+Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
 
 ## Automated
 
@@ -80,6 +80,12 @@ Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
   ancestor or descendant of them — back to WARN. They assert that at least one
   profile file was scanned, so an unreadable resource directory cannot make them
   pass vacuously. They cover the shipped default only.
+- The API context test starts the real application and proves no `OtlpMeterRegistry`
+  bean exists without a configured collector, and that `service.version` and
+  `deployment.environment` reach the OpenTelemetry `Resource`. The worker has no
+  bootable context test, so `TelemetryExportDefaultsTests` asserts the same
+  defaults against its shipped YAML with placeholders resolved as an environment
+  that sets nothing would resolve them.
 - Boundary-verifier tests set levels the way an operator override would, against
   the real provider classes and a real logging backend, and prove startup fails
   when a leak site is at WARN or below, that a class set back to WARN is caught

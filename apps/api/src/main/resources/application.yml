@@ -11,6 +11,9 @@ spring:
       observations:
         log-prompt: false
         log-completion: false
+        # Already the framework default; declared so the payload posture is one
+        # readable block rather than two settings and an assumption.
+        include-error-logging: false
     model:
       chat: ${ORGMEMORY_AI_MODEL_CHAT:none}
       embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:openai}
@@ -175,6 +178,29 @@ management:
   tracing:
     sampling:
       probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}
+  otlp:
+    metrics:
+      export:
+        # Micrometer's OTLP registry is opt-out, and its URL defaults to
+        # http://localhost:4318/v1/metrics — inside the container, meaning itself.
+        # An application with no collector therefore exported to nowhere every
+        # minute and logged the failure, which is what it did in production from
+        # deployment until 2026-07-29. Tracing has the opposite default: no
+        # endpoint, no exporter, no noise. Metrics now match it.
+        enabled: ${ORGMEMORY_OTLP_METRICS_ENABLED:false}
+  logging:
+    export:
+      otlp:
+        # The collector tails the json-file driver, so OTLP log export would be a
+        # second copy of every line. Off precautionarily: this exporter has the
+        # same failure mode as the metrics one above.
+        enabled: false
+  opentelemetry:
+    resource-attributes:
+      # Without these a collector cannot tell one build or environment from
+      # another. Image tags already carry the commit SHA.
+      service.version: ${ORGMEMORY_SERVICE_VERSION:unknown}
+      deployment.environment.name: ${ORGMEMORY_DEPLOYMENT_ENVIRONMENT:local}
   endpoints:
     web:
       exposure:
