@@ -1,1 +1,2 @@
 com.orgmemory.integrations.graphrag.observability.GraphRagObservabilityAutoConfiguration
+com.orgmemory.integrations.graphrag.observability.SpanExportSanitizationAutoConfiguration
