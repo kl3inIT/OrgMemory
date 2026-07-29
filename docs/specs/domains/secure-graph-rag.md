@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
+Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
 
 ## Current Contract
 
@@ -140,10 +140,27 @@ Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
 - Payload-free OpenTelemetry stages separate keyword planning/cache status,
   embedding, hashed per-snapshot retrieval, consolidation, authorization and
   provider-only reranking duration.
+- `Stage` declares fourteen values; production emits ten. `PARSE`, `CHUNK`,
+  `GLEAN` and `GENERATE` have no producer, so no parsing, chunking, gleaning or
+  answer-generation latency is reported. Deletion and rebuild have no stage.
 - Indexing and retrieval fan one stage event out to every registered
   `GraphRagEventSink`, so an application may observe the same stage through more
   than one backend. Sinks fail independently and emission never controls
-  indexing or retrieval availability.
+  indexing or retrieval availability. Both composition sites wrap the composite
+  in `FailureTolerantGraphRagEventSink`, which absorbs an emission failure while
+  counting it, recording its type and logging once per change of kind, so a
+  backend broken since startup is distinguishable from a quiet one. Only class
+  names are recorded.
+- Every exported span passes through `ExceptionSanitizingSpanExporter` before
+  leaving the process. It keeps `exception.type` alone from each event and clears
+  the status description, because Micrometer's bridge copies
+  `throwable.getMessage()` into both and an OrgMemory exception can be raised
+  holding query, evidence or provider-response text. It applies to all spans, not
+  only GraphRAG ones, and has no toggle. Span attributes are not filtered.
+- The OpenAI and Anthropic client packages are pinned above WARN in both apps,
+  without an environment override, because their own logging concatenates the
+  prompt or the response content into messages that Spring AI's
+  `log-prompt`/`log-completion` settings do not govern.
 
 ## Graph Explorer
 
