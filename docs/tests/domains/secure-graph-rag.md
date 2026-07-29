@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
+Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
 
 ## Automated
 
@@ -50,6 +50,14 @@ Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
 - OpenTelemetry adapter tests prove the closed payload-free attribute set,
   original stage timing, cache status, model-route fingerprint and hashed scope
   fingerprint.
+- Micrometer adapter tests prove the original stage duration is recorded, that
+  stage, outcome and cache status are the timer's only dimensions, that an absent
+  cache status becomes its own value rather than a dropped tag, that failures
+  count by code while the code stays off the timer, and that no meter carries an
+  organization, operation or fingerprint tag.
+- Observability wiring tests prove both backends are contributed together, that
+  either toggle leaves the other in place, and that with both disabled the
+  remaining sinks compose to `NO_OP`.
 - Event-sink composition tests prove every registered backend receives the
   event, that one failing backend neither silences the others nor hides its own
   failure, that the first failure is the one propagated with later ones

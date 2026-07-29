@@ -57,31 +57,47 @@ Still unproven in production: the deployment has not been restarted with this
 configuration, so "no recurring exporter warning" remains an exit criterion
 rather than an observation.
 
-## 2. Metrics that answer stage latency — not started
+## 2. Metrics that answer stage latency — partly done
 
 Depends on the composite sink merged in PR #132.
 
-- [ ] Remove `@ConditionalOnMissingBean(GraphRagEventSink.class)` from
+- [x] Remove `@ConditionalOnMissingBean(GraphRagEventSink.class)` from
       `GraphRagObservabilityAutoConfiguration`; a sink is not an exclusive port.
-      Add a per-sink `@ConditionalOnProperty` toggle.
-- [ ] Add `MicrometerGraphRagEventSink` — timers by stage, outcome and cache
-      status; counters by failure code. Metrics are not sampled, so stage p95
-      becomes answerable at full coverage.
+      Each backend now has its own `@ConditionalOnProperty` toggle, and the class
+      is ordered after the registries so `@ConditionalOnBean` can see them.
+- [x] Add `MicrometerGraphRagEventSink` — a timer by stage, outcome and cache
+      status, counters for consumed and produced work, and a failure counter by
+      code. Metrics are not sampled, so stage p95 becomes answerable at full
+      coverage.
+- [x] Tests: both sinks enabled receive the event; either toggle leaves the
+      other; both disabled compose to `NO_OP`.
 - [ ] Export `ContextTokenUsage`, which core already computes and nothing
       publishes, plus a counter for `finish_reason=length` truncation.
 - [ ] Time to first token on the streaming assistant path.
-- [ ] Publish `FailureTolerantGraphRagEventSink.swallowedFailureCount()` as a
-      counter, so a broken sink is a number rather than only a log line.
 - [ ] Close the stage gap the LightRAG comparison surfaced. `Stage` declares
       fourteen and production emits ten: `PARSE` and `CHUNK` need a sink in the
       ingestion pipeline, `GLEAN` needs separating from extraction, and
       `GENERATE` needs emitting where retrieval currently stops at
       `ASSEMBLE_CONTEXT`. Decide deletion and rebuild separately — it is missing
       from the enum entirely and the runbook requires a drill for it.
-- [ ] Tests: both sinks enabled receive the event; both disabled compose to
-      `NO_OP`.
 
-Gate: module tests, `:core:test`.
+Cardinality decision, recorded because it is easier to add a tag than to remove
+one from a series that already exists: organization and operation identifiers,
+fingerprints and durations are not tags. Each would grow the stored series count
+with tenants or requests. They stay on the span, where each is one record rather
+than a permanent series. `failureCode` tags only the failure counter, never the
+timer, because the port bounds its shape and not its set of values. The design's
+"tokens by organization" dashboard therefore needs its own decision when the
+token metrics land.
+
+Not done, with a reason: publishing
+`FailureTolerantGraphRagEventSink.swallowedFailureCount()` as a gauge. The
+wrapper is built in `core` and `apps/worker`, and `core` has no Micrometer
+dependency. Adding one to the domain module is a boundary question rather than a
+metrics question, so it is not being decided in passing. The log line remains the
+signal until then.
+
+Gate: module tests, `:core:test`, API context load, worker indexing tests.
 
 ## 3. Collector and dashboards — not started
 

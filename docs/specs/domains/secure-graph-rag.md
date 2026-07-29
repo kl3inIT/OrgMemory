@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
+Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
 
 ## Current Contract
 
@@ -150,6 +150,13 @@ Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
 - `Stage` declares fourteen values; production emits ten. `PARSE`, `CHUNK`,
   `GLEAN` and `GENERATE` have no producer, so no parsing, chunking, gleaning or
   answer-generation latency is reported. Deletion and rebuild have no stage.
+- Two backends ship: an OpenTelemetry span adapter and a Micrometer meter
+  adapter. Neither displaces the other, and each has its own enable property;
+  with both off the producers compose to `NO_OP`. Spans are sampled and show one
+  request end to end; meters are unsampled and answer stage latency and failure
+  rate. Meter tags are restricted to bounded enumerations — stage, outcome, cache
+  status, and failure code on the failure counter only. Organization and
+  operation identifiers and fingerprints are not tags; they stay on the span.
 - Indexing and retrieval fan one stage event out to every registered
   `GraphRagEventSink`, so an application may observe the same stage through more
   than one backend. Sinks fail independently and emission never controls
