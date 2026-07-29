@@ -40,6 +40,7 @@ class GraphRagKnowledgeRetrievalConfiguration {
                 policy,
                 audit,
                 retrievalProperties,
-                GraphRagEventSink.composite(eventSinks.orderedStream().toList()));
+                GraphRagEventSink.failureTolerant(
+                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())));
     }
 }

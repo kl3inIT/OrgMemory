@@ -60,6 +60,16 @@ public interface GraphRagEventSink {
         };
     }
 
+    /**
+     * Wraps a sink so an emission failure is absorbed, counted and reported
+     * instead of being silently discarded at every call site.
+     *
+     * @see FailureTolerantGraphRagEventSink
+     */
+    static FailureTolerantGraphRagEventSink failureTolerant(GraphRagEventSink sink) {
+        return new FailureTolerantGraphRagEventSink(sink);
+    }
+
     record GraphRagEvent(
             UUID operationId,
             UUID organizationId,
