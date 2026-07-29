@@ -77,9 +77,23 @@ check_public_route() {
   [[ "$status" == "200" ]]
 }
 
+check_public_root_redirect() {
+  local result
+
+  result="$(
+    curl --fail --location --silent --show-error \
+      --connect-timeout 5 \
+      --max-time 15 \
+      --output /dev/null \
+      --write-out '%{http_code} %{url_effective}' \
+      "${public_url%/}/"
+  )"
+  [[ "$result" == "200 ${public_url%/}/docs/overview" ]]
+}
+
 wait_for_internal_health
 for route in \
-  "/" \
+  "/docs/overview" \
   "/docs/architecture-security/system-description" \
   "/docs/developers/api-reference/search-catalog" \
   "/api/search?query=OpenFGA" \
@@ -92,8 +106,8 @@ if [[ "$require_public_smoke" == "true" ]]; then
     printf 'ORGMEMORY_DOCS_PUBLIC_URL must be an HTTPS origin.\n' >&2
     exit 64
   fi
+  check_public_root_redirect
   for route in \
-    "/" \
     "/docs/architecture-security/system-description" \
     "/docs/developers/api-reference/search-catalog" \
     "/api/search?query=OpenFGA" \
