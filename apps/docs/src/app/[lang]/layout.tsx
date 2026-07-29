@@ -11,6 +11,7 @@ import {
   translations,
   type DocsLanguage,
 } from '@/lib/i18n';
+import { Body } from './layout.client';
 
 const descriptions: Record<DocsLanguage, string> = {
   en: 'Architecture, deployment, administration, and integration guidance for OrgMemory.',
@@ -60,9 +61,9 @@ export default async function Layout({
 
   return (
     <html lang={lang} suppressHydrationWarning>
-      <body className="flex min-h-screen flex-col">
+      <Body>
         <RootProvider i18n={i18nProvider(translations, lang)}>{children}</RootProvider>
-      </body>
+      </Body>
     </html>
   );
 }

@@ -12,10 +12,40 @@ html {
 
 :root {
   --color-fd-muted-foreground: hsl(0, 0%, 41%);
+  --docs-overview-color: hsl(42, 95%, 27%);
+  --docs-architecture-security-color: hsl(199, 89%, 34%);
+  --docs-deployment-color: hsl(24, 95%, 37%);
+  --docs-admins-color: hsl(158, 75%, 28%);
+  --docs-developers-color: hsl(258, 70%, 48%);
 }
 
 .dark {
   --color-fd-muted-foreground: hsl(0, 0%, 75%);
+  --docs-overview-color: #fcd34d;
+  --docs-architecture-security-color: #67e8f9;
+  --docs-deployment-color: #fdba74;
+  --docs-admins-color: #6ee7b7;
+  --docs-developers-color: #c4b5fd;
+}
+
+.overview {
+  --color-fd-primary: var(--docs-overview-color);
+}
+
+.architecture-security {
+  --color-fd-primary: var(--docs-architecture-security-color);
+}
+
+.deployment {
+  --color-fd-primary: var(--docs-deployment-color);
+}
+
+.admins {
+  --color-fd-primary: var(--docs-admins-color);
+}
+
+.developers {
+  --color-fd-primary: var(--docs-developers-color);
 }
 
 header span.truncate {
