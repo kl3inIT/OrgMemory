@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
+Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
 
 ## Current Contract
 

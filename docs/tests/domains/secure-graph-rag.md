@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
+Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
 
 ## Automated
 
