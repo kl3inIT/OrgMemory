@@ -1,7 +1,7 @@
 # AI Model Control Plane Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/ai`,
-`integrations/ai-openai-compatible/src/test`,
+`integrations/ai-model-gateways/src/test`,
 `apps/api/src/test/java/com/orgmemory/api/admin`,
 `integrations/authorization-openfga/src/test/openfga`, and the admin web build.
 
@@ -15,6 +15,7 @@ Reconciled: `2026-07-29-openfga-model-rollout (c9a366b)`.
 | Cross-tenant profile IDs are opaque and cannot rotate credentials | `AiGatewayAdministrationServiceTests#aProfileIdFromAnotherOrganizationIsOpaqueAndCannotRotateASecret` | covered |
 | Profile, credential, and route actor FKs cannot cross tenant boundaries | `PermissionsAdminIntegrationTests#aiControlPlaneActorReferencesCannotCrossTenantBoundaries` | covered |
 | Credential rotation invalidates runtime model caches | `AiGatewayAdministrationServiceTests#credentialRotationAlwaysAdvancesTheRuntimeCacheRevision` | covered |
+| Chat model dispatch selects the factory matching the route protocol and fails closed for missing or duplicate factories | `SpringAiChatModelFactoriesTests` | covered |
 | Updating metadata and rotating a credential is one service transaction | `AiGatewayAdministrationServiceTests#metadataAndCredentialUpdateShareOneServiceTransaction` | covered |
 | Preset/category/protocol combinations cannot be relabeled | `AiGatewayAdministrationServiceTests#providerPresetCannotBeRelabeledAsAnotherProtocolOrCategory` | covered |
 | Custom endpoints require exact operator allowlisting | `ConfiguredAiGatewayEndpointPolicyTests` | covered |

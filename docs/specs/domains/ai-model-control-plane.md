@@ -1,7 +1,7 @@
 # AI Model Control Plane Spec
 
 Source: `core/src/main/java/com/orgmemory/core/ai`,
-`integrations/ai-openai-compatible`, `apps/api/.../AdminAiModelController`, and
+`integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
 Reconciled: `2026-07-29-openfga-model-rollout (c9a366b)`.
@@ -22,6 +22,12 @@ shared AES-GCM `SecretCipher`, and never returned. Every profile and route is
 organization-scoped in both service lookup and database foreign keys.
 Credential rotation advances a monotonic runtime revision so new calls cannot
 reuse a cached client built with an old secret.
+
+Provider-neutral routing and model caching live in
+`integrations.ai.gateway`. Protocol-specific SDK construction is isolated in
+`gateway.openai` and `gateway.anthropic`. The dispatcher rejects duplicate
+factories during startup and fails closed if a route selects an unimplemented
+protocol.
 
 Assistant and prompt-execution routes are explicit organization overrides.
 Administrators can restore the deployment default by clearing an override.
@@ -53,7 +59,7 @@ the previous model ID with its previous image set.
 ## Source Modules
 
 - `core.ai`
-- `integrations.ai-openai-compatible`
+- `integrations.ai-model-gateways`
 - `apps.api.admin`
 - `web.features.admin`
 

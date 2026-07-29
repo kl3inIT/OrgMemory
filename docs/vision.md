@@ -133,7 +133,7 @@ apps/worker
 apps/mcp
 components/graph-rag-core
 components/graph-rag-testkit
-integrations/ai-openai-compatible
+integrations/ai-model-gateways
 integrations/graph-rag-spring-ai
 integrations/graph-rag-postgres
 integrations/authorization-openfga

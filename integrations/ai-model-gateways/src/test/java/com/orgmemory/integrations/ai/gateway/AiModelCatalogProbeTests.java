@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.ai.openai;
+package com.orgmemory.integrations.ai.gateway;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.ai.openai;
+package com.orgmemory.integrations.ai.gateway;
 
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiRoute;
@@ -6,20 +6,13 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.ai.AiGatewayProtocol;
-import com.anthropic.models.messages.Model;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.observation.ObservationRegistry;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.ai.anthropic.AnthropicChatModel;
-import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderConfigurer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -29,27 +22,21 @@ import reactor.core.publisher.Flux;
 final class SpringAiChatModelAdapter implements ChatModelPort {
 
     private final AiGatewayRegistry gateways;
+    private final SpringAiChatModelProvider chatModels;
     private final ObjectProvider<ChatMemory> memory;
     private final ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer;
-    private final ObservationRegistry observations;
-    private final MeterRegistry meters;
-    private final Map<ModelKey, ChatModel> models = new ConcurrentHashMap<>();
     private final Map<ModelKey, ChatClient> clients = new ConcurrentHashMap<>();
     private final Map<ModelKey, ChatClient> memoryClients = new ConcurrentHashMap<>();
 
     SpringAiChatModelAdapter(
             AiGatewayRegistry gateways,
+            SpringAiChatModelProvider chatModels,
             ObjectProvider<ChatMemory> memory,
-            ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer,
-            ObjectProvider<ObservationRegistry> observations,
-            ObjectProvider<MeterRegistry> meters) {
+            ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer) {
         this.gateways = gateways;
+        this.chatModels = chatModels;
         this.memory = memory;
         this.clientConfigurer = clientConfigurer;
-        this.observations = observations.getIfAvailable(
-                () -> ObservationRegistry.NOOP);
-        this.meters = meters.getIfAvailable(
-                io.micrometer.core.instrument.simple.SimpleMeterRegistry::new);
     }
 
     @Override
@@ -153,11 +140,10 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
         return clients.computeIfAbsent(
                 key,
                 ignored -> configuredBuilder(
-                                model(
+                                chatModels.resolve(
                                         organizationId,
                                         workload,
-                                        route,
-                                        gateway))
+                                        route))
                         .build());
     }
 
@@ -174,43 +160,12 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
                 throw new IllegalStateException(
                         "Conversation memory is not configured for assistant chat");
             }
-            return configuredBuilder(model(
+            return configuredBuilder(chatModels.resolve(
                             organizationId,
                             workload,
-                            route,
-                            gateway))
+                            route))
                     .defaultAdvisors(
                             MessageChatMemoryAdvisor.builder(chatMemory).build())
-                    .build();
-        });
-    }
-
-    private ChatModel model(
-            UUID organizationId,
-            AiWorkload workload,
-            AiRoute route,
-            AiGatewayRegistry.ResolvedGateway gateway) {
-        ModelKey key = key(organizationId, workload, route, gateway);
-        return models.computeIfAbsent(key, ignored -> switch (gateway.protocol()) {
-            case OPENAI_COMPATIBLE -> OpenAiChatModel.builder()
-                    .options(OpenAiChatOptions.builder()
-                            .baseUrl(gateway.baseUrl())
-                            .apiKey(gateway.credential().expose())
-                            .model(route.modelId())
-                            .timeout(gateway.timeout())
-                            .build())
-                    .observationRegistry(observations)
-                    .meterRegistry(meters)
-                    .build();
-            case ANTHROPIC_MESSAGES -> AnthropicChatModel.builder()
-                    .options(AnthropicChatOptions.builder()
-                            .baseUrl(gateway.baseUrl())
-                            .apiKey(gateway.credential().expose())
-                            .model(Model.of(route.modelId()))
-                            .timeout(gateway.timeout())
-                            .build())
-                    .observationRegistry(observations)
-                    .meterRegistry(meters)
                     .build();
         });
     }
@@ -241,8 +196,6 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
         if (active.profileVersion() == 0) {
             return;
         }
-        models.keySet().removeIf(candidate ->
-                candidate.supersededBy(active));
         clients.keySet().removeIf(candidate ->
                 candidate.supersededBy(active));
         memoryClients.keySet().removeIf(candidate ->

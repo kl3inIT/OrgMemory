@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.ai.openai;
+package com.orgmemory.integrations.ai.gateway;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,15 +14,14 @@ import com.orgmemory.core.ai.AiGatewayProtocol;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.shared.secret.SecretValue;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.ai.chat.model.ChatModel;
 
 class AiGatewayPropertiesTests {
 
@@ -98,11 +97,20 @@ class AiGatewayPropertiesTests {
                         new AiGatewayProperties.Route("openai", "graph-model"),
                         new AiGatewayProperties.Route("openai", "embedding-model")),
                 Set.of());
-        var beans = new StaticListableBeanFactory();
-        var provider = new OpenAiCompatibleChatModelProvider(
+        SpringAiChatModelFactory factory = new SpringAiChatModelFactory() {
+            @Override
+            public AiGatewayProtocol protocol() {
+                return AiGatewayProtocol.OPENAI_COMPATIBLE;
+            }
+
+            @Override
+            public ChatModel create(Request request) {
+                return mock(ChatModel.class);
+            }
+        };
+        var provider = new SpringAiChatModelProvider(
                 registry(configured),
-                beans.getBeanProvider(ObservationRegistry.class),
-                beans.getBeanProvider(MeterRegistry.class));
+                new SpringAiChatModelFactories(List.of(factory)));
 
         assertNotSame(
                 provider.resolve(AiWorkload.ASSISTANT_CHAT),

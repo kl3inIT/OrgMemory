@@ -3,16 +3,16 @@ package com.orgmemory.worker.graph;
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
-import com.orgmemory.integrations.ai.openai.OpenAiCompatibleChatModelProvider;
+import com.orgmemory.integrations.ai.gateway.SpringAiChatModelProvider;
 import com.orgmemory.integrations.graphrag.springai.SpringAiEntityRelationExtractor;
 import org.springframework.stereotype.Component;
 
 @Component
 final class SpringAiGraphExtractorFactory implements GraphExtractorFactory {
 
-    private final OpenAiCompatibleChatModelProvider chatModels;
+    private final SpringAiChatModelProvider chatModels;
 
-    SpringAiGraphExtractorFactory(OpenAiCompatibleChatModelProvider chatModels) {
+    SpringAiGraphExtractorFactory(SpringAiChatModelProvider chatModels) {
         this.chatModels = chatModels;
     }
 
