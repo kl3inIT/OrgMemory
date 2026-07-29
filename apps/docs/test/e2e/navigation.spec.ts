@@ -13,25 +13,11 @@ const publicRoutes = [...authoredManifest.entries, ...generatedManifest.entries]
   (entry) => entry.route,
 );
 
-test('home routes readers to quickstart and product', async ({ page }) => {
+test('site root enters the technical documentation directly', async ({ page }) => {
   await page.goto('/');
-
+  await expect(page).toHaveURL(/\/docs\/overview$/);
   await expect(
-    page.getByRole('heading', {
-      level: 1,
-      name: /secure context for people and ai/i,
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole('link', { name: /start the quickstart/i })).toHaveAttribute(
-    'href',
-    '/docs/overview/quickstart',
-  );
-  await expect(page.getByRole('link', { name: /open the product/i })).toHaveAttribute(
-    'href',
-    'https://om.kl3in.tech',
-  );
-  await expect(
-    page.getByAltText(/documents pass through a permission boundary/i),
+    page.getByRole('heading', { level: 1, name: 'Welcome to OrgMemory' }),
   ).toBeVisible();
 });
 
@@ -46,6 +32,9 @@ test('public corpus exposes the complete audience-oriented page tree', async ({
   await expect(
     page.getByRole('img', { name: /high-level orgmemory architecture/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('img', { name: /high-level orgmemory architecture/i }),
+  ).toHaveAttribute('src', '/images/architecture/system-overview.webp');
   await expect(page.getByText('Editorial preview')).toHaveCount(0);
   if (testInfo.project.name === 'mobile-chromium') {
     await page.getByRole('button', { name: 'Open Sidebar' }).click();
@@ -85,14 +74,36 @@ test('keyboard navigation reaches the primary action', async ({ page }) => {
   await expect(focused).toHaveAttribute('href');
 });
 
-test('home and docs page pass automated accessibility smoke checks', async ({ page }) => {
+test('root and docs pages pass automated accessibility smoke checks', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
   for (const route of ['/', '/docs/overview', '/docs/architecture-security/system-description']) {
     await page.goto(route);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.evaluate(async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      for (const animation of document.getAnimations()) {
+        animation.finish();
+      }
+    });
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
     expect(results.violations, `Accessibility violations on ${route}`).toEqual([]);
   }
+});
+
+test('responses carry the application-owned security headers', async ({ request }) => {
+  const response = await request.get('/docs/overview');
+
+  expect(response.headers()['x-content-type-options']).toBe('nosniff');
+  expect(response.headers()['x-frame-options']).toBe('DENY');
+  expect(response.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
+  expect(response.headers()['permissions-policy']).toBe(
+    'camera=(), microphone=(), geolocation=()',
+  );
 });
 
 test('generated API reference renders with its playground disabled', async ({ page }) => {

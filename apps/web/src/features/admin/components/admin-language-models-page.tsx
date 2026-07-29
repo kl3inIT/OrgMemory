@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   CircleAlert,
   Cloud,
-  Cpu,
   KeyRound,
   Loader2,
   Network,
@@ -15,7 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react"
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react"
+import { type FormEvent, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import { ErrorState } from "@/components/states/application-error"
@@ -47,6 +46,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AdminPage } from "@/features/admin/components/admin-page"
+import { ProviderLogo } from "@/features/admin/components/provider-logo"
 import type {
   GatewayResponse,
   ModelRef,
@@ -99,24 +99,8 @@ const WORKLOADS = [
   },
 ]
 
-function providerMark(preset?: ProviderPresetResponse["preset"]): ReactNode {
-  switch (preset) {
-    case "ANTHROPIC":
-      return <Sparkles className="size-4" aria-hidden="true" />
-    case "NINE_ROUTER":
-    case "OPENROUTER":
-    case "LITELLM":
-      return <Network className="size-4" aria-hidden="true" />
-    case "OLLAMA":
-    case "OPENAI_COMPATIBLE":
-      return <Server className="size-4" aria-hidden="true" />
-    default:
-      return <Cpu className="size-4" aria-hidden="true" />
-  }
-}
-
 function safeKey(preset: ProviderPresetResponse) {
-  const base = (preset.preset ?? "gateway").toLocaleLowerCase().replaceAll("_", "-")
+  const base = (preset.preset ?? "gateway").toLowerCase().replaceAll("_", "-")
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
 
@@ -179,7 +163,7 @@ export function AdminLanguageModelsPage() {
                 onClick={() => setEditing(profile)}
               >
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-subtle text-content-secondary">
-                  {providerMark(profile.preset)}
+                  <ProviderLogo preset={profile.preset} className="size-5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
@@ -234,7 +218,7 @@ export function AdminLanguageModelsPage() {
                     onClick={() => setConnecting(provider)}
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border-subtle bg-card">
-                      {providerMark(provider.preset)}
+                      <ProviderLogo preset={provider.preset} className="size-5" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold">{provider.displayName}</span>
@@ -336,7 +320,7 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
           const profileId = selectedGateway[workload.value] ?? ""
           const canSave = Boolean(profileId && modelIds[workload.value]?.trim())
           return (
-            <div key={workload.value} className="grid gap-4 p-5 xl:grid-cols-[minmax(15rem,1fr)_minmax(16rem,0.9fr)_minmax(16rem,1fr)_auto] xl:items-end">
+            <div key={workload.value} className="grid gap-4 p-5 2xl:grid-cols-[minmax(15rem,1fr)_minmax(16rem,0.9fr)_minmax(16rem,1fr)_auto] 2xl:items-end">
               <div className="self-center">
                 <p className="font-medium">{workload.title}</p>
                 <p className="mt-1 max-w-lg text-sm leading-5 text-muted-foreground">{workload.description}</p>
@@ -385,7 +369,7 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
                   />
                 )}
               </div>
-              <div className="flex gap-2 xl:flex-col">
+              <div className="flex gap-2 2xl:flex-col">
                 <Button
                   type="button"
                   disabled={!canSave || setRoute.isPending}
@@ -461,11 +445,12 @@ function ConnectGatewayDialog({
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!provider) return
+    const connectionName = displayName.trim() || provider.displayName || provider.vendorName
     try {
       await create.mutateAsync({
         body: {
           gatewayKey: safeKey(provider),
-          displayName,
+          displayName: connectionName,
           preset: provider.preset,
           category: provider.category,
           protocol: provider.protocol,
@@ -475,7 +460,7 @@ function ConnectGatewayDialog({
         },
       })
       await queryClient.invalidateQueries({ queryKey: listAdminAiGatewaysQueryKey() })
-      toast.success(`${displayName} connected.`)
+      toast.success(`${connectionName} connected.`)
       onOpenChange(false)
     } catch (error) {
       toast.error(apiErrorMessage(error, "Provider could not be connected."))
@@ -484,41 +469,163 @@ function ConnectGatewayDialog({
 
   return (
     <Dialog open={Boolean(provider)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[min(92vh,58rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <form onSubmit={submit} className="contents">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">{providerMark(provider?.preset)} Connect {provider?.displayName}</DialogTitle>
-            <DialogDescription>
-              The endpoint is checked against the deployment allowlist before any credential is stored.
-            </DialogDescription>
+          <DialogHeader className="border-b border-border-subtle bg-surface-raised px-6 py-5 pr-14">
+            <div className="flex items-start gap-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-border-subtle bg-card shadow-xs">
+                <ProviderLogo preset={provider?.preset} className="size-6" />
+              </span>
+              <div className="min-w-0">
+                <DialogTitle className="text-xl leading-7">Set up {provider?.displayName}</DialogTitle>
+                <DialogDescription className="mt-1 leading-5">
+                  Connect to {provider?.vendorName} and verify the models exposed to OrgMemory.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="grid gap-4">
-            <Field label="Connection name" value={displayName} onChange={setDisplayName} required />
-            <Field label="Base URL" value={baseUrl} onChange={setBaseUrl} disabled={!provider?.baseUrlEditable} required />
-            <Field label="API key" type="password" value={credential} onChange={setCredential} autoComplete="new-password" required />
-            <Field label="Request timeout (seconds)" type="number" value={timeout} onChange={setTimeoutValue} min="1" max="300" required />
-            {result ? (
-              <Alert variant={result.authenticated ? "default" : "destructive"}>
-                {result.authenticated ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}
-                <AlertTitle>{result.authenticated ? "Connection verified" : "Connection rejected"}</AlertTitle>
-                <AlertDescription>
-                  {result.authenticated
-                    ? result.models.length
-                      ? `${result.models.length} models were discovered.`
-                      : "Authentication succeeded. This endpoint requires a manual model ID."
-                    : `Reason: ${result.errorCode ?? "provider_unavailable"}`}
-                </AlertDescription>
-              </Alert>
-            ) : null}
+          <div className="min-h-0 overflow-y-auto px-6 py-5">
+            <div className="space-y-6">
+              <section className="space-y-4" aria-labelledby="provider-credentials-heading">
+                <div>
+                  <h3 id="provider-credentials-heading" className="font-semibold">Credentials</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Secrets are encrypted server-side and are never returned to this browser.
+                  </p>
+                </div>
+                <Field
+                  label="API key"
+                  description={`Paste the API key issued by ${provider?.vendorName ?? "the provider"}.`}
+                  type="password"
+                  value={credential}
+                  onChange={setCredential}
+                  autoComplete="new-password"
+                  required
+                />
+                <Field
+                  label="Display name"
+                  labelSuffix="Optional"
+                  description="Use a recognizable name when your organization connects more than one endpoint."
+                  value={displayName}
+                  onChange={setDisplayName}
+                  placeholder={provider?.displayName}
+                />
+              </section>
+
+              <div className="h-px bg-border-subtle" />
+
+              <section className="space-y-4" aria-labelledby="provider-connection-heading">
+                <div>
+                  <h3 id="provider-connection-heading" className="font-semibold">Connection</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    The endpoint is checked against the deployment allowlist before the credential is stored.
+                  </p>
+                </div>
+                {provider?.baseUrlEditable ? (
+                  <Field
+                    label="Base URL"
+                    description="Use the OpenAI-compatible API root exposed by this gateway."
+                    value={baseUrl}
+                    onChange={setBaseUrl}
+                    required
+                  />
+                ) : (
+                  <div className="rounded-lg border border-border-subtle bg-surface-subtle px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Provider endpoint</p>
+                    <p className="mt-1 break-all font-mono text-sm">{baseUrl}</p>
+                  </div>
+                )}
+                <Field
+                  label="Request timeout"
+                  labelSuffix="Seconds"
+                  type="number"
+                  value={timeout}
+                  onChange={setTimeoutValue}
+                  min="1"
+                  max="300"
+                  required
+                />
+              </section>
+
+              <section
+                className="overflow-hidden rounded-xl border border-border-subtle bg-surface-sunken"
+                aria-labelledby="provider-models-heading"
+              >
+                <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-4 py-3">
+                  <div>
+                    <h3 id="provider-models-heading" className="font-semibold">Models</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Test the connection to discover models available for explicit organization routes.
+                    </p>
+                  </div>
+                  {result?.authenticated ? <Badge variant="success">Verified</Badge> : <Badge variant="muted">Not tested</Badge>}
+                </div>
+                <div className="p-3">
+                  {!result ? (
+                    <div className="grid min-h-20 place-items-center rounded-lg border border-dashed border-border-default px-4 text-center text-sm text-muted-foreground">
+                      Models will appear here after a successful connection test.
+                    </div>
+                  ) : result.authenticated ? (
+                    result.models.length > 0 ? (
+                      <div className="space-y-2">
+                        {result.models.slice(0, 8).map((model) => (
+                          <div
+                            key={model.id}
+                            className="flex items-center gap-3 rounded-lg border border-status-info-border bg-status-info-surface px-3 py-2 text-sm text-status-info-content"
+                          >
+                            <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                            <span className="min-w-0 truncate font-medium">{model.displayName || model.id}</span>
+                          </div>
+                        ))}
+                        {result.models.length > 8 ? (
+                          <p className="px-1 pt-1 text-xs text-muted-foreground">
+                            +{result.models.length - 8} more models discovered
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <Alert>
+                        <CheckCircle2 aria-hidden="true" />
+                        <AlertTitle>Connection verified</AlertTitle>
+                        <AlertDescription>
+                          This endpoint authenticates successfully but requires a model ID to be entered on the route.
+                        </AlertDescription>
+                      </Alert>
+                    )
+                  ) : (
+                    <Alert variant="destructive">
+                      <CircleAlert aria-hidden="true" />
+                      <AlertTitle>Connection rejected</AlertTitle>
+                      <AlertDescription>Reason: {result.errorCode ?? "provider_unavailable"}</AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </section>
+
+              <section className="flex items-start gap-3 rounded-xl border border-border-subtle bg-surface-subtle p-4">
+                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-content-secondary" aria-hidden="true" />
+                <div>
+                  <h3 className="font-semibold">Organization-governed access</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Administrators choose explicit workload routes. Users cannot bypass asset permissions by selecting a provider directly.
+                  </p>
+                </div>
+              </section>
+            </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" disabled={test.isPending || !credential || !baseUrl} onClick={testConnection}>
+          <DialogFooter className="border-t border-border-subtle bg-surface-raised px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={test.isPending || !credential || !baseUrl}
+              onClick={testConnection}
+            >
               {test.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
               Test connection
             </Button>
-            <Button type="submit" disabled={create.isPending || !displayName || !credential || !baseUrl}>
+            <Button type="submit" disabled={create.isPending || !credential || !baseUrl}>
               {create.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <KeyRound aria-hidden="true" />}
-              Store securely
+              Connect provider
             </Button>
           </DialogFooter>
         </form>
@@ -603,7 +710,10 @@ function GatewaySettingsDialog({
       <DialogContent className="sm:max-w-xl">
         <form onSubmit={submit} className="contents">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Settings2 className="size-4" aria-hidden="true" /> {gateway?.displayName}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ProviderLogo preset={gateway?.preset} className="size-5" />
+              {gateway?.displayName}
+            </DialogTitle>
             <DialogDescription>Update metadata or rotate the credential. The existing secret is never revealed.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
@@ -653,19 +763,27 @@ function GatewaySettingsDialog({
 
 function Field({
   label,
+  labelSuffix,
+  description,
   value,
   onChange,
   ...input
 }: {
   label: string
+  labelSuffix?: string
+  description?: string
   value: string
   onChange: (value: string) => void
 } & Omit<React.ComponentProps<typeof Input>, "value" | "onChange">) {
-  const id = useMemo(() => `ai-${label.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`, [label])
+  const id = useMemo(() => `ai-${label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`, [label])
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        {labelSuffix ? <span className="text-xs text-muted-foreground">{labelSuffix}</span> : null}
+      </div>
       <Input id={id} value={value} onChange={(event) => onChange(event.target.value)} {...input} />
+      {description ? <p className="text-xs leading-5 text-muted-foreground">{description}</p> : null}
     </div>
   )
 }

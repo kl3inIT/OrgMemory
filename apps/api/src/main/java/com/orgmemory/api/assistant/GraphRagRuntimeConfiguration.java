@@ -16,7 +16,7 @@ import com.orgmemory.graphrag.query.StoreBackedAuthorizedQueryProjection;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.VectorIndex;
-import com.orgmemory.integrations.ai.openai.OpenAiCompatibleChatModelProvider;
+import com.orgmemory.integrations.ai.gateway.SpringAiChatModelProvider;
 import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
 import com.orgmemory.integrations.graphrag.springai.SpringAiKeywordPlanningModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiQueryAnswerModel;
@@ -55,7 +55,7 @@ class GraphRagRuntimeConfiguration {
             ContentStore content,
             VectorIndex vectors,
             GraphStore graph,
-            OpenAiCompatibleChatModelProvider chatModels,
+            SpringAiChatModelProvider chatModels,
             AiRouteResolver routes,
             EmbeddingModel embeddingModel,
             KnowledgeEmbeddingProperties embedding,

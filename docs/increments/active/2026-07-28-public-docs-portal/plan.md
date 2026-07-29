@@ -63,8 +63,8 @@ Purpose: establish the complete reader journey before writing many pages.
   Architecture and Security, and Changelog.
 - [x] Implement the left page tree, right table of contents, previous/next
   navigation, search trigger, GitHub link, and theme control.
-- [x] Build the audience-oriented home page with Quickstart and Demo as the
-  primary actions.
+- [x] Route the site root directly to the technical Overview; keep product
+  positioning outside the documentation reader.
 - [x] Add all fifteen first-release entries to the release manifest.
 - [x] Create draft page shells with real titles, descriptions, audience, status,
   source references, and review metadata; keep them out of production routes,
@@ -92,7 +92,9 @@ repository facts.
 - [x] Author Welcome, Quickstart and POC Demo, and Core Concepts.
 - [x] Author the governed Asset lifecycle from current Asset Registry behavior.
 - [x] Author System Description using the Onyx presentation pattern.
-- [x] Add an accessible high-level architecture diagram.
+- [x] Add accessible generated visuals for system context, ingestion,
+  authorization, and permission-aware retrieval, each with adjacent text and
+  useful alternative text.
 - [x] Author ingestion lifecycle, authorization architecture, and secure
   retrieval/GraphRAG.
 - [x] Author identity/permission administration and source/connection guides.
@@ -180,9 +182,11 @@ publication boundary.
   reference file with mode `0600`; commit only an example contract.
 - [x] Add `deploy-docs.sh` and `smoke-docs.sh`. Poll health for at most 60
   seconds; use 5-second connection and 15-second request timeouts.
-- [ ] Configure DNS and TLS for `docs.om.kl3in.tech`.
+- [x] Configure DNS for `docs.kl3in.tech`; Cloudflare and Google public
+  resolvers return the ZM ingress address.
+- [ ] Issue and verify TLS for `docs.kl3in.tech`.
 - [ ] Configure Nginx Proxy Manager to forward
-  `docs.om.kl3in.tech -> orgmemory-docs:3000`, with TLS, compression, immutable
+  `docs.kl3in.tech -> orgmemory-docs:3000`, with TLS, compression, immutable
   asset caching, revalidatable document outputs, HSTS after TLS verification,
   `nosniff`, strict referrer policy, restrictive permissions policy, and framing
   denial.

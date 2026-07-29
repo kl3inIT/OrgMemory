@@ -246,8 +246,10 @@ tuples.
 ## Current AI And Graph Behavior
 
 API and worker resolve workload-specific gateway/model routes through the
-provider-neutral runtime AI gateway, whose current production adapter uses Spring
-AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
+provider-neutral `integrations/ai-model-gateways` runtime. The shared dispatcher
+selects protocol factories for Spring AI OpenAI-compatible or native Anthropic
+Messages models and fails closed when a protocol implementation is absent.
+Assistant chat, graph extraction, and document
 embedding have independent configured routes; immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit
@@ -415,6 +417,13 @@ installed reproducibly by `scripts/install-openfga-cli.ps1` and ignored from
 git. `scripts/bootstrap-openfga.ps1` creates a development store/model, imports
 demo relationships, and writes non-secret local identifiers after the compose
 service is available.
+
+Production keeps one durable OpenFGA store and pins every application request
+to an immutable authorization model ID. First-store bootstrap records that ID
+and the SHA-256 of the repository model. Each product deployment writes and
+atomically pins a new model before recreating API and worker containers only
+when the repository model digest changes; unchanged models are no-ops. Failed
+deployment rollback restores the previous images and previous model pin.
 
 ## Build And Run
 

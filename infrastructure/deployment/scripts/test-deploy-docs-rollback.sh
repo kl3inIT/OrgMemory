@@ -17,7 +17,9 @@ environment_file="$temporary_root/.env.docs.production"
 compose_file="$temporary_root/compose.docs.yaml"
 stub_bin="$temporary_root/bin"
 smoke_script="$temporary_root/smoke.sh"
+production_smoke_script="$repo_root/infrastructure/deployment/scripts/smoke-docs.sh"
 docker_log="$temporary_root/docker.log"
+curl_log="$temporary_root/curl.log"
 smoke_count="$temporary_root/smoke.count"
 old_sha="1111111111111111111111111111111111111111"
 candidate_sha="2222222222222222222222222222222222222222"
@@ -86,3 +88,42 @@ grep -Eq 'pull orgmemory-docs$' "$docker_log"
 grep -Eq 'up -d --wait --wait-timeout 60 orgmemory-docs$' "$docker_log"
 
 printf 'Forced docs canary rollback passed.\n'
+
+cat > "$stub_bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$ORGMEMORY_DOCS_TEST_CURL_LOG"
+url="${!#}"
+if [[ "$url" == "https://docs.example.test/" ]]; then
+  printf '200 https://docs.example.test/docs/overview'
+else
+  printf '200'
+fi
+SH
+chmod +x "$stub_bin/curl"
+
+printf '%s\n' \
+  'ORGMEMORY_DOCS_IMAGE=ghcr.io/kl3init/orgmemory-docs:sha-test' \
+  'ORGMEMORY_DOCS_PUBLIC_URL=https://docs.example.test' \
+  > "$environment_file"
+chmod 0600 "$environment_file"
+: > "$docker_log"
+
+PATH="$stub_bin:$PATH" \
+ORGMEMORY_REPO_ROOT="$repo_root" \
+ORGMEMORY_DOCS_COMPOSE_FILE="$compose_file" \
+ORGMEMORY_DOCS_ENV_FILE="$environment_file" \
+ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE=true \
+ORGMEMORY_DOCS_TEST_CURL_LOG="$curl_log" \
+ORGMEMORY_DOCS_TEST_DOCKER_LOG="$docker_log" \
+  "$production_smoke_script"
+
+grep -Fq 'http://127.0.0.1:3000/docs/overview' "$docker_log"
+if grep -Eq 'http://127\.0\.0\.1:3000/$' "$docker_log"; then
+  printf 'Internal smoke still treats the redirecting root as a document.\n' >&2
+  exit 1
+fi
+grep -Fq -- '--location' "$curl_log"
+grep -Fq 'https://docs.example.test/' "$curl_log"
+
+printf 'Docs root redirect smoke passed.\n'

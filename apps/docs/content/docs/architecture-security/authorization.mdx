@@ -19,15 +19,13 @@ OrgMemory does not reduce access control to one role or one prefilter. A content
 read succeeds only when identity, tenant, relationships, source evidence,
 classification, lifecycle, and projection identity agree.
 
-<FlowDiagram
-  label="Authorization is a layered intersection. Failure or ambiguity at any layer denies the request."
-  steps={[
-    { title: 'Authenticate', detail: 'Keycloak validates the browser session or bearer token.' },
-    { title: 'Bind identity', detail: 'Issuer and subject resolve one active internal actor and organization.' },
-    { title: 'Check relationships', detail: 'OpenFGA resolves control-plane and object relationships.' },
-    { title: 'Apply evidence', detail: 'Canonical SQL enforces source ACL snapshots, classification, lifecycle, and version state.' },
-    { title: 'Audit and disclose', detail: 'Only approved evidence leaves the boundary; missing and denied objects stay opaque.' },
-  ]}
+<ArchitectureDiagram
+  alt="Authorization architecture with five mandatory gates: authenticate, bind identity, check OpenFGA relationships, apply canonical evidence, and audit before disclosure."
+  description="Authorization is an intersection, not a role hierarchy. Failure or ambiguity at any gate fails closed, and protected-object denial remains opaque."
+  height={941}
+  src="/images/architecture/authorization-layers.webp"
+  title="Layered authorization gates"
+  width={1672}
 />
 
 ## Authentication is not authorization

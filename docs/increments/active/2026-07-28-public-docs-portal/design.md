@@ -3,9 +3,14 @@
 ## Decision
 
 Build an independent public documentation application at
-`docs.om.kl3in.tech` using Fumadocs, Next.js, Fumadocs MDX, and a dedicated
+`docs.kl3in.tech` using Fumadocs, Next.js, Fumadocs MDX, and a dedicated
 container. Its information architecture follows the audience-oriented pattern
 used by Onyx:
+
+This is the owner-selected temporary public hostname. A later permanent-brand
+domain is a controlled canonical-origin cutover across metadata, sitemap,
+robots, SCIM discovery, deployment configuration, DNS, TLS, and proxy state;
+the temporary host must not remain as a second canonical origin.
 
 - Overview
 - Deployment
@@ -158,9 +163,10 @@ The desktop layout uses:
 Mobile preserves the same hierarchy through a compact navigation drawer and
 does not rely on hover interactions.
 
-The home page is different from a regular documentation page. It presents the
-product promise, a primary quickstart action, a demo action, six capability
-cards, and routes for users, administrators, developers, and evaluators.
+The documentation host is a technical reader surface, not a product marketing
+site. `/` redirects to `/docs/overview`; audience paths, Quickstart, product
+links, and evaluation material remain discoverable through the Fumadocs
+navigation and Overview page.
 
 ## Fumadocs Architecture
 
@@ -169,7 +175,7 @@ Create an independent application:
 ```text
 apps/docs/
 ├── app/
-│   ├── (home)/
+│   ├── page.tsx              Redirect to /docs/overview
 │   ├── docs/[[...slug]]/
 │   ├── api/search/
 │   ├── llms.txt/
@@ -331,7 +337,7 @@ Nginx Proxy Manager and `proxy-network`:
 
 ```text
 Internet
-  -> DNS/TLS: docs.om.kl3in.tech
+  -> DNS/TLS: docs.kl3in.tech
   -> reverse proxy
   -> orgmemory-docs:3000
   -> server-rendered/static documentation pages
@@ -378,7 +384,7 @@ request timeout. Any failure restores the previous immutable image, recreates
 only the docs service, reruns health and public smokes, and exits non-zero.
 At least the last two verified docs images remain available.
 
-Nginx Proxy Manager forwards `docs.om.kl3in.tech` to
+Nginx Proxy Manager forwards `docs.kl3in.tech` to
 `orgmemory-docs:3000`, terminates TLS, and does not publish a host port. Expected
 headers include HSTS after TLS is proven, `X-Content-Type-Options: nosniff`,
 `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
@@ -468,7 +474,8 @@ and application by PR follow the authoritative matrix in `plan.md`;
 - Docker image build and container health check;
 - `git diff --check`.
 
-The production gate additionally verifies DNS, TLS, the home page, one deep
+The production gate additionally verifies DNS, TLS, the root-to-Overview
+redirect, one deep
 link, search, `llms.txt`, the API reference, mobile navigation, and that a known
 internal document is not publicly reachable.
 
@@ -532,8 +539,9 @@ appear in the production sidebar, search, sitemap, or LLM outputs.
 
 The increment is complete when:
 
-1. `docs.om.kl3in.tech` serves the independent docs container over valid TLS.
-2. The home page routes each primary audience to an appropriate first action.
+1. `docs.kl3in.tech` serves the independent docs container over valid TLS.
+2. The site root enters Overview, where each primary audience reaches an
+   appropriate first action through the docs navigation.
 3. The top-level navigation and page layout provide the Onyx-like
    audience-oriented experience on desktop and mobile.
 4. The fifteen first-release pages contain verified OrgMemory facts and the

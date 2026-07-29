@@ -1,10 +1,10 @@
 # AI Model Control Plane Spec
 
 Source: `core/src/main/java/com/orgmemory/core/ai`,
-`integrations/ai-openai-compatible`, `apps/api/.../AdminAiModelController`, and
+`integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-ai-provider-setup-ui (2bcf082)`.
 
 ## Current Behavior
 
@@ -17,11 +17,24 @@ protocols:
   operator-allowlisted custom endpoints;
 - `ANTHROPIC_MESSAGES`: direct Anthropic through the native Spring AI adapter.
 
+The administration UI gives each named provider its verified brand mark and
+uses a neutral endpoint mark for the unbranded OpenAI-compatible preset. The
+setup dialog groups encrypted credentials, endpoint policy, connection testing,
+discovered models, and the read-only organization governance boundary. Model
+discovery reflects the live provider response; it does not imply a persisted
+model allowlist or let a user bypass explicit workload routes.
+
 Credentials are accepted only as redacted request values, encrypted with the
 shared AES-GCM `SecretCipher`, and never returned. Every profile and route is
 organization-scoped in both service lookup and database foreign keys.
 Credential rotation advances a monotonic runtime revision so new calls cannot
 reuse a cached client built with an old secret.
+
+Provider-neutral routing and model caching live in
+`integrations.ai.gateway`. Protocol-specific SDK construction is isolated in
+`gateway.openai` and `gateway.anthropic`. The dispatcher rejects duplicate
+factories during startup and fails closed if a route selects an unimplemented
+protocol.
 
 Assistant and prompt-execution routes are explicit organization overrides.
 Administrators can restore the deployment default by clearing an override.
@@ -44,10 +57,16 @@ Index Settings is a separate read-only surface. The embedding provider, model,
 dimensions, and cosine metric cannot be mutated through the chat control plane;
 a geometry change requires a versioned embedding profile and reindex lifecycle.
 
+Both administration surfaces require OpenFGA `organization#can_manage_ai`.
+Production writes and pins the repository authorization model before a release
+whose model digest changed starts application containers. A legacy deployment
+with no stored digest writes the current model once. A failed release restores
+the previous model ID with its previous image set.
+
 ## Source Modules
 
 - `core.ai`
-- `integrations.ai-openai-compatible`
+- `integrations.ai-model-gateways`
 - `apps.api.admin`
 - `web.features.admin`
 
@@ -55,3 +74,4 @@ a geometry change requires a versioned embedding profile and reindex lifecycle.
 
 - [0006](../../decisions/0006-ai-tasks-route-through-provider-adapters.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
+- [0017](../../decisions/0017-pin-openfga-models-to-product-releases.md)

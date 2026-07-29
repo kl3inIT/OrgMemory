@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-compose_file="$repo_root/infrastructure/deployment/compose.production.yaml"
+repo_root="${ORGMEMORY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+compose_file="${ORGMEMORY_COMPOSE_FILE:-$repo_root/infrastructure/deployment/compose.production.yaml}"
 environment_file="${ORGMEMORY_ENV_FILE:-$repo_root/.env.production}"
+model_file="${ORGMEMORY_OPENFGA_MODEL_FILE:-$repo_root/integrations/authorization-openfga/src/main/openfga/model.fga}"
 
 if [[ ! -f "$environment_file" ]]; then
   printf 'Missing production environment file: %s\n' "$environment_file" >&2
@@ -77,24 +78,38 @@ PY
 
 store_id="${identifiers[0]}"
 model_id="${identifiers[1]}"
+model_sha256="$(sha256sum "$model_file" | awk '{ print $1 }')"
 
-update_environment_key() {
-  local key="$1"
-  local value="$2"
+update_environment_model() {
+  local store_id_value="$1"
+  local model_id_value="$2"
+  local model_sha256_value="$3"
   local temporary_file
   temporary_file="$(mktemp)"
 
-  awk -v key="$key" -v value="$value" '
-    BEGIN { found = 0 }
-    $0 ~ "^" key "=" {
-      print key "=" value
-      found = 1
-      next
+  awk \
+    -v store_id="$store_id_value" \
+    -v model_id="$model_id_value" \
+    -v model_sha256="$model_sha256_value" '
+    BEGIN {
+      values["ORGMEMORY_OPENFGA_STORE_ID"] = store_id
+      values["ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID"] = model_id
+      values["ORGMEMORY_OPENFGA_MODEL_SHA256"] = model_sha256
     }
-    { print }
+    {
+      split($0, parts, "=")
+      if (parts[1] in values) {
+        print parts[1] "=" values[parts[1]]
+        seen[parts[1]] = 1
+      } else {
+        print
+      }
+    }
     END {
-      if (!found) {
-        print key "=" value
+      for (key in values) {
+        if (!seen[key]) {
+          print key "=" values[key]
+        }
       }
     }
   ' "$environment_file" > "$temporary_file"
@@ -103,8 +118,7 @@ update_environment_key() {
   rm -f "$temporary_file"
 }
 
-update_environment_key ORGMEMORY_OPENFGA_STORE_ID "$store_id"
-update_environment_key ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID "$model_id"
+update_environment_model "$store_id" "$model_id" "$model_sha256"
 
-printf 'OpenFGA store and model created. Identifiers were saved to %s.\n' \
+printf 'OpenFGA store and model created. The pinned model configuration was saved to %s.\n' \
   "$environment_file"

@@ -187,6 +187,35 @@ services:
     cap_drop:
       - ALL
 
+  openfga-model-write:
+    image: openfga/cli:v0.7.19@sha256:2e0e250043ef480a9162623dbf1ff7a62a1a2cb96a79cb20577b144994ab114d
+    profiles:
+      - ops
+    command:
+      - model
+      - write
+      - --store-id
+      - ${ORGMEMORY_OPENFGA_STORE_ID:-}
+      - --file
+      - /model/model.fga
+      - --format
+      - fga
+      - --api-url
+      - http://openfga:8080
+    depends_on:
+      openfga-ready:
+        condition: service_completed_successfully
+    networks:
+      - orgmemory-internal
+    volumes:
+      - ../../integrations/authorization-openfga/src/main/openfga/model.fga:/model/model.fga:ro
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   postgres-backup:
     image: ${ORGMEMORY_POSTGRES_IMAGE:?Set ORGMEMORY_POSTGRES_IMAGE}
     profiles:

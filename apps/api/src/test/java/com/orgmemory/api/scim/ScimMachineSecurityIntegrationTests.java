@@ -130,6 +130,8 @@ class ScimMachineSecurityIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(ScimErrorWriter.MEDIA_TYPE))
                 .andExpect(header().string("X-Request-ID", "test-request-1"))
+                .andExpect(jsonPath("$.documentationUri")
+                        .value("https://docs.kl3in.tech/docs/admins/identity-permissions"))
                 .andExpect(jsonPath("$.patch.supported").value(false))
                 .andExpect(jsonPath("$.filter.supported").value(false))
                 .andExpect(jsonPath("$.bulk.supported").value(false));

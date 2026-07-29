@@ -7,10 +7,13 @@ if [[ "$#" -ne 1 || ! "$1" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 
 commit_sha="$1"
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-compose_file="$repo_root/infrastructure/deployment/compose.production.yaml"
+repo_root="${ORGMEMORY_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
+compose_file="${ORGMEMORY_COMPOSE_FILE:-$repo_root/infrastructure/deployment/compose.production.yaml}"
 environment_file="${ORGMEMORY_ENV_FILE:-$repo_root/.env.production}"
 runtime_root="${ORGMEMORY_RUNTIME_ROOT:-/apps/orgmemory-runtime}"
+model_file="${ORGMEMORY_OPENFGA_MODEL_FILE:-$repo_root/integrations/authorization-openfga/src/main/openfga/model.fga}"
+keycloak_configuration_script="${ORGMEMORY_KEYCLOAK_CONFIGURATION_SCRIPT:-$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh}"
+smoke_script="${ORGMEMORY_SMOKE_SCRIPT:-$repo_root/infrastructure/deployment/scripts/smoke-production.sh}"
 lock_file="$runtime_root/deploy.lock"
 release_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 release_environment="$runtime_root/releases/$release_stamp.env"
@@ -99,6 +102,39 @@ replace_image_references() {
   rm -f "$temporary_file"
 }
 
+update_openfga_model_configuration() {
+  local model_id="$1"
+  local model_sha256="$2"
+  local temporary_file
+  temporary_file="$(mktemp)"
+
+  awk -v model_id="$model_id" -v model_sha256="$model_sha256" '
+    BEGIN {
+      values["ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID"] = model_id
+      values["ORGMEMORY_OPENFGA_MODEL_SHA256"] = model_sha256
+    }
+    {
+      split($0, parts, "=")
+      if (parts[1] in values) {
+        print parts[1] "=" values[parts[1]]
+        seen[parts[1]] = 1
+      } else {
+        print
+      }
+    }
+    END {
+      for (key in values) {
+        if (!seen[key]) {
+          print key "=" values[key]
+        }
+      }
+    }
+  ' "$environment_file" > "$temporary_file"
+
+  install -m 0600 "$temporary_file" "$environment_file"
+  rm -f "$temporary_file"
+}
+
 rollback() {
   local exit_code="$?"
   trap - ERR
@@ -126,10 +162,11 @@ rollback() {
 trap rollback ERR
 
 replace_image_references
-install -m 0600 "$environment_file" "$release_environment"
 
 openfga_store_id="$(read_environment_value ORGMEMORY_OPENFGA_STORE_ID)"
 openfga_model_id="$(read_environment_value ORGMEMORY_OPENFGA_AUTHORIZATION_MODEL_ID)"
+openfga_model_sha256="$(read_environment_value ORGMEMORY_OPENFGA_MODEL_SHA256)"
+release_model_sha256="$(sha256sum "$model_file" | awk '{ print $1 }')"
 public_smoke="${ORGMEMORY_REQUIRE_PUBLIC_SMOKE:-$(read_environment_value ORGMEMORY_REQUIRE_PUBLIC_SMOKE)}"
 
 if [[ -z "$openfga_store_id" || -z "$openfga_model_id" ]]; then
@@ -147,6 +184,32 @@ compose=(
 "${compose[@]}" pull
 "${compose[@]}" run --rm postgres-bootstrap
 "${compose[@]}" --profile ops run --rm postgres-backup
+"${compose[@]}" up -d openfga
+"${compose[@]}" run --rm --no-deps openfga-ready
+
+if [[ "$openfga_model_sha256" != "$release_model_sha256" ]]; then
+  model_write_json="$(
+    "${compose[@]}" --profile ops run --rm --no-deps openfga-model-write
+  )"
+  new_openfga_model_id="$(
+    MODEL_WRITE_JSON="$model_write_json" python3 - <<'PY'
+import json
+import os
+
+payload = json.loads(os.environ["MODEL_WRITE_JSON"])
+model_id = payload.get("authorization_model_id") or payload.get("id")
+if not model_id:
+    raise SystemExit("OpenFGA CLI response did not contain an authorization model id")
+print(model_id)
+PY
+  )"
+  update_openfga_model_configuration \
+    "$new_openfga_model_id" \
+    "$release_model_sha256"
+fi
+
+install -m 0600 "$environment_file" "$release_environment"
+
 "${compose[@]}" up \
   -d \
   --wait \
@@ -154,11 +217,11 @@ compose=(
   --remove-orphans
 
 ORGMEMORY_ENV_FILE="$environment_file" \
-  "$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh"
+  "$keycloak_configuration_script"
 
 ORGMEMORY_ENV_FILE="$environment_file" \
 ORGMEMORY_REQUIRE_PUBLIC_SMOKE="${public_smoke:-true}" \
-  "$repo_root/infrastructure/deployment/scripts/smoke-production.sh"
+  "$smoke_script"
 
 printf '%s\n' "$commit_sha" > "$current_commit_file"
 trap - ERR

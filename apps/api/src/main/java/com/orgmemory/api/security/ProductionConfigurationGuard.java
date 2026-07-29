@@ -3,7 +3,7 @@ package com.orgmemory.api.security;
 import com.orgmemory.api.scim.ScimSecurityProperties;
 import com.orgmemory.core.ai.AiGatewayCapability;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
-import com.orgmemory.integrations.ai.openai.AiGatewayProperties;
+import com.orgmemory.integrations.ai.gateway.AiGatewayProperties;
 import com.orgmemory.integrations.authorization.openfga.OpenFgaAuthorizationProperties;
 import com.orgmemory.integrations.storage.minio.MinioObjectStorageProperties;
 import java.net.URI;

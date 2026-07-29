@@ -1,7 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { source } from '@/lib/source';
-
-const siteUrl = 'https://docs.om.kl3in.tech';
+import { siteUrl } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
