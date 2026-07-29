@@ -1,6 +1,7 @@
 {
-  "title": "Developers",
-  "description": "Integrate with OrgMemory through supported contracts.",
+  "title": "Build & Integrate",
+  "description": "Develop against supported API, MCP, and product contracts.",
+  "icon": "Braces",
   "root": true,
   "pages": [
     "assistant-mcp",

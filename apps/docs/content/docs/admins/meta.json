@@ -1,6 +1,7 @@
 {
-  "title": "Admins",
-  "description": "Operate identity, permissions, and governed sources.",
+  "title": "Govern & Administer",
+  "description": "Manage identity, permissions, policy, and governed sources.",
+  "icon": "ShieldCheck",
   "root": true,
   "pages": [
     "identity-permissions",

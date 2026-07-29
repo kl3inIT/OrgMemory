@@ -1,6 +1,6 @@
 {
-  "title": "Start Here",
-  "description": "Build the mental model before reading implementation details.",
+  "title": "Bắt đầu",
+  "description": "Nắm mô hình tư duy trước khi đọc chi tiết triển khai.",
   "icon": "BookOpen",
   "root": true,
   "pages": [
