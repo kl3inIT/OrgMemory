@@ -36,6 +36,23 @@
   current `main` SHA, retain manual redeploy/rollback, and reject stale
   out-of-order automatic runs before server access.
 - [x] Update delivery/testing documentation to match implemented behavior.
+- [ ] Let an infrastructure-only commit reach production. Found on 2026-07-29
+      while deploying `ea21ceb`, which changed only
+      `infrastructure/deployment/**`. No path filter in `build-images.yml` names
+      that directory, so nothing was built; "Require a green production image
+      set" then found no release, and the deploy skipped every remaining step.
+      Deployment runs `git checkout --detach <sha>` on the server and executes
+      that commit's `compose.production.yaml` and `deploy.sh`, so a commit
+      without an image set can never be deployed and its configuration change
+      cannot take effect on its own. Today such a change reaches the server only
+      by riding along with the next application-code commit.
+- [ ] Stop reporting a skipped deployment as a successful one. The run above
+      concluded `success` with `Require a green production image set`,
+      `Configure SSH` and `Deploy and verify` all skipped. The reason is in the
+      log — "Skipping deployment: build run … produced no image set" — but the
+      status shown against the commit says the deployment succeeded. A pipeline
+      that reports green for doing nothing is the same failure class as an
+      exporter that reports healthy while pushing to nowhere.
 
 ## Server Preparation
 
