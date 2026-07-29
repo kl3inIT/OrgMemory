@@ -3,6 +3,7 @@ package com.orgmemory.mcp;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
 
 /**
  * Converts a downstream gateway failure into a cause-free MCP failure.
@@ -13,6 +14,9 @@ import org.slf4j.LoggerFactory;
  * the already-sanitized gateway message crosses the boundary.
  */
 final class McpFailureBoundary {
+
+    static final String SERIALIZATION_FAILURE =
+            "OrgMemory could not deliver the requested representation";
 
     private static final Logger log =
             LoggerFactory.getLogger(McpFailureBoundary.class);
@@ -31,6 +35,9 @@ final class McpFailureBoundary {
                     failure.getMessage(),
                     failure);
             throw new McpRequestFailedException(failure.getMessage());
+        } catch (JacksonException failure) {
+            log.warn("MCP response serialization failed", failure);
+            throw new McpRequestFailedException(SERIALIZATION_FAILURE);
         }
     }
 
