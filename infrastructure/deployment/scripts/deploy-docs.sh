@@ -12,6 +12,7 @@ compose_file="${ORGMEMORY_DOCS_COMPOSE_FILE:-$repo_root/infrastructure/deploymen
 environment_file="${ORGMEMORY_DOCS_ENV_FILE:-$repo_root/.env.docs.production}"
 runtime_root="${ORGMEMORY_DOCS_RUNTIME_ROOT:-/apps/orgmemory-runtime/docs}"
 smoke_script="${ORGMEMORY_DOCS_SMOKE_SCRIPT:-$repo_root/infrastructure/deployment/scripts/smoke-docs.sh}"
+publication_verifier="${ORGMEMORY_DOCS_PUBLICATION_VERIFIER:-$repo_root/infrastructure/deployment/scripts/verify-docs-publication.py}"
 lock_file="$runtime_root/deploy.lock"
 release_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 release_directory="$runtime_root/releases/$release_stamp"
@@ -98,16 +99,20 @@ replace_image_reference() {
 
 run_smoke() {
   local public_url
+  local verify_current_publication="${1:-true}"
 
   ORGMEMORY_REPO_ROOT="$repo_root" \
   ORGMEMORY_DOCS_COMPOSE_FILE="$compose_file" \
   ORGMEMORY_DOCS_ENV_FILE="$environment_file" \
     "$smoke_script"
 
-  if [[ "${ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE:-false}" == "true" ]]; then
+  if [[
+    "${ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE:-false}" == "true" &&
+    "$verify_current_publication" == "true"
+  ]]; then
     public_url="${ORGMEMORY_DOCS_PUBLIC_URL:-$(read_environment_value "$environment_file" ORGMEMORY_DOCS_PUBLIC_URL)}"
     python3 \
-      "$repo_root/infrastructure/deployment/scripts/verify-docs-publication.py" \
+      "$publication_verifier" \
       "$public_url"
   fi
 }
@@ -121,7 +126,9 @@ rollback() {
     install -m 0600 "$current_environment_file" "$environment_file"
     "${compose[@]}" pull orgmemory-docs
     "${compose[@]}" up -d --wait --wait-timeout 60 orgmemory-docs
-    run_smoke
+    # The previous image may expose an older taxonomy. Verify its stable
+    # runtime contract, but do not compare it with the candidate manifest.
+    run_smoke false
   else
     install -m 0600 "$previous_environment" "$environment_file"
     "${compose[@]}" down
