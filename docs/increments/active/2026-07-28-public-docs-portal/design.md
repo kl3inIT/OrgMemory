@@ -3,9 +3,14 @@
 ## Decision
 
 Build an independent public documentation application at
-`docs.om.kl3in.tech` using Fumadocs, Next.js, Fumadocs MDX, and a dedicated
+`docs.kl3in.tech` using Fumadocs, Next.js, Fumadocs MDX, and a dedicated
 container. Its information architecture follows the audience-oriented pattern
 used by Onyx:
+
+This is the owner-selected temporary public hostname. A later permanent-brand
+domain is a controlled canonical-origin cutover across metadata, sitemap,
+robots, SCIM discovery, deployment configuration, DNS, TLS, and proxy state;
+the temporary host must not remain as a second canonical origin.
 
 - Overview
 - Deployment
@@ -331,7 +336,7 @@ Nginx Proxy Manager and `proxy-network`:
 
 ```text
 Internet
-  -> DNS/TLS: docs.om.kl3in.tech
+  -> DNS/TLS: docs.kl3in.tech
   -> reverse proxy
   -> orgmemory-docs:3000
   -> server-rendered/static documentation pages
@@ -378,7 +383,7 @@ request timeout. Any failure restores the previous immutable image, recreates
 only the docs service, reruns health and public smokes, and exits non-zero.
 At least the last two verified docs images remain available.
 
-Nginx Proxy Manager forwards `docs.om.kl3in.tech` to
+Nginx Proxy Manager forwards `docs.kl3in.tech` to
 `orgmemory-docs:3000`, terminates TLS, and does not publish a host port. Expected
 headers include HSTS after TLS is proven, `X-Content-Type-Options: nosniff`,
 `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive
@@ -532,7 +537,7 @@ appear in the production sidebar, search, sitemap, or LLM outputs.
 
 The increment is complete when:
 
-1. `docs.om.kl3in.tech` serves the independent docs container over valid TLS.
+1. `docs.kl3in.tech` serves the independent docs container over valid TLS.
 2. The home page routes each primary audience to an appropriate first action.
 3. The top-level navigation and page layout provide the Onyx-like
    audience-oriented experience on desktop and mobile.

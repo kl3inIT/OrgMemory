@@ -167,6 +167,16 @@ Branch: `feat/public-docs-deployment`
 
 Base: `origin/main@dfb4be455947bd9b0b2ead7e1b18a9a662f0253b`
 
+Owner hostname update:
+
+- the temporary public origin is `https://docs.kl3in.tech`;
+- application metadata, sitemap, robots, SCIM discovery, deployment workflow,
+  environment example, runbook, design, and plan use the same origin;
+- Fumadocs metadata routes share one source constant, and SCIM discovery links
+  to the published identity and permissions page rather than an absent route;
+- the previous nested hostname has no remaining repository reference and is not
+  an alias or secondary canonical.
+
 Delivered in [PR #115](https://github.com/kl3inIT/OrgMemory/pull/115),
 merged as `1178c5e19f5d6ad84107a8cb9a93f886b302c529`. PR CI run
 `30396857472` and merge-commit CI run `30397138921` passed every selected job
@@ -190,10 +200,11 @@ Read-only preflight evidence:
   the product commit `c5d4797939fb93b7c95ed6516b29bc03804179fc`; public
   product health returned `200 ok`, all product containers were healthy, the
   ephemeral GHCR config was removed, and the docs service remained absent;
-- `docs.om.kl3in.tech` does not resolve, while DNS-provider and Nginx Proxy
-  Manager configuration access remain unproven.
+- Cloudflare and Google public resolvers return the ZM ingress address for
+  `docs.kl3in.tech`; HTTP reaches Nginx Proxy Manager's OpenResty edge but
+  returns `404`, and HTTPS does not yet present a valid certificate.
 
-The final two facts are the explicit stop condition. No DNS, TLS, proxy,
+The missing proxy host and TLS are the explicit stop condition. No TLS, proxy,
 production environment, container, or product-runtime mutation was performed.
 
 Implementation evidence:
@@ -268,6 +279,6 @@ Delivery hardening evidence:
 
 Pending owner-controlled evidence:
 
-- DNS, certificate, and Nginx Proxy Manager host;
+- certificate and Nginx Proxy Manager host;
 - live health, mobile navigation, 24-route crawl, negative publication scan,
   product before/after health, and deployed-revision record.
