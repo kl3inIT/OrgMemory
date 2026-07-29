@@ -1,6 +1,6 @@
 {
   "title": "Triển khai & vận hành",
-  "description": "Triển khai, cấu hình, quan sát và khôi phục OrgMemory.",
+  "description": "Triển khai, cấu hình, quan sát và khôi phục Organizational AI Memory.",
   "icon": "ServerCog",
   "pages": [
     "self-hosting"

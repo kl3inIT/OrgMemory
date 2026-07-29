@@ -14,8 +14,8 @@ import {
 import { Body } from './layout.client';
 
 const descriptions: Record<DocsLanguage, string> = {
-  en: 'Architecture, deployment, administration, and integration guidance for OrgMemory.',
-  vi: 'Tài liệu kiến trúc, triển khai, quản trị và tích hợp OrgMemory.',
+  en: 'Architecture, deployment, administration, and integration guidance for Organizational AI Memory.',
+  vi: 'Tài liệu kiến trúc, triển khai, quản trị và tích hợp Organizational AI Memory.',
 };
 
 export function generateStaticParams() {
@@ -31,8 +31,8 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(siteUrl),
     title: {
-      default: 'OrgMemory Documentation',
-      template: '%s | OrgMemory Documentation',
+      default: 'Organizational AI Memory Documentation',
+      template: '%s | Organizational AI Memory Documentation',
     },
     description: descriptions[lang],
     alternates: {
@@ -43,10 +43,10 @@ export async function generateMetadata({
       },
     },
     openGraph: {
-      title: 'OrgMemory Documentation',
+      title: 'Organizational AI Memory Documentation',
       description: descriptions[lang],
       url: docsHome(lang),
-      siteName: 'OrgMemory Documentation',
+      siteName: 'Organizational AI Memory Documentation',
       type: 'website',
     },
   };

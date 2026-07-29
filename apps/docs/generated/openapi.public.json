@@ -1,9 +1,9 @@
 {
   "openapi": "3.2.0",
   "info": {
-    "title": "OrgMemory HTTP API",
+    "title": "Organizational AI Memory HTTP API",
     "version": "v0",
-    "description": "Sanitized, deployment-neutral HTTP contract for OrgMemory. Authorization is evaluated for every caller and governed resource."
+    "description": "Sanitized, deployment-neutral HTTP contract for Organizational AI Memory. Authorization is evaluated for every caller and governed resource."
   },
   "paths": {
     "/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}": {
@@ -8721,7 +8721,7 @@
   "servers": [
     {
       "url": "https://api.example.invalid",
-      "description": "Deployment-specific OrgMemory API origin"
+      "description": "Deployment-specific Organizational AI Memory API origin"
     }
   ],
   "tags": [

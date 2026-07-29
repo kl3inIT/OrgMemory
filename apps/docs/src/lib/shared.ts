@@ -1,4 +1,4 @@
-export const appName = 'OrgMemory Docs';
+export const appName = 'Organizational AI Memory';
 export const docsRoute = '/docs';
 export const docsImageRoute = '/og/docs';
 export const docsContentRoute = '/llms.mdx/docs';

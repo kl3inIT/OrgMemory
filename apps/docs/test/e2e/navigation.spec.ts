@@ -17,7 +17,13 @@ test('site root enters the technical documentation directly', async ({ page }) =
   await page.goto('/');
   await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Welcome to OrgMemory' }),
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Welcome to Organizational AI Memory',
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Organizational AI Memory', exact: true }).first(),
   ).toBeVisible();
 });
 
@@ -30,10 +36,14 @@ test('public corpus exposes the section switcher and focused page tree', async (
     page.getByRole('heading', { level: 1, name: 'System description' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('img', { name: /high-level orgmemory architecture/i }),
+    page.getByRole('img', {
+      name: /high-level organizational ai memory architecture/i,
+    }),
   ).toBeVisible();
   await expect(
-    page.getByRole('img', { name: /high-level orgmemory architecture/i }),
+    page.getByRole('img', {
+      name: /high-level organizational ai memory architecture/i,
+    }),
   ).toHaveAttribute('src', '/images/architecture/system-overview.webp');
   await expect(page.getByText('Editorial preview')).toHaveCount(0);
   if (testInfo.project.name === 'mobile-chromium') {
@@ -119,7 +129,10 @@ test('docs root redirects to Getting Started', async ({ page }) => {
   await page.goto('/docs');
   await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Welcome to OrgMemory' }),
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Welcome to Organizational AI Memory',
+    }),
   ).toBeVisible();
 });
 

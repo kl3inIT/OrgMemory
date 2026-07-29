@@ -1,6 +1,6 @@
 {
   "title": "Deployment & Operations",
-  "description": "Deploy, configure, observe, and recover OrgMemory.",
+  "description": "Deploy, configure, observe, and recover Organizational AI Memory.",
   "icon": "ServerCog",
   "pages": [
     "self-hosting"

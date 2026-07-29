@@ -1,4 +1,4 @@
-# OrgMemory Documentation
+# Organizational AI Memory Documentation
 
 Independent public documentation application built with Next.js, Fumadocs UI,
 and Fumadocs MDX. Repository `docs/` remains the internal engineering system of
