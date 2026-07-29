@@ -13,6 +13,19 @@ const { rewrite: rewriteSuffix } = rewritePath(
 );
 const internalLocaleHeader = 'x-orgmemory-docs-locale-rewrite';
 
+function applyNegotiationBoundary(response: NextResponse) {
+  const vary = response.headers.get('Vary');
+  const fields = vary
+    ?.split(',')
+    .map((field) => field.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!fields?.includes('accept')) {
+    response.headers.set('Vary', vary ? `${vary}, Accept` : 'Accept');
+  }
+  return response;
+}
+
 function parseLocale(pathname: string) {
   const segments = pathname.split('/').filter(Boolean);
   const candidate = segments[0];
@@ -34,16 +47,18 @@ function rewriteLocalized(request: NextRequest, language: string, pathname: stri
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(internalLocaleHeader, language);
 
-  return NextResponse.rewrite(new URL(`/${language}${pathname}`, request.nextUrl), {
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return applyNegotiationBoundary(
+    NextResponse.rewrite(new URL(`/${language}${pathname}`, request.nextUrl), {
+      request: {
+        headers: requestHeaders,
+      },
+    }),
+  );
 }
 
 export default function proxy(request: NextRequest, _event: NextFetchEvent) {
   if (request.headers.has(internalLocaleHeader)) {
-    return NextResponse.next();
+    return applyNegotiationBoundary(NextResponse.next());
   }
 
   if (request.nextUrl.pathname === '/') {
@@ -76,13 +91,7 @@ export default function proxy(request: NextRequest, _event: NextFetchEvent) {
     const result = rewriteDocs(localized.pathname);
 
     if (result) {
-      const response = rewriteLocalized(request, localized.language, result);
-      response.headers.set(
-        'Vary',
-        // this URL has two representations, selected by `Accept`
-        'Accept',
-      );
-      return response;
+      return rewriteLocalized(request, localized.language, result);
     }
   }
 
@@ -90,7 +99,7 @@ export default function proxy(request: NextRequest, _event: NextFetchEvent) {
     request.nextUrl.pathname === `/${localized.language}` ||
     request.nextUrl.pathname.startsWith(`/${localized.language}/`)
   ) {
-    return NextResponse.next();
+    return applyNegotiationBoundary(NextResponse.next());
   }
 
   return rewriteLocalized(request, localized.language, localized.pathname);

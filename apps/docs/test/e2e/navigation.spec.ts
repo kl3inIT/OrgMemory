@@ -146,14 +146,23 @@ test('root and docs pages pass automated accessibility smoke checks', async ({ p
 });
 
 test('responses carry the application-owned security headers', async ({ request }) => {
-  const response = await request.get('/docs/overview');
+  for (const route of ['/docs/overview', '/vi/docs/overview']) {
+    const response = await request.get(route, {
+      headers: {
+        Accept: 'text/html',
+      },
+    });
 
-  expect(response.headers()['x-content-type-options']).toBe('nosniff');
-  expect(response.headers()['x-frame-options']).toBe('DENY');
-  expect(response.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
-  expect(response.headers()['permissions-policy']).toBe(
-    'camera=(), microphone=(), geolocation=()',
-  );
+    expect(response.headers()['x-content-type-options']).toBe('nosniff');
+    expect(response.headers()['x-frame-options']).toBe('DENY');
+    expect(response.headers()['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(response.headers()['permissions-policy']).toBe(
+      'camera=(), microphone=(), geolocation=()',
+    );
+    expect(response.headers().vary).toContain('Accept');
+    expect(response.headers()['cache-control']).toContain('no-cache');
+    expect(response.headers()['cache-control']).toContain('must-revalidate');
+  }
 });
 
 test('generated API reference renders with its playground disabled', async ({ page }) => {
