@@ -149,6 +149,13 @@ The policy is unchanged but the repository currently claims more than it
 enforces. The bypasses above must close before any release describes the
 deployment as payload-free.
 
+Nothing has leaked yet. The project owner confirmed on 2026-07-29 that the ZM
+deployment is a proof of concept carrying no real users and no customer data, so
+the retained logs hold no exposure to scope and closing the bypasses is
+preventive. That is a statement about today's deployment, not about the design:
+the same code against a deployment holding real evidence would have been writing
+customer text to the host since it shipped.
+
 ## What LightRAG instruments, and what it does not
 
 The semantic port came from LightRAG, so its tracing was checked directly against

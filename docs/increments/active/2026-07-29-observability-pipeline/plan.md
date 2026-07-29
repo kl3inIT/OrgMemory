@@ -12,10 +12,12 @@ Highest priority. These are live paths, independent of the pipeline work.
       in each app reads the shipped YAML and fails if a profile lowers either
       package. A fourth site was found during the sweep,
       `AnthropicChatModel:1018`, which logs a response content block.
-- [ ] Search retained production logs for those WARN signatures. Treat a hit as a
-      data incident, not a defect: record scope and affected organizations before
-      changing anything. **Needs the owner's go-ahead — it runs on production and
-      may surface customer content.**
+- [x] Search retained production logs for those WARN signatures. Not required:
+      the project owner confirmed on 2026-07-29 that the ZM deployment is a proof
+      of concept with no real users and no customer data, so there is no
+      historical exposure to scope and the fix is preventive rather than remedial.
+      If that ever stops being true before the fix ships to a deployment holding
+      real data, the search becomes a data-incident question again.
 - [x] Decide how `OtelSpan.error` is handled. Suppressed, not tolerated:
       `ExceptionSanitizingSpanExporter` drops every event attribute except
       `exception.type` and clears the status description, as the last gate before
