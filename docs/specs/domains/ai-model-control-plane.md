@@ -4,7 +4,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 `integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-07-29-ai-model-gateway-boundary (5058cd8)`.
+Reconciled: `2026-07-29-ai-provider-setup-ui (2bcf082)`.
 
 ## Current Behavior
 
@@ -16,6 +16,13 @@ protocols:
 - `OPENAI_COMPATIBLE`: OpenAI, 9Router, OpenRouter, LiteLLM, Ollama, and
   operator-allowlisted custom endpoints;
 - `ANTHROPIC_MESSAGES`: direct Anthropic through the native Spring AI adapter.
+
+The administration UI gives each named provider its verified brand mark and
+uses a neutral endpoint mark for the unbranded OpenAI-compatible preset. The
+setup dialog groups encrypted credentials, endpoint policy, connection testing,
+discovered models, and the read-only organization governance boundary. Model
+discovery reflects the live provider response; it does not imply a persisted
+model allowlist or let a user bypass explicit workload routes.
 
 Credentials are accepted only as redacted request values, encrypted with the
 shared AES-GCM `SecretCipher`, and never returned. Every profile and route is
