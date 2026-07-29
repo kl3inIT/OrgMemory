@@ -38,6 +38,8 @@ class OrgMemoryMcpContextTests {
             resources;
     private final List<McpStatelessServerFeatures.SyncPromptSpecification>
             prompts;
+    private final List<McpStatelessServerFeatures.SyncCompletionSpecification>
+            completions;
 
     OrgMemoryMcpContextTests(
             @Qualifier("toolSpecs")
@@ -48,10 +50,14 @@ class OrgMemoryMcpContextTests {
                             resources,
             @Qualifier("promptSpecs")
                     List<McpStatelessServerFeatures.SyncPromptSpecification>
-                            prompts) {
+                            prompts,
+            @Qualifier("completionSpecs")
+                    List<McpStatelessServerFeatures.SyncCompletionSpecification>
+                            completions) {
         this.tools = tools;
         this.resources = resources;
         this.prompts = prompts;
+        this.completions = completions;
     }
 
     @Autowired
@@ -89,6 +95,19 @@ class OrgMemoryMcpContextTests {
         assertEquals(2, resources.size());
         assertEquals(1, prompts.size());
         assertEquals("released_prompt", prompts.getFirst().prompt().name());
+    }
+
+    @Test
+    void completesEveryPublishedPromptArgumentAndResourceTemplate() {
+        assertEquals(
+                List.of(
+                        "orgmemory://assets/{assetId}",
+                        "orgmemory://assets/{assetId}/releases/{releaseId}",
+                        "released_prompt"),
+                completions.stream()
+                        .map(spec -> spec.referenceKey().identifier())
+                        .sorted()
+                        .toList());
     }
 
     @Test

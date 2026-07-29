@@ -65,7 +65,10 @@ framework-neutral graph core), and never `core -> apps/integrations`.
 - `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
   read-only Knowledge and Asset tools, Asset resources, and released Prompt
   adapter exchange the inbound resource token for a short-lived actor token
-  scoped to canonical API contracts. A separate `assets:write` HTTP companion
+  scoped to canonical API contracts. Completion suggests only Prompt-argument
+  and Asset resource-template values the current identity may already read, and
+  a downstream failure crosses the boundary as a cause-free tool error so the
+  runtime cannot append internal transport detail. A separate `assets:write` HTTP companion
   accepts one bounded Skill Draft publication from the CLI; it is not an MCP
   mutation tool and delegates package validation, authorization, and lifecycle
   to the canonical API. Agents therefore use the same GraphRAG, OpenFGA, live

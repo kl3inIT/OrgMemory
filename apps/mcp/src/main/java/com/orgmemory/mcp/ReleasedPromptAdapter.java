@@ -19,6 +19,10 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 class ReleasedPromptAdapter {
 
+    static final String PROMPT_NAME = "released_prompt";
+    static final String ASSET_ID_ARGUMENT = "asset_id";
+    static final String RELEASE_ID_ARGUMENT = "release_id";
+
     private static final TypeReference<Map<String, Object>> VARIABLE_MAP =
             new TypeReference<>() {
             };
@@ -37,13 +41,17 @@ class ReleasedPromptAdapter {
     }
 
     @McpPrompt(
-            name = "released_prompt",
+            name = PROMPT_NAME,
             title = "Use an approved OrgMemory Prompt release",
             description = "Compiles a pinned, authorized Prompt release for the MCP host to execute; OrgMemory does not invoke an AI provider.")
     GetPromptResult releasedPrompt(
-            @McpArg(name = "asset_id", description = "Prompt Template Asset UUID")
+            @McpArg(
+                            name = ASSET_ID_ARGUMENT,
+                            description = "Prompt Template Asset UUID")
                     String assetId,
-            @McpArg(name = "release_id", description = "Pinned Prompt release UUID")
+            @McpArg(
+                            name = RELEASE_ID_ARGUMENT,
+                            description = "Pinned Prompt release UUID")
                     String releaseId,
             @McpArg(
                             name = "variables_json",
@@ -51,11 +59,12 @@ class ReleasedPromptAdapter {
                             required = false)
                     String variablesJson,
             McpTransportContext context) {
-        AssetDeliveryApiClient.PromptRender rendered = assets.renderPrompt(
-                authorization.require(context),
-                parse(assetId),
-                parse(releaseId),
-                variables(variablesJson));
+        AssetDeliveryApiClient.PromptRender rendered =
+                McpFailureBoundary.sanitized(() -> assets.renderPrompt(
+                        authorization.require(context),
+                        parse(assetId),
+                        parse(releaseId),
+                        variables(variablesJson)));
         String content = """
                 Approved system instruction:
                 %s

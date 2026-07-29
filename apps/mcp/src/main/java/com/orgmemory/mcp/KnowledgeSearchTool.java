@@ -40,9 +40,9 @@ class KnowledgeSearchTool {
                             description = "Maximum evidence items to return")
                     Integer limit,
             McpTransportContext context) {
-        return search.search(
+        return McpFailureBoundary.sanitized(() -> search.search(
                 authorization.require(context),
                 query,
-                limit);
+                limit));
     }
 }

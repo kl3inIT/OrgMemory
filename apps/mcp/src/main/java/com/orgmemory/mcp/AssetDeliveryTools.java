@@ -41,11 +41,12 @@ class AssetDeliveryTools {
                             description = "Optional PROMPT_TEMPLATE, WORK_INSTRUCTION, CAPABILITY_PACK, or SKILL filter")
                     String type,
             McpTransportContext context) {
-        return new AssetSearchResults(assets.search(
-                        authorization.require(context), query, type)
-                .stream()
-                .map(AssetLink::from)
-                .toList());
+        return McpFailureBoundary.sanitized(() -> new AssetSearchResults(
+                assets.search(
+                                authorization.require(context), query, type)
+                        .stream()
+                        .map(AssetLink::from)
+                        .toList()));
     }
 
     @McpTool(
@@ -62,7 +63,8 @@ class AssetDeliveryTools {
     AssetDeliveryApiClient.AssetRelease getAsset(
             @McpToolParam(description = "Registry Asset UUID") UUID assetId,
             McpTransportContext context) {
-        return assets.getAsset(authorization.require(context), assetId);
+        return McpFailureBoundary.sanitized(() -> assets.getAsset(
+                authorization.require(context), assetId));
     }
 
     @McpTool(
@@ -80,8 +82,8 @@ class AssetDeliveryTools {
             @McpToolParam(description = "Registry Asset UUID") UUID assetId,
             @McpToolParam(description = "Pinned release UUID") UUID releaseId,
             McpTransportContext context) {
-        return assets.getRelease(
-                authorization.require(context), assetId, releaseId);
+        return McpFailureBoundary.sanitized(() -> assets.getRelease(
+                authorization.require(context), assetId, releaseId));
     }
 
     @McpTool(
@@ -100,8 +102,9 @@ class AssetDeliveryTools {
             @McpToolParam(description = "Pinned Skill release UUID")
                     UUID releaseId,
             McpTransportContext context) {
-        var manifest = assets.getSkillManifest(
-                authorization.require(context), assetId, releaseId);
+        var manifest = McpFailureBoundary.sanitized(() ->
+                assets.getSkillManifest(
+                        authorization.require(context), assetId, releaseId));
         return new SkillManifestLink(
                 manifest,
                 SkillPackageController.packagePath(assetId, releaseId));
@@ -123,11 +126,12 @@ class AssetDeliveryTools {
             @McpToolParam(description = "Skill slug") String slug,
             @McpToolParam(description = "Exact version label") String version,
             McpTransportContext context) {
-        var manifest = assets.resolveSkillManifest(
-                authorization.require(context),
-                namespace,
-                slug,
-                version);
+        var manifest = McpFailureBoundary.sanitized(() ->
+                assets.resolveSkillManifest(
+                        authorization.require(context),
+                        namespace,
+                        slug,
+                        version));
         return new SkillManifestLink(
                 manifest,
                 SkillPackageController.packagePath(
@@ -151,8 +155,8 @@ class AssetDeliveryTools {
             @McpToolParam(description = "Pinned Capability Pack release UUID")
                     UUID releaseId,
             McpTransportContext context) {
-        return assets.getPack(
-                authorization.require(context), assetId, releaseId);
+        return McpFailureBoundary.sanitized(() -> assets.getPack(
+                authorization.require(context), assetId, releaseId));
     }
 
     @McpTool(
@@ -170,8 +174,8 @@ class AssetDeliveryTools {
             @McpToolParam(description = "Registry Asset UUID") UUID assetId,
             @McpToolParam(description = "Pinned release UUID") UUID releaseId,
             McpTransportContext context) {
-        return assets.getRelations(
-                authorization.require(context), assetId, releaseId);
+        return McpFailureBoundary.sanitized(() -> assets.getRelations(
+                authorization.require(context), assetId, releaseId));
     }
 
     @McpTool(
@@ -193,11 +197,11 @@ class AssetDeliveryTools {
                             description = "Values for the Prompt release variable contract")
                     Map<String, Object> variables,
             McpTransportContext context) {
-        return assets.renderPrompt(
+        return McpFailureBoundary.sanitized(() -> assets.renderPrompt(
                 authorization.require(context),
                 assetId,
                 releaseId,
-                variables);
+                variables));
     }
 
     record AssetLink(
