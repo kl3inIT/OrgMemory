@@ -145,7 +145,7 @@ test('root and docs pages pass automated accessibility smoke checks', async ({ p
   }
 });
 
-test('responses carry the application-owned security headers', async ({ request }) => {
+test('responses carry security headers and use explicit Markdown URLs', async ({ request }) => {
   for (const route of ['/docs/overview', '/vi/docs/overview']) {
     const response = await request.get(route, {
       headers: {
@@ -159,15 +159,16 @@ test('responses carry the application-owned security headers', async ({ request 
     expect(response.headers()['permissions-policy']).toBe(
       'camera=(), microphone=(), geolocation=()',
     );
-    expect(response.headers().vary).toContain('Accept');
 
-    const markdown = await request.get(route, {
+    const negotiated = await request.get(route, {
       headers: {
         Accept: 'text/markdown',
       },
     });
+    expect(negotiated.headers()['content-type']).toContain('text/html');
+
+    const markdown = await request.get(`${route}.md`);
     expect(markdown.headers()['content-type']).toContain('text/markdown');
-    expect(markdown.headers().vary).toContain('Accept');
   }
 });
 

@@ -19,7 +19,7 @@
     "check:publication": "node scripts/check-docs.mjs publication",
     "check:routes": "node scripts/check-docs.mjs routes",
     "check:links": "tsx scripts/check-links.ts",
-    "test:e2e": "pnpm build && playwright test",
+    "test:e2e": "pnpm build && node scripts/prepare-standalone-test.mjs && playwright test",
     "check": "pnpm check:api && pnpm lint && pnpm typecheck && pnpm check:content && pnpm check:manifest && pnpm check:publication && pnpm check:routes && pnpm check:links",
     "postinstall": "fumadocs-mdx",
     "lint": "oxlint"

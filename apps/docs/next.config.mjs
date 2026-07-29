@@ -3,12 +3,6 @@ import { fileURLToPath } from 'node:url';
 
 const withMDX = createMDX();
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
-const negotiatedDocumentHeaders = [
-  {
-    key: 'Vary',
-    value: 'Accept',
-  },
-];
 
 /** @type {import('next').NextConfig} */
 const config = {
@@ -17,14 +11,6 @@ const config = {
   reactStrictMode: true,
   async headers() {
     return [
-      {
-        source: '/docs/:path*',
-        headers: negotiatedDocumentHeaders,
-      },
-      {
-        source: '/vi/docs/:path*',
-        headers: negotiatedDocumentHeaders,
-      },
       {
         source: '/(.*)',
         headers: [

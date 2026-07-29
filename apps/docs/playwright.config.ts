@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = 3100;
+const serverCommand =
+  process.platform === 'win32'
+    ? `corepack pnpm start --hostname 127.0.0.1 --port ${port}`
+    : 'node .next/standalone/apps/docs/server.js';
 
 export default defineConfig({
   testDir: './test/e2e',
@@ -18,10 +22,13 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `corepack pnpm start --hostname 127.0.0.1 --port ${port}`,
+    command: serverCommand,
     env: {
       DOCS_DEPLOYMENT_MODE: 'production',
       DOCS_INCLUDE_DRAFTS: 'false',
+      HOSTNAME: '127.0.0.1',
+      NODE_ENV: 'production',
+      PORT: String(port),
     },
     url: `http://127.0.0.1:${port}/healthz`,
     reuseExistingServer: !process.env.CI,
