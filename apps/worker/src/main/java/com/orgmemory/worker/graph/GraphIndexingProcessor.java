@@ -79,7 +79,7 @@ class GraphIndexingProcessor {
                 embeddingModels,
                 routes,
                 properties,
-                eventSinks.getIfAvailable(() -> GraphRagEventSink.NO_OP));
+                GraphRagEventSink.composite(eventSinks.orderedStream().toList()));
     }
 
     GraphIndexingProcessor(

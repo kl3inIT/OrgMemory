@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.observability;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -19,6 +20,45 @@ public interface GraphRagEventSink {
     GraphRagEventSink NO_OP = event -> { };
 
     void emit(GraphRagEvent event);
+
+    /**
+     * Fans one event out to every sink so an application can observe the same
+     * stage through more than one backend.
+     *
+     * <p>Sinks fail independently: one failing backend still lets the others
+     * receive the event. The first failure is rethrown with the remaining ones
+     * suppressed, so a caller that already treats emission as non-critical keeps
+     * that behavior and a caller that does not still learns something broke.
+     */
+    static GraphRagEventSink composite(List<GraphRagEventSink> sinks) {
+        List<GraphRagEventSink> delegates =
+                List.copyOf(Objects.requireNonNull(sinks, "sinks"));
+        if (delegates.isEmpty()) {
+            return NO_OP;
+        }
+        if (delegates.size() == 1) {
+            return delegates.getFirst();
+        }
+        return event -> {
+            RuntimeException failure = null;
+            for (GraphRagEventSink delegate : delegates) {
+                try {
+                    delegate.emit(event);
+                } catch (RuntimeException sinkFailure) {
+                    if (failure == null) {
+                        failure = sinkFailure;
+                    } else if (failure != sinkFailure) {
+                        // Throwable.addSuppressed rejects self-suppression, and two
+                        // sinks can raise one shared instance.
+                        failure.addSuppressed(sinkFailure);
+                    }
+                }
+            }
+            if (failure != null) {
+                throw failure;
+            }
+        };
+    }
 
     record GraphRagEvent(
             UUID operationId,

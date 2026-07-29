@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
 
 ## Current Contract
 
@@ -140,6 +140,10 @@ Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 - Payload-free OpenTelemetry stages separate keyword planning/cache status,
   embedding, hashed per-snapshot retrieval, consolidation, authorization and
   provider-only reranking duration.
+- Indexing and retrieval fan one stage event out to every registered
+  `GraphRagEventSink`, so an application may observe the same stage through more
+  than one backend. Sinks fail independently and emission never controls
+  indexing or retrieval availability.
 
 ## Graph Explorer
 
