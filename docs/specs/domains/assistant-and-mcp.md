@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-mcp-scoped-completion (b79d6ac)`.
 
 ## Current Behavior
 
@@ -70,15 +70,30 @@ tokens, and credentials are not persisted in the trace. There is no Assistant
 action for approval, publication, withdrawal, role/permission changes, or
 arbitrary tool/code execution.
 
-`apps/mcp` runs a stateless Spring AI MCP server with one read-only,
-closed-world `search_knowledge` tool. It validates the caller's bearer token and
-forwards that same token to `/api/knowledge/search`, preserving one retrieval,
-OpenFGA, ACL-recheck, and audit path across the Assistant, REST, and MCP
-surfaces. MCP owns no schema migration or privileged service identity.
+`apps/mcp` runs a stateless Spring AI MCP server. Its published surface is nine
+read-only, closed-world tools, two Asset resource templates, and one released
+Prompt adapter. It validates the caller's bearer token and exchanges it for a
+short-lived API-audience token instead of forwarding the inbound bearer,
+preserving one retrieval, OpenFGA, ACL-recheck, and audit path across the
+Assistant, REST, and MCP surfaces. MCP owns no schema migration or privileged
+service identity.
 
-General chat-turn idempotency remains unimplemented. The public MCP surface
-still exposes only Knowledge search; Asset resources, prompts, and read-only
-tools are deferred to the authenticated public MCP increment.
+Completion is permission-scoped. Every suggestion for a Prompt argument or an
+Asset resource-template variable comes from one authorized Asset delivery call
+for the current identity, an already-resolved argument narrows the next one, and
+a delivery failure yields no suggestion rather than an error, so completion is
+never a second existence channel. Suggested values are exact identifiers because
+MCP completion returns the literal argument value.
+
+A downstream gateway failure crosses the MCP boundary as a cause-free failure.
+The annotation runtime appends the root cause message to the tool error it
+returns, so the cause is logged in the server and only the already-sanitized
+gateway message reaches the caller.
+
+The stateless protocol carries no server-initiated request, so progress
+notifications, logging notifications, elicitation, and sampling are unavailable,
+and tool, prompt, and resource listings are registered once at startup rather
+than filtered per actor. General chat-turn idempotency remains unimplemented.
 
 ## Source Modules
 

@@ -9,6 +9,12 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 class AssetDeliveryResources {
 
+    static final String ASSET_URI = "orgmemory://assets/{assetId}";
+    static final String ASSET_RELEASE_URI =
+            "orgmemory://assets/{assetId}/releases/{releaseId}";
+    static final String ASSET_ID_VARIABLE = "assetId";
+    static final String RELEASE_ID_VARIABLE = "releaseId";
+
     private final AssetDeliveryApiClient assets;
     private final McpApiAuthorization authorization;
     private final ObjectMapper json;
@@ -25,28 +31,30 @@ class AssetDeliveryResources {
     @McpResource(
             name = "released-asset",
             title = "Latest released Asset",
-            uri = "orgmemory://assets/{assetId}",
+            uri = ASSET_URI,
             description = "Latest immutable release currently usable by the authenticated actor.",
             mimeType = "application/json")
     String getAsset(String assetId, McpTransportContext context) {
-        return json.writeValueAsString(assets.getAsset(
-                authorization.require(context), parse(assetId)));
+        return McpFailureBoundary.sanitized(() ->
+                json.writeValueAsString(assets.getAsset(
+                        authorization.require(context), parse(assetId))));
     }
 
     @McpResource(
             name = "released-asset-version",
             title = "Exact released Asset version",
-            uri = "orgmemory://assets/{assetId}/releases/{releaseId}",
+            uri = ASSET_RELEASE_URI,
             description = "Exact immutable release currently usable by the authenticated actor.",
             mimeType = "application/json")
     String getAssetRelease(
             String assetId,
             String releaseId,
             McpTransportContext context) {
-        return json.writeValueAsString(assets.getRelease(
-                authorization.require(context),
-                parse(assetId),
-                parse(releaseId)));
+        return McpFailureBoundary.sanitized(() ->
+                json.writeValueAsString(assets.getRelease(
+                        authorization.require(context),
+                        parse(assetId),
+                        parse(releaseId))));
     }
 
     private static UUID parse(String value) {

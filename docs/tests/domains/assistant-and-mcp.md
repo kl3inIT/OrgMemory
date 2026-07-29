@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-mcp-scoped-completion (2f6b0f8)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -24,7 +24,11 @@ Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
 | Hostile upload media types cannot make citation content execute inline | `SourceUploadServiceTests#derivesTheStoredMediaTypeFromTheAllowlistedExtension`, `CitationContentControllerTests` | covered |
 | Empty evidence, provider retry, and user abort are browser-tested | `assistant-pipeline.spec.ts` | covered |
 | GraphRAG is selected explicitly with no silent fallback | `AssistantConfigurationTests` | covered |
-| MCP publishes only the read-only permission-aware search tool | `OrgMemoryMcpContextTests` | covered |
+| MCP publishes only read-only permission-aware contracts with object output schemas | `OrgMemoryMcpContextTests#publishesOnlyThePermissionAwareReadOnlyContracts` | covered |
+| Completion is published for the released Prompt argument and both Asset resource templates | `OrgMemoryMcpContextTests#completesEveryPublishedPromptArgumentAndResourceTemplate` | covered |
+| Completion suggests only authorized values, narrows releases to the resolved Asset, and stays empty when delivery refuses the identity | `AssetCompletionAdapterTests` | covered |
+| A downstream failure surfaces as a sanitized tool error without internal host or request detail | `McpToolErrorSurfaceTests#downstreamFailureBecomesASanitizedToolErrorWithoutTransportDetail` | covered |
+| Per-actor filtering of tool, prompt, and resource listings | none | not supported by the stateless annotation runtime |
 | MCP exchanges caller identity and forwards only the API-audience bearer to canonical REST search | `McpApiAuthorizationTests`, `KnowledgeSearchApiClientTests`, `KnowledgeSearchToolTests` | covered |
 | Asset recommendations are actor-scoped and pin an exact usable release | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases` | covered |
 | Assistant-proposed external provider and state-changing Asset actions require confirmation | `AssistantAssetToolServiceTests` | covered |

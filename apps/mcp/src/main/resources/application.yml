@@ -43,7 +43,7 @@ spring:
         capabilities:
           resource: true
           prompt: true
-          completion: false
+          completion: true
           tool: true
         streamable-http:
           mcp-endpoint: /mcp
