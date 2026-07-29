@@ -1,0 +1,10 @@
+{
+  "title": "Reference",
+  "description": "Look up exact API, configuration, and product contracts.",
+  "icon": "Braces",
+  "root": true,
+  "pagesIndex": "api-reference/index",
+  "pages": [
+    "api-reference"
+  ]
+}

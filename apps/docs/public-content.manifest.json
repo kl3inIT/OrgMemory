@@ -2,81 +2,81 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "route": "/docs/overview",
-      "content": "content/docs/overview/index.mdx",
-      "area": "overview",
+      "route": "/docs/getting-started",
+      "content": "content/docs/getting-started/index.mdx",
+      "area": "getting-started",
       "order": 10,
       "status": "public",
       "reviewOwner": "product-and-documentation"
     },
     {
-      "route": "/docs/overview/quickstart",
-      "content": "content/docs/overview/quickstart.mdx",
-      "area": "overview",
+      "route": "/docs/getting-started/quickstart",
+      "content": "content/docs/getting-started/quickstart.mdx",
+      "area": "getting-started",
       "order": 20,
       "status": "public",
       "reviewOwner": "developer-experience"
     },
     {
-      "route": "/docs/overview/core-concepts",
-      "content": "content/docs/overview/core-concepts.mdx",
-      "area": "overview",
+      "route": "/docs/getting-started/core-concepts",
+      "content": "content/docs/getting-started/core-concepts.mdx",
+      "area": "getting-started",
       "order": 30,
       "status": "public",
       "reviewOwner": "product-and-documentation"
     },
     {
-      "route": "/docs/overview/asset-lifecycle",
-      "content": "content/docs/overview/asset-lifecycle.mdx",
-      "area": "overview",
+      "route": "/docs/architecture-security/asset-lifecycle",
+      "content": "content/docs/architecture-security/asset-lifecycle.mdx",
+      "area": "architecture-security",
       "order": 40,
       "status": "public",
       "reviewOwner": "asset-registry-maintainers"
     },
     {
-      "route": "/docs/deployment/self-hosting",
-      "content": "content/docs/deployment/self-hosting.mdx",
-      "area": "deployment",
+      "route": "/docs/guides/deployment-operations/self-hosting",
+      "content": "content/docs/guides/deployment-operations/self-hosting.mdx",
+      "area": "guides",
       "order": 10,
       "status": "public",
       "reviewOwner": "operations-maintainers"
     },
     {
-      "route": "/docs/admins/identity-permissions",
-      "content": "content/docs/admins/identity-permissions.mdx",
-      "area": "admins",
+      "route": "/docs/guides/administration/identity-permissions",
+      "content": "content/docs/guides/administration/identity-permissions.mdx",
+      "area": "guides",
       "order": 10,
       "status": "public",
       "reviewOwner": "identity-and-authorization-maintainers"
     },
     {
-      "route": "/docs/admins/sources-connections",
-      "content": "content/docs/admins/sources-connections.mdx",
-      "area": "admins",
+      "route": "/docs/guides/administration/sources-connections",
+      "content": "content/docs/guides/administration/sources-connections.mdx",
+      "area": "guides",
       "order": 20,
       "status": "public",
       "reviewOwner": "connector-maintainers"
     },
     {
-      "route": "/docs/developers/assistant-mcp",
-      "content": "content/docs/developers/assistant-mcp.mdx",
-      "area": "developers",
+      "route": "/docs/guides/integrations/assistant-mcp",
+      "content": "content/docs/guides/integrations/assistant-mcp.mdx",
+      "area": "guides",
       "order": 10,
       "status": "public",
       "reviewOwner": "assistant-and-mcp-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference",
-      "content": "content/docs/developers/api-reference/index.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference",
+      "content": "content/docs/reference/api-reference/index.mdx",
+      "area": "reference",
       "order": 20,
       "status": "public",
       "reviewOwner": "developer-experience"
     },
     {
-      "route": "/docs/developers/api-reference/authentication",
-      "content": "content/docs/developers/api-reference/authentication.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/authentication",
+      "content": "content/docs/reference/api-reference/authentication.mdx",
+      "area": "reference",
       "order": 30,
       "status": "public",
       "reviewOwner": "identity-and-authorization-maintainers"

@@ -328,3 +328,36 @@ to be a `200` document. The corrected smoke verifies the final
 `/docs/overview` URL after following the public redirect, uses Overview for the
 internal document check, and has a focused regression case alongside the
 forced-canary rollback proof.
+
+## Bilingual Reader And Stable Representations
+
+- [PR #129](https://github.com/kl3inIT/OrgMemory/pull/129) introduced the
+  controlled English/Vietnamese shell. English retains `/docs/...`; Vietnamese
+  uses `/vi/docs/...` and visibly falls back to reviewed English until an
+  adjacent `.vi.mdx` page is approved.
+- [PR #131](https://github.com/kl3inIT/OrgMemory/pull/131) made document
+  representations path-based: document URLs always return HTML and explicit
+  `.md` siblings return Markdown.
+- Immutable image build run `30451325467` and deploy run `30451590994`
+  published exact commit `0b66134c480e4ef8bb662b23c6b0d8f718be9f4f`.
+
+## Final Portal Verification
+
+- [PR #133](https://github.com/kl3inIT/OrgMemory/pull/133) added stable
+  light/dark visual identities for the five first-release roots while
+  preserving a neutral technical reader.
+- PR CI run `30460090220` and merge CI run `30460338860` passed under Node 24.
+- Immutable build and scan run `30460578423` published exact merge commit
+  `fb1c176b9503a0692a0781b0fa924ac7334e58d3`.
+- Deploy run `30460784833` pulled the exact SHA-tagged image, recreated only the
+  docs service, reached healthy state, and passed all 24 allowlisted routes plus
+  five public outputs.
+- Independent live verification confirmed the root redirect, `/healthz`, all
+  five route identities, English/Vietnamese parity, application security
+  headers, and immutable `/_next/static/` caching at
+  `https://docs.kl3in.tech`.
+
+The independent portal, publication boundary, bilingual shell, immutable
+release path, TLS proxy, rollback contract, and live verification are complete.
+Future information-architecture and page-quality work belongs to the
+page-by-page public documentation co-authoring program.

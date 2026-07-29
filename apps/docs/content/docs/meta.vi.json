@@ -1,10 +1,9 @@
 {
   "title": "OrgMemory",
   "pages": [
-    "overview",
+    "getting-started",
+    "guides",
     "architecture-security",
-    "deployment",
-    "admins",
-    "developers"
+    "reference"
   ]
 }

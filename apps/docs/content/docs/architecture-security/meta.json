@@ -1,10 +1,11 @@
 {
-  "title": "System Design",
+  "title": "Architecture & Security",
   "description": "Understand architecture, data flows, trust boundaries, and evidence.",
   "icon": "Network",
   "root": true,
   "pages": [
     "system-description",
+    "asset-lifecycle",
     "ingestion-lifecycle",
     "authorization",
     "secure-retrieval-graphrag",

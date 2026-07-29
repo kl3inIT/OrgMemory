@@ -184,22 +184,22 @@ publication boundary.
   seconds; use 5-second connection and 15-second request timeouts.
 - [x] Configure DNS for `docs.kl3in.tech`; Cloudflare and Google public
   resolvers return the ZM ingress address.
-- [ ] Issue and verify TLS for `docs.kl3in.tech`.
-- [ ] Configure Nginx Proxy Manager to forward
+- [x] Issue and verify TLS for `docs.kl3in.tech`.
+- [x] Configure Nginx Proxy Manager to forward
   `docs.kl3in.tech -> orgmemory-docs:3000`, with TLS, compression, immutable
   asset caching, revalidatable document outputs, HSTS after TLS verification,
   `nosniff`, strict referrer policy, restrictive permissions policy, and framing
   denial.
-- [ ] Verify home, one deep link, search, API reference, `llms.txt`, mobile
+- [x] Verify home, one deep link, search, API reference, `llms.txt`, mobile
   navigation, and container health.
-- [ ] Crawl every public route and compare it with the committed allowlist; scan
+- [x] Crawl every public route and compare it with the committed allowlist; scan
   all reachable outputs for internal paths, secrets, and private hosts.
 - [x] Force one failed canary deployment and prove `deploy-docs.sh` restores the
   previous image, reruns health/smoke checks, and does not recreate product
   services.
 - [x] Retain at least the two most recent verified docs images and record the
   previous reference before every deployment.
-- [ ] Record the deployed revision and public verification evidence.
+- [x] Record the deployed revision and public verification evidence.
 
 Exit gate:
 
@@ -211,7 +211,9 @@ Exit gate:
 
 ## Content Follow-Ups
 
-After the first release has real readers:
+After the first release has real readers, these follow-ups move to the
+page-by-page public documentation co-authoring program. They are not unfinished
+portal-delivery gates:
 
 - [ ] Add focused admin and operator procedures driven by support questions.
 - [ ] Expand the first-release evaluation pages with measured retrieval,

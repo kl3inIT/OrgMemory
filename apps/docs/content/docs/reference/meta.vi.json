@@ -1,0 +1,10 @@
+{
+  "title": "Tham chiếu",
+  "description": "Tra cứu chính xác API, cấu hình và các hợp đồng sản phẩm.",
+  "icon": "Braces",
+  "root": true,
+  "pagesIndex": "api-reference/index",
+  "pages": [
+    "api-reference"
+  ]
+}

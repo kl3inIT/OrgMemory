@@ -12,7 +12,7 @@ const repositoryRoot = path.resolve(docsRoot, '..', '..');
 const contractPath = path.join(repositoryRoot, 'contracts', 'openapi.json');
 const publicContractPath = path.join(docsRoot, 'generated', 'openapi.public.json');
 const generatedManifestPath = path.join(docsRoot, 'generated-api.manifest.json');
-const contentRoot = path.join(docsRoot, 'content', 'docs', 'developers', 'api-reference');
+const contentRoot = path.join(docsRoot, 'content', 'docs', 'reference', 'api-reference');
 const checkOnly = process.argv.includes('--check');
 const schemaId = 'orgmemory-public';
 const generatedBanner =
@@ -173,9 +173,9 @@ function expectedManifest(files: { path: string; content: string }[]) {
       const domain = domains.find((candidate) => candidate.slug === slug);
       if (!domain) fail(`Unexpected generated OpenAPI page: ${file.path}`);
       return {
-        route: `/docs/developers/api-reference/${slug}`,
-        content: `content/docs/developers/api-reference/${file.path}`,
-        area: 'developers',
+        route: `/docs/reference/api-reference/${slug}`,
+        content: `content/docs/reference/api-reference/${file.path}`,
+        area: 'reference',
         order: 40 + index * 10,
         status: 'public',
         reviewOwner: domain.owner,
@@ -242,7 +242,7 @@ if (checkOnly) {
     for (const entry of previous.entries ?? []) {
       if (
         typeof entry.content !== 'string' ||
-        !entry.content.startsWith('content/docs/developers/api-reference/')
+        !entry.content.startsWith('content/docs/reference/api-reference/')
       ) {
         continue;
       }

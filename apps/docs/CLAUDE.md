@@ -1,7 +1,8 @@
 # OrgMemory Docs Guidance
 
 Read the repository root `CLAUDE.md` first, then this file and
-`apps/docs/ARCHITECTURE.md`.
+`apps/docs/ARCHITECTURE.md`. For content work, also read
+`apps/docs/AUTHORING.md`.
 
 - Public prose lives only in `content/docs`; internal engineering documents are
   source evidence, not publication input.
@@ -15,6 +16,9 @@ Read the repository root `CLAUDE.md` first, then this file and
   `/vi/docs/...`. Do not bulk-copy or machine-publish untranslated pages.
 - Vietnamese routes fall back visibly to the reviewed English page until the
   matching `.vi.mdx` exists. A fallback route is not a completed translation.
+- Follow the page queue and co-authoring checkpoints in `AUTHORING.md`. Content
+  work pauses for owner context, outline approval, and teach-back; do not
+  autonomously publish multiple pages.
 - Keep root-folder names and descriptions aligned between `meta.json` and
   `meta.vi.json`; these files define the sidebar documentation switcher.
 - Verify unfamiliar Next.js and Fumadocs APIs against current official

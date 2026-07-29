@@ -91,7 +91,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const params = await props.params;
   if (!isDocsLanguage(params.lang)) notFound();
-  const slug = params.slug?.length ? params.slug : ['overview'];
+  const slug = params.slug?.length ? params.slug : ['getting-started'];
   const page = source.getPage(slug, params.lang);
   if (!page) notFound();
 
