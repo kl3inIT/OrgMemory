@@ -69,6 +69,14 @@ commit in the same rewrite that pins the image tags, so the reported version
 cannot drift from the running image, and the production compose sets the
 environment explicitly.
 
+That fix is merged but not yet applied: the delivery pipeline cannot deploy an
+infrastructure-only commit, which is recorded against the CI/CD increment. It
+will reach the server with the next commit that also changes application code —
+the remaining phase 2 work touches `integrations/graph-rag-observability`, so its
+deployment carries it. Re-check `ORGMEMORY_SERVICE_VERSION` and
+`deployment.environment.name` on the containers then; until that check runs, this
+is a merged intention rather than production behaviour.
+
 ## 2. Metrics that answer stage latency — partly done
 
 Depends on the composite sink merged in PR #132.
