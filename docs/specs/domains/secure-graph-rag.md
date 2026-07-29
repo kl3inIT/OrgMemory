@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
+Reconciled: `2026-07-29-observability-pipeline (77aa276)`.
 
 ## Current Contract
 
@@ -140,6 +140,13 @@ Reconciled: `2026-07-29-observability-pipeline (f17256b)`.
 - Payload-free OpenTelemetry stages separate keyword planning/cache status,
   embedding, hashed per-snapshot retrieval, consolidation, authorization and
   provider-only reranking duration.
+- Telemetry export is off until a deployment names a collector. Micrometer's OTLP
+  metrics registry is opt-out with a `localhost:4318` default URL, so it is
+  disabled by default in both apps; OTLP log export is disabled because the
+  collector tails the container log; production also disables `OTEL_*`
+  environment-variable mapping so telemetry cannot acquire an unchosen
+  destination. Spans carry `service.version` and `deployment.environment`. The
+  worker samples traces in full and the API at 0.1.
 - `Stage` declares fourteen values; production emits ten. `PARSE`, `CHUNK`,
   `GLEAN` and `GENERATE` have no producer, so no parsing, chunking, gleaning or
   answer-generation latency is reported. Deletion and rebuild have no stage.

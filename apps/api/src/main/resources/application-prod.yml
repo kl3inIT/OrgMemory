@@ -68,6 +68,12 @@ server:
         secure: true
 
 management:
+  opentelemetry:
+    # Boot maps OTEL_* environment variables into export configuration. On a host
+    # that runs other OpenTelemetry workloads that is a way for OrgMemory
+    # telemetry to acquire a destination nobody chose for it. Production names its
+    # collector through this file instead.
+    map-environment-variables: false
   endpoint:
     health:
       probes:
