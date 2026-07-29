@@ -1,9 +1,10 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import type { Metadata } from 'next';
+import { siteUrl } from '@/lib/site';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://docs.om.kl3in.tech'),
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'OrgMemory Documentation',
     template: '%s | OrgMemory Documentation',

@@ -26,7 +26,9 @@ class ScimDiscoveryController {
         return Map.ofEntries(
                 Map.entry("schemas", List.of(
                         "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig")),
-                Map.entry("documentationUri", "https://docs.om.kl3in.tech/scim"),
+                Map.entry(
+                        "documentationUri",
+                        "https://docs.kl3in.tech/docs/admins/identity-permissions"),
                 Map.entry("patch", supported(false)),
                 Map.entry("bulk", Map.of(
                         "supported", false,

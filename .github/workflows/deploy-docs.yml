@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: production
-      url: https://docs.om.kl3in.tech
+      url: https://docs.kl3in.tech
     steps:
       - name: Check out main history
         uses: actions/checkout@v7.0.1

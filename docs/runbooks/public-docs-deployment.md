@@ -14,7 +14,7 @@ the live deployment until DNS and Nginx Proxy Manager access are confirmed.
 - Shared edge network: existing external `proxy-network`
 - Host environment: `/apps/orgmemory/.env.docs.production`, mode `0600`
 - Runtime state: `/apps/orgmemory-runtime/docs`
-- Public origin: `https://docs.om.kl3in.tech`
+- Public origin: `https://docs.kl3in.tech`
 
 The docs Compose file contains no API, worker, MCP, web, Keycloak, database, or
 storage service. Its deployment uses a separate lock and changes only the docs
@@ -39,14 +39,16 @@ On 2026-07-29 the ZM host was inspected without changing runtime state:
   authentication and skipped its deploy step; later run `30400831397`
   connected and completed, so runner reachability is intermittent rather than
   absent;
-- `docs.om.kl3in.tech` did not resolve yet.
+- `docs.kl3in.tech` resolves publicly to the ZM ingress address;
+- HTTP reaches the Nginx Proxy Manager OpenResty edge but returns `404`, and
+  HTTPS does not yet present a valid certificate.
 
-Reliable GitHub-runner SSH reachability, DNS control, and Nginx Proxy Manager
-configuration access are not yet proven. Those are the current stop
-conditions, not permission to guess or mutate them. If the SSH timeout recurs,
-choose an approved fix before deployment: expose the managed SSH endpoint to
-GitHub-hosted runners with an appropriate firewall policy, or run the workflow
-on an approved self-hosted/VPN-connected runner.
+Nginx Proxy Manager configuration access and certificate issuance are not yet
+proven. Those are the current stop conditions, not permission to guess or mutate
+them. If the SSH timeout recurs, choose an approved fix before deployment:
+expose the managed SSH endpoint to GitHub-hosted runners with an appropriate
+firewall policy, or run the workflow on an approved self-hosted/VPN-connected
+runner.
 
 ## Publish An Immutable Image
 
@@ -80,7 +82,7 @@ remain operator-controlled values.
 
 ## DNS And Nginx Proxy Manager
 
-Create the DNS record for `docs.om.kl3in.tech` toward the existing ZM ingress.
+Create the DNS record for `docs.kl3in.tech` toward the existing ZM ingress.
 Then create one Nginx Proxy Manager host:
 
 - scheme: `http`;
@@ -88,7 +90,7 @@ Then create one Nginx Proxy Manager host:
 - forward port: `3000`;
 - WebSocket support: disabled;
 - Block common exploits: enabled;
-- certificate: Let's Encrypt for `docs.om.kl3in.tech`;
+- certificate: Let's Encrypt for `docs.kl3in.tech`;
 - Force SSL and HTTP/2: enabled after certificate issuance.
 
 The advanced configuration should deny framing, avoid MIME sniffing, and keep
@@ -138,7 +140,7 @@ After DNS and TLS are healthy:
 
 ```bash
 python3 infrastructure/deployment/scripts/verify-docs-publication.py \
-  https://docs.om.kl3in.tech
+  https://docs.kl3in.tech
 ```
 
 The verifier compares the sitemap with both committed public manifests, fetches

@@ -180,9 +180,11 @@ publication boundary.
   reference file with mode `0600`; commit only an example contract.
 - [x] Add `deploy-docs.sh` and `smoke-docs.sh`. Poll health for at most 60
   seconds; use 5-second connection and 15-second request timeouts.
-- [ ] Configure DNS and TLS for `docs.om.kl3in.tech`.
+- [x] Configure DNS for `docs.kl3in.tech`; Cloudflare and Google public
+  resolvers return the ZM ingress address.
+- [ ] Issue and verify TLS for `docs.kl3in.tech`.
 - [ ] Configure Nginx Proxy Manager to forward
-  `docs.om.kl3in.tech -> orgmemory-docs:3000`, with TLS, compression, immutable
+  `docs.kl3in.tech -> orgmemory-docs:3000`, with TLS, compression, immutable
   asset caching, revalidatable document outputs, HSTS after TLS verification,
   `nosniff`, strict referrer policy, restrictive permissions policy, and framing
   denial.
