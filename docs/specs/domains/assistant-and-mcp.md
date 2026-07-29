@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-mcp-scoped-completion (2f6b0f8)`.
+Reconciled: `2026-07-29-mcp-scoped-completion (b79d6ac)`.
 
 ## Current Behavior
 
