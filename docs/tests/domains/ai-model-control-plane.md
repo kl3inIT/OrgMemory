@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/api/src/test/java/com/orgmemory/api/admin`,
 `integrations/authorization-openfga/src/test/openfga`, and the admin web build.
 
-Reconciled: `2026-07-29-openfga-model-rollout`.
+Reconciled: `2026-07-29-openfga-model-rollout (c9a366b)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

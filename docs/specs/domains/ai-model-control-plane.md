@@ -4,7 +4,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 `integrations/ai-openai-compatible`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-07-29-openfga-model-rollout`.
+Reconciled: `2026-07-29-openfga-model-rollout (c9a366b)`.
 
 ## Current Behavior
 

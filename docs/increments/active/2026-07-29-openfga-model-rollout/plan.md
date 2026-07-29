@@ -12,6 +12,6 @@
 - [x] Add deterministic upgrade, no-op, and rollback tests to deployment CI.
 - [x] Reconcile architecture, deployment runbook, authorization spec/coverage,
   and roadmap.
-- [ ] Run OpenFGA, deployment, documentation, and repository hygiene gates.
+- [x] Run OpenFGA, deployment, documentation, and repository hygiene gates.
 - [ ] Open the PR, resolve actionable review/CI findings, merge, deploy, and
   verify the two administrator screens.
