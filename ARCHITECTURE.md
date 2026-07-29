@@ -413,6 +413,13 @@ git. `scripts/bootstrap-openfga.ps1` creates a development store/model, imports
 demo relationships, and writes non-secret local identifiers after the compose
 service is available.
 
+Production keeps one durable OpenFGA store and pins every application request
+to an immutable authorization model ID. First-store bootstrap records that ID
+and the SHA-256 of the repository model. Each product deployment writes and
+atomically pins a new model before recreating API and worker containers only
+when the repository model digest changes; unchanged models are no-ops. Failed
+deployment rollback restores the previous images and previous model pin.
+
 ## Build And Run
 
 ```powershell
