@@ -2,7 +2,6 @@
   "title": "Triển khai & vận hành",
   "description": "Triển khai, cấu hình, quan sát và khôi phục OrgMemory.",
   "icon": "ServerCog",
-  "root": true,
   "pages": [
     "self-hosting"
   ]

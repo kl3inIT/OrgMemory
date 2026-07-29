@@ -2,57 +2,57 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "route": "/docs/developers/api-reference/administration",
-      "content": "content/docs/developers/api-reference/administration.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/administration",
+      "content": "content/docs/reference/api-reference/administration.mdx",
+      "area": "reference",
       "order": 40,
       "status": "public",
       "reviewOwner": "identity-and-authorization-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/sources-connections",
-      "content": "content/docs/developers/api-reference/sources-connections.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/sources-connections",
+      "content": "content/docs/reference/api-reference/sources-connections.mdx",
+      "area": "reference",
       "order": 50,
       "status": "public",
       "reviewOwner": "connector-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/assets",
-      "content": "content/docs/developers/api-reference/assets.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/assets",
+      "content": "content/docs/reference/api-reference/assets.mdx",
+      "area": "reference",
       "order": 60,
       "status": "public",
       "reviewOwner": "asset-registry-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/assistant",
-      "content": "content/docs/developers/api-reference/assistant.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/assistant",
+      "content": "content/docs/reference/api-reference/assistant.mdx",
+      "area": "reference",
       "order": 70,
       "status": "public",
       "reviewOwner": "assistant-and-mcp-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/knowledge-graph",
-      "content": "content/docs/developers/api-reference/knowledge-graph.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/knowledge-graph",
+      "content": "content/docs/reference/api-reference/knowledge-graph.mdx",
+      "area": "reference",
       "order": 80,
       "status": "public",
       "reviewOwner": "retrieval-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/search-catalog",
-      "content": "content/docs/developers/api-reference/search-catalog.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/search-catalog",
+      "content": "content/docs/reference/api-reference/search-catalog.mdx",
+      "area": "reference",
       "order": 90,
       "status": "public",
       "reviewOwner": "retrieval-maintainers"
     },
     {
-      "route": "/docs/developers/api-reference/platform",
-      "content": "content/docs/developers/api-reference/platform.mdx",
-      "area": "developers",
+      "route": "/docs/reference/api-reference/platform",
+      "content": "content/docs/reference/api-reference/platform.mdx",
+      "area": "reference",
       "order": 100,
       "status": "public",
       "reviewOwner": "api-maintainers"

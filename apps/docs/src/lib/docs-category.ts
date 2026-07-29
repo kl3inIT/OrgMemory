@@ -1,9 +1,8 @@
 export const docsCategories = [
-  'overview',
+  'getting-started',
+  'guides',
   'architecture-security',
-  'deployment',
-  'admins',
-  'developers',
+  'reference',
 ] as const;
 
 export type DocsCategory = (typeof docsCategories)[number];
@@ -14,7 +13,7 @@ export function getDocsCategory(path?: string | string[]): DocsCategory {
   const segments = Array.isArray(path) ? path : path?.split('/');
   const category = segments?.find((segment) => docsCategorySet.has(segment));
 
-  return (category as DocsCategory | undefined) ?? 'overview';
+  return (category as DocsCategory | undefined) ?? 'getting-started';
 }
 
 export function getDocsCategoryColor(category: DocsCategory) {

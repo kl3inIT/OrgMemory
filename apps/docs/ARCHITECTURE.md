@@ -3,6 +3,9 @@
 `apps/docs` is an independent Next.js 16 application using Fumadocs UI 16 and
 Fumadocs MDX 15. It owns the public reader experience and has no runtime
 dependency on the product API, worker, MCP server, CLI, or Vite web application.
+Local authoring therefore starts only this package and uses Next.js hot reload;
+no product environment file, database, identity provider, authorization
+service, or Compose stack is required.
 
 ## Current Boundaries
 
@@ -30,8 +33,10 @@ The root pnpm workspace owns dependency installation and the lockfile.
 Turbopack is Next.js 16's default bundler; no explicit flag or Turborepo layer is
 required.
 
-The five root folders are the reader's high-level mode switcher: Start Here,
-System Design, Deploy & Operate, Govern & Administer, and Build & Integrate.
+The four root folders are the reader's high-level mode switcher: Getting
+Started, Guides, Architecture & Security, and Reference. Guides groups product,
+administration, deployment/operations, and integration procedures until one
+subgroup has enough reviewed content and reader demand to justify promotion.
 Their Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese
 route may inherit reviewed English content until its matching `.vi.mdx` is
 authored; the reader shows that fallback state explicitly.

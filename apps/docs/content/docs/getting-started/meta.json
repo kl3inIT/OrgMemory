@@ -1,0 +1,11 @@
+{
+  "title": "Getting Started",
+  "description": "Understand OrgMemory and complete the first governed journey.",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": [
+    "index",
+    "quickstart",
+    "core-concepts"
+  ]
+}

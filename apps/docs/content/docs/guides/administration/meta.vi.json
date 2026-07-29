@@ -1,8 +1,7 @@
 {
-  "title": "Quản trị & kiểm soát",
+  "title": "Quản trị",
   "description": "Quản lý danh tính, quyền, chính sách và nguồn dữ liệu.",
   "icon": "ShieldCheck",
-  "root": true,
   "pages": [
     "identity-permissions",
     "sources-connections"

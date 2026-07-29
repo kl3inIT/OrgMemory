@@ -15,7 +15,7 @@ const publicRoutes = [...authoredManifest.entries, ...generatedManifest.entries]
 
 test('site root enters the technical documentation directly', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveURL(/\/docs\/overview$/);
+  await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Welcome to OrgMemory' }),
   ).toBeVisible();
@@ -39,13 +39,12 @@ test('public corpus exposes the section switcher and focused page tree', async (
   if (testInfo.project.name === 'mobile-chromium') {
     await page.getByRole('button', { name: 'Open Sidebar' }).click();
   }
-  await page.getByRole('button', { name: /System Design/ }).first().click();
+  await page.getByRole('button', { name: /Architecture & Security/ }).first().click();
   for (const section of [
-    'Start Here',
-    'System Design',
-    'Deploy & Operate',
-    'Govern & Administer',
-    'Build & Integrate',
+    'Getting Started',
+    'Guides',
+    'Architecture & Security',
+    'Reference',
   ]) {
     await expect(page.getByText(section, { exact: true }).last()).toBeVisible();
   }
@@ -56,11 +55,10 @@ test('public corpus exposes the section switcher and focused page tree', async (
 
 test('category visual identity follows the active root and locale', async ({ page }) => {
   const categories = {
-    overview: '/docs/overview',
+    'getting-started': '/docs/getting-started',
+    guides: '/docs/guides/administration/identity-permissions',
     'architecture-security': '/docs/architecture-security/system-description',
-    deployment: '/docs/deployment/self-hosting',
-    admins: '/docs/admins/identity-permissions',
-    developers: '/docs/developers/assistant-mcp',
+    reference: '/docs/reference/api-reference',
   } as const;
   const colors = new Map<string, string>();
 
@@ -87,7 +85,7 @@ test('category visual identity follows the active root and locale', async ({ pag
 test('Vietnamese shell is localized while untranslated pages fall back explicitly', async ({
   page,
 }, testInfo) => {
-  await page.goto('/vi/docs/overview');
+  await page.goto('/vi/docs/getting-started');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
   await expect(
@@ -103,10 +101,9 @@ test('Vietnamese shell is localized while untranslated pages fall back explicitl
   await page.getByRole('button', { name: /Bắt đầu/ }).first().click();
   for (const section of [
     'Bắt đầu',
-    'Thiết kế hệ thống',
-    'Triển khai & vận hành',
-    'Quản trị & kiểm soát',
-    'Phát triển & tích hợp',
+    'Hướng dẫn',
+    'Kiến trúc & bảo mật',
+    'Tham chiếu',
   ]) {
     await expect(page.getByText(section, { exact: true }).last()).toBeVisible();
   }
@@ -114,20 +111,48 @@ test('Vietnamese shell is localized while untranslated pages fall back explicitl
 
   await page.getByRole('button', { name: 'Chọn ngôn ngữ' }).first().click();
   await page.getByRole('button', { name: 'English', exact: true }).last().click();
-  await expect(page).toHaveURL(/\/docs\/overview$/);
+  await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
-test('docs root redirects to the published overview', async ({ page }) => {
+test('docs root redirects to Getting Started', async ({ page }) => {
   await page.goto('/docs');
-  await expect(page).toHaveURL(/\/docs\/overview$/);
+  await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(
     page.getByRole('heading', { level: 1, name: 'Welcome to OrgMemory' }),
   ).toBeVisible();
 });
 
+test('legacy docs URLs permanently redirect to the new taxonomy', async ({
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Run the redirect contract once');
+
+  const redirects = new Map([
+    ['/docs/overview', '/docs/getting-started'],
+    [
+      '/vi/docs/admins/identity-permissions',
+      '/vi/docs/guides/administration/identity-permissions',
+    ],
+    [
+      '/docs/deployment/self-hosting.md',
+      '/docs/guides/deployment-operations/self-hosting.md',
+    ],
+    [
+      '/docs/developers/api-reference/search-catalog.md',
+      '/docs/reference/api-reference/search-catalog.md',
+    ],
+  ]);
+
+  for (const [source, destination] of redirects) {
+    const response = await request.get(source, { maxRedirects: 0 });
+    expect(response.status(), source).toBe(308);
+    expect(response.headers().location, source).toBe(destination);
+  }
+});
+
 test('quickstart exposes executable commands and observable health', async ({ page }) => {
-  await page.goto('/docs/overview/quickstart');
+  await page.goto('/docs/getting-started/quickstart');
   await expect(
     page.getByRole('heading', { level: 1, name: 'Quickstart and POC demo' }),
   ).toBeVisible();
@@ -154,8 +179,8 @@ test('root and docs pages pass automated accessibility smoke checks', async ({ p
 
   for (const route of [
     '/',
-    '/docs/overview',
-    '/vi/docs/overview',
+    '/docs/getting-started',
+    '/vi/docs/getting-started',
     '/docs/architecture-security/system-description',
   ]) {
     await page.goto(route);
@@ -176,7 +201,7 @@ test('root and docs pages pass automated accessibility smoke checks', async ({ p
 });
 
 test('responses carry security headers and use explicit Markdown URLs', async ({ request }) => {
-  for (const route of ['/docs/overview', '/vi/docs/overview']) {
+  for (const route of ['/docs/getting-started', '/vi/docs/getting-started']) {
     const response = await request.get(route, {
       headers: {
         Accept: 'text/html',
@@ -203,7 +228,7 @@ test('responses carry security headers and use explicit Markdown URLs', async ({
 });
 
 test('generated API reference renders with its playground disabled', async ({ page }) => {
-  await page.goto('/docs/developers/api-reference/search-catalog');
+  await page.goto('/docs/reference/api-reference/search-catalog');
 
   await expect(
     page.getByRole('heading', { level: 1, name: 'Search and catalog' }),

@@ -20,7 +20,7 @@ export function withLocale(pathname: string, language: DocsLanguage): string {
 }
 
 export function docsHome(language: DocsLanguage): string {
-  return withLocale('/docs/overview', language);
+  return withLocale('/docs/getting-started', language);
 }
 
 export const translations = i18n

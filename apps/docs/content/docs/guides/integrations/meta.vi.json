@@ -1,0 +1,8 @@
+{
+  "title": "Tích hợp",
+  "description": "Kết nối các client và giao diện phân phối được hỗ trợ.",
+  "icon": "Cable",
+  "pages": [
+    "assistant-mcp"
+  ]
+}

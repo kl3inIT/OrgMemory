@@ -1,8 +1,7 @@
 {
-  "title": "Deploy & Operate",
+  "title": "Deployment & Operations",
   "description": "Deploy, configure, observe, and recover OrgMemory.",
   "icon": "ServerCog",
-  "root": true,
   "pages": [
     "self-hosting"
   ]

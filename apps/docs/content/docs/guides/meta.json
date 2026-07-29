@@ -1,0 +1,12 @@
+{
+  "title": "Guides",
+  "description": "Complete product, administration, operations, and integration tasks.",
+  "icon": "ListChecks",
+  "root": true,
+  "pagesIndex": "administration/identity-permissions",
+  "pages": [
+    "administration",
+    "deployment-operations",
+    "integrations"
+  ]
+}

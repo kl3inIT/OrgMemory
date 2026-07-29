@@ -1,0 +1,11 @@
+{
+  "title": "Bắt đầu",
+  "description": "Hiểu OrgMemory và hoàn thành hành trình được quản trị đầu tiên.",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": [
+    "index",
+    "quickstart",
+    "core-concepts"
+  ]
+}

@@ -23,6 +23,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
 | Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
 | AI model gateway provider boundary | shipped | [completed verification](increments/completed/2026-07-29-ai-model-gateway-boundary/verification.md) |
+| Independent bilingual public documentation portal | shipped | [completed verification](increments/completed/2026-07-28-public-docs-portal/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -38,7 +39,7 @@ The table is a delivery index, not a second description of current behavior.
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
-| [Public documentation portal](increments/active/2026-07-28-public-docs-portal/plan.md) | active | deploy the prepared immutable docs release after owner-provided DNS/TLS and capture live publication/rollback proof |
+| [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | migrate the four-root taxonomy, then co-author What is OrgMemory? with the owner |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
@@ -46,8 +47,8 @@ implementation-active until their predecessor exit gates pass.
 
 ## Next — Execution Order
 
-1. Complete owner-controlled DNS/TLS and the live publication/rollback proof
-   for the deployment-ready Fumadocs portal.
+1. Complete the public docs taxonomy migration, then begin the owner-led
+   page-by-page authoring queue with What is OrgMemory?.
 2. Complete the guarded ZM database cutover, runtime health, browser login,
    upload, GraphRAG, Assistant/citation, restore, rollback, and resource gates.
 3. Complete the reproducible demo's real ingestion and permission-evaluation

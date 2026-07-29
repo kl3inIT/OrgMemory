@@ -1,10 +1,11 @@
 {
-  "title": "Thiết kế hệ thống",
+  "title": "Kiến trúc & bảo mật",
   "description": "Hiểu kiến trúc, luồng dữ liệu, ranh giới tin cậy và bằng chứng.",
   "icon": "Network",
   "root": true,
   "pages": [
     "system-description",
+    "asset-lifecycle",
     "ingestion-lifecycle",
     "authorization",
     "secure-retrieval-graphrag",
