@@ -55,15 +55,37 @@ class GraphRagEventSinkTests {
 
     @Test
     void reportsEveryFailureRatherThanOnlyTheFirst() {
-        var first = new RecordingSink(new IllegalStateException("first"));
-        var second = new RecordingSink(new IllegalStateException("second"));
+        var firstFailure = new IllegalStateException("first");
+        var secondFailure = new IllegalStateException("second");
 
-        GraphRagEventSink composite = GraphRagEventSink.composite(List.of(first, second));
+        GraphRagEventSink composite = GraphRagEventSink.composite(
+                List.of(new RecordingSink(firstFailure), new RecordingSink(secondFailure)));
         var event = event(GraphRagEventSink.Outcome.SUCCEEDED, null, null);
 
-        RuntimeException failure =
+        RuntimeException thrown =
                 assertThrows(IllegalStateException.class, () -> composite.emit(event));
-        assertEquals(1, failure.getSuppressed().length);
+
+        assertSame(firstFailure, thrown, "the first failure is the one that propagates");
+        assertEquals(1, thrown.getSuppressed().length);
+        assertSame(secondFailure, thrown.getSuppressed()[0]);
+    }
+
+    @Test
+    void survivesTwoBackendsRaisingOneSharedFailure() {
+        var shared = new IllegalStateException("collector down");
+
+        GraphRagEventSink composite = GraphRagEventSink.composite(
+                List.of(new RecordingSink(shared), new RecordingSink(shared)));
+        var event = event(GraphRagEventSink.Outcome.SUCCEEDED, null, null);
+
+        RuntimeException thrown =
+                assertThrows(IllegalStateException.class, () -> composite.emit(event));
+
+        assertSame(shared, thrown);
+        assertEquals(
+                0,
+                thrown.getSuppressed().length,
+                "Throwable.addSuppressed rejects self-suppression, so it must not be called");
     }
 
     @Test

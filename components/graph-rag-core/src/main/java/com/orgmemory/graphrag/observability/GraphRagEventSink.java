@@ -47,7 +47,9 @@ public interface GraphRagEventSink {
                 } catch (RuntimeException sinkFailure) {
                     if (failure == null) {
                         failure = sinkFailure;
-                    } else {
+                    } else if (failure != sinkFailure) {
+                        // Throwable.addSuppressed rejects self-suppression, and two
+                        // sinks can raise one shared instance.
                         failure.addSuppressed(sinkFailure);
                     }
                 }

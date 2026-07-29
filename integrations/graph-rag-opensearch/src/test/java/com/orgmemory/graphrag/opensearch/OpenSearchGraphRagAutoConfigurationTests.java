@@ -4,6 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
+import com.orgmemory.graphrag.storage.LexicalIndex;
+import com.orgmemory.graphrag.storage.ProcessingStatusIndex;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
+import com.orgmemory.graphrag.storage.VectorIndex;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -35,12 +39,21 @@ class OpenSearchGraphRagAutoConfigurationTests {
                         + "so enabling the property would silently do nothing");
     }
 
+    /** Every port {@link OpenSearchGraphRagAutoConfiguration} contributes when enabled. */
+    private static final List<Class<?>> CLAIMED_PORTS = List.of(
+            ProjectionPublicationStore.class,
+            ContentStore.class,
+            GraphStore.class,
+            LexicalIndex.class,
+            VectorIndex.class,
+            ProcessingStatusIndex.class);
+
     @Test
     void claimsNoPortUntilAnOperatorAsksForIt() {
-        runner.run(context -> assertTrue(
-                context.getBeansOfType(GraphStore.class).isEmpty()
-                        && context.getBeansOfType(ContentStore.class).isEmpty(),
-                "classpath presence must not displace the canonical PostgreSQL adapter"));
+        runner.run(context -> CLAIMED_PORTS.forEach(port -> assertTrue(
+                context.getBeansOfType(port).isEmpty(),
+                "%s must stay with the canonical PostgreSQL adapter until OpenSearch is enabled"
+                        .formatted(port.getSimpleName()))));
     }
 
     private static List<String> registeredAutoConfigurations() {

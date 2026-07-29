@@ -32,6 +32,16 @@ import org.springframework.transaction.PlatformTransactionManager;
  */
 class PostgresGraphRagAutoConfigurationTests {
 
+    /** Every port this adapter contributes outside a servlet application. */
+    private static final List<Class<?>> CANONICAL_PORTS = List.of(
+            ProjectionPublicationStore.class,
+            ContentStore.class,
+            GraphStore.class,
+            LexicalIndex.class,
+            VectorIndex.class,
+            ModelInvocationCache.class,
+            RetrievalResultCache.class);
+
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(
                     AutoConfigurations.of(PostgresGraphRagAutoConfiguration.class))
@@ -68,10 +78,10 @@ class PostgresGraphRagAutoConfigurationTests {
     @Test
     void leavesEveryPortUnclaimedWhenTurnedOff() {
         runner.withPropertyValues("orgmemory.graph-rag.postgres.enabled=false")
-                .run(context -> assertTrue(
-                        context.getBeansOfType(GraphStore.class).isEmpty()
-                                && context.getBeansOfType(ContentStore.class).isEmpty(),
-                        "disabling the adapter must not leave a half-wired store"));
+                .run(context -> CANONICAL_PORTS.forEach(port -> assertTrue(
+                        context.getBeansOfType(port).isEmpty(),
+                        "disabling the adapter must not leave %s wired"
+                                .formatted(port.getSimpleName()))));
     }
 
     private static List<String> registeredAutoConfigurations() {

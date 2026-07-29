@@ -1,5 +1,6 @@
 package com.orgmemory.graphrag.neo4j;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -60,10 +61,18 @@ class Neo4jGraphRagAutoConfigurationTests {
                 .withConfiguration(AutoConfigurations.of(Neo4jGraphRagAutoConfiguration.class))
                 .withUserConfiguration(PublicationConfiguration.class)
                 .withPropertyValues("orgmemory.graph-rag.neo4j.enabled=true")
-                .run(context -> assertInstanceOf(
-                        IllegalArgumentException.class,
-                        rootCause(context.getStartupFailure()),
-                        "an enabled adapter without a password must fail startup"));
+                .run(context -> {
+                    Throwable cause = rootCause(context.getStartupFailure());
+                    assertInstanceOf(
+                            IllegalArgumentException.class,
+                            cause,
+                            "an enabled adapter without a password must fail startup");
+                    assertEquals(
+                            "Neo4j password must be configured when the adapter is enabled",
+                            cause.getMessage(),
+                            "the password branch must be what fails, not another "
+                                    + "validation rule");
+                });
     }
 
     private static Throwable rootCause(Throwable failure) {

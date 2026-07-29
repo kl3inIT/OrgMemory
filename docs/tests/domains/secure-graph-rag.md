@@ -52,7 +52,9 @@ Reconciled: `2026-07-29-graph-rag-observability-wiring (fd495d0)`.
   fingerprint.
 - Event-sink composition tests prove every registered backend receives the
   event, that one failing backend neither silences the others nor hides its own
-  failure, and that an application with no backend emits nothing.
+  failure, that the first failure is the one propagated with later ones
+  suppressed, that two backends raising one shared failure instance do not trip
+  self-suppression, and that an application with no backend emits nothing.
 - Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
   Neo4j stay discoverable through their registration files, that PostgreSQL owns
   the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port
