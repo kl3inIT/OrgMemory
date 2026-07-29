@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.ai.openai;
+package com.orgmemory.integrations.ai.gateway;
 
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiGatewayAdministrationService;

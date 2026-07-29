@@ -43,7 +43,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.orgmemory.core.ai",
                 "com.orgmemory.core.permission",
                 "com.orgmemory.core.shared",
-                "com.orgmemory.integrations.ai.openai",
+                "com.orgmemory.integrations.ai.gateway",
                 "com.orgmemory.integrations.authorization.openfga"
         },
         excludeFilters = @ComponentScan.Filter(

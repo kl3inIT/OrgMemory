@@ -15,7 +15,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(scanBasePackages = {
         "com.orgmemory.api",
         "com.orgmemory.core",
-        "com.orgmemory.integrations.ai.openai",
+        "com.orgmemory.integrations.ai.gateway",
         "com.orgmemory.integrations.authorization.openfga"
 })
 @EntityScan("com.orgmemory.core")

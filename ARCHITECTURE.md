@@ -243,8 +243,10 @@ tuples.
 ## Current AI And Graph Behavior
 
 API and worker resolve workload-specific gateway/model routes through the
-provider-neutral runtime AI gateway, whose current production adapter uses Spring
-AI's OpenAI-compatible models. Assistant chat, graph extraction, and document
+provider-neutral `integrations/ai-model-gateways` runtime. The shared dispatcher
+selects protocol factories for Spring AI OpenAI-compatible or native Anthropic
+Messages models and fails closed when a protocol implementation is absent.
+Assistant chat, graph extraction, and document
 embedding have independent configured routes; immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit

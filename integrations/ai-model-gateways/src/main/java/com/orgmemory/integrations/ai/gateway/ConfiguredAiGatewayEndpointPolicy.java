@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.ai.openai;
+package com.orgmemory.integrations.ai.gateway;
 
 import com.orgmemory.core.ai.AiGatewayEndpointPolicy;
 import com.orgmemory.core.ai.AiGatewayPreset;

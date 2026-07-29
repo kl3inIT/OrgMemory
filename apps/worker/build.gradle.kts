@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":integrations:ai-openai-compatible"))
+    implementation(project(":integrations:ai-model-gateways"))
     implementation(project(":integrations:authorization-openfga"))
     implementation(project(":integrations:connectors"))
     implementation(project(":integrations:graph-rag-postgres"))
