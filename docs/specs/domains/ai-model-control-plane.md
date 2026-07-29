@@ -4,7 +4,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 `integrations/ai-openai-compatible`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-openfga-model-rollout`.
 
 ## Current Behavior
 
@@ -44,6 +44,12 @@ Index Settings is a separate read-only surface. The embedding provider, model,
 dimensions, and cosine metric cannot be mutated through the chat control plane;
 a geometry change requires a versioned embedding profile and reindex lifecycle.
 
+Both administration surfaces require OpenFGA `organization#can_manage_ai`.
+Production writes and pins the repository authorization model before a release
+whose model digest changed starts application containers. A legacy deployment
+with no stored digest writes the current model once. A failed release restores
+the previous model ID with its previous image set.
+
 ## Source Modules
 
 - `core.ai`
@@ -55,3 +61,4 @@ a geometry change requires a versioned embedding profile and reindex lifecycle.
 
 - [0006](../../decisions/0006-ai-tasks-route-through-provider-adapters.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
+- [0017](../../decisions/0017-pin-openfga-models-to-product-releases.md)

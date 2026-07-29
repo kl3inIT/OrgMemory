@@ -524,6 +524,9 @@ jobs:
       - name: Prove docs-only failed-canary rollback
         run: infrastructure/deployment/scripts/test-deploy-docs-rollback.sh
 
+      - name: Prove OpenFGA model rollout and rollback
+        run: infrastructure/deployment/scripts/test-deploy-openfga-model-rollout.sh
+
       - name: Validate publication verifier
         run: python3 -m py_compile infrastructure/deployment/scripts/verify-docs-publication.py
 

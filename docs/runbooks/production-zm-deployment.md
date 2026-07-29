@@ -66,8 +66,8 @@ Build or pull the exact production images, then initialize OpenFGA:
 ```
 
 The command creates one store from the repository authorization model and saves
-the store/model IDs to `.env.production`. It refuses to create a second store
-when identifiers already exist.
+the store ID, immutable model ID, and model SHA-256 to `.env.production`. It
+refuses to create a second store when identifiers already exist.
 
 ## Nginx Proxy Manager
 
@@ -168,9 +168,12 @@ The deployment:
 5. idempotently checks database roles/databases;
 6. backs up OrgMemory, OpenFGA, and Keycloak;
 7. runs OpenFGA migration and API-owned Flyway migration;
-8. starts the private runtime;
-9. checks web, API, MCP, Keycloak, and optionally the public endpoints;
-10. restores the previous image references when a gate fails.
+8. when the repository authorization-model digest changed or the legacy digest
+   is absent, writes a new immutable model into the existing store and
+   atomically pins its ID before application recreation;
+9. starts the private runtime;
+10. checks web, API, MCP, Keycloak, and optionally the public endpoints;
+11. restores the previous image references and model pin when a gate fails.
 
 `ORGMEMORY_BACKUP_UID` and `ORGMEMORY_BACKUP_GID` must match the owner of
 `ORGMEMORY_BACKUP_DIRECTORY`. The one-shot backup container drops all Linux
@@ -180,6 +183,12 @@ bypass directory permissions.
 Database migrations must remain backward compatible with the immediately
 previous application image. The rollback does not reverse a committed database
 migration.
+
+OpenFGA models are also immutable and remain in the store after a failed
+canary. Rollback makes that unused version inert by restoring the previous
+model ID. Model changes that need tuple migration must stage that migration
+explicitly; the release script orders and pins models but does not synthesize
+tuples.
 
 Logical backup rotation is an operator responsibility, not part of the
 transactional deployment script. A scheduled retention job may prune old

@@ -5,11 +5,12 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/api/src/test/java/com/orgmemory/api/admin`,
 `integrations/authorization-openfga/src/test/openfga`, and the admin web build.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-07-29-openfga-model-rollout`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | Only organization administrators receive `can_manage_ai` | OpenFGA `store.fga.yaml`, `PermissionsAdminIntegrationTests` | covered |
+| Production writes and pins a changed OpenFGA model before application recreation, skips identical bytes, and restores the previous pin on failed canary | `test-deploy-openfga-model-rollout.sh` | covered |
 | Secrets are encrypted and absent from views/log rendering | `AiGatewayAdministrationServiceTests#storesOnlyCiphertextAndKeepsCredentialsOutOfViewsAndLogs` | covered |
 | Cross-tenant profile IDs are opaque and cannot rotate credentials | `AiGatewayAdministrationServiceTests#aProfileIdFromAnotherOrganizationIsOpaqueAndCannotRotateASecret` | covered |
 | Profile, credential, and route actor FKs cannot cross tenant boundaries | `PermissionsAdminIntegrationTests#aiControlPlaneActorReferencesCannotCrossTenantBoundaries` | covered |
