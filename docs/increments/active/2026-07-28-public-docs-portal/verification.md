@@ -321,3 +321,10 @@ Passed local gates:
 | Docker policy | Buildx check completed with no warnings |
 | Node 24 build | Docker build completed with zero Oxlint warnings/errors and generated all 82 static routes/outputs |
 | Hardened runtime | read-only local container returned `307` from `/` to `/docs/overview`, all four security headers on the Overview response, and `200` for the architecture asset |
+
+The first exact-image deployment run `30433612540` started a healthy candidate
+but correctly rolled back because the older smoke contract still required `/`
+to be a `200` document. The corrected smoke verifies the final
+`/docs/overview` URL after following the public redirect, uses Overview for the
+internal document check, and has a focused regression case alongside the
+forced-canary rollback proof.
