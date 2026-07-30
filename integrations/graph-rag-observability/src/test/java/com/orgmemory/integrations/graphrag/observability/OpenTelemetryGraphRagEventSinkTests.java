@@ -113,6 +113,7 @@ class OpenTelemetryGraphRagEventSinkTests {
                     null,
                     new GraphRagEventSink.TokenUsage(
                             1_400, 30, 12, 220, 180, 900, 29_800, 3),
+                    null,
                     Instant.parse("2026-07-30T09:00:00Z")));
 
             var span = exporter.getFinishedSpanItems().getFirst();

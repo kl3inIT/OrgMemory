@@ -54,6 +54,7 @@ class MicrometerGraphRagEventSinkTests {
         // A meter this guard never instantiates is a meter it never guards, and the token
         // meters are the ones a per-organization tag would be most tempting on.
         sink.emit(assembledContext(usage(2)));
+        sink.emit(extractionCosting(100, 20));
 
         Set<String> forbidden = Set.of(
                 "organization_id", "operation_id", "scope_fingerprint", "model_route_fingerprint");
@@ -169,6 +170,34 @@ class MicrometerGraphRagEventSinkTests {
         assertNull(registry.find(MicrometerGraphRagEventSink.CONTEXT_PROMPT_TOKENS).summary());
     }
 
+    @Test
+    void separatesModelInputTokensFromOutputBecauseProvidersPriceThemDifferently() {
+        sink.emit(extractionCosting(1_400, 260));
+
+        assertEquals(
+                1_400.0,
+                registry.get(MicrometerGraphRagEventSink.MODEL_TOKEN_COUNTER)
+                        .tag("stage", "extract")
+                        .tag("direction", "input")
+                        .counter()
+                        .count());
+        assertEquals(
+                260.0,
+                registry.get(MicrometerGraphRagEventSink.MODEL_TOKEN_COUNTER)
+                        .tag("stage", "extract")
+                        .tag("direction", "output")
+                        .counter()
+                        .count(),
+                "summing the two would make the meter unable to answer what a stage costs");
+    }
+
+    @Test
+    void recordsNoModelTokenMeterForAStageThatCallsNoProvider() {
+        sink.emit(event(GraphRagEventSink.Outcome.SUCCEEDED, null, Duration.ofMillis(1)));
+
+        assertNull(registry.find(MicrometerGraphRagEventSink.MODEL_TOKEN_COUNTER).counter());
+    }
+
     private Set<String> tagKeysOf(String meterName) {
         List<Tag> tags = registry.get(meterName).timer().getId().getTags();
         return tags.stream().map(Tag::getKey).collect(Collectors.toSet());
@@ -206,6 +235,26 @@ class MicrometerGraphRagEventSinkTests {
                 null,
                 null,
                 usage,
+                null,
+                Instant.now());
+    }
+
+    private static GraphRagEventSink.GraphRagEvent extractionCosting(
+            int inputTokens, int outputTokens) {
+        return new GraphRagEventSink.GraphRagEvent(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                GraphRagEventSink.Stage.EXTRACT,
+                GraphRagEventSink.Outcome.SUCCEEDED,
+                Duration.ofSeconds(4),
+                12,
+                12,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new GraphRagEventSink.ProviderTokenUsage(inputTokens, outputTokens),
                 Instant.now());
     }
 

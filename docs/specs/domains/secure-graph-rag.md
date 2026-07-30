@@ -5,7 +5,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `core/src/main/java/com/orgmemory/core/knowledge`, and
 `apps/web/src/features/knowledge`.
 
-Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
+Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
 
 ## Current Contract
 
@@ -148,8 +148,11 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   destination. Spans carry `service.version` and `deployment.environment`. The
   worker samples traces in full and the API at 0.1.
 - `Stage` declares fourteen values; production emits thirteen. `GENERATE` has no
-  producer, so no answer-generation latency is reported. Deletion and rebuild
-  have no stage.
+  producer, so no answer-generation latency is reported: generation runs in the
+  application shell rather than the GraphRAG runtime, above an engine-neutral
+  retrieval interface with a non-GraphRAG implementation, so wiring it is a
+  boundary decision rather than a wiring one. Deletion and rebuild have no
+  stage.
 - `PARSE` and `CHUNK` are emitted by source ingestion under the same `jobId` the
   graph indexing stages use, so one upload reads as one operation across both
   processors. `PARSE` reports one source document in and the canonical blocks
@@ -186,6 +189,25 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   the number of contributions refused and the number of answers affected, which
   no sum of the first can recover. Tokens are not tagged by organization; that
   attribution stays on the span, which already carries the identifier.
+- Extraction reports what the provider charged, separately from what retrieval
+  budgeted. `EXTRACT` carries the first round's provider input and output token
+  totals and `GLEAN` carries the second round's, so the second is never billed
+  twice. Absent when the extractor reported nothing, because an unmeasured
+  provider is not a free one. Meters keep input and output apart, since every
+  provider prices them differently.
+- The worker opens one span per claimed indexing job so every stage below it has
+  a parent. Nothing else creates a trace there — the worker serves no request —
+  so without it each stage span was a root of its own.
+- Work fanned out to virtual threads carries the submitting thread's observation
+  context, through `GraphRagTaskDecorator`. The domain modules that own those
+  executors declare the port; the implementation ships with the telemetry
+  adapters, and absent one the executors behave exactly as before. The
+  concurrency itself is unchanged: same executors, same lifetimes, same bounds.
+- `apps/mcp` starts a trace of its own and propagates `traceparent` on its API
+  client, which is built through Spring Boot's `RestClientBuilderConfigurer`
+  because a bare `RestClient.builder()` carries no customizer and therefore no
+  propagation. Its OTLP defaults match the other services: metrics export off,
+  log export off, environment-variable mapping off in production.
 - Indexing and retrieval fan one stage event out to every registered
   `GraphRagEventSink`, so an application may observe the same stage through more
   than one backend. Sinks fail independently and emission never controls

@@ -52,6 +52,30 @@ server:
   port: ${ORGMEMORY_MCP_PORT:8090}
 
 management:
+  tracing:
+    sampling:
+      # The gateway is a hop, not the work. It samples with the API so a request
+      # sampled on one side is not a half-trace on the other.
+      probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}
+  otlp:
+    metrics:
+      export:
+        # Micrometer's OTLP registry is opt-out with a http://localhost:4318 default,
+        # so adding the OpenTelemetry starter to a service with no collector makes it
+        # export to itself every minute and log the failure. That is the production
+        # symptom this increment opened to fix; it does not get reintroduced by a
+        # third service acquiring the starter.
+        enabled: ${ORGMEMORY_OTLP_METRICS_ENABLED:false}
+  logging:
+    export:
+      otlp:
+        # The collector tails the json-file driver; OTLP log export would duplicate
+        # every line and has the same failure mode as the metrics exporter above.
+        enabled: false
+  opentelemetry:
+    resource-attributes:
+      service.version: ${ORGMEMORY_SERVICE_VERSION:unknown}
+      deployment.environment.name: ${ORGMEMORY_DEPLOYMENT_ENVIRONMENT:local}
   endpoints:
     web:
       exposure:

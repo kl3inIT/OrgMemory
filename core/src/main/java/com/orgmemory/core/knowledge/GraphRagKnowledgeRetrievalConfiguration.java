@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,7 +28,8 @@ class GraphRagKnowledgeRetrievalConfiguration {
             GraphRagRetrievalPolicy policy,
             PermissionAuditService audit,
             KnowledgeRetrievalProperties retrievalProperties,
-            ObjectProvider<GraphRagEventSink> eventSinks) {
+            ObjectProvider<GraphRagEventSink> eventSinks,
+            ObjectProvider<GraphRagTaskDecorator> taskDecorators) {
         return new GraphRagKnowledgeRetrievalService(
                 searchAuthorization,
                 evidenceScopes,
@@ -41,6 +43,7 @@ class GraphRagKnowledgeRetrievalConfiguration {
                 audit,
                 retrievalProperties,
                 GraphRagEventSink.failureTolerant(
-                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())));
+                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())),
+                taskDecorators.getIfAvailable(() -> GraphRagTaskDecorator.NONE));
     }
 }

@@ -20,13 +20,30 @@ management.opentelemetry.tracing.export.otlp.headers
 management.opentelemetry.tracing.export.otlp.transport
 ```
 
-The application allowlist is limited to operation and organization UUIDs,
-stage/outcome, monotonic duration, bounded input/output counts, an optional
-lowercase SHA-256 model-route fingerprint, and a bounded machine failure code.
+The application allowlist is operation and organization UUIDs, stage, outcome,
+cache status, a monotonic duration, non-negative input and output counts, an
+optional lowercase SHA-256 model-route fingerprint, an optional lowercase
+SHA-256 scope fingerprint, a bounded machine failure code, an event timestamp,
+the context token breakdown with the budget it was fitted to and the number of
+contributions the budget evicted, and provider input/output token totals.
+
+Two corrections to an earlier version of this list, both of which described a
+stronger guarantee than the code gives:
+
+- The counts are checked for non-negativity, not for an upper bound. Nothing
+  rejects an implausibly large one, so a count is trusted to be a count and not
+  proven to be a small one.
+- The list omitted the scope fingerprint, the cache status and the event
+  timestamp, which have always been exported. An allowlist that does not name
+  everything exported is not an allowlist.
+
 Never add query, prompt, completion, evidence/chunk text, document title/URI,
-embedding values, actor identity, ACL subjects or exception messages. Spring AI
-prompt and completion observation logging is explicitly disabled in API and
-worker configuration.
+embedding values, actor identity, ACL subjects or exception messages. Token
+counts are permitted where the text they measure is not, because a total cannot
+reconstruct what it totalled. Spring AI prompt and completion observation
+logging is explicitly disabled in API and worker configuration, and the provider
+client packages are pinned above WARN because their own logging concatenates
+payload independently of Spring AI.
 
 Before claiming Langfuse compatibility as verified:
 
@@ -34,8 +51,19 @@ Before claiming Langfuse compatibility as verified:
    the configured collector;
 2. confirm the stage names and original durations;
 3. export the spans and scan every attribute/event for forbidden payload;
-4. confirm error spans contain no exception event or stack trace; and
+4. confirm error spans carry an exception event holding `exception.type` alone,
+   with no message, no stack trace and no status description. The event itself
+   survives: `ExceptionSanitizingSpanExporter` strips the attributes and clears
+   the description rather than dropping the event, so the exception type stays
+   available for triage while the text does not leave the process. An earlier
+   version of this gate demanded no exception event at all, which no code
+   enforced and which would have failed a correct export; and
 5. attach the sanitized export to release evidence.
+
+`WholeExportAllowlistTests` executes steps 3 and 4 against the sanitizing
+exporter in the position it occupies in production, on both a success and a
+failure path, and includes a case proving the gate fails when an unmodelled
+attribute is exported. Steps 1, 2 and 5 remain manual against a real collector.
 
 ## Oracle And RAGAS
 

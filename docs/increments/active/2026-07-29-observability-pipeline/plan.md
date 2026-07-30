@@ -130,12 +130,13 @@ Depends on the composite sink merged in PR #132.
       see where parsing ended.
 - [ ] Deletion and rebuild: missing from the enum entirely, and the runbook
       requires a drill for it. Decide separately.
-- [ ] Extraction cost. `ExtractionRoundMetrics` already carries
-      `providerInputTokens` and `providerOutputTokens` per round and nothing
-      publishes them, so ingestion spend is invisible while retrieval spend is
-      not. Found while wiring `GLEAN`. The `TokenUsage` record added for context
-      assembly does not fit — its channels are retrieval's — so this needs its
-      own shape rather than a forced reuse.
+- [x] Extraction cost. `ProviderTokenUsage` is its own record rather than a
+      forced reuse of `TokenUsage`: one is a budget the deployment estimated,
+      the other a bill a vendor counted, and the difference between them is
+      itself worth seeing. `EXTRACT` carries round zero and `GLEAN` round one,
+      so the gleaning round is never billed twice. It rides on the existing
+      stage event rather than a second one — an extra event with a zero duration
+      would have dragged the stage timer's p95 down toward zero.
 
 ### `GENERATE` and time to first token — blocked on a boundary decision
 
@@ -207,38 +208,54 @@ Gate: module tests, `:core:test`, API context load, worker indexing tests.
 - [ ] Extend `smoke-production.sh` to export a known signal and verify receipt,
       so a silent exporter fails deployment instead of passing it.
 
-## 4. Trace continuity — not started
+## 4. Trace continuity — done
 
-Highest regression risk; run it last, once a collector can show the result.
-
-- [ ] Root span per worker indexing job.
-- [ ] Wrap both virtual-thread executors with `ContextSnapshot` so model calls
-      inside tasks keep their parent.
-- [ ] Add the OpenTelemetry starter to `apps/mcp` and propagate `traceparent` on
-      its API client.
-- [ ] Prove: a job's child spans share the root `traceId`, and a span created
-      inside a virtual-thread task has the expected parent.
+- [x] Root span per worker indexing job. The worker serves no request, so nothing
+      else opened a trace and every stage span was a root of its own.
+- [x] Both virtual-thread executors carry the submitting thread's context. Done
+      through a `GraphRagTaskDecorator` port rather than by putting
+      `context-propagation` on the classpath of two domain modules, which would
+      have decided a module boundary in passing — the same question already
+      deferred for the swallowed-failure gauge, answered the same way. Absent an
+      implementation the executors behave exactly as before, and the concurrency
+      is unchanged: same executors, same lifetimes, same bounds.
+- [x] `apps/mcp` starts its own trace and propagates `traceparent`. A bare
+      `RestClient.builder()` carries no `RestClientCustomizer`, and that
+      customizer is what writes the header — so the gateway and the API were
+      recording two unrelated traces per call. Boot 4.1 documentation is explicit
+      that the auto-configured builder is required for propagation;
+      `RestClientBuilderConfigurer.configure` sets a request factory of its own,
+      so the gateway's factory is applied afterwards.
+- [x] Adding the starter to `apps/mcp` meant giving it the same OTLP defaults as
+      the other two services. Without them a third service would have begun
+      exporting metrics to `localhost:4318` every minute — reintroducing exactly
+      the production symptom this increment opened to fix.
+- [x] Proved: context reaches a fresh virtual thread, an undecorated task shows
+      the fixture would have caught a no-op, capture happens at decoration rather
+      than execution, and the scope closes so one job cannot leak into the next.
 
 ## 5. Consolidate — not started
 
-- [ ] Whole-export test: scan every span, event, resource and
-      instrumentation-scope attribute, plus the log stream, on success and
-      failure paths, against the allowlist. This is the runbook's release gate
-      and it has never been executed.
-- [ ] Reconcile `docs/specs/domains/secure-graph-rag.md` and its test matrix.
-- [ ] Correct the runbook's field list — it omits `scopeFingerprint`,
-      `cacheStatus` and `occurredAt`, and describes counts as bounded when only
+- [x] Whole-export test. `WholeExportAllowlistTests` walks the span name,
+      attributes, status, every event and event attribute, instrumentation scope
+      and resource, on success and failure paths, through the sanitizing exporter
+      in its production position. A companion case exports an unmodelled
+      attribute and asserts the gate fails, because a gate that has never
+      rejected anything is indistinguishable from one that never looks.
+- [x] Reconcile `docs/specs/domains/secure-graph-rag.md` and its test matrix.
+- [x] Correct the runbook's field list. It omitted `scopeFingerprint`,
+      `cacheStatus` and `occurredAt` — an allowlist that does not name everything
+      exported is not an allowlist — and described counts as bounded when only
       non-negativity is checked.
-- [ ] Amend the runbook's "no exception event or stack trace" gate. The event now
-      survives carrying `exception.type` alone, which is what the exporter
-      enforces; the gate should say that rather than something stricter than the
-      code.
+- [x] Amend the runbook's "no exception event or stack trace" gate. It demanded
+      something no code enforced and would have failed a correct export. The
+      event survives carrying `exception.type` alone.
 - [ ] Resolve where telemetry egress lives. `integrations/graph-rag-observability`
       is named for one domain but now owns the span sanitizer, which protects
       every span in the process. Renaming it is a module-boundary change and
       needs its own challenge, so it is recorded here rather than done quietly.
-- [ ] Record the payload-boundary decision under `docs/decisions/`, superseding
-      nothing but documenting the challenge outcome.
+- [x] Record the payload-boundary decision:
+      `docs/decisions/0018-telemetry-carries-counts-never-payload.md`.
 
 ## Deferred, with reasons
 

@@ -1,11 +1,14 @@
 package com.orgmemory.integrations.graphrag.observability;
 
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
+import io.micrometer.context.ContextSnapshotFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -62,6 +65,26 @@ public class GraphRagObservabilityAutoConfiguration {
         @ConditionalOnBean(MeterRegistry.class)
         GraphRagEventSink micrometerGraphRagEventSink(MeterRegistry meterRegistry) {
             return new MicrometerGraphRagEventSink(meterRegistry);
+        }
+    }
+
+    /**
+     * Supplies context propagation to the modules that fan work out to virtual threads.
+     *
+     * <p>Contributed unconditionally where the library is present, rather than behind the sink
+     * toggles: propagation is what makes a span attributable, so a deployment that disabled it
+     * separately would keep producing spans and lose only the ability to explain them — the
+     * least useful of the two halves to keep.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(ContextSnapshotFactory.class)
+    static class ContextPropagationConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(GraphRagTaskDecorator.class)
+        GraphRagTaskDecorator graphRagTaskDecorator() {
+            return new ContextPropagatingTaskDecorator(
+                    ContextSnapshotFactory.builder().build());
         }
     }
 }
