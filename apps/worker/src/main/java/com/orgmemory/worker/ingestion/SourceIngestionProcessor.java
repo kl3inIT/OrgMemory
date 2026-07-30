@@ -26,6 +26,7 @@ import com.orgmemory.core.knowledge.SourceRevisionStatus;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.permission.AccessGate;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.parsing.DocumentParseRequest;
 import com.orgmemory.graphrag.parsing.DocumentParseResult;
 import java.io.IOException;
@@ -37,8 +38,10 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +49,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -62,6 +66,33 @@ class SourceIngestionProcessor {
     private final AiRouteResolver aiRoutes;
     private final SourceProcessingProperties properties;
     private final DocumentProcessingEngine processingEngine;
+    private final GraphRagEventSink events;
+
+    @Autowired
+    SourceIngestionProcessor(
+            SourceIngestionCoordinator coordinator,
+            KnowledgeIngestionService ingestion,
+            KnowledgeAssetPublicationService publications,
+            EmbeddingProfileRegistry embeddingProfiles,
+            ObjectStoragePort objects,
+            ObjectProvider<EmbeddingModel> embeddingModels,
+            AiRouteResolver aiRoutes,
+            SourceProcessingProperties properties,
+            DocumentProcessingEngine processingEngine,
+            ObjectProvider<GraphRagEventSink> eventSinks) {
+        this(
+                coordinator,
+                ingestion,
+                publications,
+                embeddingProfiles,
+                objects,
+                embeddingModels,
+                aiRoutes,
+                properties,
+                processingEngine,
+                GraphRagEventSink.failureTolerant(
+                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())));
+    }
 
     SourceIngestionProcessor(
             SourceIngestionCoordinator coordinator,
@@ -72,7 +103,8 @@ class SourceIngestionProcessor {
             ObjectProvider<EmbeddingModel> embeddingModels,
             AiRouteResolver aiRoutes,
             SourceProcessingProperties properties,
-            DocumentProcessingEngine processingEngine) {
+            DocumentProcessingEngine processingEngine,
+            GraphRagEventSink events) {
         this.coordinator = coordinator;
         this.ingestion = ingestion;
         this.publications = publications;
@@ -82,11 +114,46 @@ class SourceIngestionProcessor {
         this.aiRoutes = aiRoutes;
         this.properties = properties;
         this.processingEngine = processingEngine;
+        this.events = Objects.requireNonNull(events, "events");
     }
 
     void processNext() {
         coordinator.claimNext(properties.workerId(), properties.leaseDuration())
                 .ifPresent(this::process);
+    }
+
+    /**
+     * Reports the two ingestion stages that had no producer.
+     *
+     * <p>The revision status already moved through {@code PARSING} and {@code CHUNKING}, but a
+     * status says where a job is, not how long it stayed there — so a document that took four
+     * minutes to parse and one that took four seconds left the same trace. These are emitted
+     * from the same {@code jobId} the graph indexing stages use, so one upload reads as one
+     * operation across both processors.
+     */
+    private void emitStage(
+            ClaimedSourceRevision claim,
+            GraphRagEventSink.Stage stage,
+            Duration duration,
+            int inputCount,
+            int outputCount) {
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    claim.jobId(),
+                    claim.organizationId(),
+                    stage,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    duration,
+                    inputCount,
+                    outputCount,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become an ingestion availability dependency.
+        }
     }
 
     private void process(ClaimedSourceRevision claim) {
@@ -125,6 +192,18 @@ class SourceIngestionProcessor {
                             Optional.empty()),
                     embeddingModel);
             DocumentParseResult parsed = processed.parseResult();
+            emitStage(
+                    claim,
+                    GraphRagEventSink.Stage.PARSE,
+                    processed.parseDuration(),
+                    1,
+                    parsed.document().blocks().size());
+            emitStage(
+                    claim,
+                    GraphRagEventSink.Stage.CHUNK,
+                    processed.chunkDuration(),
+                    parsed.document().blocks().size(),
+                    processed.chunks().size());
             RawSourceRef raw = registerRawSource(claim, parsed);
             NormalizedRecordRef normalized = ingestion.normalize(new NormalizeRawSourceCommand(
                     claim.organizationId(),

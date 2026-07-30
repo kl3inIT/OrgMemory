@@ -147,9 +147,17 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   environment-variable mapping so telemetry cannot acquire an unchosen
   destination. Spans carry `service.version` and `deployment.environment`. The
   worker samples traces in full and the API at 0.1.
-- `Stage` declares fourteen values; production emits eleven. `PARSE`, `CHUNK` and
-  `GENERATE` have no producer, so no parsing, chunking or answer-generation
-  latency is reported. Deletion and rebuild have no stage.
+- `Stage` declares fourteen values; production emits thirteen. `GENERATE` has no
+  producer, so no answer-generation latency is reported. Deletion and rebuild
+  have no stage.
+- `PARSE` and `CHUNK` are emitted by source ingestion under the same `jobId` the
+  graph indexing stages use, so one upload reads as one operation across both
+  processors. `PARSE` reports one source document in and the canonical blocks
+  produced; `CHUNK` reports those blocks in and the chunks produced. The engine
+  measures both windows itself and carries them out on
+  `ProcessedSourceDocument`, because its caller makes one call and cannot see
+  where parsing ended. A semantic chunker's failover to the recursive chunker is
+  inside the chunk window, being time the document really spent chunking.
 - `GLEAN` reports the second extraction round separately from the first. It is
   emitted once per indexing job when the profile enables gleaning, counting
   chunks eligible against chunks that completed a gleaning round, so a token
