@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
 
 ## Current Behavior
 
@@ -126,8 +126,11 @@ execution action.
 The authenticated web application provides four generic surfaces:
 
 - **Assets** lists only the latest non-withdrawn exact release the current actor
-  can use. Search, type, sort, and page are URL state. The server returns a
-  bounded page plus the authorized total and applies an explicit stable order.
+  can use. A prominent controlled projection switches between the shared
+  catalog and its Prompt Template, Work Instruction, Capability Pack, and Skill
+  profiles. Search, type, sort, layout, and page are URL state; the grid is the
+  clean-URL default and the list remains available. The server returns a bounded
+  page plus the authorized total and applies an explicit stable order.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and
