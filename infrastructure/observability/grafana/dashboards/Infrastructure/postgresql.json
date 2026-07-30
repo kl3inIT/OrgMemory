@@ -95,7 +95,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "pg_static{release=\"$release\", instance=\"$instance\"}",
+          "expr": "pg_static{instance=\"$instance\"}",
           "format": "time_series",
           "instant": true,
           "intervalFactor": 1,
@@ -179,7 +179,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "pg_postmaster_start_time_seconds{release=\"$release\", instance=\"$instance\"} * 1000",
+          "expr": "pg_postmaster_start_time_seconds{instance=\"$instance\"} * 1000",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "",
@@ -345,7 +345,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "SUM(pg_stat_database_tup_inserted{release=\"$release\", datname=~\"$datname\", instance=~\"$instance\"})",
+          "expr": "SUM(pg_stat_database_tup_inserted{datname=~\"$datname\", instance=~\"$instance\"})",
           "format": "time_series",
           "intervalFactor": 2,
           "refId": "A",
@@ -510,7 +510,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "pg_settings_max_connections{release=\"$release\", instance=\"$instance\"}",
+          "expr": "pg_settings_max_connections{instance=\"$instance\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "refId": "A"
@@ -572,7 +572,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "avg(rate(process_cpu_seconds_total{release=\"$release\", instance=\"$instance\"}[5m]) * 1000)",
+          "expr": "avg(rate(process_cpu_seconds_total{instance=\"$instance\"}[5m]) * 1000)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "CPU Time",
@@ -663,14 +663,14 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "avg(rate(process_resident_memory_bytes{release=\"$release\", instance=\"$instance\"}[5m]))",
+          "expr": "avg(rate(process_resident_memory_bytes{instance=\"$instance\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "Resident Mem",
           "refId": "A"
         },
         {
-          "expr": "avg(rate(process_virtual_memory_bytes{release=\"$release\", instance=\"$instance\"}[5m]))",
+          "expr": "avg(rate(process_virtual_memory_bytes{instance=\"$instance\"}[5m]))",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "Virtual Mem",
@@ -762,7 +762,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "process_open_fds{release=\"$release\", instance=\"$instance\"}",
+          "expr": "process_open_fds{instance=\"$instance\"}",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "Open FD",
@@ -2926,7 +2926,7 @@
         "type": "datasource",
         "current": {
           "text": "Prometheus",
-          "value": "prometheus"
+          "value": "orgmemory-prometheus"
         }
       },
       {
@@ -2990,81 +2990,18 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "prometheus",
-        "definition": "",
-        "hide": 0,
-        "includeAll": false,
-        "label": "Namespace",
-        "multi": false,
-        "name": "namespace",
-        "options": [],
-        "query": "query_result(pg_exporter_last_scrape_duration_seconds)",
-        "refresh": 2,
-        "regex": "/.*kubernetes_namespace=\"([^\"]+).*/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {},
-        "datasource": "prometheus",
-        "definition": "",
-        "hide": 0,
-        "includeAll": false,
-        "label": "Release",
-        "multi": false,
-        "name": "release",
-        "options": [],
-        "query": "query_result(pg_exporter_last_scrape_duration_seconds{kubernetes_namespace=\"$namespace\"})",
-        "refresh": 2,
-        "regex": "/.*release=\"([^\"]+)/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {},
-        "datasource": "prometheus",
-        "definition": "",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(pg_up, instance)",
         "hide": 0,
         "includeAll": false,
         "label": "Instance",
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "query_result(pg_up{release=\"$release\"})",
-        "refresh": 1,
-        "regex": "/.*instance=\"([^\"]+).*/",
-        "skipUrlSync": false,
-        "sort": 1,
-        "tagValuesQuery": "",
-        "tags": [],
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "allValue": null,
-        "current": {},
-        "datasource": "prometheus",
-        "definition": "",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Database",
-        "multi": true,
-        "name": "datname",
-        "options": [],
-        "query": "label_values(datname)",
+        "query": "label_values(pg_up, instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -3078,7 +3015,35 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "prometheus",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(pg_stat_database_tup_fetched, datname)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Database",
+        "multi": true,
+        "name": "datname",
+        "options": [],
+        "query": "label_values(pg_stat_database_tup_fetched, datname)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": true,
@@ -3130,6 +3095,6 @@
   },
   "timezone": "",
   "title": "PostgreSQL Database",
-  "uid": "zeromail-postgresql",
+  "uid": "orgmemory-postgresql",
   "version": 1
 }

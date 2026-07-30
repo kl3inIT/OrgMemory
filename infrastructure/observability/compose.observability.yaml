@@ -8,7 +8,10 @@
 #   docker compose -f compose.observability.yaml --env-file observability.env up -d
 #
 # Applications reach it at `observability-alloy:4318` over the pre-existing
-# `shared-infra` network, so nothing in compose.production.yaml has to change.
+# `shared-infra` network. This stack is only half of the wiring: the exporter
+# endpoints and the `mcp` service's membership of `shared-infra` live in
+# compose.production.yaml, and a deployment that starts this file against an
+# older product release comes up healthy while exporting nothing. Deploy both.
 # Never `localhost`: Alloy binds 127.0.0.1 on the host, and inside a container
 # that address is the container itself. That mistake is the original production
 # symptom this whole increment exists to fix.
@@ -29,7 +32,11 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
-      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      # Required, with no loopback fallback. Grafana builds every plugin asset
+      # URL and every OAuth redirect from this value, so a default that quietly
+      # disagrees with how Grafana is actually reached produces "Plugin failed to
+      # load" and a broken sign-in with nothing in the logs pointing here.
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:?GRAFANA_ROOT_URL must be the public URL Grafana is reached at}
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -226,6 +233,11 @@ networks:
   observability-internal:
     driver: bridge
   shared-infra:
+    # Same expression as compose.production.yaml, not the bare literal. A
+    # deployment that overrides the network name would otherwise attach the
+    # applications to one network and the collector to another, and the only
+    # symptom is telemetry that never arrives.
+    name: ${ORGMEMORY_SHARED_INFRA_NETWORK:-shared-infra}
     external: true
   proxy:
     name: ${ORGMEMORY_PROXY_NETWORK:-proxy-network}

@@ -775,7 +775,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Cadvisor exporter",
-  "uid": "zeromail-cadvisor",
+  "uid": "orgmemory-cadvisor",
   "version": 1,
   "description": "Simple exporter for cadvisor only"
 }

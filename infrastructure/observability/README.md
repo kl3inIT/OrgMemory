@@ -13,9 +13,13 @@ docker compose -f compose.observability.yaml --env-file observability.env up -d
 ```
 
 Applications reach it at `observability-alloy:4318` over the existing
-`shared-infra` network, so `compose.production.yaml` needs no change. Never
-`localhost` — Alloy binds `127.0.0.1` on the host, and inside a container that
-address is the container itself.
+`shared-infra` network. **This stack is only half of the wiring.** The exporter
+endpoints and the `mcp` service's membership of `shared-infra` are in
+`compose.production.yaml`, so a host running this file against a product release
+from before that change comes up entirely healthy and exports nothing. Deploy
+the product side too, then confirm with the trace check at the bottom of this
+file. Never `localhost` — Alloy binds `127.0.0.1` on the host, and inside a
+container that address is the container itself.
 
 ## Reach Grafana
 
