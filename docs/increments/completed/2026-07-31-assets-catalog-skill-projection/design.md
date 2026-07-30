@@ -1,6 +1,6 @@
 # Assets Catalog Type Projection
 
-Status: implementation active.
+Status: completed on 2026-07-31.
 
 ## Problem
 

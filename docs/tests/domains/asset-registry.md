@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -42,6 +42,7 @@ Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 | Replacement releases do not mutate existing Pack pins | `AssetRegistryIntegrationTests` | covered |
 | Recommendations are actor-scoped and contain exact usable release refs | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases`, `AssistantAssetToolServiceTests#recommendationsContainOnlyExactUsableReleaseRefs` | covered |
 | Asset catalog total, filtering, stable name sorting, and pages are evaluated over the authorized latest-release set | `AssetRegistryIntegrationTests#catalogPagesAndSortsTheLatestAuthorizedReleasesOnTheServer` | covered |
+| Asset type projection exposes every governed profile, reports the active filter, clears to the shared catalog, and preserves URL-safe list/grid state | `asset-type-filter.test.tsx`, `asset-catalog-state.test.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |

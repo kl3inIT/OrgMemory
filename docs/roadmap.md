@@ -19,6 +19,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Source authorization core V2 and GitHub authorization synchronization | shipped | [source core](increments/completed/2026-07-28-source-authorization-core-v2/plan.md), [sync correctness](increments/completed/2026-07-28-source-authorization-sync-correctness/plan.md), [GitHub connector](increments/completed/2026-07-28-github-authorization-connector/plan.md) |
 | Secure Java LightRAG semantic port and replaceable storage adapters | shipped | [LightRAG parity history](increments/completed/2026-07-23-full-lightrag-semantic-port/plan.md) |
 | Governed Asset Registry, shared page system, and catalog UX | shipped | [Asset Registry](increments/completed/2026-07-25-unified-asset-registry-definition/plan.md), [catalog UX](increments/completed/2026-07-27-asset-catalog-ux/plan.md) |
+| Assets catalog type projection | shipped | [completed verification](increments/completed/2026-07-31-assets-catalog-skill-projection/verification.md) |
 | Governed Skill packaging, distribution, authoring, publication, and handoff | shipped | [package foundation](increments/completed/2026-07-27-skill-registry-package-foundation/plan.md), [distribution](increments/completed/2026-07-27-skill-registry-distribution/plan.md), [publication](increments/completed/2026-07-27-skill-authoring-publication/plan.md), [handoff](increments/completed/2026-07-27-skill-governance-handoff/plan.md) |
 | Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
 | Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
@@ -32,7 +33,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Assets catalog type projection](increments/active/2026-07-31-assets-catalog-skill-projection/plan.md) | active | implement and browser-verify the shared catalog type switcher, then complete the reviewed PR loop |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |
