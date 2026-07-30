@@ -148,7 +148,7 @@ test("two users prove governed release and second-user Pack completion", async (
   await supportContext.close()
 })
 
-test("asset catalog defaults to a dense list and keeps grid state in the URL", async ({
+test("asset catalog defaults to a grid and keeps list state in the URL", async ({
   page,
 }) => {
   const harness = await assetHarness(page, "support", catalogRecommendations())
@@ -157,25 +157,25 @@ test("asset catalog defaults to a dense list and keeps grid state in the URL", a
   await page.goto("/assets")
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
-  await expect(page.getByRole("table")).toBeVisible()
-  await expect(page.getByRole("columnheader", { name: "Released" })).toBeVisible()
+  await expect(page.getByRole("table")).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
-      path: "../output/design-qa/asset-catalog-list.png",
+      path: "../output/design-qa/asset-catalog-grid.png",
       fullPage: false,
     })
   }
 
+  await page.getByRole("button", { name: "List view" }).click()
+  await expect(page).toHaveURL(/view=LIST/)
+  await expect(page.getByRole("table")).toBeVisible()
+
   await page.getByRole("button", { name: "Grid view" }).click()
-  await expect(page).toHaveURL(/view=GRID/)
+  await expect(page).not.toHaveURL(/view=/)
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
-
-  await page.getByRole("button", { name: "List view" }).click()
-  await expect(page).not.toHaveURL(/view=/)
-  await expect(page.getByRole("table")).toBeVisible()
 
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])

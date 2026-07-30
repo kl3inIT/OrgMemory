@@ -8,6 +8,7 @@ Implementation commit: `4ac146e`.
 - `corepack pnpm --filter @orgmemory/web lint`
 - `corepack pnpm --filter @orgmemory/web typecheck`
 - `corepack pnpm --filter @orgmemory/web test:unit`: 8 files, 29 tests passed
+- `corepack pnpm --filter @orgmemory/web test:e2e`
 - `corepack pnpm --filter @orgmemory/web build`
 - `git diff --check`
 

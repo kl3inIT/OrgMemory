@@ -121,9 +121,14 @@ function AssetGrid({ assets }: { assets: CatalogAsset[] }) {
                 <p className="truncate text-metadata font-mono text-content-muted">
                   {formatAssetCoordinate(asset)}
                 </p>
-                <h2 className="mt-2 line-clamp-2 text-section-title text-content-primary">
-                  {asset.title}
-                </h2>
+                <AssetLink
+                  asset={asset}
+                  className="mt-2 block rounded-sm outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  <h2 className="line-clamp-2 text-section-title text-content-primary">
+                    {asset.title}
+                  </h2>
+                </AssetLink>
               </div>
             </CardHeader>
             <CardContent className="px-5 pb-4">
