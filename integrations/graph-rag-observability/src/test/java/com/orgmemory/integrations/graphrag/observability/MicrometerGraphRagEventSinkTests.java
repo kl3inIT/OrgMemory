@@ -51,6 +51,9 @@ class MicrometerGraphRagEventSinkTests {
     @Test
     void carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest() {
         sink.emit(event(GraphRagEventSink.Outcome.SUCCEEDED, null, Duration.ofMillis(10)));
+        // A meter this guard never instantiates is a meter it never guards, and the token
+        // meters are the ones a per-organization tag would be most tempting on.
+        sink.emit(assembledContext(usage(2)));
 
         Set<String> forbidden = Set.of(
                 "organization_id", "operation_id", "scope_fingerprint", "model_route_fingerprint");
