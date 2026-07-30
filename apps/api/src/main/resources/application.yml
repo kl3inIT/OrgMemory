@@ -221,7 +221,13 @@ management:
         # The assistant and the model calls beneath it are answered by an LLM
         # over permission-scoped retrieval; ten seconds is a normal turn, so a
         # range that stops there would put every real answer in the top bucket.
-        http.server.requests: 10s
+        #
+        # That applies to `http.server.requests` too, which is the mistake this
+        # ceiling used to make: `/api/assistant/chat` is an HTTP request that
+        # streams for the whole turn, so a ten-second ceiling sent every real
+        # chat into the overflow bucket and pinned HTTP p95 at exactly 10s. A
+        # quantile sitting precisely on its own bound is the signature.
+        http.server.requests: 120s
         orgmemory.assistant: 120s
         orgmemory.graph_rag: 60s
         gen_ai.client.operation: 120s
