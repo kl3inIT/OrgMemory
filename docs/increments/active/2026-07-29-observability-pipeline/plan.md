@@ -261,10 +261,12 @@ belong with the collector, because the collector is what would show them.
 - [x] Amend the runbook's "no exception event or stack trace" gate. It demanded
       something no code enforced and would have failed a correct export. The
       event survives carrying `exception.type` alone.
-- [ ] Resolve where telemetry egress lives. `integrations/graph-rag-observability`
-      is named for one domain but now owns the span sanitizer, which protects
-      every span in the process. Renaming it is a module-boundary change and
-      needs its own challenge, so it is recorded here rather than done quietly.
+- [x] Resolve where telemetry egress lives. Settled 2026-07-30, and the answer was
+      not a rename. The boundary moved to `integrations/observability`, which
+      depends on no OrgMemory module and arrives through the app convention
+      plugin. Investigating it found that `apps/mcp` held no payload boundary at
+      all, because taking one meant taking the graph domain with it. See
+      [decision 0019](../../../decisions/0019-the-payload-boundary-is-its-own-module.md).
 - [x] Record the payload-boundary decision:
       `docs/decisions/0018-telemetry-carries-counts-never-payload.md`.
 

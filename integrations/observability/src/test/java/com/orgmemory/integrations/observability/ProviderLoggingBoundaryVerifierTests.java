@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.graphrag.observability;
+package com.orgmemory.integrations.observability;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;

@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.graphrag.observability;
+package com.orgmemory.integrations.observability;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

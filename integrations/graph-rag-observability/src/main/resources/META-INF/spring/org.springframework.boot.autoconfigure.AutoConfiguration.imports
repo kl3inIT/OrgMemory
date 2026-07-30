@@ -1,4 +1,1 @@
 com.orgmemory.integrations.graphrag.observability.GraphRagObservabilityAutoConfiguration
-com.orgmemory.integrations.graphrag.observability.ObservationContentBoundaryAutoConfiguration
-com.orgmemory.integrations.graphrag.observability.ProviderLoggingBoundaryAutoConfiguration
-com.orgmemory.integrations.graphrag.observability.SpanExportSanitizationAutoConfiguration

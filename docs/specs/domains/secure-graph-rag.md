@@ -3,8 +3,9 @@
 Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
 `core/src/main/java/com/orgmemory/core/knowledge`,
-`apps/web/src/features/knowledge`, and — for the payload-boundary configuration
-this document states — `apps/api/src/main/resources/application*.yml` and
+`apps/web/src/features/knowledge`, `integrations/observability`, and — for the
+payload-boundary configuration this document states —
+`apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
 Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
@@ -218,6 +219,13 @@ Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
   counting it, recording its type and logging once per change of kind, so a
   backend broken since startup is distinguishable from a quiet one. Only class
   names are recorded.
+- The telemetry payload boundary lives in `integrations/observability`, which depends
+  on no OrgMemory module and reaches every application through
+  `orgmemory.spring-boot-app-conventions` rather than through each application's own
+  build file. `apps/mcp` exports spans and holds no domain dependency; before the
+  split it could not take the boundary without taking the graph domain, and so held
+  none of it. `integrations/graph-rag-observability` keeps only what implements a
+  core port.
 - Every exported span passes through `ExceptionSanitizingSpanExporter` before
   leaving the process. It keeps `exception.type` alone from each event and clears
   the status description, because Micrometer's bridge copies

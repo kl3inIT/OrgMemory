@@ -1,0 +1,3 @@
+com.orgmemory.integrations.observability.ObservationContentBoundaryAutoConfiguration
+com.orgmemory.integrations.observability.ProviderLoggingBoundaryAutoConfiguration
+com.orgmemory.integrations.observability.SpanExportSanitizationAutoConfiguration

@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.graphrag.observability;
+package com.orgmemory.integrations.observability;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

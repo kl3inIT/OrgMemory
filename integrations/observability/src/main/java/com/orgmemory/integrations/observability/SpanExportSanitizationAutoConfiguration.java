@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.graphrag.observability;
+package com.orgmemory.integrations.observability;
 
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import org.springframework.beans.factory.ObjectProvider;
