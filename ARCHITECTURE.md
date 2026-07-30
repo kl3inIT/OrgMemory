@@ -402,11 +402,16 @@ script, and mandatory public health/OIDC/MCP smoke. These mechanics do not by
 themselves certify pilot readiness. Main commits that change no product-image
 input are explicit release no-ops: they neither copy six manifests nor trigger
 the product SSH deployment. The independent docs portal has a separate
-immutable GHCR image workflow, manual exact-commit production workflow,
-single-service Compose project, 512 MiB limit, 60-second health gate, public
-allowlist verifier, and docs-only rollback state. It shares only the existing
-edge proxy network and cannot recreate product services. DNS, TLS, proxy-host
-configuration, and live publication proof remain operator-controlled gates.
+automatic green-main release train: a successful public-docs CI job publishes
+an exact-commit immutable GHCR image, and a successful image build deploys that
+same commit through the protected production environment. Runs with no
+public-docs work and builds superseded by a newer published docs image are
+release no-ops. Manual exact-commit dispatch remains available for redeployment
+and rollback. The portal uses a single-service Compose project, 512 MiB limit,
+60-second health gate, public allowlist verifier, and docs-only rollback state.
+It shares only the existing edge proxy network and cannot recreate product
+services. DNS, TLS, and proxy-host configuration remain operator-controlled
+infrastructure.
 Restore rehearsal, malware/DLP upload
 scanning, the live Slack revocation proof, full retrieval-surface audit
 coverage, load/latency evidence, and an enterprise security review remain open
