@@ -1,11 +1,11 @@
 {
   "title": "Getting Started",
-  "description": "Understand Organizational AI Memory and complete the first governed journey.",
+  "description": "Understand Organizational AI Memory, its core concepts, and your first governed journey.",
   "icon": "BookOpen",
   "root": true,
   "pages": [
     "index",
-    "quickstart",
-    "core-concepts"
+    "core-concepts",
+    "first-governed-journey"
   ]
 }

@@ -13,13 +13,21 @@ const publicRoutes = [...authoredManifest.entries, ...generatedManifest.entries]
   (entry) => entry.route,
 );
 
+function machineReadableRoute(route: string): string {
+  const localized = route.match(/^\/([a-z]{2})(\/docs(?:\/.*)?)$/);
+  if (localized) {
+    return `/${localized[1]}/llms.mdx${localized[2]}/content.md`;
+  }
+  return `/llms.mdx${route}/content.md`;
+}
+
 test('site root enters the technical documentation directly', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveURL(/\/docs\/getting-started$/);
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Welcome to Organizational AI Memory',
+      name: 'What is Organizational AI Memory?',
     }),
   ).toBeVisible();
   await expect(
@@ -52,6 +60,7 @@ test('public corpus exposes the section switcher and focused page tree', async (
   await page.getByRole('button', { name: /Architecture & Security/ }).first().click();
   for (const section of [
     'Getting Started',
+    'Product Guides',
     'Guides',
     'Architecture & Security',
     'Reference',
@@ -66,6 +75,7 @@ test('public corpus exposes the section switcher and focused page tree', async (
 test('category visual identity follows the active root and locale', async ({ page }) => {
   const categories = {
     'getting-started': '/docs/getting-started',
+    'product-guides': '/docs/product-guides/work-with-governed-assets',
     guides: '/docs/guides/administration/identity-permissions',
     'architecture-security': '/docs/architecture-security/system-description',
     reference: '/docs/reference/api-reference',
@@ -92,18 +102,24 @@ test('category visual identity follows the active root and locale', async ({ pag
   );
 });
 
-test('Vietnamese shell is localized while untranslated pages fall back explicitly', async ({
+test('Vietnamese shell and authored Getting Started pages are localized', async ({
   page,
 }, testInfo) => {
   await page.goto('/vi/docs/getting-started');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
   await expect(
-    page.getByText(
-      'Trang này chưa có bản dịch tiếng Việt đã được duyệt. Nội dung tiếng Anh đang được hiển thị tạm thời.',
-      { exact: true },
-    ),
+    page.getByRole('heading', { level: 1, name: 'Organizational AI Memory là gì?' }),
   ).toBeVisible();
+  await expect(page.getByText('chưa có bản dịch', { exact: false })).toHaveCount(0);
+
+  await page.goto('/vi/docs/getting-started/core-concepts');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Các khái niệm cốt lõi' }),
+  ).toBeVisible();
+  await expect(page.getByText('Không gian tri thức', { exact: true }).first()).toBeVisible();
+
+  await page.goto('/vi/docs/getting-started');
   if (testInfo.project.name === 'mobile-chromium') {
     await page.getByRole('button', { name: 'Mở thanh bên' }).click();
   }
@@ -111,6 +127,7 @@ test('Vietnamese shell is localized while untranslated pages fall back explicitl
   await page.getByRole('button', { name: /Bắt đầu/ }).first().click();
   for (const section of [
     'Bắt đầu',
+    'Hướng dẫn sản phẩm',
     'Hướng dẫn',
     'Kiến trúc & bảo mật',
     'Tham chiếu',
@@ -131,8 +148,49 @@ test('docs root redirects to Getting Started', async ({ page }) => {
   await expect(
     page.getByRole('heading', {
       level: 1,
-      name: 'Welcome to Organizational AI Memory',
+      name: 'What is Organizational AI Memory?',
     }),
+  ).toBeVisible();
+});
+
+test('Getting Started explains the core model and first governed journey', async ({ page }) => {
+  await page.goto('/docs/getting-started/core-concepts');
+  await expect(page.getByRole('heading', { level: 1, name: 'Core concepts' })).toBeVisible();
+  await expect(page.getByText('Knowledge Space', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Registry Asset', { exact: true })).toHaveCount(0);
+
+  await page.goto('/docs/getting-started/first-governed-journey');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Your first governed journey' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('img', {
+      name: 'Organizational AI Memory Assets catalog showing a Capability Pack, Work Instruction, Prompt Template, and Skill available to the current user.',
+    }),
+  ).toBeVisible();
+  await expect(page.getByText('repository access', { exact: false })).toBeVisible();
+});
+
+test('Product Guides teaches the exact governed Asset workflow in both languages', async ({
+  page,
+}) => {
+  await page.goto('/docs/product-guides/work-with-governed-assets');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Work with governed Assets' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('img', {
+      name: /Asset detail showing a Capability Pack, its current version/i,
+    }),
+  ).toHaveAttribute('src', '/images/product-guides/asset-release-provenance.png');
+  await expect(page.getByText('Version and provenance', { exact: true }).first()).toBeVisible();
+
+  await page.goto('/vi/docs/product-guides/work-with-governed-assets');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Làm việc với Asset được quản trị' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 3, name: 'Xác minh đúng bản phát hành' }),
   ).toBeVisible();
 });
 
@@ -144,12 +202,20 @@ test('legacy docs URLs permanently redirect to the new taxonomy', async ({
   const redirects = new Map([
     ['/docs/overview', '/docs/getting-started'],
     [
+      '/vi/docs/product-guides',
+      '/vi/docs/product-guides/work-with-governed-assets',
+    ],
+    [
       '/vi/docs/admins/identity-permissions',
       '/vi/docs/guides/administration/identity-permissions',
     ],
     [
       '/docs/deployment/self-hosting.md',
       '/docs/guides/deployment-operations/self-hosting.md',
+    ],
+    [
+      '/docs/getting-started/quickstart',
+      '/docs/guides/deployment-operations/self-hosting',
     ],
     [
       '/docs/developers/api-reference/search-catalog.md',
@@ -162,15 +228,6 @@ test('legacy docs URLs permanently redirect to the new taxonomy', async ({
     expect(response.status(), source).toBe(308);
     expect(response.headers().location, source).toBe(destination);
   }
-});
-
-test('quickstart exposes executable commands and observable health', async ({ page }) => {
-  await page.goto('/docs/getting-started/quickstart');
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Quickstart and POC demo' }),
-  ).toBeVisible();
-  await expect(page.getByText('.\\gradlew.bat demoBootstrap', { exact: false })).toBeVisible();
-  await expect(page.getByText('http://localhost:8080/api/health')).toBeVisible();
 });
 
 test('keyboard navigation reaches the primary action', async ({ page }) => {
@@ -194,6 +251,9 @@ test('root and docs pages pass automated accessibility smoke checks', async ({ p
     '/',
     '/docs/getting-started',
     '/vi/docs/getting-started',
+    '/docs/getting-started/core-concepts',
+    '/docs/getting-started/first-governed-journey',
+    '/docs/product-guides/work-with-governed-assets',
     '/docs/architecture-security/system-description',
   ]) {
     await page.goto(route);
@@ -279,7 +339,7 @@ test('every manifest route and machine-readable output is public-safe', async ({
     expect(response.status(), route).toBe(200);
     expect(await response.text(), `${route} leaked repository evidence`).not.toMatch(forbidden);
 
-    const markdownRoute = `/llms.mdx${route}/content.md`;
+    const markdownRoute = machineReadableRoute(route);
     const markdown = await request.get(markdownRoute);
     expect(markdown.status(), markdownRoute).toBe(200);
     expect(await markdown.text(), `${markdownRoute} leaked repository evidence`).not.toMatch(

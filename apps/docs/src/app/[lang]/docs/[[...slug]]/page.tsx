@@ -1,7 +1,6 @@
 import {
   getPageImageUrl,
   getPageMarkdownUrl,
-  isFallbackTranslation,
   source,
 } from '@/lib/source';
 import {
@@ -45,12 +44,6 @@ export default async function Page(props: PageProps<'/[lang]/docs/[[...slug]]'>)
     >
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-      {isFallbackTranslation(page, params.lang) ? (
-        <div className="mb-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-fd-muted-foreground">
-          Trang này chưa có bản dịch tiếng Việt đã được duyệt. Nội dung tiếng Anh đang được
-          hiển thị tạm thời.
-        </div>
-      ) : null}
       <div className="flex flex-wrap items-center gap-2 border-b pb-6">
         {page.data.status === 'draft' ? (
           <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-900 dark:text-amber-200">

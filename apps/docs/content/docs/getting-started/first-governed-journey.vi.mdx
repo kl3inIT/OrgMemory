@@ -1,0 +1,148 @@
+---
+title: Hành trình được quản trị đầu tiên
+description: Khám phá và sử dụng một Asset đã phát hành chính xác với Knowledge được cấp quyền, nguồn gốc, tiến độ, citation và feedback.
+audience:
+  - adopter
+  - user
+  - evaluator
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/assistant-and-mcp.md
+  - docs/specs/domains/secure-retrieval.md
+  - apps/web/src/features/assets/components/asset-catalog-page.tsx
+  - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-07-30
+---
+
+Hành trình này bắt đầu sau khi administrator của tổ chức cấp quyền cho bạn và có
+ít nhất một Asset đã được phát hành. Bạn sử dụng sản phẩm với vai trò người dùng
+đã được cấp quyền; không cần truy cập repository, bootstrap local hoặc chạy lệnh
+deployment.
+
+Bạn sẽ khám phá một bản phát hành được cấp quyền, xác minh nguồn gốc, thực hiện
+hành động dành cho loại Asset đó, rồi hoàn thành bằng việc kiểm tra bằng chứng và
+gửi feedback. Các phần được đánh số dưới đây chính là hành trình; không có một
+quy trình setup riêng.
+
+## 1. Mở catalog Assets
+
+Mở **Assets** từ thanh điều hướng của sản phẩm. Catalog chỉ liệt kê các Asset đã
+phát hành, chưa bị withdrawn và được phép sử dụng bởi danh tính hiện tại của bạn.
+Tìm theo công việc, vai trò hoặc kết quả, lọc theo loại Asset rồi chọn đúng nội
+dung bạn cần.
+
+<ArchitectureDiagram
+  alt="Catalog Assets của Organizational AI Memory hiển thị một Capability Pack, Work Instruction, Prompt Template và Skill mà người dùng hiện tại được phép sử dụng."
+  description="Catalog hiển thị loại Asset dành cho người dùng, phiên bản chính xác, ngày phát hành và hành động phù hợp với loại đó. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+  height={638}
+  src="/images/getting-started/asset-catalog.png"
+  title="Khám phá một Asset đã phát hành và được cấp quyền"
+  width={1270}
+/>
+
+Nếu một Asset không xuất hiện, nó có thể đang không khả dụng, đã bị withdrawn
+hoặc nằm ngoài phạm vi quyền hiện tại của bạn. Catalog không làm lộ tên hoặc
+metadata của Asset bị từ chối.
+
+## 2. Xác minh đúng bản phát hành
+
+Mở Asset và xác nhận:
+
+- loại Asset phù hợp với công việc bạn định thực hiện;
+- phiên bản được chọn là bản phát hành bạn mong đợi;
+- trạng thái hiện tại là available, không phải deprecated hoặc withdrawn;
+- phần tóm tắt, đối tượng sử dụng, điều kiện tiên quyết và kết quả mong đợi phù
+  hợp với công việc;
+- **Version and provenance** xác định release coordinate, ngày phát hành và
+  digest.
+
+Bản phát hành là bất biến. Việc chọn một phiên bản không chuyển sang draft có
+thể thay đổi, và một bản phát hành mới hơn không bao giờ viết lại pin đang tồn
+tại trong Capability Pack.
+
+## 3. Sử dụng Asset
+
+Hành động khả dụng phụ thuộc vào loại Asset.
+
+<CapabilityGrid
+  items={[
+    {
+      title: 'Prompt Template',
+      description:
+        'Cung cấp các biến đã được kiểm chứng, tùy chọn yêu cầu grounding bằng Knowledge được cấp quyền, kiểm tra prompt đã chuẩn bị và xác nhận rõ ràng mọi lần gọi model provider.',
+    },
+    {
+      title: 'Work Instruction',
+      description:
+        'Thực hiện các bước theo thứ tự, kiểm tra kết quả mong đợi và hướng dẫn escalation, sau đó xác nhận đúng bản phát hành.',
+    },
+    {
+      title: 'Capability Pack',
+      description:
+        'Kiểm tra kết quả và điều kiện tiên quyết, mở Pack, sử dụng các thành phần đã ghim mà bạn được phép truy cập theo thứ tự và ghi lại tiến độ.',
+    },
+    {
+      title: 'Skill',
+      description:
+        'Kiểm tra tính tương thích, package manifest, file digest và câu lệnh cài đặt chính xác trước khi cài qua CLI đã xác thực.',
+    },
+  ]}
+/>
+
+Hành động thay đổi trạng thái và lần gọi mô hình bên ngoài cần được xác nhận rõ
+ràng. Assistant không thể thay bạn phê duyệt, publish, withdraw, thay đổi quyền
+hoặc thực thi công cụ tùy ý.
+
+## 4. Hoàn thành một Capability Pack
+
+Capability Pack kết hợp đúng phiên bản Knowledge, Prompt Template, Work
+Instruction hoặc Skill thành một hành trình có thứ tự. Khi bắt đầu, hệ thống tạo
+một assignment riêng cho chủ thể của bạn; thao tác này không sửa bản phát hành
+của Pack.
+
+<ArchitectureDiagram
+  alt="Hành trình Capability Pack hiển thị hai trong ba mục được cấp quyền đã hoàn thành, các phiên bản được ghim chính xác và tiến độ 67 phần trăm."
+  description="Mỗi mục hiển thị vẫn giữ đúng pin. Tiến độ thuộc về chủ thể hiện tại và hành động Recheck cập nhật quyền truy cập trực tiếp mà không thay đổi Pack đã phát hành. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+  height={748}
+  src="/images/getting-started/capability-pack-journey.png"
+  title="Thực hiện đúng thành phần và ghi tiến độ theo chủ thể"
+  width={896}
+/>
+
+Mở từng thành phần Asset có thể tái sử dụng trong hành trình và chỉ đánh dấu hoàn
+thành sau khi đã thực hiện công việc bắt buộc. Thành phần Knowledge vẫn được xác
+định bằng phiên bản đã ghim. Nếu một thành phần bị từ chối, Pack báo có khoảng
+trống quyền truy cập nhưng không làm lộ tiêu đề, loại hoặc số lượng bị ẩn; hãy
+yêu cầu chủ sở hữu Pack kiểm tra quyền của bạn.
+
+## 5. Xác minh bằng chứng và gửi feedback
+
+Khi một lần chạy Prompt hoặc câu trả lời của Assistant sử dụng Knowledge tổ chức,
+hãy kiểm tra citation trước khi dựa vào kết quả. Khi mở citation, API kiểm tra lại
+quyền hiện tại và tính toàn vẹn của bằng chứng gốc. Một kết quả bạn từng truy cập
+được có thể trở nên không khả dụng một cách chính xác sau khi quyền bị thu hồi.
+
+Dùng chức năng feedback của Asset để báo bản phát hành hữu ích, sai hoặc chưa đầy
+đủ. Feedback được lưu theo đúng bản phát hành và gửi tới chủ sở hữu chịu trách
+nhiệm; nó không sửa bản phát hành bạn đã sử dụng.
+
+<VerificationBlock title="Bạn đã hoàn thành hành trình được quản trị khi">
+
+- bạn sử dụng đúng Asset đã phát hành thay vì draft hoặc alias có thể thay đổi;
+- mọi kết quả Knowledge và thành phần Pack đều nằm trong quyền truy cập hiện tại;
+- mọi citation khả dụng đều trỏ về bằng chứng nguồn đã xác thực;
+- tiến độ hoặc feedback được ghi cho đúng chủ thể và đúng bản phát hành.
+
+</VerificationBlock>
+
+## Tiếp tục
+
+- Làm theo [hướng dẫn Asset được quản trị](/vi/docs/product-guides/work-with-governed-assets)
+  theo từng tác vụ.
+- Tìm hiểu [vòng đời Asset được quản trị](/vi/docs/architecture-security/asset-lifecycle).
+- Hiểu [secure retrieval và GraphRAG](/vi/docs/architecture-security/secure-retrieval-graphrag).
+- Kết nối AI client bên ngoài qua
+  [hướng dẫn Assistant và MCP](/vi/docs/guides/integrations/assistant-mcp).

@@ -1,0 +1,10 @@
+{
+  "title": "Hướng dẫn sản phẩm",
+  "description": "Thực hiện công việc hằng ngày với Asset được quản trị và Knowledge tổ chức.",
+  "icon": "PackageSearch",
+  "root": true,
+  "pagesIndex": "work-with-governed-assets",
+  "pages": [
+    "work-with-governed-assets"
+  ]
+}

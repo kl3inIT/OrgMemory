@@ -1,0 +1,136 @@
+---
+title: Work with governed Assets
+description: Find an authorized Asset, verify its exact release, and use the action defined for its type.
+audience:
+  - user
+  - adopter
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetConsumptionController.java
+  - apps/api/src/test/java/com/orgmemory/api/assetregistry/AssetRegistryIntegrationTests.java
+  - apps/web/src/features/assets/components/asset-catalog-page.tsx
+  - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-07-30
+---
+
+Use this guide when you know the outcome you need and want to find, inspect, and
+use a governed Asset. If this is your first time in Organizational AI Memory,
+start with [Your first governed journey](/docs/getting-started/first-governed-journey)
+for the end-to-end product model.
+
+You must be signed in, have access to the relevant Asset, and have at least one
+usable release. No repository access or deployment setup is required.
+
+<Steps>
+  <Step>
+
+  ### Find an Asset
+
+  Open **Assets** in the product navigation. Search by the task or outcome, then
+  narrow the results by Asset type or change the sort order.
+
+  The catalog is actor-specific: it returns the latest non-withdrawn exact
+  release that the current identity may use. A missing item is not evidence that
+  the Asset exists; the catalog does not disclose denied candidates.
+
+  <ArchitectureDiagram
+    alt="Organizational AI Memory Assets catalog showing authorized Capability Pack, Work Instruction, Prompt Template, and Skill releases."
+    description="Use search, type filters, sorting, and paging to narrow the authorized catalog. Each result identifies its type, exact version, availability, and release date. This screenshot uses synthetic documentation data captured from the current product UI."
+    height={638}
+    src="/images/getting-started/asset-catalog.png"
+    title="Find the release that matches your task"
+    width={1270}
+  />
+
+  </Step>
+  <Step>
+
+  ### Verify the exact release
+
+  Open a result and check the title, Asset type, summary, and availability. Use
+  the **Version** selector when your workflow requires a specific release.
+  Expand **Version and provenance** and verify:
+
+  - **Coordinate** identifies the Asset namespace and slug;
+  - **Released** identifies when this immutable release was published;
+  - **Digest** identifies the exact release content.
+
+  <ArchitectureDiagram
+    alt="Organizational AI Memory Asset detail showing a Capability Pack, its current version, expanded provenance, pinned components, and feedback controls."
+    description="The selected release is 1.0.0. Its coordinate, release time, and digest remain visible beside the type-specific content. This screenshot uses synthetic documentation data captured from the current product UI."
+    height={795}
+    src="/images/product-guides/asset-release-provenance.png"
+    title="Confirm identity and provenance before use"
+    width={1174}
+  />
+
+  A newer release does not rewrite an older one or change an existing Capability
+  Pack pin. Confirm the selected version again before an action that matters to
+  your workflow.
+
+  </Step>
+  <Step>
+
+  ### Use the action for the Asset type
+
+  | Asset type | Primary action | Verify before completion |
+  | --- | --- | --- |
+  | Prompt Template | Supply validated variables, prepare the prompt, and explicitly confirm any external model run. | Grounding uses only authorized Knowledge, and the receipt identifies the release digest and model route. |
+  | Work Instruction | Follow the ordered guidance and acknowledge the exact release. | Required checks, expected results, and escalation guidance are complete. |
+  | Capability Pack | Open the Pack, work through accessible pinned items, and record actor-scoped progress. | The outcome, prerequisites, item versions, and access-gap state are understood. |
+  | Skill | Inspect the package before installing it through the authenticated CLI. | Compatibility, manifest, file digests, and exact install command match your environment. |
+
+  External model calls and state-changing actions require explicit
+  confirmation. Merely opening an Asset does not run a model, install a Skill,
+  or complete a Pack item.
+
+  </Step>
+  <Step>
+
+  ### Handle an unavailable release
+
+  - If an Asset is absent from the catalog, check your search and filters, then
+    ask an administrator or Asset owner to verify access without assuming the
+    Asset exists.
+  - If the detail page has no usable release, ask the owner to complete the
+    review and release process.
+  - If a release is **Deprecated**, prefer a current release unless a controlled
+    workflow requires the older exact version.
+  - A **Withdrawn** release cannot start new consumption. Historical evidence
+    and existing pins remain identifiable, but they do not make the release
+    usable again.
+  - If access changes while you are working, refresh or use the available
+    recheck action. A Capability Pack reports denied components as one opaque
+    access gap without exposing their titles, types, or count.
+
+  </Step>
+  <Step>
+
+  ### Record the outcome
+
+  Use **Yes** or **Report issue** on the Asset detail page. Feedback is attached
+  to the exact release you used and does not modify that immutable release.
+  For a Capability Pack, mark an item complete only after performing its
+  required work; progress belongs to your current actor.
+
+  </Step>
+</Steps>
+
+<VerificationBlock title="Before you rely on the result">
+
+- the Asset type matches the action you performed;
+- the selected version, coordinate, and digest identify the intended release;
+- every Knowledge result and Pack component remains within your current access;
+- any external run or state change received your explicit confirmation;
+- feedback or progress was recorded against the correct release and actor.
+
+</VerificationBlock>
+
+## Continue
+
+- Understand the [governed Asset lifecycle](/docs/architecture-security/asset-lifecycle).
+- Learn how authorization protects
+  [secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag).

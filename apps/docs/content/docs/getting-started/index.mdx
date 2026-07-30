@@ -1,6 +1,6 @@
 ---
-title: Welcome to Organizational AI Memory
-description: Understand the problem Organizational AI Memory solves, its scope, and where to begin.
+title: What is Organizational AI Memory?
+description: Learn how Organizational AI Memory turns repeatable AI work into governed capability that people and agents can safely reuse.
 audience:
   - adopter
   - evaluator
@@ -8,62 +8,75 @@ audience:
 status: public
 sourceRefs:
   - docs/vision.md
+  - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/knowledge-ingestion.md
+  - docs/specs/domains/secure-retrieval.md
   - ARCHITECTURE.md
 lastReviewed: 2026-07-29
 ---
 
-Organizational AI Memory is a self-hosted, governed memory layer for enterprise AI. It turns
-uploads and approved connector evidence into versioned, citable knowledge while
-preserving source permissions across search, Assistant, API, and MCP delivery.
-
-<Callout title="Current maturity" type="warn">
-  Organizational AI Memory is a production-shaped proof of concept. Its architecture, automated
-  security checks, deployment pipeline, and rollback path are real; pilot
-  readiness still depends on the operational evidence listed under
-  [Limitations](/docs/architecture-security/evaluation/limitations).
-</Callout>
+Organizational AI Memory is the system of record for reusable AI capability
+inside the enterprise. It brings the knowledge, instructions, prompts, packages,
+ownership, and permissions behind successful AI-assisted work into one governed
+lifecycle—so people and agents can discover, use, and improve what the
+organization already knows.
 
 ## The problem
 
-Enterprise AI systems often copy content into an index and lose the context that
-made the content trustworthy: which source revision was read, who could read it,
-which model created a projection, and which evidence supported an answer.
-Organizational AI Memory keeps those facts inside the retrieval boundary.
+AI is moving from individual assistance to repeatable human-agent workflows. Yet
+the parts that make those workflows reliable—source knowledge, instructions,
+prompts, quality standards, approvals, and operational judgment—remain scattered
+across personal tools and team silos.
 
-It is designed for three related jobs:
+When these pieces are not owned and versioned together, teams duplicate work,
+proven methods drift, handovers lose context, and agents execute without a clear
+record of what was approved or why.
 
-- preserve source evidence as immutable revisions rather than mutable blobs;
-- make authorization part of candidate selection, ranking, graph expansion,
-  citations, and Asset delivery;
-- package reusable organizational capability as governed releases instead of
-  unreviewed prompts or files.
+Organizational AI Memory treats reusable AI-assisted work as governed Assets.
+Each exact release preserves its accountable owners, review decision,
+permissions, provenance, dependencies, and usage history. Authorized employees
+and agents receive the same approved capability through the product, Assistant,
+REST API, CLI, or MCP.
 
-## What is available
+## How it works
 
 <CapabilityGrid
   items={[
     {
-      title: 'Governed knowledge',
+      title: 'Register what works',
       description:
-        'Manual uploads and supported connectors enter one immutable source ledger with permission evidence.',
+        'Bring permission-aware Knowledge, proven Prompt Templates, Work Instructions, Capability Packs, and Skills into one registry.',
     },
     {
-      title: 'Secure retrieval',
+      title: 'Govern every release',
       description:
-        'Keyword, vector, and graph retrieval operate only over the current actor’s authorized evidence scope.',
+        'Assign accountable owners, review exact revisions, publish immutable releases, and withdraw them safely.',
     },
     {
-      title: 'Reusable Assets',
+      title: 'Reuse with trusted context',
       description:
-        'Prompt Templates, Work Instructions, Capability Packs, and Skills move through draft, review, release, and controlled delivery.',
+        'Ground people and AI agents in authorized organizational Knowledge with traceable evidence and citations.',
     },
     {
-      title: 'Multiple delivery surfaces',
+      title: 'Transfer and improve',
       description:
-        'The web product, REST API, Assistant, MCP server, and CLI reuse canonical authorization and audit boundaries.',
+        'Deliver the same governed capability through the product, Assistant, REST API, CLI, and MCP while preserving ownership and history.',
     },
   ]}
 />
+
+## The capability between knowledge and execution
+
+Organizational AI Memory complements enterprise search, agent builders, and AI
+control towers. Its unit of reuse is a task-ready capability: exact Knowledge,
+Prompt Templates, Work Instructions, Capability Packs, or Skills with ownership,
+permissions, provenance, and release history.
+
+That lifecycle is the product:
+
+```text
+register -> review -> release -> reuse -> measure -> transfer -> retire
+```
 
 ## Choose your path
 
@@ -71,7 +84,8 @@ It is designed for three related jobs:
   [system description](/docs/architecture-security/system-description), then
   review [coverage](/docs/architecture-security/evaluation/coverage) and
   [limitations](/docs/architecture-security/evaluation/limitations).
-- **Run it locally:** follow the [POC quickstart](/docs/getting-started/quickstart).
+- **Plan a self-hosted deployment:** review the
+  [self-hosting overview](/docs/guides/deployment-operations/self-hosting).
 - **Administer a deployment:** read
   [identity and permissions](/docs/guides/administration/identity-permissions) and
   [sources and connections](/docs/guides/administration/sources-connections).
@@ -80,8 +94,8 @@ It is designed for three related jobs:
 
 ## Scope boundaries
 
-Organizational AI Memory is not a source-of-truth replacement, a public content marketplace, or
-an authorization system inferred from email addresses. It does not grant access
-because an AI model found a relevant chunk. Source systems remain authoritative
-for their content permissions, OpenFGA governs product relationships, and the
-canonical ledger decides what may enter a response.
+Organizational AI Memory complements source systems, model providers, and
+workflow runtimes rather than replacing them. Source systems remain authoritative
+for their content permissions. Every search result, citation, Assistant response,
+Asset release, and MCP delivery is resolved within the current actor’s authorized
+scope.

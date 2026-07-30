@@ -13,7 +13,8 @@ html {
 :root {
   --color-fd-muted-foreground: hsl(0, 0%, 41%);
   --docs-getting-started-color: hsl(42, 95%, 27%);
-  --docs-guides-color: hsl(158, 75%, 28%);
+  --docs-product-guides-color: hsl(158, 75%, 28%);
+  --docs-guides-color: hsl(24, 90%, 38%);
   --docs-architecture-security-color: hsl(199, 89%, 34%);
   --docs-reference-color: hsl(258, 70%, 48%);
 }
@@ -21,13 +22,18 @@ html {
 .dark {
   --color-fd-muted-foreground: hsl(0, 0%, 75%);
   --docs-getting-started-color: #fcd34d;
-  --docs-guides-color: #6ee7b7;
+  --docs-product-guides-color: #6ee7b7;
+  --docs-guides-color: #fdba74;
   --docs-architecture-security-color: #67e8f9;
   --docs-reference-color: #c4b5fd;
 }
 
 .getting-started {
   --color-fd-primary: var(--docs-getting-started-color);
+}
+
+.product-guides {
+  --color-fd-primary: var(--docs-product-guides-color);
 }
 
 .guides {

@@ -1,5 +1,6 @@
 export const docsCategories = [
   'getting-started',
+  'product-guides',
   'guides',
   'architecture-security',
   'reference',
