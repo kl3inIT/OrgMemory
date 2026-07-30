@@ -43,15 +43,6 @@ export function getPageMarkdownUrl(page: (typeof source)['$inferPage']) {
   };
 }
 
-export function isFallbackTranslation(
-  page: (typeof source)['$inferPage'],
-  language: string,
-) {
-  if (language === i18n.defaultLanguage) return false;
-
-  return !page.path.endsWith(`.${language}.md`) && !page.path.endsWith(`.${language}.mdx`);
-}
-
 export async function getLLMText(page: (typeof source)['$inferPage']) {
   const processed = await page.data.getText('processed');
 

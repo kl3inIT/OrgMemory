@@ -1,0 +1,138 @@
+---
+title: Làm việc với Asset được quản trị
+description: Tìm một Asset được cấp quyền, xác minh đúng bản phát hành và sử dụng hành động dành cho loại Asset đó.
+audience:
+  - user
+  - adopter
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetConsumptionController.java
+  - apps/api/src/test/java/com/orgmemory/api/assetregistry/AssetRegistryIntegrationTests.java
+  - apps/web/src/features/assets/components/asset-catalog-page.tsx
+  - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-07-30
+---
+
+Dùng hướng dẫn này khi bạn đã biết kết quả mình cần và muốn tìm, kiểm tra rồi sử
+dụng một Asset được quản trị. Nếu đây là lần đầu bạn dùng Organizational AI
+Memory, hãy bắt đầu với
+[Hành trình được quản trị đầu tiên](/vi/docs/getting-started/first-governed-journey)
+để hiểu mô hình sản phẩm từ đầu đến cuối.
+
+Bạn cần đăng nhập, được cấp quyền với Asset liên quan và có ít nhất một bản phát
+hành có thể sử dụng. Không cần truy cập repository hoặc setup deployment.
+
+<Steps>
+  <Step>
+
+  ### Tìm một Asset
+
+  Mở **Assets** trong thanh điều hướng của sản phẩm. Tìm theo công việc hoặc kết
+  quả, sau đó thu hẹp bằng loại Asset hoặc thay đổi thứ tự sắp xếp.
+
+  Catalog phụ thuộc vào chủ thể hiện tại: nó trả về bản phát hành chính xác mới
+  nhất, chưa bị withdrawn mà danh tính hiện tại được phép sử dụng. Một mục không
+  xuất hiện không chứng minh rằng Asset đó tồn tại; catalog không tiết lộ các
+  candidate bị từ chối.
+
+  <ArchitectureDiagram
+    alt="Catalog Assets của Organizational AI Memory hiển thị các bản phát hành Capability Pack, Work Instruction, Prompt Template và Skill được cấp quyền."
+    description="Dùng tìm kiếm, bộ lọc loại, sắp xếp và phân trang để thu hẹp catalog được cấp quyền. Mỗi kết quả cho biết loại, phiên bản chính xác, trạng thái và ngày phát hành. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+    height={638}
+    src="/images/getting-started/asset-catalog.png"
+    title="Tìm bản phát hành phù hợp với công việc"
+    width={1270}
+  />
+
+  </Step>
+  <Step>
+
+  ### Xác minh đúng bản phát hành
+
+  Mở một kết quả rồi kiểm tra tiêu đề, loại Asset, phần tóm tắt và trạng thái.
+  Dùng bộ chọn **Version** khi quy trình của bạn yêu cầu một bản phát hành cụ
+  thể. Mở rộng **Version and provenance** và xác minh:
+
+  - **Coordinate** xác định namespace và slug của Asset;
+  - **Released** xác định thời điểm bản phát hành bất biến được publish;
+  - **Digest** xác định chính xác nội dung bản phát hành.
+
+  <ArchitectureDiagram
+    alt="Trang chi tiết Asset của Organizational AI Memory hiển thị một Capability Pack, phiên bản hiện tại, provenance đã mở rộng, các thành phần được ghim và điều khiển feedback."
+    description="Bản phát hành được chọn là 1.0.0. Coordinate, thời điểm phát hành và digest hiển thị cùng nội dung dành riêng cho loại Asset. Screenshot này dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+    height={795}
+    src="/images/product-guides/asset-release-provenance.png"
+    title="Xác nhận danh tính và nguồn gốc trước khi sử dụng"
+    width={1174}
+  />
+
+  Bản phát hành mới hơn không viết lại bản cũ hoặc thay đổi pin đang có trong
+  Capability Pack. Hãy xác nhận lại phiên bản đã chọn trước một hành động quan
+  trọng với quy trình của bạn.
+
+  </Step>
+  <Step>
+
+  ### Dùng hành động dành cho loại Asset
+
+  | Loại Asset | Hành động chính | Xác minh trước khi hoàn thành |
+  | --- | --- | --- |
+  | Prompt Template | Cung cấp biến đã được kiểm chứng, chuẩn bị prompt và xác nhận rõ ràng mọi lần chạy model bên ngoài. | Grounding chỉ dùng Knowledge được cấp quyền, receipt xác định release digest và model route. |
+  | Work Instruction | Thực hiện hướng dẫn theo thứ tự và acknowledge đúng bản phát hành. | Đã hoàn thành các kiểm tra bắt buộc, kết quả mong đợi và hướng dẫn escalation. |
+  | Capability Pack | Mở Pack, thực hiện các mục được ghim mà bạn có quyền truy cập và ghi tiến độ theo chủ thể. | Đã hiểu kết quả, điều kiện tiên quyết, phiên bản từng mục và trạng thái access gap. |
+  | Skill | Kiểm tra package trước khi cài qua CLI đã xác thực. | Compatibility, manifest, file digest và lệnh cài đặt chính xác phù hợp với môi trường. |
+
+  Lần gọi model bên ngoài và hành động thay đổi trạng thái cần được xác nhận rõ
+  ràng. Chỉ mở một Asset sẽ không chạy model, cài Skill hoặc hoàn thành mục trong
+  Pack.
+
+  </Step>
+  <Step>
+
+  ### Xử lý bản phát hành không khả dụng
+
+  - Nếu Asset không có trong catalog, kiểm tra lại tìm kiếm và bộ lọc, sau đó
+    yêu cầu administrator hoặc Asset owner xác minh quyền mà không giả định
+    Asset đó tồn tại.
+  - Nếu trang chi tiết chưa có bản phát hành có thể sử dụng, yêu cầu owner hoàn
+    thành quy trình review và release.
+  - Nếu bản phát hành là **Deprecated**, ưu tiên bản hiện tại trừ khi một quy
+    trình được kiểm soát yêu cầu đúng phiên bản cũ.
+  - Bản phát hành **Withdrawn** không thể bắt đầu lượt sử dụng mới. Bằng chứng
+    lịch sử và pin đang có vẫn xác định được bản đó nhưng không làm nó khả dụng
+    trở lại.
+  - Nếu quyền thay đổi trong lúc bạn làm việc, refresh hoặc dùng hành động
+    recheck hiện có. Capability Pack báo các thành phần bị từ chối bằng một
+    access gap mờ, không làm lộ tiêu đề, loại hoặc số lượng của chúng.
+
+  </Step>
+  <Step>
+
+  ### Ghi lại kết quả
+
+  Dùng **Yes** hoặc **Report issue** trên trang chi tiết Asset. Feedback được gắn
+  với đúng bản phát hành bạn đã dùng và không sửa bản phát hành bất biến đó. Với
+  Capability Pack, chỉ đánh dấu hoàn thành sau khi thực hiện công việc bắt buộc;
+  tiến độ thuộc về chủ thể hiện tại của bạn.
+
+  </Step>
+</Steps>
+
+<VerificationBlock title="Trước khi dựa vào kết quả">
+
+- loại Asset phù hợp với hành động bạn đã thực hiện;
+- phiên bản, coordinate và digest đã chọn xác định đúng bản phát hành;
+- mọi kết quả Knowledge và thành phần Pack vẫn nằm trong quyền hiện tại;
+- mọi lần chạy bên ngoài hoặc thay đổi trạng thái đã được bạn xác nhận rõ ràng;
+- feedback hoặc tiến độ được ghi theo đúng bản phát hành và chủ thể.
+
+</VerificationBlock>
+
+## Tiếp tục
+
+- Hiểu [vòng đời Asset được quản trị](/vi/docs/architecture-security/asset-lifecycle).
+- Tìm hiểu cách authorization bảo vệ
+  [secure retrieval và GraphRAG](/vi/docs/architecture-security/secure-retrieval-graphrag).

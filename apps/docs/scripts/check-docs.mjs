@@ -289,8 +289,8 @@ function checkRoutes() {
   const englishGenerated = manifest.generatedEntries.filter(
     (entry) => contentLocale(entry.content) === 'en',
   );
-  if (englishAuthored.length !== 17) {
-    fail(`Expected 17 English authored routes, found ${englishAuthored.length}`);
+  if (englishAuthored.length !== 18) {
+    fail(`Expected 18 English authored routes, found ${englishAuthored.length}`);
   }
   if (englishGenerated.length !== 7) {
     fail(`Expected 7 English generated API routes, found ${englishGenerated.length}`);
@@ -310,9 +310,9 @@ function checkRoutes() {
         entry.status === 'draft' && contentLocale(entry.content) === i18nDefaultLanguage,
     )
     .map((entry) => entry.route);
-  if (englishDraftRoutes.length !== 0 || englishPublicRoutes.length !== 24) {
+  if (englishDraftRoutes.length !== 0 || englishPublicRoutes.length !== 25) {
     fail(
-      `English baseline must contain 24 public routes and no drafts; ` +
+      `English baseline must contain 25 public routes and no drafts; ` +
         `found ${englishPublicRoutes.length} public and ${englishDraftRoutes.length} draft`,
     );
   }

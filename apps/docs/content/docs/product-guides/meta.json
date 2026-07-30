@@ -1,0 +1,10 @@
+{
+  "title": "Product Guides",
+  "description": "Complete everyday work with governed Assets and organizational Knowledge.",
+  "icon": "PackageSearch",
+  "root": true,
+  "pagesIndex": "work-with-governed-assets",
+  "pages": [
+    "work-with-governed-assets"
+  ]
+}

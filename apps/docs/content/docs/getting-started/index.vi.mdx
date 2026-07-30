@@ -1,0 +1,103 @@
+---
+title: Organizational AI Memory là gì?
+description: Tìm hiểu cách Organizational AI Memory biến công việc AI có thể lặp lại thành năng lực được quản trị để con người và tác nhân có thể tái sử dụng an toàn.
+audience:
+  - adopter
+  - evaluator
+  - user
+status: public
+sourceRefs:
+  - docs/vision.md
+  - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/knowledge-ingestion.md
+  - docs/specs/domains/secure-retrieval.md
+  - ARCHITECTURE.md
+lastReviewed: 2026-07-30
+---
+
+Organizational AI Memory là hệ thống lưu trữ chuẩn cho năng lực AI có thể tái sử
+dụng trong doanh nghiệp. Hệ thống đưa tri thức, hướng dẫn, prompt, gói năng lực,
+quyền sở hữu và quyền truy cập đứng sau những công việc có AI hỗ trợ thành một
+vòng đời được quản trị thống nhất. Nhờ đó, con người và tác nhân có thể khám phá,
+sử dụng và cải tiến những gì tổ chức đã biết.
+
+## Vấn đề
+
+AI đang chuyển từ công cụ hỗ trợ cá nhân sang các quy trình phối hợp người–tác
+nhân có thể lặp lại. Tuy nhiên, những thành phần làm cho các quy trình đó đáng tin
+cậy—tri thức nguồn, hướng dẫn, prompt, tiêu chuẩn chất lượng, phê duyệt và kinh
+nghiệm vận hành—vẫn phân tán trong công cụ cá nhân và các silo của từng nhóm.
+
+Khi các thành phần này không được sở hữu và quản lý phiên bản cùng nhau, các nhóm
+lặp lại công việc, phương pháp đã được chứng minh dần sai lệch, việc bàn giao mất
+ngữ cảnh và tác nhân thực thi mà không có hồ sơ rõ ràng về nội dung đã được phê
+duyệt hoặc lý do phê duyệt.
+
+Organizational AI Memory coi công việc có AI hỗ trợ và có thể tái sử dụng là các
+Asset được quản trị. Mỗi bản phát hành chính xác bảo toàn chủ sở hữu chịu trách
+nhiệm, quyết định review, quyền truy cập, nguồn gốc, phần phụ thuộc và lịch sử sử
+dụng. Nhân viên và tác nhân được cấp quyền nhận cùng một năng lực đã được phê
+duyệt qua sản phẩm, Assistant, REST API, CLI hoặc MCP.
+
+## Cách hoạt động
+
+<CapabilityGrid
+  items={[
+    {
+      title: 'Đăng ký những gì đã hiệu quả',
+      description:
+        'Đưa Knowledge có nhận biết quyền truy cập, Prompt Template đã được chứng minh, Work Instruction, Capability Pack và Skill vào một registry thống nhất.',
+    },
+    {
+      title: 'Quản trị mọi bản phát hành',
+      description:
+        'Chỉ định chủ sở hữu chịu trách nhiệm, review đúng revision, phát hành bản bất biến và thu hồi an toàn.',
+    },
+    {
+      title: 'Tái sử dụng với ngữ cảnh đáng tin cậy',
+      description:
+        'Cung cấp cho con người và tác nhân AI Knowledge đã được cấp quyền, kèm bằng chứng và citation có thể truy vết.',
+    },
+    {
+      title: 'Chuyển giao và cải tiến',
+      description:
+        'Phân phối cùng một năng lực được quản trị qua sản phẩm, Assistant, REST API, CLI và MCP mà vẫn bảo toàn quyền sở hữu và lịch sử.',
+    },
+  ]}
+/>
+
+## Năng lực nằm giữa tri thức và thực thi
+
+Organizational AI Memory bổ sung cho hệ thống tìm kiếm doanh nghiệp, nền tảng xây
+dựng tác nhân và AI control tower. Đơn vị tái sử dụng của hệ thống là một năng
+lực sẵn sàng cho công việc: Knowledge, Prompt Template, Work Instruction,
+Capability Pack hoặc Skill ở đúng phiên bản, kèm quyền sở hữu, quyền truy cập,
+nguồn gốc và lịch sử phát hành.
+
+Vòng đời đó chính là sản phẩm:
+
+```text
+đăng ký -> review -> phát hành -> tái sử dụng -> đo lường -> chuyển giao -> ngừng sử dụng
+```
+
+## Chọn lộ trình của bạn
+
+- **Đánh giá sản phẩm:** bắt đầu với
+  [mô tả hệ thống](/vi/docs/architecture-security/system-description), sau đó xem
+  [phạm vi bao phủ](/vi/docs/architecture-security/evaluation/coverage) và
+  [các giới hạn](/vi/docs/architecture-security/evaluation/limitations).
+- **Lập kế hoạch triển khai self-hosted:** xem
+  [tổng quan self-hosting](/vi/docs/guides/deployment-operations/self-hosting).
+- **Quản trị hệ thống đã triển khai:** đọc
+  [danh tính và quyền truy cập](/vi/docs/guides/administration/identity-permissions)
+  cùng [nguồn và kết nối](/vi/docs/guides/administration/sources-connections).
+- **Tích hợp AI client:** sử dụng
+  [hướng dẫn Assistant và MCP](/vi/docs/guides/integrations/assistant-mcp).
+
+## Ranh giới phạm vi
+
+Organizational AI Memory bổ sung cho hệ thống nguồn, nhà cung cấp mô hình và
+workflow runtime thay vì thay thế chúng. Hệ thống nguồn vẫn là nơi có thẩm quyền
+đối với quyền truy cập nội dung. Mọi kết quả tìm kiếm, citation, phản hồi từ
+Assistant, bản phát hành Asset và dữ liệu phân phối qua MCP đều được giải quyết
+trong phạm vi được cấp quyền của chủ thể hiện tại.

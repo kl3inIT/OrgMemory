@@ -1,11 +1,11 @@
 {
   "title": "Bắt đầu",
-  "description": "Hiểu Organizational AI Memory và hoàn thành hành trình được quản trị đầu tiên.",
+  "description": "Hiểu Organizational AI Memory, các khái niệm cốt lõi và hành trình được quản trị đầu tiên.",
   "icon": "BookOpen",
   "root": true,
   "pages": [
     "index",
-    "quickstart",
-    "core-concepts"
+    "core-concepts",
+    "first-governed-journey"
   ]
 }

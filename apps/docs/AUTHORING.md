@@ -12,8 +12,9 @@ understanding.
 - Do not bulk-rewrite, bulk-translate, or create placeholder pages.
 - Before prose, inspect the current repository and runtime evidence and agree
   on the reader question and outline.
-- English establishes the approved meaning. Vietnamese follows after English
-  review and preserves that meaning naturally.
+- Author English and Vietnamese together in the same increment. Neither
+  language is a prerequisite or approval gate for the other; both preserve the
+  same verified product meaning naturally.
 - The owner context, outline, and teach-back checkpoints require owner
   participation. Branch, CI, merge, build, deploy, and live verification may
   continue autonomously after approval.
@@ -44,42 +45,42 @@ corepack pnpm docs:dev
 Remove-Item Env:DOCS_INCLUDE_DRAFTS
 ```
 
-The owner should use this fast local loop for the context, outline, English,
-teach-back, and Vietnamese checkpoints. Production publication still requires
-the full repository gates and immutable release loop.
+The owner should use this fast local loop to review the bilingual page and its
+visuals. Production publication still requires the full repository gates and
+immutable release loop.
 
 ## Target Navigation
 
 ```text
 Getting Started
-├── What is OrgMemory?
-├── Quickstart
+├── What is Organizational AI Memory?
 ├── Core concepts
-└── Terminology
+└── Your first governed journey
 
-Guides
-├── Using OrgMemory
-│   ├── Browse governed assets
-│   ├── Search organizational knowledge
-│   ├── Ask with Assistant
-│   ├── Verify citations
-│   └── Explore the knowledge graph
-├── Administration
-│   ├── Connect and synchronize a source
-│   ├── Manage users and identities
-│   ├── Configure roles and permissions
-│   └── Audit effective access
-├── Deployment & Operations
-│   ├── Self-host OrgMemory
-│   ├── Configure secrets and environment
-│   ├── Monitor system health
-│   ├── Back up and restore
-│   ├── Upgrade and roll back
-│   └── Troubleshooting
-└── Integrations
-    ├── Connect an MCP client
-    ├── Integrate the Assistant
-    └── Ingest documents through the API
+Product Guides
+├── Work with governed Assets
+├── Search organizational knowledge
+├── Ask with Assistant and verify citations
+└── Explore the knowledge graph
+
+Administration
+├── Connect and synchronize a source
+├── Manage users and identities
+├── Configure roles and permissions
+└── Audit effective access
+
+Deployment & Operations
+├── Self-host Organizational AI Memory
+├── Configure secrets and environment
+├── Monitor system health
+├── Back up and restore
+├── Upgrade and roll back
+└── Troubleshooting
+
+Developers & Integrations
+├── Connect an MCP client
+├── Integrate the Assistant
+└── Ingest documents through the API
 
 Architecture & Security
 ├── System context
@@ -105,61 +106,85 @@ Reference
 ```
 
 Changelog is a global navigation link. Deployment & Operations becomes a root
-only after reviewed content and reader demand justify promotion.
+only after reviewed content and reader demand justify promotion. During the
+incremental migration, the existing **Guides** root keeps reviewed
+Administration, Deployment, and Integration pages at their stable URLs.
+Categories move only when their first replacement page is co-authored; no empty
+root or placeholder page is published.
 
 ## Authoring Queue
 
-Navigation order serves readers; authoring order stabilizes the system model
-before task procedures depend on it.
+Navigation order serves readers. Authoring now follows the same outside-in
+journey: product tasks first, then administration and operations, with
+architecture available for readers who need the underlying model.
 
 | Order | Page | Target location | Current evidence | State |
 | ---: | --- | --- | --- | --- |
-| 1 | What is OrgMemory? | Getting Started | `getting-started/index.mdx` | next |
+| 1 | What is Organizational AI Memory? | Getting Started | `getting-started/index.mdx` | owner review |
 | 2 | Core concepts | Getting Started | `getting-started/core-concepts.mdx` | review |
-| 3 | System context | Architecture & Security | `architecture-security/system-description.mdx` | review |
-| 4 | Domain and data model | Architecture & Security | domain specs and schema | missing |
-| 5 | Governed Asset lifecycle | Architecture & Security | `architecture-security/asset-lifecycle.mdx` | review |
-| 6 | Quickstart | Getting Started | `getting-started/quickstart.mdx` | review |
-| 7 | Ingestion and indexing | Architecture & Security | `architecture-security/ingestion-lifecycle.mdx` | review |
-| 8 | Identity and authorization | Architecture & Security | `architecture-security/authorization.mdx` | review |
-| 9 | Secure retrieval and GraphRAG | Architecture & Security | `architecture-security/secure-retrieval-graphrag.mdx` | review |
-| 10 | Runtime components | Architecture & Security | system description and `ARCHITECTURE.md` | missing |
-| 11 | Trust boundaries and threat model | Architecture & Security | security decisions/specs | missing |
-| 12 | Browse governed assets | Guides / Using OrgMemory | product behavior and tests | missing |
-| 13 | Search organizational knowledge | Guides / Using OrgMemory | search contracts and tests | missing |
-| 14 | Ask with Assistant and verify citations | Guides / Using OrgMemory | Assistant/MCP specs and tests | missing |
-| 15 | Explore the knowledge graph | Guides / Using OrgMemory | graph viewer behavior and tests | missing |
-| 16 | Connect and synchronize a source | Guides / Administration | `guides/administration/sources-connections.mdx` | review |
-| 17 | Manage identities and permissions | Guides / Administration | `guides/administration/identity-permissions.mdx` | split and review |
-| 18 | Audit effective access | Guides / Administration | permission evidence specs/tests | missing |
-| 19 | Self-host OrgMemory | Guides / Deployment & Operations | `guides/deployment-operations/self-hosting.mdx` | review |
-| 20 | Configuration and secrets | Guides / Deployment & Operations | environment contracts/runbooks | missing |
-| 21 | Observability and health | Guides / Deployment & Operations | deployment and telemetry evidence | missing |
-| 22 | Backup, restore, upgrade, and rollback | Guides / Deployment & Operations | runbooks and release workflows | split later |
-| 23 | Connect an MCP client | Guides / Integrations | `guides/integrations/assistant-mcp.mdx` | split and review |
-| 24 | Ingest through the API | Guides / Integrations | ingestion API contract | missing |
-| 25 | Terminology | Getting Started | approved concepts | write after core model |
-| 26 | API overview, auth, and errors | Reference | authored API overview/auth pages | review |
-| 27 | API endpoint groups | Reference | generated OpenAPI pages | generated |
-| 28 | Configuration reference | Reference | committed environment contracts | missing |
-| 29 | Connector capability matrix | Reference | connector specs/tests | missing |
-| 30 | Roles and permissions matrix | Reference | OpenFGA model and domain specs | missing |
-| 31 | MCP tools and resources | Reference | MCP contracts/tests | missing |
-| 32 | Known limitations | Reference | current evidence only | rewrite from evaluation |
+| 3 | Your first governed journey | Getting Started | `getting-started/first-governed-journey.mdx` | owner review |
+| 4 | Work with governed Assets | Product Guides | `product-guides/work-with-governed-assets.mdx` | owner review |
+| 5 | Search organizational knowledge | Product Guides | search contracts, UI, and tests | missing |
+| 6 | Ask with Assistant and verify citations | Product Guides | Assistant and citation contracts/tests | missing |
+| 7 | Explore the knowledge graph | Product Guides | graph viewer behavior and tests | missing |
+| 8 | Connect and synchronize a source | Administration | `guides/administration/sources-connections.mdx` | review and migrate |
+| 9 | Manage identities and permissions | Administration | `guides/administration/identity-permissions.mdx` | split, review, and migrate |
+| 10 | Audit effective access | Administration | permission evidence specs/tests | missing |
+| 11 | Self-host Organizational AI Memory | Deployment & Operations | `guides/deployment-operations/self-hosting.mdx` | review and migrate |
+| 12 | Configuration and secrets | Deployment & Operations | environment contracts/runbooks | missing |
+| 13 | Observability and health | Deployment & Operations | deployment and telemetry evidence | missing |
+| 14 | Backup, restore, upgrade, and rollback | Deployment & Operations | runbooks and release workflows | split later |
+| 15 | Connect an MCP client | Developers & Integrations | `guides/integrations/assistant-mcp.mdx` | split, review, and migrate |
+| 16 | Ingest through the API | Developers & Integrations | ingestion API contract | missing |
+| 17 | System context | Architecture & Security | `architecture-security/system-description.mdx` | review |
+| 18 | Domain and data model | Architecture & Security | domain specs and schema | missing |
+| 19 | Governed Asset lifecycle | Architecture & Security | `architecture-security/asset-lifecycle.mdx` | review |
+| 20 | Ingestion and indexing | Architecture & Security | `architecture-security/ingestion-lifecycle.mdx` | review |
+| 21 | Identity and authorization | Architecture & Security | `architecture-security/authorization.mdx` | review |
+| 22 | Secure retrieval and GraphRAG | Architecture & Security | `architecture-security/secure-retrieval-graphrag.mdx` | review |
+| 23 | Runtime components | Architecture & Security | system description and `ARCHITECTURE.md` | missing |
+| 24 | Trust boundaries and threat model | Architecture & Security | security decisions/specs | missing |
+| 25 | API overview, auth, and errors | Reference | authored API overview/auth pages | review |
+| 26 | API endpoint groups | Reference | generated OpenAPI pages | generated |
+| 27 | Configuration reference | Reference | committed environment contracts | missing |
+| 28 | Connector capability matrix | Reference | connector specs/tests | missing |
+| 29 | Roles and permissions matrix | Reference | OpenFGA model and domain specs | missing |
+| 30 | MCP tools and resources | Reference | MCP contracts/tests | missing |
+| 31 | Known limitations | Reference | current evidence only | rewrite from evaluation |
 
 Functional coverage and requirement traceability leave public navigation through
 a dedicated later increment. Their canonical evidence remains private in
 domain tests/specs and university deliverables.
+
+## Visual Selection
+
+Choose the smallest visual form that still explains the relationship:
+
+1. Use a responsive MDX/DOM component for a small conceptual map with up to
+   four nodes. Keep definitions as searchable text below the visual.
+2. Use Fumadocs `Steps` for a procedure the reader performs in order.
+3. Use Mermaid for source-controlled system flows, domain relationships,
+   lifecycles, trust boundaries, and deployment topology that will change with
+   the architecture.
+4. Use a product screenshot only when the page teaches a real interface state
+   or action. Capture the current UI with synthetic documentation data.
+5. Use a generated illustration only as explanatory or decorative context.
+   Never make generated raster text the sole source of a requirement,
+   permission rule, identifier, or architectural fact.
+
+Every informative visual needs a useful accessible label or caption, must work
+in light and dark themes, and must remain legible at the documentation content
+width. Add a Mermaid renderer only when the first reviewed Mermaid diagram is
+ready; Fumadocs does not bundle one by default.
 
 ## One-Page Checklist
 
 1. Collect code/spec/test/runtime evidence.
 2. Ask the owner focused architecture and audience questions.
 3. Agree on an outline and exclusions.
-4. Draft and review English.
+4. Draft and review English and Vietnamese together.
 5. Complete owner teach-back.
-6. Test realistic reader questions and ambiguity.
-7. Draft and review Vietnamese.
-8. Run docs checks, browser/accessibility tests, and publication scans.
-9. PR, merge, immutable build, deploy, and live verification.
-10. Mark exactly one queue item complete and record the next item.
+6. Test realistic reader questions and ambiguity in both languages.
+7. Run docs checks, browser/accessibility tests, and publication scans.
+8. PR, merge, immutable build, deploy, and live verification.
+9. Mark exactly one queue item complete and record the next item.

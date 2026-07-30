@@ -1,0 +1,167 @@
+---
+title: Các khái niệm cốt lõi
+description: Hiểu cách Organizational AI Memory tổ chức tri thức, Asset có thể tái sử dụng, bản phát hành chính xác và quá trình phân phối có kiểm soát quyền truy cập.
+audience:
+  - adopter
+  - user
+  - administrator
+  - developer
+  - evaluator
+status: public
+sourceRefs:
+  - docs/specs/domains/identity-and-organization.md
+  - docs/specs/domains/knowledge-ingestion.md
+  - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/secure-retrieval.md
+  - docs/specs/domains/assistant-and-mcp.md
+  - apps/web/src/features/assets/asset-format.ts
+lastReviewed: 2026-07-30
+---
+
+Organizational AI Memory kết nối hai hướng: bằng chứng trở thành tri thức tổ chức
+được cấp quyền, còn công việc có thể lặp lại trở thành Asset được quản trị để con
+người và tác nhân tái sử dụng. Hai hướng gặp nhau khi một Asset sử dụng hoặc ghim
+đúng phiên bản Knowledge.
+
+## Từ nguồn đến tri thức được cấp quyền
+
+<ConceptMap
+  label="Bằng chứng nguồn trở thành Knowledge có phiên bản mà không làm mất kiểm soát truy cập theo chủ thể."
+  steps={[
+    {
+      title: 'Nguồn',
+      detail: 'Nội dung đi vào cùng danh tính nguồn và bằng chứng quyền truy cập.',
+    },
+    {
+      title: 'Không gian tri thức',
+      detail: 'Một ranh giới được quản trị xác định mục đích và trách nhiệm quản lý.',
+    },
+    {
+      title: 'Tài sản tri thức',
+      detail: 'Một bản ghi ổn định trỏ đến các phiên bản bằng chứng bất biến.',
+    },
+    {
+      title: 'Sử dụng được cấp quyền',
+      detail: 'Mọi kênh phân phối đều kiểm tra lại chủ thể hiện tại.',
+    },
+  ]}
+/>
+
+### Tổ chức và chủ thể
+
+**Tổ chức** là ranh giới tenant cho con người, Knowledge, Asset, cấu hình và lịch
+sử audit. **Chủ thể** là danh tính nội bộ đã được xác thực mà Organizational AI
+Memory dùng cho mọi quyết định cấp quyền. Máy chủ suy ra chủ thể từ danh tính đã
+đăng nhập; client không thể tự chọn một người dùng, tổ chức hoặc phòng ban khác.
+
+### Không gian tri thức
+
+**Không gian tri thức (Knowledge Space)** là một phạm vi tri thức tổ chức được
+quản trị. Nó ghi nhận tri thức phục vụ ai, ai có thể đóng góp và ai quản trị
+Space. Quyền truy cập Space không bao giờ ghi đè các quyền được ghi nhận từ
+Slack, Google Drive, GitHub, nội dung tải lên hoặc nguồn khác.
+
+### Nguồn và bằng chứng
+
+**Nguồn** là tài liệu hoặc đối tượng được quan sát trong một hệ thống bên ngoài.
+Nội dung có thể thay đổi theo thời gian, vì vậy Organizational AI Memory bảo toàn
+các revision nguồn bất biến cùng bằng chứng quyền truy cập được ghi nhận với
+chúng. Bằng chứng gốc được mở qua citation đã xác thực thay vì liên kết lưu trữ
+công khai.
+
+### Tài sản tri thức
+
+**Tài sản tri thức (Knowledge Asset)** cung cấp một danh tính ổn định cho bằng
+chứng, trong khi từng phiên bản vẫn bất biến. Nội dung mới có thể trở thành phiên
+bản hiện tại mà không viết lại phiên bản từng làm căn cứ cho một kết quả trước
+đó.
+
+## Từ công việc có thể lặp lại đến Asset có thể tái sử dụng
+
+Catalog **Assets** của sản phẩm chứa bốn loại năng lực có thể tái sử dụng.
+
+<CapabilityGrid
+  items={[
+    {
+      title: 'Prompt template',
+      description:
+        'Prompt đã được kiểm chứng và quản lý phiên bản, có input được định kiểu, hợp đồng output, chính sách dữ liệu, yêu cầu Knowledge tùy chọn và các trường hợp đánh giá.',
+    },
+    {
+      title: 'Work instruction',
+      description:
+        'Quy trình có thứ tự với điều kiện tiên quyết, kết quả mong đợi, bước kiểm tra, hướng dẫn escalation và các hành động bị cấm.',
+    },
+    {
+      title: 'Capability pack',
+      description:
+        'Hành trình sẵn sàng cho công việc, ghim đúng phiên bản Knowledge và đúng bản phát hành Asset theo thứ tự bắt buộc hoặc tùy chọn.',
+    },
+    {
+      title: 'Skill',
+      description:
+        'Gói đã được kiểm chứng, có thể phát hành và cài đặt cho các AI coding agent được hỗ trợ mà không bị thực thi trong lúc publish.',
+    },
+  ]}
+/>
+
+Từ **Asset** trong giao diện sản phẩm chỉ bốn loại có thể tái sử dụng này.
+**Knowledge Asset** là tên kỹ thuật của Knowledge có thể tìm kiếm và được quản
+trị. Chúng có liên quan nhưng không dùng chung vòng đời: Knowledge đi theo bằng
+chứng nguồn, còn Asset có thể tái sử dụng đi theo quá trình biên soạn và review.
+
+## Draft, review và bản phát hành chính xác
+
+<Steps>
+  <Step>
+    ### Draft
+
+    Tác giả được cấp quyền chỉnh sửa bản làm việc.
+  </Step>
+  <Step>
+    ### Revision bất biến
+
+    Khi submit, tiêu đề, payload, change note và digest được đóng băng thành một
+    đối tượng review duy nhất.
+  </Step>
+  <Step>
+    ### Review
+
+    Reviewer ghi quyết định trên đúng revision đó thay vì trên một draft vẫn
+    đang thay đổi.
+  </Step>
+  <Step>
+    ### Bản phát hành chính xác
+
+    Publish tạo ra một phiên bản bất biến mà người dùng được cấp quyền có thể
+    truy cập chính xác.
+  </Step>
+</Steps>
+
+Một bản phát hành có thể ở trạng thái **available**, **deprecated** hoặc
+**withdrawn**. Deprecation cảnh báo rằng có thể đã có bản thay thế. Withdrawal
+ngăn việc sử dụng mới nhưng không viết lại bằng chứng, review hoặc lịch sử sử
+dụng.
+
+## Quyền truy cập, nguồn gốc và citation
+
+Ba quy tắc làm cho việc tái sử dụng đáng tin cậy:
+
+1. **Quyền được kiểm tra tại thời điểm sử dụng.** Nhìn thấy một Space, Asset hoặc
+   mục catalog không cấp quyền truy cập cho mọi thành phần được kết nối.
+2. **Nguồn gốc xác định đúng phiên bản.** Bản phát hành và phiên bản Knowledge
+   mang định danh cùng digest ổn định để thay đổi sau này không thể âm thầm làm
+   khác nội dung đã được sử dụng.
+3. **Citation kiểm tra lại quyền hiện tại.** Khi mở citation, API xác minh lại
+   quyền truy cập và tính toàn vẹn của bằng chứng trước khi trả về nội dung nguồn.
+
+Mô hình không quyết định quyền truy cập. Assistant, REST, graph, CLI và MCP chỉ
+nhận Knowledge hoặc bản phát hành Asset đã được cấp quyền cho chủ thể và request
+hiện tại.
+
+## Tiếp tục
+
+- Thực hiện [hành trình được quản trị đầu tiên](/vi/docs/getting-started/first-governed-journey).
+- Xem [mô tả hệ thống](/vi/docs/architecture-security/system-description) chuyên sâu hơn.
+- Tìm hiểu cách administrator quản lý
+  [danh tính và quyền truy cập](/vi/docs/guides/administration/identity-permissions).

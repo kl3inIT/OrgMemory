@@ -1,101 +1,166 @@
 ---
 title: Core concepts
-description: Learn the vocabulary that connects governed Assets, sources, permissions, retrieval, and delivery.
+description: Understand how Organizational AI Memory organizes knowledge, reusable Assets, exact releases, and authorized delivery.
 audience:
   - adopter
   - user
+  - administrator
   - developer
+  - evaluator
 status: public
 sourceRefs:
-  - docs/vision.md
-  - ARCHITECTURE.md
+  - docs/specs/domains/identity-and-organization.md
+  - docs/specs/domains/knowledge-ingestion.md
   - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/secure-retrieval.md
+  - docs/specs/domains/assistant-and-mcp.md
+  - apps/web/src/features/assets/asset-format.ts
 lastReviewed: 2026-07-29
 ---
 
-Organizational AI Memory separates durable evidence from the derived structures that make it
-useful. These concepts form the vocabulary used across the product and this
-documentation.
+Organizational AI Memory connects two paths: evidence becomes authorized
+organizational Knowledge, and repeatable work becomes a governed Asset that
+people and agents can reuse. The paths meet when an Asset uses or pins exact
+Knowledge.
 
-<CapabilityGrid
-  items={[
+## From sources to authorized Knowledge
+
+<ConceptMap
+  label="Source evidence becomes versioned Knowledge without losing actor-specific access controls."
+  steps={[
     {
-      title: 'Sources',
-      description:
-        'Uploads, Slack, Google Drive, and GitHub adapters contribute versioned content and source-native permission evidence.',
+      title: 'Source',
+      detail: 'Content arrives with source identity and access evidence.',
+    },
+    {
+      title: 'Knowledge Space',
+      detail: 'A governed boundary defines purpose and stewardship.',
     },
     {
       title: 'Knowledge Asset',
-      description:
-        'A stable identity over immutable versions derived from the governed source ledger.',
+      detail: 'A stable record points to immutable evidence versions.',
     },
     {
-      title: 'Registry Asset',
-      description:
-        'A governed reusable Prompt, Work Instruction, Capability Pack, or Skill with reviews and exact releases.',
-    },
-    {
-      title: 'Permission-aware retrieval',
-      description:
-        'A query path that filters tenant, lifecycle, classification, source ACL, and OpenFGA relationships before evidence leaves the system.',
+      title: 'Authorized use',
+      detail: 'Every delivery path rechecks the current actor.',
     },
   ]}
 />
 
-## Evidence and identity
+### Organization and actor
 
-**Source Object** is the stable record for something observed in a source
-system. **Source Revision** is immutable content for one source version.
-**Evidence Blob** records the original bytes in object storage. Query strings,
-fragments, and embedded credentials are removed from persisted source URIs.
+An **organization** is the tenant boundary for people, Knowledge, Assets,
+configuration, and audit history. An **actor** is the authenticated internal
+identity Organizational AI Memory uses for every authorization decision. The
+server derives the actor from the signed-in identity; a client cannot choose a
+different user, organization, or department.
 
-An external user becomes an Organizational AI Memory actor only through an explicit OIDC
-`(issuer, subject)` binding. Source-native users and groups have their own typed,
-stable identifiers and reach the actor model only through verified mappings.
-Display names and email addresses are observations, not authorization keys.
+### Knowledge Space
 
-## Permissions
+A **Knowledge Space** is one governed body of organizational knowledge. It
+records who the knowledge serves, who may contribute, and who administers the
+space. Access to a Space never overrides the permissions captured from Slack,
+Google Drive, GitHub, an upload, or another source.
 
-Organizational AI Memory intersects multiple controls:
+### Source and evidence
 
-- OpenFGA relationships govern organization, Knowledge Space, Knowledge Asset,
-  and registry Asset actions;
-- immutable source ACL snapshots preserve what the external source allowed;
-- the current ACL head applies grants and revocations without rewriting content;
-- classification policy adds role and department constraints;
-- the canonical ledger rechecks lifecycle, revision, and projection identity.
+A **Source** is a document or object observed in an external system. Its content
+may change over time, so Organizational AI Memory preserves immutable source
+revisions and the access evidence captured with them. Original evidence remains
+available through authenticated citations rather than public storage links.
 
-Passing one control never bypasses another. A product administrator is not
-automatically an Executive and cannot read source content solely because they
-manage the deployment.
+### Knowledge Asset
 
-## Canonical data and projections
+A **Knowledge Asset** gives that evidence a stable identity while its versions
+remain immutable. New content can become the current version without rewriting
+the version that grounded an earlier result.
 
-PostgreSQL stores canonical identities, revisions, ACL evidence, publication
-state, and audit records. MinIO stores original evidence bytes. Full-text,
-pgvector, graph, OpenSearch, and Neo4j structures are rebuildable projections:
-they accelerate retrieval but do not become permission authorities.
+## From repeatable work to reusable Assets
 
-## Two kinds of Asset
+The product's **Assets** catalog contains four kinds of reusable capability.
 
-The name is intentionally shared but the lifecycles differ:
+<CapabilityGrid
+  items={[
+    {
+      title: 'Prompt template',
+      description:
+        'A validated, versioned prompt with typed inputs, an output contract, data policy, optional Knowledge requirements, and evaluation cases.',
+    },
+    {
+      title: 'Work instruction',
+      description:
+        'An ordered procedure with prerequisites, expected results, checks, escalation guidance, and prohibited actions.',
+    },
+    {
+      title: 'Capability pack',
+      description:
+        'A task-ready journey that pins exact Knowledge versions and exact Asset releases in a required or optional order.',
+    },
+    {
+      title: 'Skill',
+      description:
+        'A validated package that can be released and installed for supported AI coding agents without being executed during publication.',
+    },
+  ]}
+/>
 
-| Concept | Purpose | Ownership |
-| --- | --- | --- |
-| Knowledge Asset | Searchable organizational knowledge derived from source evidence | Knowledge ledger |
-| Registry Asset | A reviewed reusable capability delivered as an exact release | Asset Registry |
+The word **Asset** in the product UI refers to these four reusable types.
+**Knowledge Asset** is the technical name for governed searchable Knowledge.
+They are connected but do not share the same lifecycle: Knowledge follows
+source evidence, while reusable Assets follow authoring and review.
 
-Capability Packs may pin both exact registry releases and exact Knowledge Asset
-versions. A denied component becomes an opaque access gap; its title, type, and
-count are not disclosed.
+## Drafts, reviews, and exact releases
 
-## Retrieval and delivery
+<Steps>
+  <Step>
+    ### Draft
 
-The Assistant, REST search, graph explorer, and MCP search converge on the same
-permission-aware retrieval service. Registry Asset delivery separately resolves
-the caller, required OAuth scope, exact release, live `CAN_USE` authorization,
-and component-level access.
+    An authorized author changes the working copy.
+  </Step>
+  <Step>
+    ### Immutable revision
 
-The model never authorizes a fact. It receives only the evidence closure already
-approved for the current request, and citations point back to authenticated API
-routes that recheck current access when opened.
+    Submission freezes the title, payload, change note, and digest into one
+    review target.
+  </Step>
+  <Step>
+    ### Review
+
+    A reviewer records a decision against that exact revision rather than a
+    moving draft.
+  </Step>
+  <Step>
+    ### Exact release
+
+    Publication creates an immutable version that authorized consumers can
+    address exactly.
+  </Step>
+</Steps>
+
+A release can be **available**, **deprecated**, or **withdrawn**. Deprecation
+warns that a replacement may exist. Withdrawal prevents new consumption but
+does not rewrite historical evidence, reviews, or usage records.
+
+## Permissions, provenance, and citations
+
+Three rules make reuse trustworthy:
+
+1. **Permissions are checked at use time.** Seeing one Space, Asset, or catalog
+   entry never grants access to every connected component.
+2. **Provenance identifies the exact version.** Releases and Knowledge versions
+   carry stable identifiers and digests so later changes cannot silently alter
+   what was used.
+3. **Citations recheck current access.** A citation opens through the
+   authenticated API, which verifies permission and evidence integrity again
+   before returning source content.
+
+The model does not decide authorization. Assistant, REST, graph, CLI, and MCP
+receive only the Knowledge or Asset release already authorized for the current
+actor and request.
+
+## Continue
+
+- Follow [your first governed journey](/docs/getting-started/first-governed-journey).
+- See the deeper [system description](/docs/architecture-security/system-description).
+- Learn how administrators manage
+  [identity and permissions](/docs/guides/administration/identity-permissions).

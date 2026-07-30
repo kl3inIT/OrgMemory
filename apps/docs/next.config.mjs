@@ -5,7 +5,8 @@ const withMDX = createMDX();
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const movedDocsPages = [
   ['/docs/overview', '/docs/getting-started'],
-  ['/docs/overview/quickstart', '/docs/getting-started/quickstart'],
+  ['/docs/overview/quickstart', '/docs/guides/deployment-operations/self-hosting'],
+  ['/docs/getting-started/quickstart', '/docs/guides/deployment-operations/self-hosting'],
   ['/docs/overview/core-concepts', '/docs/getting-started/core-concepts'],
   ['/docs/overview/asset-lifecycle', '/docs/architecture-security/asset-lifecycle'],
   ['/docs/admins', '/docs/guides/administration/identity-permissions'],
@@ -23,9 +24,12 @@ const movedDocsPages = [
   ['/docs/developers/assistant-mcp', '/docs/guides/integrations/assistant-mcp'],
   ['/docs/developers/api-reference', '/docs/reference/api-reference'],
 ];
+const sectionLandingPages = [
+  ['/docs/product-guides', '/docs/product-guides/work-with-governed-assets'],
+];
 
-function movedPageRedirects() {
-  return movedDocsPages.flatMap(([source, destination]) =>
+function localizedPageRedirects(pages) {
+  return pages.flatMap(([source, destination]) =>
     ['', '/vi'].flatMap((locale) =>
       ['', '.md'].map((extension) => ({
         source: `${locale}${source}${extension}`,
@@ -43,7 +47,8 @@ const config = {
   reactStrictMode: true,
   async redirects() {
     return [
-      ...movedPageRedirects(),
+      ...localizedPageRedirects(movedDocsPages),
+      ...localizedPageRedirects(sectionLandingPages),
       {
         source: '/docs/developers/api-reference/:path*',
         destination: '/docs/reference/api-reference/:path*',

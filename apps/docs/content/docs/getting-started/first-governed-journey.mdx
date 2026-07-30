@@ -1,0 +1,142 @@
+---
+title: Your first governed journey
+description: Discover and use an exact released Asset with authorized Knowledge, provenance, progress, citations, and feedback.
+audience:
+  - adopter
+  - user
+  - evaluator
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - docs/specs/domains/assistant-and-mcp.md
+  - docs/specs/domains/secure-retrieval.md
+  - apps/web/src/features/assets/components/asset-catalog-page.tsx
+  - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-07-29
+---
+
+This journey begins after an organization administrator has given you access
+and at least one Asset has been released. It uses the product as an authorized
+consumer; it does not require repository access, local bootstrap, or deployment
+commands.
+
+You will discover an authorized release, verify its provenance, use the action
+defined for its Asset type, and finish with evidence and feedback. The numbered
+sections below are the journey; no separate setup path is required.
+
+## 1. Open the Assets catalog
+
+Open **Assets** from the product navigation. The catalog lists only released,
+non-withdrawn Assets that your current identity may use. Search by task, role,
+or outcome, filter by Asset type, and choose the exact item you need.
+
+<ArchitectureDiagram
+  alt="Organizational AI Memory Assets catalog showing a Capability Pack, Work Instruction, Prompt Template, and Skill available to the current user."
+  description="The catalog exposes the user-facing Asset type, exact version, release date, and the action appropriate for that type. This screenshot uses synthetic documentation data captured from the current product UI."
+  height={638}
+  src="/images/getting-started/asset-catalog.png"
+  title="Discover an authorized released Asset"
+  width={1270}
+/>
+
+An Asset that does not appear may be unavailable, withdrawn, or outside your
+current permission scope. The catalog does not reveal denied Asset names or
+metadata.
+
+## 2. Verify the exact release
+
+Open the Asset and confirm:
+
+- the type matches the task you intend to perform;
+- the selected version is the release you expect;
+- its availability is current rather than deprecated or withdrawn;
+- the summary, audience, prerequisites, and expected outcome fit your work;
+- **Version and provenance** identifies the release coordinate, date, and
+  digest.
+
+The release is immutable. Choosing a version does not switch to a mutable draft,
+and a newer release never rewrites an existing Capability Pack pin.
+
+## 3. Use the Asset
+
+The available action depends on its type.
+
+<CapabilityGrid
+  items={[
+    {
+      title: 'Prompt template',
+      description:
+        'Provide the validated variables, optionally request authorized Knowledge grounding, inspect the prepared prompt, and explicitly confirm any model-provider run.',
+    },
+    {
+      title: 'Work instruction',
+      description:
+        'Follow the ordered steps, expected results, checks, and escalation guidance, then acknowledge the exact release.',
+    },
+    {
+      title: 'Capability pack',
+      description:
+        'Review the outcome and prerequisites, open the Pack, use its accessible pinned components in order, and record your progress.',
+    },
+    {
+      title: 'Skill',
+      description:
+        'Inspect the compatibility, package manifest, file digests, and exact install command before installing through the authenticated CLI.',
+    },
+  ]}
+/>
+
+State-changing actions and external model calls require explicit confirmation.
+The Assistant cannot approve, publish, withdraw, change permissions, or execute
+arbitrary tools on your behalf.
+
+## 4. Complete a Capability Pack
+
+A Capability Pack joins exact Knowledge versions, Prompt templates, Work
+instructions, or Skills into one ordered journey. Starting it creates a private
+assignment for your actor; it does not modify the Pack release.
+
+<ArchitectureDiagram
+  alt="Capability Pack journey showing two of three authorized items complete, exact pinned versions, and a progress indicator at 67 percent."
+  description="Each visible item keeps its exact pin. Progress belongs to the current actor, and the Recheck action refreshes live access without changing the released Pack. This screenshot uses synthetic documentation data captured from the current product UI."
+  height={748}
+  src="/images/getting-started/capability-pack-journey.png"
+  title="Follow exact components and record actor-scoped progress"
+  width={896}
+/>
+
+Open each reusable Asset component from the journey and mark an item complete
+only after performing its required work. Knowledge components remain identified
+by their pinned version. If a component is denied, the Pack reports an access
+gap without exposing the hidden title, type, or count; ask the Pack owner to
+review your access.
+
+## 5. Verify evidence and send feedback
+
+When a Prompt run or Assistant answer uses organizational Knowledge, inspect
+its citations before relying on the result. Opening a citation asks the API to
+recheck your current permission and the original evidence integrity. A result
+you could access earlier may correctly become unavailable after a revocation.
+
+Use the Asset's feedback control to report whether the release was useful,
+incorrect, or incomplete. Feedback is stored against the exact release and sent
+to its accountable owner; it does not mutate the release you used.
+
+<VerificationBlock title="You have completed the governed journey when">
+
+- you used an exact released Asset rather than a draft or mutable alias;
+- every Knowledge result and Pack component stayed within your current access;
+- any available citation pointed back to authenticated source evidence;
+- your progress or feedback was recorded against the correct actor and release.
+
+</VerificationBlock>
+
+## Continue
+
+- Follow the task-focused [governed Assets guide](/docs/product-guides/work-with-governed-assets).
+- Learn the [governed Asset lifecycle](/docs/architecture-security/asset-lifecycle).
+- Understand [secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag).
+- Connect an external AI client through the
+  [Assistant and MCP guide](/docs/guides/integrations/assistant-mcp).
