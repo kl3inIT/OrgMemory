@@ -67,7 +67,10 @@ management:
       minimum-expected-value:
         http.server.requests: 5ms
       maximum-expected-value:
-        http.server.requests: 10s
+        # Wide enough for the slowest tool call it fronts. A ceiling under the
+        # real tail does not clip the chart, it pins the quantile exactly on the
+        # bound and reads as a hard plateau that no request actually produced.
+        http.server.requests: 60s
   otlp:
     metrics:
       export:

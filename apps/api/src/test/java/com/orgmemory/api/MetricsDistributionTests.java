@@ -86,6 +86,24 @@ class MetricsDistributionTests {
                         + "ceiling under a minute puts ordinary answers in the overflow bucket");
     }
 
+    /**
+     * {@code /api/assistant/chat} is an HTTP request that streams for the whole turn, so the
+     * HTTP ceiling has to cover an assistant turn rather than an ordinary request. Set below
+     * it, every real chat lands in the overflow bucket and HTTP p95 reports exactly the bound —
+     * a flat plateau at a suspiciously round number that no request ever took.
+     */
+    @Test
+    void httpCeilingCoversTheStreamingAssistantTurnItServes() {
+        Double http = configure("http.server.requests").getMaximumExpectedValueAsDouble();
+        Double turn = configure("orgmemory.assistant.turn").getMaximumExpectedValueAsDouble();
+
+        assertTrue(
+                http >= turn,
+                () -> "HTTP requests are bounded at " + http + "ns while the assistant turn "
+                        + "served over one is bounded at " + turn + "ns, so every streamed chat "
+                        + "overflows and pins HTTP p95 to its own ceiling");
+    }
+
     private DistributionStatisticConfig configure(String name) {
         Meter.Id id = new SimpleMeterRegistry().timer(name).getId();
         return filter.configure(id, DistributionStatisticConfig.DEFAULT);
