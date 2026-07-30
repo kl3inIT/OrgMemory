@@ -67,6 +67,13 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   selected and what the model saw, and that consolidating two copies of one
   grounding reports nothing dropped, so deduplication cannot be mistaken for
   truncation.
+- The ingestion pipeline integration test proves `PARSE` and `CHUNK` reach a sink
+  contributed as an ordinary bean — so the composition is exercised rather than
+  the emit call alone — that chunking consumes exactly the blocks parsing
+  produced, and that both carry the one job identifier. The engine unit test
+  covers only the counts those events report: a timing assertion was tried and
+  removed because on a small fixture, starting the chunk clock before parsing
+  still satisfied every bound the test could state.
 - Indexing telemetry tests prove the job emits extract, glean, merge, embed and
   publish in order; that `GLEAN` counts eligible chunks against chunks that
   completed a round, so a token guard declining one is visible; that its duration

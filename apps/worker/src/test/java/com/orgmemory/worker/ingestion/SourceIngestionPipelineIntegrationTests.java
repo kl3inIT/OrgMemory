@@ -38,6 +38,7 @@ import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -128,6 +129,9 @@ class SourceIngestionPipelineIntegrationTests {
 
     @Autowired
     SourceIngestionProcessor processor;
+
+    @Autowired
+    RecordingGraphRagEventSink graphRagEvents;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -414,6 +418,24 @@ class SourceIngestionPipelineIntegrationTests {
                 1,
                 staleAcl.evidence().size(),
                 "The latest complete, sealed ACL generation remains authoritative when sync health is stale");
+
+        // Parsing and chunking had no producer at all, so an upload that spent minutes in either
+        // was indistinguishable from one that spent milliseconds — the revision status says where
+        // a job is, never how long it stayed there.
+        var parse = graphRagEvents.require(GraphRagEventSink.Stage.PARSE);
+        var chunk = graphRagEvents.require(GraphRagEventSink.Stage.CHUNK);
+        assertEquals(1, parse.inputCount(), "one source document entered parsing");
+        assertTrue(parse.outputCount() > 0, "parsing reports the blocks it produced");
+        assertEquals(
+                parse.outputCount(),
+                chunk.inputCount(),
+                "chunking consumes exactly the blocks parsing produced");
+        assertTrue(chunk.outputCount() > 0, "chunking reports the chunks it produced");
+        assertEquals(
+                parse.operationId(),
+                chunk.operationId(),
+                "both stages belong to the one job, so an upload reads as one operation");
+        assertEquals(ORGANIZATION_ID, parse.organizationId());
     }
 
     @Test
@@ -559,6 +581,28 @@ class SourceIngestionPipelineIntegrationTests {
         return values;
     }
 
+    static final class RecordingGraphRagEventSink implements GraphRagEventSink {
+
+        private final List<GraphRagEvent> received =
+                java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+        @Override
+        public void emit(GraphRagEvent event) {
+            received.add(event);
+        }
+
+        GraphRagEvent require(Stage stage) {
+            synchronized (received) {
+                return received.stream()
+                        .filter(event -> event.stage() == stage)
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                                "no " + stage + " event was emitted; saw "
+                                        + received.stream().map(GraphRagEvent::stage).toList()));
+            }
+        }
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     @ComponentScan(
             basePackageClasses = SourceUploadService.class,
@@ -567,6 +611,16 @@ class SourceIngestionPipelineIntegrationTests {
                     type = FilterType.REGEX,
                     pattern = "com\\.orgmemory\\.core\\.knowledge\\.Source(UploadService|UploadRegistrationService|QueryService)"))
     static class UploadTestConfiguration {
+
+        /**
+         * Contributed as an ordinary sink so the processor composes it exactly as it composes
+         * the real backends. A recorder injected any other way would prove the emit call and
+         * not the wiring, and the wiring is what was missing.
+         */
+        @Bean
+        RecordingGraphRagEventSink recordingGraphRagEventSink() {
+            return new RecordingGraphRagEventSink();
+        }
 
         @Bean
         @Primary

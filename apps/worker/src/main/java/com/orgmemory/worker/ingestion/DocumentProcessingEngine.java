@@ -25,6 +25,7 @@ import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import com.orgmemory.integrations.graphrag.springai.JtokkitTextTokenizer;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +88,10 @@ final class DocumentProcessingEngine {
             DocumentParseRequest request,
             EmbeddingModel embeddingModel) {
         ParserSpec parser = parsers.route(request.suffix(), properties.parserId());
+        long parseStartedAt = System.nanoTime();
         var parsed = parser.parser().parse(request);
+        Duration parseDuration =
+                Duration.ofNanos(Math.max(0, System.nanoTime() - parseStartedAt));
         long minimumChunks = Math.ceilDiv(
                 (long) tokenizer.count(parsed.document().content()),
                 properties.chunkSize());
@@ -106,6 +110,7 @@ final class DocumentProcessingEngine {
         ChunkerOptions options = options(requestedChunker);
         Map<String, String> requestedOptions = resolvedOptions(options);
         List<ChunkedText> output;
+        long chunkStartedAt = System.nanoTime();
         try {
             output = chunkers.execute(
                     requestedChunker,
@@ -124,6 +129,11 @@ final class DocumentProcessingEngine {
                     new ChunkingRequest(parsed.document(), tokenizer, Optional.empty()),
                     options);
         }
+        // Measured before the limit check so a rejected document is still measured work; the
+        // fallback path above is inside the same window on purpose, because a semantic chunker
+        // failing over to the recursive one is time this document actually spent chunking.
+        Duration chunkDuration =
+                Duration.ofNanos(Math.max(0, System.nanoTime() - chunkStartedAt));
         if (output.size() > properties.maximumChunks()) {
             throw new RejectedSourceException(
                     "CHUNK_LIMIT_EXCEEDED",
@@ -144,7 +154,12 @@ final class DocumentProcessingEngine {
                         : Optional.empty(),
                 resolvedOptions,
                 parsed.document().contentSha256());
-        return new ProcessedSourceDocument(parsed, output, profile);
+        return new ProcessedSourceDocument(
+                parsed,
+                output,
+                profile,
+                parseDuration,
+                chunkDuration);
     }
 
     private ChunkerOptions options(String chunkerId) {

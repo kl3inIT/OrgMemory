@@ -120,8 +120,14 @@ Depends on the composite sink merged in PR #132.
       second round's model time alone. Nothing is emitted when the profile
       disables gleaning, because a zero would claim a round never configured to
       run.
-- [ ] `PARSE` and `CHUNK` need a sink in the ingestion pipeline, which holds
-      none today.
+- [x] `PARSE` and `CHUNK`. The ingestion pipeline held no sink at all, so an
+      upload that spent minutes parsing was indistinguishable from one that spent
+      milliseconds — the revision status moved through `PARSING` and `CHUNKING`,
+      but a status says where a job is, not how long it stayed there. Both are
+      emitted under the same `jobId` the graph indexing stages use, so one upload
+      is one operation across two processors. The engine measures each window and
+      carries both out, because its caller makes one `process` call and cannot
+      see where parsing ended.
 - [ ] Deletion and rebuild: missing from the enum entirely, and the runbook
       requires a drill for it. Decide separately.
 - [ ] Extraction cost. `ExtractionRoundMetrics` already carries
