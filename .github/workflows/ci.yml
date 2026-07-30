@@ -528,7 +528,13 @@ jobs:
         run: infrastructure/deployment/scripts/test-deploy-openfga-model-rollout.sh
 
       - name: Validate publication verifier
-        run: python3 -m py_compile infrastructure/deployment/scripts/verify-docs-publication.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            infrastructure/deployment/scripts/verify-docs-publication.py
+          python3 \
+            infrastructure/deployment/scripts/test_verify_docs_publication.py
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.2.0

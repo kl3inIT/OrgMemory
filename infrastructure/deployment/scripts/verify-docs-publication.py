@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 CONNECT_AND_REQUEST_TIMEOUT_SECONDS = 15
+DOCS_ROUTE_PREFIXES = ("/docs/", "/vi/docs/")
 FORBIDDEN = {
     "sourceRefs metadata": re.compile(rb"sourceRefs"),
     "active increment path": re.compile(rb"docs/increments/active/"),
@@ -36,6 +37,27 @@ def read_routes(path: Path) -> set[str]:
         entry["route"]
         for entry in document["entries"]
         if entry.get("status") == "public"
+    }
+
+
+def expand_localized_routes(routes: set[str]) -> set[str]:
+    """Return every canonical route plus its public Vietnamese representation."""
+    return routes | {
+        f"/vi{route}"
+        for route in routes
+        if route.startswith("/docs/")
+    }
+
+
+def read_sitemap_routes(payload: bytes) -> set[str]:
+    root = ET.fromstring(payload)
+    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    return {
+        path
+        for element in root.findall("sm:url/sm:loc", namespace)
+        if (path := urllib.parse.urlparse(element.text or "").path).startswith(
+            DOCS_ROUTE_PREFIXES
+        )
     }
 
 
@@ -90,18 +112,13 @@ def main() -> int:
     ):
         parser.error("base_url must be an HTTPS origin without a path")
 
-    expected = read_routes(args.docs_root / "public-content.manifest.json")
-    expected |= read_routes(args.docs_root / "generated-api.manifest.json")
+    manifest_routes = read_routes(args.docs_root / "public-content.manifest.json")
+    manifest_routes |= read_routes(args.docs_root / "generated-api.manifest.json")
+    expected = expand_localized_routes(manifest_routes)
 
     sitemap_url = f"{base_url}/sitemap.xml"
     sitemap = fetch(sitemap_url)
-    root = ET.fromstring(sitemap)
-    namespace = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-    actual = {
-        urllib.parse.urlparse(element.text or "").path
-        for element in root.findall("sm:url/sm:loc", namespace)
-        if urllib.parse.urlparse(element.text or "").path.startswith("/docs/")
-    }
+    actual = read_sitemap_routes(sitemap)
     if actual != expected:
         missing = sorted(expected - actual)
         unexpected = sorted(actual - expected)
