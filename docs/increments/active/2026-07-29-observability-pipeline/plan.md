@@ -112,13 +112,56 @@ Depends on the composite sink merged in PR #132.
       adapter calls `.stream().content()`, which discards the `ChatResponse`
       holding the finish reason. It lands with `GENERATE` below, where the port
       change is already required.
-- [ ] Time to first token on the streaming assistant path.
-- [ ] Close the stage gap the LightRAG comparison surfaced. `Stage` declares
-      fourteen and production emits ten: `PARSE` and `CHUNK` need a sink in the
-      ingestion pipeline, `GLEAN` needs separating from extraction, and
-      `GENERATE` needs emitting where retrieval currently stops at
-      `ASSEMBLE_CONTEXT`. Decide deletion and rebuild separately — it is missing
-      from the enum entirely and the runbook requires a drill for it.
+- [x] Separate `GLEAN` from extraction. The extractor already recorded per-round
+      metrics and a gleaning outcome and the worker already held them on every
+      `ExtractedChunk`; nothing published either, so gleaning working and
+      gleaning silently declined by the token guard were the same picture. The
+      stage counts eligible chunks against completed rounds and carries the
+      second round's model time alone. Nothing is emitted when the profile
+      disables gleaning, because a zero would claim a round never configured to
+      run.
+- [ ] `PARSE` and `CHUNK` need a sink in the ingestion pipeline, which holds
+      none today.
+- [ ] Deletion and rebuild: missing from the enum entirely, and the runbook
+      requires a drill for it. Decide separately.
+- [ ] Extraction cost. `ExtractionRoundMetrics` already carries
+      `providerInputTokens` and `providerOutputTokens` per round and nothing
+      publishes them, so ingestion spend is invisible while retrieval spend is
+      not. Found while wiring `GLEAN`. The `TokenUsage` record added for context
+      assembly does not fit — its channels are retrieval's — so this needs its
+      own shape rather than a forced reuse.
+
+### `GENERATE` and time to first token — blocked on a boundary decision
+
+Both need the same answer and neither is a wiring task, so they are recorded
+here rather than attempted.
+
+Generation does not happen inside the GraphRAG runtime. `QueryOutputMode.ANSWER`
+exists in the port, but `GraphRagRetrievalPolicy` pins `CONTEXT`
+(`core/.../GraphRagRetrievalPolicy.java:52`) and the application shell generates,
+so it can re-verify the evidence closure before delivery. `AssistantService`
+depends on `PermissionAwareKnowledgeSearch`, which has a second, non-GraphRAG
+implementation in `CanonicalHybridKnowledgeSearch`, and on `ChatModelPort`.
+`GraphRagEvent` requires a non-null `operationId` that only
+`GraphRagKnowledgeRetrievalService` mints and that never leaves it —
+`SecureKnowledgeSearchResult` carries a `requestId` string and nothing else.
+
+So emitting `Stage.GENERATE` from the assistant would either label
+canonical-engine turns as GraphRAG stages, or require threading a GraphRAG
+operation identifier through an engine-neutral interface that has no such
+concept. The alternative — a separate observation surface for the assistant turn
+— leaves `Stage.GENERATE` permanently unproduced, which is the gap this item
+exists to close.
+
+`CLAUDE.md` requires an independent architecture challenge before a domain
+boundary decision is implemented. `finish_reason=length` needs the same answer
+plus a `ChatModelPort` change, because the port streams `Flux<String>` and
+`SpringAiChatModelAdapter` calls `.stream().content()`, discarding the
+`ChatResponse`. Time to first token needs no port change but still needs a
+destination.
+
+Proposed for challenge, with its strongest counterargument, in
+`challenge-generation-telemetry.md`.
 
 Cardinality decision, recorded because it is easier to add a tag than to remove
 one from a series that already exists: organization and operation identifiers,

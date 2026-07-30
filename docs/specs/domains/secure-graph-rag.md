@@ -147,9 +147,17 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   environment-variable mapping so telemetry cannot acquire an unchosen
   destination. Spans carry `service.version` and `deployment.environment`. The
   worker samples traces in full and the API at 0.1.
-- `Stage` declares fourteen values; production emits ten. `PARSE`, `CHUNK`,
-  `GLEAN` and `GENERATE` have no producer, so no parsing, chunking, gleaning or
-  answer-generation latency is reported. Deletion and rebuild have no stage.
+- `Stage` declares fourteen values; production emits eleven. `PARSE`, `CHUNK` and
+  `GENERATE` have no producer, so no parsing, chunking or answer-generation
+  latency is reported. Deletion and rebuild have no stage.
+- `GLEAN` reports the second extraction round separately from the first. It is
+  emitted once per indexing job when the profile enables gleaning, counting
+  chunks eligible against chunks that completed a gleaning round, so a token
+  guard declining the round is distinguishable from gleaning being configured
+  off. Its duration is aggregate model time across concurrently gleaned chunks
+  and is nested inside `EXTRACT`'s wall clock, so stage durations within one job
+  are not additive. A profile with gleaning disabled emits nothing rather than a
+  zero.
 - Two backends ship: an OpenTelemetry span adapter and a Micrometer meter
   adapter. Neither displaces the other, and each has its own enable property;
   with both off the producers compose to `NO_OP`. Spans are sampled and show one
