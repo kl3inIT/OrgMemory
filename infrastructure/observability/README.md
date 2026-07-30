@@ -19,15 +19,23 @@ address is the container itself.
 
 ## Reach Grafana
 
-It is not published. Tunnel to it:
+**https://grafana.zeromail.vn**, through Nginx Proxy Manager, signing in with
+Keycloak. Access is gated by the `observability` realm role — a user Keycloak
+authenticates who lacks it is refused rather than admitted as a Viewer of
+telemetry that spans every organization. Grant it with:
 
 ```bash
-ssh -N -L 3001:127.0.0.1:3001 zm
-# then open http://localhost:3001
+docker exec orgmemory-keycloak-1 /opt/keycloak/bin/kcadm.sh   add-roles -r orgmemory --uusername <user> --rolename observability --config <kcadm.config>
 ```
 
-Credentials are in `observability.env` on the host. Grafana deliberately does not
-use Keycloak — see [decision 0021](../../docs/decisions/0021-grafana-is-reached-over-ssh-not-published.md).
+The local administrator stays enabled as break-glass, for the case where the
+incident that sent you here also took Keycloak's database — which is the same
+PostgreSQL the product uses. Its password is in `observability.env` on the host.
+See [decision 0021](../../docs/decisions/0021-grafana-authenticates-through-keycloak-gated-by-a-role.md).
+
+**Do not reach it over an SSH tunnel.** `GF_SERVER_ROOT_URL` is the public
+hostname, and Grafana builds plugin asset URLs from it, so the Drilldown apps
+fail to load at `localhost` with a bare "Plugin failed to load" and no clue why.
 
 ## What is wired to what
 

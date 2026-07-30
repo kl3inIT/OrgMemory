@@ -34,11 +34,33 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Keycloak, on the product realm, gated by a role rather than by
+      # membership. `role_attribute_strict` is the part that matters: without it,
+      # a user Keycloak authenticates but who has no Grafana role is admitted as
+      # a Viewer, and Grafana shows telemetry spanning every organization. With
+      # it, the same user is refused. The realm holds product users, so the
+      # difference is whether a customer account can read cross-tenant data by
+      # existing. See decision 0021.
+      GF_AUTH_GENERIC_OAUTH_ENABLED: ${GRAFANA_OIDC_ENABLED:-true}
+      GF_AUTH_GENERIC_OAUTH_NAME: Keycloak
+      GF_AUTH_GENERIC_OAUTH_CLIENT_ID: ${GRAFANA_OIDC_CLIENT_ID:-grafana}
+      GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${GRAFANA_OIDC_CLIENT_SECRET:-}
+      GF_AUTH_GENERIC_OAUTH_SCOPES: "openid email profile"
+      # The browser is redirected to the public issuer; the token and userinfo
+      # calls are server-side and go straight to Keycloak over the shared
+      # network, so they neither leave the host nor hairpin through the proxy.
+      GF_AUTH_GENERIC_OAUTH_AUTH_URL: ${GRAFANA_OIDC_AUTH_URL:-https://auth.kl3in.tech/realms/orgmemory/protocol/openid-connect/auth}
+      GF_AUTH_GENERIC_OAUTH_TOKEN_URL: ${GRAFANA_OIDC_TOKEN_URL:-http://keycloak:8080/realms/orgmemory/protocol/openid-connect/token}
+      GF_AUTH_GENERIC_OAUTH_API_URL: ${GRAFANA_OIDC_USERINFO_URL:-http://keycloak:8080/realms/orgmemory/protocol/openid-connect/userinfo}
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(realm_access.roles[*], 'observability') && 'Admin'"
+      GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT: "true"
+      GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN: "false"
+      # Break-glass. Keycloak's database is the same PostgreSQL the product uses,
+      # so the incident most likely to send you here is also the one most likely
+      # to have taken the identity provider with it. Disabling this form would
+      # make Grafana unreachable exactly then.
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
     ports:
-      # Loopback only, reached over an SSH tunnel. Deliberately not published and
-      # deliberately not behind Keycloak: Keycloak's database is the same
-      # PostgreSQL the product uses, so an outage there would take out the login
-      # to the tool you open to find out why. See decision 0021.
       - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
@@ -46,6 +68,11 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - observability-internal
+      # Reaches Keycloak's token and userinfo endpoints directly rather than
+      # through the public proxy. Nothing on this network reaches Grafana.
+      - shared-infra
+      # Published through Nginx Proxy Manager at grafana.zeromail.vn.
+      - proxy
     mem_limit: ${GRAFANA_MEM_LIMIT:-384m}
     logging: *default-logging
 
@@ -128,9 +155,9 @@ services:
       - "127.0.0.1:${ALLOY_PORT:-12345}:12345"
     networks:
       - observability-internal
-      # The only component on the shared network. Applications push OTLP to
-      # `observability-alloy:4318`; they never learn that Tempo or Prometheus
-      # exist, so a backend can be replaced without redeploying the product.
+      # Applications push OTLP to `observability-alloy:4318`; they never learn
+      # that Tempo or Prometheus exist, so a backend can be replaced without
+      # redeploying the product.
       - shared-infra
     mem_limit: ${ALLOY_MEM_LIMIT:-384m}
     logging: *default-logging
@@ -199,4 +226,7 @@ networks:
   observability-internal:
     driver: bridge
   shared-infra:
+    external: true
+  proxy:
+    name: ${ORGMEMORY_PROXY_NETWORK:-proxy-network}
     external: true

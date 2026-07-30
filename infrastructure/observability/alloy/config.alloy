@@ -70,8 +70,10 @@ prometheus.scrape "infrastructure" {
   targets = [
     {"__address__" = "observability-node-exporter:9100", "job" = "node"},
     {"__address__" = "observability-cadvisor:8080", "job" = "cadvisor"},
-    // postgres-exporter is behind the `database` compose profile; add its target
-    // here when the monitoring role exists and the profile is enabled.
+    // Only reachable when the `database` compose profile is on. It reads through
+    // a role granted `pg_monitor` and nothing else, so it can see cluster
+    // statistics and no table contents.
+    {"__address__" = "observability-postgres-exporter:9187", "job" = "postgres"},
   ]
 
   forward_to      = [prometheus.remote_write.local.receiver]

@@ -18,15 +18,35 @@ x-oidc-environment: &oidc-environment
   ORGMEMORY_OIDC_JWK_SET_URI: http://keycloak:8080/realms/orgmemory/protocol/openid-connect/certs
   ORGMEMORY_OIDC_TOKEN_URI: http://keycloak:8080/realms/orgmemory/protocol/openid-connect/token
 
-x-spring-environment: &spring-environment
-  <<: *oidc-environment
-  SPRING_PROFILES_ACTIVE: prod
-  # Telemetry resource attributes. deploy.sh pins ORGMEMORY_SERVICE_VERSION to the released
-  # commit alongside the image tags, so the version a collector reports cannot drift from the
-  # image actually running. Without these the applications fall back to their local defaults
-  # and label production as "local", which is worse than an absent attribute.
+# Every deployable gets exactly this, and gets it from one place. `apps/mcp`
+# previously inherited only the OIDC anchor, so it carried neither a collector
+# endpoint nor a service version: its spans would have been labelled "local" and
+# sent nowhere, which reads identically to an application with nothing to say.
+x-telemetry-environment: &telemetry-environment
+  # deploy.sh pins ORGMEMORY_SERVICE_VERSION to the released commit alongside the
+  # image tags, so the version a collector reports cannot drift from the image
+  # actually running. Without these the applications fall back to their local
+  # defaults and label production as "local", which is worse than an absent
+  # attribute.
   ORGMEMORY_DEPLOYMENT_ENVIRONMENT: production
   ORGMEMORY_SERVICE_VERSION: ${ORGMEMORY_SERVICE_VERSION:-unknown}
+  # Spring property names, not `OTEL_*`. application-prod.yml sets
+  # `management.opentelemetry.map-environment-variables: false` so this
+  # deployment cannot acquire a destination nobody chose — which also means
+  # OTEL_EXPORTER_OTLP_ENDPOINT is read by nothing here, and setting it would
+  # leave the exporter exactly as silent as before with no error to say so.
+  # Names read from the Boot 4.1 configuration metadata rather than from prose.
+  #
+  # `observability-alloy`, never `localhost`: Alloy binds 127.0.0.1 on the host,
+  # and inside a container that address is the container itself. That mistake is
+  # the original production symptom.
+  MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: ${ORGMEMORY_OTLP_TRACES_ENDPOINT:-http://observability-alloy:4318/v1/traces}
+  MANAGEMENT_OTLP_METRICS_EXPORT_URL: ${ORGMEMORY_OTLP_METRICS_URL:-http://observability-alloy:4318/v1/metrics}
+  ORGMEMORY_OTLP_METRICS_ENABLED: ${ORGMEMORY_OTLP_METRICS_ENABLED:-true}
+
+x-spring-environment: &spring-environment
+  <<: [*oidc-environment, *telemetry-environment]
+  SPRING_PROFILES_ACTIVE: prod
   ORGMEMORY_DB_URL: jdbc:postgresql://postgres:5432/${ORGMEMORY_DB_NAME:-orgmemory}
   ORGMEMORY_DB_USER: ${ORGMEMORY_DB_USER:-orgmemory}
   ORGMEMORY_DB_PASSWORD: ${ORGMEMORY_DB_PASSWORD:?Set ORGMEMORY_DB_PASSWORD}
@@ -417,7 +437,7 @@ services:
     <<: *service-defaults
     image: ${ORGMEMORY_MCP_IMAGE:?Set ORGMEMORY_MCP_IMAGE}
     environment:
-      <<: *oidc-environment
+      <<: [*oidc-environment, *telemetry-environment]
       SPRING_PROFILES_ACTIVE: prod
       ORGMEMORY_API_BASE_URL: http://api:8080
       ORGMEMORY_MCP_CONNECT_TIMEOUT: ${ORGMEMORY_MCP_CONNECT_TIMEOUT:-5s}
@@ -445,6 +465,10 @@ services:
         condition: service_healthy
     networks:
       orgmemory-internal:
+      # Joins the shared network for one reason: to reach the collector. It is
+      # the only deployable that did not, so its spans had nowhere to go while
+      # the other two were merely unconfigured.
+      shared-infra:
       proxy:
         aliases:
           - orgmemory-mcp
