@@ -20,7 +20,7 @@ function AssetCatalogRoute() {
       query={q ?? ""}
       type={type}
       sort={sort ?? "RECENTLY_RELEASED"}
-      view={view ?? "LIST"}
+      view={view ?? "GRID"}
       page={page ?? 1}
       onQueryChange={(nextQuery) =>
         void navigate({
@@ -53,7 +53,7 @@ function AssetCatalogRoute() {
           replace: true,
           search: (previous) => ({
             ...previous,
-            view: nextView === "LIST" ? undefined : nextView,
+            view: nextView === "GRID" ? undefined : nextView,
           }),
         })
       }

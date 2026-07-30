@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest"
 import { parseAssetCatalogSearch } from "@/features/assets/asset-catalog-state"
 
 describe("parseAssetCatalogSearch", () => {
-  it("keeps list and recent releases as clean URL defaults", () => {
-    expect(parseAssetCatalogSearch({ view: "LIST", sort: "INVALID", page: "1" })).toEqual({
+  it("keeps grid and recent releases as clean URL defaults", () => {
+    expect(parseAssetCatalogSearch({ sort: "INVALID", page: "1" })).toEqual({
       q: undefined,
       type: undefined,
       sort: undefined,
@@ -13,20 +13,20 @@ describe("parseAssetCatalogSearch", () => {
     })
   })
 
-  it("preserves a valid grid catalog state and rejects unsafe values", () => {
+  it("preserves a valid catalog state and rejects unsafe values", () => {
     expect(
       parseAssetCatalogSearch({
         q: `  ${"a".repeat(210)}  `,
         type: "SKILL",
         sort: "NAME",
-        view: "GRID",
+        view: "LIST",
         page: "3",
       }),
     ).toEqual({
       q: "a".repeat(200),
       type: "SKILL",
       sort: "NAME",
-      view: "GRID",
+      view: "LIST",
       page: 3,
     })
 
