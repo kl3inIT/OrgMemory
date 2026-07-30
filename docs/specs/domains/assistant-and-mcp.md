@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-30-observability-platform (98d0f53)`.
+Reconciled: `2026-07-30-observability-platform (e8d89c6)`.
 
 ## Current Behavior
 
