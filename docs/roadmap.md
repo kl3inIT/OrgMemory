@@ -24,6 +24,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
 | AI model gateway provider boundary | shipped | [completed verification](increments/completed/2026-07-29-ai-model-gateway-boundary/verification.md) |
 | Independent bilingual public documentation portal | shipped | [completed verification](increments/completed/2026-07-28-public-docs-portal/verification.md) |
+| Automatic public docs delivery | shipped | [completed verification](increments/completed/2026-07-30-automatic-docs-delivery/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -40,7 +41,6 @@ The table is a delivery index, not a second description of current behavior.
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
-| [Automatic public docs delivery](increments/active/2026-07-30-automatic-docs-delivery/plan.md) | active | pass review and prove merge-to-live image publication, deployment, and bilingual route verification |
 | [Observability pipeline and payload boundary](increments/active/2026-07-29-observability-pipeline/plan.md) | active | reach a collector, emit the four declared stages that have no producer, and prove a sanitized whole-export |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
