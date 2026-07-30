@@ -47,7 +47,11 @@ class AssistantServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new AssistantService(retrieval, chat);
+        service = new AssistantService(
+                retrieval,
+                chat,
+                io.micrometer.observation.ObservationRegistry.NOOP,
+                com.orgmemory.core.assistant.observability.AssistantTurnEvent.RetrievalEngine.GRAPH_RAG);
     }
 
     @Test
