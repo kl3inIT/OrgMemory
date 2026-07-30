@@ -21,11 +21,7 @@ export function ConceptMap({
 }) {
   return (
     <figure className="not-prose my-6">
-      <div
-        aria-label={label}
-        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
-        role="img"
-      >
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => (
           <div className="relative min-w-0" key={step.title}>
             <div className="h-full rounded-lg border border-fd-border bg-fd-card px-4 py-3">

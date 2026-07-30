@@ -9,8 +9,9 @@ service, or Compose stack is required.
 
 ## Current Boundaries
 
-- `content/docs`: curated Markdown/MDX publication input. English pages use
-  `page.mdx`; reviewed Vietnamese translations use `page.vi.mdx`.
+- `content/docs`: curated Markdown/MDX publication input. English section roots
+  use `index.mdx`, named pages use `<slug>.mdx`, and reviewed Vietnamese
+  translations use the adjacent `index.vi.mdx` or `<slug>.vi.mdx`.
 - `source.config.ts`: typed Fumadocs MDX collection and frontmatter contract.
 - `public-content.manifest.json`: explicit route and review allowlist.
 - `scripts/check-docs.mjs`: content, manifest, source-reference, and publication
