@@ -87,7 +87,7 @@ later non-docs commits would lose a valid docs release, and removed dependence
 on workflow-dispatch `headSha` when validating manual image builds. The final
 least-privilege pass also moved registry permissions off both planning jobs.
 
-## Success Criteria
+## Verified Success Criteria
 
 - A merged public-docs change builds and deploys without manual dispatch.
 - A green non-docs commit publishes and deploys no docs image.

@@ -17,11 +17,13 @@
       documentation checks.
 - [x] Open the PR, address review, and pass all selected CI jobs.
 - [x] Merge and observe automatic image publication and the docs-only
-      deployment rollback.
+      failed-canary rollback.
 - [x] Reconcile the first automatic rollback: the candidate was healthy, but
       the publication verifier ignored localized sitemap routes.
-- [ ] Verify live health, English, Vietnamese, and Product Guides routes.
-- [ ] Record verification, archive this increment, and update the roadmap.
+- [x] Merge the verifier repair and observe automatic image publication and
+      successful docs-only deployment.
+- [x] Verify live health, English, Vietnamese, and Product Guides routes.
+- [x] Record verification, archive this increment, and update the roadmap.
 
 ## Exit Gate
 
