@@ -71,6 +71,13 @@ The links are the point. Three signals with one login is three silos; exemplars,
   whose stream dies and is never re-established while Alloy keeps reporting
   healthy — the same failure shape as an exporter pushing to nowhere. See the
   comment in `alloy/config.alloy`.
+- **Changing a dashboard's `uid` in place does not provision.** Grafana tracks a
+  provisioned board by file path, so a new uid in an existing file collides with
+  the row already there and every reload logs `failed to save dashboard ...
+  deprecatedInternalID ... is already in use` while quietly serving the old
+  board. The API refuses to delete it too, because the file still exists. Move
+  the file away, restart so `disableDeletion: false` removes the row, move it
+  back, restart again.
 - **`postgres-exporter` sits behind the `database` profile** because it needs a
   monitoring role in the production database. Create the role, put its DSN in
   `observability.env`, then `--profile database up -d`.
