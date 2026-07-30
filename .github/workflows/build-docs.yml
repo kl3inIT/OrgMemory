@@ -1,7 +1,14 @@
 name: Build docs image
-run-name: Build docs image - ${{ inputs.commit_sha }}
+run-name: Build docs image - ${{ github.event.workflow_run.head_sha || inputs.commit_sha }}
 
 on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -12,17 +19,28 @@ on:
 permissions:
   actions: read
   contents: read
-  packages: write
 
 concurrency:
-  group: orgmemory-docs-build-${{ inputs.commit_sha }}
+  group: >-
+    orgmemory-docs-build-${{
+      github.event.workflow_run.head_sha || inputs.commit_sha
+    }}
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Publish immutable docs image
+  plan:
+    name: Plan docs image
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name ==
+          github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 5
+    outputs:
+      commit_sha: ${{ steps.release.outputs.commit_sha }}
+      should_publish: ${{ steps.release.outputs.should_publish }}
     steps:
       - name: Check out main history
         uses: actions/checkout@v7.0.1
@@ -30,33 +48,78 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate green main commit
+      - name: Resolve and validate docs release
         id: release
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AUTOMATIC_COMMIT_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          AUTOMATIC_CI_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL_COMMIT_SHA: ${{ inputs.commit_sha || '' }}
         run: |
           set -euo pipefail
-          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
-          git fetch --no-tags origin main
-          git cat-file -e "$COMMIT_SHA^{commit}"
-          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
-          successful_runs="$(
-            gh run list \
-              --workflow CI \
-              --commit "$COMMIT_SHA" \
-              --limit 20 \
-              --json conclusion \
-              --jq '[.[] | select(.conclusion == "success")] | length'
-          )"
-          [[ "$successful_runs" -gt 0 ]]
-          printf 'commit_sha=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            commit_sha="$MANUAL_COMMIT_SHA"
+            automatic=false
+          else
+            commit_sha="$AUTOMATIC_COMMIT_SHA"
+            automatic=true
+          fi
 
+          [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin main
+          git cat-file -e "$commit_sha^{commit}"
+          git merge-base --is-ancestor "$commit_sha" origin/main
+
+          if [[ "$automatic" == "true" ]]; then
+            public_docs_jobs="$(
+              gh run view "$AUTOMATIC_CI_RUN_ID" \
+                --json jobs \
+                --jq '[.jobs[] |
+                  select(
+                    .name == "Public docs · Node 24" and
+                    .conclusion == "success"
+                  )
+                ] | length'
+            )"
+            if [[ "$public_docs_jobs" -eq 0 ]]; then
+              printf 'No verified public-docs change in CI run %s; skipping.\n' \
+                "$AUTOMATIC_CI_RUN_ID"
+              printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+              printf 'should_publish=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            successful_runs="$(
+              gh run list \
+                --workflow CI \
+                --commit "$commit_sha" \
+                --limit 20 \
+                --json conclusion \
+                --jq '[.[] | select(.conclusion == "success")] | length'
+            )"
+            [[ "$successful_runs" -gt 0 ]]
+          fi
+
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+          printf 'should_publish=true\n' >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish immutable docs image
+    needs: plan
+    if: needs.plan.outputs.should_publish == 'true'
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
       - name: Check out verified source
         uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ steps.release.outputs.commit_sha }}
+          ref: ${{ needs.plan.outputs.commit_sha }}
           persist-credentials: false
 
       - name: Set up Docker Buildx
@@ -76,9 +139,9 @@ jobs:
           context: .
           file: apps/docs/Dockerfile
           push: true
-          tags: ghcr.io/kl3init/orgmemory-docs:sha-${{ steps.release.outputs.commit_sha }}
+          tags: ghcr.io/kl3init/orgmemory-docs:sha-${{ needs.plan.outputs.commit_sha }}
           build-args: |
-            VCS_REF=${{ steps.release.outputs.commit_sha }}
+            VCS_REF=${{ needs.plan.outputs.commit_sha }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
           cache-from: type=gha,scope=docs
           cache-to: type=gha,mode=max,scope=docs
@@ -92,7 +155,7 @@ jobs:
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ghcr.io/kl3init/orgmemory-docs:sha-${{ steps.release.outputs.commit_sha }}
+          image-ref: ghcr.io/kl3init/orgmemory-docs:sha-${{ needs.plan.outputs.commit_sha }}
           format: table
           ignore-unfixed: true
           severity: CRITICAL,HIGH
@@ -101,7 +164,7 @@ jobs:
       - name: Record immutable docs release
         shell: bash
         env:
-          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          COMMIT_SHA: ${{ needs.plan.outputs.commit_sha }}
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
@@ -124,7 +187,7 @@ jobs:
       - name: Upload docs release manifest
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: docs-release-${{ steps.release.outputs.commit_sha }}
+          name: docs-release-${{ needs.plan.outputs.commit_sha }}
           path: docs-release.json
           if-no-files-found: error
           retention-days: 30

@@ -1,9 +1,9 @@
 # Public Docs Deployment
 
 This runbook publishes the independent Fumadocs portal without recreating or
-restarting the OrgMemory product services. The repository contracts can be
-prepared and the image can be published before DNS is delegated. Do not run
-the live deployment until DNS and Nginx Proxy Manager access are confirmed.
+restarting the OrgMemory product services. The current DNS, TLS, and Nginx Proxy
+Manager route are live. For a new environment, prepare and publish the image
+first, then require verified DNS and proxy access before its initial deployment.
 
 ## Release Boundary
 
@@ -20,7 +20,7 @@ The docs Compose file contains no API, worker, MCP, web, Keycloak, database, or
 storage service. Its deployment uses a separate lock and changes only the docs
 service.
 
-## Verified Read-Only Preflight
+## Verified Host And Edge State
 
 On 2026-07-29 the ZM host was inspected without changing runtime state:
 
@@ -40,20 +40,22 @@ On 2026-07-29 the ZM host was inspected without changing runtime state:
   connected and completed, so runner reachability is intermittent rather than
   absent;
 - `docs.kl3in.tech` resolves publicly to the ZM ingress address;
-- HTTP reaches the Nginx Proxy Manager OpenResty edge but returns `404`, and
-  HTTPS does not yet present a valid certificate.
+- DNS, Let's Encrypt TLS, and the Nginx Proxy Manager route publish the healthy
+  isolated docs service.
 
-Nginx Proxy Manager configuration access and certificate issuance are not yet
-proven. Those are the current stop conditions, not permission to guess or mutate
-them. If the SSH timeout recurs, choose an approved fix before deployment:
-expose the managed SSH endpoint to GitHub-hosted runners with an appropriate
-firewall policy, or run the workflow on an approved self-hosted/VPN-connected
+If SSH access from a GitHub-hosted runner times out, do not bypass host
+verification or copy registry credentials onto the server. Restore the approved
+runner-to-host path or move the job to an approved self-hosted/VPN-connected
 runner.
 
 ## Publish An Immutable Image
 
-After the release commit is on `main` and its `CI` workflow is green, run
-`Build docs image` with the full 40-character commit SHA. The workflow:
+After a public-docs change reaches `main`, a successful `CI` run triggers
+`Build docs image` automatically. The workflow confirms that the named
+`Public docs · Node 24` job succeeded before it publishes anything. A green CI
+run in which that job was skipped becomes a docs release no-op.
+
+The workflow:
 
 1. proves the commit belongs to `main` and has a successful `CI` run;
 2. builds the standalone non-root image from the exact commit;
@@ -103,12 +105,19 @@ would bypass Nginx Proxy Manager's generated proxy include, and a nested
 Enable HSTS at the proxy only after HTTPS and deep-link verification pass, so
 an incorrect certificate or proxy route does not become sticky.
 
-## Deploy And Roll Back
+## Automatic Deploy, Redeploy, And Roll Back
 
-Run `Deploy docs` manually with the same full commit SHA and explicitly enable
-`confirm_deploy`. The workflow requires successful `CI` and `Build docs image`
-runs, verifies the SSH host against the managed known-hosts value, checks out
-the exact commit on the server, uses an ephemeral GHCR Docker config, and
+A successful automatic `Build docs image` run triggers `Deploy docs`
+automatically. A manual image build never triggers deployment. The deployment
+proceeds only when the triggering run contains a successful
+`Publish immutable docs image` job. An older build becomes a no-op when a newer
+descendant docs image has already been published; a later non-docs commit does
+not suppress the last verified docs change.
+
+The workflow verifies the successful `CI` and image-build evidence, downloads
+the matching release artifact, checks its commit, immutable image reference,
+and digest, verifies the SSH host against the managed known-hosts value, checks
+out the exact commit on the server, uses an ephemeral GHCR Docker config, and
 invokes:
 
 ```bash
@@ -121,8 +130,9 @@ failed canary restores the last verified environment, starts only
 `orgmemory-docs`, and reruns smoke checks. It never runs the product Compose
 file.
 
-To roll back intentionally, run `Deploy docs` with an older green `main` commit
-whose docs image is still retained.
+For an intentional redeploy or rollback, run `Deploy docs` manually with a full
+green `main` commit whose successful docs image is still retained, then enable
+`confirm_deploy`.
 
 ## Public Verification
 

@@ -1,7 +1,14 @@
 name: Deploy docs
-run-name: Deploy docs - ${{ inputs.commit_sha }}
+run-name: Deploy docs - ${{ github.event.workflow_run.display_title || inputs.commit_sha }}
 
 on:
+  workflow_run:
+    workflows:
+      - Build docs image
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -17,21 +24,26 @@ on:
 permissions:
   actions: read
   contents: read
-  packages: read
 
 concurrency:
   group: orgmemory-docs-production
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy exact docs image
-    if: inputs.confirm_deploy
+  plan:
+    name: Plan docs deployment
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm_deploy) ||
+      (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'workflow_run' &&
+        github.event.workflow_run.head_repository.full_name ==
+          github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: production
-      url: https://docs.kl3in.tech
+    timeout-minutes: 5
+    outputs:
+      commit_sha: ${{ steps.validate.outputs.commit_sha }}
+      should_deploy: ${{ steps.validate.outputs.should_deploy }}
     steps:
       - name: Check out main history
         uses: actions/checkout@v7.0.1
@@ -39,42 +51,183 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Validate green release
-        id: release
+      - name: Resolve and validate docs deployment
+        id: validate
         shell: bash
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          AUTOMATIC_BUILD_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          AUTOMATIC_BUILD_TITLE: ${{ github.event.workflow_run.display_title || '' }}
+          EVENT_NAME: ${{ github.event_name }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL_COMMIT_SHA: ${{ inputs.commit_sha || '' }}
         run: |
           set -euo pipefail
-          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            commit_sha="$MANUAL_COMMIT_SHA"
+            automatic=false
+          else
+            automatic=true
+            if [[ "$AUTOMATIC_BUILD_TITLE" =~ ^Build\ docs\ image\ -\ ([0-9a-f]{40})$ ]]; then
+              commit_sha="${BASH_REMATCH[1]}"
+            else
+              printf 'Unexpected triggering build title: %s\n' \
+                "$AUTOMATIC_BUILD_TITLE" >&2
+              exit 1
+            fi
+          fi
+
+          [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]]
           git fetch --no-tags origin main
-          git cat-file -e "$COMMIT_SHA^{commit}"
-          git merge-base --is-ancestor "$COMMIT_SHA" origin/main
+          git cat-file -e "$commit_sha^{commit}"
+          git merge-base --is-ancestor "$commit_sha" origin/main
+
+          if [[ "$automatic" == "true" ]]; then
+            publish_jobs="$(
+              gh run view "$AUTOMATIC_BUILD_RUN_ID" \
+                --json jobs \
+                --jq '[.jobs[] |
+                  select(
+                    .name == "Publish immutable docs image" and
+                    .conclusion == "success"
+                  )
+                ] | length'
+            )"
+            if [[ "$publish_jobs" -eq 0 ]]; then
+              printf 'Build run %s produced no docs image; skipping deploy.\n' \
+                "$AUTOMATIC_BUILD_RUN_ID"
+              printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+              printf 'should_deploy=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          if [[ "$automatic" == "true" ]]; then
+            newer_release_found=false
+            candidate_runs="$(
+              gh run list \
+                --workflow "Build docs image" \
+                --branch main \
+                --status success \
+                --limit 100 \
+                --json databaseId,displayTitle,event \
+                --jq '.[] |
+                  select(.event == "workflow_run") |
+                  [.databaseId, .displayTitle] |
+                  @tsv'
+            )"
+            while IFS=$'\t' read -r run_id display_title; do
+              [[ -n "$run_id" ]] || continue
+              if [[ "$display_title" =~ ^Build\ docs\ image\ -\ ([0-9a-f]{40})$ ]]; then
+                candidate_sha="${BASH_REMATCH[1]}"
+              else
+                continue
+              fi
+              [[ "$candidate_sha" != "$commit_sha" ]] || continue
+              git cat-file -e "$candidate_sha^{commit}" 2>/dev/null || continue
+              git merge-base --is-ancestor "$commit_sha" "$candidate_sha" ||
+                continue
+              git merge-base --is-ancestor "$candidate_sha" origin/main ||
+                continue
+              publish_jobs="$(
+                gh run view "$run_id" \
+                  --json jobs \
+                  --jq '[.jobs[] |
+                    select(
+                      .name == "Publish immutable docs image" and
+                      .conclusion == "success"
+                    )
+                  ] | length'
+              )"
+              if [[ "$publish_jobs" -gt 0 ]]; then
+                newer_release_found=true
+                break
+              fi
+            done <<< "$candidate_runs"
+            if [[ "$newer_release_found" == "true" ]]; then
+              printf 'A newer docs image supersedes %s; skipping deploy.\n' \
+                "$commit_sha"
+              printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+              printf 'should_deploy=false\n' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
           successful_ci="$(
             gh run list \
               --workflow CI \
-              --commit "$COMMIT_SHA" \
+              --commit "$commit_sha" \
               --limit 20 \
               --json conclusion \
               --jq '[.[] | select(.conclusion == "success")] | length'
           )"
-          successful_build="$(
-            gh run list \
-              --workflow "Build docs image" \
-              --limit 100 \
-              --json conclusion,displayTitle \
-              --jq "[.[] |
-                select(
-                  .conclusion == \"success\" and
-                  .displayTitle == \"Build docs image - $COMMIT_SHA\"
-                )
-              ] | length"
-          )"
           [[ "$successful_ci" -gt 0 ]]
-          [[ "$successful_build" -gt 0 ]]
-          printf 'commit_sha=%s\n' "$COMMIT_SHA" >> "$GITHUB_OUTPUT"
 
+          if [[ "$automatic" == "true" ]]; then
+            release_run_id="$AUTOMATIC_BUILD_RUN_ID"
+          else
+            candidate_runs="$(
+              gh run list \
+                --workflow "Build docs image" \
+                --limit 50 \
+                --json conclusion,databaseId,displayTitle \
+                --jq ".[] |
+                  select(
+                    .conclusion == \"success\" and
+                    .displayTitle == \"Build docs image - $commit_sha\"
+                  ) |
+                  .databaseId"
+            )"
+            release_run_id=
+            while IFS= read -r run_id; do
+              [[ -n "$run_id" ]] || continue
+              publish_jobs="$(
+                gh run view "$run_id" \
+                  --json jobs \
+                  --jq '[.jobs[] |
+                    select(
+                      .name == "Publish immutable docs image" and
+                      .conclusion == "success"
+                    )
+                  ] | length'
+              )"
+              if [[ "$publish_jobs" -gt 0 ]]; then
+                release_run_id="$run_id"
+                break
+              fi
+            done <<< "$candidate_runs"
+            [[ -n "$release_run_id" ]]
+          fi
+
+          install -d -m 0700 release-evidence
+          gh run download "$release_run_id" \
+            --name "docs-release-$commit_sha" \
+            --dir release-evidence
+          jq -e \
+            --arg commit_sha "$commit_sha" \
+            '(
+              .commitSha == $commit_sha and
+              .image.reference ==
+                ("ghcr.io/kl3init/orgmemory-docs:sha-" + $commit_sha) and
+              (.image.digest | test("^sha256:[0-9a-f]{64}$"))
+            )' \
+            release-evidence/docs-release.json >/dev/null
+
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+          printf 'should_deploy=true\n' >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy exact docs image
+    needs: plan
+    if: needs.plan.outputs.should_deploy == 'true'
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://docs.kl3in.tech
+    steps:
       - name: Configure verified SSH host
         shell: bash
         env:
@@ -91,7 +244,7 @@ jobs:
       - name: Deploy and verify docs with ephemeral registry credentials
         shell: bash
         env:
-          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          COMMIT_SHA: ${{ needs.plan.outputs.commit_sha }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
@@ -128,7 +281,8 @@ jobs:
                  --password-stdin
              unset ghcr_token
              cd /apps/orgmemory
-             git fetch --no-tags origin '$COMMIT_SHA' &&
-             git checkout --detach '$COMMIT_SHA' &&
+             git fetch --no-tags origin '${{ needs.plan.outputs.commit_sha }}' &&
+             git checkout --detach '${{ needs.plan.outputs.commit_sha }}' &&
              ORGMEMORY_DOCS_REQUIRE_PUBLIC_SMOKE=true \
-               ./infrastructure/deployment/scripts/deploy-docs.sh '$COMMIT_SHA'"
+               ./infrastructure/deployment/scripts/deploy-docs.sh \
+                 '${{ needs.plan.outputs.commit_sha }}'"
