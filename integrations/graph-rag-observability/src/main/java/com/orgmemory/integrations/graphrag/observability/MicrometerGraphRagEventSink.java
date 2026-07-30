@@ -22,6 +22,13 @@ import java.util.concurrent.TimeUnit;
  * the span, where each is one record rather than a permanent series. That is also why
  * {@code failureCode} — bounded by the port's own {@code [a-z0-9_]{1,64}} contract but not by a
  * closed enum — tags only the failure counter and never the timer.
+ *
+ * <p>The same rule settles a question the design left open when it asked for a "tokens by
+ * organization" board. Token counts are not tagged by organization here. One series per tenant
+ * per channel grows without bound as the product sells, and the cost of an unbounded tag is paid
+ * by the metrics backend forever rather than by the request that created it. Per-organization
+ * attribution belongs to the span, which already carries the organization identifier, or to a
+ * billing record, which is a product feature and not a side effect of telemetry.
  */
 public final class MicrometerGraphRagEventSink implements GraphRagEventSink {
 
@@ -29,6 +36,12 @@ public final class MicrometerGraphRagEventSink implements GraphRagEventSink {
     static final String FAILURE_COUNTER = "orgmemory.graph_rag.stage.failures";
     static final String INPUT_COUNTER = "orgmemory.graph_rag.stage.inputs";
     static final String OUTPUT_COUNTER = "orgmemory.graph_rag.stage.outputs";
+    static final String CONTEXT_TOKEN_COUNTER = "orgmemory.graph_rag.context.tokens";
+    static final String CONTEXT_PROMPT_TOKENS = "orgmemory.graph_rag.context.prompt_tokens";
+    static final String CONTEXT_DROPPED_COUNTER =
+            "orgmemory.graph_rag.context.dropped_contributions";
+    static final String CONTEXT_TRUNCATION_COUNTER =
+            "orgmemory.graph_rag.context.truncations";
 
     private final MeterRegistry registry;
 
@@ -60,6 +73,36 @@ public final class MicrometerGraphRagEventSink implements GraphRagEventSink {
                                     "failure_code", event.failureCode()))
                     .increment();
         }
+
+        if (event.tokenUsage() != null) {
+            recordTokenUsage(event.tokenUsage());
+        }
+    }
+
+    private void recordTokenUsage(TokenUsage usage) {
+        countTokens("system_prompt", usage.systemPromptTokens());
+        countTokens("query", usage.queryTokens());
+        countTokens("entity", usage.entityTokens());
+        countTokens("relation", usage.relationTokens());
+        countTokens("chunk", usage.chunkTokens());
+        // Summarised rather than counted, unlike the channels above: the channel totals answer
+        // what the deployment spends, while the size of one assembled prompt is a per-request
+        // shape, and a p95 close to the budget is the warning that arrives before truncation
+        // starts rather than after.
+        registry.summary(CONTEXT_PROMPT_TOKENS).record(usage.promptTokens());
+
+        // Two meters because they answer two questions a single one cannot. The dropped counter
+        // says how much context the budget refused; the truncation counter says how many answers
+        // were affected at all, which no sum of dropped items can recover.
+        if (usage.truncated()) {
+            registry.counter(CONTEXT_DROPPED_COUNTER)
+                    .increment(usage.droppedContributions());
+            registry.counter(CONTEXT_TRUNCATION_COUNTER).increment();
+        }
+    }
+
+    private void countTokens(String channel, int tokens) {
+        registry.counter(CONTEXT_TOKEN_COUNTER, "channel", channel).increment(tokens);
     }
 
     private static String enumValue(Enum<?> value) {

@@ -43,6 +43,22 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
             AttributeKey.stringKey("orgmemory.graph_rag.cache_status");
     static final AttributeKey<String> FAILURE_CODE =
             AttributeKey.stringKey("orgmemory.graph_rag.failure_code");
+    static final AttributeKey<Long> PROMPT_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.prompt_tokens");
+    static final AttributeKey<Long> SYSTEM_PROMPT_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.system_prompt_tokens");
+    static final AttributeKey<Long> QUERY_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.query_tokens");
+    static final AttributeKey<Long> ENTITY_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.entity_tokens");
+    static final AttributeKey<Long> RELATION_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.relation_tokens");
+    static final AttributeKey<Long> CHUNK_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.chunk_tokens");
+    static final AttributeKey<Long> BUDGET_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.budget_tokens");
+    static final AttributeKey<Long> DROPPED_CONTRIBUTIONS =
+            AttributeKey.longKey("orgmemory.graph_rag.dropped_contributions");
 
     private final Tracer tracer;
 
@@ -85,10 +101,29 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
         if (event.failureCode() != null) {
             span.setAttribute(FAILURE_CODE, event.failureCode());
         }
+        if (event.tokenUsage() != null) {
+            recordTokenUsage(span, event.tokenUsage());
+        }
         if (event.outcome() == Outcome.FAILED) {
             span.setStatus(StatusCode.ERROR);
         }
         span.end(endEpochNanos, TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * The span carries the whole breakdown because a span is one record rather
+     * than a permanent series, so the per-request detail that would be reckless
+     * as metric dimensions is affordable here.
+     */
+    private static void recordTokenUsage(Span span, TokenUsage usage) {
+        span.setAttribute(PROMPT_TOKENS, usage.promptTokens());
+        span.setAttribute(SYSTEM_PROMPT_TOKENS, usage.systemPromptTokens());
+        span.setAttribute(QUERY_TOKENS, usage.queryTokens());
+        span.setAttribute(ENTITY_TOKENS, usage.entityTokens());
+        span.setAttribute(RELATION_TOKENS, usage.relationTokens());
+        span.setAttribute(CHUNK_TOKENS, usage.chunkTokens());
+        span.setAttribute(BUDGET_TOKENS, usage.budgetTokens());
+        span.setAttribute(DROPPED_CONTRIBUTIONS, usage.droppedContributions());
     }
 
     private static String spanName(GraphRagEvent event) {

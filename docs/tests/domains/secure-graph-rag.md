@@ -55,6 +55,18 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   cache status becomes its own value rather than a dropped tag, that failures
   count by code while the code stays off the timer, and that no meter carries an
   organization, operation or fingerprint tag.
+- Context token tests prove the breakdown reaches the event with the ceiling it
+  was fitted to, that no other stage carries one, that meters accumulate tokens
+  by channel and separate how much context was refused from how many answers
+  were affected, and that neither truncation counter moves when the context
+  fitted. The span assertion checks the exact key set and then that every added
+  key is numeric — a substring guard would reject `query_tokens` for its name
+  while a type check proves a count cannot hold the text it measured.
+- Assembler budget tests prove a budget too small for the grounding reports what
+  it evicted, that the reported number is exactly the gap between what retrieval
+  selected and what the model saw, and that consolidating two copies of one
+  grounding reports nothing dropped, so deduplication cannot be mistaken for
+  truncation.
 - Observability wiring tests prove both backends are contributed together, that
   either toggle leaves the other in place, and that with both disabled the
   remaining sinks compose to `NO_OP`.

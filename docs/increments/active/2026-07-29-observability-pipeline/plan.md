@@ -91,8 +91,23 @@ Depends on the composite sink merged in PR #132.
       coverage.
 - [x] Tests: both sinks enabled receive the event; either toggle leaves the
       other; both disabled compose to `NO_OP`.
-- [ ] Export `ContextTokenUsage`, which core already computes and nothing
-      publishes, plus a counter for `finish_reason=length` truncation.
+- [x] Export `ContextTokenUsage`, which core already computes and nothing
+      publishes. The event carries the rendered prompt size, the ceiling it was
+      fitted to and the per-channel breakdown; meters accumulate tokens by
+      channel and summarise the prompt size, so headroom is readable before
+      truncation starts rather than after.
+- [x] Report input-side truncation. The assembler evicts contributions to fit
+      the budget in two places — the per-channel allocator and the total-budget
+      loop — and neither reported anything, so an answer cut down to fit looked
+      exactly like a whole one. `PreparedGrounding.droppedContributions` now
+      counts both, measured after merging so deduplication is not mistaken for
+      eviction, and meters count both how much context was refused and how many
+      answers were affected.
+- [ ] Counter for `finish_reason=length`. This is output-side truncation and the
+      chat port cannot see it: `ChatModelPort` streams `Flux<String>` and the
+      adapter calls `.stream().content()`, which discards the `ChatResponse`
+      holding the finish reason. It lands with `GENERATE` below, where the port
+      change is already required.
 - [ ] Time to first token on the streaming assistant path.
 - [ ] Close the stage gap the LightRAG comparison surfaced. `Stage` declares
       fourteen and production emits ten: `PARSE` and `CHUNK` need a sink in the
@@ -106,9 +121,16 @@ one from a series that already exists: organization and operation identifiers,
 fingerprints and durations are not tags. Each would grow the stored series count
 with tenants or requests. They stay on the span, where each is one record rather
 than a permanent series. `failureCode` tags only the failure counter, never the
-timer, because the port bounds its shape and not its set of values. The design's
-"tokens by organization" dashboard therefore needs its own decision when the
-token metrics land.
+timer, because the port bounds its shape and not its set of values.
+
+The design's "tokens by organization" dashboard is settled by the same rule and
+does not get an exception: token counts are not tagged by organization. One
+series per tenant per channel grows for as long as the product sells, and the
+cost is paid by the metrics backend forever rather than by the request that
+created it. Per-organization attribution stays on the span, which already
+carries the identifier, or belongs to a billing record — a product feature
+rather than a side effect of telemetry. The dashboard the design asked for is
+therefore a span query, not a meter.
 
 Not done, with a reason: publishing
 `FailureTolerantGraphRagEventSink.swallowedFailureCount()` as a gauge. The

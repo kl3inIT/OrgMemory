@@ -308,33 +308,109 @@ class LightRagQueryRuntimeConformanceTests {
                 260,
                 20);
         LightRagQueryRequest.Options options =
-                new LightRagQueryRequest.Options(
-                        base.options().mode(),
-                        base.options().outputMode(),
-                        base.options().responseType(),
-                        base.options().userInstruction(),
-                        base.options().topK(),
-                        base.options().chunkTopK(),
-                        base.options().relatedChunkNumber(),
-                        base.options().maximumGraphDepth(),
-                        base.options().relatedChunkSelection(),
-                        budget,
-                        base.options().rerankEnabled(),
-                        base.options().minimumRerankScore(),
-                        base.options().minimumVectorSimilarity(),
-                        base.options().includeHeadings(),
-                        base.options().streaming());
+                withContextBudget(base.options(), budget);
 
         var prepared = engine.consolidateGrounding(
                 base.query(),
                 options,
                 List.of(first.grounding(), first.grounding()));
 
-        assertTrue(prepared.inputTokens()
-                <= budget.maxTotalTokens() - budget.safetyBufferTokens());
+        assertTrue(prepared.inputTokens() <= budget.maximumInputTokens());
         assertEquals(
                 prepared.grounding().evidenceClosure().size(),
                 prepared.references().size());
+        // Two copies of one grounding merge back into one, so this budget is not what removed
+        // the duplicate — deduplication is, and the model still sees everything retrieval
+        // selected. Reporting that as truncation would put a permanent false positive on the
+        // dashboard, which is why the count separates the two.
+        assertEquals(
+                0,
+                prepared.droppedContributions(),
+                "merging is not eviction");
+    }
+
+    @Test
+    void aBudgetTooSmallForTheGroundingReportsWhatItEvicted() {
+        LightRagQueryRequest base = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+        LightRagQueryResult first = engine.execute(base);
+        var whole = engine.consolidateGrounding(
+                base.query(),
+                base.options(),
+                List.of(first.grounding()));
+        int selected = contributionCount(whole.grounding());
+
+        // The system prompt and query alone need roughly half of this, leaving too little for
+        // every entity, relation and chunk the query selected.
+        var prepared = engine.consolidateGrounding(
+                base.query(),
+                withContextBudget(base.options(), new SecureContextBudget(80, 80, 80, 5)),
+                List.of(first.grounding()));
+
+        assertTrue(
+                prepared.inputTokens() <= 75,
+                "the fitted prompt must respect the ceiling it was fitted to");
+        assertTrue(
+                prepared.droppedContributions() > 0,
+                "an eviction nothing reports is an answer quietly made worse to fit");
+        assertEquals(
+                selected - contributionCount(prepared.grounding()),
+                prepared.droppedContributions(),
+                "the reported count is the gap between what retrieval chose and what the model saw");
+    }
+
+    private static int contributionCount(LightRagGrounding grounding) {
+        return grounding.entities().size()
+                + grounding.relations().size()
+                + grounding.chunks().size();
+    }
+
+    private static LightRagQueryRequest.Options withContextBudget(
+            LightRagQueryRequest.Options options,
+            SecureContextBudget budget) {
+        return new LightRagQueryRequest.Options(
+                options.mode(),
+                options.outputMode(),
+                options.responseType(),
+                options.userInstruction(),
+                options.topK(),
+                options.chunkTopK(),
+                options.relatedChunkNumber(),
+                options.maximumGraphDepth(),
+                options.relatedChunkSelection(),
+                budget,
+                options.rerankEnabled(),
+                options.minimumRerankScore(),
+                options.minimumVectorSimilarity(),
+                options.includeHeadings(),
+                options.streaming());
+    }
+
+    @Test
+    void aGroundingThatFitsReportsNoEviction() {
+        LightRagQueryRequest base = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+        LightRagQueryResult first = engine.execute(base);
+
+        var prepared = engine.consolidateGrounding(
+                base.query(),
+                base.options(),
+                List.of(first.grounding()));
+
+        assertEquals(
+                0,
+                prepared.droppedContributions(),
+                "a nonzero count here would make every dashboard read truncation that never happened");
     }
 
     @Test
