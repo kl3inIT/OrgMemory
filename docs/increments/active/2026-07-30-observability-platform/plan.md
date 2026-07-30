@@ -3,7 +3,8 @@
 Read `design.md` for why each of these is shaped the way it is. This file is the
 execution order and the state of each item.
 
-Phase 1 is done. Phase 2 needs no decision from the owner; phase 3 onward does.
+Phases 1, 2 and 3 are done. Phase 4 is the application side of a pipeline that
+already exists; phases 5 and 6 follow it.
 
 ## 0. State this increment inherits
 
@@ -78,38 +79,57 @@ because it measures the stream this application already returns.
       and excludes retrieval, so it is a different interval; both are wanted once
       Spring AI emits the convention's one.
 
-## 3. Rename the stack to shared infrastructure — needs the owner
+## 3. Stand up an OrgMemory-owned stack — done
 
-Do not start before the owner confirms. This changes a running production host.
+Rewritten on 2026-07-30. The plan was to rename Zero Mail's stack and preserve
+its five volumes. The owner then confirmed Zero Mail needs no observability at
+all — its application containers had been stopped for five days — and that
+losing its trace and log history was acceptable. That removes both reasons the
+design had for reusing rather than replacing: there is no second stack to double
+memory, and no dashboards worth inheriting wholesale.
 
-- [ ] Capture current state first: image digests, volume names, the compose
-      project name, and Nginx Proxy Manager host entries. A rename without a
-      recorded starting point cannot be rolled back.
-- [ ] Move the definition out of `/apps/zero-mail/docker/` into its own
-      directory, with a neutral compose project name and neutral container names.
-- [ ] **Preserve the five data volumes through the rename.** `zeromail_grafana_data`,
-      `zeromail_prometheus_data`, `zeromail_loki_data`, `zeromail_tempo_data` and
-      `zeromail_alloy_data` hold real history. Compose renames volumes with the
-      project by default; pin them by external name so it cannot.
-- [ ] Create a neutral network for applications to join, following the
-      `shared-infra` precedent rather than inventing a second pattern.
-- [ ] Bring the stack back up and prove Zero Mail's own dashboards still resolve
-      against the restored volumes before attaching anything new.
+- [x] Capture the starting state before touching anything. It found what the
+      design had missed: `zeromail-postgres` belongs to compose project
+      `postgres`, runs `orgmemory-postgres-rag`, and **is OrgMemory's production
+      database**. A `docker compose -p zero-mail down -v` would not have hit it,
+      but anyone working from the container *names* would have. Teardown was done
+      by explicit container and volume name for that reason.
+- [x] Remove the nine exited observability containers and their five volumes.
+      `zeromail-postgres` and `zeromail-9router` were confirmed running and out
+      of scope first.
+- [x] Write the stack fresh under `infrastructure/observability/`, on the latest
+      release of every component, with a neutral compose project (`observability`)
+      and neutral container names.
+- [x] Attach Alloy to the pre-existing `shared-infra` network so applications
+      reach it without `compose.production.yaml` changing.
+- [x] Verify by pushing a real OTLP trace through Alloy and reading it back out
+      of Tempo, rather than by reading readiness endpoints.
 
-## 4. Give metrics a path — needs phase 3
+## 4. Point the applications at the collector — partly done
 
-- [ ] Add a metrics pipeline to the Alloy configuration: OTLP receiver, batch
-      processor, remote-write to Prometheus. Alloy routes traces and reads logs
-      today and handles no metrics at all.
-- [ ] Prometheus needs no change for ingest — `--web.enable-remote-write-receiver`
-      is already set — but does need `--enable-feature=exemplar-storage`.
-- [ ] Attach `apps/api`, `apps/worker` and `apps/mcp` to the collector network and
-      set `OTEL_EXPORTER_OTLP_ENDPOINT` to Alloy's service name. Not `localhost`:
-      Alloy binds `127.0.0.1` on the host, and inside a container that address is
-      the container itself. That mistake is the original production symptom.
-- [ ] Flip `ORGMEMORY_OTLP_METRICS_ENABLED` to true only for services that can now
-      reach a collector, and only after the endpoint resolves.
-- [ ] Keep Prometheus, Loki and Tempo off any proxy network.
+The collector side is built and running. What remains is the application side,
+which is a deployment change rather than a stack one.
+
+- [x] Metrics pipeline in Alloy: OTLP receiver, batch processor, remote-write to
+      Prometheus, exemplars on. Written with the stack rather than bolted on
+      after, because writing an Alloy config without it would have meant writing
+      it twice.
+- [x] `--enable-feature=exemplar-storage` on Prometheus. Without it the exemplars
+      the pipeline forwards are accepted and dropped.
+- [x] Host and container metrics: node-exporter and cAdvisor scraped by Alloy and
+      forwarded down the same path, so there is one ingest door.
+- [ ] Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://observability-alloy:4318` for
+      `apps/api`, `apps/worker` and `apps/mcp`. They already share the
+      `shared-infra` network with Alloy, so no network change is needed. Not
+      `localhost`: Alloy binds `127.0.0.1` on the host, and inside a container
+      that address is the container itself. That mistake is the original
+      production symptom.
+- [ ] Flip `ORGMEMORY_OTLP_METRICS_ENABLED` to true, and only after the endpoint
+      resolves.
+- [ ] Enable `postgres-exporter`, which sits behind the `database` compose
+      profile until a read-only monitoring role exists in the production
+      database. Creating that role is a change to the product's data store, not
+      to this stack.
 
 ## 5. Dashboards — needs phase 4
 
@@ -144,9 +164,11 @@ receiving looks exactly like a system with nothing to report.
 
 ## Open decisions — owner's, analysed and not taken
 
-1. **Grafana exposure.** Published through Nginx Proxy Manager with Keycloak
-   OIDC, or reachable only over an SSH tunnel. A public surface and an OIDC
-   client against convenience. Blocks phase 5's usefulness, not its work.
+1. ~~**Grafana exposure.**~~ Settled 2026-07-30, and inspecting the host decided
+   it: Keycloak's database is the same PostgreSQL the product uses, so a
+   published Grafana would have depended on the thing it exists to diagnose.
+   Loopback plus an SSH tunnel, local administrator, no Keycloak. See
+   [decision 0021](../../../decisions/0021-grafana-is-reached-over-ssh-not-published.md).
 2. ~~**`GENERATE` telemetry boundary.**~~ Settled 2026-07-30. The counterargument
    was answered rather than overruled: the new surface carries the boundary in a
    record the convention reads through, so it is structural there too.

@@ -1,0 +1,154 @@
+// OrgMemory telemetry collector.
+//
+// One door: applications speak OTLP to this process and nothing else. They never
+// learn that Tempo, Prometheus or Loki exist, so a backend can be replaced
+// without redeploying the product.
+
+// ── Receive ─────────────────────────────────────────────────────────────────
+otelcol.receiver.otlp "apps" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces  = [otelcol.processor.batch.telemetry.input]
+    metrics = [otelcol.processor.batch.telemetry.input]
+    // Logs are deliberately absent. They are read from disk below instead: the
+    // json-file driver already holds every line, so OTLP log export would be a
+    // second copy of each one, and a log written to a file survives the process
+    // that wrote it while an in-flight OTLP batch does not.
+  }
+}
+
+otelcol.processor.batch "telemetry" {
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.local.input]
+  }
+}
+
+// ── Traces ──────────────────────────────────────────────────────────────────
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "observability-tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ── Metrics ─────────────────────────────────────────────────────────────────
+// The stack this replaces had no metrics pipeline at all: it scraped
+// /actuator/prometheus from each application. OrgMemory cannot be scraped the
+// same way because apps/worker sets `spring.main.web-application-type: none`
+// and serves no HTTP, so metrics arrive by OTLP push and are forwarded here.
+otelcol.exporter.prometheus "local" {
+  forward_to = [prometheus.remote_write.local.receiver]
+}
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://observability-prometheus:9090/api/v1/write"
+
+    // Exemplars are the reason this stack is worth building rather than
+    // reusing: without them a latency chart says something is slow and leaves
+    // the reader to go find the request. With them the point is a link to its
+    // trace. Prometheus needs --enable-feature=exemplar-storage to accept them.
+    send_exemplars = true
+  }
+}
+
+// Host and container metrics come from local exporters rather than OTLP,
+// because node-exporter and cAdvisor speak Prometheus and there is no reason to
+// translate them twice.
+prometheus.scrape "infrastructure" {
+  targets = [
+    {"__address__" = "observability-node-exporter:9100", "job" = "node"},
+    {"__address__" = "observability-cadvisor:8080", "job" = "cadvisor"},
+    // postgres-exporter is behind the `database` compose profile; add its target
+    // here when the monitoring role exists and the profile is enabled.
+  ]
+
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+}
+
+// ── Logs ────────────────────────────────────────────────────────────────────
+// Tail each container's Docker json-file log directly with loki.source.file.
+//
+// Deliberately NOT loki.source.docker: it tails via the Docker logs API
+// streaming endpoint, whose long-lived stream dies on EOF or "context deadline
+// exceeded" and is never re-established. The per-container tailer goroutine
+// exits without a panic or an error log, so Alloy keeps reporting healthy while
+// logs quietly stop — the same failure shape as an exporter pushing to nowhere.
+// Tracked as grafana/alloy#691 and closed "not planned"; refresh_interval has no
+// effect over a Unix socket. File tailing is rotation-aware and resumes from a
+// positions file, so it survives what stalls the socket tailer.
+//
+// discovery.docker still supplies container metadata, so lines keep their
+// container / service / compose_project labels.
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  // Point the tailer at the container's live json log. Rotated files
+  // (<id>-json.log.N.gz) are intentionally excluded.
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "__path__"
+    replacement   = "/var/lib/docker/containers/$1/$1-json.log"
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+}
+
+loki.source.file "containers" {
+  targets    = discovery.relabel.docker_logs.output
+  forward_to = [loki.process.docker.receiver]
+
+  // Start from the end on first attach so standing the stack up does not
+  // re-ingest the existing tail of every json file on the host.
+  tail_from_end = true
+}
+
+loki.process "docker" {
+  // Unwrap Docker's json-file envelope ({"log","stream","time"}): emit the inner
+  // line and use the container's own timestamp rather than ingest time.
+  stage.docker {}
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://observability-loki:3100/loki/api/v1/push"
+  }
+}

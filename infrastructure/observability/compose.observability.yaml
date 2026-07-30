@@ -1,0 +1,202 @@
+# OrgMemory observability stack — Grafana, Prometheus, Loki, Tempo, Alloy and
+# host/database exporters.
+#
+# Separate from compose.production.yaml on purpose: it must be startable and
+# stoppable without touching the product, and an observability stack that comes
+# up with the application is one that takes the application down with it.
+#
+#   docker compose -f compose.observability.yaml --env-file observability.env up -d
+#
+# Applications reach it at `observability-alloy:4318` over the pre-existing
+# `shared-infra` network, so nothing in compose.production.yaml has to change.
+# Never `localhost`: Alloy binds 127.0.0.1 on the host, and inside a container
+# that address is the container itself. That mistake is the original production
+# symptom this whole increment exists to fix.
+name: observability
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+    compress: "true"
+
+services:
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.1.1}
+    container_name: observability-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      # Loopback only, reached over an SSH tunnel. Deliberately not published and
+      # deliberately not behind Keycloak: Keycloak's database is the same
+      # PostgreSQL the product uses, so an outage there would take out the login
+      # to the tool you open to find out why. See decision 0021.
+      - "127.0.0.1:${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - observability-internal
+    mem_limit: ${GRAFANA_MEM_LIMIT:-384m}
+    logging: *default-logging
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.13.2}
+    container_name: observability-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-14d}"
+      - "--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-8GB}"
+      # Alloy forwards application metrics here rather than Prometheus scraping
+      # them: apps/worker sets web-application-type=none and serves no HTTP, so
+      # there is nothing to scrape.
+      - "--web.enable-remote-write-receiver"
+      # Without this a latency point cannot link to the trace that caused it,
+      # which is the single highest-value thing this stack adds over the one it
+      # replaces.
+      - "--enable-feature=exemplar-storage"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - observability-internal
+    mem_limit: ${PROMETHEUS_MEM_LIMIT:-1024m}
+    logging: *default-logging
+
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.7.4}
+    container_name: observability-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - loki_data:/loki
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+    networks:
+      - observability-internal
+    mem_limit: ${LOKI_MEM_LIMIT:-512m}
+    logging: *default-logging
+
+  tempo:
+    image: ${TEMPO_IMAGE:-grafana/tempo:3.0.2}
+    container_name: observability-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    # The image runs as 10001:10001 and declares no VOLUME, so Docker creates the
+    # mount point root-owned and Tempo cannot create its block directory. Naming
+    # the same uid here makes the named volume inherit it instead. Running as
+    # root would also "work", which is why the failure is worth reading rather
+    # than working around.
+    user: "10001:10001"
+    volumes:
+      - tempo_data:/var/tempo
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+    networks:
+      - observability-internal
+    mem_limit: ${TEMPO_MEM_LIMIT:-768m}
+    logging: *default-logging
+
+  alloy:
+    image: ${ALLOY_IMAGE:-grafana/alloy:v1.18.0}
+    container_name: observability-alloy
+    restart: unless-stopped
+    command:
+      - "run"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    volumes:
+      - alloy_data:/var/lib/alloy/data
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # loki.source.file tails each container's json-file log directly; see the
+      # reasoning in config.alloy.
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    ports:
+      - "127.0.0.1:${ALLOY_PORT:-12345}:12345"
+    networks:
+      - observability-internal
+      # The only component on the shared network. Applications push OTLP to
+      # `observability-alloy:4318`; they never learn that Tempo or Prometheus
+      # exist, so a backend can be replaced without redeploying the product.
+      - shared-infra
+    mem_limit: ${ALLOY_MEM_LIMIT:-384m}
+    logging: *default-logging
+
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.12.1}
+    container_name: observability-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - observability-internal
+    mem_limit: ${NODE_EXPORTER_MEM_LIMIT:-128m}
+    logging: *default-logging
+
+  cadvisor:
+    # ghcr, not gcr: Google stopped publishing to gcr.io/cadvisor/cadvisor after
+    # v0.55.1, so a config copied from an older stack pinned to that path is stuck
+    # five minor versions back with no error to say so.
+    image: ${CADVISOR_IMAGE:-ghcr.io/google/cadvisor:v0.60.5}
+    container_name: observability-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - observability-internal
+    mem_limit: ${CADVISOR_MEM_LIMIT:-256m}
+    logging: *default-logging
+
+  postgres-exporter:
+    image: ${POSTGRES_EXPORTER_IMAGE:-quay.io/prometheuscommunity/postgres-exporter:v0.20.1}
+    container_name: observability-postgres-exporter
+    restart: unless-stopped
+    # Behind a profile because it needs a monitoring role created in the
+    # production database, which is a change to the product's data store rather
+    # than to this stack. Enable with `--profile database` once that role exists.
+    profiles: ["database"]
+    environment:
+      DATA_SOURCE_NAME: ${POSTGRES_EXPORTER_DSN:?POSTGRES_EXPORTER_DSN must be set}
+    networks:
+      - observability-internal
+      # The shared PostgreSQL is OrgMemory's canonical database despite its
+      # container being named for a product that no longer runs.
+      - shared-infra
+    mem_limit: ${POSTGRES_EXPORTER_MEM_LIMIT:-128m}
+    logging: *default-logging
+
+volumes:
+  grafana_data:
+  prometheus_data:
+  loki_data:
+  tempo_data:
+  alloy_data:
+
+networks:
+  observability-internal:
+    driver: bridge
+  shared-infra:
+    external: true

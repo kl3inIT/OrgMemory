@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: OrgMemory
+    type: file
+    # Dashboards are code. Editing one in the browser must not survive a restart
+    # and pretend to be the source of truth.
+    allowUiUpdates: false
+    disableDeletion: true
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
