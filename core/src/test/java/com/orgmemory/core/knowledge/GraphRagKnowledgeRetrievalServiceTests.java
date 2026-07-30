@@ -429,6 +429,89 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertNotNull(fallbackEvent.modelRouteFingerprint());
     }
 
+    /**
+     * The assembler has always measured what one answer costs and how much context the budget
+     * refused to carry. Nothing published either, so a deployment could not tell an expensive
+     * question from a cheap one, nor a whole answer from one that was silently cut to fit.
+     */
+    @Test
+    void contextAssemblyReportsWhatTheAnswerCostAndWhatTheBudgetRefused() {
+        CurrentActor actor = new CurrentActor(
+                USER_ID,
+                ORGANIZATION_ID,
+                null,
+                "User",
+                "user@example.test");
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        ResolvedKnowledgeEvidenceScope allowed = scope(Set.of(ASSET_ID), 1L);
+        when(scopes.resolve(actor, MODEL_ID)).thenReturn(allowed, allowed);
+        LightRagGrounding grounding = grounding();
+        LightRagGroundingAssembler.PreparedGrounding prepared =
+                prepared(grounding, 4);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery queryPlan = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(queryPlan);
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+                allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
+                grounding,
+                true,
+                true));
+        when(engine.consolidateGrounding(any(), any(), any())).thenReturn(prepared);
+        when(engine.renderGrounding(any(), any(), any())).thenReturn(prepared);
+        RelationshipAuthorizationSetPort finalAuthorization =
+                mock(RelationshipAuthorizationSetPort.class);
+        when(finalAuthorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(
+                                ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", ASSET_ID),
+                                AuthorizationDecision.allow(MODEL_ID)),
+                        MODEL_ID));
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
+
+        service(
+                        scopes,
+                        finalAuthorization,
+                        new RecordingRecheckedStore(List.of(
+                                candidate(ENTITY_CHUNK_ID),
+                                candidate(RELATION_CHUNK_ID),
+                                candidate(CHUNK_ID))),
+                        engine,
+                        rerankPolicy(),
+                        audit,
+                        events)
+                .search(actor, "What is the leave policy?", 10, "request-tokens");
+
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, atLeastOnce()).emit(captured.capture());
+        GraphRagEventSink.TokenUsage usage = captured.getAllValues().stream()
+                .filter(value ->
+                        value.stage() == GraphRagEventSink.Stage.ASSEMBLE_CONTEXT)
+                .findFirst()
+                .orElseThrow()
+                .tokenUsage();
+
+        assertNotNull(usage, "context assembly is the stage whose cost is measured in tokens");
+        assertEquals(45, usage.promptTokens());
+        assertEquals(4, usage.droppedContributions());
+        assertTrue(usage.truncated());
+        assertEquals(
+                GraphRagRetrievalPolicy.defaults()
+                        .contextOptions(10)
+                        .contextBudget()
+                        .maximumInputTokens(),
+                usage.budgetTokens(),
+                "headroom is only readable if the ceiling travels with the measurement");
+        assertTrue(
+                captured.getAllValues().stream()
+                        .filter(value ->
+                                value.stage() != GraphRagEventSink.Stage.ASSEMBLE_CONTEXT)
+                        .allMatch(value -> value.tokenUsage() == null),
+                "no other stage measures tokens, and a zero there would read as a measured zero");
+    }
+
     @Test
     void authorizationModelMismatchCannotReachTheVerifiedRenderer() {
         CurrentActor actor = new CurrentActor(
@@ -741,6 +824,12 @@ class GraphRagKnowledgeRetrievalServiceTests {
 
     private static LightRagGroundingAssembler.PreparedGrounding prepared(
             LightRagGrounding grounding) {
+        return prepared(grounding, 0);
+    }
+
+    private static LightRagGroundingAssembler.PreparedGrounding prepared(
+            LightRagGrounding grounding,
+            int droppedContributions) {
         List<LightRagQueryResult.Reference> references =
                 grounding.evidenceClosure()
                         .stream()
@@ -756,7 +845,8 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 "verified graph context",
                 "verified graph context\n\nWhat is the leave policy?",
                 references,
-                45);
+                45,
+                droppedContributions);
     }
 
     private static EvidenceReference evidence(UUID chunkId) {

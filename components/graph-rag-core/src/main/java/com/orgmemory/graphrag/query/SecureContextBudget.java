@@ -22,6 +22,14 @@ public record SecureContextBudget(
         return new SecureContextBudget(6_000, 8_000, 30_000, 200);
     }
 
+    /**
+     * The largest prompt this budget will render: the total less the buffer held
+     * back for the model's own reply.
+     */
+    public int maximumInputTokens() {
+        return maxTotalTokens - safetyBufferTokens;
+    }
+
     public int availableChunkTokens(ContextTokenUsage usage) {
         if (usage.entityTokens() > maxEntityTokens) {
             throw new IllegalArgumentException("entity context exceeds its budget");

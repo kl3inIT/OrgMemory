@@ -1,8 +1,11 @@
 package com.orgmemory.graphrag.observability;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +30,34 @@ class GraphRagEventSinkTests {
                 GraphRagEventSink.Outcome.FAILED,
                 null,
                 "provider failed: raw payload"));
+    }
+
+    @Test
+    void describesAStageThatMeasuredNoTokensAsAbsentRatherThanAsZero() {
+        assertNull(
+                event(GraphRagEventSink.Outcome.SUCCEEDED, null, null).tokenUsage(),
+                "a zero breakdown would claim a measurement the stage never took");
+    }
+
+    @Test
+    void rejectsABudgetThatCannotBoundAnything() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GraphRagEventSink.TokenUsage(10, 1, 1, 1, 1, 6, 0, 0),
+                "headroom expressed against a zero budget is a division by zero on every dashboard");
+    }
+
+    @Test
+    void rejectsNegativeTokenCounts() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GraphRagEventSink.TokenUsage(10, 1, 1, 1, 1, 6, 100, -1));
+    }
+
+    @Test
+    void treatsAnyEvictionAsTruncationBecauseTheAnswerIsAlreadyIncomplete() {
+        assertFalse(new GraphRagEventSink.TokenUsage(10, 1, 1, 1, 1, 6, 100, 0).truncated());
+        assertTrue(new GraphRagEventSink.TokenUsage(10, 1, 1, 1, 1, 6, 100, 1).truncated());
     }
 
     @Test

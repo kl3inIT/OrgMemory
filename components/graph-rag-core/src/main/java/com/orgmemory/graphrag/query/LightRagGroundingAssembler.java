@@ -78,7 +78,11 @@ public final class LightRagGroundingAssembler {
                 distinctScopes(scopes),
                 usage,
                 chunkAllocation.usedTokens());
-        return fitAndRender(query, options, grounding);
+        // Counted after merging and before any budget runs, so the reported
+        // eviction is what the budget cost the answer and not what deduplication
+        // saved it.
+        int selected = entities.size() + relations.size() + chunks.size();
+        return fitAndRender(query, options, grounding, selected);
     }
 
     public PreparedGrounding consolidate(
@@ -111,8 +115,7 @@ public final class LightRagGroundingAssembler {
         Objects.requireNonNull(options, "options");
         Objects.requireNonNull(grounding, "grounding");
         PreparedGrounding prepared = renderUnchecked(query, options, grounding);
-        int maximumInputTokens = options.contextBudget().maxTotalTokens()
-                - options.contextBudget().safetyBufferTokens();
+        int maximumInputTokens = options.contextBudget().maximumInputTokens();
         if (prepared.inputTokens() > maximumInputTokens) {
             throw new IllegalArgumentException(
                     "verified grounding exceeds the configured input budget");
@@ -123,10 +126,10 @@ public final class LightRagGroundingAssembler {
     private PreparedGrounding fitAndRender(
             String query,
             LightRagQueryRequest.Options options,
-            LightRagGrounding grounding) {
+            LightRagGrounding grounding,
+            int selectedContributions) {
         SecureContextBudget budget = options.contextBudget();
-        int maximumInputTokens =
-                budget.maxTotalTokens() - budget.safetyBufferTokens();
+        int maximumInputTokens = budget.maximumInputTokens();
         TokenMeasurements measurements =
                 measureTokens(query, options, grounding);
         LightRagGrounding candidate =
@@ -155,7 +158,14 @@ public final class LightRagGroundingAssembler {
             throw new IllegalArgumentException(
                     "query and system instructions exceed the configured input budget");
         }
-        return prepared;
+        return prepared.withDroppedContributions(
+                selectedContributions - contributionCount(candidate));
+    }
+
+    private static int contributionCount(LightRagGrounding grounding) {
+        return grounding.entities().size()
+                + grounding.relations().size()
+                + grounding.chunks().size();
     }
 
     private TokenMeasurements measureTokens(
@@ -254,7 +264,8 @@ public final class LightRagGroundingAssembler {
                 systemPrompt,
                 prompt,
                 references,
-                tokenizer.count(prompt));
+                tokenizer.count(prompt),
+                0);
     }
 
     private static LightRagGrounding removeLowestPriority(
@@ -577,13 +588,22 @@ public final class LightRagGroundingAssembler {
                 .replace("\n", "\\n");
     }
 
+    /**
+     * @param droppedContributions how many merged entities, relations and chunks
+     *                             the budget evicted before this prompt fit. The
+     *                             assembler is the only thing that knows the
+     *                             difference between what retrieval selected and
+     *                             what the model was shown, so it is the only
+     *                             thing that can report it.
+     */
     public record PreparedGrounding(
             LightRagGrounding grounding,
             String context,
             String systemPrompt,
             String prompt,
             List<LightRagQueryResult.Reference> references,
-            int inputTokens) {
+            int inputTokens,
+            int droppedContributions) {
 
         public PreparedGrounding {
             Objects.requireNonNull(grounding, "grounding");
@@ -596,6 +616,21 @@ public final class LightRagGroundingAssembler {
                 throw new IllegalArgumentException(
                         "inputTokens must be non-negative");
             }
+            if (droppedContributions < 0) {
+                throw new IllegalArgumentException(
+                        "droppedContributions must be non-negative");
+            }
+        }
+
+        PreparedGrounding withDroppedContributions(int dropped) {
+            return new PreparedGrounding(
+                    grounding,
+                    context,
+                    systemPrompt,
+                    prompt,
+                    references,
+                    inputTokens,
+                    dropped);
         }
     }
 

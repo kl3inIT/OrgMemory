@@ -157,6 +157,19 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   rate. Meter tags are restricted to bounded enumerations — stage, outcome, cache
   status, and failure code on the failure counter only. Organization and
   operation identifiers and fingerprints are not tags; they stay on the span.
+- Context assembly reports the token cost of one answer and the context the
+  budget refused to carry: the rendered prompt size, the ceiling it was fitted
+  to, a breakdown across system prompt, query, entity, relation and chunk, and
+  how many merged contributions were evicted to make it fit. Counts only — a
+  number cannot reconstruct the text it measured. No other stage carries the
+  measurement, and its absence means the stage took none rather than measured
+  zero. Deduplication is not eviction: merging two copies of one grounding
+  reports nothing dropped, because the model still sees everything retrieval
+  selected. Meters accumulate tokens by channel, summarise the prompt size so
+  headroom is visible before truncation starts, and count evictions two ways —
+  the number of contributions refused and the number of answers affected, which
+  no sum of the first can recover. Tokens are not tagged by organization; that
+  attribution stays on the span, which already carries the identifier.
 - Indexing and retrieval fan one stage event out to every registered
   `GraphRagEventSink`, so an application may observe the same stage through more
   than one backend. Sinks fail independently and emission never controls

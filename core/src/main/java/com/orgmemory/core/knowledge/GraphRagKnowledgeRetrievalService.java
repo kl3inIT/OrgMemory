@@ -15,12 +15,14 @@ import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.query.ContextTokenUsage;
 import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
 import com.orgmemory.graphrag.query.LightRagPreparedQuery;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
+import com.orgmemory.graphrag.query.SecureContextBudget;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import java.time.Duration;
@@ -249,13 +251,13 @@ public class GraphRagKnowledgeRetrievalService
                         query,
                         queryOptions,
                         spaceGroundings);
-        emitStage(
+        emitAssembledContext(
                 operationId,
                 actor.organizationId(),
-                GraphRagEventSink.Stage.ASSEMBLE_CONTEXT,
                 consolidationStartedAt,
                 spaceGroundings.size(),
-                consolidated.grounding().chunks().size());
+                consolidated,
+                queryOptions.contextBudget());
         if (consolidated.grounding().empty()
                 || consolidated.grounding().chunks().isEmpty()) {
             audit.record(searchAuthorization.command(
@@ -577,6 +579,51 @@ public class GraphRagKnowledgeRetrievalService
                     null,
                     null,
                     null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become a retrieval availability dependency.
+        }
+    }
+
+    /**
+     * Context assembly is the one retrieval stage whose cost is measured in
+     * tokens rather than items, and the only stage that can report how much of
+     * the retrieved context the budget refused to carry. Both numbers were being
+     * computed and discarded.
+     */
+    private void emitAssembledContext(
+            UUID operationId,
+            UUID organizationId,
+            long startedAt,
+            int inputCount,
+            LightRagGroundingAssembler.PreparedGrounding prepared,
+            SecureContextBudget budget) {
+        LightRagGrounding grounding = prepared.grounding();
+        ContextTokenUsage usage = grounding.tokenUsage();
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    operationId,
+                    organizationId,
+                    GraphRagEventSink.Stage.ASSEMBLE_CONTEXT,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    Duration.ofNanos(Math.max(
+                            0,
+                            System.nanoTime() - startedAt)),
+                    inputCount,
+                    grounding.chunks().size(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    new GraphRagEventSink.TokenUsage(
+                            prepared.inputTokens(),
+                            usage.systemPromptTokens(),
+                            usage.queryTokens(),
+                            usage.entityTokens(),
+                            usage.relationTokens(),
+                            grounding.chunkTokens(),
+                            budget.maximumInputTokens(),
+                            prepared.droppedContributions()),
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {
             // Telemetry must never become a retrieval availability dependency.

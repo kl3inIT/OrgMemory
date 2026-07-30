@@ -104,6 +104,68 @@ class MicrometerGraphRagEventSinkTests {
                 "a missing tag would silently merge cached and uncached stages into one series");
     }
 
+    @Test
+    void accumulatesContextTokensByChannelSoPromptCostIsAttributable() {
+        sink.emit(assembledContext(usage(0)));
+
+        assertEquals(
+                30.0,
+                registry.get(MicrometerGraphRagEventSink.CONTEXT_TOKEN_COUNTER)
+                        .tag("channel", "system_prompt")
+                        .counter()
+                        .count());
+        assertEquals(
+                900.0,
+                registry.get(MicrometerGraphRagEventSink.CONTEXT_TOKEN_COUNTER)
+                        .tag("channel", "chunk")
+                        .counter()
+                        .count(),
+                "chunks are the channel that grows, so it has to be separable from the rest");
+    }
+
+    @Test
+    void summarisesThePromptSizeSoHeadroomIsVisibleBeforeTruncationStarts() {
+        sink.emit(assembledContext(usage(0)));
+
+        assertEquals(
+                1_400.0,
+                registry.get(MicrometerGraphRagEventSink.CONTEXT_PROMPT_TOKENS).summary().totalAmount(),
+                "the rendered prompt, not the sum of the channels, is what the model is charged for");
+    }
+
+    @Test
+    void countsBothHowOftenContextWasDroppedAndHowMuch() {
+        sink.emit(assembledContext(usage(3)));
+        sink.emit(assembledContext(usage(5)));
+
+        assertEquals(
+                8.0,
+                registry.get(MicrometerGraphRagEventSink.CONTEXT_DROPPED_COUNTER).counter().count(),
+                "how much context the budget refused");
+        assertEquals(
+                2.0,
+                registry.get(MicrometerGraphRagEventSink.CONTEXT_TRUNCATION_COUNTER).counter().count(),
+                "how many answers were affected, which no sum of dropped items can recover");
+    }
+
+    @Test
+    void leavesTheTruncationCountersUntouchedWhenTheContextFitted() {
+        sink.emit(assembledContext(usage(0)));
+
+        assertNull(
+                registry.find(MicrometerGraphRagEventSink.CONTEXT_TRUNCATION_COUNTER).counter(),
+                "a counter that ticks on every untruncated request cannot report a truncation rate");
+        assertNull(registry.find(MicrometerGraphRagEventSink.CONTEXT_DROPPED_COUNTER).counter());
+    }
+
+    @Test
+    void recordsNoTokenMetersForAStageThatMeasuresNone() {
+        sink.emit(event(GraphRagEventSink.Outcome.SUCCEEDED, null, Duration.ofMillis(1)));
+
+        assertNull(registry.find(MicrometerGraphRagEventSink.CONTEXT_TOKEN_COUNTER).counter());
+        assertNull(registry.find(MicrometerGraphRagEventSink.CONTEXT_PROMPT_TOKENS).summary());
+    }
+
     private Set<String> tagKeysOf(String meterName) {
         List<Tag> tags = registry.get(meterName).timer().getId().getTags();
         return tags.stream().map(Tag::getKey).collect(Collectors.toSet());
@@ -124,5 +186,28 @@ class MicrometerGraphRagEventSinkTests {
                 null,
                 failureCode,
                 Instant.now());
+    }
+
+    private static GraphRagEventSink.GraphRagEvent assembledContext(
+            GraphRagEventSink.TokenUsage usage) {
+        return new GraphRagEventSink.GraphRagEvent(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                GraphRagEventSink.Stage.ASSEMBLE_CONTEXT,
+                GraphRagEventSink.Outcome.SUCCEEDED,
+                Duration.ofMillis(12),
+                4,
+                2,
+                null,
+                null,
+                null,
+                null,
+                usage,
+                Instant.now());
+    }
+
+    private static GraphRagEventSink.TokenUsage usage(int droppedContributions) {
+        return new GraphRagEventSink.TokenUsage(
+                1_400, 30, 12, 220, 180, 900, 29_800, droppedContributions);
     }
 }

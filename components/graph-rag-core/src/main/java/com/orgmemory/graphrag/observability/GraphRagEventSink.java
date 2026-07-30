@@ -82,7 +82,43 @@ public interface GraphRagEventSink {
             String scopeFingerprint,
             CacheStatus cacheStatus,
             String failureCode,
+            TokenUsage tokenUsage,
             Instant occurredAt) {
+
+        /**
+         * Describes a stage that measures no tokens, which is every stage but
+         * context assembly. The overload exists so that adding a measurement one
+         * stage can take does not oblige the other stages to pass {@code null},
+         * where a reader would have to count commas to learn what was omitted.
+         */
+        public GraphRagEvent(
+                UUID operationId,
+                UUID organizationId,
+                Stage stage,
+                Outcome outcome,
+                Duration duration,
+                int inputCount,
+                int outputCount,
+                String modelRouteFingerprint,
+                String scopeFingerprint,
+                CacheStatus cacheStatus,
+                String failureCode,
+                Instant occurredAt) {
+            this(
+                    operationId,
+                    organizationId,
+                    stage,
+                    outcome,
+                    duration,
+                    inputCount,
+                    outputCount,
+                    modelRouteFingerprint,
+                    scopeFingerprint,
+                    cacheStatus,
+                    failureCode,
+                    null,
+                    occurredAt);
+        }
 
         public GraphRagEvent {
             Objects.requireNonNull(operationId, "operationId");
@@ -119,6 +155,64 @@ public interface GraphRagEventSink {
                         "failureCode must be a bounded machine code");
             }
             Objects.requireNonNull(occurredAt, "occurredAt");
+        }
+    }
+
+    /**
+     * Token cost of one assembled generation context.
+     *
+     * <p>Counts, not content. A token count cannot reconstruct the text it
+     * measures, which is why this record is allowed through a boundary that
+     * refuses queries, prompts and evidence.
+     *
+     * <p>Deliberately a projection of the query model's own token record rather
+     * than a reference to it. That record exists to enforce a retrieval budget
+     * and is free to change shape for retrieval reasons; a telemetry contract
+     * that moved with it would rewrite dashboards for a decision that had
+     * nothing to do with them. The two overlap today and may diverge.
+     *
+     * @param promptTokens         what the model is actually charged for, which
+     *                             exceeds the sum of the channels below by the
+     *                             cost of rendering them into one prompt
+     * @param budgetTokens         the ceiling {@code promptTokens} was fitted to,
+     *                             so a collector can express headroom as a ratio
+     *                             without knowing this deployment's configuration
+     * @param droppedContributions entities, relations and chunks evicted to make
+     *                             the context fit. This is the input-side
+     *                             truncation signal: zero means the retrieved
+     *                             context reached the model whole, and a rising
+     *                             count means answers are degrading for a reason
+     *                             no latency or error metric reports.
+     */
+    record TokenUsage(
+            int promptTokens,
+            int systemPromptTokens,
+            int queryTokens,
+            int entityTokens,
+            int relationTokens,
+            int chunkTokens,
+            int budgetTokens,
+            int droppedContributions) {
+
+        public TokenUsage {
+            if (promptTokens < 0
+                    || systemPromptTokens < 0
+                    || queryTokens < 0
+                    || entityTokens < 0
+                    || relationTokens < 0
+                    || chunkTokens < 0
+                    || droppedContributions < 0) {
+                throw new IllegalArgumentException(
+                        "token counts must be non-negative");
+            }
+            if (budgetTokens <= 0) {
+                throw new IllegalArgumentException(
+                        "budgetTokens must be positive");
+            }
+        }
+
+        public boolean truncated() {
+            return droppedContributions > 0;
         }
     }
 
