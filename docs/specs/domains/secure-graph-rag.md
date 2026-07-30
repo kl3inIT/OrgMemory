@@ -7,7 +7,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 this document states — `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
+Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
 
 ## Current Contract
 
