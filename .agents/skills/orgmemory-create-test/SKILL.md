@@ -30,17 +30,43 @@ frontend contract, run at least:
 .\gradlew.bat --no-daemon :core:test :apps:api:test :apps:worker:test
 .\gradlew.bat --no-daemon clean test
 corepack pnpm --filter @orgmemory/web typecheck
+corepack pnpm --filter @orgmemory/web test:unit
 corepack pnpm --filter @orgmemory/web build
 ```
 
 The terminating `clean test` command is the Spring context gate. Never use
 `bootRun` as verification because it does not terminate on success.
 
+## API Contract
+
+When a REST endpoint or DTO changes, the committed contracts under
+`contracts/` must follow (mechanism documented on
+`apps/api/.../OpenApiContractTests.java`):
+
+1. Refresh: set `ORGMEMORY_OPENAPI_WRITE=true` and run
+   `.\gradlew.bat :apps:api:test --tests "*OpenApiContractTests*"`.
+2. Regenerate the browser client:
+   `corepack pnpm --filter @orgmemory/web gen:api` — the hey-api output is
+   gitignored, so it is regenerated, never committed.
+3. Verify: the same contract test without the write flag must pass, then run
+   the web typecheck.
+
+Skipping this after an endpoint change either breaks web typecheck or ships a
+stale committed contract.
+
 ## Frontend
 
-For now, prefer type-safe component logic and manual Playwright verification over
-heavy test scaffolding. Add frontend tests once there are stable flows worth
-protecting.
+Frontend tests are established; extend them instead of deferring.
+
+- Unit: Vitest `*.test.ts(x)` files colocated with the component or feature
+  logic under `apps/web/src/**`. Cover pattern components, feature state, and
+  view-model mapping. Run `corepack pnpm --filter @orgmemory/web test:unit`.
+- E2E: Playwright specs in `apps/web/test/e2e/`. Cover the product flow the
+  change touches; run one spec while iterating
+  (`corepack pnpm --filter @orgmemory/web exec playwright test test/e2e/<name>.spec.ts --project=chromium`)
+  and the full `test:e2e` before handoff when flows changed.
+- A real browser pass per `docs/conventions.md` still applies when a flow
+  matters and no spec covers it yet.
 
 ## Test Quality
 

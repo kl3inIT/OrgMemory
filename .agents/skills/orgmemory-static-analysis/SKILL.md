@@ -11,27 +11,23 @@ backend Java. Frontend files use the frontend-native toolchain.
 
 ## 1. JetBrains IDE Inspection For Backend Java
 
-If a JetBrains MCP inspection is available, run it on each edited backend
-`.java` file before the Gradle commands.
+If a JetBrains MCP inspection is attached, run it on every touched backend
+`.java` file before the Gradle commands — it surfaces unresolved imports,
+missing beans, invalid JPQL, and broken JPA mapping hints (often as warnings)
+earlier than a test run, and all of those are blockers. In practice most
+sessions go straight to the Gradle gates; treat inspection as an extra early
+signal, never as a reason to skip Gradle.
 
 Rules:
 
-- Always pass `projectPath` as the absolute repo root: `D:\OrgMemory`.
-- Run it on every touched backend `.java` file, not just a sample.
-- Do not run JetBrains inspection on `.ts`, `.tsx`, JavaScript, CSS, Vite,
-  OpenAPI generator config, workflow YAML, or other frontend files.
-- Include warnings, not only errors. Spring/JPA unresolved references often
-  appear as warnings.
-- Treat unresolved imports, missing beans, invalid JPQL, and invalid JPA mapping
-  hints as blockers.
+- Pass `projectPath` as exactly `D:\OrgMemory` on every call, including when
+  several projects are open.
+- Include warnings, not only errors.
 - Never trust an empty result unless the call clearly inspected the intended
-  file in the OrgMemory project. If the IDE targets the wrong project or reports
-  generic "URI is not registered" noise, treat JetBrains inspection as
-  unavailable and use the fallback gates.
-
-If more than one project is open and the MCP reports that no exact project is
-specified, choose the project whose path is exactly `D:\OrgMemory` and pass that
-path on every later JetBrains MCP call.
+  file in the OrgMemory project. Wrong-project targeting or "URI is not
+  registered" noise means inspection is unavailable — use the fallback gates.
+- Do not run it on `.ts`, `.tsx`, CSS, config, workflow YAML, or other
+  frontend files.
 
 ## 2. Backend Fallback
 
@@ -63,6 +59,17 @@ Oxlint and TypeScript are the static-analysis authority for web code.
 `pnpm --filter @orgmemory/web typecheck` is required for `.ts` and `.tsx`; Vite alone does not
 type-check the app. Use a real browser flow when behavior or layout changes.
 
+For `apps/docs` changes:
+
+```powershell
+corepack pnpm --filter @orgmemory/docs check
+corepack pnpm --filter @orgmemory/docs build
+```
+
+If backend REST endpoints or DTOs changed, refresh the committed OpenAPI
+contract and regenerate the web client before type-checking; the procedure is
+in `orgmemory-create-test`.
+
 ## 4. Migration And Persistence Checks
 
 For every JPA entity, enum, repository query, or column change:
@@ -73,7 +80,13 @@ For every JPA entity, enum, repository query, or column change:
 3. Run a test or boot path that actually validates schema against PostgreSQL.
 4. Prefer Testcontainers PostgreSQL/pgvector over H2.
 
-## 5. Mechanical Floor When No IDE Inspection
+## 5. Authorization Model Checks
+
+For OpenFGA authorization-model or tuple-fixture changes under
+`integrations/authorization-openfga`, run the model test gate exactly as
+listed in `docs/conventions.md` (Verification) before handoff.
+
+## 6. Mechanical Floor When No IDE Inspection
 
 Use these when JetBrains inspection is unavailable and the change touches source,
 config, or migration files:
@@ -102,7 +115,7 @@ Any missing package line, zero-byte source/config/migration, or misnamed Flyway
 migration is a defect. Entity/table/column hits are not automatically failures,
 but every changed mapping must be reconciled with Flyway.
 
-## 6. Final Report Format
+## 7. Final Report Format
 
 In the final answer, state:
 

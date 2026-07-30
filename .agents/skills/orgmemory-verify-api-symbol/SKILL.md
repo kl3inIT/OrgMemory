@@ -1,6 +1,6 @@
 ---
 name: orgmemory-verify-api-symbol
-description: Verify unfamiliar Spring Boot 4, Spring Modulith 2, Spring AI 2, JPA, Flyway, Gradle, React 19, Vite 8, Tailwind 4, shadcn/ui, or TypeScript symbols before using them in OrgMemory. Use before adding imports, annotations, starters, configuration keys, library APIs, npm exports, or UI library calls not already present in this repo. Primary check is Context7/current official docs; floor is repo grep or dependency types.
+description: Verify unfamiliar Spring Boot 4, Spring Modulith 2, Spring AI 2, JPA, Flyway, Gradle, React 19, Vite 8, Tailwind 4, shadcn/ui, Next.js, Fumadocs, or TypeScript symbols before using them in OrgMemory. Use before adding imports, annotations, starters, configuration keys, library APIs, npm exports, or UI library calls not already present in this repo. Primary check is Context7/current official docs; floor is repo grep or dependency types.
 ---
 
 # OrgMemory Verify API Symbol
@@ -26,6 +26,8 @@ This project uses recent major versions where older examples can be wrong.
 - React 19 and TypeScript 6 typing behavior.
 - Airbyte/abctl deployment commands and connector behavior.
 - AI Elements component exports.
+- Next.js and Fumadocs APIs, MDX configuration, and content conventions in
+  `apps/docs`.
 
 ## Local Ground Truth
 
@@ -37,6 +39,7 @@ This project uses recent major versions where older examples can be wrong.
 - Worker app: `apps/worker`
 - Web app: `apps/web`
 - Documentation app: `apps/docs`
+- CLI app: `apps/cli`
 
 When in doubt, verify by compiling:
 
@@ -55,6 +58,9 @@ pnpm --filter @orgmemory/web typecheck
   imports.
 - Tailwind v4 in this repo uses `@import "tailwindcss"` and the Vite plugin; do
   not add Tailwind v3 config by habit.
+- `apps/docs` pins patched Fumadocs packages (`patchedDependencies` in
+  `pnpm-workspace.yaml`); verify against the installed patched version, not
+  upstream's latest docs.
 - Airbyte is external data movement into staging; do not import Airbyte concepts
   into OrgMemory domain tables directly.
 
