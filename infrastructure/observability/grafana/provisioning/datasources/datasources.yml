@@ -1,0 +1,87 @@
+# Three signals, wired to each other.
+#
+# A stack where metrics, traces and logs are three separate search boxes is
+# three silos with one login. What makes it one tool is the links:
+#
+#   metric point ──exemplar──▶ trace ──tracesToLogsV2──▶ log lines
+#        ▲                       │
+#        └──tracesToMetrics──────┘
+#   log line ──derivedFields──▶ trace
+#
+# Provisioned read-only so a change made in the browser cannot survive a restart
+# and pretend to be the source.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: orgmemory-prometheus
+    access: proxy
+    url: http://observability-prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      # The link from a slow point on a latency chart to the trace of the request
+      # that caused it. Without this the chart says something is slow and leaves
+      # the reader to go find it. `trace_id` is the label the OTLP exemplar
+      # carries; Prometheus must run with --enable-feature=exemplar-storage to
+      # have stored it at all.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: orgmemory-tempo
+
+  - name: Tempo
+    type: tempo
+    uid: orgmemory-tempo
+    access: proxy
+    url: http://observability-tempo:3200
+    editable: false
+    jsonData:
+      # Trace to logs. The window shift exists because a log line written at the
+      # very end of a span can land outside the span's own interval.
+      tracesToLogsV2:
+        datasourceUid: orgmemory-loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - key: service.name
+            value: container
+      # Trace to metrics, over the span metrics Tempo's own generator writes.
+      tracesToMetrics:
+        datasourceUid: orgmemory-prometheus
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        tags:
+          - key: service.name
+            value: service
+        queries:
+          - name: 'Request rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags}[5m]))'
+          - name: 'Error rate'
+            query: 'sum(rate(traces_spanmetrics_calls_total{$$__tags,status_code="STATUS_CODE_ERROR"}[5m]))'
+      serviceMap:
+        datasourceUid: orgmemory-prometheus
+      nodeGraph:
+        enabled: true
+      streamingEnabled:
+        search: true
+
+  - name: Loki
+    type: loki
+    uid: orgmemory-loki
+    access: proxy
+    url: http://observability-loki:3100
+    editable: false
+    jsonData:
+      # Log to trace. Spring Boot's default pattern prints the correlation pair
+      # as a bracketed `traceId-spanId`, 32 hex then 16, so the trace identifier
+      # is already in every line an instrumented request writes. Matching both
+      # separators keeps this working if the pattern is ever set explicitly.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '\[([0-9a-f]{32})[,-][0-9a-f]{16}\]'
+          url: '$${__value.raw}'
+          datasourceUid: orgmemory-tempo

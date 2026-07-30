@@ -20,7 +20,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -86,12 +85,23 @@ class AssistantConfiguration {
     }
 
     /**
-     * Conditional on a registry rather than unconditional: a context without metrics still
-     * observes the turn as a span, and a handler contributed against a registry that does not
-     * exist would fail the context instead of degrading.
+     * Unconditional, and injecting the registry directly, on purpose.
+     *
+     * <p>This carried {@code @ConditionalOnBean(MeterRegistry.class)} to degrade rather than
+     * fail where metrics were absent. It degraded always. Bean conditions are only meaningful
+     * inside {@code @AutoConfiguration}, which Boot processes after user configuration; this is
+     * user configuration, so the condition ran before {@code MetricsAutoConfiguration} had
+     * contributed the registry, found nothing, and dropped the handler on every startup. The
+     * turn still produced a span and the framework's own timer, so nothing looked broken —
+     * {@code orgmemory.assistant.time_to_first_token} simply never existed, which is how it
+     * reached production unnoticed. {@code GraphRagObservabilityAutoConfiguration} states the
+     * rule this violated.
+     *
+     * <p>Requiring the registry is the point rather than a compromise: a missing one now stops
+     * the context at startup instead of quietly removing a metric an operator is relying on.
+     * Silent degradation of telemetry is the failure this increment exists to remove.
      */
     @Bean
-    @ConditionalOnBean(MeterRegistry.class)
     AssistantTurnMeterObservationHandler assistantTurnMeterObservationHandler(
             MeterRegistry meters) {
         return new AssistantTurnMeterObservationHandler(meters);

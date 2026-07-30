@@ -1,0 +1,108 @@
+{
+  "uid": "orgmemory-runtime",
+  "title": "OrgMemory — Runtime",
+  "tags": ["orgmemory", "jvm"],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "Service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+        "query": "label_values(jvm_memory_used_bytes, job)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Why this board and not a community one",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "The usual Spring Boot and JVM dashboards are written for a **scrape** pipeline: Prometheus reads `/actuator/prometheus`, and Spring Boot adds `application` and `instance` labels while Micrometer's Prometheus registry emits durations in **seconds**.\n\nThis stack pushes OTLP instead — because `apps/worker` serves no HTTP and cannot be scraped — so series carry `job` and durations arrive in **milliseconds**. Two inherited boards were tried and removed: relabelling can supply `application`, but nothing makes `_seconds_count` exist when the export is `_milliseconds_count`."
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap used",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (job) (jvm_memory_used_bytes{job=~\"$job\", area=\"heap\"})", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Non-heap used",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (job) (jvm_memory_used_bytes{job=~\"$job\", area=\"nonheap\"})", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Live threads",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (job) (jvm_threads_live_threads{job=~\"$job\"})", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP request latency, p95",
+      "description": "Milliseconds, because that is the unit this pipeline exports. A panel written against _seconds_bucket would be empty with no error to say why.",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "fillOpacity": 0 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_server_requests_milliseconds_bucket{job=~\"$job\"}[$__rate_interval])))", "legendFormat": "{{job}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP requests per second, by status",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 20, "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (status) (rate(http_server_requests_milliseconds_count{job=~\"$job\"}[$__rate_interval]))", "legendFormat": "{{status}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Database connection pool",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sum by (job) (hikaricp_connections_active{job=~\"$job\"})", "legendFormat": "{{job}} active" },
+        { "refId": "B", "expr": "sum by (job) (hikaricp_connections_pending{job=~\"$job\"})", "legendFormat": "{{job}} pending" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Garbage collection pause",
+      "datasource": { "type": "prometheus", "uid": "orgmemory-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "fillOpacity": 0 } }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, job) (rate(jvm_gc_pause_milliseconds_bucket{job=~\"$job\"}[$__rate_interval])))", "legendFormat": "{{job}} p95" }
+      ]
+    }
+  ]
+}

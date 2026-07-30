@@ -3,7 +3,8 @@
 Read `design.md` for why each of these is shaped the way it is. This file is the
 execution order and the state of each item.
 
-Phase 1 is done. Phase 2 needs no decision from the owner; phase 3 onward does.
+Phases 1 through 5 are done and running in production. Phase 6 — making a
+silent exporter fail the deployment — is what remains.
 
 ## 0. State this increment inherits
 
@@ -78,56 +79,77 @@ because it measures the stream this application already returns.
       and excludes retrieval, so it is a different interval; both are wanted once
       Spring AI emits the convention's one.
 
-## 3. Rename the stack to shared infrastructure — needs the owner
+## 3. Stand up an OrgMemory-owned stack — done
 
-Do not start before the owner confirms. This changes a running production host.
+Rewritten on 2026-07-30. The plan was to rename Zero Mail's stack and preserve
+its five volumes. The owner then confirmed Zero Mail needs no observability at
+all — its application containers had been stopped for five days — and that
+losing its trace and log history was acceptable. That removes both reasons the
+design had for reusing rather than replacing: there is no second stack to double
+memory, and no dashboards worth inheriting wholesale.
 
-- [ ] Capture current state first: image digests, volume names, the compose
-      project name, and Nginx Proxy Manager host entries. A rename without a
-      recorded starting point cannot be rolled back.
-- [ ] Move the definition out of `/apps/zero-mail/docker/` into its own
-      directory, with a neutral compose project name and neutral container names.
-- [ ] **Preserve the five data volumes through the rename.** `zeromail_grafana_data`,
-      `zeromail_prometheus_data`, `zeromail_loki_data`, `zeromail_tempo_data` and
-      `zeromail_alloy_data` hold real history. Compose renames volumes with the
-      project by default; pin them by external name so it cannot.
-- [ ] Create a neutral network for applications to join, following the
-      `shared-infra` precedent rather than inventing a second pattern.
-- [ ] Bring the stack back up and prove Zero Mail's own dashboards still resolve
-      against the restored volumes before attaching anything new.
+- [x] Capture the starting state before touching anything. It found what the
+      design had missed: `zeromail-postgres` belongs to compose project
+      `postgres`, runs `orgmemory-postgres-rag`, and **is OrgMemory's production
+      database**. A `docker compose -p zero-mail down -v` would not have hit it,
+      but anyone working from the container *names* would have. Teardown was done
+      by explicit container and volume name for that reason.
+- [x] Remove the nine exited observability containers and their five volumes.
+      `zeromail-postgres` and `zeromail-9router` were confirmed running and out
+      of scope first.
+- [x] Write the stack fresh under `infrastructure/observability/`, on the latest
+      release of every component, with a neutral compose project (`observability`)
+      and neutral container names.
+- [x] Attach Alloy to the pre-existing `shared-infra` network so applications
+      reach it without `compose.production.yaml` changing.
+- [x] Verify by pushing a real OTLP trace through Alloy and reading it back out
+      of Tempo, rather than by reading readiness endpoints.
 
-## 4. Give metrics a path — needs phase 3
+## 4. Point the applications at the collector — done
 
-- [ ] Add a metrics pipeline to the Alloy configuration: OTLP receiver, batch
-      processor, remote-write to Prometheus. Alloy routes traces and reads logs
-      today and handles no metrics at all.
-- [ ] Prometheus needs no change for ingest — `--web.enable-remote-write-receiver`
-      is already set — but does need `--enable-feature=exemplar-storage`.
-- [ ] Attach `apps/api`, `apps/worker` and `apps/mcp` to the collector network and
-      set `OTEL_EXPORTER_OTLP_ENDPOINT` to Alloy's service name. Not `localhost`:
-      Alloy binds `127.0.0.1` on the host, and inside a container that address is
-      the container itself. That mistake is the original production symptom.
-- [ ] Flip `ORGMEMORY_OTLP_METRICS_ENABLED` to true only for services that can now
-      reach a collector, and only after the endpoint resolves.
-- [ ] Keep Prometheus, Loki and Tempo off any proxy network.
+- [x] Metrics pipeline in Alloy, `--enable-feature=exemplar-storage` on
+      Prometheus, host and container exporters scraped down the same path.
+- [x] Telemetry settings moved into their own compose anchor. `apps/mcp`
+      inherited only the OIDC anchor, so it carried neither a collector endpoint
+      nor a service version — its spans would have been labelled `local` and sent
+      nowhere, which reads identically to an application with nothing to say.
+      One anchor now, and no service can drift from it.
+- [x] Use the Spring property names, not `OTEL_*`. `application-prod.yml` sets
+      `management.opentelemetry.map-environment-variables: false`, so
+      `OTEL_EXPORTER_OTLP_ENDPOINT` is read by nothing here. The earlier plan said
+      to set exactly that; it would have left the exporter as silent as before,
+      with no error. Names read from the Boot 4.1 configuration metadata.
+- [x] Put `apps/mcp` on `shared-infra`. It was the only deployable that was not.
+- [x] Create a read-only monitoring role and enable `postgres-exporter`.
+- [x] Verified by observation, not by configuration: Tempo reports
+      `orgmemory-api`, `orgmemory-mcp`, `orgmemory-worker`; Prometheus carries
+      those three as jobs beside `node`, `cadvisor` and `postgres`; span
+      `service.version` equals the running image tag exactly.
 
-## 5. Dashboards — needs phase 4
+## 5. Dashboards — done
 
-- [ ] Reuse `jvm-micrometer.json` and `spring-boot-statistics.json` unchanged;
-      both products are Spring Boot and emit the same meter names.
-- [ ] New board for GraphRAG stages: latency by stage, failure rate by code, cache
-      hit rate, context truncation rate, dropped contributions.
-- [ ] New board for AI cost and quality, built on Spring AI's own meters —
-      `gen_ai_client_token_usage_total` by `gen_ai_token_type`,
-      `gen_ai_client_operation_seconds`, and `gen_ai.response.finish_reasons` from
-      spans — plus `ProviderTokenUsage` for per-stage attribution Spring AI does
-      not give.
-- [ ] Reference `gen_ai.system` in as few places as possible. It is deprecated
-      upstream in favour of `gen_ai.provider.name`, and Spring AI has not
-      migrated (`spring-projects/spring-ai#6668`, unresolved, no milestone).
-- [ ] Wire exemplars on the Grafana datasource so a latency point links to its
-      trace, and trace-to-logs so a trace links to its lines.
-- [ ] Commit every dashboard and provision it read-only.
+- [x] Inherit five boards from the stack this replaced: JVM, Spring Boot
+      statistics, node-exporter, cAdvisor, PostgreSQL. All five apply unchanged
+      because both products are Spring Boot on the same host.
+- [x] `OrgMemory — GraphRAG pipeline`: stage latency and throughput, failures by
+      bounded code, outcome and cache mix, context tokens by channel, assembled
+      prompt size, and the two truncation meters kept apart — one answers how
+      many answers were affected, the other how much evidence was refused.
+- [x] `OrgMemory — AI cost and quality`: Spring AI's own token and duration
+      meters, plus per-stage attribution Spring AI does not give. Metric names
+      verified against what Prometheus actually holds: Micrometer exports timers
+      in **milliseconds**, so a panel written against `_seconds_bucket` would be
+      empty with no error.
+- [x] `OrgMemory — Assistant`: time to first token by engine, the share of turns
+      that never emitted a token, and outcome mix where `no_evidence` is not
+      counted as a failure.
+- [x] `finish_reason` is documented as a trace query rather than faked as a
+      panel: Spring AI records it as a span attribute and exports no counter.
+- [x] `gen_ai.system` referenced nowhere. It is deprecated upstream in favour of
+      `gen_ai.provider.name` and Spring AI has not migrated
+      (`spring-projects/spring-ai#6668`, unresolved).
+- [x] Exemplars and trace-to-logs wired on the datasources; every board
+      provisioned read-only from the repository.
 
 ## 6. Make a silent exporter fail the deployment — needs phase 4
 
@@ -144,9 +166,11 @@ receiving looks exactly like a system with nothing to report.
 
 ## Open decisions — owner's, analysed and not taken
 
-1. **Grafana exposure.** Published through Nginx Proxy Manager with Keycloak
-   OIDC, or reachable only over an SSH tunnel. A public surface and an OIDC
-   client against convenience. Blocks phase 5's usefulness, not its work.
+1. ~~**Grafana exposure.**~~ Settled 2026-07-30, and inspecting the host decided
+   it: Keycloak's database is the same PostgreSQL the product uses, so a
+   published Grafana would have depended on the thing it exists to diagnose.
+   Loopback plus an SSH tunnel, local administrator, no Keycloak. See
+   [decision 0021](../../../decisions/0021-grafana-authenticates-through-keycloak-gated-by-a-role.md).
 2. ~~**`GENERATE` telemetry boundary.**~~ Settled 2026-07-30. The counterargument
    was answered rather than overruled: the new surface carries the boundary in a
    record the convention reads through, so it is structural there too.

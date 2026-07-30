@@ -1,0 +1,21 @@
+apiVersion: 1
+
+providers:
+  - name: OrgMemory
+    type: file
+    # Dashboards are code. Editing one in the browser must not survive a restart
+    # and pretend to be the source of truth.
+    allowUiUpdates: false
+    # Deletion is deliberately NOT disabled. With `allowUiUpdates: false` the
+    # repository is the only source, so a board no file describes is one nobody
+    # can explain or change — a stale copy of something that has since moved.
+    # Restructuring the folders left exactly that behind until this was flipped.
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards
+      # Folders come from the directory layout rather than from a second list
+      # here, so `OrgMemory/` and `Infrastructure/` in the repository are what
+      # the sidebar shows. One home for the fact; adding a board to a folder is
+      # moving a file.
+      foldersFromFilesStructure: true
