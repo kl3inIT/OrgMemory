@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-mcp-scoped-completion (b79d6ac)`.
+Reconciled: `2026-07-30-observability-platform (98d0f53)`.
 
 ## Current Behavior
 
@@ -26,6 +26,25 @@ is read through an authenticated backend endpoint instead of exposing
 object-storage URLs. Every open performs one fresh canonical authorization and
 integrity check; missing, changed, and denied citations are wire-equivalent
 opaque `404` responses.
+
+Every turn is observed on its own surface, `orgmemory.assistant.turn`, rather
+than through `GraphRagEventSink`: generation runs above an engine-neutral
+retrieval interface, so a GraphRAG stage would mislabel a canonical-engine turn.
+The surface carries the same payload boundary by construction —
+`AssistantTurnEvent` accepts only counts, durations, bounded enumerations and an
+organization identifier, and the observation convention reads that record rather
+than the mutable context, so it cannot publish a prompt or a completion. There is
+no request or conversation identifier on it; correlation to retrieval and to the
+model call is by trace context.
+
+Time to first token is recorded as its own distribution,
+`orgmemory.assistant.time_to_first_token`, tagged only by engine and measured
+from the arriving question rather than from the model call, because
+permission-scoped retrieval runs while the user waits. Spring AI's
+`gen_ai.client.operation` separately reports generation duration, per-call token
+usage and finish reason; it observes inside `ChatModel`, below `ChatModelPort`,
+and starts after retrieval, so the two measurements answer different questions.
+No meter carries an organization, request or conversation identifier.
 
 Assistant chat and governed Prompt execution now resolve their model route with
 the current `organizationId`. An organization override selects one encrypted

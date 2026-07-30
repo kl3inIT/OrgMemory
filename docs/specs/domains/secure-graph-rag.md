@@ -150,12 +150,14 @@ Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
   environment-variable mapping so telemetry cannot acquire an unchosen
   destination. Spans carry `service.version` and `deployment.environment`. The
   worker samples traces in full and the API at 0.1.
-- `Stage` declares fourteen values; production emits thirteen. `GENERATE` has no
-  producer, so no answer-generation latency is reported: generation runs in the
-  application shell rather than the GraphRAG runtime, above an engine-neutral
-  retrieval interface with a non-GraphRAG implementation, so wiring it is a
-  boundary decision rather than a wiring one. Deletion and rebuild have no
-  stage.
+- `Stage` declares thirteen values and production emits all thirteen. `GENERATE`
+  was declared and never produced, because generation runs in the application
+  shell rather than the GraphRAG runtime, above an engine-neutral retrieval
+  interface with a non-GraphRAG implementation; it was removed rather than left
+  as a value nothing can emit. The assistant turn is observed on its own surface
+  instead — see the assistant domain spec and
+  [decision 0020](../../decisions/0020-assistant-generation-is-observed-on-its-own-payload-free-surface.md).
+  Deletion and rebuild have no stage.
 - `PARSE` and `CHUNK` are emitted by source ingestion under the same `jobId` the
   graph indexing stages use, so one upload reads as one operation across both
   processors. `PARSE` reports one source document in and the canonical blocks

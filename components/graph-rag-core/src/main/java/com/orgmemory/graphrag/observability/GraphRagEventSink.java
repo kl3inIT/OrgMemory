@@ -245,6 +245,15 @@ public interface GraphRagEventSink {
         }
     }
 
+    /**
+     * Every stage this engine runs, and only those. {@code GENERATE} was declared here and
+     * never produced: {@code GraphRagRetrievalPolicy} pins {@code CONTEXT} so generation
+     * happens in the application shell, above an engine-neutral interface, where labelling it
+     * a GraphRAG stage would be false whenever the canonical engine is the one running. It was
+     * removed on 2026-07-30 rather than left as a value nothing can emit, which is the same
+     * defect class as an exporter that reports healthy while pushing to nowhere. The assistant
+     * turn is observed on its own payload-free surface; see decision 0020.
+     */
     enum Stage {
         PARSE,
         CHUNK,
@@ -258,8 +267,7 @@ public interface GraphRagEventSink {
         RETRIEVE_SNAPSHOT,
         RETRIEVE,
         RERANK,
-        ASSEMBLE_CONTEXT,
-        GENERATE
+        ASSEMBLE_CONTEXT
     }
 
     enum Outcome {

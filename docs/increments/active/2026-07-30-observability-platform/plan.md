@@ -10,9 +10,9 @@ Phase 1 is done. Phase 2 needs no decision from the owner; phase 3 onward does.
 Carried from `2026-07-29-observability-pipeline`, which stays active for the
 decisions still recorded against it:
 
-- Application instrumentation is done and deployed. Thirteen of fourteen stages
-  emit; production runs `sha-c4608b0` with the exporter silent, telemetry
-  identity correct, and no provider prompt-leak signatures.
+- Application instrumentation is done and deployed. Every declared stage emits;
+  production runs `sha-c4608b0` with the exporter silent, telemetry identity
+  correct, and no provider prompt-leak signatures.
 - Nothing reads any of it. There is no collector.
 - Phase 3 of that plan — collector, dashboards, smoke coverage — is superseded by
   this increment. Its remaining decisions (`GENERATE`, deletion/rebuild stage,
@@ -57,18 +57,26 @@ Gate: `:apps:api:test`, `:apps:worker:test`,
 `:integrations:graph-rag-observability:test`,
 `:integrations:observability:test`.
 
-## 2. Time to first token
+## 2. Time to first token — done
 
 The only part of the prior increment's `GENERATE` scope that Spring AI does not
 already supply. Independent of the collector and of the boundary question,
 because it measures the stream this application already returns.
 
-- [ ] Measure first emission on the assistant's streaming path. `AssistantService`
-      already wraps the `Flux` it returns, so the measurement needs no port
-      change; the destination does.
-- [ ] Do not publish it until the `GENERATE` boundary decision below is taken.
-      TTFT is a number, but where it is published is that decision, and putting it
-      somewhere convenient first would settle the question by accident.
+- [x] Measure first emission on the assistant's streaming path, from the arriving
+      question rather than from the model call, because permission-scoped
+      retrieval runs while the user waits. Both ends are held by mutation-checked
+      tests: starting the clock at the model call, and recording the last token
+      instead of the first, each fail exactly one test.
+- [x] Settle the destination first. It is a Micrometer observation on the
+      assistant's own surface, with the payload boundary in an
+      `AssistantTurnEvent` record the convention reads through rather than in the
+      mutable context. `Stage.GENERATE` is removed. See
+      [decision 0020](../../../decisions/0020-assistant-generation-is-observed-on-its-own-payload-free-surface.md).
+- [x] Keep OrgMemory's own metric name. The GenAI convention's
+      `gen_ai.client.operation.time_to_first_chunk` measures from the model call
+      and excludes retrieval, so it is a different interval; both are wanted once
+      Spring AI emits the convention's one.
 
 ## 3. Rename the stack to shared infrastructure — needs the owner
 
@@ -139,16 +147,20 @@ receiving looks exactly like a system with nothing to report.
 1. **Grafana exposure.** Published through Nginx Proxy Manager with Keycloak
    OIDC, or reachable only over an SSH tunnel. A public surface and an OIDC
    client against convenience. Blocks phase 5's usefulness, not its work.
-2. **`GENERATE` telemetry boundary.** Re-ask against the smaller scope: Spring AI
-   already emits duration, token usage and finish reason, so the question is now
-   only where TTFT goes and whether a stage exists at all. Full analysis remains
-   in `2026-07-29-observability-pipeline/challenge-generation-telemetry.md`; its
-   central counterargument stands — `GraphRagEventSink` is where the payload
-   boundary is enforced, and generation is where prompts exist.
+2. ~~**`GENERATE` telemetry boundary.**~~ Settled 2026-07-30. The counterargument
+   was answered rather than overruled: the new surface carries the boundary in a
+   record the convention reads through, so it is structural there too.
+   `Stage.GENERATE` is removed. See
+   [decision 0020](../../../decisions/0020-assistant-generation-is-observed-on-its-own-payload-free-surface.md).
+   The challenge brief was never run by an independent reviewer; that gap is
+   recorded in the decision.
 3. **Deletion and rebuild stage.** The hardening runbook requires a
-   deletion-then-rebuild drill, and a search of `graph-rag-core`, `core` and
-   `apps/worker` found no deletion path. Establish whether the drill is
-   executable before adding a stage nothing can emit.
+   deletion-then-rebuild drill. An earlier claim here that no deletion path
+   exists was too strong — `ConnectorIngestionService.retire` and
+   `ProcessingStatusIndex.delete` exist, and the AGE suite covers revision
+   removal. The open question is narrower: does retirement reach all five read
+   paths the drill names — content, lexical, vector, graph and citation — or
+   stop at content? Establish that before adding a stage.
 4. ~~**Telemetry-egress module naming.**~~ Settled 2026-07-30 and larger than the
    name: the boundary now lives in `integrations/observability`, which depends on
    no OrgMemory module and reaches every application through the app convention

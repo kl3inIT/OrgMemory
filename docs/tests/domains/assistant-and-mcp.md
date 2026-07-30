@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-29-mcp-scoped-completion (2f6b0f8)`.
+Reconciled: `2026-07-30-observability-platform (98d0f53)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -35,4 +35,9 @@ Reconciled: `2026-07-29-mcp-scoped-completion (2f6b0f8)`.
 | Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Asset Assistant has no approval/publication/withdrawal/permission/arbitrary-execution action | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
 | Full transcript is actor-owned, replayed in order, and rejects another actor before writing | `AssistantConversationServiceTests` | covered |
+| Time to first token counts the permission-scoped retrieval the user waits through | `AssistantTurnObservationTests#countsTheWaitBeforeTheModelIsEvenAsked` | covered |
+| Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
+| A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
+| Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |
+| The turn event structurally refuses free text where a failure code belongs | `AssistantTurnEventTests` | covered |
 | General chat-turn idempotency | none | not implemented |

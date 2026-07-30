@@ -5,6 +5,8 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
 import com.orgmemory.core.assistant.AssistantService;
+import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
+import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
@@ -14,8 +16,11 @@ import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -59,8 +64,37 @@ class AssistantConfiguration {
     @Bean
     AssistantService assistantService(
             PermissionAwareKnowledgeSearch retrieval,
-            ChatModelPort chat) {
-        return new AssistantService(retrieval, chat);
+            ChatModelPort chat,
+            ObservationRegistry observations,
+            AssistantProperties properties) {
+        return new AssistantService(
+                retrieval, chat, observations, observedEngine(properties));
+    }
+
+    /**
+     * Names the engine for telemetry from the same property that selects it, so the tag cannot
+     * disagree with the bean above. Asking {@code PermissionAwareKnowledgeSearch} which
+     * implementation it is would put a telemetry concern into an interface that exists to keep
+     * the assistant engine-neutral.
+     */
+    private static AssistantTurnEvent.RetrievalEngine observedEngine(
+            AssistantProperties properties) {
+        return switch (properties.retrievalEngine()) {
+            case GRAPH_RAG -> AssistantTurnEvent.RetrievalEngine.GRAPH_RAG;
+            case CANONICAL_HYBRID -> AssistantTurnEvent.RetrievalEngine.CANONICAL_HYBRID;
+        };
+    }
+
+    /**
+     * Conditional on a registry rather than unconditional: a context without metrics still
+     * observes the turn as a span, and a handler contributed against a registry that does not
+     * exist would fail the context instead of degrading.
+     */
+    @Bean
+    @ConditionalOnBean(MeterRegistry.class)
+    AssistantTurnMeterObservationHandler assistantTurnMeterObservationHandler(
+            MeterRegistry meters) {
+        return new AssistantTurnMeterObservationHandler(meters);
     }
 
     @Bean
