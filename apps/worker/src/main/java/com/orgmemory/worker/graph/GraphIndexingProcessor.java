@@ -12,7 +12,9 @@ import com.orgmemory.graphrag.indexing.GraphContributionAssembler;
 import com.orgmemory.graphrag.indexing.LightRagEmbeddingPayloads;
 import com.orgmemory.graphrag.model.ContributionEmbedding;
 import com.orgmemory.graphrag.model.EntityContribution;
+import com.orgmemory.graphrag.model.ExtractionDiagnostics;
 import com.orgmemory.graphrag.model.ExtractionProfile;
+import com.orgmemory.graphrag.model.ExtractionRoundMetrics;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
@@ -128,6 +130,7 @@ class GraphIndexingProcessor {
                     claim.chunks().size(),
                     () -> extractChunks(claim, extractionProfile, extractor),
                     List::size);
+            emitGleaning(claim, extractionProfile, extracted);
             var contributions = observed(
                     claim,
                     GraphRagEventSink.Stage.MERGE,
@@ -236,6 +239,65 @@ class GraphIndexingProcessor {
                             ? stage.name().toLowerCase(Locale.ROOT) + "_failed"
                             : null);
             throw failure;
+        }
+    }
+
+    /**
+     * Reports the second extraction round separately from the first.
+     *
+     * <p>Gleaning is a second model call per chunk that exists to recover entities the first
+     * round missed, and it is the part of extraction a profile can turn off or a token guard can
+     * decline. Folded into {@code EXTRACT} it was indistinguishable from the round that always
+     * runs, so a deployment could not tell gleaning working from gleaning silently not
+     * happening — and the extractor was already recording everything needed to say which.
+     *
+     * <p>The duration is aggregate model time across chunks, not wall clock: chunks glean
+     * concurrently, so this is what gleaning cost rather than how long it took. It is nested
+     * inside the {@code EXTRACT} wall clock rather than sequential with it, so stage durations
+     * for one job must not be summed.
+     *
+     * <p>Nothing is emitted when the profile disables gleaning. A zero-valued series would claim
+     * a round that was never configured to run.
+     */
+    private void emitGleaning(
+            ClaimedGraphIndex claim,
+            ExtractionProfile profile,
+            List<ExtractedChunk> extracted) {
+        if (profile.maxGleaningRounds() <= 0) {
+            return;
+        }
+        long elapsedNanos = 0;
+        int completed = 0;
+        for (ExtractedChunk chunk : extracted) {
+            ExtractionDiagnostics diagnostics = chunk.result().diagnostics();
+            if (diagnostics.gleaningOutcome()
+                    != ExtractionDiagnostics.GleaningOutcome.COMPLETED) {
+                continue;
+            }
+            completed++;
+            for (ExtractionRoundMetrics round : diagnostics.rounds()) {
+                if (round.round() > 0) {
+                    elapsedNanos = Math.addExact(
+                            elapsedNanos, round.elapsed().toNanos());
+                }
+            }
+        }
+        try {
+            events.emit(new GraphRagEventSink.GraphRagEvent(
+                    claim.jobId(),
+                    claim.organizationId(),
+                    GraphRagEventSink.Stage.GLEAN,
+                    GraphRagEventSink.Outcome.SUCCEEDED,
+                    Duration.ofNanos(elapsedNanos),
+                    extracted.size(),
+                    completed,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Instant.now()));
+        } catch (RuntimeException ignoredTelemetryFailure) {
+            // Telemetry must never become an indexing availability dependency.
         }
     }
 

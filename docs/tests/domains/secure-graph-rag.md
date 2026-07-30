@@ -67,6 +67,11 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   selected and what the model saw, and that consolidating two copies of one
   grounding reports nothing dropped, so deduplication cannot be mistaken for
   truncation.
+- Indexing telemetry tests prove the job emits extract, glean, merge, embed and
+  publish in order; that `GLEAN` counts eligible chunks against chunks that
+  completed a round, so a token guard declining one is visible; that its duration
+  is the second round's time alone rather than both rounds'; and that a profile
+  with gleaning disabled emits no `GLEAN` event at all.
 - Observability wiring tests prove both backends are contributed together, that
   either toggle leaves the other in place, and that with both disabled the
   remaining sinks compose to `NO_OP`.

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -27,8 +28,10 @@ import com.orgmemory.core.knowledge.GraphProcessingProfileRef;
 import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
 import com.orgmemory.graphrag.model.ExtractedEntity;
 import com.orgmemory.graphrag.model.ExtractedRelation;
-import com.orgmemory.graphrag.model.ExtractionResult;
+import com.orgmemory.graphrag.model.ExtractionDiagnostics;
 import com.orgmemory.graphrag.model.ExtractionProfile;
+import com.orgmemory.graphrag.model.ExtractionResult;
+import com.orgmemory.graphrag.model.ExtractionRoundMetrics;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
@@ -162,16 +165,89 @@ class GraphIndexingProcessorTests {
         verify(coordinator, never()).fail(any(), any(), any(), any());
         ArgumentCaptor<GraphRagEventSink.GraphRagEvent> emitted =
                 ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
-        verify(events, times(4)).emit(emitted.capture());
+        verify(events, times(5)).emit(emitted.capture());
         assertEquals(
                 List.of(
                         GraphRagEventSink.Stage.EXTRACT,
+                        GraphRagEventSink.Stage.GLEAN,
                         GraphRagEventSink.Stage.MERGE,
                         GraphRagEventSink.Stage.EMBED,
                         GraphRagEventSink.Stage.PUBLISH),
                 emitted.getAllValues().stream()
                         .map(GraphRagEventSink.GraphRagEvent::stage)
                         .toList());
+    }
+
+    /**
+     * Gleaning is the extraction round a profile can disable and a token guard can decline, and
+     * folding it into {@code EXTRACT} made gleaning working indistinguishable from gleaning
+     * silently not happening. The extractor was already recording which.
+     */
+    @Test
+    void reportsHowManyChunksCompletedGleaningAndWhatItCost() {
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
+        ClaimedGraphIndex claim = claim(List.of(
+                chunk(CHUNK_ID, 0, "OrgMemory builds secure retrieval.", null),
+                chunk(SECOND_CHUNK_ID, 1, "OrgMemory also builds retrieval.", null)));
+        java.util.concurrent.atomic.AtomicInteger call =
+                new java.util.concurrent.atomic.AtomicInteger();
+
+        processorFor(claim, events, request -> extraction(
+                request,
+                // Only the first chunk gleans; the second is declined by the token guard, which
+                // is the case a folded-in stage could not distinguish from gleaning being off.
+                call.getAndIncrement() == 0
+                        ? new ExtractionDiagnostics(
+                                List.of(
+                                        round(0, Duration.ofMillis(40)),
+                                        round(1, Duration.ofMillis(60))),
+                                ExtractionDiagnostics.GleaningOutcome.COMPLETED)
+                        : new ExtractionDiagnostics(
+                                List.of(round(0, Duration.ofMillis(35))),
+                                ExtractionDiagnostics.GleaningOutcome
+                                        .SKIPPED_TOKEN_LIMIT)))
+                .processNext();
+
+        GraphRagEventSink.GraphRagEvent glean = capturedStage(
+                events, GraphRagEventSink.Stage.GLEAN);
+        assertEquals(2, glean.inputCount(), "both chunks were eligible");
+        assertEquals(1, glean.outputCount(), "only one completed a gleaning round");
+        assertEquals(
+                Duration.ofMillis(60),
+                glean.duration(),
+                "the first round is EXTRACT's, so only the second round's time is gleaning's cost");
+        assertEquals(JOB_ID, glean.operationId(), "the stage belongs to the job that ran it");
+    }
+
+    @Test
+    void reportsNoGleaningStageWhenTheProfileTurnsItOff() {
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
+        ClaimedGraphIndex claim = claim(
+                List.of(chunk(CHUNK_ID, 0, "OrgMemory builds secure retrieval.", null)),
+                new ExtractionProfile(
+                        "openai",
+                        "gpt-test",
+                        LightRagExtractionPrompt.VERSION,
+                        40,
+                        60,
+                        List.of("PRODUCT", "CAPABILITY"),
+                        List.of(),
+                        0,
+                        24_000,
+                        256));
+
+        processorFor(claim, events, request -> extraction(
+                request,
+                ExtractionDiagnostics.notProfiled()))
+                .processNext();
+
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> emitted =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, atLeastOnce()).emit(emitted.capture());
+        assertTrue(
+                emitted.getAllValues().stream().noneMatch(event ->
+                        event.stage() == GraphRagEventSink.Stage.GLEAN),
+                "a zero-valued series would claim a round that was never configured to run");
     }
 
     @Test
@@ -394,14 +470,98 @@ class GraphIndexingProcessorTests {
                 CHUNK_ID, 0, "OrgMemory builds secure retrieval.", null)));
     }
 
+    /**
+     * Wires a processor whose only interesting variable is what the extractor reports, so a test
+     * about gleaning does not have to restate the embedding and publication setup.
+     */
+    private static GraphIndexingProcessor processorFor(
+            ClaimedGraphIndex claim,
+            GraphRagEventSink events,
+            EntityRelationExtractor extractor) {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphExtractorFactory extractors = mock(GraphExtractorFactory.class);
+        EmbeddingModel embeddingModel = mock(EmbeddingModel.class);
+        AiRouteResolver routes = mock(AiRouteResolver.class);
+        GraphIndexingProperties properties = properties();
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.of(claim));
+        when(routes.resolve(AiWorkload.GRAPH_EXTRACTION))
+                .thenReturn(new AiRoute("openai", "gpt-5.6-sol"));
+        when(routes.resolve(AiWorkload.DOCUMENT_EMBEDDING))
+                .thenReturn(new AiRoute("openai", "text-embedding-3-large"));
+        when(extractors.create(new AiRoute("openai", "gpt-test")))
+                .thenReturn(extractor);
+        when(embeddingModel.embed(
+                        anyList(), isNull(), any(TokenCountBatchingStrategy.class)))
+                .thenAnswer(invocation -> ((List<Document>) invocation.getArgument(0))
+                        .stream()
+                        .map(ignored -> new float[] {1.0f, 0.0f, 0.0f})
+                        .toList());
+        return new GraphIndexingProcessor(
+                coordinator,
+                mock(GraphPublicationCommitter.class),
+                extractors,
+                provider(embeddingModel),
+                routes,
+                properties,
+                events);
+    }
+
+    private static ExtractionResult extraction(
+            com.orgmemory.graphrag.model.ExtractionRequest request,
+            ExtractionDiagnostics diagnostics) {
+        return new ExtractionResult(
+                request.profile(),
+                List.of(
+                        new ExtractedEntity(
+                                "source", "OrgMemory", "product",
+                                "Enterprise memory platform", 0.98),
+                        new ExtractedEntity(
+                                "target", "Secure Search", "capability",
+                                "Permission-aware retrieval", 0.97)),
+                List.of(new ExtractedRelation(
+                        "source",
+                        "target",
+                        "builds",
+                        List.of("security", "retrieval"),
+                        "OrgMemory builds Secure Search",
+                        RelationOrientation.DIRECTED,
+                        0.96)),
+                diagnostics);
+    }
+
+    private static ExtractionRoundMetrics round(int round, Duration elapsed) {
+        return new ExtractionRoundMetrics(round, 100, 100, 20, elapsed);
+    }
+
+    private static GraphRagEventSink.GraphRagEvent capturedStage(
+            GraphRagEventSink events,
+            GraphRagEventSink.Stage stage) {
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> emitted =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, atLeastOnce()).emit(emitted.capture());
+        return emitted.getAllValues().stream()
+                .filter(event -> event.stage() == stage)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no " + stage + " event was emitted"));
+    }
+
     private static ClaimedGraphIndex claim(List<GraphIndexChunk> chunks) {
-        var graphProcessingProfile =
-                LightRagGraphProcessingProfiles.current(new ExtractionProfile(
+        return claim(
+                chunks,
+                new ExtractionProfile(
                         "openai",
                         "gpt-test",
                         LightRagExtractionPrompt.VERSION,
                         40,
                         60));
+    }
+
+    private static ClaimedGraphIndex claim(
+            List<GraphIndexChunk> chunks,
+            ExtractionProfile extractionProfile) {
+        var graphProcessingProfile =
+                LightRagGraphProcessingProfiles.current(extractionProfile);
         var graphProcessingProfileRef = new GraphProcessingProfileRef(
                 UUID.randomUUID(),
                 graphProcessingProfile.canonicalSha256(),
