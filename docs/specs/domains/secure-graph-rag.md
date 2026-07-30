@@ -2,10 +2,12 @@
 
 Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
-`core/src/main/java/com/orgmemory/core/knowledge`, and
-`apps/web/src/features/knowledge`.
+`core/src/main/java/com/orgmemory/core/knowledge`,
+`apps/web/src/features/knowledge`, and — for the payload-boundary configuration
+this document states — `apps/api/src/main/resources/application*.yml` and
+`apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
+Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
 
 ## Current Contract
 
@@ -221,7 +223,10 @@ Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
   the status description, because Micrometer's bridge copies
   `throwable.getMessage()` into both and an OrgMemory exception can be raised
   holding query, evidence or provider-response text. It applies to all spans, not
-  only GraphRAG ones, and has no toggle. Span attributes are not filtered.
+  only GraphRAG ones, and has no toggle. Span attributes are not filtered: the one
+  Spring AI content flag that reaches a span attribute is refused at startup by
+  `ObservationContentBoundaryVerifier`, and the rest write to the application log,
+  which no span filter would see.
 - The OpenAI and Anthropic client packages are pinned above WARN in both apps,
   because their own logging concatenates the prompt or the response content into
   messages that Spring AI's `log-prompt`/`log-completion` settings do not govern.
@@ -231,6 +236,19 @@ Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
   call site whether WARN is enabled on its own logger and fails startup if any
   is, so the check is against the resolved level rather than any source of it.
   It has no disable property.
+- Spring AI captures prompt, completion and tool-argument content only when a
+  property turns it on, and names two families identically one layer apart:
+  `spring.ai.chat.observations` governs the ChatModel and
+  `spring.ai.chat.client.observations` the ChatClient that every call is built
+  through. Both are declared false in `apps/api` and `apps/worker`. Declaring them
+  is the default, not the boundary: `ObservationContentBoundaryVerifier` fails
+  startup when any of the eight known flags resolves true, read from the
+  `Environment` so an environment variable, system property, command-line argument
+  or profile cannot outrank the file. It guards the image, tool-calling and
+  vector-store families no path exercises today, because a dependency addition
+  would otherwise step outside the boundary silently, and each application asserts
+  against its own classpath metadata that Spring AI declares no content flag the
+  list has missed. It has no disable property.
 
 ## Graph Explorer
 

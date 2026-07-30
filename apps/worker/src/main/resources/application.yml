@@ -19,11 +19,24 @@ spring:
     enabled: false
   ai:
     chat:
+      # Spring AI has two content-flag families with the same names one layer apart:
+      # `chat.client.observations` governs the ChatClient, `chat.observations` the
+      # ChatModel underneath it, and SpringAiChatModelAdapter builds every call
+      # through both. All are already false by default; declared so the payload
+      # posture reads as one block rather than several settings and an assumption.
+      #
+      # Declaring them is the default, not the enforcement.
+      # ObservationContentBoundaryVerifier refuses to start when any Spring AI
+      # content flag resolves true, including the image and tool-calling families
+      # that no OrgMemory path exercises today and that are therefore not written
+      # out here. See docs/decisions/0018-telemetry-carries-counts-never-payload.md.
+      client:
+        observations:
+          log-prompt: false
+          log-completion: false
       observations:
         log-prompt: false
         log-completion: false
-        # Already the framework default; declared so the payload posture is one
-        # readable block rather than two settings and an assumption.
         include-error-logging: false
     model:
       embedding: ${ORGMEMORY_AI_MODEL_EMBEDDING:openai}

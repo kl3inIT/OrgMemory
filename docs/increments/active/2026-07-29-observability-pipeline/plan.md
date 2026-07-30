@@ -161,11 +161,20 @@ concept. The alternative — a separate observation surface for the assistant tu
 exists to close.
 
 `CLAUDE.md` requires an independent architecture challenge before a domain
-boundary decision is implemented. `finish_reason=length` needs the same answer
-plus a `ChatModelPort` change, because the port streams `Flux<String>` and
-`SpringAiChatModelAdapter` calls `.stream().content()`, discarding the
-`ChatResponse`. Time to first token needs no port change but still needs a
-destination.
+boundary decision is implemented.
+
+Corrected 2026-07-30: `finish_reason=length` does **not** need a
+`ChatModelPort` change. That reasoning was right about this repository's port,
+which does stream `Flux<String>` and does discard the `ChatResponse`, and wrong
+about the system: Spring AI observes inside `ChatModel`, below the port, and
+already emits `gen_ai.response.finish_reasons` along with token usage and
+generation latency. Both model factories wire an `ObservationRegistry`, so this
+is live today and merely unread.
+
+What remains of this item is time to first token, which Spring AI cannot supply
+because its streaming observation covers the whole stream — and the destination
+question, which is the boundary decision itself. Re-ask the challenge against
+that smaller scope.
 
 Proposed for challenge, with its strongest counterargument, in
 `challenge-generation-telemetry.md`.
@@ -195,18 +204,20 @@ signal until then.
 
 Gate: module tests, `:core:test`, API context load, worker indexing tests.
 
-## 3. Collector and dashboards — not started
+## 3. Collector and dashboards — moved
 
-- [ ] `compose.observability.yaml` behind a profile, restoring the existing
-      Alloy/Loki/Tempo/Prometheus/Grafana stack.
-- [ ] Join API and worker to the collector network; set
-      `OTEL_EXPORTER_OTLP_ENDPOINT`. Prometheus stays off the proxy network;
-      Grafana is published through Nginx Proxy Manager with Keycloak OIDC.
-- [ ] Commit dashboards to the repository: infrastructure, and a separate AI
-      cost and quality board covering tokens by organization, truncation rate,
-      cache hit rate and TTFT.
-- [ ] Extend `smoke-production.sh` to export a known signal and verify receipt,
-      so a silent exporter fails deployment instead of passing it.
+Superseded by `docs/increments/active/2026-07-30-observability-platform/`.
+
+It stopped being the last phase of an application-instrumentation cycle and
+became its own: server topology, a stack shared with another product, a network
+boundary and a published surface, none of which is application code and all of
+which needs the owner's decision before touching production.
+
+Research on 2026-07-30 also found that Spring AI already emits generation
+latency, per-call token usage and finish reason — most of what the `GENERATE`
+decision below was scoped to build — and separately found that the
+`spring.ai.chat.client.observations.*` family is undeclared and unguarded. Both
+belong with the collector, because the collector is what would show them.
 
 ## 4. Trace continuity — done
 
