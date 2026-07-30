@@ -54,7 +54,8 @@ along, because they write to the application log.
       hole that prompted the question. Full reasoning in `design.md`.
 
 Gate: `:apps:api:test`, `:apps:worker:test`,
-`:integrations:graph-rag-observability:test`.
+`:integrations:graph-rag-observability:test`,
+`:integrations:observability:test`.
 
 ## 2. Time to first token
 
@@ -148,10 +149,12 @@ receiving looks exactly like a system with nothing to report.
    deletion-then-rebuild drill, and a search of `graph-rag-core`, `core` and
    `apps/worker` found no deletion path. Establish whether the drill is
    executable before adding a stage nothing can emit.
-4. **Telemetry-egress module naming.** Five of eight files in
-   `integrations/graph-rag-observability` are not GraphRAG-specific, including
-   the process-wide span sanitizer with no toggle. Lowest priority; the cost is
-   that the name understates what disabling it would remove.
+4. ~~**Telemetry-egress module naming.**~~ Settled 2026-07-30 and larger than the
+   name: the boundary now lives in `integrations/observability`, which depends on
+   no OrgMemory module and reaches every application through the app convention
+   plugin. Investigating it found that `apps/mcp` had no payload boundary at all,
+   because taking it meant taking the graph domain. See
+   [decision 0019](../../../decisions/0019-the-payload-boundary-is-its-own-module.md).
 
 ## Deferred, with reasons
 

@@ -2,6 +2,7 @@
 
 Source: `components/graph-rag-core/src/test`,
 `components/graph-rag-testkit/src/test`, `integrations/graph-rag-*/src/test`,
+`integrations/observability/src/test`,
 `apps/worker/src/test/java/com/orgmemory/worker/graph`,
 `apps/api/src/test/java/com/orgmemory/api/observability`,
 `apps/worker/src/test/java/com/orgmemory/worker/observability`,
@@ -145,6 +146,10 @@ Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
   empty classpath cannot make it pass vacuously; removing one flag from the
   guarded list was confirmed to fail it by name. The same tests read the shipped
   `application.yml` and every profile file for a flag declared true.
+- The boundary module's own tests moved with it and are unchanged, so the split is
+  a move rather than a rewrite. What proves the split worked is a dependency fact
+  rather than a test: `apps/mcp` resolves exactly one OrgMemory project on its
+  runtime classpath, `integrations:observability`, and no longer resolves none.
 - Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
   Neo4j stay discoverable through their registration files, that PostgreSQL owns
   the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port

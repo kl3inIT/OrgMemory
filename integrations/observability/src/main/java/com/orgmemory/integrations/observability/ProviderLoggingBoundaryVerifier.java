@@ -1,4 +1,4 @@
-package com.orgmemory.integrations.graphrag.observability;
+package com.orgmemory.integrations.observability;
 
 import java.util.List;
 import org.slf4j.LoggerFactory;

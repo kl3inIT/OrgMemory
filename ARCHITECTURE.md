@@ -26,7 +26,8 @@ The Gradle build contains `core`; the deployable `apps:api`, `apps:mcp`, and
 `components:graph-rag-testkit`, and `components:scim-protocol-conformance`;
 and replaceable integrations for OpenFGA authorization, connectors,
 OpenAI-compatible AI, MinIO object storage, Spring AI GraphRAG, PostgreSQL,
-OpenSearch, Neo4j, observability, and sidecar JSON.
+OpenSearch, Neo4j, GraphRAG observability, the telemetry payload boundary, and
+sidecar JSON.
 
 All runnable product surfaces live under `apps/`. The React client in
 `apps/web`, Fumadocs portal in `apps/docs`, and command-line client in
@@ -45,6 +46,15 @@ CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 Dependency direction is `apps/* -> core`. The adapter rule in force is
 `apps -> core + selected integrations`, `integrations -> core ports` (or the
 framework-neutral graph core), and never `core -> apps/integrations`.
+
+`integrations/observability` is a deliberate exception to that adapter rule: it
+implements no core port and depends on no OrgMemory module. It holds the
+telemetry payload boundary — the span sanitizer and the two startup verifiers —
+and the absence of a `project(...)` dependency is what keeps that boundary
+adoptable by a deployable with no domain dependency. It arrives through
+`orgmemory.spring-boot-app-conventions` rather than through each application's
+build file, so taking the convention is taking the boundary. See
+[decision 0019](docs/decisions/0019-the-payload-boundary-is-its-own-module.md).
 
 ## Current Runtime Responsibilities
 

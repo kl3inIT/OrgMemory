@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-import com.orgmemory.integrations.graphrag.observability.ObservationContentBoundaryVerifier;
+import com.orgmemory.integrations.observability.ObservationContentBoundaryVerifier;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
