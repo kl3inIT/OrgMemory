@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-30-observability-platform (e8d89c6)`.
+Reconciled: `2026-07-30-observability-platform (a708f44)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -42,4 +42,5 @@ Reconciled: `2026-07-30-observability-platform (e8d89c6)`.
 | Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |
 | The turn event structurally refuses free text where a failure code belongs | `AssistantTurnEventTests` | covered |
 | Every row above about time to first token holds against the handler in isolation and held while the handler was never registered in a running application; only `ConfigurationConditionTests` and production traffic distinguish the two | `AssistantTurnObservationTests` construct the handler directly | partial |
+| Every meter a dashboard charts as a quantile publishes a bounded percentile histogram | `MetricsDistributionTests` | covered |
 | General chat-turn idempotency | none | not implemented |

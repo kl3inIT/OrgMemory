@@ -57,6 +57,17 @@ management:
       # The gateway is a hop, not the work. It samples with the API so a request
       # sampled on one side is not a half-trace on the other.
       probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}
+  metrics:
+    distribution:
+      # See the API's copy for why. The gateway charts on the runtime board, so
+      # it needs the same buckets even though it owns none of the AI meters.
+      percentiles-histogram:
+        http.server.requests: true
+        jvm.gc.pause: true
+      minimum-expected-value:
+        http.server.requests: 5ms
+      maximum-expected-value:
+        http.server.requests: 10s
   otlp:
     metrics:
       export:
