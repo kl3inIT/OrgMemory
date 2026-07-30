@@ -3,6 +3,8 @@
 Source: `components/graph-rag-core/src/test`,
 `components/graph-rag-testkit/src/test`, `integrations/graph-rag-*/src/test`,
 `apps/worker/src/test/java/com/orgmemory/worker/graph`,
+`apps/api/src/test/java/com/orgmemory/api/observability`,
+`apps/worker/src/test/java/com/orgmemory/worker/observability`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
@@ -129,6 +131,20 @@ Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
   even under a package pinned to ERROR, that the message names both the class and
   the override to look for, that the auto-configuration stays discoverable, and
   that the application context itself fails rather than starting.
+- Observation-content tests give every guarded Spring AI content flag its own
+  case, so a failure names the family that is open rather than reporting that one
+  is. They prove a flag arriving as an environment variable is caught, which is
+  what relaxed binding makes possible and a verifier reading a plain map would
+  miss; that all eight open flags are reported together rather than the first;
+  that a context enabling nothing still starts, so the failure case proves more
+  than that the bean throws; and that the auto-configuration stays discoverable.
+- Each app reads its own classpath's `spring-configuration-metadata.json` and
+  fails when Spring AI declares a `spring.ai.*.observations.*` property the
+  verifier does not guard, which is how a dependency bump would otherwise open a
+  content path silently. The scan asserts that metadata was actually read, so an
+  empty classpath cannot make it pass vacuously; removing one flag from the
+  guarded list was confirmed to fail it by name. The same tests read the shipped
+  `application.yml` and every profile file for a flag declared true.
 - Storage adapter auto-configuration tests prove PostgreSQL, OpenSearch and
   Neo4j stay discoverable through their registration files, that PostgreSQL owns
   the canonical ports without an opt-in, that OpenSearch and Neo4j claim no port

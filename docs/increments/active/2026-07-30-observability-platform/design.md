@@ -140,9 +140,9 @@ Worse, neither structural guard covers this path:
 - `ExceptionSanitizingSpanExporter` filters **exception events**; the domain spec
   states plainly that span attributes are not filtered.
 
-So a deployment that sets any of these flags true puts prompt and completion
-text onto spans, and nothing in the process stops it. Decision 0018 claims the
-boundary is structural rather than conventional. On this path it is conventional.
+So a deployment that sets any of these flags true captures prompt and completion
+text, and nothing in the process stops it. Decision 0018 claims the boundary is
+structural rather than conventional. On this path it was conventional.
 
 Two risks documented in the Spring AI reference do **not** apply here, verified
 by search: OrgMemory uses no Spring AI `VectorStore` — whose
@@ -150,6 +150,49 @@ by search: OrgMemory uses no Spring AI `VectorStore` — whose
 whose `spring.ai.tool.call.arguments` is gated behind
 `spring.ai.tools.observations.include-content`. Both should be re-checked if
 either is ever adopted.
+
+**Correction, 2026-07-30, made while closing this.** The paragraph above
+originally said these flags put text *onto spans*. That was read from the
+reference rather than from the code, and it is wrong about where the text goes.
+Opened from the 2.0.0 jars, each flag registers a component, and there are two
+shapes:
+
+- `spring.ai.chat.observations.log-prompt`, `log-completion`, the identically
+  named pair under `spring.ai.chat.client.observations`, and
+  `spring.ai.image.observations.log-prompt` each register a handler
+  (`ChatModelPromptContentObservationHandler` and its siblings) that writes the
+  text to the **application log at INFO**. `include-error-logging` registers
+  `ErrorLoggingObservationHandler`, which logs the throwable.
+- `spring.ai.tools.observations.include-content` registers an observation filter
+  that adds the arguments to the **span** as `spring.ai.tool.call.arguments`.
+
+The finding survives the correction — the ChatClient family was undeclared and
+unguarded, and `SpringAiChatModelAdapter` builds every call through
+`ChatClientBuilderConfigurer`, so it is a live path rather than a latent one —
+but the destination changes what fixes it.
+
+### What closes it, and what does not
+
+`ObservationContentBoundaryVerifier` reads all eight flags from the resolved
+`Environment` and refuses to start when any is true. The property is the whole
+control — each capturing component exists only because its property is true — so
+the property is the right thing to check, and reading the `Environment` rather
+than the file is what makes it a boundary instead of a default. Each application
+additionally reads its own classpath's `spring-configuration-metadata.json` and
+fails when Spring AI declares an observation property the list has never heard
+of, so a dependency bump cannot open a ninth path quietly.
+
+**The sanitizer keeps filtering exception events only.** This was the open
+question in phase 1, and the correction above answers it: five of the six live
+flags never reach a span, so span-attribute filtering would not have closed the
+hole that prompted the question. The sixth does reach a span, and the verifier
+refuses to start with it on. Generic attribute filtering would mean an allowlist
+applied to spans this repository does not construct — it would have to enumerate
+Spring AI's own useful attributes to avoid dropping them, and that enumeration
+would need revisiting on every upgrade. `WholeExportAllowlistTests` continues to
+assert the whole exported span for OrgMemory's own spans, where the allowlist is
+knowable. Recorded here rather than left implicit: an unfiltered attribute path
+nobody decided to leave open is worse than one that was.
 
 ### Two upstream facts that will age
 

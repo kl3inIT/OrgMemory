@@ -3,8 +3,7 @@
 Read `design.md` for why each of these is shaped the way it is. This file is the
 execution order and the state of each item.
 
-Nothing here has started. Phases 1 and 2 need no decision from the owner; phase 3
-onward does.
+Phase 1 is done. Phase 2 needs no decision from the owner; phase 3 onward does.
 
 ## 0. State this increment inherits
 
@@ -22,38 +21,40 @@ decisions still recorded against it:
 Server inventory, Zero Mail's configuration, and the Spring AI research are
 recorded in `design.md` so they survive without re-inspection.
 
-## 1. Close the payload hole before anything can read spans
+## 1. Close the payload hole before anything can read telemetry — done
 
 Highest priority and independent of the collector. Today nothing exports, so the
-gap is latent; the moment a collector exists it is live.
+gap was latent for the one flag that reaches a span; for the rest it was live all
+along, because they write to the application log.
 
-- [ ] Verify the real property names against
+- [x] Verify the real property names against
       `spring-configuration-metadata.json` in the Spring AI jars before writing
-      any of them. The reference lists
-      `spring.ai.chat.client.observations.log-prompt` and `log-completion`, and
-      Boot 4.1 has already moved keys out from under documentation once during
-      this work. Do not trust the prose.
-- [ ] Declare the `spring.ai.chat.client.observations.*` family explicitly in
+      any of them. Done, and it was worth doing: the reference names two of the
+      eight, and the classpath declares `spring.ai.image.observations.log-prompt`
+      and `spring.ai.tools.observations.include-content` as well. The ChatClient
+      family has no `include-error-logging`, unlike its identically named sibling.
+- [x] Declare the `spring.ai.chat.client.observations.*` family explicitly in
       both `apps/api` and `apps/worker`, beside the `spring.ai.chat.observations`
-      block that already exists. The comment in that block gives the reason: the
-      payload posture should be one readable place, not two settings and an
-      assumption.
-- [ ] Extend `ProviderLoggingBoundaryVerifier` to fail startup when any
-      observation content flag resolves true. It currently inspects logger levels
-      only, so the guarantee decision 0018 claims — structural, not conventional —
-      does not hold on this path.
-- [ ] Test it the way the logging boundary is tested: resolve the shipped YAML,
-      and prove the verifier refuses to start for each flag independently, so
-      each negative test fails for its own reason.
-- [ ] Decide whether the sanitizer should filter span attributes as well as
-      exception events. The spec states it does not. That was defensible when
-      every span came from `GraphRagEventSink`, whose record cannot hold text;
-      it is weaker now that Spring AI contributes spans this repository does not
-      construct. Record the outcome either way — an unfiltered attribute path
-      that nobody decided to leave open is worse than one that was.
+      block that already exists.
+- [x] Fail startup when any observation content flag resolves true. Built as
+      `ObservationContentBoundaryVerifier` rather than folded into
+      `ProviderLoggingBoundaryVerifier`: one reads a resolved logger level, the
+      other a resolved property, and a single verifier would have to explain both
+      in one failure message. The list covers all eight flags, including the
+      image, tool-calling and vector-store families no path exercises today.
+- [x] Test it per flag, so each negative case fails for its own reason. Sixteen
+      cases in the module, plus a per-app test that reads the application's own
+      classpath metadata and fails when Spring AI declares an observation property
+      the verifier does not guard. Dropping one flag from the list was confirmed
+      to fail that test by name.
+- [x] Decide whether the sanitizer should filter span attributes as well as
+      exception events. **It should not**, and the reason is a correction to this
+      increment's own design: five of the six live flags write to the application
+      log rather than to a span, so attribute filtering would not have closed the
+      hole that prompted the question. Full reasoning in `design.md`.
 
-Gate: `:apps:api:test`, `:apps:worker:test`, and the existing provider-boundary
-tests in `integrations/graph-rag-observability`.
+Gate: `:apps:api:test`, `:apps:worker:test`,
+`:integrations:graph-rag-observability:test`.
 
 ## 2. Time to first token
 
@@ -64,9 +65,9 @@ because it measures the stream this application already returns.
 - [ ] Measure first emission on the assistant's streaming path. `AssistantService`
       already wraps the `Flux` it returns, so the measurement needs no port
       change; the destination does.
-- [ ] Hold it until phase 1 lands. TTFT is a number, but where it is published is
-      the open `GENERATE` boundary decision, and publishing it somewhere
-      convenient first would settle that question by accident.
+- [ ] Do not publish it until the `GENERATE` boundary decision below is taken.
+      TTFT is a number, but where it is published is that decision, and putting it
+      somewhere convenient first would settle the question by accident.
 
 ## 3. Rename the stack to shared infrastructure — needs the owner
 

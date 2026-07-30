@@ -45,6 +45,13 @@ logging is explicitly disabled in API and worker configuration, and the provider
 client packages are pinned above WARN because their own logging concatenates
 payload independently of Spring AI.
 
+Neither of those is the boundary; both are defaults a deployment outranks.
+`ObservationContentBoundaryVerifier` refuses to start when any Spring AI content
+flag resolves true, and `ProviderLoggingBoundaryVerifier` refuses to start when
+any provider leak site has WARN enabled. If either fires, the failure names the
+property or the class and the override to look for. Do not work around one by
+narrowing its list; the flag it names is capturing text somewhere.
+
 Before claiming Langfuse compatibility as verified:
 
 1. send one successful retrieval, one failed retrieval and one indexing job to
