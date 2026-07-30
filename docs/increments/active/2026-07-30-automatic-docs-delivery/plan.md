@@ -15,8 +15,11 @@
 - [x] Update current architecture, delivery guidance, and operator runbook.
 - [x] Pass local workflow, Node 24 public-docs, production build, and repository
       documentation checks.
-- [ ] Open the PR, address review, and pass all selected CI jobs.
-- [ ] Merge and observe the automatic image build and docs-only deployment.
+- [x] Open the PR, address review, and pass all selected CI jobs.
+- [x] Merge and observe automatic image publication and the docs-only
+      deployment rollback.
+- [x] Reconcile the first automatic rollback: the candidate was healthy, but
+      the publication verifier ignored localized sitemap routes.
 - [ ] Verify live health, English, Vietnamese, and Product Guides routes.
 - [ ] Record verification, archive this increment, and update the roadmap.
 
