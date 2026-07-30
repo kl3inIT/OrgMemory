@@ -92,6 +92,10 @@
   public issuer.
 - [x] Web login redirects through `auth.kl3in.tech` and returns to
   `om.kl3in.tech`.
+- [x] Exact SPA routes that collide with Vite output directories remain
+      reachable. The web Nginx config serves `/assets` and `/assets/` from the
+      SPA shell while `/assets/*` remains immutable static content, and the
+      Docker-backed proxy regression covers all three paths.
 - [ ] One upload reaches `READY`, GraphRAG indexing completes, Assistant
   retrieval returns a citation, and denied evidence remains absent.
 - [ ] VPS memory, PostgreSQL connections, JVM heap, restart behavior, and image

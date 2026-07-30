@@ -11,11 +11,17 @@ tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-forwarded-port.XXXXXX")"
 web_config_path="$repo_root/apps/web/nginx.conf"
 api_config_path="$tmp_dir/api.conf"
+web_root_path="$tmp_dir/html"
+
+mkdir -p "$web_root_path/assets"
+printf 'orgmemory-spa-shell\n' >"$web_root_path/index.html"
+printf 'orgmemory-static-asset\n' >"$web_root_path/assets/app.js"
 
 if command -v cygpath >/dev/null 2>&1; then
   export MSYS_NO_PATHCONV=1
   web_config_path="$(cygpath -w "$web_config_path")"
   api_config_path="$(cygpath -w "$api_config_path")"
+  web_root_path="$(cygpath -w "$web_root_path")"
 fi
 
 cleanup() {
@@ -59,6 +65,7 @@ docker run --detach --rm \
   --name "$web_container" \
   --network "$network" \
   --volume "$web_config_path:/etc/nginx/conf.d/default.conf:ro" \
+  --volume "$web_root_path:/usr/share/nginx/html:ro" \
   "$runtime_image" >/dev/null
 
 ready=false
@@ -76,6 +83,22 @@ if [[ "$ready" != "true" ]]; then
   docker logs "$web_container" >&2
   exit 1
 fi
+
+assert_body() {
+  local path="$1"
+  local expected="$2"
+  local body
+
+  body="$(
+    docker exec "$web_container" \
+      wget -q -O - "http://127.0.0.1:8080${path}"
+  )"
+  [[ "$body" == "$expected" ]]
+}
+
+assert_body /assets orgmemory-spa-shell
+assert_body /assets/ orgmemory-spa-shell
+assert_body /assets/app.js orgmemory-static-asset
 
 assert_forwarded_port() {
   local expected="$1"

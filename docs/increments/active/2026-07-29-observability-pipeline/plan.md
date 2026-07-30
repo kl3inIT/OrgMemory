@@ -241,6 +241,12 @@ belong with the collector, because the collector is what would show them.
       the other two services. Without them a third service would have begun
       exporting metrics to `localhost:4318` every minute — reintroducing exactly
       the production symptom this increment opened to fix.
+- [x] Repair the production-profile regression found during the next immutable
+      deployment. The added OpenTelemetry setting had been placed in a second
+      top-level `management` mapping, which Spring Boot rejects as duplicate
+      YAML before the MCP process can start. The setting now lives in the
+      existing mapping, and `ApplicationConfigurationTests` loads both shipped
+      YAML files so this class of image-only failure is caught in CI.
 - [x] Proved: context reaches a fresh virtual thread, an undecorated task shows
       the fixture would have caught a no-op, capture happens at decoration rather
       than execution, and the scope closes so one job cannot leak into the next.
