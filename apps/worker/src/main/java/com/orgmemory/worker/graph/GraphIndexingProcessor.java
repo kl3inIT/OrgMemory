@@ -18,6 +18,9 @@ import com.orgmemory.graphrag.model.ExtractionRoundMetrics;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionEmbeddings;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
@@ -64,6 +67,8 @@ class GraphIndexingProcessor {
     private final AiRouteResolver routes;
     private final GraphIndexingProperties properties;
     private final GraphRagEventSink events;
+    private final GraphRagTaskDecorator tasks;
+    private final ObjectProvider<Tracer> tracers;
 
     @Autowired
     GraphIndexingProcessor(
@@ -73,7 +78,9 @@ class GraphIndexingProcessor {
             ObjectProvider<EmbeddingModel> embeddingModels,
             AiRouteResolver routes,
             GraphIndexingProperties properties,
-            ObjectProvider<GraphRagEventSink> eventSinks) {
+            ObjectProvider<GraphRagEventSink> eventSinks,
+            ObjectProvider<GraphRagTaskDecorator> taskDecorators,
+            ObjectProvider<Tracer> tracers) {
         this(
                 coordinator,
                 publications,
@@ -82,7 +89,9 @@ class GraphIndexingProcessor {
                 routes,
                 properties,
                 GraphRagEventSink.failureTolerant(
-                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())));
+                        GraphRagEventSink.composite(eventSinks.orderedStream().toList())),
+                taskDecorators.getIfAvailable(() -> GraphRagTaskDecorator.NONE),
+                tracers);
     }
 
     GraphIndexingProcessor(
@@ -93,6 +102,28 @@ class GraphIndexingProcessor {
             AiRouteResolver routes,
             GraphIndexingProperties properties,
             GraphRagEventSink events) {
+        this(
+                coordinator,
+                publications,
+                extractors,
+                embeddingModels,
+                routes,
+                properties,
+                events,
+                GraphRagTaskDecorator.NONE,
+                null);
+    }
+
+    GraphIndexingProcessor(
+            GraphIndexingCoordinator coordinator,
+            GraphPublicationCommitter publications,
+            GraphExtractorFactory extractors,
+            ObjectProvider<EmbeddingModel> embeddingModels,
+            AiRouteResolver routes,
+            GraphIndexingProperties properties,
+            GraphRagEventSink events,
+            GraphRagTaskDecorator tasks,
+            ObjectProvider<Tracer> tracers) {
         this.coordinator = coordinator;
         this.publications = publications;
         this.extractors = extractors;
@@ -100,11 +131,39 @@ class GraphIndexingProcessor {
         this.routes = routes;
         this.properties = properties;
         this.events = Objects.requireNonNull(events, "events");
+        this.tasks = Objects.requireNonNull(tasks, "tasks");
+        this.tracers = tracers;
     }
 
     void processNext() {
         coordinator.claimNext(properties.workerId(), properties.leaseDuration())
-                .ifPresent(this::process);
+                .ifPresent(this::processInSpan);
+    }
+
+    /**
+     * Opens one span per claimed job so every stage below it has a parent.
+     *
+     * <p>The worker is not serving a request, so nothing else creates a trace here: without
+     * this, each stage span was a root of its own and a job's work could not be reassembled
+     * from the trace at all. Only the job identifier goes on it — the same one the stage
+     * events carry — because a root span is subject to the same payload boundary as the rest.
+     */
+    private void processInSpan(ClaimedGraphIndex claim) {
+        Tracer tracer = tracers == null ? null : tracers.getIfAvailable();
+        if (tracer == null) {
+            process(claim);
+            return;
+        }
+        Span span = tracer.nextSpan()
+                .name("orgmemory.graph_rag.index")
+                .tag("orgmemory.graph_rag.operation_id", claim.jobId().toString())
+                .tag("orgmemory.graph_rag.organization_id", claim.organizationId().toString())
+                .start();
+        try (Tracer.SpanInScope ignored = tracer.withSpan(span)) {
+            process(claim);
+        } finally {
+            span.end();
+        }
     }
 
     private void process(ClaimedGraphIndex claim) {
@@ -129,7 +188,8 @@ class GraphIndexingProcessor {
                     GraphRagEventSink.Stage.EXTRACT,
                     claim.chunks().size(),
                     () -> extractChunks(claim, extractionProfile, extractor),
-                    List::size);
+                    List::size,
+                    GraphIndexingProcessor::firstRoundCost);
             emitGleaning(claim, extractionProfile, extracted);
             var contributions = observed(
                     claim,
@@ -210,6 +270,17 @@ class GraphIndexingProcessor {
             Callable<T> action,
             ToIntFunction<T> outputCount)
             throws Exception {
+        return observed(claim, stage, inputCount, action, outputCount, ignored -> null);
+    }
+
+    private <T> T observed(
+            ClaimedGraphIndex claim,
+            GraphRagEventSink.Stage stage,
+            int inputCount,
+            Callable<T> action,
+            ToIntFunction<T> outputCount,
+            Function<T, GraphRagEventSink.ProviderTokenUsage> providerTokens)
+            throws Exception {
         long startedAt = System.nanoTime();
         try {
             T result = action.call();
@@ -220,7 +291,8 @@ class GraphIndexingProcessor {
                     startedAt,
                     inputCount,
                     outputCount.applyAsInt(result),
-                    null);
+                    null,
+                    providerTokens.apply(result));
             return result;
         } catch (Exception failure) {
             GraphRagEventSink.Outcome outcome =
@@ -237,7 +309,8 @@ class GraphIndexingProcessor {
                     0,
                     outcome == GraphRagEventSink.Outcome.FAILED
                             ? stage.name().toLowerCase(Locale.ROOT) + "_failed"
-                            : null);
+                            : null,
+                    null);
             throw failure;
         }
     }
@@ -268,6 +341,8 @@ class GraphIndexingProcessor {
         }
         long elapsedNanos = 0;
         int completed = 0;
+        int inputTokens = 0;
+        int outputTokens = 0;
         for (ExtractedChunk chunk : extracted) {
             ExtractionDiagnostics diagnostics = chunk.result().diagnostics();
             if (diagnostics.gleaningOutcome()
@@ -279,6 +354,10 @@ class GraphIndexingProcessor {
                 if (round.round() > 0) {
                     elapsedNanos = Math.addExact(
                             elapsedNanos, round.elapsed().toNanos());
+                    inputTokens = Math.addExact(
+                            inputTokens, round.providerInputTokens());
+                    outputTokens = Math.addExact(
+                            outputTokens, round.providerOutputTokens());
                 }
             }
         }
@@ -295,10 +374,40 @@ class GraphIndexingProcessor {
                     null,
                     null,
                     null,
+                    null,
+                    new GraphRagEventSink.ProviderTokenUsage(inputTokens, outputTokens),
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {
             // Telemetry must never become an indexing availability dependency.
         }
+    }
+
+    /**
+     * The provider's own token counts for the first extraction round.
+     *
+     * <p>Retrieval publishes what answering a question costs; ingestion published nothing, so
+     * the half of the bill with a model call per chunk was the invisible half. The extractor
+     * already recorded these and nothing read them.
+     *
+     * <p>Round zero only, because the gleaning round is reported by its own stage and counting
+     * it here as well would bill the second round twice. Null when the extractor reported
+     * nothing: an unmeasured provider is not a free one, and a zero would chart as free.
+     */
+    private static GraphRagEventSink.ProviderTokenUsage firstRoundCost(
+            List<ExtractedChunk> extracted) {
+        int inputTokens = 0;
+        int outputTokens = 0;
+        for (ExtractedChunk chunk : extracted) {
+            for (ExtractionRoundMetrics round : chunk.result().diagnostics().rounds()) {
+                if (round.round() == 0) {
+                    inputTokens = Math.addExact(inputTokens, round.providerInputTokens());
+                    outputTokens = Math.addExact(outputTokens, round.providerOutputTokens());
+                }
+            }
+        }
+        return inputTokens == 0 && outputTokens == 0
+                ? null
+                : new GraphRagEventSink.ProviderTokenUsage(inputTokens, outputTokens);
     }
 
     private void emit(
@@ -308,7 +417,8 @@ class GraphIndexingProcessor {
             long startedAt,
             int inputCount,
             int outputCount,
-            String failureCode) {
+            String failureCode,
+            GraphRagEventSink.ProviderTokenUsage providerTokens) {
         try {
             events.emit(new GraphRagEventSink.GraphRagEvent(
                     claim.jobId(),
@@ -322,6 +432,8 @@ class GraphIndexingProcessor {
                     null,
                     null,
                     failureCode,
+                    null,
+                    providerTokens,
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {
             // Telemetry must never control indexing availability or retries.
@@ -368,7 +480,8 @@ class GraphIndexingProcessor {
                 int end = Math.min(
                         claim.chunks().size(), offset + properties.maximumConcurrency());
                 List<Future<ExtractedChunk>> futures = claim.chunks().subList(offset, end).stream()
-                        .map(chunk -> executor.submit(() -> extract(claim, profile, extractor, chunk)))
+                        .map(chunk -> executor.submit(tasks.decorate(
+                                () -> extract(claim, profile, extractor, chunk))))
                         .toList();
                 try {
                     for (Future<ExtractedChunk> future : futures) {

@@ -42,6 +42,7 @@ public final class MicrometerGraphRagEventSink implements GraphRagEventSink {
             "orgmemory.graph_rag.context.dropped_contributions";
     static final String CONTEXT_TRUNCATION_COUNTER =
             "orgmemory.graph_rag.context.truncations";
+    static final String MODEL_TOKEN_COUNTER = "orgmemory.graph_rag.model.tokens";
 
     private final MeterRegistry registry;
 
@@ -77,6 +78,21 @@ public final class MicrometerGraphRagEventSink implements GraphRagEventSink {
         if (event.tokenUsage() != null) {
             recordTokenUsage(event.tokenUsage());
         }
+
+        // Tagged by stage because that is a closed enum, and by direction because input and
+        // output tokens are priced differently by every provider — summing them into one number
+        // makes the meter unable to answer the only question it exists for.
+        if (event.providerTokens() != null) {
+            countModelTokens(event.stage(), "input", event.providerTokens().inputTokens());
+            countModelTokens(event.stage(), "output", event.providerTokens().outputTokens());
+        }
+    }
+
+    private void countModelTokens(Stage stage, String direction, int tokens) {
+        registry.counter(
+                        MODEL_TOKEN_COUNTER,
+                        Tags.of("stage", enumValue(stage), "direction", direction))
+                .increment(tokens);
     }
 
     private void recordTokenUsage(TokenUsage usage) {

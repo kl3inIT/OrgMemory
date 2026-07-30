@@ -83,13 +83,14 @@ public interface GraphRagEventSink {
             CacheStatus cacheStatus,
             String failureCode,
             TokenUsage tokenUsage,
+            ProviderTokenUsage providerTokens,
             Instant occurredAt) {
 
         /**
-         * Describes a stage that measures no tokens, which is every stage but
-         * context assembly. The overload exists so that adding a measurement one
-         * stage can take does not oblige the other stages to pass {@code null},
-         * where a reader would have to count commas to learn what was omitted.
+         * Describes a stage that measures no tokens at all, which is most of them.
+         * The overload exists so that adding measurements the few token-bearing
+         * stages take does not oblige the rest to pass a row of {@code null}s a
+         * reader would have to count commas through.
          */
         public GraphRagEvent(
                 UUID operationId,
@@ -116,6 +117,7 @@ public interface GraphRagEventSink {
                     scopeFingerprint,
                     cacheStatus,
                     failureCode,
+                    null,
                     null,
                     occurredAt);
         }
@@ -213,6 +215,33 @@ public interface GraphRagEventSink {
 
         public boolean truncated() {
             return droppedContributions > 0;
+        }
+    }
+
+    /**
+     * What a model provider reported for one stage's calls.
+     *
+     * <p>Separate from {@link TokenUsage} because the two answer different
+     * questions with the same unit. {@code TokenUsage} is a budget: what
+     * retrieval assembled, against the ceiling it had to fit. This is a bill:
+     * what a provider counted and will charge for. Folding them together would
+     * make a dashboard add a number the deployment estimated to a number a vendor
+     * invoiced, and the difference between those two is itself worth seeing.
+     *
+     * <p>Counts only, so it crosses the same boundary for the same reason: a
+     * total cannot reconstruct the prompt it totalled.
+     */
+    record ProviderTokenUsage(int inputTokens, int outputTokens) {
+
+        public ProviderTokenUsage {
+            if (inputTokens < 0 || outputTokens < 0) {
+                throw new IllegalArgumentException(
+                        "provider token counts must be non-negative");
+            }
+        }
+
+        public int totalTokens() {
+            return Math.addExact(inputTokens, outputTokens);
         }
     }
 

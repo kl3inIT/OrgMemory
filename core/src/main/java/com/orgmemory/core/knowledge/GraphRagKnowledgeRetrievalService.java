@@ -15,6 +15,7 @@ import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
 import com.orgmemory.graphrag.query.ContextTokenUsage;
 import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
@@ -67,6 +68,7 @@ public class GraphRagKnowledgeRetrievalService
     private final PermissionAuditService audit;
     private final KnowledgeRetrievalProperties retrievalProperties;
     private final GraphRagEventSink events;
+    private final GraphRagTaskDecorator tasks;
 
     public GraphRagKnowledgeRetrievalService(
             KnowledgeSearchAuthorizationService searchAuthorization,
@@ -81,6 +83,36 @@ public class GraphRagKnowledgeRetrievalService
             PermissionAuditService audit,
             KnowledgeRetrievalProperties retrievalProperties,
             GraphRagEventSink events) {
+        this(
+                searchAuthorization,
+                evidenceScopes,
+                authorization,
+                canonicalEvidence,
+                embeddingProfiles,
+                embedding,
+                publications,
+                engine,
+                policy,
+                audit,
+                retrievalProperties,
+                events,
+                GraphRagTaskDecorator.NONE);
+    }
+
+    public GraphRagKnowledgeRetrievalService(
+            KnowledgeSearchAuthorizationService searchAuthorization,
+            KnowledgeEvidenceScopeResolver evidenceScopes,
+            RelationshipAuthorizationSetPort authorization,
+            SecureKnowledgeRetrievalStore canonicalEvidence,
+            EmbeddingProfileRegistry embeddingProfiles,
+            KnowledgeEmbeddingProperties embedding,
+            ProjectionPublicationStore publications,
+            LightRagQueryEngine engine,
+            GraphRagRetrievalPolicy policy,
+            PermissionAuditService audit,
+            KnowledgeRetrievalProperties retrievalProperties,
+            GraphRagEventSink events,
+            GraphRagTaskDecorator tasks) {
         this.searchAuthorization = searchAuthorization;
         this.evidenceScopes = evidenceScopes;
         this.authorization = authorization;
@@ -93,6 +125,7 @@ public class GraphRagKnowledgeRetrievalService
         this.audit = audit;
         this.retrievalProperties = retrievalProperties;
         this.events = Objects.requireNonNull(events, "events");
+        this.tasks = Objects.requireNonNull(tasks, "tasks");
     }
 
     @Override
@@ -459,8 +492,8 @@ public class GraphRagKnowledgeRetrievalService
                 List<Future<SnapshotQueryResult>> futures =
                         requests.subList(offset, end)
                                 .stream()
-                                .map(request -> executor.submit(() ->
-                                        queryPublishedSpace(request, prepared)))
+                                .map(request -> executor.submit(tasks.decorate(() ->
+                                        queryPublishedSpace(request, prepared))))
                                 .toList();
                 try {
                     for (Future<SnapshotQueryResult> future : futures) {
@@ -624,6 +657,7 @@ public class GraphRagKnowledgeRetrievalService
                             grounding.chunkTokens(),
                             budget.maximumInputTokens(),
                             prepared.droppedContributions()),
+                    null,
                     Instant.now()));
         } catch (RuntimeException ignoredTelemetryFailure) {
             // Telemetry must never become a retrieval availability dependency.

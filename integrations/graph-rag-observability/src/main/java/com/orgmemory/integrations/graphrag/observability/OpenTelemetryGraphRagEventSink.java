@@ -59,6 +59,10 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
             AttributeKey.longKey("orgmemory.graph_rag.budget_tokens");
     static final AttributeKey<Long> DROPPED_CONTRIBUTIONS =
             AttributeKey.longKey("orgmemory.graph_rag.dropped_contributions");
+    static final AttributeKey<Long> MODEL_INPUT_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.model_input_tokens");
+    static final AttributeKey<Long> MODEL_OUTPUT_TOKENS =
+            AttributeKey.longKey("orgmemory.graph_rag.model_output_tokens");
 
     private final Tracer tracer;
 
@@ -103,6 +107,10 @@ public final class OpenTelemetryGraphRagEventSink implements GraphRagEventSink {
         }
         if (event.tokenUsage() != null) {
             recordTokenUsage(span, event.tokenUsage());
+        }
+        if (event.providerTokens() != null) {
+            span.setAttribute(MODEL_INPUT_TOKENS, event.providerTokens().inputTokens());
+            span.setAttribute(MODEL_OUTPUT_TOKENS, event.providerTokens().outputTokens());
         }
         if (event.outcome() == Outcome.FAILED) {
             span.setStatus(StatusCode.ERROR);

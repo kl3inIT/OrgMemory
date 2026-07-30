@@ -6,7 +6,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
+Reconciled: `2026-07-29-observability-pipeline (c4608b0)`.
 
 ## Automated
 
@@ -74,6 +74,19 @@ Reconciled: `2026-07-29-observability-pipeline (de29c9e)`.
   covers only the counts those events report: a timing assertion was tried and
   removed because on a small fixture, starting the chunk clock before parsing
   still satisfied every bound the test could state.
+- The whole-export allowlist test executes the runbook's release gate, which had
+  never been run. It walks the exported span — name, attributes, status, every
+  event and event attribute, instrumentation scope and resource — on a success
+  and a failure path, through the sanitizing exporter in the position it occupies
+  in production, and asserts realistic payload text appears nowhere. A companion
+  case exports an unmodelled attribute and asserts the gate fails, so the gate is
+  not passing by never looking.
+- Task-decorator tests prove a task on a fresh virtual thread sees the submitting
+  thread's context, that an undecorated task does not — so the fixture would have
+  caught a no-op — that capture happens at decoration rather than at execution,
+  and that the scope closes so one job's context cannot leak into the next task.
+- Provider-cost tests prove input and output tokens stay in separate series and
+  that a stage calling no provider records no meter at all.
 - Indexing telemetry tests prove the job emits extract, glean, merge, embed and
   publish in order; that `GLEAN` counts eligible chunks against chunks that
   completed a round, so a token guard declining one is visible; that its duration

@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     api(project(":components:graph-rag-core"))
+    implementation("io.micrometer:context-propagation")
     implementation("io.micrometer:micrometer-core")
     implementation("io.opentelemetry:opentelemetry-api")
     implementation("io.opentelemetry:opentelemetry-sdk-trace")

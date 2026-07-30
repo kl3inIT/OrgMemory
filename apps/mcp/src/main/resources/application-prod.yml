@@ -67,3 +67,9 @@ logging:
     root: ${ORGMEMORY_ROOT_LOG_LEVEL:INFO}
     com.orgmemory: ${ORGMEMORY_APP_LOG_LEVEL:DEBUG}
     org.springframework.security: ${ORGMEMORY_SECURITY_LOG_LEVEL:INFO}
+
+management:
+  opentelemetry:
+    # Production names its destination explicitly. Left on, an OTEL_* variable in
+    # the environment could point telemetry somewhere nobody chose.
+    map-environment-variables: false
