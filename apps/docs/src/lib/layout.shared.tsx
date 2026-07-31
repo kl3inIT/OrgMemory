@@ -14,7 +14,7 @@ export function baseOptions(language: DocsLanguage): BaseLayoutProps {
         text: language === 'vi' ? 'Nhật ký thay đổi' : 'Changelog',
         url: withLocale('/docs/changelog', language),
         icon: <HistoryIcon />,
-        active: 'url',
+        active: 'nested-url',
       },
     ],
   };
