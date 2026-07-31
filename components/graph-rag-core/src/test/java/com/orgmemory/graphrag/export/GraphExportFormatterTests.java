@@ -40,6 +40,24 @@ class GraphExportFormatterTests {
         assertFalse(artifact.content().contains("denied"));
     }
 
+    @Test
+    void csvNeutralizesSpreadsheetFormulaCells() {
+        GraphExportDocument.EntityRow entity = new GraphExportDocument.EntityRow(
+                uuid("formula-entity"),
+                "=HYPERLINK(\"https://example.test\")",
+                "+TYPE",
+                "@description",
+                List.of(evidence("formula")));
+
+        GraphExportFormatter.Artifact artifact = formatter.format(
+                new GraphExportDocument(List.of(entity), List.of()),
+                GraphExportFormat.CSV);
+
+        assertTrue(artifact.content().contains("\"'=HYPERLINK(\"\"https://example.test\"\")\""));
+        assertTrue(artifact.content().contains("\"'+TYPE\""));
+        assertTrue(artifact.content().contains("\"'@description\""));
+    }
+
     private static GraphExportDocument document(boolean reversed) {
         var first = new GraphExportDocument.EntityRow(
                 uuid("entity-a"),

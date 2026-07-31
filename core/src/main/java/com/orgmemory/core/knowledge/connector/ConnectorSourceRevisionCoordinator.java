@@ -70,7 +70,7 @@ class ConnectorSourceRevisionCoordinator {
                         content.externalObjectId())
                 .flatMap(source -> revisions
                         .findBySourceObjectIdAndContentSha256(source.getId(), contentSha256)
-                        .map(revision -> draft(source, revision, true)));
+                        .map(revision -> draft(source, revision)));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -111,7 +111,7 @@ class ConnectorSourceRevisionCoordinator {
         var existing = revisions.findBySourceObjectIdAndContentSha256(
                 source.getId(), stored.sha256());
         if (existing.isPresent()) {
-            return draft(source, existing.get(), true);
+            return draft(source, existing.get());
         }
 
         long revisionNumber = revisions.maximumRevisionNumber(source.getId()) + 1;
@@ -122,7 +122,7 @@ class ConnectorSourceRevisionCoordinator {
         // keeps serving the previous one until the chunks exist. Publication advances it.
         source.stageRevision(revision.getId());
         sources.saveAndFlush(source);
-        return draft(source, revision, false);
+        return draft(source, revision);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -157,8 +157,11 @@ class ConnectorSourceRevisionCoordinator {
     }
 
     private static ConnectorRevisionDraft draft(
-            SourceObject source, SourceRevision revision, boolean existing) {
+            SourceObject source, SourceRevision revision) {
         return new ConnectorRevisionDraft(
-                source.getId(), revision.getId(), revision.getRevisionNumber(), existing);
+                source.getId(),
+                revision.getId(),
+                revision.getRevisionNumber(),
+                revision.getStatus() == com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus.READY);
     }
 }

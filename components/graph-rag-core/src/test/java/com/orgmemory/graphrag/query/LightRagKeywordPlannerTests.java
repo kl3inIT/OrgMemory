@@ -29,6 +29,21 @@ class LightRagKeywordPlannerTests {
     }
 
     @Test
+    void emptyTrustedKeywordsRemainTrustedForShortQueries() {
+        RecordingModel model = new RecordingModel(
+                new KeywordPlan(List.of("ignored"), List.of("ignored"), KeywordPlan.Source.MODEL));
+        LightRagKeywordPlanner planner = new LightRagKeywordPlanner(model, "Vietnamese");
+
+        KeywordPlan result = planner.plan(
+                "probation policy",
+                KeywordPlan.empty(KeywordPlan.Source.TRUSTED_CALLER));
+
+        assertEquals(0, model.calls);
+        assertEquals(KeywordPlan.Source.TRUSTED_CALLER, result.source());
+        assertTrue(result.empty());
+    }
+
+    @Test
     void emptyModelResultFallsBackToTheOriginalShortQuery() {
         RecordingModel model = new RecordingModel(KeywordPlan.empty(KeywordPlan.Source.MODEL));
 

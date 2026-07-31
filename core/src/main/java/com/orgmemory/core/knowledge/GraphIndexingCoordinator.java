@@ -54,6 +54,10 @@ public class GraphIndexingCoordinator {
             return Optional.empty();
         }
         GraphIndexJob job = candidate.get();
+        if (job.cancellationRequested()) {
+            job.cancel(now);
+            return Optional.empty();
+        }
         if (job.getStatus() == GraphIndexJobStatus.PROCESSING
                 && !job.hasAttemptsRemaining()) {
             job.failExpiredLease(now);
@@ -77,7 +81,7 @@ public class GraphIndexingCoordinator {
         return claim;
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
     public void refreshLease(UUID jobId, String workerId, Duration leaseDuration) {
         Instant now = Instant.now();
         GraphIndexJob job = claimedJob(jobId, workerId, now);
@@ -85,7 +89,7 @@ public class GraphIndexingCoordinator {
         job.refreshLease(now, leaseDuration);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
     public void preparePublication(
             UUID jobId,
             String workerId,
@@ -98,7 +102,7 @@ public class GraphIndexingCoordinator {
         job.refreshLease(now, leaseDuration);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
     public void complete(UUID jobId, String workerId) {
         Instant now = Instant.now();
         GraphIndexJob job = claimedJob(jobId, workerId, now);

@@ -210,6 +210,13 @@ class ConnectorReconciler {
         }
         ConnectorHeadView current = head.get();
         if (content.contentRevision().equals(current.currentContentRevision())) {
+            boolean published = revisionCoordinator
+                    .findExisting(ctx, content, sha256(content.body()))
+                    .map(ConnectorRevisionDraft::published)
+                    .orElse(false);
+            if (!published) {
+                return rematerialize(ctx, current, content, plan);
+            }
             return rotate(ctx, current, plan, content.externalObjectId());
         }
         return rematerialize(ctx, current, content, plan);
@@ -407,46 +414,37 @@ class ConnectorReconciler {
             }
         }
 
-        try {
-            List<String> texts = chunk(content.body());
-            ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
-            List<float[]> vectors = embedding.vectors();
-            if (vectors.size() != texts.size()) {
-                throw new IllegalStateException("connector embedding count did not match the chunk count");
-            }
-            List<KnowledgeChunkDraft> drafts = new ArrayList<>(texts.size());
-            for (int index = 0; index < texts.size(); index++) {
-                drafts.add(new KnowledgeChunkDraft(
-                        index, texts.get(index), sha256(texts.get(index)), null, null, null, null, vectors.get(index)));
-            }
-            KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
-                    ctx.organizationId(),
-                    ctx.knowledgeSpaceId(),
-                    draft.sourceObjectId(),
-                    draft.sourceRevisionId(),
-                    normalized.normalizedRecordId(),
-                    ctx.actorUserId(),
-                    embedding.profile(),
-                    PIPELINE_VERSION,
-                    drafts));
-            revisionCoordinator.complete(
-                    draft,
-                    PIPELINE_VERSION,
-                    PARSER.toString(),
-                    CHUNKER.toString(),
-                    connectorProcessingProfile(content, embedding.profile()),
-                    embedding.profile(),
-                    raw,
-                    normalized,
-                    asset);
-        } catch (RuntimeException failure) {
-            try {
-                objects.delete(key);
-            } catch (ObjectStorageException cleanupFailure) {
-                failure.addSuppressed(cleanupFailure);
-            }
-            throw failure;
+        List<String> texts = chunk(content.body());
+        ConnectorEmbeddingResult embedding = requireEmbedder().embed(ctx.organizationId(), texts);
+        List<float[]> vectors = embedding.vectors();
+        if (vectors.size() != texts.size()) {
+            throw new IllegalStateException("connector embedding count did not match the chunk count");
         }
+        List<KnowledgeChunkDraft> drafts = new ArrayList<>(texts.size());
+        for (int index = 0; index < texts.size(); index++) {
+            drafts.add(new KnowledgeChunkDraft(
+                    index, texts.get(index), sha256(texts.get(index)), null, null, null, null, vectors.get(index)));
+        }
+        KnowledgeAssetRef asset = publications.publish(new PublishKnowledgeAssetCommand(
+                ctx.organizationId(),
+                ctx.knowledgeSpaceId(),
+                draft.sourceObjectId(),
+                draft.sourceRevisionId(),
+                normalized.normalizedRecordId(),
+                ctx.actorUserId(),
+                embedding.profile(),
+                PIPELINE_VERSION,
+                drafts));
+        revisionCoordinator.complete(
+                draft,
+                PIPELINE_VERSION,
+                PARSER.toString(),
+                CHUNKER.toString(),
+                connectorProcessingProfile(content, embedding.profile()),
+                embedding.profile(),
+                raw,
+                normalized,
+                asset);
     }
 
     private static DocumentProcessingProfileSnapshot connectorProcessingProfile(

@@ -162,7 +162,7 @@ public class KnowledgeIngestionService {
                     payloadSha,
                     canonicalSourceUri,
                     sourceModifiedAt,
-                    aclValidUntil,
+                    allowExternalPrincipals ? snapshot.getValidUntil() : aclValidUntil,
                     aclSha)) {
                 throw new KnowledgeIngestionConflictException(
                         "The source revision already exists with different content or security metadata");

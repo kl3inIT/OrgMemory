@@ -240,6 +240,20 @@ class GraphIndexingCoordinatorTests {
     }
 
     @Test
+    void expiredCancelledJobIsMadeTerminalInsteadOfBlockingTheQueue() {
+        job.claim(
+                "lost-worker",
+                Instant.parse("2026-07-23T00:00:00Z"),
+                Duration.ofSeconds(1));
+        job.requestCancellation(Instant.parse("2026-07-23T00:00:01Z"));
+
+        assertTrue(coordinator
+                .claimNext("worker-b", Duration.ofMinutes(5))
+                .isEmpty());
+        assertEquals(GraphIndexJobStatus.CANCELLED, job.getStatus());
+    }
+
+    @Test
     void failedCurrentJobCanResumeWithFreshRetryBudget() {
         coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
         while (job.getStatus() != GraphIndexJobStatus.FAILED) {

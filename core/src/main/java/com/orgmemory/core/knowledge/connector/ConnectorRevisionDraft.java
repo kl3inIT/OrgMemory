@@ -6,5 +6,5 @@ record ConnectorRevisionDraft(
         UUID sourceObjectId,
         UUID sourceRevisionId,
         long revisionNumber,
-        boolean existing) {
+        boolean published) {
 }
