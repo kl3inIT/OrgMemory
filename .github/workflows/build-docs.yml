@@ -172,15 +172,18 @@ jobs:
             --arg commitSha "$COMMIT_SHA" \
             --arg reference "ghcr.io/kl3init/orgmemory-docs:sha-$COMMIT_SHA" \
             --arg digest "$DIGEST" \
+            --arg sourceSha "$COMMIT_SHA" \
             '{
               commitSha: $commitSha,
               image: {
                 reference: $reference,
-                digest: $digest
+                digest: $digest,
+                sourceSha: $sourceSha
               }
             }' > docs-release.json
           jq -e \
-            '.image.digest | test("^sha256:[0-9a-f]{64}$")' \
+            '(.image.digest | test("^sha256:[0-9a-f]{64}$")) and
+             (.image.sourceSha | test("^[0-9a-f]{40}$"))' \
             docs-release.json >/dev/null
           jq . docs-release.json
 

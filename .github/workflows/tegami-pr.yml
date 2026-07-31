@@ -1,0 +1,49 @@
+name: Tegami PR Preview
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tegami-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Generate release preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.0.9
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate read-only release preview
+        run: pnpm release pr preview --artifact tegami-pr-preview.md
+
+      - name: Upload release preview
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: tegami-pr-preview
+          path: tegami-pr-preview.md
+          if-no-files-found: error
+          retention-days: 3

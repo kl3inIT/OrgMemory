@@ -1,0 +1,67 @@
+name: Tegami PR Comment
+
+on:
+  workflow_run:
+    workflows:
+      - Tegami PR Preview
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tegami-pr-comment-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_branch || github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  comment:
+    name: Post release preview
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v6.0.9
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download untrusted preview as data only
+        id: preview
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          preview_dir="$RUNNER_TEMP/tegami-pr-preview-$RUN_ID"
+          mkdir "$preview_dir"
+          gh run download "$RUN_ID" --name tegami-pr-preview --dir "$preview_dir"
+          mapfile -d '' entries < <(find "$preview_dir" -mindepth 1 -maxdepth 1 -print0)
+          [[ "${#entries[@]}" -eq 1 ]]
+          preview_file="${entries[0]}"
+          [[ "$(basename "$preview_file")" == "tegami-pr-preview.md" ]]
+          [[ -f "$preview_file" && ! -L "$preview_file" ]]
+          printf 'path=%s\n' "$preview_file" >> "$GITHUB_OUTPUT"
+
+      - name: Post or update release preview
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_PATH: ${{ steps.preview.outputs.path }}
+        run: pnpm release pr comment "$PREVIEW_PATH"
