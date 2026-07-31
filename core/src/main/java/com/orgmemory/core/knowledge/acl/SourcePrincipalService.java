@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.SourceIdentityObservation;
+import com.orgmemory.core.knowledge.connector.SourceIdentityObservation;
 
 import java.util.UUID;
 import org.springframework.stereotype.Service;

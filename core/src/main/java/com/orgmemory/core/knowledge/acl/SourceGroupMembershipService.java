@@ -4,8 +4,8 @@ import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution;
 import com.orgmemory.core.knowledge.connector.ConnectorIngestionContext;
 import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
-import com.orgmemory.core.knowledge.SourceMembershipSyncRun;
-import com.orgmemory.core.knowledge.SourceMembershipSyncRunRepository;
+import com.orgmemory.core.knowledge.connector.SourceMembershipSyncRun;
+import com.orgmemory.core.knowledge.connector.SourceMembershipSyncRunRepository;
 
 import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.ResolvedPrincipal;
 import jakarta.persistence.EntityManager;

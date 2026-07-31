@@ -71,7 +71,7 @@ tests passed; `:core:test` passed; and the terminating repository-wide
 `clean test` completed successfully in 6m46s across 108 tasks. The docs
 operating-model check passed. The pull request contains 84 changed files.
 
-## Current Pull Request Gates
+## Fourth Pull Request Evidence
 
 - Connector contracts, crawl batch state, source profiles and registries, and
   ingestion orchestration form the first half of the open
@@ -89,3 +89,22 @@ worker connector integration suite passed; `:core:test` passed; and the
 terminating repository-wide `clean test` completed successfully in 5m55s
 across 108 tasks. The docs operating-model and mechanical source checks passed.
 The pull request contains 88 changed files.
+
+## Current Pull Request Gates
+
+- Crawl attempt/checkpoint persistence, source connection administration and
+  credentials, connector identity observations, and membership sync runs join
+  the existing open `knowledge.connector` nested module.
+- Production and test code compile under the new fully qualified names without
+  widening additional implementation details.
+- Focused connector, ACL, adapter, worker, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the next Knowledge slice starts.
+
+Local verification on 2026-08-01: all production and test sources compiled;
+focused connector, ACL, API admin, worker checkpoint, adapter, and Modulith
+tests passed; `:core:test` passed; and the terminating repository-wide
+`clean test` completed successfully in 6m24s across 108 tasks. The docs
+operating-model and mechanical source checks passed. The pull request contains
+44 changed files.

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
 /**
  * How a driver finished with one crawl batch.

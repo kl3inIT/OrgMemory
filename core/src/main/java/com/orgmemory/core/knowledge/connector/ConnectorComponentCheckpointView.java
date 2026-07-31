@@ -1,7 +1,5 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 
 import java.time.Instant;
 

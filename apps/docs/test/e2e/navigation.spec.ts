@@ -66,10 +66,12 @@ test('public corpus exposes the section switcher and focused page tree', async (
     'Product Guides',
     'Architecture & Security',
     'Reference',
-    'Organizational AI Memory Release Notes',
   ]) {
     await expect(page.getByText(section, { exact: true }).last()).toBeVisible();
   }
+  await expect(
+    page.getByText('Organizational AI Memory Release Notes', { exact: true }),
+  ).toHaveCount(0);
   if (testInfo.project.name === 'chromium') {
     await expect(page.getByText('On this page')).toBeVisible();
   }
@@ -346,6 +348,9 @@ test('global changelog navigation is localized and renders Tegami history', asyn
     await page.getByRole('link', { name: localized.label, exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`${localized.href}$`));
     await expect(
+      page.getByRole('link', { name: localized.label, exact: true }).first(),
+    ).toHaveAttribute('data-active', 'true');
+    await expect(
       page.getByRole('heading', {
         level: 2,
         name: `Organizational AI Memory v${currentProduct.version}`,
@@ -362,7 +367,9 @@ test('global changelog navigation is localized and renders Tegami history', asyn
         .first()
         .click();
     }
-    await expect(page.getByRole('button', { name: new RegExp(localized.root) }).first()).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: localized.root, exact: true }),
+    ).toHaveCount(0);
     await expect(page.getByRole('link', { name: localized.latest, exact: true })).toBeVisible();
     const currentVersionLink = page.getByRole('link', {
       name: `v${currentProduct.version}`,
@@ -383,14 +390,37 @@ test('global changelog navigation is localized and renders Tegami history', asyn
   }
 });
 
-test('release archive is an internal localized public route', async ({ page }) => {
+test('release archive is an internal localized public route', async ({ page }, testInfo) => {
   for (const localized of [
-    { route: '/docs/changelog/archive', heading: 'Older releases' },
-    { route: '/vi/docs/changelog/archive', heading: 'Các bản cũ hơn' },
+    {
+      route: '/docs/changelog/archive',
+      heading: 'Older releases',
+      label: 'Changelog',
+      root: 'Organizational AI Memory Release Notes',
+    },
+    {
+      route: '/vi/docs/changelog/archive',
+      heading: 'Các bản cũ hơn',
+      label: 'Nhật ký thay đổi',
+      root: 'Ghi chú phát hành Organizational AI Memory',
+    },
   ]) {
     await page.goto(localized.route);
     await expect(page.getByRole('heading', { level: 1, name: localized.heading })).toBeVisible();
     await expect(page.getByText('No releases have moved to the archive yet.')).toBeVisible();
+    if (testInfo.project.name === 'mobile-chromium') {
+      await page
+        .getByRole('button', {
+          name: localized.route.startsWith('/vi/') ? 'Mở thanh bên' : 'Open Sidebar',
+        })
+        .click();
+    }
+    await expect(
+      page.getByRole('link', { name: localized.label, exact: true }).first(),
+    ).toHaveAttribute('data-active', 'true');
+    await expect(
+      page.getByRole('button', { name: localized.root, exact: true }),
+    ).toHaveCount(0);
   }
 });
 

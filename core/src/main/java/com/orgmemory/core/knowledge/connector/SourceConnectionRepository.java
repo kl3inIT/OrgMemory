@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
 import java.util.List;
 import java.util.Optional;

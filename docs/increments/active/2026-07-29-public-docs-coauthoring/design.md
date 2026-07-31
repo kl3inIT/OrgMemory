@@ -69,9 +69,11 @@ Use four documentation categories adapted from the Diátaxis reader needs:
 Deployment & Operations remains a Guides subgroup until it has enough reviewed
 material to justify an independent documentation category. Changelog remains a
 global navigation link and also uses a Fumadocs root context containing Latest,
-recent versions, and the internal archive. That presentation root keeps the
-area selector visible and gives release history a focused tree; it is not a
-fifth Diátaxis documentation category.
+recent versions, and the internal archive. That presentation root gives release
+history a focused tree but is filtered out of the category switcher; it is not
+a fifth Diátaxis documentation category. Because Changelog has no active
+documentation category, its routes intentionally omit the category switcher.
+The persistent global Changelog link remains active throughout that subtree.
 
 ### Strongest Counterargument
 
@@ -94,10 +96,12 @@ Promote a subgroup only after real reviewed pages and reader demand justify it.
 The rejected documentation alternative is retaining the five audience-based
 roots and documenting their overlap. That would describe the inconsistency
 rather than remove it. For Changelog specifically, the rejected alternative is
-a custom runtime sidebar or a GitHub-hosted archive: the former duplicates
-Fumadocs navigation behavior, while the latter makes public history depend on
-repository visibility. The independent evidence and must-fix constraints are
-recorded in [challenge-verdict.md](challenge-verdict.md).
+a custom runtime sidebar, a visible fifth category, or a GitHub-hosted archive:
+the first duplicates Fumadocs navigation behavior, the second misstates the
+information architecture, and the third makes public history depend on
+repository visibility. The independent evidence for this standalone surface is
+recorded in
+[changelog-global-surface-challenge-verdict.md](changelog-global-surface-challenge-verdict.md).
 
 ## Public And Private Documentation Boundary
 
