@@ -9,6 +9,7 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
 
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
@@ -137,7 +138,7 @@ class GraphIndexingCoordinatorTests {
                         ASSET_ID,
                         VERSION_ID,
                         1))
-                .thenReturn(List.of(new GraphIndexChunk(
+                .thenReturn(List.of(new KnowledgeChunkProjection(
                         CHUNK_ID,
                         0,
                         "Current chunk",
@@ -156,6 +157,9 @@ class GraphIndexingCoordinatorTests {
         assertEquals(REVISION_ID, claim.sourceRevisionId());
         assertEquals(ACL_SNAPSHOT_ID, claim.aclSnapshotId());
         assertEquals(9L, claim.aclGeneration());
+        assertEquals(CHUNK_ID, claim.chunks().getFirst().id());
+        assertEquals("Current chunk", claim.chunks().getFirst().content());
+        assertEquals(1536, claim.chunks().getFirst().embedding().dimensions());
         assertEquals(GraphIndexJobStatus.PROCESSING, job.getStatus());
 
         coordinator.fail(

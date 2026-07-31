@@ -131,6 +131,9 @@ retrieval evidence scope and canonical recheck, Knowledge Asset chunk
 projection, connector reconciliation, and source ingestion. The nested module
 starts open, and structural tests pin both its current consumer types and the
 internal graph types they consume so this migration debt cannot grow silently.
+The asset-owned projection store returns a graph-neutral
+`KnowledgeChunkProjection`; `knowledge.graph` maps that value into
+`GraphIndexChunk`, preventing a reciprocal Asset-to-Graph dependency.
 
 ## Strongest Counterargument
 

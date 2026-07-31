@@ -76,14 +76,11 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
                         "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator"),
                 consumerTypes);
         assertEquals(
-                Set.of(
-                        "com.orgmemory.core.knowledge.graph.GraphIndexChunk",
-                        "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue"),
+                Set.of("com.orgmemory.core.knowledge.graph.GraphIndexJobQueue"),
                 consumedInternalTypes);
     }
 
@@ -131,6 +128,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
                         "com.orgmemory.core.knowledge.asset.KnowledgeContentType",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
