@@ -1,13 +1,14 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalAdminService;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingMethod;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingStatus;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalView;
+
 import com.orgmemory.core.knowledge.SourceConnectionView;
 import com.orgmemory.core.knowledge.SourceGroupView;
 import com.orgmemory.core.knowledge.SourceIdentityTrust;
-import com.orgmemory.core.knowledge.SourcePrincipalAdminService;
-import com.orgmemory.core.knowledge.SourcePrincipalKind;
-import com.orgmemory.core.knowledge.SourcePrincipalMappingMethod;
-import com.orgmemory.core.knowledge.SourcePrincipalMappingStatus;
-import com.orgmemory.core.knowledge.SourcePrincipalView;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;

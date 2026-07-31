@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
+
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.PermissionKey;

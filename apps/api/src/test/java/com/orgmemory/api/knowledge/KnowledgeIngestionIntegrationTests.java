@@ -1,5 +1,11 @@
 package com.orgmemory.api.knowledge;
 
+import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.RotateSourceAclCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclRotationRef;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
+
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.sourceledger.NormalizationIssue;
@@ -15,13 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus;
-import com.orgmemory.core.knowledge.RotateSourceAclCommand;
-import com.orgmemory.core.knowledge.SourceAclEntryCommand;
-import com.orgmemory.core.knowledge.SourceAclRotationRef;
-import com.orgmemory.core.knowledge.SourcePrincipalType;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;

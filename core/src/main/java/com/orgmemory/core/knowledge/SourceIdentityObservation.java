@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -8,7 +10,7 @@ import java.util.UUID;
  * available for it. Observation is not authorization; it only feeds the principal
  * registry and the matcher.
  */
-record SourceIdentityObservation(
+public record SourceIdentityObservation(
         UUID organizationId,
         String sourceSystem,
         String sourceConnectionKey,

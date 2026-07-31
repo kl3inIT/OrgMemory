@@ -1,5 +1,9 @@
 package com.orgmemory.worker.ingestion;
 
+import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
+
 import com.orgmemory.core.knowledge.sourceledger.ClaimedSourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
@@ -12,7 +16,6 @@ import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
 
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
-import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
@@ -22,8 +25,6 @@ import com.orgmemory.core.knowledge.KnowledgeChunkDraftAssembler;
 import com.orgmemory.core.knowledge.KnowledgeTextChunk;
 import com.orgmemory.core.knowledge.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.PublishKnowledgeAssetCommand;
-import com.orgmemory.core.knowledge.SourceAclEntryCommand;
-import com.orgmemory.core.knowledge.SourcePrincipalType;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.permission.AccessGate;

@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.AclAuthority;
+
 import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
 import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
 import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
