@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.util.List;

@@ -1,8 +1,8 @@
 package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.KnowledgeGraphExplorerService;
-import com.orgmemory.core.knowledge.KnowledgeGraphView;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphView;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;

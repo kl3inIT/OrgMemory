@@ -4,7 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-interface EmbeddingProfileRepository extends JpaRepository<EmbeddingProfile, UUID> {
+public interface EmbeddingProfileRepository extends JpaRepository<EmbeddingProfile, UUID> {
 
     Optional<EmbeddingProfile> findByOrganizationIdAndProfileKey(UUID organizationId, String profileKey);
 
