@@ -1,5 +1,17 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.RotateSourceAclCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclRotationRef;
+import com.orgmemory.core.knowledge.acl.SourceGroupMembershipService;
+import com.orgmemory.core.knowledge.acl.SourcePrincipal;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingService;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalRepository;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalService;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
+
 import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand;

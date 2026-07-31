@@ -69,6 +69,15 @@ Asset, graph, and retrieval boundaries. Existing sibling coordinators still
 call source-ledger entity/repository members directly; the later closing slices
 must replace those calls with intentional facades before removing `OPEN`.
 
+## Third Delivery Slice
+
+The third code pull request moves source ACL snapshots and heads, external
+principal mappings, and source group-membership evidence into
+`knowledge.acl`. Connector observations, crawl context, source connections,
+and sync-run orchestration remain in the future `knowledge.connector` slice.
+The ACL module starts open; compiler-forced connector edges are recorded for
+facade extraction before either module is closed.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

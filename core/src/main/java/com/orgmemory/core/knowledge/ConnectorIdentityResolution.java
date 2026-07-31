@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipal;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -9,19 +12,19 @@ import java.util.UUID;
  * type is part of the key because a source may legally reuse the same opaque id namespace for a
  * user and a group.
  */
-record ConnectorIdentityResolution(
+public record ConnectorIdentityResolution(
         Map<PrincipalKey, ResolvedPrincipal> principals) {
 
-    ConnectorIdentityResolution {
+    public ConnectorIdentityResolution {
         principals = Map.copyOf(principals);
     }
 
-    ResolvedPrincipal find(SourcePrincipalKind kind, String nativePrincipalId) {
+    public ResolvedPrincipal find(SourcePrincipalKind kind, String nativePrincipalId) {
         return principals.get(new PrincipalKey(kind, nativePrincipalId));
     }
 
     /** A resolved external principal: its registry id and observed kind. */
-    record ResolvedPrincipal(UUID id, SourcePrincipalKind kind) {
+    public record ResolvedPrincipal(UUID id, SourcePrincipalKind kind) {
     }
 
     record PrincipalKey(SourcePrincipalKind kind, String nativePrincipalId) {

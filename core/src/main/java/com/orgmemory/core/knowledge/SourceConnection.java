@@ -18,7 +18,7 @@ import org.hibernate.type.SqlTypes;
  */
 @Entity
 @Table(name = "source_connections")
-class SourceConnection extends BaseEntity {
+public class SourceConnection extends BaseEntity {
 
     private static final String EMPTY_CONFIG = "{}";
 
@@ -79,7 +79,7 @@ class SourceConnection extends BaseEntity {
     protected SourceConnection() {
     }
 
-    SourceConnection(UUID organizationId, String sourceSystem, String sourceConnectionKey) {
+    public SourceConnection(UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         super(UUID.randomUUID());
         this.organizationId = organizationId;
         this.sourceSystem = sourceSystem;
@@ -161,7 +161,8 @@ class SourceConnection extends BaseEntity {
         return contentCrawlRequestedAt;
     }
 
-    void decideTrust(SourceIdentityTrust identityTrust, UUID decidedByUserId, Instant decidedAt) {
+    public void decideTrust(
+            SourceIdentityTrust identityTrust, UUID decidedByUserId, Instant decidedAt) {
         this.identityTrust = identityTrust;
         if (identityTrust == SourceIdentityTrust.UNTRUSTED) {
             this.trustDecidedByUserId = null;
@@ -176,23 +177,23 @@ class SourceConnection extends BaseEntity {
         return organizationId;
     }
 
-    String getSourceSystem() {
+    public String getSourceSystem() {
         return sourceSystem;
     }
 
-    String getSourceConnectionKey() {
+    public String getSourceConnectionKey() {
         return sourceConnectionKey;
     }
 
-    SourceIdentityTrust getIdentityTrust() {
+    public SourceIdentityTrust getIdentityTrust() {
         return identityTrust;
     }
 
-    UUID getTrustDecidedByUserId() {
+    public UUID getTrustDecidedByUserId() {
         return trustDecidedByUserId;
     }
 
-    Instant getTrustDecidedAt() {
+    public Instant getTrustDecidedAt() {
         return trustDecidedAt;
     }
 }

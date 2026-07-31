@@ -1,5 +1,7 @@
 package com.orgmemory.connectors.googledrive;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import com.orgmemory.connectors.ContentCadence;
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
 import com.orgmemory.core.knowledge.ConnectorBatchSource;
@@ -16,7 +18,6 @@ import com.orgmemory.core.knowledge.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.ConnectorSyncComponent;
-import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

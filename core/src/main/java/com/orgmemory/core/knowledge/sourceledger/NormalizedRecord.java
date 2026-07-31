@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.SourceAclSnapshot;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
+
 
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;

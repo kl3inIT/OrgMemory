@@ -1,7 +1,8 @@
 package com.orgmemory.api.admin;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalAdminService;
+
 import com.orgmemory.api.ApiRequestException;
-import com.orgmemory.core.knowledge.SourcePrincipalAdminService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;

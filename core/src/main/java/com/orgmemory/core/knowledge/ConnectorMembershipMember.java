@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 /** One typed member named by its stable source-owned principal id. */
 public record ConnectorMembershipMember(
         SourcePrincipalKind kind,

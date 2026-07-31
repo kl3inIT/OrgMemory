@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 /**
  * One source-owned identity observed by a crawl. Identity observation and membership capture
  * are deliberately separate contracts: seeing a group says nothing about whether its member

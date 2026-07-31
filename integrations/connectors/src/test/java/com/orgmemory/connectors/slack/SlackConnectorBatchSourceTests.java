@@ -1,5 +1,7 @@
 package com.orgmemory.connectors.slack;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -23,7 +25,6 @@ import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.ConnectorPoll;
 import com.orgmemory.core.knowledge.ConnectorSyncComponent;
-import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
 import java.time.Duration;

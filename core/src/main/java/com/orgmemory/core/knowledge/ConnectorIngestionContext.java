@@ -11,7 +11,7 @@ import java.util.UUID;
  * than looked up per object. That is also what keeps the reconciler free of any source's
  * name: everything it needs to know about where this batch came from is in the profile.
  */
-record ConnectorIngestionContext(
+public record ConnectorIngestionContext(
         UUID organizationId,
         ConnectorSourceProfile profile,
         String sourceConnectionKey,
@@ -29,7 +29,7 @@ record ConnectorIngestionContext(
                 batch.crawlCursor());
     }
 
-    String sourceSystem() {
+    public String sourceSystem() {
         return profile.sourceSystem();
     }
 }

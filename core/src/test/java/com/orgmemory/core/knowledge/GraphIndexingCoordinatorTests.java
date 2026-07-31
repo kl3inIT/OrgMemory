@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
+
 import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
