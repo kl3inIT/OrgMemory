@@ -278,10 +278,6 @@ class GraphIndexJob extends BaseEntity {
         return idempotencyKey;
     }
 
-    String getManifestFingerprint() {
-        return manifestFingerprint;
-    }
-
     Instant getCancellationRequestedAt() {
         return cancellationRequestedAt;
     }

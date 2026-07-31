@@ -214,14 +214,7 @@ public class KnowledgeEvidenceScopeResolver {
 
     private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
             ResolvedKnowledgeEvidenceScope scope) {
-        return new SecureKnowledgeRetrievalStore.RetrievalScope(
-                scope.organizationId(),
-                scope.actorUserId(),
-                scope.actorDepartmentId(),
-                scope.actorExecutive(),
-                scope.allAssetIds().stream().sorted().toList(),
-                scope.authorizationModelId(),
-                scope.evaluatedAt());
+        return scope.toRetrievalScope();
     }
 
     private static KnowledgeEvidenceScopeUnavailableException unavailable(

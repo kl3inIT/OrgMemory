@@ -134,7 +134,6 @@ class CitationContentServiceTests {
                     .thenReturn(new CanonicalEvidenceAuthorizationService
                             .Verification(
                             MODEL_ID,
-                            null,
                             List.of(candidate())));
         }
 

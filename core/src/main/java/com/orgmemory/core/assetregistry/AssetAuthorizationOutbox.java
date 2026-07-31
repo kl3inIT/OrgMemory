@@ -151,18 +151,6 @@ class AssetAuthorizationOutbox extends BaseEntity {
         return attemptCount;
     }
 
-    String getAuthorizationModelId() {
-        return authorizationModelId;
-    }
-
-    UUID getClaimToken() {
-        return claimToken;
-    }
-
-    Instant getLeaseUntil() {
-        return leaseUntil;
-    }
-
     Instant getNextAttemptAt() {
         return nextAttemptAt;
     }

@@ -30,8 +30,6 @@ class KnowledgeAssetLifecycleServiceTests {
 
     private final KnowledgeAssetRepository assets =
             mock(KnowledgeAssetRepository.class);
-    private final KnowledgeAssetVersionRepository versions =
-            mock(KnowledgeAssetVersionRepository.class);
     private final KnowledgeIngestionService ingestion =
             mock(KnowledgeIngestionService.class);
     private final RelationshipAuthorizationPort authorization =
@@ -46,7 +44,6 @@ class KnowledgeAssetLifecycleServiceTests {
     private final KnowledgeAssetLifecycleService service =
             new KnowledgeAssetLifecycleService(
                     assets,
-                    versions,
                     ingestion,
                     authorization,
                     modelCache,
@@ -55,13 +52,10 @@ class KnowledgeAssetLifecycleServiceTests {
     @BeforeEach
     void setUpAsset() {
         KnowledgeAsset asset = mock(KnowledgeAsset.class);
-        KnowledgeAssetVersion version = mock(KnowledgeAssetVersion.class);
         when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(asset));
         when(asset.getCurrentVersionId()).thenReturn(VERSION_ID);
         when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
-        when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
-                .thenReturn(Optional.of(version));
         when(ingestion.retire(ORGANIZATION_ID, ASSET_ID))
                 .thenReturn(new KnowledgeAssetRef(
                         ASSET_ID,

@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.storage;
 
+import static com.orgmemory.graphrag.validation.TextValidation.normalizeOptional;
+
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.util.Collection;
@@ -94,11 +96,4 @@ public interface LexicalIndex extends StagedProjectionWriter {
         return normalized;
     }
 
-    private static String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.strip();
-        return normalized.isEmpty() ? null : normalized;
-    }
 }

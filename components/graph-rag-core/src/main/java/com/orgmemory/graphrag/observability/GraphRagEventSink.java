@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.observability;
 
+import static com.orgmemory.graphrag.validation.TextValidation.normalizeOptional;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -282,11 +284,4 @@ public interface GraphRagEventSink {
         BYPASS
     }
 
-    private static String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.strip();
-        return normalized.isEmpty() ? null : normalized;
-    }
 }

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public class EffectiveAuthorizationService {
 
-    private static final String LOCAL_POLICY_VERSION = "orgmemory-boundary-v1";
+    static final String LOCAL_POLICY_VERSION = "orgmemory-boundary-v1";
 
     private final RelationshipAuthorizationPort relationships;
 

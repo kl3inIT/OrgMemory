@@ -1,6 +1,7 @@
 package com.orgmemory.core.authorization;
 
-import java.util.Objects;
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.util.regex.Pattern;
 
 public record RelationshipTuple(String user, String relation, String object) {
@@ -37,11 +38,4 @@ public record RelationshipTuple(String user, String relation, String object) {
         return normalized;
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

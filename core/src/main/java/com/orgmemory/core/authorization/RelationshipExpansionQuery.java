@@ -17,8 +17,4 @@ public record RelationshipExpansionQuery(ResourceRef resource, RelationName rela
         Objects.requireNonNull(resource, "resource");
         Objects.requireNonNull(relation, "relation");
     }
-
-    public static RelationshipExpansionQuery of(ResourceRef resource, PermissionKey permission) {
-        return new RelationshipExpansionQuery(resource, RelationName.of(permission));
-    }
 }

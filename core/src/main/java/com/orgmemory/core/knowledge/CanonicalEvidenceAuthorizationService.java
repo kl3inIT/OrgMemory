@@ -82,7 +82,6 @@ class CanonicalEvidenceAuthorizationService {
                 authorizationModelId);
         return new Verification(
                 authorizationModelId,
-                current,
                 currentCandidates);
     }
 
@@ -187,14 +186,7 @@ class CanonicalEvidenceAuthorizationService {
 
     private static SecureKnowledgeRetrievalStore.RetrievalScope
             retrievalScope(ResolvedKnowledgeEvidenceScope scope) {
-        return new SecureKnowledgeRetrievalStore.RetrievalScope(
-                scope.organizationId(),
-                scope.actorUserId(),
-                scope.actorDepartmentId(),
-                scope.actorExecutive(),
-                scope.allAssetIds().stream().sorted().toList(),
-                scope.authorizationModelId(),
-                scope.evaluatedAt());
+        return scope.toRetrievalScope();
     }
 
     private static CanonicalEvidenceAuthorizationException notVisible(
@@ -215,7 +207,6 @@ class CanonicalEvidenceAuthorizationService {
 
     record Verification(
             String authorizationModelId,
-            ResolvedKnowledgeEvidenceScope scope,
             List<SecureRetrievalCandidate> candidates) {
 
         Verification {

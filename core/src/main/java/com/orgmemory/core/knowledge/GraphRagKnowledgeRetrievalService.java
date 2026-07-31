@@ -796,14 +796,7 @@ public class GraphRagKnowledgeRetrievalService
             ResolvedKnowledgeEvidenceScope scope,
             List<LightRagGrounding.GroundingEvidence> closure) {
         return canonicalEvidence.recheck(
-                new SecureKnowledgeRetrievalStore.RetrievalScope(
-                        scope.organizationId(),
-                        scope.actorUserId(),
-                        scope.actorDepartmentId(),
-                        scope.actorExecutive(),
-                        scope.allAssetIds().stream().sorted().toList(),
-                        scope.authorizationModelId(),
-                        scope.evaluatedAt()),
+                scope.toRetrievalScope(),
                 closure.stream()
                         .map(candidate -> candidate.evidence().chunkId())
                         .toList());
@@ -1015,10 +1008,7 @@ public class GraphRagKnowledgeRetrievalService
     private static ProjectionNamespace namespace(
             UUID organizationId,
             UUID knowledgeSpaceId) {
-        return new ProjectionNamespace(
-                organizationId,
-                "default",
-                knowledgeSpaceId.toString());
+        return KnowledgeProjectionNamespaces.forSpace(organizationId, knowledgeSpaceId);
     }
 
 }

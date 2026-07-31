@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver;
 import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.ResolvedKnowledgeEvidenceScope;
@@ -344,14 +345,7 @@ public class KnowledgeGraphCurationService {
 
     private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
             ResolvedKnowledgeEvidenceScope scope) {
-        return new SecureKnowledgeRetrievalStore.RetrievalScope(
-                scope.organizationId(),
-                scope.actorUserId(),
-                scope.actorDepartmentId(),
-                scope.actorExecutive(),
-                scope.allAssetIds().stream().sorted().toList(),
-                scope.authorizationModelId(),
-                scope.evaluatedAt());
+        return scope.toRetrievalScope();
     }
 
     private void requireSpace(CurrentActor actor, UUID knowledgeSpaceId) {
@@ -386,7 +380,6 @@ public class KnowledgeGraphCurationService {
 
     private static ProjectionNamespace namespace(
             UUID organizationId, UUID knowledgeSpaceId) {
-        return new ProjectionNamespace(
-                organizationId, "default", knowledgeSpaceId.toString());
+        return KnowledgeProjectionNamespaces.forSpace(organizationId, knowledgeSpaceId);
     }
 }

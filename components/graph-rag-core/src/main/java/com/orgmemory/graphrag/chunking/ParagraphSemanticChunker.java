@@ -443,14 +443,17 @@ public final class ParagraphSemanticChunker
                 continue;
             }
             Draft previous = result.getLast();
-            String mergedContent = previous.content() + "\n" + draft.content();
             boolean sameOrDescendant = draft.level() >= previous.level();
             boolean mergeableRoles = previous.role().canMergeForward()
                     && draft.role().canMergeBackward();
             if (mergeableRoles
                     && sameOrDescendant
-                    && tokenizer.count(previous.content()) < ideal
-                    && tokenizer.count(mergedContent) <= maximum) {
+                    && tokenizer.count(previous.content()) < ideal) {
+                String mergedContent = previous.content() + "\n" + draft.content();
+                if (tokenizer.count(mergedContent) > maximum) {
+                    result.add(draft);
+                    continue;
+                }
                 result.set(
                         result.size() - 1,
                         new Draft(

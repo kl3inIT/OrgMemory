@@ -52,6 +52,17 @@ public record ResolvedKnowledgeEvidenceScope(
         return assetIdsByKnowledgeSpace.keySet();
     }
 
+    public SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
+        return new SecureKnowledgeRetrievalStore.RetrievalScope(
+                organizationId,
+                actorUserId,
+                actorDepartmentId,
+                actorExecutive,
+                allAssetIds().stream().sorted().toList(),
+                authorizationModelId,
+                evaluatedAt);
+    }
+
     public AuthorizedEvidenceScope forKnowledgeSpace(UUID knowledgeSpaceId) {
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         return new AuthorizedEvidenceScope(

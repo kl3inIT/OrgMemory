@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver;
 import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.ResolvedKnowledgeEvidenceScope;
 import com.orgmemory.core.authorization.PermissionKey;
@@ -14,7 +15,6 @@ import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
-import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.export.GraphExportFormat;
 import com.orgmemory.graphrag.export.GraphExportFormatter;
 import com.orgmemory.graphrag.export.GraphExportReader;
@@ -84,10 +84,8 @@ public class KnowledgeGraphExportService {
                     "Knowledge graph permissions changed while preparing the export",
                     unavailable);
         }
-        ProjectionNamespace namespace = new ProjectionNamespace(
-                actor.organizationId(),
-                "default",
-                knowledgeSpaceId.toString());
+        ProjectionNamespace namespace = KnowledgeProjectionNamespaces.forSpace(
+                actor.organizationId(), knowledgeSpaceId);
         var document = reader.read(
                 resolved.forKnowledgeSpace(knowledgeSpaceId),
                 namespace);

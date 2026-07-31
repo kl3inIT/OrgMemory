@@ -5,7 +5,6 @@ import com.orgmemory.graphrag.parsing.CanonicalDocument;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;

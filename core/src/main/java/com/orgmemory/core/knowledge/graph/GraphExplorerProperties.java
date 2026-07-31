@@ -22,8 +22,4 @@ public record GraphExplorerProperties(
                     "Graph explorer limits must be positive and internally consistent");
         }
     }
-
-    public static GraphExplorerProperties defaults() {
-        return new GraphExplorerProperties(200, 1000, 2000, 200, 3, 8);
-    }
 }

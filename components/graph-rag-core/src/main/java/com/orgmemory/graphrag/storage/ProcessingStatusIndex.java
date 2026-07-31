@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.storage;
 
+import static com.orgmemory.graphrag.validation.TextValidation.normalizeOptional;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -92,11 +94,4 @@ public interface ProcessingStatusIndex {
         return normalized;
     }
 
-    private static String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.strip();
-        return normalized.isEmpty() ? null : normalized;
-    }
 }

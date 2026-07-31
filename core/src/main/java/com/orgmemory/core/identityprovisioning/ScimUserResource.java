@@ -1,5 +1,7 @@
 package com.orgmemory.core.identityprovisioning;
 
+import static com.orgmemory.core.shared.Texts.optionalText;
+
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -82,34 +84,6 @@ class ScimUserResource extends BaseEntity {
         this.directoryActive = directoryActive;
     }
 
-    UUID getOrganizationId() {
-        return organizationId;
-    }
-
-    UUID getConnectionId() {
-        return connectionId;
-    }
-
-    UUID getAppUserId() {
-        return appUserId;
-    }
-
-    String getExternalId() {
-        return externalId;
-    }
-
-    String getNormalizedUserName() {
-        return normalizedUserName;
-    }
-
-    String getNormalizedEmail() {
-        return normalizedEmail;
-    }
-
-    boolean isDirectoryActive() {
-        return directoryActive;
-    }
-
     private static String normalizeRequired(String value, String field) {
         String normalized = normalizeOptional(value);
         if (normalized == null) {
@@ -123,7 +97,4 @@ class ScimUserResource extends BaseEntity {
         return text == null ? null : text.toLowerCase(Locale.ROOT);
     }
 
-    private static String optionalText(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }
