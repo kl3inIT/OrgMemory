@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-07-31-skill-direct-sharing`.
+Reconciled: `2026-07-31-skill-direct-sharing (a190d63)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
