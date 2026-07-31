@@ -27,6 +27,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | AI model gateway provider boundary | shipped | [completed verification](increments/completed/2026-07-29-ai-model-gateway-boundary/verification.md) |
 | Independent bilingual public documentation portal | shipped | [completed verification](increments/completed/2026-07-28-public-docs-portal/verification.md) |
 | Automatic public docs delivery | shipped | [completed verification](increments/completed/2026-07-30-automatic-docs-delivery/verification.md) |
+| Product release management | shipped | [completed verification](increments/completed/2026-07-31-product-release-management/verification.md) |
 | Observability platform: payload boundary, collector stack, and dashboards | shipped | [completed verification](increments/completed/2026-07-30-observability-platform/verification.md) |
 | Observability pipeline and payload boundary | shipped | [completed verification](increments/completed/2026-07-29-observability-pipeline/verification.md) |
 
@@ -38,7 +39,6 @@ The table is a delivery index, not a second description of current behavior.
 | --- | --- | --- |
 | [Asset ownership navigation](increments/active/2026-07-31-asset-ownership-navigation/plan.md) | active | owner-scoped API, unified Assets layout, browser proof, review, and merge |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
-| [Product release management](increments/active/2026-07-31-product-release-management/plan.md) | active | independent architecture challenge, implementation, CI/CodeRabbit review, and first release proof |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
 | [Reproducible demo bootstrap](increments/active/2026-07-22-reproducible-demo-bootstrap/plan.md) | active | public ingestion and permission-evaluation run |

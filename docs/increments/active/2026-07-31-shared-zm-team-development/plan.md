@@ -17,6 +17,14 @@
 - [ ] Run the PR/CI/CodeRabbit/merge/deploy loop.
 - [ ] Consolidate current behavior and archive the increment.
 
+Live verification on 2026-07-31 confirmed the local API and web application
+through loopback SSH tunnels after PR #171 deployed successfully. The gate
+remains open because the launcher passed an extra argument separator to Vite,
+which bound the web process to `[::1]` instead of the documented
+`127.0.0.1`, and its cleanup loop left the API process alive after the web
+process exited. The remote worker retained no stale lease and returned to its
+running state after the bounded test session.
+
 ## Completion Gates
 
 - Local API cannot run Flyway or provision PostgreSQL indexes in shared mode.
