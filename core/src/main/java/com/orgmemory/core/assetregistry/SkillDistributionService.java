@@ -136,6 +136,7 @@ public class SkillDistributionService {
                 release.slug(),
                 release.namespace() + "/" + release.slug(),
                 release.versionLabel(),
+                release.publicationMode(),
                 release.title(),
                 release.summary(),
                 release.digest(),

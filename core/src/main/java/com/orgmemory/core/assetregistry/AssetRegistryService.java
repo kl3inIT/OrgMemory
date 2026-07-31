@@ -29,6 +29,8 @@ public class AssetRegistryService {
             PermissionKey.of("can_submit_review");
     private static final PermissionKey CAN_REVIEW = PermissionKey.of("can_review");
     private static final PermissionKey CAN_PUBLISH = PermissionKey.of("can_publish");
+    private static final PermissionKey CAN_PUBLISH_SKILL =
+            PermissionKey.of("can_publish_skill");
     private static final PermissionKey CAN_WITHDRAW = PermissionKey.of("can_withdraw");
     private static final PermissionKey CAN_USE = PermissionKey.of("can_use");
     private static final PermissionKey CAN_MANAGE_ROLES =
@@ -183,13 +185,15 @@ public class AssetRegistryService {
 
     public AssetGovernanceActions governanceActions(
             CurrentActor actor, UUID assetId) {
-        require(actor, assetId, CAN_VIEW);
+        AssetAuthorizationTarget target = require(actor, assetId, CAN_VIEW);
         ResourceRef resource =
                 ResourceRef.of(actor.organizationId(), ASSET_RESOURCE, assetId);
         return new AssetGovernanceActions(
                 allowed(actor, resource, CAN_SUBMIT_REVIEW),
                 allowed(actor, resource, CAN_REVIEW),
                 allowed(actor, resource, CAN_PUBLISH),
+                target.type() == AssetType.SKILL
+                        && allowed(actor, resource, CAN_PUBLISH_SKILL),
                 allowed(actor, resource, CAN_WITHDRAW));
     }
 
@@ -284,6 +288,14 @@ public class AssetRegistryService {
         return coordinator.publish(actor, assetId, revisionId, versionLabel);
     }
 
+    public AssetView publishSkillDraft(
+            CurrentActor actor,
+            UUID assetId,
+            String versionLabel) {
+        require(actor, assetId, CAN_PUBLISH_SKILL);
+        return coordinator.publishSkillDraft(actor, assetId, versionLabel);
+    }
+
     public AssetView deprecate(
             CurrentActor actor,
             UUID assetId,
@@ -345,7 +357,8 @@ public class AssetRegistryService {
         }
     }
 
-    private void require(CurrentActor actor, UUID assetId, PermissionKey permission) {
+    private AssetAuthorizationTarget require(
+            CurrentActor actor, UUID assetId, PermissionKey permission) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(assetId, "assetId");
         AssetAuthorizationTarget target = coordinator
@@ -360,6 +373,7 @@ public class AssetRegistryService {
         if (!decision.allowed()) {
             throw new AssetNotFoundException();
         }
+        return target;
     }
 
     private boolean allowed(

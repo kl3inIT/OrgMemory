@@ -44,7 +44,7 @@ The table is a delivery index, not a second description of current behavior.
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
 | [Observability pipeline and payload boundary](increments/active/2026-07-29-observability-pipeline/plan.md) | active | establish whether retirement reaches all five read paths before adding a deletion/rebuild stage, and decide the `finish_reason=length` counter; the `GENERATE` boundary and telemetry egress are settled, and the collector stack shipped with the observability platform |
-| [Direct Skill sharing](increments/active/2026-07-31-skill-direct-sharing/plan.md) | active | implement owner-class direct publication with durable reviewed/direct provenance |
+| [Direct Skill sharing](increments/active/2026-07-31-skill-direct-sharing/plan.md) | active | merge the verified direct-publication path and prove the deployed migration and browser flow |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become

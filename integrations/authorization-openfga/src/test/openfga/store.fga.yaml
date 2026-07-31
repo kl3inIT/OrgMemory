@@ -339,6 +339,7 @@ tests:
           can_manage_roles: true
           can_edit: true
           can_submit_review: true
+          can_publish_skill: true
           can_review: false
           can_publish: false
           can_withdraw: true
@@ -349,6 +350,7 @@ tests:
         assertions:
           can_manage_roles: false
           can_edit: false
+          can_publish_skill: false
           can_review: true
           can_publish: false
           can_view: true
@@ -356,6 +358,7 @@ tests:
         object: asset:support-triage
         assertions:
           can_edit: false
+          can_publish_skill: false
           can_review: false
           can_view: true
           can_use: true
@@ -363,6 +366,7 @@ tests:
         object: asset:support-triage
         assertions:
           can_submit_review: false
+          can_publish_skill: false
           can_withdraw: false
           can_view: false
           can_use: false
@@ -372,6 +376,7 @@ tests:
           can_manage_roles: false
           can_edit: false
           can_submit_review: false
+          can_publish_skill: false
           can_review: false
           can_publish: false
           can_withdraw: false
@@ -382,6 +387,7 @@ tests:
         assertions:
           can_manage_roles: true
           can_edit: true
+          can_publish_skill: true
           can_review: true
           can_publish: true
           can_withdraw: true
@@ -409,6 +415,7 @@ tests:
           can_manage_roles: []
           can_edit: []
           can_submit_review: []
+          can_publish_skill: []
           can_review: []
           can_publish: []
           can_withdraw: []
@@ -420,6 +427,7 @@ tests:
           can_manage_roles: []
           can_edit: []
           can_submit_review: []
+          can_publish_skill: []
           can_review: []
           can_publish: []
           can_withdraw: []

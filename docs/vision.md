@@ -11,7 +11,8 @@ permission-aware, reusable organizational memory. Its wedge is not generic
 enterprise search. It owns the lifecycle after secure context is available:
 
 ```text
-capture/import -> stage -> normalize -> ground -> review -> publish
+capture/import -> stage -> normalize -> ground -> policy check
+-> review when required -> publish
 -> reuse -> measure -> transfer -> retire
 ```
 
@@ -38,8 +39,12 @@ lifecycles, not by rebuilding a broad connector catalog or employee-surveillance
 platform.
 
 The default trust model is **passive discovery, active publishing**: a user may
-capture work locally and receive a private draft; sharing it with the organization
-requires preview, policy checks, and explicit review.
+capture work locally and receive a private draft; sharing it with the
+organization requires preview, policy checks, and an explicit publication
+action. Review is required by the Asset profile and organization policy, not
+assumed for every contribution. In the current Skill profile, an accountable
+owner-class actor may publish directly with durable `DIRECT` provenance;
+reviewed publication remains available for higher-risk use.
 
 ## First Customer And Success Gate
 
@@ -105,8 +110,9 @@ surface uses one `SecureKnowledgeRetrieval` use case and rechecks citations.
 - `AssetRevision`: immutable submitted snapshot and digest reviewed by
   an exact policy and reviewer set.
 - `AssetRelease`: immutable released payload, digest, provenance, and
-  dependency set created only from an approved revision.
-- `AssetTypeProfile`: typed schema, renderer, validation, review policy,
+  dependency set created from a Revision that satisfies the profile's
+  publication policy.
+- `AssetTypeProfile`: typed schema, renderer, validation, publication policy,
   and consumption adapters.
 
 The first new types are `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, and

@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
+Reconciled: `2026-07-31-skill-direct-sharing`.
 
 ## Current Behavior
 
@@ -83,10 +83,13 @@ The original ZIP is stored behind the Asset Registry storage port. Portable
 Skill metadata, SHA-256, size, media type, and file manifest form a
 server-generated draft payload; the storage object key remains only in the
 internal payload-reference ledger. The draft reference is created atomically
-with the Asset. Submission copies that exact blob reference to the immutable
-revision; publication copies it to the immutable release after verifying that
-it still matches the approved payload. Generic create, draft update, and fork
-cannot manufacture a `SKILL` payload.
+with the Asset. An accountable owner-class actor may publish that Draft
+directly: one transaction creates an immutable Revision and Release, verifies
+and copies the exact blob reference through both records, and records
+`publicationMode=DIRECT`. The optional reviewed path still copies the reference
+on submission and publication and records `publicationMode=REVIEWED`. An active
+review must be completed or cancelled before direct publication. Generic
+create, draft update, and fork cannot manufacture a `SKILL` payload.
 
 The Node CLI provides a folder-first authoring path. `skill validate` and
 `skill publish --dry-run` inspect the local root `SKILL.md`, reject unsafe
@@ -95,10 +98,11 @@ without authentication or network access. A real `skill publish` requests the
 separate `assets:write` scope and sends those bytes to the bounded
 `/skill-publications` HTTP companion. The MCP gateway exchanges the actor token
 and delegates to the same canonical multipart endpoint above. Core repeats
-validation and live `CAN_CREATE_ASSET` authorization and creates a Draft only;
-submit, review, approval, and release remain explicit Governance actions. A
-successful publication returns and prints the exact same-origin Governance URL
-so the author can continue without reconstructing an Asset route.
+validation and live `CAN_CREATE_ASSET` authorization and creates a Draft only.
+A successful upload returns and prints the exact same-origin Governance URL.
+From there the accountable author normally chooses a version and publishes the
+Skill directly; an actor who lacks direct-publication authority may use the
+reviewed workflow instead.
 
 ### Federated Knowledge
 
@@ -137,20 +141,23 @@ The authenticated web application provides four generic surfaces:
   governance is shown only to accountable actors.
 - **Pack journey** preserves ordered exact pins, required/optional progress,
   opaque access gaps, and replacement-release impact.
-- **Governance workspace** exposes revision comparison, evaluation, review,
+- **Governance workspace** exposes revision comparison, optional review,
   release history, deprecation, and withdrawal through the registry's existing
   authorization checks. A newly authored Draft opens in a dedicated Draft
-  section; Skill Drafts disclose their bounded package metadata and full
-  digest, and an authorized author can submit that exact Draft with a required
-  change note.
+  section. Skill Drafts disclose their bounded package metadata and full
+  digest; an authorized owner-class actor chooses a version and publishes the
+  package directly. The confirmation states that structural validation is not
+  an independent content review. Historical review evidence remains readable.
 
 Before rendering mutation controls, the web application asks Core for the
-current actor's live `can_submit_review`, `can_review`, `can_publish`, and
-`can_withdraw` decisions on the Asset. Core first requires `can_view` and does
-not return denial reasons or relationship data. These decisions are display
-affordances only: every mutation repeats authorization and remains
-authoritative. The browser never infers authority from role labels, and a
-revision author is not offered a self-review decision.
+current actor's live `can_submit_review`, `can_review`, `can_publish`,
+`can_publish_skill`, and `can_withdraw` decisions on the Asset. The Skill-only
+direct permission is owner-class and still requires `can_create_asset` on the
+parent Space. Core first requires `can_view` and does not return denial reasons
+or relationship data. These decisions are display affordances only: every
+mutation repeats authorization and remains authoritative. The browser never
+infers authority from role labels, and a revision author is not offered a
+self-review decision.
 
 Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
@@ -195,11 +202,12 @@ surface. CIMD may be re-enabled after the upstream metadata combination is
 interoperable.
 
 Skill discovery returns a storage-neutral install manifest for one exact
-release. It contains coordinate, version, release/package digests, package
-length/media type, compatibility metadata, and the exact file manifest; the
-object-storage key never crosses the core boundary. A bearer-protected binary
-companion route on the MCP resource proxies the canonical API stream instead of
-base64-encoding a bounded archive into JSON-RPC.
+release. It contains coordinate, version, publication mode, release/package
+digests, package length/media type, compatibility metadata, and the exact file
+manifest; the object-storage key never crosses the core boundary. A
+bearer-protected binary companion route on the MCP resource proxies the
+canonical API stream instead of base64-encoding a bounded archive into
+JSON-RPC.
 
 The authenticated web Asset detail reads the same exact manifest through a
 browser-session-only consumption endpoint. It still applies live object

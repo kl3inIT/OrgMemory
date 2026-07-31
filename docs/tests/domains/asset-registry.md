@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
+Reconciled: `2026-07-31-skill-direct-sharing`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -14,7 +14,9 @@ Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
 | Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
-| Skill submission and publication pin the same exact blob reference and digest | `AssetRegistryIntegrationTests#skillImportPinsTheValidatedBlobToRevisionAndRelease` | covered |
+| Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |
+| An active Skill review blocks direct publication rather than becoming an approval bypass | `AssetRegistryIntegrationTests#directSkillPublicationDoesNotBypassAnActiveReview` | covered |
+| The direct command rejects every non-Skill Asset profile | `AssetRegistryIntegrationTests#directSkillPublicationRejectsEveryOtherAssetProfile` | covered |
 | Exact Skill manifests omit storage keys and package streaming rejects payload, release-reference, and stored-object mismatches | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
 | Browser Skill detail reads the exact manifest through an OIDC-session-only endpoint without weakening bearer `assets:read` admission | `AssetConsumptionControllerTests`, `asset-registry-golden-poc.spec.ts` | covered |
 | Method-level authorization denial returns a stable opaque HTTP 403 instead of an internal HTTP 500 | `ApiExceptionHandlerTests#methodAuthorizationDenialUsesTheStableForbiddenContract` | covered |
@@ -24,8 +26,8 @@ Reconciled: `2026-07-31-assets-catalog-skill-projection (4ac146e)`.
 | CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
 | CLI Draft publication returns an exact same-origin Governance URL for the created Asset | `publish.test.ts` | covered |
 | Skill publication requires `assets:write`, uses the publisher token-exchange registration, bounds multipart size, and delegates only to canonical Skill import | `OrgMemoryMcpContextTests`, `SkillPublicationControllerTests`, `SkillPublicationApiClientTests`, `McpApiAuthorizationTests`, `McpRateLimitFilterTests` | covered |
-| Governance action discovery first requires Asset visibility and reports actor-specific submit, review, publish, and withdrawal affordances without granting authority | `AssetRegistryServiceTests#governanceActionsUseLivePermissionsAfterRequiringAssetView` | covered |
-| A newly published Skill Draft exposes bounded package identity, submits with a required change note, and moves to review without offering author self-approval | `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| Governance action discovery first requires Asset visibility and reports actor-specific submit, review, reviewed publish, direct Skill publish, and withdrawal affordances without granting authority | `AssetRegistryServiceTests#governanceActionsUseLivePermissionsAfterRequiringAssetView` | covered |
+| A newly imported Skill Draft exposes bounded package identity and the accountable author publishes a version directly; the UI records and displays `DIRECT` provenance and hides an empty review journey | `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
 | Prompt output contract and bounded evaluations expose pass/failure | `PromptExecutionServiceTests`, `AssetRegistryIntegrationTests` | covered |

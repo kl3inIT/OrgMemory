@@ -103,6 +103,9 @@ class AssetRegistryController {
     record PublishAssetReleaseRequest(UUID revisionId, String versionLabel) {
     }
 
+    record PublishSkillReleaseRequest(String versionLabel) {
+    }
+
     record AssetAvailabilityRequest(String reason) {
     }
 
@@ -237,6 +240,21 @@ class AssetRegistryController {
                 actors.current(authentication),
                 assetId,
                 request.revisionId(),
+                request.versionLabel());
+    }
+
+    @PostMapping("/{assetId}/skill-releases")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            operationId = "publishSkillRelease",
+            summary = "Publish a Skill draft as an immutable release")
+    AssetView publishSkill(
+            @PathVariable UUID assetId,
+            @RequestBody PublishSkillReleaseRequest request,
+            Authentication authentication) {
+        return assets.publishSkillDraft(
+                actors.current(authentication),
+                assetId,
                 request.versionLabel());
     }
 

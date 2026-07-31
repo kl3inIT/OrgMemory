@@ -208,6 +208,7 @@ class AssetRegistryCoordinator {
                         asset.getOrganizationId(),
                         asset.getId(),
                         asset.getKnowledgeSpaceId(),
+                        asset.getType(),
                         asset.isAuthorizationReady()));
     }
 
@@ -347,6 +348,7 @@ class AssetRegistryCoordinator {
                 asset.getNamespace(),
                 asset.getSlug(),
                 release.getVersionLabel(),
+                release.getPublicationMode(),
                 release.getTitle(),
                 release.getSummary(),
                 release.getClassification(),
@@ -513,21 +515,7 @@ class AssetRegistryCoordinator {
             UUID assetId,
             UUID revisionId,
             String versionLabel) {
-        if (versionLabel == null) {
-            throw new BusinessValidationException(
-                    "asset.version-label-invalid",
-                    "The release version label is invalid");
-        }
-        String validatedVersionLabel;
-        try {
-            validatedVersionLabel =
-                    AssetRelease.validateVersionLabel(versionLabel);
-        } catch (IllegalArgumentException invalidLabel) {
-            throw new BusinessValidationException(
-                    "asset.version-label-invalid",
-                    "The release version label is invalid",
-                    invalidLabel);
-        }
+        String validatedVersionLabel = validatedVersionLabel(versionLabel);
         Asset asset = requiredAsset(actor.organizationId(), assetId);
         AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
                         revisionId, assetId, actor.organizationId())
@@ -555,13 +543,109 @@ class AssetRegistryCoordinator {
         if (!canonical.digest().equals(revision.getDigest())) {
             throw new AssetConflictException("Revision bytes no longer match the approved digest");
         }
+        AssetRelease release = createRelease(
+                actor,
+                asset,
+                revision,
+                validatedVersionLabel,
+                AssetPublicationMode.REVIEWED,
+                "Initial reviewed release");
+        recordAudit(
+                actor,
+                assetId,
+                "RELEASE_PUBLISHED",
+                "RELEASE",
+                release.getId(),
+                "{\"digest\":\"" + release.getDigest() + "\"}");
+        return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    AssetView publishSkillDraft(
+            CurrentActor actor,
+            UUID assetId,
+            String versionLabel) {
+        String validatedVersionLabel = validatedVersionLabel(versionLabel);
+        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        if (asset.getType() != AssetType.SKILL) {
+            throw new BusinessValidationException(
+                    "skill.direct-publish-unsupported",
+                    "Direct publication is available only for Skill Assets");
+        }
+        if (reviews.existsByAssetIdAndOrganizationIdAndState(
+                assetId, actor.organizationId(), AssetReviewState.IN_REVIEW)) {
+            throw new AssetConflictException(
+                    "This Skill already has a revision in review; finish or cancel it first");
+        }
+        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
+        profiles.require(AssetType.SKILL).requireSupported(draft.getSchemaVersion());
+        AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
+                draft.getTitle(),
+                draft.getSummary(),
+                draft.getClassification(),
+                draft.getSchemaVersion(),
+                draft.getPayload());
+        AssetPayloadReference draftReference = payloadReferences
+                .findByDraftIdAndOrganizationId(
+                        draft.getId(), actor.organizationId())
+                .orElseThrow(() -> new AssetConflictException(
+                        "The Skill draft is missing its package reference"));
+        SkillPackageSpec spec = skillSpec(draft.getPayload());
+        requireMatchingPackage(spec.artifact(), draftReference);
+
+        AssetRevision revision;
+        try {
+            revision = revisions.saveAndFlush(new AssetRevision(
+                    draft,
+                    revisions.maxSequence(assetId, actor.organizationId()) + 1,
+                    canonical,
+                    "Direct Skill publication",
+                    actor.userId()));
+        } catch (DataIntegrityViolationException duplicate) {
+            if (!causedByConstraint(duplicate, "uq_asset_revision_sequence")) {
+                throw duplicate;
+            }
+            throw new AssetConflictException(
+                    "Another revision was published concurrently; reload and retry",
+                    duplicate);
+        }
+        payloadReferences.saveAndFlush(
+                AssetPayloadReference.forRevision(revision, draftReference));
+
+        AssetRelease release = createRelease(
+                actor,
+                asset,
+                revision,
+                validatedVersionLabel,
+                AssetPublicationMode.DIRECT,
+                "Direct Skill publication");
+        recordAudit(
+                actor,
+                assetId,
+                "SKILL_RELEASE_PUBLISHED_DIRECTLY",
+                "RELEASE",
+                release.getId(),
+                "{\"policy\":\"skill-direct-v1\","
+                        + "\"permission\":\"can_publish_skill\","
+                        + "\"digest\":\"" + release.getDigest() + "\"}");
+        return view(asset);
+    }
+
+    private AssetRelease createRelease(
+            CurrentActor actor,
+            Asset asset,
+            AssetRevision revision,
+            String versionLabel,
+            AssetPublicationMode publicationMode,
+            String availabilityReason) {
         Instant now = Instant.now();
         AssetRelease release;
         try {
             release = releases.saveAndFlush(new AssetRelease(
                     revision,
-                    releases.maxSequence(assetId, actor.organizationId()) + 1,
-                    validatedVersionLabel,
+                    releases.maxSequence(asset.getId(), actor.organizationId()) + 1,
+                    versionLabel,
+                    publicationMode,
                     actor.userId(),
                     now));
         } catch (DataIntegrityViolationException duplicate) {
@@ -579,7 +663,7 @@ class AssetRegistryCoordinator {
         availability.save(new AssetReleaseAvailabilityEvent(
                 release,
                 AssetAvailability.AVAILABLE,
-                "Initial release",
+                availabilityReason,
                 actor.userId(),
                 now));
         if (asset.getType() == AssetType.SKILL) {
@@ -587,7 +671,7 @@ class AssetRegistryCoordinator {
                     .findByRevisionIdAndOrganizationId(
                             revision.getId(), actor.organizationId())
                     .orElseThrow(() -> new AssetConflictException(
-                            "The approved Skill revision is missing its package reference"));
+                            "The Skill revision is missing its package reference"));
             SkillPackageSpec spec = skillSpec(revision.getPayload());
             requireMatchingPackage(spec.artifact(), revisionReference);
             payloadReferences.saveAndFlush(
@@ -595,14 +679,7 @@ class AssetRegistryCoordinator {
         }
         asset.activate();
         assets.save(asset);
-        recordAudit(
-                actor,
-                assetId,
-                "RELEASE_PUBLISHED",
-                "RELEASE",
-                release.getId(),
-                "{\"digest\":\"" + release.getDigest() + "\"}");
-        return view(asset);
+        return release;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -813,6 +890,7 @@ class AssetRegistryCoordinator {
                 release.getRevisionId(),
                 release.getSequence(),
                 release.getVersionLabel(),
+                release.getPublicationMode(),
                 release.getTitle(),
                 release.getSummary(),
                 release.getClassification(),
@@ -918,6 +996,22 @@ class AssetRegistryCoordinator {
                     "A change note of at most 1024 characters is required");
         }
         return normalized;
+    }
+
+    private static String validatedVersionLabel(String versionLabel) {
+        if (versionLabel == null) {
+            throw new BusinessValidationException(
+                    "asset.version-label-invalid",
+                    "The release version label is invalid");
+        }
+        try {
+            return AssetRelease.validateVersionLabel(versionLabel);
+        } catch (IllegalArgumentException invalidLabel) {
+            throw new BusinessValidationException(
+                    "asset.version-label-invalid",
+                    "The release version label is invalid",
+                    invalidLabel);
+        }
     }
 
     private SkillPackageSpec skillSpec(String payload) {

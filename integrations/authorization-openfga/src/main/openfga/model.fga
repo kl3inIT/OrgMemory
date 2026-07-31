@@ -85,6 +85,7 @@ type asset
     define can_manage_roles: (owner or backup_owner or steward or org_admin) and can_create_asset from space
     define can_edit: (editor or steward or owner or backup_owner or org_admin) and can_create_asset from space
     define can_submit_review: can_edit
+    define can_publish_skill: (owner or backup_owner or steward or org_admin) and can_create_asset from space
     define can_review: (reviewer or org_admin) and can_publish from space
     define can_publish: (publisher or org_admin) and can_publish from space
     define can_withdraw: (publisher or owner or backup_owner or org_admin) and can_publish from space

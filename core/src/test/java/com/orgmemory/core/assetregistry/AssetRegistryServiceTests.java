@@ -35,13 +35,15 @@ class AssetRegistryServiceTests {
                         organizationId,
                         assetId,
                         UUID.randomUUID(),
+                        AssetType.SKILL,
                         true)));
         RelationshipAuthorizationPort authorization =
                 mock(RelationshipAuthorizationPort.class);
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             return switch (query.permission().value()) {
-                case "can_view", "can_submit_review", "can_publish" ->
+                case "can_view", "can_submit_review", "can_publish",
+                        "can_publish_skill" ->
                     AuthorizationDecision.allow("model-v1");
                 default -> AuthorizationDecision.deny(
                         "RELATIONSHIP_DENIED", "model-v1");
@@ -59,6 +61,7 @@ class AssetRegistryServiceTests {
         assertEquals(true, actions.canSubmitReview());
         assertEquals(false, actions.canReview());
         assertEquals(true, actions.canPublish());
+        assertEquals(true, actions.canPublishSkill());
         assertEquals(false, actions.canWithdraw());
     }
 
@@ -79,6 +82,7 @@ class AssetRegistryServiceTests {
                         organizationId,
                         assetId,
                         UUID.randomUUID(),
+                        AssetType.PROMPT_TEMPLATE,
                         true)));
         RelationshipAuthorizationPort authorization =
                 mock(RelationshipAuthorizationPort.class);

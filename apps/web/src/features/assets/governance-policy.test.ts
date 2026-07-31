@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { canDecideReview, initialGovernanceTab } from "./governance-policy"
+import {
+  canDecideReview,
+  canPublishSkillDirectly,
+  initialGovernanceTab,
+} from "./governance-policy"
 
 describe("Asset Governance policy", () => {
   it("opens a newly published Draft at its handoff action", () => {
@@ -31,6 +35,32 @@ describe("Asset Governance policy", () => {
         draft: { id: "draft-1" },
       }),
     ).toBe("changes")
+  })
+
+  it("offers direct Skill publication only when no review is active", () => {
+    const actions = { canPublishSkill: true }
+
+    expect(
+      canPublishSkillDirectly(
+        { type: "SKILL", reviews: [] },
+        actions,
+      ),
+    ).toBe(true)
+    expect(
+      canPublishSkillDirectly(
+        {
+          type: "SKILL",
+          reviews: [{ id: "review-1", state: "IN_REVIEW" }],
+        },
+        actions,
+      ),
+    ).toBe(false)
+    expect(
+      canPublishSkillDirectly(
+        { type: "PROMPT_TEMPLATE", reviews: [] },
+        actions,
+      ),
+    ).toBe(false)
   })
 
   it("does not offer self-approval even when the actor can review", () => {

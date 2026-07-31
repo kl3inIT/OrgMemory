@@ -80,6 +80,7 @@ public record AssetView(
             UUID revisionId,
             long sequence,
             String versionLabel,
+            AssetPublicationMode publicationMode,
             String title,
             String summary,
             String classification,

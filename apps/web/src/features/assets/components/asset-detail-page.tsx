@@ -877,6 +877,14 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
             <CardTitle>Skill contract</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Definition
+              label="Publication"
+              value={
+                skill.publicationMode === "DIRECT"
+                  ? "Direct · no independent content review recorded"
+                  : "Reviewed"
+              }
+            />
             <Definition label="Compatibility" value={skill.compatibility || "Not specified"} />
             <Definition label="Allowed tools" value={skill.allowedTools || "Not restricted"} />
             <Definition label="License" value={skill.license || "Not specified"} />

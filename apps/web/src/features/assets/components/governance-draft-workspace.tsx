@@ -1,15 +1,20 @@
 import { useMutation } from "@tanstack/react-query"
-import { Archive, Send } from "lucide-react"
+import { Archive, Rocket, Send } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDate, parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
-import { submitAssetRevisionMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { canPublishSkillDirectly } from "@/features/assets/governance-policy"
+import {
+  publishSkillReleaseMutation,
+  submitAssetRevisionMutation,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssetGovernanceActions,
   AssetView,
@@ -34,14 +39,17 @@ export function GovernanceDraftWorkspace({
   actions,
   onChanged,
   onSubmitted,
+  onPublished,
 }: {
   asset: AssetView
   actions?: AssetGovernanceActions
   onChanged: () => Promise<unknown>
   onSubmitted: () => void
+  onPublished: () => void
 }) {
   const draft = asset.draft!
   const [changeNote, setChangeNote] = useState("")
+  const [versionLabel, setVersionLabel] = useState("")
   const submit = useMutation({
     ...submitAssetRevisionMutation(),
     onSuccess: async () => {
@@ -52,10 +60,25 @@ export function GovernanceDraftWorkspace({
     },
     onError: () => toast.error("The Draft could not be submitted"),
   })
-  const canSubmit = Boolean(actions?.canSubmitReview)
+  const publishSkill = useMutation({
+    ...publishSkillReleaseMutation(),
+    onSuccess: async () => {
+      setVersionLabel("")
+      await onChanged()
+      onPublished()
+      toast.success("Immutable Skill release published")
+    },
+    onError: () => toast.error("The Skill could not be published"),
+  })
+  const canPublishSkill = canPublishSkillDirectly(asset, actions)
+  const canSubmit = Boolean(
+    actions?.canSubmitReview &&
+      (asset.type !== "SKILL" || !actions?.canPublishSkill),
+  )
+  const hasAction = canPublishSkill || canSubmit
 
   return (
-    <div className={canSubmit ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
+    <div className={hasAction ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]" : ""}>
       <div className="space-y-6">
         <Card>
           <CardHeader>
@@ -85,7 +108,41 @@ export function GovernanceDraftWorkspace({
         {asset.type === "SKILL" ? <SkillDraftPackage draft={draft} /> : null}
       </div>
 
-      {canSubmit ? (
+      {canPublishSkill ? (
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle>Publish Skill</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-supporting text-content-secondary">
+              Publish this validated package directly for people who already have access to the
+              Asset.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="skill-version-label">Version</Label>
+              <Input
+                id="skill-version-label"
+                value={versionLabel}
+                onChange={(event) => setVersionLabel(event.currentTarget.value)}
+                placeholder="1.0.0"
+                className="font-mono"
+              />
+            </div>
+            <GovernanceDecisionDialog
+              label="Publish Skill"
+              description="This creates an immutable release from the structurally validated package. No independent content review is recorded."
+              disabled={!versionLabel.trim() || publishSkill.isPending}
+              icon={Rocket}
+              onConfirm={() =>
+                publishSkill.mutate({
+                  path: { assetId: asset.id! },
+                  body: { versionLabel: versionLabel.trim() },
+                })
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : canSubmit ? (
         <Card className="h-fit">
           <CardHeader>
             <CardTitle>Submit for review</CardTitle>
