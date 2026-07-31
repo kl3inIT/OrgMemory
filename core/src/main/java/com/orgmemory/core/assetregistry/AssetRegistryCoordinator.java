@@ -416,7 +416,7 @@ class AssetRegistryCoordinator {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView submit(CurrentActor actor, UUID assetId, String changeNote) {
         String validatedChangeNote = requireChangeNote(changeNote);
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
         if (reviews.existsByAssetIdAndOrganizationIdAndState(
                 assetId, actor.organizationId(), AssetReviewState.IN_REVIEW)) {
             throw new AssetConflictException("This Asset already has a revision in review");
@@ -566,7 +566,7 @@ class AssetRegistryCoordinator {
             UUID assetId,
             String versionLabel) {
         String validatedVersionLabel = validatedVersionLabel(versionLabel);
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
         if (asset.getType() != AssetType.SKILL) {
             throw new BusinessValidationException(
                     "skill.direct-publish-unsupported",
