@@ -13,6 +13,7 @@ public record SkillPackageSpec(
         String compatibility,
         String allowedTools,
         Map<String, String> metadata,
+        Origin origin,
         Artifact artifact,
         List<FileEntry> files) {
 
@@ -49,6 +50,35 @@ public record SkillPackageSpec(
         if (files.stream().noneMatch(file -> file.path().equals("SKILL.md"))) {
             throw new IllegalArgumentException("Skill package manifest must include SKILL.md");
         }
+    }
+
+    public record Origin(
+            String repository,
+            String revision,
+            String path,
+            Visibility visibility) {
+
+        public Origin {
+            repository = required(repository, "origin.repository", 256);
+            if (!repository.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) {
+                throw new IllegalArgumentException("Skill origin repository is invalid");
+            }
+            revision = required(revision, "origin.revision", 40);
+            if (!revision.matches("[0-9a-f]{40}")) {
+                throw new IllegalArgumentException(
+                        "Skill origin revision must be a full Git commit SHA");
+            }
+            path = required(path, "origin.path", 1024);
+            if (!SkillPackageInspector.isSafeRelativePath(path)) {
+                throw new IllegalArgumentException("Skill origin path is unsafe");
+            }
+            visibility = Objects.requireNonNull(visibility, "origin.visibility");
+        }
+    }
+
+    public enum Visibility {
+        PUBLIC,
+        PRIVATE
     }
 
     public record Artifact(

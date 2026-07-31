@@ -81,7 +81,10 @@ it does not grant OrgMemory or an assistant permission to invoke a tool.
 
 The original ZIP is stored behind the Asset Registry storage port. Portable
 Skill metadata, SHA-256, size, media type, and file manifest form a
-server-generated draft payload; the storage object key remains only in the
+server-generated draft payload. Payload schema 2 may also carry server-derived
+GitHub origin repository, full 40-character commit SHA, `SKILL.md` path, and
+public/private visibility; schema 1 remains readable for existing releases.
+The storage object key remains only in the
 internal payload-reference ledger. The draft reference is created atomically
 with the Asset. An accountable owner-class actor may publish that Draft
 directly: one transaction creates an immutable Revision and Release, verifies
@@ -123,6 +126,27 @@ complete structural validation before object storage and Draft creation.
 Success opens the ordinary Governance workspace. The browser never executes
 package content, grants an owner from a session role, publishes the Skill, or
 describes structural validation as content or malware review.
+
+GitHub preview and import are server-side operations. Preview accepts an
+`owner/repository` identifier or GitHub HTTPS URL plus revision and optional
+subpath, resolves the revision to a full commit SHA, and discovers at most 20
+bounded `SKILL.md` roots without storing them. Public repositories are fetched
+anonymously. Private access is available only through a configured GitHub App
+connection whose administrator has enabled `allowPrivateSkillImports`; the
+browser receives only eligible connection keys and never receives or submits a
+credential. Credential use writes a permission-audit event. The transport
+allows HTTPS only at `api.github.com` and `codeload.github.com`, disables generic
+redirect following, validates the single API-to-codeload archive redirect, and
+never forwards Authorization to codeload.
+
+Import requires the full SHA returned by preview and fetches that exact revision
+again. The GitHub tarball has compressed-size, expanded-size, entry-count, path,
+link, collision, individual package, and total Skill-count bounds. Files belong
+to the nearest containing `SKILL.md` root and each selected package is passed
+back through the canonical Skill ZIP inspector. Authorization is checked before
+the batch. Each selected Skill then creates its own Asset in an independent
+`REQUIRES_NEW` transaction, so duplicate or invalid items return stable per-item
+failures without rolling back successful Drafts.
 
 An actor with live `can_edit` may replace the package attached to a mutable
 Skill Draft. Core inspects and stores a fresh object before the transaction,
@@ -175,9 +199,9 @@ The authenticated web application provides four generic surfaces:
   available. Both server collections return bounded pages, authorized totals,
   and explicit stable orders. An `Add asset` menu preserves the shared profile
   taxonomy without a full-page catalog duplicate. Skill opens a creation-only
-  route whose scratch and upload paths create a governed private Draft through
-  the canonical multipart operation; GitHub import and unsupported profiles are
-  visible but non-interactive until shipped. The browser does not infer
+  route whose scratch, upload, and GitHub paths create governed private Drafts
+  through canonical package validation; unsupported profiles remain visible but
+  non-interactive. The browser does not infer
   authorization or owner identity from the session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile

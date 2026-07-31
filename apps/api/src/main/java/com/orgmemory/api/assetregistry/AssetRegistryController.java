@@ -13,9 +13,14 @@ import com.orgmemory.core.assetregistry.AssetSummaryPage;
 import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.SkillRegistryService;
+import com.orgmemory.core.assetregistry.SkillGitHubImportService;
 import com.orgmemory.core.assetregistry.SkillPackageInspection;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -50,14 +55,17 @@ class AssetRegistryController {
 
     private final AssetRegistryService assets;
     private final SkillRegistryService skills;
+    private final SkillGitHubImportService skillGitHub;
     private final CurrentActorProvider actors;
 
     AssetRegistryController(
             AssetRegistryService assets,
             SkillRegistryService skills,
+            SkillGitHubImportService skillGitHub,
             CurrentActorProvider actors) {
         this.assets = assets;
         this.skills = skills;
+        this.skillGitHub = skillGitHub;
         this.actors = actors;
     }
 
@@ -107,6 +115,26 @@ class AssetRegistryController {
     }
 
     record PublishSkillReleaseRequest(String versionLabel) {
+    }
+
+    record GitHubSkillSourceRequest(
+            @NotBlank @Size(max = 512) String repository,
+            String revision,
+            String subpath,
+            String connectionKey) {
+
+        SkillGitHubImportService.SourceRequest source() {
+            return new SkillGitHubImportService.SourceRequest(
+                    repository, revision, subpath, connectionKey);
+        }
+    }
+
+    record GitHubSkillImportRequest(
+            @Valid @NotNull GitHubSkillSourceRequest source,
+            @NotNull @Size(min = 1, max = 20) List<@NotBlank String> paths,
+            @NotBlank @Size(max = 128) String namespace,
+            @NotNull UUID knowledgeSpaceId,
+            KnowledgeClassification classification) {
     }
 
     record AssetAvailabilityRequest(String reason) {
@@ -179,6 +207,45 @@ class AssetRegistryController {
             throw new ApiRequestException(
                     "The Skill package could not be read", failure);
         }
+    }
+
+    @PostMapping("/skills/github/preview")
+    @Operation(
+            operationId = "previewGitHubSkills",
+            summary = "Discover and validate Skills at one GitHub repository revision")
+    SkillGitHubImportService.Preview previewGitHubSkills(
+            @Valid @RequestBody GitHubSkillSourceRequest request,
+            Authentication authentication) {
+        return skillGitHub.preview(
+                actors.current(authentication), request.source());
+    }
+
+    @GetMapping("/skills/github/connections")
+    @Operation(
+            operationId = "listGitHubSkillConnections",
+            summary = "List approved GitHub connections available for private Skill import")
+    List<com.orgmemory.core.assetregistry.SkillGitHubSourcePort.ConnectionOption>
+            listGitHubSkillConnections(Authentication authentication) {
+        return skillGitHub.availableConnections(actors.current(authentication));
+    }
+
+    @PostMapping("/skills/github/import")
+    @Operation(
+            operationId = "importGitHubSkills",
+            summary = "Import selected Skills from an exact GitHub commit")
+    SkillGitHubImportService.ImportResult importGitHubSkills(
+            @Valid @RequestBody GitHubSkillImportRequest request,
+            Authentication authentication) {
+        return skillGitHub.importSelected(
+                actors.current(authentication),
+                new SkillGitHubImportService.ImportRequest(
+                        request.source().source(),
+                        request.paths(),
+                        request.namespace(),
+                        request.knowledgeSpaceId(),
+                        request.classification() == null
+                                ? KnowledgeClassification.INTERNAL
+                                : request.classification()));
     }
 
     @PutMapping(

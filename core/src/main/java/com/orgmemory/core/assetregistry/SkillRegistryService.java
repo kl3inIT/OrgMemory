@@ -62,6 +62,24 @@ public class SkillRegistryService {
             KnowledgeClassification classification,
             long contentLength,
             InputStream content) {
+        return importPackage(
+                actor,
+                namespace,
+                knowledgeSpaceId,
+                classification,
+                contentLength,
+                content,
+                null);
+    }
+
+    AssetView importPackage(
+            CurrentActor actor,
+            String namespace,
+            UUID knowledgeSpaceId,
+            KnowledgeClassification classification,
+            long contentLength,
+            InputStream content,
+            SkillPackageSpec.Origin origin) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(classification, "classification");
         assets.requireSkillCreate(actor, knowledgeSpaceId);
@@ -80,7 +98,7 @@ public class SkillRegistryService {
                                 Map.of("skill-name", staged.metadata().name())),
                         packageContent);
             }
-            SkillPackageSpec spec = specification(staged, stored);
+            SkillPackageSpec spec = specification(staged, stored, origin);
             AssetDraftInput draft = draft(spec, classification);
             assetId = assets.createValidatedSkillIdentity(
                     actor,
@@ -133,7 +151,7 @@ public class SkillRegistryService {
                                 Map.of("skill-name", staged.metadata().name())),
                         packageContent);
             }
-            SkillPackageSpec spec = specification(staged, stored);
+            SkillPackageSpec spec = specification(staged, stored, null);
             replacement = assets.replaceValidatedSkillDraft(
                     actor,
                     assetId,
@@ -158,7 +176,8 @@ public class SkillRegistryService {
 
     private SkillPackageSpec specification(
             SkillPackageInspector.StagedSkillPackage staged,
-            SkillPackageStoragePort.StoredSkillPackage stored) {
+            SkillPackageStoragePort.StoredSkillPackage stored,
+            SkillPackageSpec.Origin origin) {
         return new SkillPackageSpec(
                 staged.metadata().name(),
                 staged.metadata().description(),
@@ -166,6 +185,7 @@ public class SkillRegistryService {
                 staged.metadata().compatibility(),
                 staged.metadata().allowedTools(),
                 staged.metadata().metadata(),
+                origin,
                 new SkillPackageSpec.Artifact(
                         stored.sha256(), stored.contentLength(), stored.mediaType()),
                 staged.files());

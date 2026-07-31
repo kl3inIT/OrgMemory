@@ -169,6 +169,31 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 .map(credential -> cipher.decrypt(credential.stored()));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ConnectorConnectionConfiguration> configuration(
+            UUID organizationId, String sourceSystem, String sourceConnectionKey) {
+        return describe(organizationId, sourceSystem, sourceConnectionKey)
+                .map(view -> new ConnectorConnectionConfiguration(
+                        view.sourceSystem(),
+                        view.sourceConnectionKey(),
+                        view.sourceConfig(),
+                        view.credentialSet()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConnectorConnectionConfiguration> configurations(
+            UUID organizationId, String sourceSystem) {
+        return list(organizationId, sourceSystem).stream()
+                .map(view -> new ConnectorConnectionConfiguration(
+                        view.sourceSystem(),
+                        view.sourceConnectionKey(),
+                        view.sourceConfig(),
+                        view.credentialSet()))
+                .toList();
+    }
+
     /** Every connection of one source system that an administrator has enabled, across tenants. */
     @Override
     @Transactional(readOnly = true)

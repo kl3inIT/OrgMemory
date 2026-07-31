@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-browser-skill-draft-authoring (38986594)`.
+Reconciled: `2026-08-01-browser-skill-github-import`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -13,6 +13,9 @@ Reconciled: `2026-08-01-browser-skill-draft-authoring (38986594)`.
 | Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
 | Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |
 | Stateless Skill inspection returns canonical bounded metadata without storage; Scratch, raw `SKILL.md`, ZIP, and folder packaging converge on the same server validator | `SkillRegistryServiceTests#inspectionIsStatelessAndReturnsOnlyValidatedPackageFacts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| GitHub Skill preview pins a full commit SHA, discovers nearest bounded `SKILL.md` roots, rejects unsafe/link/colliding archives, and keeps invalid candidates independently visible | `GitHubSkillArchiveReaderTests`, `GitHubSkillSourceAdapterTests`, `SkillGitHubImportServiceTests`, `asset-registry-golden-poc.spec.ts#GitHub Skill import pins preview, supports private access, and reports partial results` | covered |
+| Private GitHub import requires an administrator opt-in and selected GitHub App repository, audits credential use, disables generic redirects, validates the single codeload redirect, and strips Authorization before archive download | `GitHubSkillSourceAdapterTests#auditsPrivateCredentialUseAndStripsAuthorizationFromCodeload`, `connector-github.test.ts` | covered |
+| Selected GitHub Skills import in independent transactions, persist server-derived repository/SHA/path provenance, and return partial success without rolling back completed Drafts | `SkillGitHubImportServiceTests#importsEachSelectedSkillIndependentlyAndPreservesPinnedProvenance`, `asset-registry-golden-poc.spec.ts#GitHub Skill import pins preview, supports private access, and reports partial results` | covered |
 | Skill Draft replacement requires live edit authorization plus the expected Draft version, compensates fresh storage on transaction failure, and never mutates an immutable package reference | `SkillRegistryServiceTests`, `AssetRegistryIntegrationTests#replacingAReleasedSkillDraftKeepsTheImmutablePackageAndClearsTheCleanupRow`, `AssetRegistryIntegrationTests#replacingAnUnreleasedSkillDraftDeletesItsUnreferencedOldPackage` | covered |
 | Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
 | Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
