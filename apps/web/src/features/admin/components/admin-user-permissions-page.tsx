@@ -34,9 +34,8 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  adminRolesQueryOptions,
+  adminQuery,
   adminUserPermissionsQueryOptions,
-  adminUsersQueryOptions,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
 import { PERMISSION_LABELS } from "@/features/admin/access-permission-labels"
@@ -44,6 +43,8 @@ import { AccessInspector } from "@/features/admin/components/access-inspector"
 import { AccessVerdict, type AccessState } from "@/features/admin/components/access-verdict"
 import {
   assignAdminRoleMutation,
+  listAdminRolesOptions,
+  listAdminUsersOptions,
   revokeAdminRoleMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
@@ -55,8 +56,8 @@ export function AdminUserPermissionsPage({
   currentUserId?: string
 }) {
   const queryClient = useQueryClient()
-  const users = useQuery(adminUsersQueryOptions())
-  const roles = useQuery(adminRolesQueryOptions())
+  const users = useQuery(adminQuery(listAdminUsersOptions()))
+  const roles = useQuery(adminQuery(listAdminRolesOptions()))
   const permissions = useQuery(adminUserPermissionsQueryOptions(userId))
   const assign = useMutation(assignAdminRoleMutation())
   const revoke = useMutation(revokeAdminRoleMutation())

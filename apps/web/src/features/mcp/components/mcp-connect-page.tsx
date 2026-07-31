@@ -1,7 +1,7 @@
-import { Copy, ExternalLink, LockKeyhole, Plug } from "lucide-react"
-import { toast } from "sonner"
+import { ExternalLink, LockKeyhole, Plug } from "lucide-react"
 
 import { PageLayout } from "@/components/layouts/page-layout"
+import { CopyButton } from "@/components/patterns/copy-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -176,7 +176,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
       <p className="text-xs font-medium uppercase tracking-wide text-content-tertiary">{label}</p>
       <div className="flex min-w-0 items-center gap-2 rounded-lg border border-border-subtle bg-surface-subtle p-2 pl-3">
         <code className="min-w-0 flex-1 truncate text-sm text-content-primary">{value}</code>
-        <CopyButton value={value} label={`Copy ${label}`} />
+        <CopyButton value={value} label={`Copy ${label}`} toastLabel={label} />
       </div>
     </div>
   )
@@ -188,26 +188,7 @@ function CommandBlock({ command }: { command: string }) {
       <code className="min-w-0 flex-1 overflow-x-auto py-1 font-mono text-xs text-content-primary">
         {command}
       </code>
-      <CopyButton value={command} label="Copy command" />
+      <CopyButton value={command} label="Copy command" toastLabel="Command" />
     </div>
-  )
-}
-
-function CopyButton({ value, label }: { value: string; label: string }) {
-  return (
-    <Button
-      type="button"
-      size="icon-sm"
-      variant="ghost"
-      aria-label={label}
-      onClick={() =>
-        void navigator.clipboard
-          .writeText(value)
-          .then(() => toast.success("Copied"))
-          .catch(() => toast.error("Could not copy"))
-      }
-    >
-      <Copy aria-hidden="true" />
-    </Button>
   )
 }

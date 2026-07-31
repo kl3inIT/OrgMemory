@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { adminConnectorSourcesQueryOptions } from "@/features/admin/admin-queries"
+import { adminQuery } from "@/features/admin/admin-queries"
 import {
   CATALOG_GROUPS,
   CONNECTOR_CATALOG,
@@ -14,6 +14,7 @@ import {
 } from "@/features/admin/connector-catalog"
 import { AdminPage } from "@/features/admin/components/admin-page"
 import { SourceIcon } from "@/features/admin/components/source-icon"
+import { listAdminConnectorSourcesOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
 
 /**
  * Whether a tile can be picked, and if not, whose fact that is.
@@ -40,7 +41,7 @@ function availabilityOf(entry: ConnectorCatalogEntry, installed: Set<string> | u
 }
 
 export function ConnectorCatalogPage() {
-  const installed = useQuery(adminConnectorSourcesQueryOptions())
+  const installed = useQuery(adminQuery(listAdminConnectorSourcesOptions()))
 
   const installedSystems = installed.data
     ? new Set(

@@ -47,6 +47,7 @@ import {
   listAssetCatalogOptions,
   listOwnedAssetsOptions,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { formatDate } from "@/lib/format"
 
 const ASSET_PAGE_SIZE = 24
 const OWNED_PORTFOLIO_STATES = [
@@ -124,13 +125,6 @@ function portfolioLabel(state: OwnedAsset["portfolioState"]) {
     default:
       return "Unknown"
   }
-}
-
-function formatDate(value?: string) {
-  if (!value) return "—"
-  const date = new Date(value)
-  if (Number.isNaN(date.valueOf())) return "—"
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date)
 }
 
 function AssetLink({
@@ -378,7 +372,7 @@ function createAssetColumns(
         headerClassName: "hidden xl:table-cell",
         cellClassName: "hidden xl:table-cell text-content-secondary",
       },
-      cell: ({ row }) => formatDate(row.original.timestamp),
+      cell: ({ row }) => formatDate(row.original.timestamp, { dateOnly: true }),
     },
     {
       id: "action",

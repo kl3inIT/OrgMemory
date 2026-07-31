@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
+import { lazy, Suspense } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +11,6 @@ import { EmptyState } from "@/components/patterns/empty-state"
 import { FilterBar } from "@/components/patterns/filter-bar"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { uploadSourceWithCsrf } from "@/features/sources/api/upload-source"
-import { KnowledgeGraphPanel } from "@/features/sources/components/knowledge-graph-panel"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
 import {
@@ -26,7 +25,14 @@ import {
   listKnowledgeSpaceUploadTargetsOptions,
   listSourcesOptions,
   listSourcesQueryKey,
+  uploadSourceMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+
+const KnowledgeGraphPanel = lazy(() =>
+  import("@/features/sources/components/knowledge-graph-panel").then((module) => ({
+    default: module.KnowledgeGraphPanel,
+  })),
+)
 
 export function SourcesPage({
   search,
@@ -51,7 +57,7 @@ export function SourcesPage({
   })
   const uploadTargets = useQuery(listKnowledgeSpaceUploadTargetsOptions())
   const upload = useMutation({
-    mutationFn: uploadSourceWithCsrf,
+    ...uploadSourceMutation(),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: listSourcesQueryKey() })
       toast.success("Document uploaded. Ingestion has started.")
@@ -100,7 +106,17 @@ export function SourcesPage({
                 spacesPending={uploadTargets.isPending}
                 spacesError={uploadTargets.isError}
                 onRetrySpaces={() => uploadTargets.refetch()}
-                onUpload={async (input) => upload.mutateAsync(input).then(() => undefined)}
+                onUpload={async (input) =>
+                  upload
+                    .mutateAsync({
+                      body: { file: input.file },
+                      query: {
+                        classification: input.classification,
+                        knowledgeSpaceId: input.knowledgeSpaceId,
+                      },
+                    })
+                    .then(() => undefined)
+                }
               />
             }
           />
@@ -190,10 +206,24 @@ export function SourcesPage({
           </section>
         </TabsContent>
         <TabsContent value="graph" className="flex min-h-0 flex-1">
-          <KnowledgeGraphPanel />
+          <Suspense fallback={<KnowledgeGraphLoading />}>
+            <KnowledgeGraphPanel />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </PageLayout.Root>
+  )
+}
+
+function KnowledgeGraphLoading() {
+  return (
+    <div
+      className="flex min-h-72 flex-1 items-center justify-center gap-2 text-sm text-muted-foreground"
+      role="status"
+    >
+      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+      Loading knowledge graph
+    </div>
   )
 }
 

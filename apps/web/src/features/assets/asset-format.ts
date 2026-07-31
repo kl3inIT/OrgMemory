@@ -58,16 +58,6 @@ export function formatAssetCoordinate(asset: {
   return [asset.namespace, asset.slug].filter(Boolean).join("/")
 }
 
-export function formatDate(value?: string) {
-  if (!value) return "—"
-  const date = new Date(value)
-  if (Number.isNaN(date.valueOf())) return "—"
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date)
-}
-
 export function parsePayload<T>(payload?: string): T | null {
   if (!payload) return null
   try {

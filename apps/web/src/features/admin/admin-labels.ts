@@ -1,5 +1,6 @@
 import type { AdminSourcePrincipalResponse } from "@/lib/hey-api"
 
+// Keep aligned with the UserRole union in the generated OpenAPI types.
 export const USER_ROLES = [
   "EMPLOYEE",
   "TEAM_LEAD",
@@ -41,12 +42,6 @@ export function principalName(principal: AdminSourcePrincipalResponse) {
 
 export function connectionLabel(sourceSystem?: string, sourceConnectionKey?: string) {
   return [sourceSystem, sourceConnectionKey].filter(Boolean).join(" · ") || "Unknown connection"
-}
-
-export function formatTimestamp(value?: string) {
-  if (!value) return "—"
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleString()
 }
 
 /**

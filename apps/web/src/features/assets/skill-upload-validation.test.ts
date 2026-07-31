@@ -24,7 +24,7 @@ describe("validateSkillUpload", () => {
     [{ ...validInput, file: { name: "SKILL.md", size: 10 } }, "The package must be a ZIP file."],
     [
       { ...validInput, file: { name: "skill.zip", size: MAX_SKILL_ARCHIVE_BYTES + 1 } },
-      "The ZIP package must be 20 MB or smaller.",
+      "The ZIP package must be 20 MiB or smaller.",
     ],
     [{ ...validInput, namespace: "Finance Team" }, "Use lowercase letters and numbers separated by '.', '_', or '-'."],
     [{ ...validInput, knowledgeSpaceId: "" }, "Choose a Knowledge Space."],

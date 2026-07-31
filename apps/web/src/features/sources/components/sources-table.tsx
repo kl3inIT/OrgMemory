@@ -7,12 +7,11 @@ import { Progress } from "@/components/ui/progress"
 import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
 import {
   ACTIVE_SOURCE_STATUSES,
-  formatBytes,
-  formatDate,
   sourceProgress,
   titleCase,
 } from "@/features/sources/source-status"
 import type { SourceResponse } from "@/lib/hey-api"
+import { formatBytes, formatDate } from "@/lib/format"
 
 function accessScope(classification?: string) {
   switch (classification) {

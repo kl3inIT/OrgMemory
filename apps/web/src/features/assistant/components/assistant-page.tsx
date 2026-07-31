@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
 import { Copy, LoaderCircle, RotateCcw, ShieldCheck } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { toast } from "sonner"
 
 import {
   Conversation,
@@ -37,6 +36,7 @@ import {
 } from "@/features/assistant/components/assistant-sources-panel"
 import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
+import { copyWithToast } from "@/lib/copy"
 import {
   getAssistantConversationHistoryOptions,
   listAssistantConversationsQueryKey,
@@ -245,6 +245,7 @@ export function AssistantPage({
               completedHistoryOptions.queryKey,
               actorKey,
             ),
+            refetchType: "none",
           }),
         )
       }
@@ -479,12 +480,7 @@ export function AssistantPage({
                       <MessageAction
                         label="Copy message"
                         tooltip="Copy message"
-                        onClick={() =>
-                          navigator.clipboard
-                            .writeText(content)
-                            .then(() => toast.success("Message copied"))
-                            .catch(() => toast.error("Could not copy message"))
-                        }
+                        onClick={() => void copyWithToast(content, "Message")}
                       >
                         <Copy className="size-4" />
                       </MessageAction>
