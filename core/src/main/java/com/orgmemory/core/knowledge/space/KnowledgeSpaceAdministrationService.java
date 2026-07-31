@@ -11,7 +11,7 @@ import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.DepartmentRepository;

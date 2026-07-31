@@ -61,6 +61,85 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeRetrievalIsAnOpenNestedModuleDuringTheRefactor() {
+        var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+
+        assertTrue(retrieval.isOpen());
+    }
+
+    @Test
+    void knowledgeRetrievalTemporaryOpenBoundaryDoesNotGainNewConsumers() {
+        var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+        var dependencies = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(retrieval))
+                .toList();
+        var consumerTypes = dependencies.stream()
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+        var consumedInternalTypes = dependencies.stream()
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.AssetDeliveryService",
+                        "com.orgmemory.core.assetregistry.CapabilityPackService",
+                        "com.orgmemory.core.assetregistry.PromptExecutionService",
+                        "com.orgmemory.core.assistant.AssistantAssetToolService",
+                        "com.orgmemory.core.assistant.AssistantCitation",
+                        "com.orgmemory.core.assistant.AssistantPromptFactory",
+                        "com.orgmemory.core.assistant.AssistantService",
+                        "com.orgmemory.core.knowledge.acl.SourcePrincipalAdminService",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationOutbox",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraftAssembler",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
+                        "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand",
+                        "com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult",
+                        "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
+                        "com.orgmemory.core.knowledge.graph.ClaimedGraphIndex",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceQueryService",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRevision",
+                        "com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministrationService",
+                        "com.orgmemory.core.knowledge.space.KnowledgeSpaceService"),
+                consumerTypes);
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfile",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk",
+                        "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.retrieval.PgVectorLiteral",
+                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
+                        "com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeSearchResult",
+                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate",
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedKnowledgeGrounding"),
+                consumedInternalTypes);
+    }
+
+    @Test
     void knowledgeGraphTemporaryOpenBoundaryDoesNotGainNewConsumers() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var dependencies = modules.stream()
@@ -100,12 +179,12 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
-                        "com.orgmemory.core.knowledge.KnowledgeCatalogService",
-                        "com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",

@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
 import com.orgmemory.core.permission.PermissionAuditService;

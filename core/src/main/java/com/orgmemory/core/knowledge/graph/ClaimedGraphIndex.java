@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;

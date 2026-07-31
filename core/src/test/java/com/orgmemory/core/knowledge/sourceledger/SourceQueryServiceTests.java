@@ -2,10 +2,10 @@ package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.knowledge.acl.AclAuthority;
 
-import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
-import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalStore;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

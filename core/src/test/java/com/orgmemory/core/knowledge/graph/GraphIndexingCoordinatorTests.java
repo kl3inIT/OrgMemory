@@ -1,9 +1,9 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
-import com.orgmemory.core.knowledge.EmbeddingProfile;
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.EmbeddingProfileRepository;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;

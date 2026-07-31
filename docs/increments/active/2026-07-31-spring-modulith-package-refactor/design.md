@@ -135,6 +135,29 @@ The asset-owned projection store returns a graph-neutral
 `KnowledgeChunkProjection`; `knowledge.graph` maps that value into
 `GraphIndexChunk`, preventing a reciprocal Asset-to-Graph dependency.
 
+## Eighth Delivery Slice
+
+Retrieval is split across two code pull requests to keep each delivery below
+the 100-file ceiling. The first pull request moves the provider-neutral query
+embedding port, embedding profile model and registry, projection namespaces,
+and embedding configuration into `knowledge.retrieval`. Runtime search,
+authorization rechecks, evidence assembly, citation policy, and persistence
+remain in the root Knowledge package for the second retrieval pull request.
+
+The first half starts open because Asset, Connector, Graph, Source Ledger, API,
+and Worker code already consume these contracts. A structural test pins both
+the exact consumers and exact internal retrieval types they use, making that
+temporary migration surface explicit until retrieval owns its runtime half and
+can expose a smaller intentional interface.
+
+The second retrieval pull request moves authorized hybrid search, canonical
+authorization rechecks, evidence-scope resolution, catalog federation,
+citation streaming, GraphRAG result assembly, retrieval policy/configuration,
+and PostgreSQL-backed retrieval into the same nested module. The structural
+guard is refreshed to the complete runtime boundary. The module stays open
+until the later Knowledge closing phase replaces its broad sibling consumers
+with intentional interfaces and declares bounded dependencies.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

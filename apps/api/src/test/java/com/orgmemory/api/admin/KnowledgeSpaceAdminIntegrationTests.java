@@ -21,7 +21,7 @@ import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;

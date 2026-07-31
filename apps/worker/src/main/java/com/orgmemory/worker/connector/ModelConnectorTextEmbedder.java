@@ -2,10 +2,10 @@ package com.orgmemory.worker.connector;
 
 import com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult;
 import com.orgmemory.core.knowledge.connector.ConnectorTextEmbedder;
-import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
-import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.worker.ingestion.SourceProcessingProperties;
 import java.util.List;
 import java.util.UUID;
