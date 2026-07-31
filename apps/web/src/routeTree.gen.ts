@@ -30,11 +30,13 @@ import { Route as AdminUsersIndexRouteImport } from './routes/admin/users.index'
 import { Route as AdminUsersUserIdRouteImport } from './routes/admin/users.$userId'
 import { Route as AuthenticatedAssetsAssetIdIndexRouteImport } from './routes/_authenticated/assets/$assetId.index'
 import { Route as AuthenticatedAssetsAssetIdGovernanceRouteImport } from './routes/_authenticated/assets/$assetId.governance'
+import { Route as AuthenticatedAssetsAssetIdSkillPackageRouteImport } from './routes/_authenticated/assets/$assetId.skill-package'
 import { Route as AuthenticatedAssetsNewSkillRouteImport } from './routes/_authenticated/assets/new.skill'
 import { Route as AdminConnectorsSourceSystemIndexRouteImport } from './routes/admin/connectors/$sourceSystem.index'
 import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
 import { Route as AuthenticatedAssetsAssetIdPacksReleaseIdRouteImport } from './routes/_authenticated/assets/$assetId.packs.$releaseId'
 import { Route as AuthenticatedAssetsNewSkillIndexRouteImport } from './routes/_authenticated/assets/new.skill.index'
+import { Route as AuthenticatedAssetsNewSkillScratchRouteImport } from './routes/_authenticated/assets/new.skill.scratch'
 import { Route as AuthenticatedAssetsNewSkillUploadRouteImport } from './routes/_authenticated/assets/new.skill.upload'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -144,6 +146,12 @@ const AuthenticatedAssetsAssetIdGovernanceRoute =
     path: '/assets/$assetId/governance',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAssetsAssetIdSkillPackageRoute =
+  AuthenticatedAssetsAssetIdSkillPackageRouteImport.update({
+    id: '/assets/$assetId/skill-package',
+    path: '/assets/$assetId/skill-package',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAssetsNewSkillRoute =
   AuthenticatedAssetsNewSkillRouteImport.update({
     id: '/assets/new/skill',
@@ -174,6 +182,12 @@ const AuthenticatedAssetsNewSkillIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAssetsNewSkillRoute,
   } as any)
+const AuthenticatedAssetsNewSkillScratchRoute =
+  AuthenticatedAssetsNewSkillScratchRouteImport.update({
+    id: '/scratch',
+    path: '/scratch',
+    getParentRoute: () => AuthenticatedAssetsNewSkillRoute,
+  } as any)
 const AuthenticatedAssetsNewSkillUploadRoute =
   AuthenticatedAssetsNewSkillUploadRouteImport.update({
     id: '/upload',
@@ -201,11 +215,13 @@ export interface FileRoutesByFullPath {
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
+  '/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
   '/assets/new/skill': typeof AuthenticatedAssetsNewSkillRouteWithChildren
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
   '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/assets/new/skill/': typeof AuthenticatedAssetsNewSkillIndexRoute
 }
@@ -228,10 +244,12 @@ export interface FileRoutesByTo {
   '/admin/connectors': typeof AdminConnectorsIndexRoute
   '/admin/users': typeof AdminUsersIndexRoute
   '/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
+  '/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemIndexRoute
   '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/assets/new/skill': typeof AuthenticatedAssetsNewSkillIndexRoute
 }
@@ -257,11 +275,13 @@ export interface FileRoutesById {
   '/admin/connectors/': typeof AdminConnectorsIndexRoute
   '/admin/users/': typeof AdminUsersIndexRoute
   '/_authenticated/assets/$assetId/governance': typeof AuthenticatedAssetsAssetIdGovernanceRoute
+  '/_authenticated/assets/$assetId/skill-package': typeof AuthenticatedAssetsAssetIdSkillPackageRoute
   '/_authenticated/assets/new/skill': typeof AuthenticatedAssetsNewSkillRouteWithChildren
   '/admin/connectors/$sourceSystem/$connectionKey': typeof AdminConnectorsSourceSystemConnectionKeyRoute
   '/_authenticated/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
   '/_authenticated/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/_authenticated/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/_authenticated/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/_authenticated/assets/new/skill/': typeof AuthenticatedAssetsNewSkillIndexRoute
 }
@@ -287,11 +307,13 @@ export interface FileRouteTypes {
     | '/admin/connectors/'
     | '/admin/users/'
     | '/assets/$assetId/governance'
+    | '/assets/$assetId/skill-package'
     | '/assets/new/skill'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
     | '/assets/$assetId/packs/$releaseId'
+    | '/assets/new/skill/scratch'
     | '/assets/new/skill/upload'
     | '/assets/new/skill/'
   fileRoutesByTo: FileRoutesByTo
@@ -314,10 +336,12 @@ export interface FileRouteTypes {
     | '/admin/connectors'
     | '/admin/users'
     | '/assets/$assetId/governance'
+    | '/assets/$assetId/skill-package'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/assets/$assetId'
     | '/admin/connectors/$sourceSystem'
     | '/assets/$assetId/packs/$releaseId'
+    | '/assets/new/skill/scratch'
     | '/assets/new/skill/upload'
     | '/assets/new/skill'
   id:
@@ -342,11 +366,13 @@ export interface FileRouteTypes {
     | '/admin/connectors/'
     | '/admin/users/'
     | '/_authenticated/assets/$assetId/governance'
+    | '/_authenticated/assets/$assetId/skill-package'
     | '/_authenticated/assets/new/skill'
     | '/admin/connectors/$sourceSystem/$connectionKey'
     | '/_authenticated/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
     | '/_authenticated/assets/$assetId/packs/$releaseId'
+    | '/_authenticated/assets/new/skill/scratch'
     | '/_authenticated/assets/new/skill/upload'
     | '/_authenticated/assets/new/skill/'
   fileRoutesById: FileRoutesById
@@ -506,6 +532,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsAssetIdGovernanceRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/assets/$assetId/skill-package': {
+      id: '/_authenticated/assets/$assetId/skill-package'
+      path: '/assets/$assetId/skill-package'
+      fullPath: '/assets/$assetId/skill-package'
+      preLoaderRoute: typeof AuthenticatedAssetsAssetIdSkillPackageRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/assets/new/skill': {
       id: '/_authenticated/assets/new/skill'
       path: '/assets/new/skill'
@@ -541,6 +574,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsNewSkillIndexRouteImport
       parentRoute: typeof AuthenticatedAssetsNewSkillRoute
     }
+    '/_authenticated/assets/new/skill/scratch': {
+      id: '/_authenticated/assets/new/skill/scratch'
+      path: '/scratch'
+      fullPath: '/assets/new/skill/scratch'
+      preLoaderRoute: typeof AuthenticatedAssetsNewSkillScratchRouteImport
+      parentRoute: typeof AuthenticatedAssetsNewSkillRoute
+    }
     '/_authenticated/assets/new/skill/upload': {
       id: '/_authenticated/assets/new/skill/upload'
       path: '/upload'
@@ -552,12 +592,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAssetsNewSkillRouteChildren {
+  AuthenticatedAssetsNewSkillScratchRoute: typeof AuthenticatedAssetsNewSkillScratchRoute
   AuthenticatedAssetsNewSkillUploadRoute: typeof AuthenticatedAssetsNewSkillUploadRoute
   AuthenticatedAssetsNewSkillIndexRoute: typeof AuthenticatedAssetsNewSkillIndexRoute
 }
 
 const AuthenticatedAssetsNewSkillRouteChildren: AuthenticatedAssetsNewSkillRouteChildren =
   {
+    AuthenticatedAssetsNewSkillScratchRoute:
+      AuthenticatedAssetsNewSkillScratchRoute,
     AuthenticatedAssetsNewSkillUploadRoute:
       AuthenticatedAssetsNewSkillUploadRoute,
     AuthenticatedAssetsNewSkillIndexRoute:
@@ -576,6 +619,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAssetsNewRoute: typeof AuthenticatedAssetsNewRoute
   AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
   AuthenticatedAssetsAssetIdGovernanceRoute: typeof AuthenticatedAssetsAssetIdGovernanceRoute
+  AuthenticatedAssetsAssetIdSkillPackageRoute: typeof AuthenticatedAssetsAssetIdSkillPackageRoute
   AuthenticatedAssetsNewSkillRoute: typeof AuthenticatedAssetsNewSkillRouteWithChildren
   AuthenticatedAssetsAssetIdIndexRoute: typeof AuthenticatedAssetsAssetIdIndexRoute
   AuthenticatedAssetsAssetIdPacksReleaseIdRoute: typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
@@ -589,6 +633,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAssetsIndexRoute: AuthenticatedAssetsIndexRoute,
   AuthenticatedAssetsAssetIdGovernanceRoute:
     AuthenticatedAssetsAssetIdGovernanceRoute,
+  AuthenticatedAssetsAssetIdSkillPackageRoute:
+    AuthenticatedAssetsAssetIdSkillPackageRoute,
   AuthenticatedAssetsNewSkillRoute:
     AuthenticatedAssetsNewSkillRouteWithChildren,
   AuthenticatedAssetsAssetIdIndexRoute: AuthenticatedAssetsAssetIdIndexRoute,

@@ -33,6 +33,7 @@ class AssetRegistryCoordinator {
     private final AssetAuthorizationOutboxRepository outbox;
     private final AssetAuditEventRepository audit;
     private final AssetPayloadReferenceRepository payloadReferences;
+    private final SkillPackageSupersessionRepository packageSupersessions;
     private final AssetTypeProfileRegistry profiles;
     private final SkillPackageSpecReader skillPackages;
     private final AssetPayloadDigester digester;
@@ -49,6 +50,7 @@ class AssetRegistryCoordinator {
             AssetAuthorizationOutboxRepository outbox,
             AssetAuditEventRepository audit,
             AssetPayloadReferenceRepository payloadReferences,
+            SkillPackageSupersessionRepository packageSupersessions,
             AssetTypeProfileRegistry profiles,
             SkillPackageSpecReader skillPackages,
             AssetPayloadDigester digester) {
@@ -63,6 +65,7 @@ class AssetRegistryCoordinator {
         this.outbox = outbox;
         this.audit = audit;
         this.payloadReferences = payloadReferences;
+        this.packageSupersessions = packageSupersessions;
         this.profiles = profiles;
         this.skillPackages = skillPackages;
         this.digester = digester;
@@ -451,6 +454,66 @@ class AssetRegistryCoordinator {
                 draft.getId(),
                 "{\"permission\":\"can_edit\"}");
         return view(asset);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    SkillDraftReplacement replaceSkillDraft(
+            CurrentActor actor,
+            UUID assetId,
+            long expectedLockVersion,
+            AssetDraftInput input,
+            SkillPackageStoragePort.StoredSkillPackage storedPackage) {
+        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
+        if (asset.getType() != AssetType.SKILL) {
+            throw new BusinessValidationException(
+                    "skill.package-replacement-unsupported",
+                    "Only Skill drafts can replace a package");
+        }
+        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
+        if (draft.getVersion() != expectedLockVersion) {
+            throw new AssetConflictException(
+                    "The Skill draft changed; reload it before replacing the package");
+        }
+        AssetPayloadDigester.CanonicalAssetPayload canonical =
+                validateDraft(AssetType.SKILL, input);
+        SkillPackageSpec spec = skillSpec(canonical.payload());
+        requireMatchingPackage(spec.artifact(), storedPackage);
+        AssetPayloadReference previous = payloadReferences
+                .findByDraftIdAndOrganizationId(draft.getId(), actor.organizationId())
+                .orElseThrow(() -> new AssetConflictException(
+                        "The Skill draft is missing its package reference"));
+
+        payloadReferences.delete(previous);
+        payloadReferences.flush();
+        payloadReferences.saveAndFlush(
+                AssetPayloadReference.forDraft(draft, storedPackage));
+        draft.update(
+                canonical.title(),
+                canonical.summary(),
+                canonical.classification(),
+                canonical.schemaVersion(),
+                canonical.payload(),
+                actor.userId());
+        drafts.saveAndFlush(draft);
+        SkillPackageSupersession supersession = packageSupersessions.saveAndFlush(
+                new SkillPackageSupersession(
+                        actor.organizationId(),
+                        assetId,
+                        previous.getReferenceValue(),
+                        storedPackage.objectKey(),
+                        Instant.now()));
+        recordAudit(
+                actor,
+                assetId,
+                "SKILL_DRAFT_PACKAGE_REPLACED",
+                "DRAFT",
+                draft.getId(),
+                "{\"permission\":\"can_edit\",\"previousDigest\":\""
+                        + previous.getDigest()
+                        + "\",\"replacementDigest\":\""
+                        + storedPackage.sha256()
+                        + "\"}");
+        return new SkillDraftReplacement(view(asset), supersession.getId());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

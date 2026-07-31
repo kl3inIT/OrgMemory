@@ -20,7 +20,8 @@ const CREATION_METHODS = [
     description: "Write the instructions and add supporting files in OrgMemory.",
     icon: PencilLine,
     tone: "bg-status-info-surface text-status-info-content",
-    available: false,
+    available: true,
+    to: "/assets/new/skill/scratch",
   },
   {
     title: "Upload a skill",
@@ -28,6 +29,7 @@ const CREATION_METHODS = [
     icon: FileUp,
     tone: "bg-status-success-surface text-status-success-content",
     available: true,
+    to: "/assets/new/skill/upload",
   },
   {
     title: "Import from GitHub",
@@ -35,6 +37,7 @@ const CREATION_METHODS = [
     icon: GitFork,
     tone: "bg-surface-subtle text-content-primary",
     available: false,
+    to: undefined,
   },
 ] as const
 
@@ -96,7 +99,7 @@ export function SkillCreationPage() {
             return method.available ? (
               <Link
                 key={method.title}
-                to="/assets/new/skill/upload"
+                to={method.to}
                 className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               >
                 {card}

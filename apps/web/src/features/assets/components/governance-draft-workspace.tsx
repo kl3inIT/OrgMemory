@@ -1,9 +1,11 @@
 import { useMutation } from "@tanstack/react-query"
-import { Archive, Rocket, Send } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { Archive, Pencil, Rocket, Send } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -105,7 +107,13 @@ export function GovernanceDraftWorkspace({
             </div>
           </CardContent>
         </Card>
-        {asset.type === "SKILL" ? <SkillDraftPackage draft={draft} /> : null}
+        {asset.type === "SKILL" ? (
+          <SkillDraftPackage
+            assetId={asset.id!}
+            draft={draft}
+            canEdit={Boolean(actions?.canEdit)}
+          />
+        ) : null}
       </div>
 
       {canPublishSkill ? (
@@ -177,7 +185,15 @@ export function GovernanceDraftWorkspace({
   )
 }
 
-function SkillDraftPackage({ draft }: { draft: Draft }) {
+function SkillDraftPackage({
+  assetId,
+  draft,
+  canEdit,
+}: {
+  assetId: string
+  draft: Draft
+  canEdit: boolean
+}) {
   const skill = parsePayload<SkillDraftPayload>(draft.payload)
   if (!skill?.artifact) {
     return (
@@ -194,9 +210,18 @@ function SkillDraftPackage({ draft }: { draft: Draft }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Archive className="size-5 text-content-muted" aria-hidden="true" />
-          <CardTitle>Skill package</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Archive className="size-5 text-content-muted" aria-hidden="true" />
+            <CardTitle>Skill package</CardTitle>
+          </div>
+          {canEdit ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/assets/$assetId/skill-package" params={{ assetId }}>
+                <Pencil aria-hidden="true" />Edit package
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

@@ -13,6 +13,7 @@ import com.orgmemory.core.assetregistry.AssetSummaryPage;
 import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.SkillRegistryService;
+import com.orgmemory.core.assetregistry.SkillPackageInspection;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import java.io.IOException;
@@ -154,6 +155,48 @@ class AssetRegistryController {
                     namespace,
                     knowledgeSpaceId,
                     classification,
+                    file.getSize(),
+                    content);
+        } catch (IOException failure) {
+            throw new ApiRequestException(
+                    "The Skill package could not be read", failure);
+        }
+    }
+
+    @PostMapping(
+            path = "/skills/inspections",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            operationId = "inspectSkillPackage",
+            summary = "Validate and inspect one Agent Skill package without storing it")
+    SkillPackageInspection inspectSkill(
+            @RequestPart("file") MultipartFile file,
+            Authentication authentication) {
+        try (var content = file.getInputStream()) {
+            return skills.inspectPackage(
+                    actors.current(authentication), file.getSize(), content);
+        } catch (IOException failure) {
+            throw new ApiRequestException(
+                    "The Skill package could not be read", failure);
+        }
+    }
+
+    @PutMapping(
+            path = "/{assetId}/skill-draft",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            operationId = "replaceSkillDraftPackage",
+            summary = "Replace the package of one mutable Skill draft")
+    AssetView replaceSkillDraft(
+            @PathVariable UUID assetId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam long expectedLockVersion,
+            Authentication authentication) {
+        try (var content = file.getInputStream()) {
+            return skills.replacePackage(
+                    actors.current(authentication),
+                    assetId,
+                    expectedLockVersion,
                     file.getSize(),
                     content);
         } catch (IOException failure) {

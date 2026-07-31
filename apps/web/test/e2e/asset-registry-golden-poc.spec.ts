@@ -25,6 +25,9 @@ test("Skill publication hands the author to capability-aware Governance", async 
   page,
 }) => {
   const harness = await skillGovernanceHarness(page)
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.emulateMedia({ colorScheme: "dark" })
+  }
 
   await page.goto(`/assets/${SKILL_ID}/governance`)
   await expect(page.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
@@ -35,6 +38,23 @@ test("Skill publication hands the author to capability-aware Governance", async 
   await expect(page.getByText("Skill package", { exact: true })).toBeVisible()
   await expect(page.getByText(SKILL_DIGEST)).toBeVisible()
   await expect(page.getByText("references/policy.md")).toBeVisible()
+  await page.getByRole("link", { name: "Edit package" }).click()
+  await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/skill-package$`))
+  await page.getByLabel("SKILL.md or ZIP").setInputFiles({
+    name: "expense-review-v2.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("PK replacement package"),
+  })
+  await expect(page.getByText("Validated package", { exact: true })).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1536, height: 1024 })
+    await page.screenshot({
+      path: "../output/design-qa/skill-draft-replacement.png",
+      fullPage: false,
+    })
+  }
+  await page.getByRole("button", { name: "Replace Draft package" }).click()
+  await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/governance$`))
 
   await expect(page.getByRole("tab", { name: "Review" })).toHaveCount(0)
   await page.getByLabel("Version").fill("1.0.0")
@@ -52,6 +72,9 @@ test("Skill publication hands the author to capability-aware Governance", async 
   )
   expect(harness.requests).toContain(
     `POST /api/assets/${SKILL_ID}/skill-releases`,
+  )
+  expect(harness.requests).toContain(
+    `PUT /api/assets/${SKILL_ID}/skill-draft`,
   )
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
@@ -267,7 +290,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("link", { name: /Upload a skill/ })).toBeVisible()
   await expect(page.getByText("Start from scratch", { exact: true })).toBeVisible()
   await expect(page.getByText("Import from GitHub", { exact: true })).toBeVisible()
-  await expect(page.locator('[aria-disabled="true"]')).toHaveCount(2)
+  await expect(page.locator('[aria-disabled="true"]')).toHaveCount(1)
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.setViewportSize({ width: 1598, height: 910 })
@@ -287,11 +310,12 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.getByRole("link", { name: /Upload a skill/ }).click()
   await expect(page).toHaveURL(/\/assets\/new\/skill\/upload$/)
   await expect(page.getByRole("heading", { level: 1, name: "Upload a Skill" })).toBeVisible()
-  await page.getByLabel("ZIP package").setInputFiles({
+  await page.getByLabel("SKILL.md or ZIP").setInputFiles({
     name: "incident-response.zip",
     mimeType: "application/zip",
     buffer: Buffer.from("PK test package"),
   })
+  await expect(page.getByText("Validated package", { exact: true })).toBeVisible()
   await page.getByLabel("Namespace").fill("Engineering_Team")
   await page.getByRole("combobox", { name: "Knowledge Space" }).click()
   await page.getByRole("option", { name: "Engineering knowledge" }).click()
@@ -341,6 +365,51 @@ test("asset navigation stacks without horizontal page overflow", async ({ page }
   expect(harness.browserErrors).toEqual([])
 })
 
+test("Skill scratch authoring invalidates stale inspection and creates one governed Draft", async ({
+  page,
+}) => {
+  const harness = await assetHarness(page, "owner")
+
+  await page.goto("/assets/new/skill/scratch")
+  await page.getByLabel("Skill name").fill("incident-response")
+  await page.getByLabel("Description").fill("Guide an approved incident response.")
+  await page.getByLabel("Instructions").fill("# Workflow\n\nUse approved evidence and escalate.")
+  await page.getByLabel("Namespace").fill("Engineering_Team")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Engineering knowledge" }).click()
+  await page.getByRole("button", { name: "Validate package" }).click()
+  await expect(page.getByText("Validated package", { exact: true })).toBeVisible()
+
+  await page.getByLabel("Description").fill("Guide an approved production incident response.")
+  await expect(page.getByText("Validated package", { exact: true })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Create Draft" })).toBeDisabled()
+
+  await page.getByRole("button", { name: "Validate package" }).click()
+  await expect(page.getByText("Validated package", { exact: true })).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1536, height: 1024 })
+    await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+    await page.screenshot({
+      path: "../output/design-qa/skill-scratch-authoring.png",
+      fullPage: false,
+    })
+  }
+  await page.getByRole("button", { name: "Create Draft" }).click()
+
+  await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/governance$`))
+  expect(harness.skillImportQueries).toEqual([
+    {
+      namespace: "engineering_team",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+      classification: "INTERNAL",
+    },
+  ])
+  expect(harness.requests.filter((request) => request === "POST /api/assets/skills/inspections"))
+    .toHaveLength(2)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 test("Skill upload keeps the Draft form open and explains a server rejection", async ({
   page,
 }) => {
@@ -354,11 +423,12 @@ test("Skill upload keeps the Draft form open and explains a server rejection", a
   await page.goto("/assets/new")
   await expect(page).toHaveURL(/\/assets\/new\/skill\/?$/)
   await page.getByRole("link", { name: /Upload a skill/ }).click()
-  await page.getByLabel("ZIP package").setInputFiles({
+  await page.getByLabel("SKILL.md or ZIP").setInputFiles({
     name: "incident-response.zip",
     mimeType: "application/zip",
     buffer: Buffer.from("PK test package"),
   })
+  await expect(page.getByText("Validated package", { exact: true })).toBeVisible()
   await page.getByLabel("Namespace").fill("engineering")
   await page.getByRole("combobox", { name: "Knowledge Space" }).click()
   await page.getByRole("option", { name: "Engineering knowledge" }).click()
@@ -436,6 +506,13 @@ async function assetHarness(
       ])
       return
     }
+    if (
+      request.method() === "POST" &&
+      url.pathname === "/api/assets/skills/inspections"
+    ) {
+      await json(route, skillPackageInspection())
+      return
+    }
     if (request.method() === "POST" && url.pathname === "/api/assets/skills") {
       skillImportQueries.push({
         namespace: url.searchParams.get("namespace"),
@@ -465,6 +542,7 @@ async function assetHarness(
     }
     if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
       await json(route, {
+        canEdit: true,
         canSubmitReview: true,
         canReview: false,
         canPublish: false,
@@ -479,6 +557,7 @@ async function assetHarness(
     }
     if (url.pathname === `/api/assets/${PACK_ID}/governance-actions`) {
       await json(route, {
+        canEdit: true,
         canSubmitReview: true,
         canReview: true,
         canPublish: true,
@@ -623,12 +702,27 @@ async function skillGovernanceHarness(page: Page) {
     }
     if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
       await json(route, {
+        canEdit: true,
         canSubmitReview: true,
         canReview: false,
         canPublish: false,
         canPublishSkill: true,
         canWithdraw: false,
       })
+      return
+    }
+    if (
+      request.method() === "POST" &&
+      url.pathname === "/api/assets/skills/inspections"
+    ) {
+      await json(route, skillPackageInspection())
+      return
+    }
+    if (
+      request.method() === "PUT" &&
+      url.pathname === `/api/assets/${SKILL_ID}/skill-draft`
+    ) {
+      await json(route, skillDraftAsset(published))
       return
     }
     if (
@@ -929,6 +1023,28 @@ function skillDraftAsset(published: boolean) {
     roleAssignments: [
       roleAssignment(OWNER_ID, "OWNER"),
       roleAssignment(BACKUP_OWNER_ID, "BACKUP_OWNER"),
+    ],
+  }
+}
+
+function skillPackageInspection() {
+  return {
+    name: "incident-response",
+    description: "Guide an approved production incident response.",
+    license: "Proprietary",
+    compatibility: "Claude Code and Codex",
+    allowedTools: "Read",
+    metadata: {},
+    instructions: "# Workflow\n\nUse approved evidence and escalate.",
+    sha256: SKILL_DIGEST,
+    contentLength: 2048,
+    files: [
+      { path: "incident-response/SKILL.md", size: 512, sha256: "d".repeat(64) },
+      {
+        path: "incident-response/references/policy.md",
+        size: 1024,
+        sha256: "e".repeat(64),
+      },
     ],
   }
 }

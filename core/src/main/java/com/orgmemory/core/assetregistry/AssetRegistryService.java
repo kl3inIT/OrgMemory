@@ -212,6 +212,7 @@ public class AssetRegistryService {
         ResourceRef resource =
                 ResourceRef.of(actor.organizationId(), ASSET_RESOURCE, assetId);
         return new AssetGovernanceActions(
+                allowed(actor, resource, CAN_EDIT),
                 allowed(actor, resource, CAN_SUBMIT_REVIEW),
                 allowed(actor, resource, CAN_REVIEW),
                 allowed(actor, resource, CAN_PUBLISH),
@@ -281,6 +282,21 @@ public class AssetRegistryService {
             AssetDraftInput input) {
         require(actor, assetId, CAN_EDIT);
         return coordinator.updateDraft(actor, assetId, expectedLockVersion, input);
+    }
+
+    void requireSkillEdit(CurrentActor actor, UUID assetId) {
+        require(actor, assetId, CAN_EDIT);
+    }
+
+    SkillDraftReplacement replaceValidatedSkillDraft(
+            CurrentActor actor,
+            UUID assetId,
+            long expectedLockVersion,
+            AssetDraftInput input,
+            SkillPackageStoragePort.StoredSkillPackage storedPackage) {
+        require(actor, assetId, CAN_EDIT);
+        return coordinator.replaceSkillDraft(
+                actor, assetId, expectedLockVersion, input, storedPackage);
     }
 
     public AssetView submit(CurrentActor actor, UUID assetId, String changeNote) {
