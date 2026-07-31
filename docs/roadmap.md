@@ -36,6 +36,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Asset ownership navigation](increments/active/2026-07-31-asset-ownership-navigation/plan.md) | active | owner-scoped API, unified Assets layout, browser proof, review, and merge |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [Product release management](increments/active/2026-07-31-product-release-management/plan.md) | active | independent architecture challenge, implementation, CI/CodeRabbit review, and first release proof |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |

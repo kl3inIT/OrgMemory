@@ -129,15 +129,21 @@ execution action.
 
 The authenticated web application provides four generic surfaces:
 
-- **Assets** lists only the latest non-withdrawn exact release the current actor
-  can use. A prominent controlled projection switches between the shared
-  catalog and its Prompt Template, Work Instruction, Capability Pack, and Skill
-  profiles. Search, type, sort, layout, and page are URL state; the grid is the
-  clean-URL default and the list remains available. The server returns a bounded
-  page plus the authorized total and applies an explicit stable order. An
-  `Add asset` action opens the shared profile chooser. This chooser is
-  navigation-only until a profile-specific authoring flow is implemented; it
-  does not create a Draft or infer authorization from the browser session.
+- **Assets** is one surface with `All Assets | My Assets` scope navigation.
+  `All Assets` lists only the latest non-withdrawn exact release the current
+  actor can use. `My Assets` is an owner workspace that includes Draft-only and
+  released Assets whose active direct `OWNER` assignment belongs to the actor
+  and whose live `can_view` decision still allows access; owned results link to
+  Governance. The clean URL selects `All Assets`, while `scope=MINE` selects the
+  owner workspace. Search and scope form the primary row; compact type, sort,
+  layout, and result controls form a secondary row so additional Asset types do
+  not expand the page horizontally. Search, scope, type, sort, layout, and page
+  are URL state; the grid is the clean-URL default and the list remains
+  available. Both server collections return bounded pages, authorized totals,
+  and explicit stable orders. An `Add asset` action opens the shared profile
+  chooser. This chooser is navigation-only until a profile-specific authoring
+  flow is implemented; it does not create a Draft or infer authorization or
+  owner identity from the browser session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and

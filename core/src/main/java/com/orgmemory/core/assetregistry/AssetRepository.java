@@ -108,7 +108,8 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                 draft.title,
                 draft.summary,
                 asset.knowledgeSpaceId,
-                asset.portfolioState)
+                asset.portfolioState,
+                asset.updatedAt)
             from Asset asset
             join AssetDraft draft
               on draft.assetId = asset.id
@@ -131,6 +132,64 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
             @Param("ids") Collection<UUID> ids,
             @Param("query") String query,
             @Param("type") AssetType type,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    select new com.orgmemory.core.assetregistry.AssetSummary(
+                        asset.id,
+                        asset.type,
+                        asset.namespace,
+                        asset.slug,
+                        draft.title,
+                        draft.summary,
+                        asset.knowledgeSpaceId,
+                        asset.portfolioState,
+                        asset.updatedAt)
+                    from Asset asset
+                    join AssetDraft draft
+                      on draft.assetId = asset.id
+                     and draft.organizationId = asset.organizationId
+                    where asset.organizationId = :organizationId
+                      and asset.id in :ids
+                      and asset.authorizationReady = true
+                      and (:type is null or asset.type = :type)
+                      and (
+                            :query = ''
+                            or lower(concat(
+                                asset.namespace, ' ', asset.slug, ' ',
+                                draft.title, ' ', draft.summary))
+                               like concat('%', :query, '%')
+                      )
+                    order by
+                      case when :sort = 'NAME' then lower(draft.title) end asc,
+                      case when :sort = 'RECENTLY_UPDATED' then asset.updatedAt end desc,
+                      asset.id asc
+                    """,
+            countQuery = """
+                    select count(asset.id)
+                    from Asset asset
+                    join AssetDraft draft
+                      on draft.assetId = asset.id
+                     and draft.organizationId = asset.organizationId
+                    where asset.organizationId = :organizationId
+                      and asset.id in :ids
+                      and asset.authorizationReady = true
+                      and (:type is null or asset.type = :type)
+                      and (
+                            :query = ''
+                            or lower(concat(
+                                asset.namespace, ' ', asset.slug, ' ',
+                                draft.title, ' ', draft.summary))
+                               like concat('%', :query, '%')
+                      )
+                    """)
+    Page<AssetSummary> searchOwnedSummaries(
+            @Param("organizationId") UUID organizationId,
+            @Param("ids") Collection<UUID> ids,
+            @Param("query") String query,
+            @Param("type") AssetType type,
+            @Param("sort") String sort,
             Pageable pageable);
 
     @Query(

@@ -158,9 +158,39 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
   await expect(page.getByRole("link", { name: "Add asset" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
+  await expect(page.getByRole("tab", { name: "My Assets" })).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
+
+  const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
+  const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
+  expect(searchBox).not.toBeNull()
+  expect(scopeTabs).not.toBeNull()
+  expect(Math.abs(searchBox!.y - scopeTabs!.y)).toBeLessThanOrEqual(2)
+
+  await page.getByRole("tab", { name: "My Assets" }).click()
+  await expect(page).toHaveURL(/scope=MINE/)
+  await expect(page.getByText("1 result", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Draft incident response skill" })).toBeVisible()
+  await expect(page.getByText("Draft", { exact: true })).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-catalog-mine.png",
+      fullPage: false,
+    })
+  }
+  await page.getByRole("tab", { name: "All Assets" }).click()
+  await expect(page).not.toHaveURL(/scope=/)
+  await expect(page.getByText("18 results", { exact: true })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
@@ -221,6 +251,34 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   expect(harness.browserErrors).toEqual([])
 })
 
+test("asset navigation stacks without horizontal page overflow", async ({ page }) => {
+  const harness = await assetHarness(page, "support", catalogRecommendations().slice(0, 2))
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/assets")
+
+  await expect(page.getByRole("tab", { name: "All Assets" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Filter assets by type" })).toBeVisible()
+  const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
+  const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
+  expect(searchBox).not.toBeNull()
+  expect(scopeTabs).not.toBeNull()
+  expect(scopeTabs!.y).toBeGreaterThan(searchBox!.y + searchBox!.height)
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth))
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-catalog-mobile.png",
+      fullPage: false,
+    })
+  }
+
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 async function assetHarness(
   page: Page,
   actor: "owner" | "support",
@@ -244,6 +302,17 @@ async function assetHarness(
         pageSize: 24,
         totalPages: 1,
         sort: "RECENTLY_RELEASED",
+      })
+      return
+    }
+    if (url.pathname === "/api/assets/owned") {
+      await json(route, {
+        items: [ownedDraftSummary()],
+        total: 1,
+        page: 1,
+        pageSize: 24,
+        totalPages: 1,
+        sort: "RECENTLY_UPDATED",
       })
       return
     }
@@ -310,6 +379,20 @@ function supportPackRecommendation() {
     releaseDigest: "a".repeat(64),
     availability: "AVAILABLE",
     releasedAt: "2026-07-28T00:00:00Z",
+  }
+}
+
+function ownedDraftSummary() {
+  return {
+    id: SKILL_ID,
+    type: "SKILL",
+    namespace: "engineering",
+    slug: "incident-response",
+    title: "Draft incident response skill",
+    summary: "A reusable incident response procedure being prepared for release.",
+    knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    portfolioState: "DRAFT_ONLY",
+    updatedAt: "2026-07-31T12:00:00Z",
   }
 }
 

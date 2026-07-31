@@ -1,6 +1,7 @@
 import type { AssetType } from "@/features/assets/asset-format"
 
-export type AssetCatalogSort = "RECENTLY_RELEASED" | "NAME"
+export type AssetCatalogScope = "ALL" | "MINE"
+export type AssetCatalogSort = "RECENTLY_RELEASED" | "RECENTLY_UPDATED" | "NAME"
 export type AssetCatalogView = "LIST" | "GRID"
 
 const TYPES = {
@@ -13,6 +14,7 @@ const TYPES = {
 export function parseAssetCatalogSearch(search: Record<string, unknown>): {
   q?: string
   type?: AssetType
+  scope?: AssetCatalogScope
   sort?: AssetCatalogSort
   view?: AssetCatalogView
   page?: number
@@ -23,8 +25,11 @@ export function parseAssetCatalogSearch(search: Record<string, unknown>): {
     Object.prototype.hasOwnProperty.call(TYPES, search.type)
       ? (search.type as AssetType)
       : undefined
+  const scope = search.scope === "MINE" ? "MINE" : undefined
   const sort =
-    search.sort === "NAME" || search.sort === "RECENTLY_RELEASED"
+    search.sort === "NAME" ||
+    (scope === "MINE" && search.sort === "RECENTLY_UPDATED") ||
+    (scope === undefined && search.sort === "RECENTLY_RELEASED")
       ? search.sort
       : undefined
   const view =
@@ -37,5 +42,5 @@ export function parseAssetCatalogSearch(search: Record<string, unknown>): {
         : 1
   const page = Number.isSafeInteger(parsedPage) && parsedPage > 1 ? parsedPage : undefined
 
-  return { q: q || undefined, type, sort, view, page }
+  return { q: q || undefined, type, scope, sort, view, page }
 }

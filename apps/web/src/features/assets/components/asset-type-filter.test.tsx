@@ -8,17 +8,8 @@ describe("AssetTypeFilter", () => {
   it("exposes every governed Asset profile and the active selection", () => {
     render(<AssetTypeFilter value="SKILL" onValueChange={vi.fn()} />)
 
-    expect(screen.getByRole("group", { name: "Filter assets by type" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "All assets" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    )
-    expect(screen.getByRole("button", { name: "Prompt templates" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Work instructions" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Capability packs" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Skills" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
+    expect(screen.getByRole("combobox", { name: "Filter assets by type" })).toHaveTextContent(
+      "Skills",
     )
   })
 
@@ -30,11 +21,13 @@ describe("AssetTypeFilter", () => {
       <AssetTypeFilter value={undefined} onValueChange={onValueChange} />,
     )
 
-    await user.click(screen.getByRole("button", { name: "Skills" }))
+    await user.click(screen.getByRole("combobox", { name: "Filter assets by type" }))
+    await user.click(screen.getByRole("option", { name: "Skills" }))
     expect(onValueChange).toHaveBeenLastCalledWith("SKILL")
 
     rerender(<AssetTypeFilter value="SKILL" onValueChange={onValueChange} />)
-    await user.click(screen.getByRole("button", { name: "All assets" }))
+    await user.click(screen.getByRole("combobox", { name: "Filter assets by type" }))
+    await user.click(screen.getByRole("option", { name: "All types" }))
     expect(onValueChange).toHaveBeenLastCalledWith(undefined)
   })
 })
