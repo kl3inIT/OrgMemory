@@ -27,9 +27,12 @@ public final class PgVectorLiteral {
         if (body.isBlank()) {
             throw new IllegalArgumentException("pgvector literal must not be empty");
         }
-        String[] parts = body.split(",");
+        String[] parts = body.split(",", -1);
         float[] values = new float[parts.length];
         for (int index = 0; index < parts.length; index++) {
+            if (parts[index].isBlank()) {
+                throw new IllegalArgumentException("pgvector literal components must not be empty");
+            }
             values[index] = Float.parseFloat(parts[index]);
         }
         return new FloatVector(values);
