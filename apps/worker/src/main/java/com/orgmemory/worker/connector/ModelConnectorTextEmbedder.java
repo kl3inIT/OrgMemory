@@ -1,7 +1,7 @@
 package com.orgmemory.worker.connector;
 
-import com.orgmemory.core.knowledge.ConnectorEmbeddingResult;
-import com.orgmemory.core.knowledge.ConnectorTextEmbedder;
+import com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult;
+import com.orgmemory.core.knowledge.connector.ConnectorTextEmbedder;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;

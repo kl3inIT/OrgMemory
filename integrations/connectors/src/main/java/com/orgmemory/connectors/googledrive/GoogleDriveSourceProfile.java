@@ -1,6 +1,6 @@
 package com.orgmemory.connectors.googledrive;
 
-import com.orgmemory.core.knowledge.ConnectorSourceProfile;
+import com.orgmemory.core.knowledge.connector.ConnectorSourceProfile;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 

@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

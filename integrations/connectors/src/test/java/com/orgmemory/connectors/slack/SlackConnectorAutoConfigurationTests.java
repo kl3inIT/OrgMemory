@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.ConnectorBatchSource;
-import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
-import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;

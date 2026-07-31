@@ -1,9 +1,9 @@
 package com.orgmemory.worker.connector;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.orgmemory.core.knowledge.ConnectorBatchSource;
-import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
-import com.orgmemory.core.knowledge.ConnectorPoll;
+import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.connector.ConnectorPoll;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;

@@ -1,5 +1,10 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
+
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
+
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
