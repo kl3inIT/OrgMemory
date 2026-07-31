@@ -12,6 +12,9 @@ const generatedManifest = JSON.parse(
 const publicRoutes = [...authoredManifest.entries, ...generatedManifest.entries].map(
   (entry) => entry.route,
 );
+const currentProduct = JSON.parse(
+  fs.readFileSync(path.resolve('../../release/product.json'), 'utf8'),
+) as { name: string; version: string };
 
 function machineReadableRoute(route: string): string {
   const localized = route.match(/^\/([a-z]{2})(\/docs(?:\/.*)?)$/);
@@ -328,7 +331,12 @@ test('global changelog navigation is localized and renders Tegami history', asyn
     }
     await page.getByRole('link', { name: localized.label, exact: true }).first().click();
     await expect(page).toHaveURL(new RegExp(`${localized.href}$`));
-    await expect(page.getByRole('heading', { level: 2, name: 'orgmemory@0.1.0' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        level: 2,
+        name: `${currentProduct.name}@${currentProduct.version}`,
+      }),
+    ).toBeVisible();
     await expect(
       page.getByRole('heading', { level: 3, name: 'Product release management' }),
     ).toBeVisible();

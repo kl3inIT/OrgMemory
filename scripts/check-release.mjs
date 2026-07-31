@@ -3,7 +3,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { extname, join, relative } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
-import { parseProductManifest, parseReleaseArtifacts } from "./tegami-product.mts";
+import {
+  parseProductManifest,
+  parseReleaseArtifacts,
+  renderPublicProductChangelog,
+} from "./tegami-product.mts";
 import { releaseRequirementFailure } from "./release-policy.mjs";
 
 const root = process.cwd();
@@ -22,6 +26,21 @@ const forbidden = [
 
 try {
   parseProductManifest(await readFile(join(root, "release", "product.json"), "utf8"));
+} catch (error) {
+  failures.push(error instanceof Error ? error.message : String(error));
+}
+
+try {
+  const canonicalChangelog = await readFile(join(root, "release", "CHANGELOG.md"), "utf8");
+  const publicChangelog = await readFile(
+    join(root, "apps", "docs", "content", "includes", "product-changelog.md"),
+    "utf8",
+  );
+  if (publicChangelog !== renderPublicProductChangelog(canonicalChangelog)) {
+    failures.push(
+      "apps/docs/content/includes/product-changelog.md is not synchronized with release/CHANGELOG.md",
+    );
+  }
 } catch (error) {
   failures.push(error instanceof Error ? error.message : String(error));
 }
