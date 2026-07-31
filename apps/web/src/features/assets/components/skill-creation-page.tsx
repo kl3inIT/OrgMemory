@@ -102,7 +102,14 @@ export function SkillCreationPage() {
                 {card}
               </Link>
             ) : (
-              <div key={method.title} aria-disabled="true">{card}</div>
+              <div
+                key={method.title}
+                role="group"
+                aria-label={`${method.title}, coming soon`}
+                aria-disabled="true"
+              >
+                {card}
+              </div>
             )
           })}
         </section>

@@ -23,6 +23,7 @@ import { Route as AdminMappingsRouteImport } from './routes/admin/mappings'
 import { Route as AdminScimRouteImport } from './routes/admin/scim'
 import { Route as AdminSpacesRouteImport } from './routes/admin/spaces'
 import { Route as AuthenticatedAssetsIndexRouteImport } from './routes/_authenticated/assets/index'
+import { Route as AuthenticatedAssetsNewRouteImport } from './routes/_authenticated/assets/new_'
 import { Route as AdminConnectorsIndexRouteImport } from './routes/admin/connectors/index'
 import { Route as AdminConnectorsNewRouteImport } from './routes/admin/connectors/new'
 import { Route as AdminUsersIndexRouteImport } from './routes/admin/users.index'
@@ -106,6 +107,11 @@ const AuthenticatedAssetsIndexRoute =
     path: '/assets/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAssetsNewRoute = AuthenticatedAssetsNewRouteImport.update({
+  id: '/assets/new_',
+  path: '/assets/new',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AdminConnectorsIndexRoute = AdminConnectorsIndexRouteImport.update({
   id: '/connectors/',
   path: '/connectors/',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/admin/scim': typeof AdminScimRoute
   '/admin/spaces': typeof AdminSpacesRoute
   '/admin/': typeof AdminIndexRoute
+  '/assets/new': typeof AuthenticatedAssetsNewRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/assets/': typeof AuthenticatedAssetsIndexRoute
@@ -214,6 +221,7 @@ export interface FileRoutesByTo {
   '/admin/spaces': typeof AdminSpacesRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/assets/new': typeof AuthenticatedAssetsNewRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/assets': typeof AuthenticatedAssetsIndexRoute
@@ -242,6 +250,7 @@ export interface FileRoutesById {
   '/admin/spaces': typeof AdminSpacesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/_authenticated/assets/new_': typeof AuthenticatedAssetsNewRoute
   '/admin/connectors/new': typeof AdminConnectorsNewRoute
   '/admin/users/$userId': typeof AdminUsersUserIdRoute
   '/_authenticated/assets/': typeof AuthenticatedAssetsIndexRoute
@@ -271,6 +280,7 @@ export interface FileRouteTypes {
     | '/admin/scim'
     | '/admin/spaces'
     | '/admin/'
+    | '/assets/new'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
     | '/assets/'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/admin/spaces'
     | '/'
     | '/admin'
+    | '/assets/new'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
     | '/assets'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/admin/spaces'
     | '/_authenticated/'
     | '/admin/'
+    | '/_authenticated/assets/new_'
     | '/admin/connectors/new'
     | '/admin/users/$userId'
     | '/_authenticated/assets/'
@@ -445,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/assets/new_': {
+      id: '/_authenticated/assets/new_'
+      path: '/assets/new'
+      fullPath: '/assets/new'
+      preLoaderRoute: typeof AuthenticatedAssetsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/admin/connectors/': {
       id: '/admin/connectors/'
       path: '/connectors'
@@ -554,6 +573,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedConnectRoute: typeof AuthenticatedConnectRoute
   AuthenticatedSourcesRoute: typeof AuthenticatedSourcesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAssetsNewRoute: typeof AuthenticatedAssetsNewRoute
   AuthenticatedAssetsIndexRoute: typeof AuthenticatedAssetsIndexRoute
   AuthenticatedAssetsAssetIdGovernanceRoute: typeof AuthenticatedAssetsAssetIdGovernanceRoute
   AuthenticatedAssetsNewSkillRoute: typeof AuthenticatedAssetsNewSkillRouteWithChildren
@@ -565,6 +585,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedConnectRoute: AuthenticatedConnectRoute,
   AuthenticatedSourcesRoute: AuthenticatedSourcesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAssetsNewRoute: AuthenticatedAssetsNewRoute,
   AuthenticatedAssetsIndexRoute: AuthenticatedAssetsIndexRoute,
   AuthenticatedAssetsAssetIdGovernanceRoute:
     AuthenticatedAssetsAssetIdGovernanceRoute,

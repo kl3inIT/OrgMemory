@@ -24,6 +24,7 @@ import {
   listKnowledgeSpaceUploadTargetsOptions,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import { validateSkillUpload } from "@/features/assets/skill-upload-validation"
+import { apiErrorMessage } from "@/lib/api-error"
 
 type Classification = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED"
 
@@ -70,7 +71,7 @@ export function SkillUploadPage() {
         params: { assetId: asset.id },
       })
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "The Skill could not be imported.")
+      setError(apiErrorMessage(failure, "The Skill could not be imported."))
     }
   }
 
@@ -148,6 +149,25 @@ export function SkillUploadPage() {
                       Loading available spaces
                     </div>
                   ) : null}
+                  <Select
+                    value={knowledgeSpaceId}
+                    disabled={
+                      importSkill.isPending ||
+                      uploadTargets.isPending ||
+                      uploadTargets.isError ||
+                      spaces.length === 0
+                    }
+                    onValueChange={setKnowledgeSpaceId}
+                  >
+                    <SelectTrigger id="skill-space" className="w-full">
+                      <SelectValue placeholder="Choose a space" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {spaces.map((space) => (
+                        <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {uploadTargets.isError ? (
                     <Alert variant="destructive">
                       <AlertDescription className="space-y-3">
@@ -157,14 +177,6 @@ export function SkillUploadPage() {
                         </Button>
                       </AlertDescription>
                     </Alert>
-                  ) : null}
-                  {!uploadTargets.isPending && !uploadTargets.isError ? (
-                    <Select value={knowledgeSpaceId} disabled={importSkill.isPending} onValueChange={setKnowledgeSpaceId}>
-                      <SelectTrigger id="skill-space" className="w-full"><SelectValue placeholder="Choose a space" /></SelectTrigger>
-                      <SelectContent>
-                        {spaces.map((space) => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
                   ) : null}
                   {!uploadTargets.isPending && !uploadTargets.isError && spaces.length === 0 ? (
                     <p className="text-sm text-content-muted">You do not have an authorized upload target.</p>
@@ -188,9 +200,15 @@ export function SkillUploadPage() {
               {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
               <div className="flex flex-col-reverse gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:justify-end">
-                <Button variant="outline" asChild disabled={importSkill.isPending}>
-                  <Link to="/assets/new/skill"><ChevronLeft aria-hidden="true" />Back</Link>
-                </Button>
+                {importSkill.isPending ? (
+                  <Button type="button" variant="outline" disabled>
+                    <ChevronLeft aria-hidden="true" />Back
+                  </Button>
+                ) : (
+                  <Button variant="outline" asChild>
+                    <Link to="/assets/new/skill"><ChevronLeft aria-hidden="true" />Back</Link>
+                  </Button>
+                )}
                 <Button type="submit" disabled={importSkill.isPending || uploadTargets.isPending || uploadTargets.isError || spaces.length === 0}>
                   {importSkill.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Upload aria-hidden="true" />}
                   {importSkill.isPending ? "Creating Draft" : "Create Draft"}

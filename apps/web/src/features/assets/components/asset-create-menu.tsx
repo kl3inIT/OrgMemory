@@ -14,11 +14,13 @@ const CREATE_OPTIONS: Array<{
   type: AssetType
   description: string
   available: boolean
+  to?: "/assets/new/skill"
 }> = [
   {
     type: "SKILL",
     description: "Package instructions and supporting files for AI assistants.",
     available: true,
+    to: "/assets/new/skill",
   },
   {
     type: "PROMPT_TEMPLATE",
@@ -70,9 +72,9 @@ export function AssetCreateMenu() {
             </>
           )
 
-          return option.available ? (
+          return option.available && option.to ? (
             <DropdownMenuItem key={option.type} asChild className="items-start p-3">
-              <Link to="/assets/new/skill">{content}</Link>
+              <Link to={option.to}>{content}</Link>
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem key={option.type} disabled className="items-start p-3">

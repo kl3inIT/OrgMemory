@@ -341,10 +341,45 @@ test("asset navigation stacks without horizontal page overflow", async ({ page }
   expect(harness.browserErrors).toEqual([])
 })
 
+test("Skill upload keeps the Draft form open and explains a server rejection", async ({
+  page,
+}) => {
+  const harness = await assetHarness(page, "support", catalogRecommendations(), {
+    skillImportFailure: {
+      status: 409,
+      detail: "An Asset already uses this namespace and slug, or the Space is unavailable.",
+    },
+  })
+
+  await page.goto("/assets/new")
+  await expect(page).toHaveURL(/\/assets\/new\/skill\/?$/)
+  await page.getByRole("link", { name: /Upload a skill/ }).click()
+  await page.getByLabel("ZIP package").setInputFiles({
+    name: "incident-response.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("PK test package"),
+  })
+  await page.getByLabel("Namespace").fill("engineering")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Engineering knowledge" }).click()
+  await page.getByRole("button", { name: "Create Draft" }).click()
+
+  await expect(page).toHaveURL(/\/assets\/new\/skill\/upload$/)
+  await expect(
+    page.getByText("An Asset already uses this namespace and slug, or the Space is unavailable."),
+  ).toBeVisible()
+  expect(harness.skillImportQueries).toHaveLength(1)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors.filter((message) => !message.includes("409 (Conflict)"))).toEqual([])
+})
+
 async function assetHarness(
   page: Page,
   actor: "owner" | "support",
   catalogItems = [supportPackRecommendation()],
+  options: {
+    skillImportFailure?: { status: number; detail: string }
+  } = {},
 ) {
   const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
@@ -409,6 +444,18 @@ async function assetHarness(
       })
       skillImportContentTypes.push(request.headers()["content-type"] ?? "")
       skillImportCsrfTokens.push(request.headers()["x-xsrf-token"])
+      if (options.skillImportFailure) {
+        await json(
+          route,
+          {
+            title: "Conflict",
+            status: options.skillImportFailure.status,
+            detail: options.skillImportFailure.detail,
+          },
+          options.skillImportFailure.status,
+        )
+        return
+      }
       await json(route, skillDraftAsset(false), 201)
       return
     }
