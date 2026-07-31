@@ -24,7 +24,6 @@ final class GitHubSkillArchiveReader {
 
     private static final int MAX_ARCHIVE_ENTRIES = 10_000;
     private static final long MAX_EXPANDED_BYTES = 50L * 1024 * 1024;
-    private static final int MAX_SKILLS = 20;
     private static final int MAX_SKILL_ZIP_BYTES = 20 * 1024 * 1024;
 
     private GitHubSkillArchiveReader() {
@@ -42,7 +41,7 @@ final class GitHubSkillArchiveReader {
                     "skill.github-no-skills",
                     "No SKILL.md files were found at the selected repository path");
         }
-        if (manifests.size() > MAX_SKILLS) {
+        if (manifests.size() > SkillGitHubSourcePort.MAX_SKILLS_PER_IMPORT) {
             throw new BusinessValidationException(
                     "skill.github-too-many-skills",
                     "A repository import may contain at most 20 Skills");
@@ -119,6 +118,11 @@ final class GitHubSkillArchiveReader {
                 expanded += size;
                 if (entry.isDirectory() || !inside(subpath, path)) {
                     continue;
+                }
+                if (path.equals(subpath)) {
+                    throw new BusinessValidationException(
+                            "skill.github-path-invalid",
+                            "The repository path must identify a directory");
                 }
                 String selectedPath = subpath.isEmpty()
                         ? path

@@ -64,14 +64,19 @@ Implementation captures (local verification artifacts):
 - `apps/docs/public/images/product-guides/skill-github-import.png`, sanitized
   public-guide capture at 1598 x 910.
 
-The desktop state visibly covers a private administrator-approved connection,
-the resolved commit, two selectable valid Skills, and one rejected package.
+The desktop state visibly covers an authorized destination Knowledge Space, a
+private administrator-approved connection, the resolved commit, two selectable
+valid Skills, and one rejected package. Knowledge Space selection precedes
+connection discovery and preview, matching the backend Skill-create permission
+boundary without adding a separate workspace.
 The mobile state stacks all controls without horizontal overflow. Focused
 Playwright coverage verifies exact-SHA preview/import requests, private access,
-partial success, Draft links, the active GitHub creation route, and absence of
-unexpected browser/API errors. Empty and transport-error states are explicit in
-the UI, while backend tests cover anonymous public access, private credential
-audit, redirect boundaries, archive limits, and independent per-Skill results.
+partial success, Draft links, the authorized connection query, the active GitHub
+creation route, and absence of unexpected browser/API errors. Empty and
+transport-error states are explicit in the UI, while backend tests cover
+anonymous public access, permission-gated preview and connection discovery,
+private credential allow/deny audit, rate limits, redirect boundaries, archive
+limits, legacy payload compatibility, and independent per-Skill results.
 
 Completion gates passed on Node 24.15.0: full Gradle `clean test`, web lint,
 typecheck, unit tests and production build, docs publication checks and build,

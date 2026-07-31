@@ -456,6 +456,8 @@ test("GitHub Skill import pins preview, supports private access, and reports par
   }
 
   await page.goto("/assets/new/skill/github")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Engineering knowledge" }).click()
   await page.getByRole("textbox", { name: "Repository", exact: true }).fill("acme/skills")
   await page.getByRole("combobox", { name: "Repository access" }).click()
   await page.getByRole("option", { name: "private-app" }).click()
@@ -466,8 +468,6 @@ test("GitHub Skill import pins preview, supports private access, and reports par
   await expect(page.getByText("email-reply", { exact: true })).toBeVisible()
   await expect(page.getByText("Package exceeds the import limit")).toBeVisible()
   await page.getByLabel("Namespace").fill("support")
-  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
-  await page.getByRole("option", { name: "Engineering knowledge" }).click()
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
@@ -496,10 +496,19 @@ test("GitHub Skill import pins preview, supports private access, and reports par
   await expect(page.getByText("1 not imported", { exact: true })).toBeVisible()
   await expect(page.getByRole("link", { name: /Open Draft/ })).toBeVisible()
   expect(harness.githubPreviewBodies).toEqual([
-    expect.objectContaining({ repository: "acme/skills", connectionKey: "private-app" }),
+    expect.objectContaining({
+      repository: "acme/skills",
+      connectionKey: "private-app",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    }),
   ])
   expect(harness.githubImportBodies[0]).toMatchObject({
-    source: { repository: "acme/skills", revision: "a".repeat(40), connectionKey: "private-app" },
+    source: {
+      repository: "acme/skills",
+      revision: "a".repeat(40),
+      connectionKey: "private-app",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    },
     namespace: "support",
     paths: ["skills/support-triage/SKILL.md", "skills/email-reply/SKILL.md"],
   })
@@ -573,6 +582,11 @@ async function assetHarness(
       return
     }
     if (request.method() === "GET" && url.pathname === "/api/assets/skills/github/connections") {
+      if (url.searchParams.get("knowledgeSpaceId") !== "88888888-8888-4888-8888-888888888802") {
+        harness.unexpectedRequests.push(signature)
+        await json(route, { message: "Missing authorized Knowledge Space" }, 400)
+        return
+      }
       await json(route, [{ key: "private-app" }])
       return
     }

@@ -13,13 +13,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /** Coordinates stateless GitHub preview and independent per-Skill imports. */
 @Service
 public class SkillGitHubImportService {
 
-    private static final int MAX_SKILLS = 20;
+    private static final Logger LOG = LoggerFactory.getLogger(SkillGitHubImportService.class);
 
     private final SkillGitHubSourcePort source;
     private final SkillRegistryService skills;
@@ -34,13 +36,17 @@ public class SkillGitHubImportService {
         this.assets = assets;
     }
 
-    public List<SkillGitHubSourcePort.ConnectionOption> availableConnections(CurrentActor actor) {
+    public List<SkillGitHubSourcePort.ConnectionOption> availableConnections(
+            CurrentActor actor, UUID knowledgeSpaceId) {
         Objects.requireNonNull(actor, "actor");
+        assets.requireSkillCreate(actor, knowledgeSpaceId);
         return source.availableConnections(actor.organizationId());
     }
 
     public Preview preview(CurrentActor actor, SourceRequest request) {
         Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(request, "request");
+        assets.requireSkillCreate(actor, request.knowledgeSpaceId());
         SkillGitHubSourcePort.FetchResult fetched = source.fetch(fetchRequest(actor, request));
         List<PreviewItem> items = new ArrayList<>();
         for (SkillGitHubSourcePort.FetchedPackage candidate : fetched.packages()) {
@@ -60,6 +66,12 @@ public class SkillGitHubImportService {
                 items.add(PreviewItem.invalid(
                         candidate.path(), invalid.code(), invalid.getMessage()));
             } catch (RuntimeException invalid) {
+                LOG.warn(
+                        "Unexpected GitHub Skill preview failure repository={} revision={} path={}",
+                        fetched.repository(),
+                        fetched.revision(),
+                        candidate.path(),
+                        invalid);
                 items.add(PreviewItem.invalid(
                         candidate.path(),
                         "skill.github-package-invalid",
@@ -74,11 +86,12 @@ public class SkillGitHubImportService {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(request.source(), "source");
-        Objects.requireNonNull(request.knowledgeSpaceId(), "knowledgeSpaceId");
+        Objects.requireNonNull(request.source().knowledgeSpaceId(), "knowledgeSpaceId");
         Objects.requireNonNull(request.classification(), "classification");
-        assets.requireSkillCreate(actor, request.knowledgeSpaceId());
+        assets.requireSkillCreate(actor, request.source().knowledgeSpaceId());
         Set<String> selected = normalizedSelection(request.paths());
-        if (selected.isEmpty() || selected.size() > MAX_SKILLS) {
+        if (selected.isEmpty()
+                || selected.size() > SkillGitHubSourcePort.MAX_SKILLS_PER_IMPORT) {
             throw new BusinessValidationException(
                     "skill.github-selection-invalid",
                     "Choose between 1 and 20 repository Skills to import");
@@ -121,7 +134,7 @@ public class SkillGitHubImportService {
                 AssetView asset = skills.importPackage(
                         actor,
                         request.namespace(),
-                        request.knowledgeSpaceId(),
+                        request.source().knowledgeSpaceId(),
                         request.classification(),
                         archive.length,
                         new ByteArrayInputStream(archive),
@@ -134,6 +147,12 @@ public class SkillGitHubImportService {
             } catch (BusinessException failure) {
                 results.add(ImportItem.failed(path, failure.code(), failure.getMessage()));
             } catch (RuntimeException failure) {
+                LOG.warn(
+                        "Unexpected GitHub Skill import failure repository={} revision={} path={}",
+                        fetched.repository(),
+                        fetched.revision(),
+                        path,
+                        failure);
                 results.add(ImportItem.failed(
                         path,
                         "skill.github-import-failed",
@@ -171,14 +190,14 @@ public class SkillGitHubImportService {
             String repository,
             String revision,
             String subpath,
-            String connectionKey) {
+            String connectionKey,
+            UUID knowledgeSpaceId) {
     }
 
     public record ImportRequest(
             SourceRequest source,
             List<String> paths,
             String namespace,
-            UUID knowledgeSpaceId,
             KnowledgeClassification classification) {
     }
 

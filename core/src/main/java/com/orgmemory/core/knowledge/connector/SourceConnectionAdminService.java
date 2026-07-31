@@ -174,11 +174,7 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
     public Optional<ConnectorConnectionConfiguration> configuration(
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         return describe(organizationId, sourceSystem, sourceConnectionKey)
-                .map(view -> new ConnectorConnectionConfiguration(
-                        view.sourceSystem(),
-                        view.sourceConnectionKey(),
-                        view.sourceConfig(),
-                        view.credentialSet()));
+                .map(SourceConnectionAdminService::configuration);
     }
 
     @Override
@@ -186,12 +182,17 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
     public List<ConnectorConnectionConfiguration> configurations(
             UUID organizationId, String sourceSystem) {
         return list(organizationId, sourceSystem).stream()
-                .map(view -> new ConnectorConnectionConfiguration(
-                        view.sourceSystem(),
-                        view.sourceConnectionKey(),
-                        view.sourceConfig(),
-                        view.credentialSet()))
+                .map(SourceConnectionAdminService::configuration)
                 .toList();
+    }
+
+    private static ConnectorConnectionConfiguration configuration(
+            SourceConnectionConfigurationView view) {
+        return new ConnectorConnectionConfiguration(
+                view.sourceSystem(),
+                view.sourceConnectionKey(),
+                view.sourceConfig(),
+                view.credentialSet());
     }
 
     /** Every connection of one source system that an administrator has enabled, across tenants. */

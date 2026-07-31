@@ -121,11 +121,12 @@ class AssetRegistryController {
             @NotBlank @Size(max = 512) String repository,
             String revision,
             String subpath,
-            String connectionKey) {
+            String connectionKey,
+            @NotNull UUID knowledgeSpaceId) {
 
         SkillGitHubImportService.SourceRequest source() {
             return new SkillGitHubImportService.SourceRequest(
-                    repository, revision, subpath, connectionKey);
+                    repository, revision, subpath, connectionKey, knowledgeSpaceId);
         }
     }
 
@@ -133,7 +134,6 @@ class AssetRegistryController {
             @Valid @NotNull GitHubSkillSourceRequest source,
             @NotNull @Size(min = 1, max = 20) List<@NotBlank String> paths,
             @NotBlank @Size(max = 128) String namespace,
-            @NotNull UUID knowledgeSpaceId,
             KnowledgeClassification classification) {
     }
 
@@ -225,8 +225,11 @@ class AssetRegistryController {
             operationId = "listGitHubSkillConnections",
             summary = "List approved GitHub connections available for private Skill import")
     List<com.orgmemory.core.assetregistry.SkillGitHubSourcePort.ConnectionOption>
-            listGitHubSkillConnections(Authentication authentication) {
-        return skillGitHub.availableConnections(actors.current(authentication));
+            listGitHubSkillConnections(
+                    @RequestParam UUID knowledgeSpaceId,
+                    Authentication authentication) {
+        return skillGitHub.availableConnections(
+                actors.current(authentication), knowledgeSpaceId);
     }
 
     @PostMapping("/skills/github/import")
@@ -242,7 +245,6 @@ class AssetRegistryController {
                         request.source().source(),
                         request.paths(),
                         request.namespace(),
-                        request.knowledgeSpaceId(),
                         request.classification() == null
                                 ? KnowledgeClassification.INTERNAL
                                 : request.classification()));

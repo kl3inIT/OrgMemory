@@ -8,6 +8,8 @@ import java.util.UUID;
 /** Fetches bounded Skill packages from one exact GitHub repository revision. */
 public interface SkillGitHubSourcePort {
 
+    int MAX_SKILLS_PER_IMPORT = 20;
+
     FetchResult fetch(FetchRequest request);
 
     List<ConnectionOption> availableConnections(UUID organizationId);

@@ -3944,6 +3944,17 @@
         ],
         "summary": "List approved GitHub connections available for private Skill import",
         "operationId": "listGitHubSkillConnections",
+        "parameters": [
+          {
+            "name": "knowledgeSpaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -7147,9 +7158,14 @@
           },
           "connectionKey": {
             "type": "string"
+          },
+          "knowledgeSpaceId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
+          "knowledgeSpaceId",
           "repository"
         ]
       },
@@ -7224,10 +7240,6 @@
             "maxLength": 128,
             "minLength": 0
           },
-          "knowledgeSpaceId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "classification": {
             "type": "string",
             "enum": [
@@ -7239,7 +7251,6 @@
           }
         },
         "required": [
-          "knowledgeSpaceId",
           "namespace",
           "paths",
           "source"

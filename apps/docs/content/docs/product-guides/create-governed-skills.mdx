@@ -11,7 +11,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/skill-creation-page.tsx
   - apps/web/src/features/assets/components/skill-github-import-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-01
+lastReviewed: '2026-08-01'
 ---
 
 Use this guide to turn a reusable set of AI instructions and supporting files
@@ -39,11 +39,13 @@ separate accountable action.
 
   ### Preview a GitHub repository
 
-  Enter `owner/repository` or the repository HTTPS URL. You may also supply a
-  branch, tag, commit, and directory. Public repositories are read anonymously
-  by the server. For a private repository, choose a GitHub App connection that
-  an administrator has explicitly enabled for Skill import; credentials never
-  enter the browser.
+  First choose the destination Knowledge Space. OrgMemory uses that choice to
+  verify your Skill-creation permission before it reveals private repository
+  connections or reads repository content. Then enter `owner/repository` or the
+  repository HTTPS URL. You may also supply a branch, tag, commit, and directory.
+  Public repositories are read anonymously by the server. For a private
+  repository, choose a GitHub App connection that an administrator has explicitly
+  enabled for Skill import; credentials never enter the browser.
 
   Select **Preview Skills**. The preview resolves the requested revision to a
   full commit SHA, discovers bounded `SKILL.md` roots, and marks packages that
@@ -63,8 +65,8 @@ separate accountable action.
 
   ### Place the Drafts
 
-  Choose one namespace, an authorized Knowledge Space, and a classification.
-  Import fetches the exact previewed commit again and records the server-derived
+  Choose one namespace and classification for the already-selected Knowledge
+  Space. Import fetches the exact previewed commit again and records the server-derived
   repository, commit SHA, and `SKILL.md` path in each Draft's package
   provenance.
 

@@ -11,7 +11,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/skill-creation-page.tsx
   - apps/web/src/features/assets/components/skill-github-import-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-01
+lastReviewed: '2026-08-01'
 ---
 
 Dùng hướng dẫn này để đưa một bộ instruction AI và file hỗ trợ có thể tái sử
@@ -39,10 +39,13 @@ nhiệm riêng biệt.
 
   ### Preview repository GitHub
 
-  Nhập `owner/repository` hoặc URL HTTPS của repository. Bạn cũng có thể nhập
-  branch, tag, commit và directory. Repository public được server đọc ẩn danh.
-  Với repository private, chọn GitHub App connection đã được administrator bật
-  rõ ràng cho Skill import; credential không bao giờ đi vào trình duyệt.
+  Trước tiên, chọn Knowledge Space đích. OrgMemory dùng lựa chọn này để kiểm tra
+  quyền tạo Skill của bạn trước khi hiển thị private repository connection hoặc
+  đọc nội dung repository. Sau đó nhập `owner/repository` hoặc URL HTTPS của
+  repository. Bạn cũng có thể nhập branch, tag, commit và directory. Repository
+  public được server đọc ẩn danh. Với repository private, chọn GitHub App
+  connection đã được administrator bật rõ ràng cho Skill import; credential
+  không bao giờ đi vào trình duyệt.
 
   Chọn **Preview Skills**. Preview resolve revision đã nhập thành commit SHA đầy
   đủ, tìm các root `SKILL.md` trong giới hạn và đánh dấu package không thể
@@ -62,8 +65,8 @@ nhiệm riêng biệt.
 
   ### Đặt các Draft
 
-  Chọn một namespace, Knowledge Space được cấp quyền và classification. Import
-  tải lại đúng commit đã preview rồi ghi repository, commit SHA và đường dẫn
+  Chọn namespace và classification cho Knowledge Space đã chọn. Import tải lại
+  đúng commit đã preview rồi ghi repository, commit SHA và đường dẫn
   `SKILL.md` do server xác định vào package provenance của từng Draft.
 
   Mỗi Skill được import độc lập. Package trùng hoặc không hợp lệ xuất hiện dưới

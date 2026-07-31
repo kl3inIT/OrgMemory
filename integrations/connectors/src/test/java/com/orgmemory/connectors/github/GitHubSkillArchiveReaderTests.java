@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.zip.ZipInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -60,6 +61,58 @@ class GitHubSkillArchiveReaderTests {
                 () -> GitHubSkillArchiveReader.read(archive, ""));
 
         assertEquals("skill.github-archive-invalid", failure.code());
+    }
+
+    @Test
+    void rejectsASubpathThatNamesAFileInsteadOfADirectory() throws Exception {
+        byte[] archive = tar(Map.of("repo-sha/skills", manifest("not-a-directory")));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> GitHubSkillArchiveReader.read(archive, "skills"));
+
+        assertEquals("skill.github-path-invalid", failure.code());
+    }
+
+    @Test
+    void rejectsARepositoryWithoutSkillManifests() throws Exception {
+        byte[] archive = tar(Map.of(
+                "repo-sha/README.md", "No packaged Skills".getBytes(StandardCharsets.UTF_8)));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> GitHubSkillArchiveReader.read(archive, ""));
+
+        assertEquals("skill.github-no-skills", failure.code());
+    }
+
+    @Test
+    void rejectsARepositoryWithMoreThanTwentySkills() throws Exception {
+        Map<String, byte[]> files = new LinkedHashMap<>();
+        for (int index = 0; index <= SkillGitHubSourcePort.MAX_SKILLS_PER_IMPORT; index++) {
+            files.put("repo-sha/skills/skill-" + index + "/SKILL.md", manifest("skill-" + index));
+        }
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> GitHubSkillArchiveReader.read(tar(files), ""));
+
+        assertEquals("skill.github-too-many-skills", failure.code());
+    }
+
+    @Test
+    void reportsAnIndividualSkillWhoseZipExceedsTwentyMebibytes() throws Exception {
+        byte[] content = new byte[21 * 1024 * 1024];
+        new Random(42).nextBytes(content);
+        byte[] archive = tar(Map.of(
+                "repo-sha/skills/large/SKILL.md", manifest("large"),
+                "repo-sha/skills/large/reference.bin", content));
+
+        List<SkillGitHubSourcePort.FetchedPackage> packages =
+                GitHubSkillArchiveReader.read(archive, "");
+
+        assertEquals(1, packages.size());
+        assertEquals("skill.github-package-too-large", packages.getFirst().errorCode());
     }
 
     private static byte[] manifest(String name) {

@@ -127,13 +127,16 @@ Success opens the ordinary Governance workspace. The browser never executes
 package content, grants an owner from a session role, publishes the Skill, or
 describes structural validation as content or malware review.
 
-GitHub preview and import are server-side operations. Preview accepts an
+GitHub preview, private-connection discovery, and import are server-side
+operations gated by Skill-create permission on the selected Knowledge Space.
+Preview accepts an
 `owner/repository` identifier or GitHub HTTPS URL plus revision and optional
 subpath, resolves the revision to a full commit SHA, and discovers at most 20
 bounded `SKILL.md` roots without storing them. Public repositories are fetched
 anonymously. Private access is available only through a configured GitHub App
 connection whose administrator has enabled `allowPrivateSkillImports`; the
-browser receives only eligible connection keys and never receives or submits a
+browser receives only eligible connection keys after that authorization check
+and never receives or submits a
 credential. Credential use writes a permission-audit event. The transport
 allows HTTPS only at `api.github.com` and `codeload.github.com`, disables generic
 redirect following, validates the single API-to-codeload archive redirect, and

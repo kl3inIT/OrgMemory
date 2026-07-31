@@ -18,9 +18,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -38,6 +38,8 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
     private static final int MAX_JSON_BYTES = 2 * 1024 * 1024;
     private static final int MAX_ARCHIVE_BYTES = 25 * 1024 * 1024;
     private static final String POLICY_VERSION = "skill-github-import-v1";
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
     private final ConnectorConnectionDirectory connections;
     private final PermissionAuditService audit;
@@ -97,6 +99,10 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                     "",
                     SkillPackageSpec.Visibility.PUBLIC,
                     metadata.path("id").asString(""));
+        } else if (isRateLimited(publicRepository)) {
+            throw new BusinessUnavailableException(
+                    "skill.github-rate-limited",
+                    "GitHub rate-limited the repository request");
         } else if (isPrivateCandidate(publicRepository.status())) {
             access = privateAccess(request, repository);
         } else {
@@ -163,17 +169,6 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                 .orElseThrow(() -> new BusinessValidationException(
                         "skill.github-credential-missing",
                         "The GitHub connection has no usable credential"));
-        audit.record(new PermissionAuditCommand(
-                request.organizationId(),
-                request.actorUserId(),
-                "SKILL_GITHUB_IMPORT_CREDENTIAL_USE",
-                "source_connection",
-                request.connectionKey(),
-                PermissionAuditDecision.ALLOW,
-                "PRIVATE_REPOSITORY_ACCESS",
-                POLICY_VERSION,
-                null,
-                repository.fullName()));
         GitHubInstallationTokenSource tokens = new GitHubInstallationTokenSource(
                 authenticatedClientBuilder,
                 GitHubAppKey.parse(credential.expose()),
@@ -186,11 +181,21 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                 "private repository metadata");
         String repositoryId = metadata.path("id").asString("");
         if (!settings.allowsRepository(repositoryId)) {
+            auditCredentialUse(
+                    request,
+                    repository,
+                    PermissionAuditDecision.DENY,
+                    "REPOSITORY_NOT_APPROVED");
             throw new BusinessNotFoundException(
                     "skill.github-repository-unavailable",
                     "The repository is not selected for this GitHub connection",
                     BusinessErrorExposure.OPAQUE_RESOURCE);
         }
+        auditCredentialUse(
+                request,
+                repository,
+                PermissionAuditDecision.ALLOW,
+                "PRIVATE_REPOSITORY_ACCESS");
         if (!metadata.path("private").asBoolean(false)) {
             return new Access(
                     authenticated, token, SkillPackageSpec.Visibility.PUBLIC, repositoryId);
@@ -251,6 +256,7 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
 
     private ApiResponse exchange(
             RestClient client, URI uri, String token, int maximumBytes) {
+        requireAllowedUri(uri);
         try {
             return client.get()
                     .uri(uri)
@@ -304,6 +310,11 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
         return status.value() == 403 || status.value() == 404;
     }
 
+    private static boolean isRateLimited(ApiResponse response) {
+        return response.status().value() == 429
+                || "0".equals(response.headers().getFirst("X-RateLimit-Remaining"));
+    }
+
     private static URI repositoryUri(Repository repository) {
         return UriComponentsBuilder.fromUriString(API)
                 .pathSegment("repos", repository.owner(), repository.name())
@@ -321,13 +332,19 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
     }
 
     private static URI requireCodeload(String location) {
+        if (location == null || location.isBlank()) {
+            throw new BusinessUnavailableException(
+                    "skill.github-redirect-invalid",
+                    "GitHub returned an archive redirect without a location");
+        }
         URI uri;
         try {
-            uri = URI.create(Objects.requireNonNull(location, "location"));
+            uri = URI.create(location);
         } catch (IllegalArgumentException invalid) {
             throw new BusinessUnavailableException(
                     "skill.github-redirect-invalid",
-                    "GitHub returned an invalid archive redirect");
+                    "GitHub returned an invalid archive redirect",
+                    invalid);
         }
         boolean defaultPort = uri.getPort() == -1 || uri.getPort() == 443;
         if (!"https".equalsIgnoreCase(uri.getScheme())
@@ -340,6 +357,23 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                     "GitHub returned an archive redirect outside codeload.github.com");
         }
         return uri;
+    }
+
+    private static void requireAllowedUri(URI uri) {
+        String host = uri == null ? "" : uri.getHost();
+        boolean allowedHost = "api.github.com".equalsIgnoreCase(host)
+                || "codeload.github.com".equalsIgnoreCase(host);
+        boolean defaultPort = uri != null && (uri.getPort() == -1 || uri.getPort() == 443);
+        if (uri == null
+                || !"https".equalsIgnoreCase(uri.getScheme())
+                || !allowedHost
+                || !defaultPort
+                || uri.getUserInfo() != null
+                || uri.getFragment() != null) {
+            throw new BusinessValidationException(
+                    "skill.github-uri-invalid",
+                    "The GitHub request target is outside the approved host boundary");
+        }
     }
 
     private static String safeSubpath(String value) {
@@ -373,9 +407,30 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
 
     private static RestClient.Builder noRedirect(RestClient.Builder template) {
         HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
-        return template.clone().requestFactory(new JdkClientHttpRequestFactory(client));
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(client);
+        requestFactory.setReadTimeout(READ_TIMEOUT);
+        return template.clone().requestFactory(requestFactory);
+    }
+
+    private void auditCredentialUse(
+            FetchRequest request,
+            Repository repository,
+            PermissionAuditDecision decision,
+            String reasonCode) {
+        audit.record(new PermissionAuditCommand(
+                request.organizationId(),
+                request.actorUserId(),
+                "SKILL_GITHUB_IMPORT_CREDENTIAL_USE",
+                "source_connection",
+                request.connectionKey(),
+                decision,
+                reasonCode,
+                POLICY_VERSION,
+                null,
+                repository.fullName()));
     }
 
     private record Access(

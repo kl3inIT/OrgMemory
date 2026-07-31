@@ -1,16 +1,19 @@
 package com.orgmemory.core.assetregistry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
@@ -47,13 +50,13 @@ class SkillGitHubImportServiceTests {
                                 "Too large"))));
         when(skills.inspectPackage(eq(ACTOR), eq(1L), any(InputStream.class)))
                 .thenReturn(inspection("triage"));
-        SkillGitHubImportService service = new SkillGitHubImportService(
-                source, skills, mock(AssetRegistryService.class));
+        AssetRegistryService assets = mock(AssetRegistryService.class);
+        SkillGitHubImportService service = new SkillGitHubImportService(source, skills, assets);
 
         SkillGitHubImportService.Preview preview = service.preview(
                 ACTOR,
                 new SkillGitHubImportService.SourceRequest(
-                        "acme/skills", "main", "skills", ""));
+                        "acme/skills", "main", "skills", "", SPACE_ID));
 
         assertEquals(SHA, preview.revision());
         assertEquals(List.of(true, false),
@@ -64,6 +67,7 @@ class SkillGitHubImportServiceTests {
         assertEquals(
                 "skill.github-package-too-large",
                 preview.skills().get(1).errorCode());
+        verify(assets).requireSkillCreate(ACTOR, SPACE_ID);
     }
 
     @Test
@@ -96,10 +100,9 @@ class SkillGitHubImportServiceTests {
                 ACTOR,
                 new SkillGitHubImportService.ImportRequest(
                         new SkillGitHubImportService.SourceRequest(
-                                "acme/skills", SHA, "skills", "private-app"),
+                                "acme/skills", SHA, "skills", "private-app", SPACE_ID),
                         List.of(firstPath, secondPath),
                         "support",
-                        SPACE_ID,
                         KnowledgeClassification.INTERNAL));
 
         assertEquals(List.of(true, false),
@@ -121,6 +124,87 @@ class SkillGitHubImportServiceTests {
                 origins.getAllValues().stream().map(SkillPackageSpec.Origin::path).toList());
         assertEquals(SkillPackageSpec.Visibility.PRIVATE,
                 origins.getAllValues().getFirst().visibility());
+    }
+
+    @Test
+    void connectionDiscoveryRequiresSkillCreatePermissionForTheSelectedSpace() {
+        SkillGitHubSourcePort source = mock(SkillGitHubSourcePort.class);
+        AssetRegistryService assets = mock(AssetRegistryService.class);
+        when(source.availableConnections(ACTOR.organizationId())).thenReturn(List.of());
+        SkillGitHubImportService service = new SkillGitHubImportService(
+                source, mock(SkillRegistryService.class), assets);
+
+        service.availableConnections(ACTOR, SPACE_ID);
+
+        verify(assets).requireSkillCreate(ACTOR, SPACE_ID);
+        verify(source).availableConnections(ACTOR.organizationId());
+    }
+
+    @Test
+    void importRejectsNonCommitRevisionBeforeFetchingRepository() {
+        SkillGitHubSourcePort source = mock(SkillGitHubSourcePort.class);
+        SkillGitHubImportService service = new SkillGitHubImportService(
+                source, mock(SkillRegistryService.class), mock(AssetRegistryService.class));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.importSelected(ACTOR, request("main", List.of("SKILL.md"))));
+
+        assertEquals("skill.github-revision-invalid", failure.code());
+        verify(source, never()).fetch(any());
+    }
+
+    @Test
+    void importRejectsARevisionThatChangesAfterPreview() {
+        SkillGitHubSourcePort source = mock(SkillGitHubSourcePort.class);
+        when(source.fetch(any())).thenReturn(new SkillGitHubSourcePort.FetchResult(
+                "acme/skills",
+                "b".repeat(40),
+                SkillPackageSpec.Visibility.PUBLIC,
+                List.of(valid("SKILL.md", 1))));
+        SkillGitHubImportService service = new SkillGitHubImportService(
+                source, mock(SkillRegistryService.class), mock(AssetRegistryService.class));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> service.importSelected(ACTOR, request(SHA, List.of("SKILL.md"))));
+
+        assertEquals("skill.github-revision-mismatch", failure.code());
+    }
+
+    @Test
+    void importReportsASelectedPathMissingAtThePinnedRevision() {
+        SkillGitHubSourcePort source = mock(SkillGitHubSourcePort.class);
+        when(source.fetch(any())).thenReturn(new SkillGitHubSourcePort.FetchResult(
+                "acme/skills", SHA, SkillPackageSpec.Visibility.PUBLIC, List.of()));
+        SkillRegistryService skills = mock(SkillRegistryService.class);
+        SkillGitHubImportService service = new SkillGitHubImportService(
+                source, skills, mock(AssetRegistryService.class));
+
+        SkillGitHubImportService.ImportResult result =
+                service.importSelected(ACTOR, request(SHA, List.of("removed/SKILL.md")));
+
+        assertEquals("skill.github-path-not-found", result.skills().getFirst().errorCode());
+        verify(skills, never()).importPackage(
+                any(), any(), any(), any(), anyLong(), any(InputStream.class), any());
+    }
+
+    @Test
+    void fetchRequestDefaultsAnOmittedRevisionToHead() {
+        SkillGitHubSourcePort.FetchRequest request = new SkillGitHubSourcePort.FetchRequest(
+                ACTOR.organizationId(), ACTOR.userId(), "acme/skills", null, null, null);
+
+        assertEquals("HEAD", request.revision());
+    }
+
+    private static SkillGitHubImportService.ImportRequest request(
+            String revision, List<String> paths) {
+        return new SkillGitHubImportService.ImportRequest(
+                new SkillGitHubImportService.SourceRequest(
+                        "acme/skills", revision, "", "", SPACE_ID),
+                paths,
+                "engineering",
+                KnowledgeClassification.INTERNAL);
     }
 
     private static SkillGitHubSourcePort.FetchedPackage valid(String path, int marker) {

@@ -64,7 +64,6 @@ export function SkillGitHubImportPage() {
   const previewMutation = useMutation(previewGitHubSkillsMutation())
   const importMutation = useMutation(importGitHubSkillsMutation())
   const uploadTargets = useQuery(listKnowledgeSpaceUploadTargetsOptions())
-  const connections = useQuery(listGitHubSkillConnectionsOptions())
   const [repository, setRepository] = useState("")
   const [revision, setRevision] = useState("main")
   const [subpath, setSubpath] = useState("")
@@ -76,6 +75,10 @@ export function SkillGitHubImportPage() {
   const [classification, setClassification] = useState<Classification>("INTERNAL")
   const [result, setResult] = useState<ImportResult>()
   const [error, setError] = useState<string>()
+  const connections = useQuery({
+    ...listGitHubSkillConnectionsOptions({ query: { knowledgeSpaceId } }),
+    enabled: Boolean(knowledgeSpaceId),
+  })
   const spaces = (uploadTargets.data ?? []).filter(validSpace)
   const importable = useMemo(
     () => (preview?.skills ?? []).filter(importableSkill),
@@ -85,8 +88,8 @@ export function SkillGitHubImportPage() {
 
   async function inspectRepository(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!repository.trim()) {
-      setError("Enter a GitHub repository before previewing it.")
+    if (!repository.trim() || !knowledgeSpaceId) {
+      setError("Choose a Knowledge Space and enter a GitHub repository before previewing it.")
       return
     }
     setError(undefined)
@@ -98,6 +101,7 @@ export function SkillGitHubImportPage() {
           revision: revision.trim() || "HEAD",
           subpath: subpath.trim() || undefined,
           connectionKey: access === PUBLIC_ACCESS ? undefined : access,
+          knowledgeSpaceId,
         },
       })
       setPreview(response)
@@ -131,10 +135,10 @@ export function SkillGitHubImportPage() {
             revision: preview.revision,
             subpath: subpath.trim() || undefined,
             connectionKey: access === PUBLIC_ACCESS ? undefined : access,
+            knowledgeSpaceId,
           },
           paths: Array.from(selected),
           namespace: namespace.trim(),
-          knowledgeSpaceId,
           classification,
         },
       })
@@ -182,20 +186,40 @@ export function SkillGitHubImportPage() {
               </CardHeader>
               <CardContent className="p-6">
                 <form className="space-y-5" onSubmit={inspectRepository}>
-                  <div className="space-y-2">
-                    <Label htmlFor="github-repository">Repository</Label>
-                    <Input
-                      id="github-repository"
-                      value={repository}
-                      placeholder="owner/repository or https://github.com/owner/repository"
-                      autoComplete="off"
-                      disabled={pending}
-                      onChange={(event) => {
-                        setRepository(event.currentTarget.value)
-                        setPreview(undefined)
-                        setResult(undefined)
-                      }}
-                    />
+                  <div className="grid gap-5 md:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
+                    <div className="space-y-2">
+                      <Label htmlFor="github-repository">Repository</Label>
+                      <Input
+                        id="github-repository"
+                        value={repository}
+                        placeholder="owner/repository or https://github.com/owner/repository"
+                        autoComplete="off"
+                        disabled={pending}
+                        onChange={(event) => {
+                          setRepository(event.currentTarget.value)
+                          setPreview(undefined)
+                          setResult(undefined)
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="github-space">Knowledge Space</Label>
+                      <Select
+                        value={knowledgeSpaceId}
+                        disabled={pending || uploadTargets.isPending || spaces.length === 0}
+                        onValueChange={(value) => {
+                          setKnowledgeSpaceId(value)
+                          setAccess(PUBLIC_ACCESS)
+                          setPreview(undefined)
+                          setSelected(new Set())
+                          setResult(undefined)
+                          setError(undefined)
+                        }}
+                      >
+                        <SelectTrigger id="github-space" className="w-full"><SelectValue placeholder="Choose a space" /></SelectTrigger>
+                        <SelectContent>{spaces.map((space) => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="grid gap-5 md:grid-cols-3">
                     <div className="space-y-2">
@@ -253,9 +277,10 @@ export function SkillGitHubImportPage() {
                       </AlertDescription>
                     </Alert>
                   ) : null}
+                  {uploadTargets.isError ? <Alert variant="destructive"><AlertDescription>Knowledge Spaces could not be loaded. <Button variant="link" className="h-auto p-0" onClick={() => void uploadTargets.refetch()}>Retry</Button></AlertDescription></Alert> : null}
                   <div className="flex flex-col-reverse gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:justify-between">
                     <Button variant="outline" asChild><Link to="/assets/new/skill"><ChevronLeft aria-hidden="true" />Back</Link></Button>
-                    <Button type="submit" disabled={pending || !repository.trim()}>
+                    <Button type="submit" disabled={pending || !repository.trim() || !knowledgeSpaceId}>
                       {previewMutation.isPending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <GitFork aria-hidden="true" />}
                       {previewMutation.isPending ? "Reading repository" : preview ? "Refresh preview" : "Preview Skills"}
                     </Button>
@@ -327,17 +352,10 @@ export function SkillGitHubImportPage() {
               <Card className="gap-0 bg-surface-raised py-0 shadow-none">
                 <CardHeader className="border-b border-border-subtle px-6 py-5"><CardTitle>3. Place the Drafts</CardTitle></CardHeader>
                 <CardContent className="space-y-5 p-6">
-                  <div className="grid gap-5 md:grid-cols-3">
+                  <div className="grid gap-5 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="github-namespace">Namespace</Label>
                       <Input id="github-namespace" value={namespace} placeholder="engineering" disabled={pending} onChange={(event) => setNamespace(event.currentTarget.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="github-space">Knowledge Space</Label>
-                      <Select value={knowledgeSpaceId} disabled={pending || uploadTargets.isPending || spaces.length === 0} onValueChange={setKnowledgeSpaceId}>
-                        <SelectTrigger id="github-space" className="w-full"><SelectValue placeholder="Choose a space" /></SelectTrigger>
-                        <SelectContent>{spaces.map((space) => <SelectItem key={space.id} value={space.id}>{space.name}</SelectItem>)}</SelectContent>
-                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="github-classification">Classification</Label>
@@ -352,7 +370,6 @@ export function SkillGitHubImportPage() {
                       </Select>
                     </div>
                   </div>
-                  {uploadTargets.isError ? <Alert variant="destructive"><AlertDescription>Knowledge Spaces could not be loaded. <Button variant="link" className="h-auto p-0" onClick={() => void uploadTargets.refetch()}>Retry</Button></AlertDescription></Alert> : null}
                   {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
                   <div className="flex justify-end border-t border-border-subtle pt-5">
                     <Button onClick={() => void importSkills()} disabled={pending || selected.size === 0 || !namespace.trim() || !knowledgeSpaceId}>

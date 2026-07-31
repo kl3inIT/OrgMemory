@@ -45,12 +45,17 @@ record GitHubSkillImportSettings(
                 repositoryIds.add(value);
             }
         }
+        if (enabled != null && enabled.asBoolean() && repositoryIds.isEmpty()) {
+            return invalid();
+        }
         return new GitHubSkillImportSettings(
                 enabled != null && enabled.asBoolean(), repositoryIds, true);
     }
 
     boolean allowsRepository(String repositoryId) {
-        return repositoryIds.isEmpty() || repositoryIds.contains(repositoryId);
+        return repositoryId != null
+                && !repositoryId.isBlank()
+                && repositoryIds.contains(repositoryId);
     }
 
     private static GitHubSkillImportSettings invalid() {
