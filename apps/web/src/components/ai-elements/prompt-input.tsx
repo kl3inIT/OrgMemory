@@ -37,7 +37,9 @@ export const PromptInput = ({ className, onSubmit, children, ...props }: PromptI
       event.preventDefault()
       const formData = new FormData(event.currentTarget)
       const text = String(formData.get("message") ?? "")
-      void onSubmit({ files: [], text }, event)
+      void Promise.resolve(onSubmit({ files: [], text }, event)).catch(
+        () => undefined,
+      )
     },
     [onSubmit],
   )
