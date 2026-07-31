@@ -1,5 +1,12 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
+
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
 

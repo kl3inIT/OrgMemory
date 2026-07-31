@@ -2,11 +2,11 @@ package com.orgmemory.core.knowledge;
 
 import com.orgmemory.graphrag.model.FloatVector;
 
-final class PgVectorLiteral {
+public final class PgVectorLiteral {
 
     private PgVectorLiteral() {}
 
-    static String from(float[] vector) {
+    public static String from(float[] vector) {
         StringBuilder value = new StringBuilder(vector.length * 12).append('[');
         for (int index = 0; index < vector.length; index++) {
             if (index > 0) {
@@ -17,7 +17,7 @@ final class PgVectorLiteral {
         return value.append(']').toString();
     }
 
-    static FloatVector parse(String encoded) {
+    public static FloatVector parse(String encoded) {
         if (encoded == null || encoded.length() < 2
                 || encoded.charAt(0) != '['
                 || encoded.charAt(encoded.length() - 1) != ']') {
@@ -27,9 +27,12 @@ final class PgVectorLiteral {
         if (body.isBlank()) {
             throw new IllegalArgumentException("pgvector literal must not be empty");
         }
-        String[] parts = body.split(",");
+        String[] parts = body.split(",", -1);
         float[] values = new float[parts.length];
         for (int index = 0; index < parts.length; index++) {
+            if (parts[index].isBlank()) {
+                throw new IllegalArgumentException("pgvector literal components must not be empty");
+            }
             values[index] = Float.parseFloat(parts[index]);
         }
         return new FloatVector(values);

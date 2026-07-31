@@ -90,7 +90,7 @@ terminating repository-wide `clean test` completed successfully in 5m55s
 across 108 tasks. The docs operating-model and mechanical source checks passed.
 The pull request contains 88 changed files.
 
-## Current Pull Request Gates
+## Fifth Pull Request Evidence
 
 - Crawl attempt/checkpoint persistence, source connection administration and
   credentials, connector identity observations, and membership sync runs join
@@ -103,8 +103,28 @@ The pull request contains 88 changed files.
   CI/review/merge loop before the next Knowledge slice starts.
 
 Local verification on 2026-08-01: all production and test sources compiled;
+focused asset, publication/convergence, graph-edge, retrieval-scope, catalog,
+and Modulith tests passed; `:core:test` passed; and the terminating
+repository-wide `clean test` completed successfully in 5m26s across 108 tasks.
+The docs operating-model and mechanical source checks passed. The pull request
+contains 59 changed files.
+
+Local verification on 2026-08-01: all production and test sources compiled;
 focused connector, ACL, API admin, worker checkpoint, adapter, and Modulith
 tests passed; `:core:test` passed; and the terminating repository-wide
 `clean test` completed successfully in 6m24s across 108 tasks. The docs
 operating-model and mechanical source checks passed. The pull request contains
 44 changed files.
+
+## Current Pull Request Gates
+
+- Knowledge Asset aggregate/version/evidence, lifecycle and publication
+  orchestration, authorization convergence, and chunk projection form the open
+  `knowledge.asset` nested module.
+- Catalog federation remains with the future retrieval slice instead of
+  widening retrieval-scope internals for this move.
+- Focused asset, publication/convergence, graph-edge, ingestion, and Modulith
+  tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the next Knowledge slice starts.

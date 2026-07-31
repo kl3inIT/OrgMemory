@@ -104,6 +104,20 @@ implementation details. The module remains open while direct source-ledger and
 ACL calls are replaced with intentional module APIs and allowed dependencies
 are declared.
 
+## Sixth Delivery Slice
+
+The Knowledge Asset pull request moves the asset aggregate and versions,
+evidence links, lifecycle and publication/outbox orchestration, authorization
+convergence, and chunk projection into `knowledge.asset`. Catalog federation
+stays with the future retrieval slice because it resolves the actor's retrieval
+evidence scope before reading asset versions.
+
+Compiler-forced edge debt is limited to the asset authorization-scope
+projection consumed by retrieval, three version attributes consumed by graph
+indexing, and the PostgreSQL vector literal utility shared by chunk projection
+and retrieval. These dependencies must be replaced or declared intentionally
+before `knowledge.asset`, `knowledge.graph`, and `knowledge.retrieval` close.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

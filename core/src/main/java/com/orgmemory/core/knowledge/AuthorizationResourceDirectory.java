@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
 import com.orgmemory.core.organization.DepartmentRepository;
