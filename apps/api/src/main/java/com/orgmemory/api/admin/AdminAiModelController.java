@@ -15,10 +15,10 @@ import com.orgmemory.integrations.ai.gateway.AiGatewayProperties;
 import com.orgmemory.integrations.ai.gateway.AiModelCatalogProbe;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -273,13 +273,9 @@ class AdminAiModelController {
                 new EnumMap<>(AiWorkload.class);
         gateways.routes(actor.organizationId())
                 .forEach(route -> overrides.put(route.workload(), route));
-        return List.of(
-                route(AiWorkload.ASSISTANT_CHAT, overrides),
-                route(AiWorkload.PROMPT_EXECUTION, overrides),
-                route(AiWorkload.KEYWORD_PLANNING, overrides),
-                route(AiWorkload.GRAPH_EXTRACTION, overrides),
-                route(AiWorkload.QUERY_EMBEDDING, overrides),
-                route(AiWorkload.DOCUMENT_EMBEDDING, overrides));
+        return Arrays.stream(AiWorkload.values())
+                .map(workload -> route(workload, overrides))
+                .toList();
     }
 
     @PutMapping("/routes/{workload}")

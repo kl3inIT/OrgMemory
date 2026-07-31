@@ -1,5 +1,6 @@
 package com.orgmemory.worker.graph;
 
+import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.graph.ClaimedGraphIndex;
 import com.orgmemory.core.knowledge.graph.GraphIndexChunk;
 import com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator;
@@ -171,10 +172,8 @@ class GraphPublicationCommitter {
     }
 
     private static ProjectionNamespace namespace(ClaimedGraphIndex claim) {
-        return new ProjectionNamespace(
-                claim.organizationId(),
-                "default",
-                claim.knowledgeSpaceId().toString());
+        return KnowledgeProjectionNamespaces.forSpace(
+                claim.organizationId(), claim.knowledgeSpaceId());
     }
 
     private static List<ContentStore.ContentRecord> contentRecords(

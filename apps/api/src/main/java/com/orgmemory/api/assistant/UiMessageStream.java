@@ -109,12 +109,6 @@ final class UiMessageStream {
                                 "orgmemory", fields(
                                         "citationNumber",
                                         source.citationNumber())));
-                case AssistantStreamPart.SourceDocument source -> fields(
-                        "type", "source-document",
-                        "sourceId", source.sourceId(),
-                        "mediaType", source.mediaType(),
-                        "title", source.title(),
-                        "filename", source.filename());
             };
         }
 

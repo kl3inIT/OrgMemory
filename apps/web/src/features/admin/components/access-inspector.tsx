@@ -26,6 +26,7 @@ const RESOURCE_TYPES = [
     permissions: [
       "can_manage_members",
       "can_manage_sources",
+      "can_manage_ai",
       "can_create_knowledge_space",
       "can_search_knowledge",
       "can_view_directory",

@@ -23,8 +23,4 @@ sealed interface AssistantStreamPart {
             String title,
             int citationNumber) implements AssistantStreamPart {
     }
-
-    record SourceDocument(String sourceId, String mediaType, String title, String filename)
-            implements AssistantStreamPart {
-    }
 }
