@@ -1,6 +1,6 @@
 package com.orgmemory.api.knowledge;
 
-import com.orgmemory.core.knowledge.KnowledgeSpaceTarget;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import java.util.UUID;
 
 record KnowledgeSpaceResponse(

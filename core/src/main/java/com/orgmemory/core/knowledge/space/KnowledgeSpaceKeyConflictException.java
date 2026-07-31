@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import com.orgmemory.core.shared.error.BusinessErrorCategory;
 import com.orgmemory.core.shared.error.BusinessException;

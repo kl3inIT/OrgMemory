@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge;
 
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
 import java.util.Objects;

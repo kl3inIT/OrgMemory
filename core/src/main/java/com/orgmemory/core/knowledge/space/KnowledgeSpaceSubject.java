@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import java.util.Objects;
 import java.util.UUID;

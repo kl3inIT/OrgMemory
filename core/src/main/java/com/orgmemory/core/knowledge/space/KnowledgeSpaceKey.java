@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import java.text.Normalizer;
 import java.util.Locale;

@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.knowledge.ConnectorReconciler.ObjectOutcome;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;

@@ -5,6 +5,7 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;

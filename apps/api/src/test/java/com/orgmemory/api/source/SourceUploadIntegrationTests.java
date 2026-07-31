@@ -7,8 +7,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
-import com.orgmemory.core.knowledge.KnowledgeSpaceService;
-import com.orgmemory.core.knowledge.KnowledgeSpaceTarget;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import com.orgmemory.core.knowledge.SourceIngestionCoordinator;
 import com.orgmemory.core.knowledge.SourceQueryService;
 import com.orgmemory.core.knowledge.SourceRevisionStatus;

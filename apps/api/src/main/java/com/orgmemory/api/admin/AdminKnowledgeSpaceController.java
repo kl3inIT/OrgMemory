@@ -2,9 +2,9 @@ package com.orgmemory.api.admin;
 
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.KnowledgeSpaceAdministration;
-import com.orgmemory.core.knowledge.KnowledgeSpaceAdministrationService;
-import com.orgmemory.core.knowledge.KnowledgeSpaceSubject;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministration;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministrationService;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceSubject;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.UUID;
