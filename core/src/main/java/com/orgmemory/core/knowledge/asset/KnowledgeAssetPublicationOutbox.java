@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.SourceFailureMessage;
+import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
 
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 

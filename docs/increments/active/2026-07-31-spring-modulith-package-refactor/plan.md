@@ -195,7 +195,7 @@ PR #193 merged as `1535aa1338c22283816c1da9dd847102b8750bb4` after all
 required CI checks passed. CodeRabbit's one actionable Markdown heading
 finding was fixed and its review thread resolved before merge.
 
-## Current Pull Request Gates
+## Ninth Pull Request Evidence
 
 - Authorized hybrid search, canonical authorization rechecks, evidence-scope
   resolution, catalog federation, citation streaming, GraphRAG result
@@ -217,3 +217,31 @@ integration tests passed; `:core:test` passed; and the terminating
 repository-wide `clean test` completed successfully in 6m18s across 108 tasks.
 The docs operating-model, release contract, and mechanical source checks
 passed. The pre-stage worktree contains 94 changed paths.
+
+PR #194 merged as `f7831eb328e8910485da393955edb9e6134f368a` after all
+required CI checks passed. CodeRabbit was rate limited on the final run, and
+direct inspection confirmed zero inline comments, reviews, or review threads
+before merge.
+
+## Current Pull Request Gates
+
+- `SourceGroupView` belongs to `knowledge.acl`, `SourceIdentityTrust` belongs
+  to `knowledge.connector`, and `SourceFailureMessage` belongs to
+  `knowledge.sourceledger`.
+- The parent `knowledge` package contains no domain type, and a structural test
+  prevents types from accumulating there again.
+- The close-all probe is recorded as dependency evidence; modules remain open
+  until reciprocal ACL/Connector, Source Ledger, Asset/Retrieval, and Graph
+  seams are replaced rather than hidden in `allowedDependencies`.
+- Focused ACL, Connector, Source Ledger, Asset, Graph, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the first cycle-removal slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+`ModulithVerificationTests`, the full `:core:test` suite, and affected API
+connector/admin integration tests passed; and the terminating repository-wide
+`clean test` completed successfully in 5m17s across 108 tasks. The docs
+operating-model, release contract, and mechanical source checks passed. The
+pre-stage worktree contains 22 changed paths and zero Knowledge root domain
+types.

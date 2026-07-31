@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.SourceFailureMessage;
+import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
 
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;

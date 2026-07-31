@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
 /**
  * How far an observed identity from one source connection may be trusted. The

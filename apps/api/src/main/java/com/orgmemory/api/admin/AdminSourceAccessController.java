@@ -7,8 +7,8 @@ import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingStatus;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalView;
 
 import com.orgmemory.core.knowledge.connector.SourceConnectionView;
-import com.orgmemory.core.knowledge.SourceGroupView;
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.acl.SourceGroupView;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;

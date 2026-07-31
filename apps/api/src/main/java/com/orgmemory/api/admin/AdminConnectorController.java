@@ -13,7 +13,7 @@ import com.orgmemory.core.knowledge.connector.SourceConnectionActivityService;
 import com.orgmemory.core.knowledge.connector.SourceConnectionActivityView;
 import com.orgmemory.core.knowledge.connector.SourceConnectionAdminService;
 import com.orgmemory.core.knowledge.connector.SourceConnectionConfigurationView;
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.secret.SecretValue;
 import io.swagger.v3.oas.annotations.Operation;

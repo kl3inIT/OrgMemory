@@ -5,8 +5,8 @@ import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException
 import com.orgmemory.core.knowledge.connector.SourceConnection;
 import com.orgmemory.core.knowledge.connector.SourceConnectionRepository;
 import com.orgmemory.core.knowledge.connector.SourceConnectionView;
-import com.orgmemory.core.knowledge.SourceGroupView;
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.acl.SourceGroupView;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
