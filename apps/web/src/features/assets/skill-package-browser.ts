@@ -1,8 +1,12 @@
 import { strToU8, zipSync, type Zippable } from "fflate"
 
-export const MAX_SKILL_ARCHIVE_BYTES = 20 * 1024 * 1024
-export const MAX_SKILL_CONTENT_BYTES = 50 * 1024 * 1024
-export const MAX_SKILL_FILES = 300
+import {
+  MAX_SKILL_ARCHIVE_BYTES,
+  MAX_SKILL_CONTENT_BYTES,
+  MAX_SKILL_FILES,
+} from "@/features/assets/skill-package-limits"
+
+export { MAX_SKILL_ARCHIVE_BYTES } from "@/features/assets/skill-package-limits"
 
 const FIXED_ZIP_TIME = new Date(2000, 0, 1, 0, 0, 0, 0)
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

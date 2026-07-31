@@ -29,7 +29,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { copyWithToast } from "@/lib/copy"
 import { readCitationContent } from "@/lib/hey-api"
+import { formatBytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 export interface AssistantSourceRef {
@@ -334,12 +336,13 @@ function CitationPreviewDialog({
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Copy source content"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(preview.text ?? "").then(() => {
+                  onClick={() =>
+                    void copyWithToast(preview.text ?? "", "Source content").then((didCopy) => {
+                      if (!didCopy) return
                       setCopied(true)
                       window.setTimeout(() => setCopied(false), 1_500)
                     })
-                  }}
+                  }
                 >
                   {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 </Button>
@@ -419,13 +422,6 @@ function previewMetadata(preview: PreviewPayload) {
   }
   parts.push(formatBytes(preview.blob.size))
   return parts.join(" · ")
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1_024) return `${bytes} B`
-  const kibibytes = bytes / 1_024
-  if (kibibytes < 1_024) return `${kibibytes.toFixed(1)} KB`
-  return `${(kibibytes / 1_024).toFixed(1)} MB`
 }
 
 function sourceOrigin(source: AssistantSourceRef) {

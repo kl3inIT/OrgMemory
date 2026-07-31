@@ -2,7 +2,9 @@ import { CheckCircle2, FileArchive } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MetadataTile } from "@/features/assets/components/metadata-tile"
 import type { SkillPackageInspection } from "@/lib/hey-api"
+import { formatBytes } from "@/lib/format"
 
 export function SkillPackageInspectionCard({
   inspection,
@@ -29,8 +31,8 @@ export function SkillPackageInspectionCard({
           </p>
         </div>
         <div className="grid gap-px overflow-hidden rounded-lg border border-border-default bg-border-default sm:grid-cols-2 lg:grid-cols-1">
-          <Metric label="Archive" value={formatBytes(inspection.contentLength)} />
-          <Metric label="Compatibility" value={inspection.compatibility || "Not declared"} />
+          <MetadataTile label="Archive" value={formatBytes(inspection.contentLength, "—")} />
+          <MetadataTile label="Compatibility" value={inspection.compatibility || "Not declared"} />
         </div>
         <div>
           <p className="text-metadata text-content-muted">SHA-256</p>
@@ -46,7 +48,7 @@ export function SkillPackageInspectionCard({
             >
               <span className="min-w-0 truncate font-mono text-metadata">{file.path}</span>
               <span className="shrink-0 text-metadata text-content-muted">
-                {formatBytes(file.size)}
+                {formatBytes(file.size, "—")}
               </span>
             </div>
           ))}
@@ -63,21 +65,4 @@ export function SkillPackageInspectionCard({
       </CardContent>
     </Card>
   )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-surface-subtle p-3">
-      <p className="text-metadata text-content-muted">{label}</p>
-      <p className="mt-1 text-label">{value}</p>
-    </div>
-  )
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) return "—"
-  if (value < 1_024) return `${value} B`
-  const kibibytes = value / 1_024
-  if (kibibytes < 1_024) return `${kibibytes.toFixed(1)} KB`
-  return `${(kibibytes / 1_024).toFixed(1)} MB`
 }

@@ -64,6 +64,14 @@ export function KnowledgeGraphPanel() {
   const [expandedViews, setExpandedViews] = useState<KnowledgeGraphView[]>([])
   const [hiddenEntityIds, setHiddenEntityIds] = useState<Set<string>>(new Set())
 
+  function resetExploration() {
+    setSelectedEntityId(null)
+    setSelectedRelationId(null)
+    setSelectedTypes(new Set())
+    setExpandedViews([])
+    setHiddenEntityIds(new Set())
+  }
+
   const visibleSpaces = spaces.data ?? []
   const selectedSpace =
     visibleSpaces.find((space) => space.id === selectedKnowledgeSpaceId) ?? visibleSpaces[0]
@@ -122,11 +130,7 @@ export function KnowledgeGraphPanel() {
             className="flex w-full max-w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end"
             onSubmit={(event) => {
               event.preventDefault()
-              setSelectedEntityId(null)
-              setSelectedRelationId(null)
-              setSelectedTypes(new Set())
-              setExpandedViews([])
-              setHiddenEntityIds(new Set())
+              resetExploration()
               setQuery(queryDraft.trim())
             }}
           >
@@ -134,11 +138,7 @@ export function KnowledgeGraphPanel() {
               value={selectedSpace?.id ?? ""}
               onValueChange={(value: string) => {
                 setSelectedKnowledgeSpaceId(value)
-                setSelectedEntityId(null)
-                setSelectedRelationId(null)
-                setSelectedTypes(new Set())
-                setExpandedViews([])
-                setHiddenEntityIds(new Set())
+                resetExploration()
               }}
             >
               <SelectTrigger className="w-full sm:w-56" aria-label="Knowledge space">

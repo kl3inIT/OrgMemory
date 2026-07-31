@@ -58,15 +58,3 @@ export function sourceProgress(status?: string) {
 export function titleCase(value: string) {
   return value.toLowerCase().replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase())
 }
-
-export function formatBytes(value?: number) {
-  if (!value) return "0 B"
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`
-}
-
-export function formatDate(value?: string) {
-  if (!value) return "—"
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
-}

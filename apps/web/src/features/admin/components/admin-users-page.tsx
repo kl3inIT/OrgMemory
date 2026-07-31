@@ -19,12 +19,15 @@ import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
 import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
-import { adminUsersQueryOptions, invalidateAdminData } from "@/features/admin/admin-queries"
+import { adminQuery, invalidateAdminData } from "@/features/admin/admin-queries"
 import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminInvitationsCard } from "@/features/admin/components/admin-invitations-card"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { avatarInitials } from "@/lib/avatar"
-import { updateAdminUserMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
+import {
+  listAdminUsersOptions,
+  updateAdminUserMutation,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminUserResponse } from "@/lib/hey-api"
 
 export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
@@ -34,7 +37,7 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
   const [signIn, setSignIn] = useState("all")
   const [accountStatus, setAccountStatus] = useState("all")
   const [page, setPage] = useState(1)
-  const users = useQuery(adminUsersQueryOptions())
+  const users = useQuery(adminQuery(listAdminUsersOptions()))
   const update = useMutation({
     ...updateAdminUserMutation(),
     onSuccess: async (_data, variables) => {

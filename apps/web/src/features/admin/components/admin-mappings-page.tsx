@@ -9,12 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { connectionLabel, formatTimestamp, principalName } from "@/features/admin/admin-labels"
+import { connectionLabel, principalName } from "@/features/admin/admin-labels"
 import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
 import {
-  adminSourceConnectionsQueryOptions,
-  adminSourcePrincipalsQueryOptions,
-  adminUsersQueryOptions,
+  adminQuery,
   invalidateAdminData,
 } from "@/features/admin/admin-queries"
 import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
@@ -23,6 +21,9 @@ import { ConfirmMappingDialog } from "@/features/admin/components/confirm-mappin
 import { MappingBadge } from "@/features/admin/components/mapping-badge"
 import {
   confirmAdminSourceMappingMutation,
+  listAdminSourceConnectionsOptions,
+  listAdminSourcePrincipalsOptions,
+  listAdminUsersOptions,
   revokeAdminSourceMappingMutation,
   setAdminSourceConnectionTrustMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
@@ -30,6 +31,7 @@ import type {
   AdminSourceConnectionResponse,
   AdminSourcePrincipalResponse,
 } from "@/lib/hey-api"
+import { formatDate } from "@/lib/format"
 
 const TRUST_OPTIONS = [
   { value: "UNTRUSTED", label: "Untrusted" },
@@ -45,9 +47,9 @@ export function AdminMappingsPage() {
 
   const [principals, connections, users] = useQueries({
     queries: [
-      adminSourcePrincipalsQueryOptions(),
-      adminSourceConnectionsQueryOptions(),
-      adminUsersQueryOptions(),
+      adminQuery(listAdminSourcePrincipalsOptions()),
+      adminQuery(listAdminSourceConnectionsOptions()),
+      adminQuery(listAdminUsersOptions()),
     ],
   })
 
@@ -215,7 +217,7 @@ export function AdminMappingsPage() {
         headerClassName: "text-right",
         cellClassName: "text-right text-muted-foreground",
       },
-      cell: ({ row }) => formatTimestamp(row.original.lastSeenAt),
+      cell: ({ row }) => formatDate(row.original.lastSeenAt),
     },
   ]
   const principalColumns: ColumnDef<AdminSourcePrincipalResponse>[] = [

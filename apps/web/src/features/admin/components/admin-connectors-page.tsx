@@ -29,12 +29,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { formatDay, formatTimestamp } from "@/features/admin/admin-labels"
+import { formatDay } from "@/features/admin/admin-labels"
 import {
-  adminConnectionsQueryOptions,
-  adminConnectorSourcesQueryOptions,
+  adminQuery,
   invalidateAdminData,
-  knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
@@ -42,10 +40,14 @@ import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
 import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
   forgetAdminConnectionCredentialMutation,
+  listAdminConnectionsOptions,
+  listAdminConnectorSourcesOptions,
+  listKnowledgeSpaceUploadTargetsOptions,
   requestAdminConnectionCrawlMutation,
   testAdminConnectionMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminConnectionResponse, AdminConnectorProbeResponse } from "@/lib/hey-api"
+import { formatDate } from "@/lib/format"
 
 /**
  * What a connection is actually doing, which is not the same as what it was set to.
@@ -88,15 +90,17 @@ export function AdminConnectorsPage() {
 
   // Which sources exist is the deployment's answer, not this file's. Everything below is
   // driven by it, so a second adapter appears here without a line changing.
-  const sources = useQuery(adminConnectorSourcesQueryOptions())
-  const spaces = useQuery(knowledgeSpacesQueryOptions())
+  const sources = useQuery(adminQuery(listAdminConnectorSourcesOptions()))
+  const spaces = useQuery(adminQuery(listKnowledgeSpaceUploadTargetsOptions()))
 
   const installed: { system: string; displayName?: string }[] = (sources.data ?? []).flatMap(
     (source) => (source.sourceSystem ? [{ system: source.sourceSystem, displayName: source.displayName }] : []),
   )
 
   const connectionQueries = useQueries({
-    queries: installed.map((source) => adminConnectionsQueryOptions(source.system)),
+    queries: installed.map((source) =>
+      adminQuery(listAdminConnectionsOptions({ path: { sourceSystem: source.system } })),
+    ),
   })
 
   const forget = useMutation({
@@ -271,7 +275,7 @@ export function AdminConnectorsPage() {
                       <Badge variant="secondary">Stored</Badge>
                       <span
                         className="text-xs text-muted-foreground"
-                        title={formatTimestamp(row.original.credentialSetAt)}
+                        title={formatDate(row.original.credentialSetAt)}
                       >
                         {formatDay(row.original.credentialSetAt)}
                       </span>

@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { formatAssetCoordinate, formatDate } from "@/features/assets/asset-format"
+import { formatAssetCoordinate } from "@/features/assets/asset-format"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import { AssetBreadcrumb } from "@/features/assets/components/asset-breadcrumb"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
@@ -47,6 +47,7 @@ import type {
   Review,
   Revision,
 } from "@/lib/hey-api"
+import { formatDate } from "@/lib/format"
 
 export function GovernanceWorkspacePage({
   assetId,

@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { formatDate, parsePayload } from "@/features/assets/asset-format"
+import { parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
+import { MetadataTile } from "@/features/assets/components/metadata-tile"
 import { canPublishSkillDirectly } from "@/features/assets/governance-policy"
 import {
   publishSkillReleaseMutation,
@@ -22,6 +23,7 @@ import type {
   AssetView,
   Draft,
 } from "@/lib/hey-api"
+import { formatBytes, formatDate } from "@/lib/format"
 
 type SkillDraftPayload = {
   compatibility?: string
@@ -97,9 +99,9 @@ export function GovernanceDraftWorkspace({
           <CardContent>
             <p className="text-body text-content-secondary">{draft.summary}</p>
             <div className="mt-6 grid gap-px overflow-hidden rounded-xl border border-border-default bg-border-default sm:grid-cols-3">
-              <DraftMetric label="Classification" value={draft.classification} />
-              <DraftMetric label="Schema" value={draft.schemaVersion} mono />
-              <DraftMetric
+              <MetadataTile label="Classification" value={draft.classification} />
+              <MetadataTile label="Schema" value={draft.schemaVersion} mono />
+              <MetadataTile
                 label="Draft version"
                 value={String(draft.lockVersion ?? 0)}
                 mono
@@ -226,12 +228,12 @@ function SkillDraftPackage({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-px overflow-hidden rounded-xl border border-border-default bg-border-default sm:grid-cols-3">
-          <DraftMetric label="Files" value={String(files.length)} mono />
-          <DraftMetric
+          <MetadataTile label="Files" value={String(files.length)} mono />
+          <MetadataTile
             label="Archive"
-            value={formatBytes(skill.artifact.contentLength)}
+            value={formatBytes(skill.artifact.contentLength, "—")}
           />
-          <DraftMetric
+          <MetadataTile
             label="Compatibility"
             value={skill.compatibility || "Not declared"}
           />
@@ -260,7 +262,7 @@ function SkillDraftPackage({
                 {file.path}
               </span>
               <span className="shrink-0 text-metadata text-content-muted">
-                {formatBytes(file.size)}
+                {formatBytes(file.size, "—")}
               </span>
             </div>
           ))}
@@ -273,29 +275,4 @@ function SkillDraftPackage({
       </CardContent>
     </Card>
   )
-}
-
-function DraftMetric({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string
-  value?: string
-  mono?: boolean
-}) {
-  return (
-    <div className="bg-surface-subtle p-4">
-      <p className="text-metadata text-content-muted">{label}</p>
-      <p className={`mt-2 text-label ${mono ? "font-mono" : ""}`}>{value || "—"}</p>
-    </div>
-  )
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) return "—"
-  if (value < 1_024) return `${value} B`
-  const kibibytes = value / 1_024
-  if (kibibytes < 1_024) return `${kibibytes.toFixed(1)} KB`
-  return `${(kibibytes / 1_024).toFixed(1)} MB`
 }

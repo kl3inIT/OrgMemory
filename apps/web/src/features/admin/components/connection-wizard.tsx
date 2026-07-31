@@ -24,19 +24,17 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { formatTimestamp } from "@/features/admin/admin-labels"
 import {
-  adminConnectionScopesQueryOptions,
-  adminConnectionsQueryOptions,
-  adminUsersQueryOptions,
+  adminQuery,
   invalidateAdminData,
-  knowledgeSpacesQueryOptions,
 } from "@/features/admin/admin-queries"
 import { WIZARD_STEPS, type WizardStep } from "@/features/admin/connection-steps"
 import { AdminPage } from "@/features/admin/components/admin-page"
 import { ConnectorFields } from "@/features/admin/components/connector-fields"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG, type ConnectorCredentialDescriptor } from "@/features/admin/connector-catalog"
+import { formatDate } from "@/lib/format"
+import { copyWithToast } from "@/lib/copy"
 import {
   CONNECTOR_FORMS,
   configFrom,
@@ -47,6 +45,10 @@ import {
 import { probeIsGood, probeReason } from "@/features/admin/connector-probe"
 import {
   configureAdminConnectionMutation,
+  listAdminConnectionsOptions,
+  listAdminConnectionScopesOptions,
+  listAdminUsersOptions,
+  listKnowledgeSpaceUploadTargetsOptions,
   setAdminConnectionCredentialMutation,
   testAdminConnectorCredentialMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
@@ -109,9 +111,9 @@ export function ConnectionWizard({
 
   const [connections, users, spaces] = useQueries({
     queries: [
-      adminConnectionsQueryOptions(sourceSystem),
-      adminUsersQueryOptions(),
-      knowledgeSpacesQueryOptions(),
+      adminQuery(listAdminConnectionsOptions({ path: { sourceSystem } })),
+      adminQuery(listAdminUsersOptions()),
+      adminQuery(listKnowledgeSpaceUploadTargetsOptions()),
     ],
   })
 
@@ -122,7 +124,11 @@ export function ConnectionWizard({
   // What the source holds, read with the credential this connection already stored. Before that
   // there is nothing to read it with, and the field says so rather than showing an empty list.
   const scopes = useQuery({
-    ...adminConnectionScopesQueryOptions(sourceSystem, connectionKey ?? ""),
+    ...adminQuery(
+      listAdminConnectionScopesOptions({
+        path: { sourceSystem, connectionKey: connectionKey ?? "" },
+      }),
+    ),
     enabled: Boolean(connectionKey) && Boolean(existing?.credentialSet),
   })
 
@@ -453,7 +459,7 @@ function CredentialStep({
         <div className="flex items-center gap-3 rounded-md border p-3">
           <Badge variant="secondary">Stored</Badge>
           <span className="text-sm text-muted-foreground">
-            Set {formatTimestamp(existingSetAt)}. Entering a new one below replaces it.
+            Set {formatDate(existingSetAt)}. Entering a new one below replaces it.
           </span>
         </div>
       ) : null}
@@ -606,12 +612,7 @@ function CredentialRecipe({
         <Button
           size="sm"
           variant="ghost"
-          onClick={() =>
-            void navigator.clipboard
-              .writeText(recipe.body)
-              .then(() => toast.success(`${recipe.label} copied`))
-              .catch(() => toast.error(`${recipe.label} could not be copied`))
-          }
+          onClick={() => void copyWithToast(recipe.body, recipe.label)}
         >
           <Copy aria-hidden="true" />
           Copy

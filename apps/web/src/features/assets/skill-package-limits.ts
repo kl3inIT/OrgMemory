@@ -1,0 +1,3 @@
+export const MAX_SKILL_ARCHIVE_BYTES = 20 * 1024 * 1024
+export const MAX_SKILL_CONTENT_BYTES = 50 * 1024 * 1024
+export const MAX_SKILL_FILES = 300

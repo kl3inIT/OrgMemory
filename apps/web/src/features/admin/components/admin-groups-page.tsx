@@ -8,15 +8,17 @@ import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { connectionLabel, formatTimestamp } from "@/features/admin/admin-labels"
+import { connectionLabel } from "@/features/admin/admin-labels"
 import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
-import { adminSourceGroupsQueryOptions } from "@/features/admin/admin-queries"
+import { adminQuery } from "@/features/admin/admin-queries"
 import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import type {
   AdminSourceGroupMemberResponse,
   AdminSourceGroupResponse,
 } from "@/lib/hey-api"
+import { listAdminSourceGroupsOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { formatDate } from "@/lib/format"
 
 const memberColumns: ColumnDef<AdminSourceGroupMemberResponse>[] = [
   {
@@ -72,7 +74,7 @@ function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
             </span>
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
               {connectionLabel(group.sourceSystem, group.sourceConnectionKey)} · sealed{" "}
-              {formatTimestamp(group.sealedAt)}
+              {formatDate(group.sealedAt)}
             </span>
           </span>
           <span className="hidden items-center gap-2 sm:flex">
@@ -108,7 +110,7 @@ function SourceGroupRow({ group }: { group: AdminSourceGroupResponse }) {
 export function AdminGroupsPage() {
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
-  const groups = useQuery(adminSourceGroupsQueryOptions())
+  const groups = useQuery(adminQuery(listAdminSourceGroupsOptions()))
 
   if (groups.isPending) {
     return <LoadingState label="Loading source groups" className="min-h-full flex-1" />

@@ -13,7 +13,6 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
 import { cn } from "@/lib/utils"
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react"
 import type { ComponentProps, ReactNode } from "react"
 import {
   createContext,
@@ -27,18 +26,6 @@ export type InlineCitationProps = ComponentProps<"span">
 
 export const InlineCitation = ({ className, ...props }: InlineCitationProps) => (
   <span className={cn("group inline items-center gap-1", className)} {...props} />
-)
-
-export type InlineCitationTextProps = ComponentProps<"span">
-
-export const InlineCitationText = ({
-  className,
-  ...props
-}: InlineCitationTextProps) => (
-  <span
-    className={cn("transition-colors group-hover:bg-accent", className)}
-    {...props}
-  />
 )
 
 export type InlineCitationCardProps = ComponentProps<typeof HoverCard>
@@ -169,50 +156,6 @@ export const InlineCitationCarouselIndex = ({
   )
 }
 
-export type InlineCitationCarouselPrevProps = ComponentProps<"button">
-
-export const InlineCitationCarouselPrev = ({
-  className,
-  ...props
-}: InlineCitationCarouselPrevProps) => {
-  const api = useCarouselApi()
-  const handleClick = useCallback(() => api?.scrollPrev(), [api])
-
-  return (
-    <button
-      aria-label="Previous"
-      className={cn("shrink-0", className)}
-      onClick={handleClick}
-      type="button"
-      {...props}
-    >
-      <ArrowLeftIcon className="size-4 text-muted-foreground" />
-    </button>
-  )
-}
-
-export type InlineCitationCarouselNextProps = ComponentProps<"button">
-
-export const InlineCitationCarouselNext = ({
-  className,
-  ...props
-}: InlineCitationCarouselNextProps) => {
-  const api = useCarouselApi()
-  const handleClick = useCallback(() => api?.scrollNext(), [api])
-
-  return (
-    <button
-      aria-label="Next"
-      className={cn("shrink-0", className)}
-      onClick={handleClick}
-      type="button"
-      {...props}
-    >
-      <ArrowRightIcon className="size-4 text-muted-foreground" />
-    </button>
-  )
-}
-
 export type InlineCitationSourceProps = ComponentProps<"div"> & {
   title?: string
   url?: string
@@ -237,24 +180,6 @@ export const InlineCitationSource = ({
     ) : null}
     {children}
   </div>
-)
-
-export type InlineCitationQuoteProps = ComponentProps<"blockquote">
-
-export const InlineCitationQuote = ({
-  children,
-  className,
-  ...props
-}: InlineCitationQuoteProps) => (
-  <blockquote
-    className={cn(
-      "border-l-2 border-muted pl-3 text-sm italic text-muted-foreground",
-      className,
-    )}
-    {...props}
-  >
-    {children}
-  </blockquote>
 )
 
 function sourceLabel(source: string | undefined, count: number) {
