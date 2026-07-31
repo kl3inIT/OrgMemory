@@ -1,25 +1,17 @@
 core:changelogs:
-  - content: "---\nsubject: Changelog layout\npackages:\n  orgmemory:\n    type: patch\n---\n\n# Changelog layout\n\n## Documentation\n\nKeep the product changelog title first and render each reviewed release entry\nwith one clear subject heading.\n"
-    filename: changelog-layout.md
+  - content: "---\nsubject: Update the Skill CLI command parser\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Improvements\n\nUpdate the OrgMemory Skill CLI to Commander 15 while retaining its existing\nESM and Node 24 runtime contract.\n"
+    filename: commander-15.md
     v: 0.0.0
-  - content: "---\nsubject: Release evidence secret scanning\npackages:\n  orgmemory:\n    type: patch\n---\n\n# Release evidence secret scanning\n\n## Security\n\nKeep full-history secret scanning enabled while recognizing immutable GHCR\nreferences whose public image tags contain Git commit SHAs.\n"
-    filename: gitleaks-release-evidence.md
+  - content: "---\nsubject: Update graph database runtime dependencies\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Improvements\n\nUpdate the Neo4j Java Driver to 6.2 for the graph storage adapter and refresh\nthe JUnit platform used by the backend test suite.\n"
+    filename: neo4j-driver-6-2.md
     v: 0.0.0
-  - content: "---\nsubject: Product release management\npackages:\n  orgmemory:\n    type: minor\n---\n\n# Product release management\n\n## Operations\n\nAdd reviewed product changelogs, semantic versions, immutable artifact\nmanifests, and GitHub Releases without changing the SHA-addressed deployment\npipeline.\n"
-    filename: release-management.md
-    v: 0.0.0
-  - content: "---\nsubject: Shared ZM team development\npackages:\n  orgmemory:\n    type: minor\n---\n\n# Shared ZM team development\n\n## Operations\n\nLet developers run local OrgMemory applications against the shared\nnon-production ZM services through private SSH tunnels, with automatic worker\ncoordination and guarded post-merge schema/model updates.\n"
-    filename: shared-zm-team-development.md
-    v: 0.0.0
-  - content: "---\nsubject: Version pull request preflight\npackages:\n  orgmemory:\n    type: patch\n---\n\n# Version pull request preflight\n\n## Fixes\n\nAllow Tegami to validate a generated Version PR commit while retaining the\nindependent current-main checks around writable release operations.\n"
-    filename: version-preflight.md
+  - content: "---\nsubject: Refresh Node application runtime dependencies\npackages:\n  orgmemory:\n    type: patch\n---\n\n## Improvements\n\nUpdate the MCP CLI, Assistant web client, and public documentation runtime\ndependencies to their latest compatible minor and patch releases.\n"
+    filename: node-runtime-maintenance.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - changelog-layout.md
-      - gitleaks-release-evidence.md
-      - release-management.md
-      - shared-zm-team-development.md
-      - version-preflight.md
+      - commander-15.md
+      - neo4j-driver-6-2.md
+      - node-runtime-maintenance.md
     id: product:orgmemory
     updated: true
