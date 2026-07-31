@@ -19,6 +19,10 @@
   schema-history connection can block the concurrent build; pre-stage those
   indexes through the deployment pipeline for large-table upgrades.
 - API runs migrations. Worker and MCP do not own schema evolution.
+- For the temporary shared ZM development workflow, use
+  [the team runbook](runbooks/shared-zm-team-development.md). Feature checkouts
+  disable Flyway/index provisioning and never apply schema or OpenFGA model
+  changes to shared state; the post-merge deployment owns that mutation.
 - Use durable idempotency, outbox, and compare-and-set at retried ingestion and
   projection boundaries.
 - OpenFGA models use schema 1.1, singular lowercase types, assignable noun

@@ -28,6 +28,8 @@ keycloak_script="$temporary_root/configure-keycloak.sh"
 smoke_success_script="$temporary_root/smoke-success.sh"
 smoke_rollback_script="$temporary_root/smoke-rollback.sh"
 smoke_count="$temporary_root/smoke.count"
+coordination_script="$temporary_root/team-dev-coordination.sh"
+coordination_log="$temporary_root/coordination.log"
 
 install -d -m 0700 "$stub_bin"
 printf 'model\n  schema 1.1\n\ntype user\n' > "$model_file"
@@ -75,6 +77,13 @@ fi
 SH
 chmod +x "$smoke_rollback_script"
 
+cat > "$coordination_script" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> "$ORGMEMORY_TEST_COORDINATION_LOG"
+SH
+chmod +x "$coordination_script"
+
 write_environment() {
   local path="$1"
   local model_sha256="${2:-}"
@@ -108,6 +117,8 @@ run_deploy() {
   ORGMEMORY_OPENFGA_MODEL_FILE="$model_file" \
   ORGMEMORY_KEYCLOAK_CONFIGURATION_SCRIPT="$keycloak_script" \
   ORGMEMORY_SMOKE_SCRIPT="$smoke_script" \
+  ORGMEMORY_TEAM_DEV_COORDINATION_SCRIPT="$coordination_script" \
+  ORGMEMORY_TEST_COORDINATION_LOG="$coordination_log" \
   ORGMEMORY_TEST_DOCKER_LOG="$docker_log" \
   ORGMEMORY_TEST_NEW_MODEL_ID="$new_model_id" \
   ORGMEMORY_TEST_SMOKE_COUNT="$smoke_count" \
@@ -166,6 +177,7 @@ upgrade_environment="$temporary_root/upgrade.env"
 install -d -m 0700 "$upgrade_root/releases"
 write_environment "$upgrade_environment"
 : > "$docker_log"
+: > "$coordination_log"
 run_deploy \
   "$upgrade_environment" \
   "$upgrade_root" \
@@ -178,6 +190,8 @@ assert_model_configuration \
   "$release_model_sha256"
 grep -Fxq "$candidate_sha" "$upgrade_root/current-commit"
 grep -q 'openfga-model-write' "$docker_log"
+grep -Fq "acquire maintenance deploy-$candidate_sha deployment deployment-host $candidate_sha 1800" "$coordination_log"
+grep -Fq "release maintenance deploy-$candidate_sha" "$coordination_log"
 
 model_write_line="$(grep -n 'openfga-model-write' "$docker_log" | head -1 | cut -d: -f1)"
 application_up_line="$(
@@ -198,6 +212,8 @@ install -d -m 0700 "$no_op_root/releases"
 install -m 0600 "$upgrade_environment" "$no_op_environment"
 printf '%s\n' "$candidate_sha" > "$no_op_root/current-commit"
 : > "$docker_log"
+: > "$coordination_log"
+ORGMEMORY_FORCE_SHARED_MAINTENANCE=false \
 run_deploy \
   "$no_op_environment" \
   "$no_op_root" \
@@ -212,6 +228,10 @@ if grep -q 'openfga-model-write' "$docker_log"; then
   printf 'An unchanged authorization model created another immutable version.\n' >&2
   exit 1
 fi
+if [[ -s "$coordination_log" ]]; then
+  printf 'A release without schema/model changes acquired maintenance.\n' >&2
+  exit 1
+fi
 
 # A failed canary after a changed model write must restore the previous image,
 # model ID, and digest. The newly written immutable model remains inert.
@@ -222,6 +242,7 @@ write_environment "$rollback_environment" "$old_model_sha256"
 printf '%s\n' "$old_sha" > "$rollback_root/current-commit"
 : > "$docker_log"
 : > "$smoke_count"
+: > "$coordination_log"
 
 set +e
 run_deploy \
@@ -247,5 +268,6 @@ grep -Fxq \
 grep -Fxq "1" "$smoke_count"
 grep -q 'openfga-model-write' "$docker_log"
 grep -q 'up -d --remove-orphans' "$docker_log"
+grep -Fq "release maintenance deploy-$candidate_sha" "$coordination_log"
 
 printf 'OpenFGA model rollout, no-op, and rollback contracts passed.\n'

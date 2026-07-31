@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class PostgresGraphRagProperties {
 
     private boolean enabled = true;
+    private boolean provisionIndexes = true;
     private ApacheAgeMode apacheAgeMode = ApacheAgeMode.REQUIRED;
     private int maxBatchRecords = 200;
     private long maxBatchPayloadBytes = 4L * 1024 * 1024;
@@ -38,6 +39,14 @@ public class PostgresGraphRagProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isProvisionIndexes() {
+        return provisionIndexes;
+    }
+
+    public void setProvisionIndexes(boolean provisionIndexes) {
+        this.provisionIndexes = provisionIndexes;
     }
 
     public ApacheAgeMode getApacheAgeMode() {

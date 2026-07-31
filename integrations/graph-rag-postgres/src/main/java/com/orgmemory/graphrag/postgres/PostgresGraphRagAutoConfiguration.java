@@ -143,6 +143,10 @@ public class PostgresGraphRagAutoConfiguration {
     ApplicationRunner postgresGraphVectorIndexProvisioner(
             PostgresGraphVectorIndexManager indexManager,
             PostgresGraphRagProperties properties) {
-        return arguments -> indexManager.ensureConfiguredIndexes(properties.toStoreOptions());
+        return arguments -> {
+            if (properties.isProvisionIndexes()) {
+                indexManager.ensureConfiguredIndexes(properties.toStoreOptions());
+            }
+        };
     }
 }

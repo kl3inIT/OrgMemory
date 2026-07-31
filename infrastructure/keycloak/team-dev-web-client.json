@@ -1,0 +1,12 @@
+{
+  "clientId": "orgmemory-web",
+  "redirectUris": [
+    "http://127.0.0.1:8080/login/oauth2/code/keycloak"
+  ],
+  "webOrigins": [
+    "http://127.0.0.1:5173"
+  ],
+  "attributes": {
+    "post.logout.redirect.uris": "http://127.0.0.1:5173/login"
+  }
+}
