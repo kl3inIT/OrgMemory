@@ -245,6 +245,7 @@ export function AssistantPage({
               completedHistoryOptions.queryKey,
               actorKey,
             ),
+            refetchType: "none",
           }),
         )
       }

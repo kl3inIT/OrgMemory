@@ -19,6 +19,7 @@ import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
 import { CopyButton } from "@/components/patterns/copy-button"
+import { MetadataTile } from "@/features/assets/components/metadata-tile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -265,35 +266,14 @@ function AssetIdentityHeader({
           </CollapsibleTrigger>
           <CollapsibleContent className="border-t border-border-subtle">
             <div className="grid bg-border-subtle sm:grid-cols-3 sm:gap-px">
-              <Metadata label="Coordinate" value={formatAssetCoordinate(asset)} mono />
-              <Metadata label="Released" value={formatDate(release.releasedAt)} />
-              <Metadata label="Digest" value={release.digest?.slice(0, 16)} mono />
+              <MetadataTile label="Coordinate" value={formatAssetCoordinate(asset)} mono />
+              <MetadataTile label="Released" value={formatDate(release.releasedAt)} />
+              <MetadataTile label="Digest" value={release.digest?.slice(0, 16)} mono />
             </div>
           </CollapsibleContent>
         </Collapsible>
       ) : null}
     </PageLayout.Header>
-  )
-}
-
-function Metadata({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string
-  value?: string
-  mono?: boolean
-}) {
-  return (
-    <div className="bg-surface-subtle px-5 py-3">
-      <p className="text-metadata text-content-muted">{label}</p>
-      <p
-        className={`mt-1 truncate text-supporting text-content-primary ${mono ? "font-mono" : ""}`}
-      >
-        {value ?? "—"}
-      </p>
-    </div>
   )
 }
 
@@ -820,9 +800,9 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3">
-            <Metadata label="Package" value={formatBytes(skill.packageLength, "—")} />
-            <Metadata label="Files" value={String(skill.files?.length ?? 0)} />
-            <Metadata label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
+            <MetadataTile label="Package" value={formatBytes(skill.packageLength, "—")} />
+            <MetadataTile label="Files" value={String(skill.files?.length ?? 0)} />
+            <MetadataTile label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
           </div>
 
           <div className="space-y-3">

@@ -2,6 +2,7 @@ import { CheckCircle2, FileArchive } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MetadataTile } from "@/features/assets/components/metadata-tile"
 import type { SkillPackageInspection } from "@/lib/hey-api"
 import { formatBytes } from "@/lib/format"
 
@@ -30,8 +31,8 @@ export function SkillPackageInspectionCard({
           </p>
         </div>
         <div className="grid gap-px overflow-hidden rounded-lg border border-border-default bg-border-default sm:grid-cols-2 lg:grid-cols-1">
-          <Metric label="Archive" value={formatBytes(inspection.contentLength, "—")} />
-          <Metric label="Compatibility" value={inspection.compatibility || "Not declared"} />
+          <MetadataTile label="Archive" value={formatBytes(inspection.contentLength, "—")} />
+          <MetadataTile label="Compatibility" value={inspection.compatibility || "Not declared"} />
         </div>
         <div>
           <p className="text-metadata text-content-muted">SHA-256</p>
@@ -63,14 +64,5 @@ export function SkillPackageInspectionCard({
         </p>
       </CardContent>
     </Card>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-surface-subtle p-3">
-      <p className="text-metadata text-content-muted">{label}</p>
-      <p className="mt-1 text-label">{value}</p>
-    </div>
   )
 }

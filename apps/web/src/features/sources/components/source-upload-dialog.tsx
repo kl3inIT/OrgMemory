@@ -15,10 +15,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { UploadSourceInput } from "@/features/sources/api/upload-source"
-import type { KnowledgeSpaceResponse } from "@/lib/hey-api"
+import type { KnowledgeSpaceResponse, UploadSourceData } from "@/lib/hey-api"
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024
+
+export type UploadSourceInput = {
+  file: File
+  classification: NonNullable<UploadSourceData["query"]["classification"]>
+  knowledgeSpaceId: string
+}
 
 export function SourceUploadDialog({
   pending,
@@ -40,6 +45,8 @@ export function SourceUploadDialog({
   const [classification, setClassification] = useState<UploadSourceInput["classification"]>("CONFIDENTIAL")
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState("")
   const [error, setError] = useState<string>()
+  // Until upload targets publish admissible classifications, mirror only the server's
+  // department requirement for confidential uploads.
   const availableSpaces = spaces.filter(
     (space): space is KnowledgeSpaceResponse & { id: string; name: string } =>
       Boolean(space.id && space.name) &&
