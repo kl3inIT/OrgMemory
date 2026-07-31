@@ -1,8 +1,8 @@
 package com.orgmemory.worker.graph;
 
-import com.orgmemory.core.knowledge.ClaimedGraphIndex;
-import com.orgmemory.core.knowledge.GraphIndexChunk;
-import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.graph.ClaimedGraphIndex;
+import com.orgmemory.core.knowledge.graph.GraphIndexChunk;
+import com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator;
 import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;

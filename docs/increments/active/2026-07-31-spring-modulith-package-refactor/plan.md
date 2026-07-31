@@ -116,7 +116,7 @@ tests passed; `:core:test` passed; and the terminating repository-wide
 operating-model and mechanical source checks passed. The pull request contains
 44 changed files.
 
-## Current Pull Request Gates
+## Sixth Pull Request Evidence
 
 - Knowledge Asset aggregate/version/evidence, lifecycle and publication
   orchestration, authorization convergence, and chunk projection form the open
@@ -128,3 +128,30 @@ operating-model and mechanical source checks passed. The pull request contains
 - `:core:test` and the repository terminating `clean test` gate pass.
 - The pull request changes fewer than 100 files and completes the normal
   CI/review/merge loop before the next Knowledge slice starts.
+
+Local verification on 2026-08-01: focused asset, publication/convergence,
+graph-edge, ingestion, retrieval, catalog, vector-literal, and Modulith tests
+passed; the terminating repository-wide `clean test` completed successfully;
+the docs operating-model and mechanical source checks passed; and both
+CodeRabbit findings were resolved. The pull request contains 60 changed files.
+
+## Current Pull Request Gates
+
+- Graph-index jobs and claiming, processing profiles, lifecycle orchestration,
+  curation, exploration, and export form the open `knowledge.graph` nested
+  module.
+- GraphRAG query retrieval remains with the future retrieval slice.
+- Compiler-forced embedding-profile and retrieval-scope visibility is tracked
+  as temporary edge debt, while a structural allowlist prevents the graph
+  module's open boundary from gaining consumers or deeper internal coupling.
+- Focused graph, retrieval-regression, worker, API, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the retrieval slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused graph, retrieval-regression, API, worker, and Modulith tests passed;
+`:core:test` passed; and the terminating repository-wide `clean test`
+completed successfully in 5m13s across 108 tasks. The docs operating-model
+and mechanical source checks passed. The pull request contains 54 changed
+files.

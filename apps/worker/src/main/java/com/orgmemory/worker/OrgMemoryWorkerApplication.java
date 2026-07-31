@@ -3,8 +3,8 @@ package com.orgmemory.worker;
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
 
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
-import com.orgmemory.core.knowledge.GraphProcessingProperties;
-import com.orgmemory.core.knowledge.KnowledgeGraphExplorerConfiguration;
+import com.orgmemory.core.knowledge.graph.GraphProcessingProperties;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import com.orgmemory.worker.authorization.AssetAuthorizationConvergenceProperties;

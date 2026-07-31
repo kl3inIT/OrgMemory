@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
  * permission-aware retrieval, graph and citation use cases.
  */
 @Service
-class KnowledgeEvidenceScopeResolver {
+public class KnowledgeEvidenceScopeResolver {
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
@@ -65,7 +65,7 @@ class KnowledgeEvidenceScopeResolver {
     }
 
     @Transactional(readOnly = true)
-    ResolvedKnowledgeEvidenceScope resolve(
+    public ResolvedKnowledgeEvidenceScope resolve(
             CurrentActor actor,
             String expectedAuthorizationModelId) {
         Objects.requireNonNull(actor, "actor");

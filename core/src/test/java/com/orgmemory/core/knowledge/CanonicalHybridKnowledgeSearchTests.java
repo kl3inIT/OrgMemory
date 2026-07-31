@@ -202,7 +202,8 @@ class CanonicalHybridKnowledgeSearchTests {
         }
 
         @Override
-        List<SecureRetrievalCandidate> recheck(RetrievalScope scope, Collection<UUID> chunkIds) {
+        public List<SecureRetrievalCandidate> recheck(
+                RetrievalScope scope, Collection<UUID> chunkIds) {
             return rechecked;
         }
     }

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;

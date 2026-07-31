@@ -54,6 +54,40 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeGraphIsAnOpenNestedModuleDuringTheRefactor() {
+        var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
+
+        assertTrue(graph.isOpen());
+    }
+
+    @Test
+    void knowledgeGraphTemporaryOpenBoundaryDoesNotGainNewConsumers() {
+        var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
+        var dependencies = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(graph))
+                .toList();
+        var consumerTypes = dependencies.stream()
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+        var consumedInternalTypes = dependencies.stream()
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator"),
+                consumerTypes);
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.graph.GraphIndexChunk",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue"),
+                consumedInternalTypes);
+    }
+
+    @Test
     void knowledgeAssetTemporaryOpenBoundaryDoesNotGainNewConsumers() {
         var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
         var dependencies = modules.stream()
@@ -70,12 +104,12 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.knowledge.AuthorizationResourceDirectory",
-                        "com.orgmemory.core.knowledge.GraphIndexingCoordinator",
-                        "com.orgmemory.core.knowledge.GraphIndexJobQueue",
-                        "com.orgmemory.core.knowledge.GraphIndexLifecycleService",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
                         "com.orgmemory.core.knowledge.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver",
-                        "com.orgmemory.core.knowledge.KnowledgeGraphCurationService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
                         "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",

@@ -273,7 +273,7 @@ public class SecureKnowledgeRetrievalStore {
         return jdbc.query(sql, parameters, SecureKnowledgeRetrievalStore::mapCandidate);
     }
 
-    List<SecureRetrievalCandidate> recheck(
+    public List<SecureRetrievalCandidate> recheck(
             RetrievalScope scope,
             Collection<UUID> chunkIds) {
         if (chunkIds.isEmpty()) {

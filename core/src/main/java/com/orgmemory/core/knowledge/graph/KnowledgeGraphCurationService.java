@@ -1,5 +1,11 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
+import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.ResolvedKnowledgeEvidenceScope;
+import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalStore;
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;

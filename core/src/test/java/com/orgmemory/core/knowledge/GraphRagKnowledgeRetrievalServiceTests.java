@@ -890,7 +890,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         }
 
         @Override
-        List<SecureRetrievalCandidate> recheck(
+        public List<SecureRetrievalCandidate> recheck(
                 RetrievalScope scope,
                 java.util.Collection<UUID> chunkIds) {
             recheckCount++;
@@ -911,7 +911,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         }
 
         @Override
-        List<SecureRetrievalCandidate> recheck(
+        public List<SecureRetrievalCandidate> recheck(
                 RetrievalScope scope,
                 java.util.Collection<UUID> chunkIds) {
             recheckedChunkIds = List.copyOf(chunkIds);

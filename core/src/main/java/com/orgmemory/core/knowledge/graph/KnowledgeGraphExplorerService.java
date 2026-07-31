@@ -1,5 +1,9 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
+import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
+import com.orgmemory.core.knowledge.ResolvedKnowledgeEvidenceScope;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
