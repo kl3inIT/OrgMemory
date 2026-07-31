@@ -246,6 +246,46 @@ class AssetRegistryCoordinator {
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetSummaryPage ownedSummaryPage(
+            UUID organizationId,
+            UUID userId,
+            Collection<UUID> visibleIds,
+            String query,
+            AssetType type,
+            AssetOwnedSort sort,
+            int page,
+            int pageSize) {
+        if (visibleIds.isEmpty()) {
+            return AssetSummaryPage.empty(page, pageSize, sort);
+        }
+        var ids = new java.util.LinkedHashSet<>(roles.findActiveAssetIdsForUserRole(
+                organizationId,
+                userId.toString(),
+                AssetRole.OWNER,
+                Instant.now()));
+        ids.retainAll(visibleIds);
+        if (ids.isEmpty()) {
+            return AssetSummaryPage.empty(page, pageSize, sort);
+        }
+        String normalizedQuery =
+                query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        Page<AssetSummary> result = assets.searchOwnedSummaries(
+                organizationId,
+                ids,
+                normalizedQuery,
+                type,
+                sort.name(),
+                PageRequest.of(page - 1, pageSize));
+        return new AssetSummaryPage(
+                result.getContent(),
+                result.getTotalElements(),
+                page,
+                pageSize,
+                result.getTotalPages(),
+                sort);
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     AssetRecommendationPage recommendationPage(
             UUID organizationId,
             Collection<UUID> ids,

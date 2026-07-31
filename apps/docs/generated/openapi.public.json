@@ -3797,6 +3797,84 @@
         }
       }
     },
+    "/api/assets/owned": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List Assets currently owned by the actor",
+        "operationId": "listOwnedAssets",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROMPT_TEMPLATE",
+                "WORK_INSTRUCTION",
+                "CAPABILITY_PACK",
+                "SKILL"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "RECENTLY_UPDATED",
+              "enum": [
+                "RECENTLY_UPDATED",
+                "NAME"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetSummaryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/catalog": {
       "get": {
         "tags": [
@@ -8067,6 +8145,10 @@
               "SUNSETTING",
               "RETIRED"
             ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -8237,6 +8319,40 @@
           },
           "canWithdraw": {
             "type": "boolean"
+          }
+        }
+      },
+      "AssetSummaryPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetSummary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "RECENTLY_UPDATED",
+              "NAME"
+            ]
           }
         }
       },

@@ -2,13 +2,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
   ArrowUpRight,
+  Boxes,
   ChevronRight,
   LayoutGrid,
   List,
   Plus,
   Search,
 } from "lucide-react"
-import { useMemo, type ReactNode } from "react"
+import type { ReactNode } from "react"
 
 import { PageLayout } from "@/components/layouts/page-layout"
 import { CollectionPagination } from "@/components/patterns/collection-pagination"
@@ -27,8 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import type {
+  AssetCatalogScope,
   AssetCatalogSort,
   AssetCatalogView,
 } from "@/features/assets/asset-catalog-state"
@@ -39,10 +42,21 @@ import {
 } from "@/features/assets/asset-format"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
 import { AssetTypeFilter } from "@/features/assets/components/asset-type-filter"
-import type { AssetRecommendation } from "@/lib/hey-api"
-import { listAssetCatalogOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
+import type { AssetRecommendation, AssetSummary } from "@/lib/hey-api"
+import {
+  listAssetCatalogOptions,
+  listOwnedAssetsOptions,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 
 const ASSET_PAGE_SIZE = 24
+const OWNED_PORTFOLIO_STATES = [
+  "DRAFT_ONLY",
+  "ACTIVE",
+  "SUNSETTING",
+  "RETIRED",
+] as const
+
+type OwnedPortfolioState = (typeof OWNED_PORTFOLIO_STATES)[number]
 
 type CatalogAsset = AssetRecommendation & {
   assetId: string
@@ -50,8 +64,38 @@ type CatalogAsset = AssetRecommendation & {
   type: AssetType
 }
 
+type OwnedAsset = AssetSummary & {
+  id: string
+  type: AssetType
+  namespace: string
+  slug: string
+  title: string
+  summary: string
+  portfolioState: OwnedPortfolioState
+}
+
 function isCatalogAsset(asset: AssetRecommendation): asset is CatalogAsset {
   return Boolean(asset.assetId && asset.releaseId && asset.type)
+}
+
+function isOwnedPortfolioState(
+  state: AssetSummary["portfolioState"],
+): state is OwnedPortfolioState {
+  return OWNED_PORTFOLIO_STATES.some((candidate) => candidate === state)
+}
+
+function isOwnedAsset(asset: AssetSummary): asset is OwnedAsset {
+  return (
+    Boolean(
+      asset.id &&
+        asset.type &&
+        asset.namespace &&
+        asset.slug &&
+        asset.title,
+    ) &&
+    asset.summary != null &&
+    isOwnedPortfolioState(asset.portfolioState)
+  )
 }
 
 function assetActionLabel(type: AssetType) {
@@ -67,7 +111,22 @@ function assetActionLabel(type: AssetType) {
   }
 }
 
-function formatReleaseDate(value?: string) {
+function portfolioLabel(state: OwnedAsset["portfolioState"]) {
+  switch (state) {
+    case "DRAFT_ONLY":
+      return "Draft"
+    case "ACTIVE":
+      return "Active"
+    case "SUNSETTING":
+      return "Sunsetting"
+    case "RETIRED":
+      return "Retired"
+    default:
+      return "Unknown"
+  }
+}
+
+function formatDate(value?: string) {
   if (!value) return "—"
   const date = new Date(value)
   if (Number.isNaN(date.valueOf())) return "—"
@@ -95,82 +154,266 @@ function AssetLink({
   )
 }
 
-function AssetGrid({ assets }: { assets: CatalogAsset[] }) {
+function OwnedAssetLink({
+  asset,
+  children,
+  className,
+}: {
+  asset: OwnedAsset
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <Link
+      to="/assets/$assetId/governance"
+      params={{ assetId: asset.id }}
+      className={className}
+    >
+      {children}
+    </Link>
+  )
+}
+
+type AssetItemViewModel = {
+  key: string
+  type: AssetType
+  title: string
+  summary: string
+  coordinate: string
+  topBadge: string
+  topBadgeClassName?: string
+  secondaryBadge?: string
+  secondaryBadgeClassName?: string
+  detail: string
+  timestamp?: string
+  actionLabel: string
+  link: (children: ReactNode, className: string) => ReactNode
+}
+
+function catalogItem(asset: CatalogAsset): AssetItemViewModel {
+  return {
+    key: `${asset.assetId}:${asset.releaseId}`,
+    type: asset.type,
+    title: asset.title ?? "Untitled Asset",
+    summary: asset.summary ?? "",
+    coordinate: formatAssetCoordinate(asset),
+    topBadge: asset.versionLabel ?? "—",
+    topBadgeClassName: "font-mono text-metadata",
+    secondaryBadge: asset.availability === "DEPRECATED" ? "Update available" : undefined,
+    secondaryBadgeClassName:
+      "bg-status-warning-surface text-status-warning-content",
+    detail: asset.versionLabel ?? "—",
+    timestamp: asset.releasedAt,
+    actionLabel: assetActionLabel(asset.type),
+    link: (children, className) => (
+      <AssetLink asset={asset} className={className}>
+        {children}
+      </AssetLink>
+    ),
+  }
+}
+
+function ownedItem(asset: OwnedAsset): AssetItemViewModel {
+  return {
+    key: asset.id,
+    type: asset.type,
+    title: asset.title,
+    summary: asset.summary,
+    coordinate: `${asset.namespace}/${asset.slug}`,
+    topBadge: portfolioLabel(asset.portfolioState),
+    detail: portfolioLabel(asset.portfolioState),
+    timestamp: asset.updatedAt,
+    actionLabel: "Manage asset",
+    link: (children, className) => (
+      <OwnedAssetLink asset={asset} className={className}>
+        {children}
+      </OwnedAssetLink>
+    ),
+  }
+}
+
+function AssetCard({ asset }: { asset: AssetItemViewModel }) {
+  const meta = ASSET_TYPE_META[asset.type]
+  const Icon = meta.icon
+  return (
+    <Card
+      className="group min-h-64 gap-0 overflow-hidden border-border-default bg-surface-raised py-0 transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+    >
+      <CardHeader className="gap-4 px-5 pt-5 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <span className={`grid size-10 place-items-center rounded-xl ${meta.tone}`}>
+            <Icon className="size-5" strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <Badge variant="outline" className={asset.topBadgeClassName}>
+            {asset.topBadge}
+          </Badge>
+        </div>
+        <div>
+          <p className="truncate text-metadata font-mono text-content-muted">
+            {asset.coordinate}
+          </p>
+          {asset.link(
+            <h2 className="line-clamp-2 text-section-title text-content-primary">
+              {asset.title}
+            </h2>,
+            "mt-2 block rounded-sm outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-4">
+        <p className="line-clamp-2 text-sm text-content-secondary">{asset.summary}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge className={meta.tone}>{meta.label}</Badge>
+          {asset.secondaryBadge ? (
+            <Badge className={asset.secondaryBadgeClassName}>{asset.secondaryBadge}</Badge>
+          ) : null}
+        </div>
+      </CardContent>
+      <CardFooter className="mt-auto px-5 pt-0 pb-5">
+        {asset.link(
+          <>
+            {asset.actionLabel}
+            <ChevronRight
+              className="size-4 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          </>,
+          "flex w-full items-center justify-between rounded-md text-label text-content-primary outline-none transition-colors hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
+        )}
+      </CardFooter>
+    </Card>
+  )
+}
+
+function AssetGrid({
+  assets,
+  label,
+}: {
+  assets: AssetItemViewModel[]
+  label: string
+}) {
   return (
     <section
       className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
-      aria-label="Visible assets"
+      aria-label={label}
     >
-      {assets.map((asset) => {
-        const meta = ASSET_TYPE_META[asset.type]
-        const Icon = meta.icon
-        return (
-          <Card
-            key={`${asset.assetId}:${asset.releaseId}`}
-            className="group min-h-64 gap-0 overflow-hidden border-border-default bg-surface-raised py-0 transition-[border-color,transform,box-shadow] hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
-          >
-            <CardHeader className="gap-4 px-5 pt-5 pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <span className={`grid size-10 place-items-center rounded-xl ${meta.tone}`}>
-                  <Icon className="size-5" strokeWidth={1.9} aria-hidden="true" />
-                </span>
-                <Badge variant="outline" className="font-mono text-metadata">
-                  {asset.versionLabel}
-                </Badge>
-              </div>
-              <div>
-                <p className="truncate text-metadata font-mono text-content-muted">
-                  {formatAssetCoordinate(asset)}
-                </p>
-                <AssetLink
-                  asset={asset}
-                  className="mt-2 block rounded-sm outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  <h2 className="line-clamp-2 text-section-title text-content-primary">
-                    {asset.title}
-                  </h2>
-                </AssetLink>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pb-4">
-              <p className="line-clamp-2 text-sm text-content-secondary">{asset.summary}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Badge className={meta.tone}>{meta.label}</Badge>
-                {asset.availability === "DEPRECATED" ? (
-                  <Badge className="bg-status-warning-surface text-status-warning-content">
-                    Update available
-                  </Badge>
-                ) : null}
-              </div>
-            </CardContent>
-            <CardFooter className="mt-auto px-5 pt-0 pb-5">
-              <AssetLink
-                asset={asset}
-                className="flex w-full items-center justify-between rounded-md text-label text-content-primary outline-none transition-colors hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-              >
-                {assetActionLabel(asset.type)}
-                <ChevronRight
-                  className="size-4 transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </AssetLink>
-            </CardFooter>
-          </Card>
-        )
-      })}
+      {assets.map((asset) => <AssetCard key={asset.key} asset={asset} />)}
     </section>
   )
 }
+
+function createAssetColumns(
+  detailHeader: string,
+  timestampHeader: string,
+): ColumnDef<AssetItemViewModel, unknown>[] {
+  return [
+    {
+      id: "asset",
+      header: "Asset",
+      enableSorting: false,
+      meta: {
+        headerClassName: "min-w-80 px-5",
+        cellClassName: "whitespace-normal px-5 py-4",
+      },
+      cell: ({ row }) => {
+        const asset = row.original
+        const meta = ASSET_TYPE_META[asset.type]
+        const Icon = meta.icon
+        return (
+          <div className="flex min-w-0 items-start gap-3">
+            <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${meta.tone}`}>
+              <Icon className="size-[18px]" strokeWidth={1.9} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              {asset.link(
+                asset.title,
+                "font-semibold text-content-primary outline-none hover:text-action-link-hover focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-focus-ring",
+              )}
+              <p className="mt-0.5 truncate font-mono text-metadata text-content-muted">
+                {asset.coordinate}
+              </p>
+              <p className="mt-1 line-clamp-1 max-w-2xl text-sm text-content-secondary">
+                {asset.summary}
+              </p>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      id: "type",
+      header: "Type",
+      enableSorting: false,
+      meta: {
+        headerClassName: "hidden lg:table-cell",
+        cellClassName: "hidden lg:table-cell",
+      },
+      cell: ({ row }) => {
+        const meta = ASSET_TYPE_META[row.original.type]
+        return <Badge className={meta.tone}>{meta.label}</Badge>
+      },
+    },
+    {
+      id: "detail",
+      header: detailHeader,
+      enableSorting: false,
+      meta: {
+        headerClassName: "hidden md:table-cell",
+        cellClassName: "hidden md:table-cell",
+      },
+      cell: ({ row }) =>
+        detailHeader === "Status" ? (
+          <Badge variant="outline">{row.original.detail}</Badge>
+        ) : (
+          <span className="font-mono text-metadata text-content-primary">
+            {row.original.detail}
+          </span>
+        ),
+    },
+    {
+      id: "timestamp",
+      header: timestampHeader,
+      enableSorting: false,
+      meta: {
+        headerClassName: "hidden xl:table-cell",
+        cellClassName: "hidden xl:table-cell text-content-secondary",
+      },
+      cell: ({ row }) => formatDate(row.original.timestamp),
+    },
+    {
+      id: "action",
+      header: () => <span className="sr-only">Action</span>,
+      enableSorting: false,
+      meta: {
+        headerClassName: "w-36 px-5 text-right",
+        cellClassName: "px-5 text-right",
+      },
+      cell: ({ row }) =>
+        row.original.link(
+          <>
+            {row.original.actionLabel}
+            <ArrowUpRight className="size-4" aria-hidden="true" />
+          </>,
+          "inline-flex items-center gap-2 rounded-md font-medium text-content-primary outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring",
+        ),
+    },
+  ]
+}
+
+const CATALOG_COLUMNS = createAssetColumns("Version", "Released")
+const OWNED_COLUMNS = createAssetColumns("Status", "Updated")
 
 export function AssetCatalogPage({
   actorKey,
   query,
   type,
+  scope,
   sort,
   view,
   page,
   onQueryChange,
   onTypeChange,
+  onScopeChange,
   onSortChange,
   onViewChange,
   onPageChange,
@@ -178,11 +421,13 @@ export function AssetCatalogPage({
   actorKey: string
   query: string
   type?: AssetType
+  scope: AssetCatalogScope
   sort: AssetCatalogSort
   view: AssetCatalogView
   page: number
   onQueryChange: (query: string) => void
   onTypeChange: (type?: AssetType) => void
+  onScopeChange: (scope: AssetCatalogScope) => void
   onSortChange: (sort: AssetCatalogSort) => void
   onViewChange: (view: AssetCatalogView) => void
   onPageChange: (page: number) => void
@@ -191,134 +436,62 @@ export function AssetCatalogPage({
     query: {
       q: query || undefined,
       type,
-      sort,
+      sort: sort === "NAME" ? "NAME" : "RECENTLY_RELEASED",
       page,
       pageSize: ASSET_PAGE_SIZE,
     },
   })
-  const assets = useQuery({
+  const catalog = useQuery({
     ...catalogOptions,
     queryKey: scopeAssetQueryKey(catalogOptions.queryKey, actorKey),
     placeholderData: keepPreviousData,
+    enabled: scope === "ALL",
+  })
+  const ownedOptions = listOwnedAssetsOptions({
+    query: {
+      q: query || undefined,
+      type,
+      sort: sort === "NAME" ? "NAME" : "RECENTLY_UPDATED",
+      page,
+      pageSize: ASSET_PAGE_SIZE,
+    },
+  })
+  const owned = useQuery({
+    ...ownedOptions,
+    queryKey: scopeAssetQueryKey(ownedOptions.queryKey, actorKey),
+    placeholderData: keepPreviousData,
+    enabled: scope === "MINE",
   })
 
-  const columns = useMemo<ColumnDef<CatalogAsset, unknown>[]>(
-    () => [
-      {
-        id: "asset",
-        header: "Asset",
-        enableSorting: false,
-        meta: {
-          headerClassName: "min-w-80 px-5",
-          cellClassName: "whitespace-normal px-5 py-4",
-        },
-        cell: ({ row }) => {
-          const asset = row.original
-          const meta = ASSET_TYPE_META[asset.type]
-          const Icon = meta.icon
-          return (
-            <div className="flex min-w-0 items-start gap-3">
-              <span
-                className={`grid size-9 shrink-0 place-items-center rounded-lg ${meta.tone}`}
-              >
-                <Icon className="size-[18px]" strokeWidth={1.9} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <AssetLink
-                  asset={asset}
-                  className="font-semibold text-content-primary outline-none hover:text-action-link-hover focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-focus-ring"
-                >
-                  {asset.title}
-                </AssetLink>
-                <p className="mt-0.5 truncate font-mono text-metadata text-content-muted">
-                  {formatAssetCoordinate(asset)}
-                </p>
-                <p className="mt-1 line-clamp-1 max-w-2xl text-sm text-content-secondary">
-                  {asset.summary}
-                </p>
-              </div>
-            </div>
-          )
-        },
-      },
-      {
-        id: "type",
-        header: "Type",
-        enableSorting: false,
-        meta: {
-          headerClassName: "hidden lg:table-cell",
-          cellClassName: "hidden lg:table-cell",
-        },
-        cell: ({ row }) => {
-          const meta = ASSET_TYPE_META[row.original.type]
-          return <Badge className={meta.tone}>{meta.label}</Badge>
-        },
-      },
-      {
-        accessorKey: "versionLabel",
-        header: "Version",
-        enableSorting: false,
-        meta: {
-          headerClassName: "hidden md:table-cell",
-          cellClassName: "hidden md:table-cell",
-        },
-        cell: ({ row }) => (
-          <span className="font-mono text-metadata text-content-primary">
-            {row.original.versionLabel}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "releasedAt",
-        header: "Released",
-        enableSorting: false,
-        meta: {
-          headerClassName: "hidden xl:table-cell",
-          cellClassName: "hidden xl:table-cell text-content-secondary",
-        },
-        cell: ({ row }) => formatReleaseDate(row.original.releasedAt),
-      },
-      {
-        id: "action",
-        header: () => <span className="sr-only">Action</span>,
-        enableSorting: false,
-        meta: {
-          headerClassName: "w-36 px-5 text-right",
-          cellClassName: "px-5 text-right",
-        },
-        cell: ({ row }) => (
-          <AssetLink
-            asset={row.original}
-            className="inline-flex items-center gap-2 rounded-md font-medium text-content-primary outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-          >
-            {assetActionLabel(row.original.type)}
-            <ArrowUpRight className="size-4" aria-hidden="true" />
-          </AssetLink>
-        ),
-      },
-    ],
-    [],
-  )
+  const activeQuery = scope === "ALL" ? catalog : owned
+  if (activeQuery.isPending) return <AssetPageLoading />
+  if (activeQuery.isError) {
+    return <AssetPageError onRetry={() => void activeQuery.refetch()} />
+  }
 
-  if (assets.isPending) return <AssetPageLoading />
-  if (assets.isError) return <AssetPageError onRetry={() => void assets.refetch()} />
-
-  const recommendations = (assets.data?.items ?? []).filter(isCatalogAsset)
-  const total = assets.data?.total ?? 0
+  const recommendations = (catalog.data?.items ?? []).filter(isCatalogAsset)
+  const ownedAssets = (owned.data?.items ?? []).filter(isOwnedAsset)
+  const visibleAssets = scope === "ALL" ? recommendations : ownedAssets
+  const assetItems =
+    scope === "ALL" ? recommendations.map(catalogItem) : ownedAssets.map(ownedItem)
+  const total = scope === "ALL" ? (catalog.data?.total ?? 0) : (owned.data?.total ?? 0)
   const hasFilters = query.length > 0 || type !== undefined
-  const hasUnrenderablePage = total > 0 && recommendations.length === 0
+  const hasUnrenderablePage = total > 0 && visibleAssets.length === 0
+  const selectedSort =
+    sort === "NAME"
+      ? "NAME"
+      : scope === "ALL"
+        ? "RECENTLY_RELEASED"
+        : "RECENTLY_UPDATED"
 
   return (
     <PageLayout.Root variant="wide">
       <PageLayout.Header
+        icon={<Boxes className="size-7" strokeWidth={1.7} aria-hidden="true" />}
         title="Assets"
-        metadata={
-          <span className="text-sm tabular-nums text-content-muted">
-            {total} {total === 1 ? "result" : "results"}
-          </span>
-        }
+        description="Discover reusable capabilities and manage the Assets you own."
         actions={
-          <Button asChild>
+          <Button asChild size="lg">
             <Link to="/assets/new">
               <Plus aria-hidden="true" />
               Add asset
@@ -326,33 +499,59 @@ export function AssetCatalogPage({
           </Button>
         }
       >
+        <div className="grid gap-2 pt-2 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+          <InputGroup className="h-11 bg-surface-raised">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={query}
+              onChange={(event) => onQueryChange(event.currentTarget.value)}
+              placeholder="Search by task, role, or outcome"
+              aria-label="Search visible assets"
+            />
+          </InputGroup>
+          <Tabs
+            value={scope}
+            onValueChange={(value) => onScopeChange(value as AssetCatalogScope)}
+            className="w-full gap-0"
+          >
+            <TabsList aria-label="Asset scope" className="h-11 w-full">
+              <TabsTrigger value="ALL" className="text-sm sm:text-base">
+                All Assets
+              </TabsTrigger>
+              <TabsTrigger value="MINE" className="text-sm sm:text-base">
+                My Assets
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         <FilterBar
-          search={
-            <InputGroup>
-              <InputGroupAddon>
-                <Search aria-hidden="true" />
-              </InputGroupAddon>
-              <InputGroupInput
-                value={query}
-                onChange={(event) => onQueryChange(event.currentTarget.value)}
-                placeholder="Search by task, role, or outcome"
-                aria-label="Search visible assets"
-              />
-            </InputGroup>
-          }
           filters={
-            <Select
-              value={sort}
-              onValueChange={(value: string) => onSortChange(value as AssetCatalogSort)}
-            >
-              <SelectTrigger aria-label="Sort assets" className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="RECENTLY_RELEASED">Recently released</SelectItem>
-                <SelectItem value="NAME">Name</SelectItem>
-              </SelectContent>
-            </Select>
+            <>
+              <AssetTypeFilter value={type} onValueChange={onTypeChange} />
+              <Select
+                value={selectedSort}
+                onValueChange={(value: string) => onSortChange(value as AssetCatalogSort)}
+              >
+                <SelectTrigger aria-label="Sort assets" className="w-full sm:w-52">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {scope === "ALL" ? (
+                    <SelectItem value="RECENTLY_RELEASED">Recently released</SelectItem>
+                  ) : (
+                    <SelectItem value="RECENTLY_UPDATED">Recently updated</SelectItem>
+                  )}
+                  <SelectItem value="NAME">Name</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          }
+          result={
+            <span>
+              {total} {total === 1 ? "result" : "results"}
+            </span>
           }
           actions={
             <ButtonGroup aria-label="Asset layout">
@@ -381,14 +580,19 @@ export function AssetCatalogPage({
             </ButtonGroup>
           }
         />
-        <AssetTypeFilter value={type} onValueChange={onTypeChange} />
       </PageLayout.Header>
 
       <PageLayout.Body>
         {total === 0 ? (
           <Card className="border-dashed bg-surface-subtle">
             <EmptyState
-              title={hasFilters ? "No matches" : "No assets available"}
+              title={
+                hasFilters
+                  ? "No matches"
+                  : scope === "MINE"
+                    ? "You do not own any Assets yet"
+                    : "No assets available"
+              }
               action={
                 hasFilters ? (
                   <Button
@@ -400,6 +604,10 @@ export function AssetCatalogPage({
                   >
                     Clear filters
                   </Button>
+                ) : scope === "MINE" ? (
+                  <Button asChild>
+                    <Link to="/assets/new">Add your first asset</Link>
+                  </Button>
                 ) : undefined
               }
             />
@@ -409,23 +617,26 @@ export function AssetCatalogPage({
             <EmptyState
               title="Assets could not be displayed"
               action={
-                <Button variant="outline" onClick={() => void assets.refetch()}>
+                <Button variant="outline" onClick={() => void activeQuery.refetch()}>
                   Try again
                 </Button>
               }
             />
           </Card>
         ) : view === "GRID" ? (
-          <AssetGrid assets={recommendations} />
+          <AssetGrid
+            assets={assetItems}
+            label={scope === "ALL" ? "Visible assets" : "Visible owned assets"}
+          />
         ) : (
           <section
             className="overflow-hidden rounded-xl border border-border-default bg-surface-raised"
-            aria-label="Visible assets"
+            aria-label={scope === "ALL" ? "Visible assets" : "Visible owned assets"}
           >
             <DataTable
-              columns={columns}
-              data={recommendations}
-              getRowId={(asset) => `${asset.assetId}:${asset.releaseId}`}
+              columns={scope === "ALL" ? CATALOG_COLUMNS : OWNED_COLUMNS}
+              data={assetItems}
+              getRowId={(asset) => asset.key}
               rowClassName="group"
             />
           </section>
@@ -434,7 +645,7 @@ export function AssetCatalogPage({
           page={page}
           pageSize={ASSET_PAGE_SIZE}
           total={hasUnrenderablePage ? 0 : total}
-          disabled={assets.isPlaceholderData}
+          disabled={activeQuery.isPlaceholderData}
           showSummaryWhenSinglePage
           onPageChange={onPageChange}
         />

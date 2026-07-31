@@ -158,9 +158,59 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
   await expect(page.getByRole("link", { name: "Add asset" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
+  await expect(page.getByRole("tab", { name: "My Assets" })).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
+
+  const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
+  const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
+  expect(searchBox).not.toBeNull()
+  expect(scopeTabs).not.toBeNull()
+  expect(Math.abs(searchBox!.y - scopeTabs!.y)).toBeLessThanOrEqual(2)
+
+  await page.goto("/assets?page=2")
+  await page.getByRole("tab", { name: "My Assets" }).click()
+  await expect(page).toHaveURL(/scope=MINE/)
+  await expect(page).not.toHaveURL(/page=2/)
+  await expect(page.getByText("1 result", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Draft incident response skill" })).toBeVisible()
+  await expect(page.getByText("Draft", { exact: true })).toBeVisible()
+  expect(harness.ownedQueries.at(-1)).toMatchObject({
+    page: "1",
+    pageSize: "24",
+    sort: "RECENTLY_UPDATED",
+    q: null,
+    type: null,
+  })
+
+  await page.getByRole("textbox", { name: "Search visible assets" }).fill("incident")
+  await expect.poll(() => harness.ownedQueries.at(-1)?.q).toBe("incident")
+  await page.getByRole("combobox", { name: "Filter assets by type" }).click()
+  await page.getByRole("option", { name: "Skills" }).click()
+  await expect.poll(() => harness.ownedQueries.at(-1)?.type).toBe("SKILL")
+
+  await page.getByRole("textbox", { name: "Search visible assets" }).fill("")
+  await page.getByRole("combobox", { name: "Filter assets by type" }).click()
+  await page.getByRole("option", { name: "All types" }).click()
+  await expect(page.getByRole("listbox")).toBeHidden()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-catalog-mine.png",
+      fullPage: false,
+    })
+  }
+  await page.getByRole("tab", { name: "All Assets" }).click()
+  await expect(page).not.toHaveURL(/scope=/)
+  await expect(page.getByText("18 results", { exact: true })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
+    "data-state",
+    "active",
+  )
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
@@ -221,6 +271,34 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   expect(harness.browserErrors).toEqual([])
 })
 
+test("asset navigation stacks without horizontal page overflow", async ({ page }) => {
+  const harness = await assetHarness(page, "support", catalogRecommendations().slice(0, 2))
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/assets")
+
+  await expect(page.getByRole("tab", { name: "All Assets" })).toBeVisible()
+  await expect(page.getByRole("combobox", { name: "Filter assets by type" })).toBeVisible()
+  const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
+  const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
+  expect(searchBox).not.toBeNull()
+  expect(scopeTabs).not.toBeNull()
+  expect(scopeTabs!.y).toBeGreaterThan(searchBox!.y + searchBox!.height)
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(await page.evaluate(() => document.documentElement.clientWidth))
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-catalog-mobile.png",
+      fullPage: false,
+    })
+  }
+
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 async function assetHarness(
   page: Page,
   actor: "owner" | "support",
@@ -228,6 +306,7 @@ async function assetHarness(
 ) {
   const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
+  const ownedQueries: Array<Record<string, string | null>> = []
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
@@ -244,6 +323,25 @@ async function assetHarness(
         pageSize: 24,
         totalPages: 1,
         sort: "RECENTLY_RELEASED",
+      })
+      return
+    }
+    if (url.pathname === "/api/assets/owned") {
+      const requestedPage = Number(url.searchParams.get("page") ?? "1")
+      ownedQueries.push({
+        page: url.searchParams.get("page"),
+        pageSize: url.searchParams.get("pageSize"),
+        sort: url.searchParams.get("sort"),
+        q: url.searchParams.get("q"),
+        type: url.searchParams.get("type"),
+      })
+      await json(route, {
+        items: requestedPage === 1 ? [ownedDraftSummary()] : [],
+        total: 1,
+        page: requestedPage,
+        pageSize: 24,
+        totalPages: 1,
+        sort: url.searchParams.get("sort") ?? "RECENTLY_UPDATED",
       })
       return
     }
@@ -292,7 +390,7 @@ async function assetHarness(
     await json(route, { message: "Unexpected golden POC request" }, 500)
   })
 
-  return harness.result
+  return { ...harness.result, ownedQueries }
 }
 
 function supportPackRecommendation() {
@@ -310,6 +408,20 @@ function supportPackRecommendation() {
     releaseDigest: "a".repeat(64),
     availability: "AVAILABLE",
     releasedAt: "2026-07-28T00:00:00Z",
+  }
+}
+
+function ownedDraftSummary() {
+  return {
+    id: SKILL_ID,
+    type: "SKILL",
+    namespace: "engineering",
+    slug: "incident-response",
+    title: "Draft incident response skill",
+    summary: "",
+    knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    portfolioState: "DRAFT_ONLY",
+    updatedAt: "2026-07-31T12:00:00Z",
   }
 }
 

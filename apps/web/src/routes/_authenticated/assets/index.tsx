@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/assets/")({
 })
 
 function AssetCatalogRoute() {
-  const { q, type, sort, view, page } = Route.useSearch()
+  const { q, type, scope, sort, view, page } = Route.useSearch()
   const { session } = Route.useRouteContext()
   const navigate = Route.useNavigate()
   return (
@@ -19,7 +19,10 @@ function AssetCatalogRoute() {
       actorKey={assetActorKey(session)}
       query={q ?? ""}
       type={type}
-      sort={sort ?? "RECENTLY_RELEASED"}
+      scope={scope ?? "ALL"}
+      sort={
+        sort ?? (scope === "MINE" ? "RECENTLY_UPDATED" : "RECENTLY_RELEASED")
+      }
       view={view ?? "GRID"}
       page={page ?? 1}
       onQueryChange={(nextQuery) =>
@@ -36,6 +39,17 @@ function AssetCatalogRoute() {
         void navigate({
           replace: true,
           search: (previous) => ({ ...previous, type: nextType, page: undefined }),
+        })
+      }
+      onScopeChange={(nextScope) =>
+        void navigate({
+          replace: true,
+          search: (previous) => ({
+            ...previous,
+            scope: nextScope === "ALL" ? undefined : nextScope,
+            sort: undefined,
+            page: undefined,
+          }),
         })
       }
       onSortChange={(nextSort) =>

@@ -152,6 +152,29 @@ public class AssetRegistryService {
                 boundedPageSize);
     }
 
+    public AssetSummaryPage owned(
+            CurrentActor actor,
+            String query,
+            AssetType type,
+            AssetOwnedSort sort,
+            int page,
+            int pageSize) {
+        int boundedPage = Math.max(page, 1);
+        int boundedPageSize = Math.min(Math.max(pageSize, 1), 60);
+        AssetOwnedSort selectedSort =
+                sort == null ? AssetOwnedSort.RECENTLY_UPDATED : sort;
+        Set<UUID> ids = authorizedIds(actor, CAN_VIEW);
+        return coordinator.ownedSummaryPage(
+                actor.organizationId(),
+                actor.userId(),
+                ids,
+                query,
+                type,
+                selectedSort,
+                boundedPage,
+                boundedPageSize);
+    }
+
     private Set<UUID> authorizedIds(
             CurrentActor actor, PermissionKey permission) {
         Objects.requireNonNull(actor, "actor");

@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-07-31-skill-direct-sharing (a190d63)`.
+Reconciled: `2026-07-31-asset-ownership-navigation (7aa917b)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -44,7 +44,9 @@ Reconciled: `2026-07-31-skill-direct-sharing (a190d63)`.
 | Replacement releases do not mutate existing Pack pins | `AssetRegistryIntegrationTests` | covered |
 | Recommendations are actor-scoped and contain exact usable release refs | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases`, `AssistantAssetToolServiceTests#recommendationsContainOnlyExactUsableReleaseRefs` | covered |
 | Asset catalog total, filtering, stable name sorting, and pages are evaluated over the authorized latest-release set | `AssetRegistryIntegrationTests#catalogPagesAndSortsTheLatestAuthorizedReleasesOnTheServer` | covered |
+| The owned-Asset workspace includes Drafts, requires an active direct `OWNER` assignment, intersects ownership with live `can_view`, and remains server-paged | `AssetRegistryServiceTests#ownedWorkspaceResolvesVisibilityAndCanonicalOwnerAssignments`, `AssetRegistryIntegrationTests#ownedWorkspaceIncludesDraftsAndUsesOnlyActiveOwnerAssignments` | covered |
 | Asset type projection exposes every governed profile, reports the active filter, clears to the shared catalog, and preserves the grid-default URL plus explicit list state | `asset-type-filter.test.tsx`, `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| The Assets page keeps search and `All Assets | My Assets` as its primary navigation, encodes only the non-default owned scope in the URL, and stacks the controls without horizontal overflow on mobile | `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | The Asset catalog exposes one Add asset entry point, the profile chooser preserves the unified Asset surface, and the incomplete authoring step cannot create a Draft | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |

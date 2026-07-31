@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record AssetSummary(
@@ -10,5 +11,6 @@ public record AssetSummary(
         String title,
         String summary,
         UUID knowledgeSpaceId,
-        AssetPortfolioState portfolioState) {
+        AssetPortfolioState portfolioState,
+        Instant updatedAt) {
 }

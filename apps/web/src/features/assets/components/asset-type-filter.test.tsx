@@ -5,21 +5,21 @@ import { describe, expect, it, vi } from "vitest"
 import { AssetTypeFilter } from "@/features/assets/components/asset-type-filter"
 
 describe("AssetTypeFilter", () => {
-  it("exposes every governed Asset profile and the active selection", () => {
+  it("exposes every governed Asset profile and the active selection", async () => {
+    const user = userEvent.setup()
     render(<AssetTypeFilter value="SKILL" onValueChange={vi.fn()} />)
 
-    expect(screen.getByRole("group", { name: "Filter assets by type" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "All assets" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    )
-    expect(screen.getByRole("button", { name: "Prompt templates" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Work instructions" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Capability packs" })).toBeVisible()
-    expect(screen.getByRole("button", { name: "Skills" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    const trigger = screen.getByRole("combobox", { name: "Filter assets by type" })
+    expect(trigger).toHaveTextContent("Skills")
+
+    await user.click(trigger)
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "All types",
+      "Prompt templates",
+      "Work instructions",
+      "Capability packs",
+      "Skills",
+    ])
   })
 
   it("requests the selected type and clears back to the shared catalog", async () => {
@@ -30,11 +30,13 @@ describe("AssetTypeFilter", () => {
       <AssetTypeFilter value={undefined} onValueChange={onValueChange} />,
     )
 
-    await user.click(screen.getByRole("button", { name: "Skills" }))
+    await user.click(screen.getByRole("combobox", { name: "Filter assets by type" }))
+    await user.click(screen.getByRole("option", { name: "Skills" }))
     expect(onValueChange).toHaveBeenLastCalledWith("SKILL")
 
     rerender(<AssetTypeFilter value="SKILL" onValueChange={onValueChange} />)
-    await user.click(screen.getByRole("button", { name: "All assets" }))
+    await user.click(screen.getByRole("combobox", { name: "Filter assets by type" }))
+    await user.click(screen.getByRole("option", { name: "All types" }))
     expect(onValueChange).toHaveBeenLastCalledWith(undefined)
   })
 })

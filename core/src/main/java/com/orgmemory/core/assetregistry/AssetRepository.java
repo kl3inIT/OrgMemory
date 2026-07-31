@@ -83,6 +83,31 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
               asset.id asc
             """;
 
+    String SUMMARY_FROM_AND_PREDICATES = """
+            from Asset asset
+            join AssetDraft draft
+              on draft.assetId = asset.id
+             and draft.organizationId = asset.organizationId
+            where asset.organizationId = :organizationId
+              and asset.id in :ids
+              and asset.authorizationReady = true
+              and (:type is null or asset.type = :type)
+              and (
+                    :query = ''
+                    or lower(concat(
+                        asset.namespace, ' ', asset.slug, ' ',
+                        draft.title, ' ', draft.summary))
+                       like concat('%', :query, '%')
+              )
+            """;
+
+    String OWNED_SUMMARY_ORDER = """
+            order by
+              case when :sort = 'NAME' then lower(draft.title) end asc,
+              case when :sort = 'RECENTLY_UPDATED' then asset.updatedAt end desc,
+              asset.id asc
+            """;
+
     Optional<Asset> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -108,29 +133,40 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                 draft.title,
                 draft.summary,
                 asset.knowledgeSpaceId,
-                asset.portfolioState)
-            from Asset asset
-            join AssetDraft draft
-              on draft.assetId = asset.id
-             and draft.organizationId = asset.organizationId
-            where asset.organizationId = :organizationId
-              and asset.id in :ids
-              and asset.authorizationReady = true
-              and (:type is null or asset.type = :type)
-              and (
-                    :query = ''
-                    or lower(concat(
-                        asset.namespace, ' ', asset.slug, ' ',
-                        draft.title, ' ', draft.summary))
-                       like concat('%', :query, '%')
-              )
-            order by asset.namespace, asset.slug
-            """)
+                asset.portfolioState,
+                asset.updatedAt)
+            """
+            + SUMMARY_FROM_AND_PREDICATES
+            + "order by asset.namespace, asset.slug")
     List<AssetSummary> searchAuthorized(
             @Param("organizationId") UUID organizationId,
             @Param("ids") Collection<UUID> ids,
             @Param("query") String query,
             @Param("type") AssetType type,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    select new com.orgmemory.core.assetregistry.AssetSummary(
+                        asset.id,
+                        asset.type,
+                        asset.namespace,
+                        asset.slug,
+                        draft.title,
+                        draft.summary,
+                        asset.knowledgeSpaceId,
+                        asset.portfolioState,
+                        asset.updatedAt)
+                    """
+                    + SUMMARY_FROM_AND_PREDICATES
+                    + OWNED_SUMMARY_ORDER,
+            countQuery = "select count(asset.id)\n" + SUMMARY_FROM_AND_PREDICATES)
+    Page<AssetSummary> searchOwnedSummaries(
+            @Param("organizationId") UUID organizationId,
+            @Param("ids") Collection<UUID> ids,
+            @Param("query") String query,
+            @Param("type") AssetType type,
+            @Param("sort") String sort,
             Pageable pageable);
 
     @Query(
