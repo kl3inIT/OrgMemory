@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
 
 import com.orgmemory.core.permission.DeclaredAccessScope;
@@ -172,7 +171,7 @@ public class SourceRevision extends BaseEntity {
             SourceEmbeddingProfileRef embeddingProfile,
             RawSourceRef raw,
             NormalizedRecordRef normalized,
-            KnowledgeAssetRef asset,
+            SourceKnowledgeAssetRef asset,
             Instant processedAt) {
         this.status = SourceRevisionStatus.READY;
         this.failureCode = null;

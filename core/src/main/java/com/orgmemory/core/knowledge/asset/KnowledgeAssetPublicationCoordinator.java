@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.asset;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceObject;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
 
@@ -44,13 +45,26 @@ class KnowledgeAssetPublicationCoordinator {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     KnowledgeAssetPublicationState prepare(PublishKnowledgeAssetCommand command) {
-        KnowledgeAssetRef assetRef = ingestion.promote(new PromoteNormalizedRecordCommand(
+        SourceKnowledgeAssetRef promoted = ingestion.promote(new PromoteNormalizedRecordCommand(
                 command.organizationId(),
                 command.knowledgeSpaceId(),
                 command.sourceObjectId(),
                 command.sourceRevisionId(),
                 command.normalizedRecordId(),
                 AccessGate.ALLOW));
+        KnowledgeAsset asset = assets
+                .findByIdAndOrganizationId(
+                        promoted.knowledgeAssetId(), command.organizationId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Promoted knowledge asset is missing"));
+        KnowledgeAssetVersion version = versions
+                .findByIdAndOrganizationId(
+                        promoted.knowledgeAssetVersionId(), command.organizationId())
+                .filter(candidate -> candidate.getKnowledgeAssetId()
+                        .equals(asset.getId()))
+                .orElseThrow(() -> new IllegalStateException(
+                        "Promoted knowledge asset version is missing"));
+        KnowledgeAssetRef assetRef = assetRef(asset, version);
         var existing = publications.findByKnowledgeAssetVersionId(
                 assetRef.knowledgeAssetVersionId());
         if (existing.isPresent()) {
@@ -67,10 +81,7 @@ class KnowledgeAssetPublicationCoordinator {
         }
 
         assets.flush();
-        long projectionGeneration = versions
-                .findById(assetRef.knowledgeAssetVersionId())
-                .orElseThrow(() -> new IllegalStateException("Knowledge asset version is missing"))
-                .getVersionNumber();
+        long projectionGeneration = version.getVersionNumber();
         chunks.replace(
                 command.organizationId(),
                 command.sourceObjectId(),

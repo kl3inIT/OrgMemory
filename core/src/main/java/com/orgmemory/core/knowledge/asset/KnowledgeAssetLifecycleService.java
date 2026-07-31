@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
-
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
@@ -12,6 +10,7 @@ import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -27,19 +26,19 @@ public class KnowledgeAssetLifecycleService {
     private static final String RESOURCE_TYPE = "knowledge_asset";
 
     private final KnowledgeAssetRepository assets;
-    private final KnowledgeIngestionService ingestion;
+    private final KnowledgeAssetVersionRepository versions;
     private final RelationshipAuthorizationPort authorization;
     private final ModelInvocationCache modelCache;
     private final RetrievalResultCache retrievalCache;
 
     KnowledgeAssetLifecycleService(
             KnowledgeAssetRepository assets,
-            KnowledgeIngestionService ingestion,
+            KnowledgeAssetVersionRepository versions,
             RelationshipAuthorizationPort authorization,
             ModelInvocationCache modelCache,
             RetrievalResultCache retrievalCache) {
         this.assets = assets;
-        this.ingestion = ingestion;
+        this.versions = versions;
         this.authorization = authorization;
         this.modelCache = modelCache;
         this.retrievalCache = retrievalCache;
@@ -65,8 +64,25 @@ public class KnowledgeAssetLifecycleService {
             throw new IllegalStateException(
                     "Knowledge Asset has no active version");
         }
-        KnowledgeAssetRef retired =
-                ingestion.retire(actor.organizationId(), knowledgeAssetId);
+        KnowledgeAssetVersion version = versions
+                .findByIdAndOrganizationId(
+                        currentVersionId, actor.organizationId())
+                .filter(candidate -> candidate.getKnowledgeAssetId()
+                        .equals(asset.getId()))
+                .orElseThrow(() -> new IllegalStateException(
+                        "Knowledge Asset version is missing"));
+        Instant retiredAt = Instant.now();
+        version.retire(retiredAt);
+        asset.archive(retiredAt);
+        versions.save(version);
+        assets.save(asset);
+        KnowledgeAssetRef retired = new KnowledgeAssetRef(
+                asset.getId(),
+                version.getId(),
+                version.getNormalizedRecordId(),
+                version.getRawSourceObjectId(),
+                version.getSourceAclSnapshotId(),
+                version.getStatus());
         invalidate(
                 KnowledgeProjectionNamespaces.forSpace(
                         actor.organizationId(), asset.getKnowledgeSpaceId()));

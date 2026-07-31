@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.knowledge.graph.GraphIndexJobQueue;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -80,7 +79,7 @@ public class SourceIngestionCoordinator {
             SourceEmbeddingProfileRef embeddingProfile,
             RawSourceRef raw,
             NormalizedRecordRef normalized,
-            KnowledgeAssetRef asset) {
+            SourceKnowledgeAssetRef asset) {
         SourceIngestionJob job = claimedJob(jobId, workerId);
         SourceRevision revision = revisions.findById(job.getSourceRevisionId()).orElseThrow();
         Instant completedAt = Instant.now();
@@ -98,7 +97,11 @@ public class SourceIngestionCoordinator {
         source.publishRevision(revision.getId());
         revisions.saveAndFlush(revision);
         graphIndexJobs.enqueue(
-                revision.getOrganizationId(), revision.getId(), asset, completedAt);
+                revision.getOrganizationId(),
+                revision.getId(),
+                asset.knowledgeAssetId(),
+                asset.knowledgeAssetVersionId(),
+                completedAt);
         job.succeed();
     }
 

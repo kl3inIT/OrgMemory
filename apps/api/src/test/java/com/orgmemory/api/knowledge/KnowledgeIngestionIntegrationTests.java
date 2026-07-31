@@ -15,14 +15,13 @@ import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordStatus;
 import com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand;
 import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
@@ -96,14 +95,14 @@ class KnowledgeIngestionIntegrationTests {
                 "integration-doc",
                 KnowledgeClassification.CONFIDENTIAL,
                 DeclaredAccessScope.OWN_DEPARTMENT);
-        KnowledgeAssetRef firstAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
+        SourceKnowledgeAssetRef firstAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
                 ORGANIZATION_ID,
                 SALES_SPACE_ID,
                 source.sourceObjectId(),
                 source.sourceRevisionId(),
                 firstNormalized.normalizedRecordId(),
                 AccessGate.ALLOW));
-        KnowledgeAssetRef repeatedAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
+        SourceKnowledgeAssetRef repeatedAsset = ingestion.promote(new PromoteNormalizedRecordCommand(
                 ORGANIZATION_ID,
                 SALES_SPACE_ID,
                 source.sourceObjectId(),
@@ -117,11 +116,11 @@ class KnowledgeIngestionIntegrationTests {
         assertEquals(firstAsset.knowledgeAssetId(), repeatedAsset.knowledgeAssetId());
         assertEquals(firstRaw.rawSourceObjectId(), firstAsset.rawSourceObjectId());
         assertEquals(firstRaw.sourceAclSnapshotId(), firstAsset.sourceAclSnapshotId());
-        assertEquals(KnowledgeAssetVersionStatus.PENDING, firstAsset.status());
 
         var row = jdbc.queryForMap(
                 """
-                SELECT classification, declared_access, department_id, source_acl_snapshot_id
+                SELECT classification, declared_access, department_id,
+                       source_acl_snapshot_id, status
                 FROM knowledge_asset_versions
                 WHERE id = ?
                 """,
@@ -130,6 +129,7 @@ class KnowledgeIngestionIntegrationTests {
         assertEquals("OWN_DEPARTMENT", row.get("declared_access"));
         assertEquals(SALES_DEPARTMENT_ID, row.get("department_id"));
         assertEquals(firstRaw.sourceAclSnapshotId(), row.get("source_acl_snapshot_id"));
+        assertEquals("PENDING", row.get("status"));
     }
 
     @Test
@@ -514,7 +514,7 @@ class KnowledgeIngestionIntegrationTests {
                 source.sourceRevisionId(),
                 normalizedRefs.getFirst().normalizedRecordId(),
                 AccessGate.ALLOW);
-        List<KnowledgeAssetRef> assetRefs = runConcurrently(() -> ingestion.promote(promote));
+        List<SourceKnowledgeAssetRef> assetRefs = runConcurrently(() -> ingestion.promote(promote));
         assertEquals(assetRefs.getFirst(), assetRefs.getLast());
         assertEquals(
                 1L,
