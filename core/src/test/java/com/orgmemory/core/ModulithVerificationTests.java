@@ -103,6 +103,20 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerDoesNotDependOnGraphImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.sourceledger");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.graph..")
+                .check(classes);
+    }
+
+    @Test
     void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
 
@@ -229,8 +243,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator"),
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator"),
                 consumerTypes);
         assertEquals(
                 Set.of("com.orgmemory.core.knowledge.graph.GraphIndexJobQueue"),
