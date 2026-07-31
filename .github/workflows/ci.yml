@@ -265,6 +265,53 @@ jobs:
       - name: Validate documentation structure and links
         run: python scripts/check_docs.py
 
+  docs_impact:
+    name: Public docs impact
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Report Fumadocs pages affected by changed evidence
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          base_ref="$EVENT_BASE_SHA"
+          if [[ -z "$base_ref" || "$base_ref" =~ ^0+$ ]] ||
+             ! git cat-file -e "$base_ref^{commit}" 2>/dev/null; then
+            base_ref="HEAD^"
+          fi
+          python scripts/check_public_docs_impact.py \
+            --base-ref "$base_ref" | tee docs-impact.md
+          cat docs-impact.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate repository change detectors
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          base_ref="$EVENT_BASE_SHA"
+          if [[ -z "$base_ref" || "$base_ref" =~ ^0+$ ]] ||
+             ! git cat-file -e "$base_ref^{commit}" 2>/dev/null; then
+            base_ref="HEAD^"
+          fi
+          python scripts/test_check_public_docs_impact.py
+          python scripts/test_check_shared_schema_changes.py
+          python scripts/check_shared_schema_changes.py --base-ref "$base_ref"
+
   public_docs:
     name: Public docs · Node 24
     needs: changes
@@ -527,6 +574,11 @@ jobs:
       - name: Prove OpenFGA model rollout and rollback
         run: infrastructure/deployment/scripts/test-deploy-openfga-model-rollout.sh
 
+      - name: Prove shared ZM development coordination
+        run: |
+          infrastructure/deployment/scripts/test-export-team-dev-config.sh
+          infrastructure/deployment/scripts/test-team-dev-coordination.sh
+
       - name: Validate publication verifier
         shell: bash
         run: |
@@ -574,6 +626,7 @@ jobs:
       - web
       - cli
       - docs
+      - docs_impact
       - public_docs
       - openfga
       - evaluation
@@ -592,6 +645,7 @@ jobs:
           WEB_RESULT: ${{ needs.web.result }}
           CLI_RESULT: ${{ needs.cli.result }}
           DOCS_RESULT: ${{ needs.docs.result }}
+          DOCS_IMPACT_RESULT: ${{ needs.docs_impact.result }}
           PUBLIC_DOCS_RESULT: ${{ needs.public_docs.result }}
           OPENFGA_RESULT: ${{ needs.openfga.result }}
           EVALUATION_RESULT: ${{ needs.evaluation.result }}
@@ -607,6 +661,7 @@ jobs:
             "$WEB_RESULT" \
             "$CLI_RESULT" \
             "$DOCS_RESULT" \
+            "$DOCS_IMPACT_RESULT" \
             "$PUBLIC_DOCS_RESULT" \
             "$OPENFGA_RESULT" \
             "$EVALUATION_RESULT" \

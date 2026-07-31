@@ -203,6 +203,24 @@ assert client["clientAuthenticatorType"] == "client-secret", client
 assert client["publicClient"] is False, client
 PY
 MSYS_NO_PATHCONV=1 docker exec "$container" \
+  /opt/keycloak/bin/kcadm.sh get clients \
+  -r orgmemory \
+  -q clientId=orgmemory-web \
+  --config "$container_kcadm_config" >"$tmp_dir/web-client.json"
+python3 - "$tmp_dir/web-client.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    clients = json.load(stream)
+assert len(clients) == 1, clients
+client = clients[0]
+assert "https://om.kl3in.tech/login/oauth2/code/keycloak" in client["redirectUris"]
+assert "http://127.0.0.1:8080/login/oauth2/code/keycloak" in client["redirectUris"]
+assert "http://127.0.0.1:5173" in client["webOrigins"]
+assert "http://127.0.0.1:5173/login" in client["attributes"]["post.logout.redirect.uris"].split("##")
+PY
+MSYS_NO_PATHCONV=1 docker exec "$container" \
   /opt/keycloak/bin/kcadm.sh get \
   "clients/$gateway_client_id/optional-client-scopes" \
   -r orgmemory \

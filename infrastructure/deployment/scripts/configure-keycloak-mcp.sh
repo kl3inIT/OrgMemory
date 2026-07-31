@@ -12,6 +12,7 @@ registration_policy_source="$repo_root/infrastructure/keycloak/mcp-dcr-registrat
 basic_scope_source="$repo_root/infrastructure/keycloak/mcp-basic-client-scope.json"
 write_scope_template="$repo_root/infrastructure/keycloak/mcp-assets-write-client-scope.json"
 gateway_client_source="$repo_root/infrastructure/keycloak/mcp-gateway-client.json"
+team_dev_web_client_source="$repo_root/infrastructure/keycloak/team-dev-web-client.json"
 kcadm_config="/tmp/orgmemory-mcp-kcadm.config"
 tmp_root="${TMPDIR:-/tmp}"
 tmp_dir="$(mktemp -d "${tmp_root%/}/orgmemory-keycloak-mcp.XXXXXX")"
@@ -84,6 +85,53 @@ PY
 
 clients_path="$tmp_dir/clients.json"
 kcadm get clients -r "$realm" >"$clients_path"
+web_client_id="$(
+  python3 - "$clients_path" "$team_dev_web_client_source" <<'PY'
+import json
+import sys
+
+clients_path, desired_path = sys.argv[1:]
+with open(clients_path, encoding="utf-8") as stream:
+    clients = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    client_id = json.load(stream)["clientId"]
+matches = [client for client in clients if client.get("clientId") == client_id]
+if len(matches) != 1:
+    raise SystemExit(f"Expected exactly one Keycloak client {client_id!r}, found {len(matches)}")
+print(matches[0]["id"])
+PY
+)"
+web_client_current="$tmp_dir/web-client-current.json"
+web_client_synced="$tmp_dir/web-client-synced.json"
+kcadm get "clients/$web_client_id" -r "$realm" >"$web_client_current"
+python3 \
+  - "$web_client_current" "$team_dev_web_client_source" \
+  >"$web_client_synced" <<'PY'
+import json
+import sys
+
+current_path, desired_path = sys.argv[1:]
+with open(current_path, encoding="utf-8") as stream:
+    current = json.load(stream)
+with open(desired_path, encoding="utf-8") as stream:
+    desired = json.load(stream)
+if current.get("clientId") != desired["clientId"]:
+    raise SystemExit("Refusing to update a different Keycloak web client")
+for key in ("redirectUris", "webOrigins"):
+    current[key] = list(dict.fromkeys([*current.get(key, []), *desired.get(key, [])]))
+current_attributes = current.setdefault("attributes", {})
+desired_logout = desired.get("attributes", {}).get("post.logout.redirect.uris", "")
+logout_values = [
+    *current_attributes.get("post.logout.redirect.uris", "").split("##"),
+    *desired_logout.split("##"),
+]
+current_attributes["post.logout.redirect.uris"] = "##".join(
+    dict.fromkeys(value for value in logout_values if value)
+)
+json.dump(current, sys.stdout)
+PY
+kcadm update "clients/$web_client_id" -r "$realm" -f - <"$web_client_synced"
+
 gateway_client_id="$(
   python3 - "$clients_path" "$gateway_client_source" <<'PY'
 import json

@@ -20,6 +20,12 @@ understanding.
   continue autonomously after approval.
 - Public product docs do not publish raw SRS, SDD, ADR, increment, test,
   runbook, infrastructure, or thesis material.
+- A reader-visible product, UI, API, administration, deployment, or integration
+  change updates its English and Vietnamese Fumadocs pages in the same PR.
+  Internal refactors and private environment mechanics update engineering docs
+  only. `python scripts/check_public_docs_impact.py --base-ref origin/main`
+  reports likely page drift; semantic review decides whether a reader-visible
+  statement actually changed.
 
 ## Local-First Review Loop
 
