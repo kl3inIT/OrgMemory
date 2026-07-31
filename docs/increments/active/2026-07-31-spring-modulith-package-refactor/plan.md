@@ -359,3 +359,7 @@ passed; and the terminating repository-wide `clean test` completed
 successfully in 5m14s across 108 tasks. The docs operating-model, release
 contract, diff hygiene, and zero Source Ledger-to-Space import checks passed.
 The pre-stage worktree contains 11 changed paths.
+
+After merging current `origin/main` at `9ff6f6d7`, a second repository-wide
+`clean test` completed successfully in 9s across 99 tasks with the shared
+build cache; the PR diff remained 11 changed files.
