@@ -41,7 +41,7 @@ public class EmbeddingProfile {
     protected EmbeddingProfile() {
     }
 
-    EmbeddingProfileRef toRef() {
+    public EmbeddingProfileRef toRef() {
         return new EmbeddingProfileRef(
                 id,
                 organizationId,

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiRouteResolver;

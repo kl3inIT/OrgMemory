@@ -1,11 +1,11 @@
 package com.orgmemory.core.knowledge;
 
-final class KnowledgeEvidenceScopeUnavailableException extends RuntimeException {
+public final class KnowledgeEvidenceScopeUnavailableException extends RuntimeException {
 
     private final String reasonCode;
     private final String policyVersion;
 
-    KnowledgeEvidenceScopeUnavailableException(
+    public KnowledgeEvidenceScopeUnavailableException(
             String reasonCode,
             String policyVersion) {
         super("Knowledge evidence authorization scope is unavailable");

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.graphrag.curation.GraphIdentityKind;
