@@ -1,9 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
-import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 
-import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 
 import java.time.Instant;
 import java.util.EnumSet;

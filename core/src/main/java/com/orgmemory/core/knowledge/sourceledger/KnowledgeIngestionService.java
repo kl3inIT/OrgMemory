@@ -14,7 +14,7 @@ import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
-import com.orgmemory.core.knowledge.ConnectorHeadView;
+import com.orgmemory.core.knowledge.connector.ConnectorHeadView;
 import com.orgmemory.core.knowledge.KnowledgeAsset;
 import com.orgmemory.core.knowledge.KnowledgeAssetEvidenceLink;
 import com.orgmemory.core.knowledge.KnowledgeAssetEvidenceLinkRepository;

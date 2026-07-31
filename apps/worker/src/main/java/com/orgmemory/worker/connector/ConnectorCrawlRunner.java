@@ -2,9 +2,9 @@ package com.orgmemory.worker.connector;
 
 import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlAttemptService;
 import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
-import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.connector.ConnectorIngestionResult;
 import com.orgmemory.core.knowledge.connector.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.connector.ConnectorPoll;

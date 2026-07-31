@@ -1,9 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 
-import com.orgmemory.core.knowledge.connector.ConnectorConnectionFailure;
-import com.orgmemory.core.knowledge.connector.ConnectorIngestionResult;
 
 import java.time.Instant;
 import java.util.List;
