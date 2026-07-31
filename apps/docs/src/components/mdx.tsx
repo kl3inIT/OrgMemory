@@ -2,12 +2,9 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 import type { MDXComponents } from 'mdx/types';
 import {
-  ApiExample,
   ArchitectureDiagram,
   CapabilityGrid,
   ConceptMap,
-  DiagramFrame,
-  FlowDiagram,
   VerificationBlock,
 } from './docs-patterns';
 import { OpenAPIPage } from './openapi-page';
@@ -15,12 +12,9 @@ import { OpenAPIPage } from './openapi-page';
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
-    ApiExample,
     ArchitectureDiagram,
     CapabilityGrid,
     ConceptMap,
-    DiagramFrame,
-    FlowDiagram,
     OpenAPIPage,
     Step,
     Steps,
