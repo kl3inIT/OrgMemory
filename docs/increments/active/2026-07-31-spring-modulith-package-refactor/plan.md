@@ -154,4 +154,6 @@ focused graph, retrieval-regression, API, worker, and Modulith tests passed;
 `:core:test` passed; and the terminating repository-wide `clean test`
 completed successfully in 5m13s across 108 tasks. The docs operating-model
 and mechanical source checks passed. The pull request contains 54 changed
-files.
+files. After merging current `origin/main` at `e088e9c9`, a second `clean test`
+completed successfully in 6m18s across 99 tasks and the docs check passed
+against 378 Markdown files.
