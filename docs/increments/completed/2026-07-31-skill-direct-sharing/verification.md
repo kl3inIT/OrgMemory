@@ -53,5 +53,32 @@ review.
 
 ## Delivery evidence
 
-Pending PR, CodeRabbit, merge, automatic deployment, migration observation, and
-live browser verification.
+- [PR #162](https://github.com/kl3inIT/OrgMemory/pull/162) merged as
+  `5099c48afe9c60dea632c4a415b28f4dfc3bb179`.
+- The final pull-request and `main` CI runs passed Backend Java 25, Web and
+  public docs on Node 24, CLI, OpenFGA, PostgreSQL GraphRAG, documentation
+  structure, Playwright, and their aggregate gate.
+- CodeRabbit completed a real 31-file review. Its review-state race finding was
+  fixed by serializing direct publication and review submission on the same
+  Asset row; its migration finding was fixed with `text`, `NOT VALID`, and
+  explicit constraint validation. The proposed second Skill Draft action was
+  withdrawn because the challenged product decision intentionally keeps one
+  default `Publish Skill` action while retaining reviewed publication in the
+  API.
+- Immutable product and docs images were built for the merge SHA. The first
+  automatic checkout found previously applied observability files in the
+  deployment worktree. Every conflicting file was hash-verified against the
+  target commit before the index was reconciled; the untracked production
+  `observability.env` was preserved. Exact-SHA product and docs redeployments
+  then passed their workflow smoke gates.
+- Production release stamps and the running API, Worker, Web, and Docs image
+  references all report the merge SHA. `https://om.kl3in.tech/api/health` and
+  `https://docs.kl3in.tech/healthz` return HTTP 200.
+- Production Flyway history records V15 as successful. The
+  `asset_releases.publication_mode` column is `text NOT NULL`, its allowed-value
+  constraint is validated, and the configured OpenFGA model hash matches the
+  deployed model containing `can_publish_skill`.
+- The public Asset API reference contains the direct Skill release endpoint and
+  `publicationMode` contract. The authenticated browser journey itself was
+  proven by the 12/12 Playwright suite without creating synthetic production
+  Asset data.

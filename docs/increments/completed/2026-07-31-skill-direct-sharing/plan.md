@@ -37,6 +37,6 @@
 
 - [x] Reconcile the Asset Registry spec and mirrored test matrix.
 - [x] Update Architecture and roadmap facts without duplicating the design.
-- [ ] Move this increment to completed with verification evidence.
-- [ ] Merge `origin/main`, rerun affected gates, open one PR, monitor CI and
+- [x] Move this increment to completed with verification evidence.
+- [x] Merge `origin/main`, rerun affected gates, open one PR, monitor CI and
       CodeRabbit, merge remotely, and verify the deployed behavior.
