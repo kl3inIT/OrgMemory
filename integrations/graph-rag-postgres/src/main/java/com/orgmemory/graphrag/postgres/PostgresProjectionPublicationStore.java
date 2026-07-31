@@ -1,5 +1,8 @@
 package com.orgmemory.graphrag.postgres;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+import static com.orgmemory.graphrag.postgres.PostgresProjectionSupport.namespaceParameters;
+
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
@@ -467,14 +470,6 @@ public final class PostgresProjectionPublicationStore
                 .addValue("createdAt", Timestamp.from(batch.createdAt()));
     }
 
-    private static MapSqlParameterSource namespaceParameters(
-            ProjectionNamespace namespace) {
-        return new MapSqlParameterSource()
-                .addValue("organizationId", namespace.organizationId())
-                .addValue("workspace", namespace.workspace())
-                .addValue("collection", namespace.collection());
-    }
-
     private static String encodeKinds(Set<ProjectionKind> kinds) {
         return kinds.stream()
                 .sorted(Comparator.comparingInt(Enum::ordinal))
@@ -489,14 +484,6 @@ public final class PostgresProjectionPublicationStore
                 .map(ProjectionKind::valueOf)
                 .forEach(result::add);
         return Set.copyOf(result);
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     private record RegisteredBatch(

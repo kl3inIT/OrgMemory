@@ -10,8 +10,6 @@ public class PostgresGraphRagProperties {
     private boolean enabled = true;
     private boolean provisionIndexes = true;
     private ApacheAgeMode apacheAgeMode = ApacheAgeMode.REQUIRED;
-    private int maxBatchRecords = 200;
-    private long maxBatchPayloadBytes = 4L * 1024 * 1024;
     private PostgresVectorIndexStrategy vectorIndexStrategy =
             PostgresVectorIndexStrategy.HNSW;
     private Set<Integer> indexedVectorDimensions = new LinkedHashSet<>(Set.of(1536));
@@ -23,8 +21,6 @@ public class PostgresGraphRagProperties {
     public PostgresGraphStoreOptions toStoreOptions() {
         return new PostgresGraphStoreOptions(
                 apacheAgeMode,
-                maxBatchRecords,
-                maxBatchPayloadBytes,
                 vectorIndexStrategy,
                 indexedVectorDimensions,
                 hnswM,
@@ -55,22 +51,6 @@ public class PostgresGraphRagProperties {
 
     public void setApacheAgeMode(ApacheAgeMode apacheAgeMode) {
         this.apacheAgeMode = apacheAgeMode;
-    }
-
-    public int getMaxBatchRecords() {
-        return maxBatchRecords;
-    }
-
-    public void setMaxBatchRecords(int maxBatchRecords) {
-        this.maxBatchRecords = maxBatchRecords;
-    }
-
-    public long getMaxBatchPayloadBytes() {
-        return maxBatchPayloadBytes;
-    }
-
-    public void setMaxBatchPayloadBytes(long maxBatchPayloadBytes) {
-        this.maxBatchPayloadBytes = maxBatchPayloadBytes;
     }
 
     public PostgresVectorIndexStrategy getVectorIndexStrategy() {

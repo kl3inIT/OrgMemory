@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.sidecar;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import java.util.Objects;
 import java.util.Optional;
 
@@ -17,11 +19,4 @@ public record LightRagSidecarBundle(
         equationsJson = Objects.requireNonNull(equationsJson, "equationsJson");
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

@@ -120,11 +120,7 @@ public record AiGatewayProperties(
         }
 
         static Routes defaults() {
-            return new Routes(
-                    new Route("openai", "gpt-5.6-sol"),
-                    null,
-                    new Route("openai", "gpt-5.6-sol"),
-                    new Route("openai", "text-embedding-3-large"));
+            return new Routes(null, null, null, null);
         }
 
         Route forWorkload(AiWorkload workload) {

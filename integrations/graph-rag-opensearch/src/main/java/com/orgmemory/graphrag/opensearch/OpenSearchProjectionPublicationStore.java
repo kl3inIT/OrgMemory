@@ -1,23 +1,20 @@
 package com.orgmemory.graphrag.opensearch;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.SortOrder;
 
@@ -40,16 +37,6 @@ public final class OpenSearchProjectionPublicationStore
 
     private final OpenSearchOperations operations;
     private final String controlIndex;
-
-    public OpenSearchProjectionPublicationStore(
-            org.opensearch.client.opensearch.OpenSearchClient client,
-            OpenSearchGraphRagProperties properties) {
-        this(
-                operations(client, properties),
-                new OpenSearchIndexNames(
-                        Objects.requireNonNull(properties, "properties")
-                                .getIndexPrefix()));
-    }
 
     OpenSearchProjectionPublicationStore(
             OpenSearchOperations operations,
@@ -452,20 +439,20 @@ public final class OpenSearchProjectionPublicationStore
                             .index(controlIndex)
                             .size(1)
                             .query(query -> query.bool(bool -> bool
-                                    .filter(term(
+                                    .filter(OpenSearchStoreSupport.term(
                                             "document_kind",
                                             "HISTORY"))
-                                    .filter(term(
+                                    .filter(OpenSearchStoreSupport.term(
                                             OpenSearchProjectionCodec.ORGANIZATION_ID,
                                             namespace.organizationId()
                                                     .toString()))
-                                    .filter(term(
+                                    .filter(OpenSearchStoreSupport.term(
                                             OpenSearchProjectionCodec.WORKSPACE,
                                             namespace.workspace()))
-                                    .filter(term(
+                                    .filter(OpenSearchStoreSupport.term(
                                             OpenSearchProjectionCodec.COLLECTION,
                                             namespace.collection()))
-                                    .filter(term(
+                                    .filter(OpenSearchStoreSupport.term(
                                             "idempotency_key",
                                             idempotencyKey))))
                             .sort(sort -> sort.field(field -> field
@@ -485,15 +472,6 @@ public final class OpenSearchProjectionPublicationStore
                     "OpenSearch failed to find an idempotent publication",
                     exception);
         }
-    }
-
-    private static org.opensearch.client.opensearch._types.query_dsl.Query term(
-            String field,
-            String value) {
-        return org.opensearch.client.opensearch._types.query_dsl.Query.of(query ->
-                query.term(term -> term
-                        .field(field)
-                        .value(FieldValue.of(value))));
     }
 
     private static boolean samePublication(
@@ -549,29 +527,7 @@ public final class OpenSearchProjectionPublicationStore
                 + namespace.workspace()
                 + "\u0000"
                 + namespace.collection();
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(canonical.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is unavailable", exception);
-        }
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
-
-    private static OpenSearchOperations operations(
-            org.opensearch.client.opensearch.OpenSearchClient client,
-            OpenSearchGraphRagProperties properties) {
-        return new OpenSearchOperations(
-                Objects.requireNonNull(client, "client"),
-                Objects.requireNonNull(properties, "properties")
-                        .getBulkMaximumOperations());
+        return com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile.sha256(canonical);
     }
 
     private record RegisteredBatch(

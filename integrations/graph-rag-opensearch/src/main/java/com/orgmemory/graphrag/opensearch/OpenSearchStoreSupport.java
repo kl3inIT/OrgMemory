@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 
 final class OpenSearchStoreSupport {
@@ -56,5 +57,17 @@ final class OpenSearchStoreSupport {
         return Query.of(query -> query.bool(bool -> bool
                 .should(chunks)
                 .minimumShouldMatch("1")));
+    }
+
+    static Query term(String field, String value) {
+        return Query.of(query -> query.term(term -> term
+                .field(field)
+                .value(FieldValue.of(value))));
+    }
+
+    static Query term(String field, long value) {
+        return Query.of(query -> query.term(term -> term
+                .field(field)
+                .value(FieldValue.of(value))));
     }
 }

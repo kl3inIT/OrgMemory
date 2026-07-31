@@ -214,12 +214,15 @@ public final class OpenSearchGraphStore implements GraphStore {
                         snapshot,
                         ids,
                         Integer.MAX_VALUE));
-        for (UUID entityId : ids) {
-            result.put(
-                    entityId,
-                    incident.stream()
-                            .filter(relation -> relation.isIncidentTo(entityId))
-                            .count());
+        for (CanonicalRelation relation : incident) {
+            UUID sourceEntityId = relation.sourceEntityId();
+            UUID targetEntityId = relation.targetEntityId();
+            if (result.containsKey(sourceEntityId)) {
+                result.merge(sourceEntityId, 1L, Long::sum);
+            }
+            if (!targetEntityId.equals(sourceEntityId) && result.containsKey(targetEntityId)) {
+                result.merge(targetEntityId, 1L, Long::sum);
+            }
         }
         return Map.copyOf(result);
     }

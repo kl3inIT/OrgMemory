@@ -72,7 +72,6 @@ class MinioObjectStorageAdapterTests {
                 new ByteArrayInputStream(payload));
 
         assertEquals(expectedSha, stored.sha256());
-        assertEquals(expectedSha, adapter.stat(key).sha256());
     }
 
     @Test

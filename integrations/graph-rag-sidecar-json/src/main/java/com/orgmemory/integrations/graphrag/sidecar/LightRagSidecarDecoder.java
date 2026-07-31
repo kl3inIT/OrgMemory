@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.sidecar;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.multimodal.MultimodalPayload;
 import com.orgmemory.graphrag.multimodal.MultimodalSidecar;
 import com.orgmemory.graphrag.multimodal.MultimodalSidecarItem;
@@ -288,7 +290,7 @@ public final class LightRagSidecarDecoder {
     }
 
     private static String safeRelativeAssetPath(String value) {
-        String path = textValue(value, "path");
+        String path = requireText(value, "path");
         if (path.contains("\\")
                 || path.startsWith("/")
                 || path.matches("^[A-Za-z]:.*")
@@ -330,15 +332,7 @@ public final class LightRagSidecarDecoder {
     }
 
     private static String text(JsonNode node, String field) {
-        return textValue(node.path(field).asString(""), field);
-    }
-
-    private static String textValue(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
+        return requireText(node.path(field).asString(""), field);
     }
 
     private record ParsedBlocks(

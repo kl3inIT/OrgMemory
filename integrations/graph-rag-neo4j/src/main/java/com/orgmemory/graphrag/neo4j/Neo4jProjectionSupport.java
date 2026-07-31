@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.neo4j;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requirePositiveDuration;
+
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
@@ -142,8 +144,8 @@ final class Neo4jProjectionSupport {
             throw new IllegalArgumentException("copyPageSize must be positive");
         }
         this.copyPageSize = copyPageSize;
-        this.copyWaitTimeout = requirePositive(copyWaitTimeout, "copyWaitTimeout");
-        this.copyLease = requirePositive(copyLease, "copyLease");
+        this.copyWaitTimeout = requirePositiveDuration(copyWaitTimeout, "copyWaitTimeout");
+        this.copyLease = requirePositiveDuration(copyLease, "copyLease");
     }
 
     void stage(ProjectionBatch batch, Runnable mutation) {
@@ -234,8 +236,8 @@ final class Neo4jProjectionSupport {
         String owner = UUID.randomUUID().toString();
         Instant deadline = Instant.now().plus(copyWaitTimeout);
         while (Instant.now().isBefore(deadline)) {
-            StageState state = stageState(batch);
-            if ("READY".equals(state.status())) {
+            String status = stageStatus(batch);
+            if ("READY".equals(status)) {
                 return;
             }
             long now = System.currentTimeMillis();
@@ -270,7 +272,7 @@ final class Neo4jProjectionSupport {
                 "timed out waiting for graph copy-forward " + batch.id());
     }
 
-    private StageState stageState(ProjectionBatch batch) {
+    private String stageStatus(ProjectionBatch batch) {
         return operations.write(transaction -> {
             var record = transaction.run(
                             """
@@ -280,20 +282,13 @@ final class Neo4jProjectionSupport {
                                 stage.projectionKind = 'GRAPH',
                                 stage.status = 'NEW',
                                 stage.leaseRenewedAt = 0
-                            RETURN stage.status AS status,
-                                   stage.owner AS owner,
-                                   stage.leaseRenewedAt AS leaseRenewedAt
+                            RETURN stage.status AS status
                             """,
                             Map.of(
                                     "key", stageKey(batch),
                                     "batchId", batch.id().toString()))
                     .single();
-            String owner =
-                    record.get("owner").isNull() ? "" : record.get("owner").asString();
-            return new StageState(
-                    record.get("status").asString(),
-                    owner,
-                    record.get("leaseRenewedAt").asLong());
+            return record.get("status").asString();
         });
     }
 
@@ -401,7 +396,7 @@ final class Neo4jProjectionSupport {
     private void waitForReady(ProjectionBatch batch) {
         Instant deadline = Instant.now().plus(copyWaitTimeout);
         while (Instant.now().isBefore(deadline)) {
-            if ("READY".equals(stageState(batch).status())) {
+            if ("READY".equals(stageStatus(batch))) {
                 return;
             }
             park();
@@ -430,14 +425,6 @@ final class Neo4jProjectionSupport {
         }
     }
 
-    private static Duration requirePositive(Duration value, String field) {
-        Duration duration = Objects.requireNonNull(value, field);
-        if (duration.isZero() || duration.isNegative()) {
-            throw new IllegalArgumentException(field + " must be positive");
-        }
-        return duration;
-    }
-
     private static String stageKey(ProjectionBatch batch) {
         return batch.id() + ":GRAPH";
     }
@@ -451,6 +438,4 @@ final class Neo4jProjectionSupport {
         }
     }
 
-    private record StageState(String status, String owner, long leaseRenewedAt) {
-    }
 }
