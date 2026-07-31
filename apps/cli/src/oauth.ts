@@ -8,11 +8,13 @@ import type {
   OAuthDiscoveryState,
 } from "@modelcontextprotocol/sdk/client/auth.js"
 import { createHash, randomBytes } from "node:crypto"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile } from "node:fs/promises"
 import { createServer, type Server } from "node:http"
 import { homedir, platform } from "node:os"
 import { dirname, join } from "node:path"
 import { spawn } from "node:child_process"
+
+import { atomicWriteJson, isENOENT } from "./shared.js"
 
 type PersistedOAuthState = {
   clientInformation?: OAuthClientInformationMixed
@@ -143,11 +145,7 @@ export class FileOAuthClientProvider implements OAuthClientProvider {
       }
       this.persisted = source as PersistedOAuthState
     } catch (error) {
-      if (
-        error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "ENOENT"
-      ) {
+      if (isENOENT(error)) {
         this.persisted = {}
       } else {
         throw new Error(
@@ -162,16 +160,7 @@ export class FileOAuthClientProvider implements OAuthClientProvider {
   private async save(state: PersistedOAuthState): Promise<void> {
     this.persisted = state
     await mkdir(dirname(this.stateFile), { recursive: true, mode: 0o700 })
-    const temporary = `${this.stateFile}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`
-    try {
-      await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, {
-        encoding: "utf8",
-        mode: 0o600,
-      })
-      await rename(temporary, this.stateFile)
-    } finally {
-      await rm(temporary, { force: true })
-    }
+    await atomicWriteJson(this.stateFile, state)
   }
 }
 

@@ -1,7 +1,10 @@
 package com.orgmemory.core.knowledge.connector;
 
-
+import com.orgmemory.core.knowledge.acl.SourceConnectionPrincipalQuery;
+import com.orgmemory.core.knowledge.acl.SourceConnectionPrincipalSummary;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
+import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;
 import com.orgmemory.core.permission.PermissionAuditService;
@@ -12,10 +15,15 @@ import com.orgmemory.core.shared.secret.SecretCipher;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,11 +45,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class SourceConnectionAdminService implements ConnectorConnectionDirectory {
 
     static final String POLICY_VERSION = "connection-admin-v1";
+    private static final String IDENTITY_TRUST_POLICY_VERSION = "permissions-admin-v1";
 
     private final SourceConnectionRepository connections;
     private final SourceConnectionCredentialRepository credentials;
     private final KnowledgeSpaceService knowledgeSpaces;
     private final SecretCipher cipher;
+    private final SourceConnectionPrincipalQuery principals;
+    private final AppUserRepository users;
     private final PermissionAuditService audit;
 
     SourceConnectionAdminService(
@@ -49,11 +60,15 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
             SourceConnectionCredentialRepository credentials,
             KnowledgeSpaceService knowledgeSpaces,
             SecretCipher cipher,
+            SourceConnectionPrincipalQuery principals,
+            AppUserRepository users,
             PermissionAuditService audit) {
         this.connections = connections;
         this.credentials = credentials;
         this.knowledgeSpaces = knowledgeSpaces;
         this.cipher = cipher;
+        this.principals = principals;
+        this.users = users;
         this.audit = audit;
     }
 
@@ -64,11 +79,7 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
         return find(organizationId, sourceSystem, sourceConnectionKey).map(this::toView);
     }
 
-    /**
-     * Every connection of one source system in this organization. A connection appears here
-     * once anybody has ruled on it, which includes connections a crawl discovered and nobody
-     * has configured yet — those are precisely the ones an administrator needs to see.
-     */
+    /** Every connection of one source system in this organization. */
     @Transactional(readOnly = true)
     public List<SourceConnectionConfigurationView> list(UUID organizationId, String sourceSystem) {
         return connections
@@ -79,10 +90,75 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 .toList();
     }
 
-    /**
-     * Records how a connection should be crawled, creating the connection row if this is the
-     * first thing anybody has said about it.
-     */
+    /** Every observed connection with its standing trust decision and ACL mapping tally. */
+    @Transactional(readOnly = true)
+    public List<SourceConnectionView> listConnections(UUID organizationId) {
+        Map<ConnectionKey, SourceConnection> decided = connections
+                .findByOrganizationId(organizationId)
+                .stream()
+                .collect(Collectors.toMap(ConnectionKey::ofConnection, Function.identity()));
+        Map<ConnectionKey, ConnectionTally> tallies = new HashMap<>();
+        for (SourceConnectionPrincipalSummary principal : principals.list(organizationId)) {
+            tallies.computeIfAbsent(
+                            ConnectionKey.ofPrincipal(principal),
+                            key -> new ConnectionTally())
+                    .observe(principal);
+        }
+        decided.keySet().forEach(key ->
+                tallies.computeIfAbsent(key, unused -> new ConnectionTally()));
+        return tallies.entrySet().stream()
+                .map(entry -> entry.getValue().toView(entry.getKey(), decided.get(entry.getKey())))
+                .sorted(CONNECTION_ORDER)
+                .toList();
+    }
+
+    /** Records standing connection trust without retroactively mapping any principal. */
+    @Transactional
+    public SourceConnectionView setIdentityTrust(
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            SourceIdentityTrust identityTrust,
+            UUID decidedByUserId) {
+        if (identityTrust == null) {
+            throw new BusinessValidationException(
+                    "source-connection.identity-trust-required",
+                    "An identity trust level is required");
+        }
+        String system = requireSourceText(sourceSystem, "source system");
+        String connectionKey = requireSourceText(sourceConnectionKey, "source connection key");
+        if (!isActiveInOrg(decidedByUserId, organizationId)) {
+            throw new BusinessValidationException(
+                    "source-connection.deciding-user-invalid",
+                    "The deciding user is not active in this organization");
+        }
+
+        SourceConnection connection = connections
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKey(
+                        organizationId, system, connectionKey)
+                .orElseGet(() -> new SourceConnection(organizationId, system, connectionKey));
+        connection.decideTrust(identityTrust, decidedByUserId, Instant.now());
+        connections.save(connection);
+        audit.record(new PermissionAuditCommand(
+                organizationId,
+                decidedByUserId,
+                "SOURCE_CONNECTION_TRUST",
+                "SOURCE_CONNECTION",
+                system + "/" + connectionKey,
+                PermissionAuditDecision.ALLOW,
+                "IDENTITY_TRUST_" + identityTrust.name(),
+                IDENTITY_TRUST_POLICY_VERSION,
+                null,
+                null));
+
+        return listConnections(organizationId).stream()
+                .filter(view -> view.sourceSystem().equals(system)
+                        && view.sourceConnectionKey().equals(connectionKey))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("The trust decision was not persisted"));
+    }
+
+    /** Records how a connection should be crawled, creating it when necessary. */
     @Transactional
     public SourceConnectionConfigurationView configure(
             UUID organizationId,
@@ -105,7 +181,8 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
             knowledgeSpaces.requireInOrganization(organizationId, knowledgeSpaceId);
         }
         SourceConnection connection = find(organizationId, system, key)
-                .orElseGet(() -> connections.save(new SourceConnection(organizationId, system, key)));
+                .orElseGet(() -> connections.save(
+                        new SourceConnection(organizationId, system, key)));
         connection.configureCrawl(
                 crawlEnabled,
                 knowledgeSpaceId,
@@ -115,26 +192,30 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 adminUserId,
                 Instant.now());
         connections.save(connection);
-        record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CONFIGURE",
+        record(
+                organizationId,
+                adminUserId,
+                system,
+                key,
+                "SOURCE_CONNECTION_CONFIGURE",
                 crawlEnabled ? "CRAWL_ENABLED" : "CRAWL_DISABLED");
         return toView(connection);
     }
 
-    /**
-     * Stores a credential for the connection, replacing any previous one.
-     *
-     * <p>The audit event records that a credential was set and by whom; it does not record the
-     * value, a prefix of it, or its length.
-     */
+    /** Stores a credential for the connection, replacing any previous one. */
     @Transactional
     public void setCredential(
-            UUID organizationId, String sourceSystem, String sourceConnectionKey,
-            SecretValue token, UUID adminUserId) {
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            SecretValue token,
+            UUID adminUserId) {
         Objects.requireNonNull(token, "token");
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
         SourceConnection connection = find(organizationId, system, key)
-                .orElseGet(() -> connections.save(new SourceConnection(organizationId, system, key)));
+                .orElseGet(() -> connections.save(
+                        new SourceConnection(organizationId, system, key)));
         Instant now = Instant.now();
         credentials.findByOrganizationIdAndSourceConnectionId(organizationId, connection.getId())
                 .ifPresentOrElse(
@@ -143,18 +224,38 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                             credentials.save(existing);
                         },
                         () -> credentials.save(new SourceConnectionCredential(
-                                organizationId, connection.getId(), cipher.encrypt(token), adminUserId, now)));
-        record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CREDENTIAL", "CREDENTIAL_SET");
+                                organizationId,
+                                connection.getId(),
+                                cipher.encrypt(token),
+                                adminUserId,
+                                now)));
+        record(
+                organizationId,
+                adminUserId,
+                system,
+                key,
+                "SOURCE_CONNECTION_CREDENTIAL",
+                "CREDENTIAL_SET");
     }
 
     @Transactional
     public void forgetCredential(
-            UUID organizationId, String sourceSystem, String sourceConnectionKey, UUID adminUserId) {
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            UUID adminUserId) {
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
         find(organizationId, system, key).ifPresent(connection ->
-                credentials.deleteByOrganizationIdAndSourceConnectionId(organizationId, connection.getId()));
-        record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CREDENTIAL", "CREDENTIAL_CLEARED");
+                credentials.deleteByOrganizationIdAndSourceConnectionId(
+                        organizationId, connection.getId()));
+        record(
+                organizationId,
+                adminUserId,
+                system,
+                key,
+                "SOURCE_CONNECTION_CREDENTIAL",
+                "CREDENTIAL_CLEARED");
     }
 
     /** The credential an adapter needs to authenticate. The only read path for a stored secret. */
@@ -162,7 +263,9 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
     @Transactional(readOnly = true)
     public Optional<SecretValue> resolveCredential(
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
-        return find(organizationId, requireText(sourceSystem, "sourceSystem"),
+        return find(
+                        organizationId,
+                        requireText(sourceSystem, "sourceSystem"),
                         requireText(sourceConnectionKey, "sourceConnectionKey"))
                 .flatMap(connection -> credentials.findByOrganizationIdAndSourceConnectionId(
                         organizationId, connection.getId()))
@@ -195,11 +298,12 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 view.credentialSet());
     }
 
-    /** Every connection of one source system that an administrator has enabled, across tenants. */
+    /** Every enabled connection of one source system across tenants. */
     @Override
     @Transactional(readOnly = true)
     public List<ConnectorCrawlConfiguration> enabledCrawls(String sourceSystem) {
-        return connections.findBySourceSystemAndCrawlEnabledTrue(requireText(sourceSystem, "sourceSystem"))
+        return connections
+                .findBySourceSystemAndCrawlEnabledTrue(requireText(sourceSystem, "sourceSystem"))
                 .stream()
                 .map(connection -> new ConnectorCrawlConfiguration(
                         connection.getOrganizationId(),
@@ -213,17 +317,13 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 .toList();
     }
 
-    /**
-     * Asks for a content crawl on the next poll rather than at the next interval.
-     *
-     * <p>Only meaningful for a connection that is enabled and holds a credential — a request is
-     * an override of the cadence, and a connection with no cadence running has nothing to
-     * override. It is refused for a connection nobody has configured, because there would be no
-     * crawl for the worker to bring forward and the request would sit unremarked forever.
-     */
+    /** Asks for a content crawl on the next poll rather than at the next interval. */
     @Transactional
     public void requestContentCrawl(
-            UUID organizationId, String sourceSystem, String sourceConnectionKey, UUID adminUserId) {
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            UUID adminUserId) {
         String system = requireText(sourceSystem, "sourceSystem");
         String key = requireText(sourceConnectionKey, "sourceConnectionKey");
         SourceConnection connection = find(organizationId, system, key)
@@ -233,7 +333,13 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                         BusinessErrorExposure.OPAQUE_RESOURCE));
         connection.requestContentCrawl(Instant.now());
         connections.save(connection);
-        record(organizationId, adminUserId, system, key, "SOURCE_CONNECTION_CRAWL", "CRAWL_REQUESTED");
+        record(
+                organizationId,
+                adminUserId,
+                system,
+                key,
+                "SOURCE_CONNECTION_CRAWL",
+                "CRAWL_REQUESTED");
     }
 
     private Optional<SourceConnection> find(
@@ -262,8 +368,12 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
     }
 
     private void record(
-            UUID organizationId, UUID adminUserId, String system, String key,
-            String operation, String reasonCode) {
+            UUID organizationId,
+            UUID adminUserId,
+            String system,
+            String key,
+            String operation,
+            String reasonCode) {
         audit.record(new PermissionAuditCommand(
                 organizationId,
                 adminUserId,
@@ -275,6 +385,14 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                 POLICY_VERSION,
                 null,
                 null));
+    }
+
+    private boolean isActiveInOrg(UUID appUserId, UUID organizationId) {
+        return appUserId != null
+                && users.findById(appUserId)
+                        .map(user -> user.isActive()
+                                && user.getOrganizationId().equals(organizationId))
+                        .orElse(false);
     }
 
     private static Duration requireInterval(Duration interval) {
@@ -293,5 +411,67 @@ public class SourceConnectionAdminService implements ConnectorConnectionDirector
                     "connection " + field + " is required");
         }
         return value.trim();
+    }
+
+    private static String requireSourceText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new BusinessValidationException(
+                    "source-connection.identifier-required",
+                    "A " + field + " is required");
+        }
+        return value.trim();
+    }
+
+    private static final Comparator<SourceConnectionView> CONNECTION_ORDER =
+            Comparator.comparing(SourceConnectionView::sourceSystem)
+                    .thenComparing(SourceConnectionView::sourceConnectionKey);
+
+    private record ConnectionKey(String sourceSystem, String sourceConnectionKey) {
+
+        static ConnectionKey ofPrincipal(SourceConnectionPrincipalSummary principal) {
+            return new ConnectionKey(principal.sourceSystem(), principal.sourceConnectionKey());
+        }
+
+        static ConnectionKey ofConnection(SourceConnection connection) {
+            return new ConnectionKey(
+                    connection.getSourceSystem(), connection.getSourceConnectionKey());
+        }
+    }
+
+    private static final class ConnectionTally {
+
+        private int userCount;
+        private int mappedUserCount;
+        private int groupCount;
+        private Instant lastSeenAt;
+
+        void observe(SourceConnectionPrincipalSummary principal) {
+            if (principal.kind() == SourcePrincipalKind.SOURCE_GROUP) {
+                groupCount++;
+            } else {
+                userCount++;
+                if (principal.mapped()) {
+                    mappedUserCount++;
+                }
+            }
+            if (lastSeenAt == null || principal.lastSeenAt().isAfter(lastSeenAt)) {
+                lastSeenAt = principal.lastSeenAt();
+            }
+        }
+
+        SourceConnectionView toView(ConnectionKey key, SourceConnection decision) {
+            return new SourceConnectionView(
+                    key.sourceSystem(),
+                    key.sourceConnectionKey(),
+                    decision == null
+                            ? SourceIdentityTrust.UNTRUSTED
+                            : decision.getIdentityTrust(),
+                    decision == null ? null : decision.getTrustDecidedByUserId(),
+                    decision == null ? null : decision.getTrustDecidedAt(),
+                    userCount,
+                    mappedUserCount,
+                    groupCount,
+                    lastSeenAt);
+        }
     }
 }

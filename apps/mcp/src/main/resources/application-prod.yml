@@ -11,21 +11,6 @@ spring:
         provider:
           keycloak:
             token-uri: ${ORGMEMORY_OIDC_TOKEN_URI}
-        registration:
-          orgmemory-api:
-            provider: keycloak
-            client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
-            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET}
-            client-authentication-method: client_secret_basic
-            authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
-            scope: assets:read
-          orgmemory-api-publisher:
-            provider: keycloak
-            client-id: ${ORGMEMORY_MCP_OIDC_CLIENT_ID:orgmemory-mcp}
-            client-secret: ${ORGMEMORY_MCP_OIDC_CLIENT_SECRET}
-            client-authentication-method: client_secret_basic
-            authorization-grant-type: urn:ietf:params:oauth:grant-type:token-exchange
-            scope: assets:write
 
 server:
   shutdown: graceful
@@ -36,10 +21,6 @@ management:
       probes:
         enabled: true
       show-details: ${ORGMEMORY_HEALTH_SHOW_DETAILS:always}
-  endpoints:
-    web:
-      exposure:
-        include: health,info
   opentelemetry:
     # Production names its destination explicitly. Left on, an OTEL_* variable in
     # the environment could point telemetry somewhere nobody chose.
@@ -48,23 +29,10 @@ management:
 orgmemory:
   mcp:
     api-base-url: ${ORGMEMORY_API_BASE_URL}
-    connect-timeout: ${ORGMEMORY_MCP_CONNECT_TIMEOUT:5s}
-    request-timeout: ${ORGMEMORY_MCP_REQUEST_TIMEOUT:75s}
     resource-uri: ${ORGMEMORY_MCP_RESOURCE_URI}
     authorization-server: ${ORGMEMORY_OIDC_ISSUER_URI}
     jwk-set-uri: ${ORGMEMORY_OIDC_JWK_SET_URI}
     audience: ${ORGMEMORY_MCP_AUDIENCE:${ORGMEMORY_MCP_RESOURCE_URI}}
-    api-audience: ${ORGMEMORY_MCP_API_AUDIENCE:orgmemory-web}
-    rate-limit:
-      enabled: ${ORGMEMORY_MCP_RATE_LIMIT_ENABLED:true}
-      global-capacity: ${ORGMEMORY_MCP_GLOBAL_RATE_CAPACITY:800}
-      global-window: ${ORGMEMORY_MCP_GLOBAL_RATE_WINDOW:1m}
-      caller-capacity: ${ORGMEMORY_MCP_CALLER_RATE_CAPACITY:120}
-      caller-window: ${ORGMEMORY_MCP_CALLER_RATE_WINDOW:1m}
-      caller-expiry: ${ORGMEMORY_MCP_CALLER_RATE_EXPIRY:15m}
-      max-tracked-callers: ${ORGMEMORY_MCP_MAX_TRACKED_CALLERS:10000}
-      max-body-bytes: ${ORGMEMORY_MCP_MAX_BODY_BYTES:262144}
-      max-publication-body-bytes: ${ORGMEMORY_SKILL_PUBLICATION_MAX_BODY_BYTES:23068672}
 
 logging:
   level:

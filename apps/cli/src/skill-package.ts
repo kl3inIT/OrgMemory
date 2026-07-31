@@ -1,9 +1,10 @@
-import { createHash } from "node:crypto"
 import { lstat, readdir, readFile, realpath } from "node:fs/promises"
 import { basename, relative, resolve, sep } from "node:path"
 
 import { zipSync, type Zippable } from "fflate"
 import { parseDocument } from "yaml"
+
+import { requireSafeRelativePath, sha256 } from "./shared.js"
 
 const MAX_ARCHIVE_BYTES = 20 * 1024 * 1024
 const MAX_UNPACKED_BYTES = 50 * 1024 * 1024
@@ -28,7 +29,7 @@ export type LocalSkillPackage = {
   description: string
   fileCount: number
   contentBytes: number
-  archiveBytes: Uint8Array
+  archiveBytes: Uint8Array<ArrayBuffer>
   packageDigest: string
   files: Array<{ path: string; size: number; sha256: string }>
 }
@@ -85,7 +86,7 @@ export async function buildLocalSkillPackage(
   const archiveBytes = zipSync(archiveInput, {
     level: 6,
     mtime: FIXED_ZIP_TIME,
-  })
+  }) as Uint8Array<ArrayBuffer>
   if (archiveBytes.byteLength > MAX_ARCHIVE_BYTES) {
     throw new Error("Skill package exceeds 20 MiB compressed")
   }
@@ -233,7 +234,7 @@ function validateMetadata(value: unknown): void {
   }
   for (const [key, item] of entries) {
     if (
-      !key ||
+      !key.trim() ||
       key.length > 256 ||
       !["string", "number", "boolean"].includes(typeof item) ||
       String(item).length > 2048
@@ -241,31 +242,6 @@ function validateMetadata(value: unknown): void {
       throw new Error("Skill metadata must contain bounded scalar entries")
     }
   }
-}
-
-function requireSafeRelativePath(value: string): void {
-  if (
-    !value ||
-    value.length > 1024 ||
-    value.startsWith("/") ||
-    value.endsWith("/") ||
-    value.includes("\\") ||
-    value.includes("\0") ||
-    value.includes(":")
-  ) {
-    throw new Error("Skill package contains an unsafe relative path")
-  }
-  if (
-    value
-      .split("/")
-      .some((segment) => !segment || segment === "." || segment === "..")
-  ) {
-    throw new Error("Skill package contains an unsafe relative path")
-  }
-}
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex")
 }
 
 function comparePaths(left: string, right: string): number {

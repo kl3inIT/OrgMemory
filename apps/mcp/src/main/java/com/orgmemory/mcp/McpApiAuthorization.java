@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
 /**
  * Exchanges the MCP-audience user token for a short-lived API-audience token.
  *
- * <p>The inbound bearer is never forwarded to the downstream API. The
- * authorized-client manager caches only the exchanged access token for its
- * normal lifetime and re-authorizes when it expires.
+ * <p>The inbound bearer is never forwarded to the downstream API. Each request
+ * performs a new exchange because the resulting token is bound to that exact
+ * inbound subject token and must not be reused by principal name.
  */
 @Component
 final class McpApiAuthorization {
@@ -35,7 +35,7 @@ final class McpApiAuthorization {
         Object value = context.get(
                 McpTransportConfiguration.AUTHENTICATION_CONTEXT_KEY);
         if (!(value instanceof Authentication authentication)) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+            throw new McpGatewayException(
                     "The MCP request has no authenticated identity");
         }
         return require(authentication);
@@ -54,7 +54,7 @@ final class McpApiAuthorization {
             Authentication authentication,
             String clientRegistrationId) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+            throw new McpGatewayException(
                     "The MCP request has no authenticated identity");
         }
         var request = OAuth2AuthorizeRequest
@@ -63,7 +63,7 @@ final class McpApiAuthorization {
                 .build();
         var authorized = authorize(request);
         if (authorized == null) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+            throw new McpGatewayException(
                     "OrgMemory could not authorize the downstream Asset request");
         }
         return "Bearer " + authorized.getAccessToken().getTokenValue();
@@ -77,7 +77,7 @@ final class McpApiAuthorization {
             log.warn(
                     "MCP downstream token exchange refused with OAuth error {}",
                     refused.getError().getErrorCode());
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+            throw new McpGatewayException(
                     "OrgMemory could not authorize the downstream Asset request");
         }
     }

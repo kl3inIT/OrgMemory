@@ -181,6 +181,35 @@ Retrieval depends one way on Asset; finally route Graph lifecycle through the
 resulting module APIs. Only after the graph is acyclic are `OPEN` annotations
 removed and exact `allowedDependencies` declared.
 
+## First Cycle-Removal Slice
+
+The ACL/Connector cycle is cut at the ownership boundary instead of hidden by
+an allowlist. Membership sync provenance, active membership rows, capture
+status, identity observations, and resolved-principal commands belong to ACL.
+Connector translates crawl payloads into those ACL-owned commands and remains
+the one-way caller.
+
+Connection trust and configuration remain Connector-owned. The combined
+connection administration service consumes a narrow ACL query that reports
+principal kind, mapping state, and last-seen time without exposing ACL
+repositories or entities. ACL mapping receives the semantic fact that a
+connection vouches for email rather than importing Connector's trust enum. An
+ArchUnit rule makes a future ACL-to-Connector dependency a build failure.
+
+## Second Cycle-Removal Slice
+
+Source Ledger no longer reaches into Retrieval for authorization queries,
+embedding profile metadata, completion values, or a generic not-found error.
+It owns narrow visibility and embedding-profile ports plus the stable profile
+facts persisted with a completed revision. Retrieval implements those ports
+and keeps OpenFGA/retrieval-store policy inside its boundary; Worker and
+Connector translate richer retrieval profiles into the ledger completion ref.
+
+The opaque knowledge-resource not-found error is shared across ACL, Space,
+Graph, Source Ledger, and Retrieval, so it belongs to `shared.error` rather
+than making every consumer depend on Retrieval. An ArchUnit rule now makes any
+new Source Ledger-to-Retrieval dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

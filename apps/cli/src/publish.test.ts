@@ -69,7 +69,7 @@ describe("Skill Draft publication", () => {
     expect(form.get("file")).toBeInstanceOf(File)
   })
 
-  it("derives no cross-origin publication URL from the MCP endpoint", () => {
+  it("derives the publication URL from the server origin", () => {
     expect(
       publicationUrl(new URL("https://orgmemory.example/mcp")).toString(),
     ).toBe("https://orgmemory.example/skill-publications")

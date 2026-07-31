@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.TokenExchangeOAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.endpoint.RestClientTokenExchangeTokenResponseClient;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -42,12 +41,11 @@ class McpDownstreamOAuthConfiguration {
             return principal instanceof OAuth2Token token ? token : null;
         });
 
-        OAuth2AuthorizedClientProvider provider = tokenExchange;
         var manager =
                 new DefaultOAuth2AuthorizedClientManager(
                         registrations,
                         new NonPersistingAuthorizedClientRepository());
-        manager.setAuthorizedClientProvider(provider);
+        manager.setAuthorizedClientProvider(tokenExchange);
         return manager;
     }
 

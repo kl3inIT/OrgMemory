@@ -96,7 +96,7 @@ class AssetCompletionAdapterTests {
         when(authorization.require(context))
                 .thenReturn("Bearer exchanged-api-token");
         when(assets.search("Bearer exchanged-api-token", null, "PROMPT_TEMPLATE"))
-                .thenThrow(new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                .thenThrow(new McpGatewayException(
                         "The requested Asset is not available to the current identity"));
 
         var completion = adapter.completeReleasedPromptArgument(

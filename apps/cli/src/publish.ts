@@ -24,7 +24,7 @@ export async function publishSkillDraft(input: {
   const form = new FormData()
   form.set(
     "file",
-    new Blob([Uint8Array.from(input.skillPackage.archiveBytes)], {
+    new Blob([input.skillPackage.archiveBytes], {
       type: "application/zip",
     }),
     `${input.skillPackage.name}.zip`,
@@ -54,18 +54,8 @@ export async function publishSkillDraft(input: {
   }
 }
 
-export function publicationUrl(serverUrl: URL): URL {
-  const url = new URL("/skill-publications", serverUrl)
-  if (
-    url.origin !== serverUrl.origin ||
-    url.pathname !== "/skill-publications" ||
-    url.search ||
-    url.hash
-  ) {
-    throw new Error("The Skill publication endpoint is invalid")
-  }
-  return url
-}
+export const publicationUrl = (serverUrl: URL): URL =>
+  new URL("/skill-publications", serverUrl)
 
 export function governanceUrl(serverUrl: URL, assetId: string): URL {
   const expectedPath = `/assets/${assetId}/governance`

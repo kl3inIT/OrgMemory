@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge.connector;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution;
+
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -107,7 +109,7 @@ class ConnectorIngestionServiceTests {
     void perObjectFailureIsIsolatedFromTheRestOfTheBatch() {
         stubValidEnvelope();
         when(reconciler.resolveIdentities(any(), any()))
-                .thenReturn(new ConnectorIdentityResolution(Map.of()));
+                .thenReturn(new SourcePrincipalResolution(Map.of()));
         ConnectorContentItem failing = content("C-fail");
         ConnectorContentItem healthy = content("C-ok");
         when(reconciler.reconcile(any(), eq(failing), any(), any()))
@@ -131,7 +133,7 @@ class ConnectorIngestionServiceTests {
     void incompletePermissionEvidenceCannotMaterializeContentOrRotateAcl() {
         stubValidEnvelope();
         when(reconciler.resolveIdentities(any(), any()))
-                .thenReturn(new ConnectorIdentityResolution(Map.of()));
+                .thenReturn(new SourcePrincipalResolution(Map.of()));
         ConnectorContentItem content = content("C-protected");
         ConnectorCrawlBatch batch = new ConnectorCrawlBatch(
                 ORG,
@@ -173,7 +175,7 @@ class ConnectorIngestionServiceTests {
     void outcomesAndTombstonesAggregateIntoTheResult() {
         stubValidEnvelope();
         when(reconciler.resolveIdentities(any(), any()))
-                .thenReturn(new ConnectorIdentityResolution(Map.of()));
+                .thenReturn(new SourcePrincipalResolution(Map.of()));
         ConnectorContentItem fresh = content("C-new");
         ConnectorContentItem converged = content("C-existing");
         when(reconciler.reconcile(any(), eq(fresh), any(), any())).thenReturn(ObjectOutcome.MATERIALIZED);

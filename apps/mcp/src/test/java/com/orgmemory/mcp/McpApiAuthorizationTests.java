@@ -65,7 +65,7 @@ class McpApiAuthorizationTests {
     @Test
     void refusesMissingAuthenticatedContext() {
         assertThrows(
-                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                McpGatewayException.class,
                 () -> authorization.require(McpTransportContext.EMPTY));
     }
 
@@ -79,7 +79,7 @@ class McpApiAuthorizationTests {
                         null)));
 
         var failure = assertThrows(
-                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                McpGatewayException.class,
                 () -> authorization.require(context));
 
         assertEquals(

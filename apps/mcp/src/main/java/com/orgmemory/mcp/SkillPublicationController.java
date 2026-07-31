@@ -56,7 +56,7 @@ class SkillPublicationController {
         try {
             downstreamAuthorization =
                     authorization.requirePublisher(authentication);
-        } catch (AssetDeliveryApiClient.AssetDeliveryGatewayException unavailable) {
+        } catch (McpGatewayException unavailable) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "OrgMemory could not authorize Skill publication",

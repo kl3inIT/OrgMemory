@@ -223,7 +223,7 @@ required CI checks passed. CodeRabbit was rate limited on the final run, and
 direct inspection confirmed zero inline comments, reviews, or review threads
 before merge.
 
-## Current Pull Request Gates
+## Tenth Pull Request Evidence
 
 - `SourceGroupView` belongs to `knowledge.acl`, `SourceIdentityTrust` belongs
   to `knowledge.connector`, and `SourceFailureMessage` belongs to
@@ -245,3 +245,63 @@ connector/admin integration tests passed; and the terminating repository-wide
 operating-model, release contract, and mechanical source checks passed. The
 pre-stage worktree contains 22 changed paths and zero Knowledge root domain
 types.
+
+PR #196 merged as `fdfb977129027bc7dcff37be4c98c8be92f40718` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Eleventh Pull Request Evidence
+
+- ACL owns membership sync provenance, capture state, identity observations,
+  resolved-principal commands, and its connection-principal summary query.
+- Connector maps crawl DTOs into ACL commands and owns connection trust,
+  configuration, credential, and crawl administration.
+- Production and test code under `knowledge.acl` have zero imports from
+  `knowledge.connector`; an ArchUnit rule prevents that edge from returning.
+- Existing connection configuration, credential, crawl, trust, principal
+  mapping, and group membership behavior remains covered by focused tests.
+- `:core:test`, affected API/worker integration tests, and the repository
+  terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the next Knowledge cycle-removal slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused ACL, Connector, API, Worker, and Modulith tests passed; and the
+terminating repository-wide `clean test` completed successfully in 6m52s
+across 108 tasks. The docs operating-model, release contract, diff hygiene,
+and zero ACL-to-Connector import checks passed. The pre-stage worktree
+contains 31 changed paths.
+
+After merging current `origin/main` at `26c4f68f`, a second repository-wide
+`clean test` completed successfully in 4m26s across 99 tasks; the PR diff
+remained 31 changed files.
+
+PR #198 merged as `827a16dc7c0b98b6f9f882d35c5149fd0e1c42af` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns visibility and embedding-profile ports plus the compact
+  profile ref persisted on revision completion.
+- Retrieval implements authorization-aware source visibility and profile
+  metadata lookup without exposing retrieval implementation types upstream.
+- Production and test code under `knowledge.sourceledger` have zero imports
+  from `knowledge.retrieval`; an ArchUnit rule prevents that edge returning.
+- The shared opaque knowledge-resource not-found error no longer makes ACL,
+  Space, Graph, or Source Ledger depend on Retrieval.
+- Focused source query, retrieval adapter, API, Worker, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the Source Ledger-to-Asset slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused source-query, secure-visibility, API, Worker, and Modulith tests
+passed; and the terminating repository-wide `clean test` completed
+successfully in 7m22s across 108 tasks. Mechanical checks confirm zero Source
+Ledger-to-Retrieval imports and zero stale not-found exception references. The
+pre-stage worktree contains 28 changed paths.
+
+After merging current `origin/main` at `78b4d503`, a second repository-wide
+`clean test` completed successfully in 12s across 99 tasks with the shared
+build cache; the PR diff remained 28 changed files.

@@ -6,7 +6,7 @@ export const orgMemoryUuidSchema = z
   .regex(
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
   )
-const namespaceSchema = z
+export const namespaceSchema = z
   .string()
   .max(128)
   .regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/)

@@ -1,7 +1,4 @@
-package com.orgmemory.core.knowledge.connector;
-
-import com.orgmemory.core.knowledge.acl.SourcePrincipal;
-import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+package com.orgmemory.core.knowledge.acl;
 
 import java.util.Map;
 import java.util.UUID;
@@ -12,10 +9,10 @@ import java.util.UUID;
  * type is part of the key because a source may legally reuse the same opaque id namespace for a
  * user and a group.
  */
-public record ConnectorIdentityResolution(
+public record SourcePrincipalResolution(
         Map<PrincipalKey, ResolvedPrincipal> principals) {
 
-    public ConnectorIdentityResolution {
+    public SourcePrincipalResolution {
         principals = Map.copyOf(principals);
     }
 
@@ -27,11 +24,11 @@ public record ConnectorIdentityResolution(
     public record ResolvedPrincipal(UUID id, SourcePrincipalKind kind) {
     }
 
-    record PrincipalKey(SourcePrincipalKind kind, String nativePrincipalId) {
+    public record PrincipalKey(SourcePrincipalKind kind, String nativePrincipalId) {
 
-        PrincipalKey {
+        public PrincipalKey {
             if (kind == null || nativePrincipalId == null || nativePrincipalId.isBlank()) {
-                throw new IllegalArgumentException("typed connector principal key is required");
+                throw new IllegalArgumentException("typed source principal key is required");
             }
             nativePrincipalId = nativePrincipalId.trim();
         }

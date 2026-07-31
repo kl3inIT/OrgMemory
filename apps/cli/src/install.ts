@@ -1,4 +1,5 @@
-import { createHash, randomBytes } from "node:crypto"
+import { Buffer } from "node:buffer"
+import { randomBytes } from "node:crypto"
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join, relative, resolve, sep } from "node:path"
@@ -9,6 +10,12 @@ import {
   orgMemoryUuidSchema,
   type SkillManifestLink,
 } from "./contracts.js"
+import {
+  atomicWriteJson,
+  isENOENT,
+  requireSafeRelativePath,
+  sha256,
+} from "./shared.js"
 
 export type Agent = "claude-code" | "codex"
 
@@ -145,11 +152,7 @@ export async function listInstalled(input: {
   try {
     return receiptSchema.parse(JSON.parse(await readFile(path, "utf8"))).skills
   } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as NodeJS.ErrnoException).code === "ENOENT"
-    ) {
+    if (isENOENT(error)) {
       return {}
     }
     throw new Error(`OrgMemory Skill lock is unreadable at ${path}`, { cause: error })
@@ -185,13 +188,7 @@ export async function readBoundedPackage(
     }
     chunks.push(result.value)
   }
-  const bytes = new Uint8Array(length)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return bytes
+  return Buffer.concat(chunks, length)
 }
 
 function verifyPackage(bytes: Uint8Array, expectedDigest: string, expectedLength: number): void {
@@ -228,6 +225,7 @@ function extractAndVerify(
       throw new Error("The released Skill package contains files outside its Skill root")
     }
     const path = archivePath.slice(root.length)
+    // Root-stripping of unique safe paths cannot introduce traversal; re-check as defense-in-depth.
     requireSafeRelativePath(path)
     if (extracted.has(path)) {
       throw new Error("The released Skill package contains duplicate paths")
@@ -324,13 +322,7 @@ function streamArchive(bytes: Uint8Array): Map<string, Uint8Array> {
         chunks.push(chunk)
       }
       if (final) {
-        const content = new Uint8Array(fileSize)
-        let offset = 0
-        for (const part of chunks) {
-          content.set(part, offset)
-          offset += part.byteLength
-        }
-        extracted.set(archivePath, content)
+        extracted.set(archivePath, Buffer.concat(chunks, fileSize))
         pending.delete(archivePath)
       }
     }
@@ -371,13 +363,7 @@ async function promote(
       await operations.rename(target, backup)
       backedUp = true
     } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT"
-        )
-      ) {
+      if (!isENOENT(error)) {
         throw error
       }
     }
@@ -414,16 +400,7 @@ async function writeReceipt(input: {
     skills: { ...existing, [input.key]: input.entry },
   }
   await mkdir(dirname(path), { recursive: true })
-  const temporary = `${path}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`
-  try {
-    await writeFile(temporary, `${JSON.stringify(lock, null, 2)}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
-    })
-    await rename(temporary, path)
-  } finally {
-    await rm(temporary, { force: true })
-  }
+  await atomicWriteJson(path, lock)
 }
 
 function lockPath(global: boolean, cwd: string): string {
@@ -437,23 +414,4 @@ function requireInside(base: string, target: string): void {
   if (normalizedTarget !== normalizedBase && !normalizedTarget.startsWith(`${normalizedBase}${sep}`)) {
     throw new Error("The Skill install path escapes its agent directory")
   }
-}
-
-function requireSafeRelativePath(path: string): void {
-  if (
-    !path ||
-    path.length > 1024 ||
-    path.startsWith("/") ||
-    path.endsWith("/") ||
-    path.includes("\\") ||
-    path.includes("\0") ||
-    path.includes(":") ||
-    path.split("/").some((part) => !part || part === "." || part === "..")
-  ) {
-    throw new Error("The Skill package contains an unsafe path")
-  }
-}
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex")
 }

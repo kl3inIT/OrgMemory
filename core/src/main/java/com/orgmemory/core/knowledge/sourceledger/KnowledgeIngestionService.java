@@ -23,7 +23,7 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.organization.DepartmentRepository;

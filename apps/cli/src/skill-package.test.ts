@@ -68,6 +68,23 @@ description: Review one expense
       "match its folder name",
     )
   })
+
+  it("rejects whitespace-only metadata keys like the canonical inspector", async () => {
+    const folder = await skillFolder(
+      `---
+name: expense-review
+description: Review one expense
+metadata:
+  "   ": finance
+---
+# Expense review
+`,
+    )
+
+    await expect(buildLocalSkillPackage(folder)).rejects.toThrow(
+      "bounded scalar entries",
+    )
+  })
 })
 
 async function skillFolder(

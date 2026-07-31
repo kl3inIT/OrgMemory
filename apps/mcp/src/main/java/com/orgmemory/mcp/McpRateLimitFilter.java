@@ -155,11 +155,6 @@ final class McpRateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    long trackedCallerCount() {
-        callers.cleanUp();
-        return callers.estimatedSize();
-    }
-
     private static Bucket bucket(long capacity, Duration window) {
         return Bucket.builder()
                 .addLimit(limit -> limit
