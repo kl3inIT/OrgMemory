@@ -40,6 +40,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "embla-carousel-react": "^8.6.0",
+    "fflate": "0.8.3",
     "graphology": "^0.26.0",
     "graphology-layout-force": "0.2.4",
     "graphology-layout-forceatlas2": "0.10.1",
