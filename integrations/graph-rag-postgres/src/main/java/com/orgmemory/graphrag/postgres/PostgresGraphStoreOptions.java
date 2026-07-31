@@ -11,8 +11,6 @@ import java.util.Set;
  */
 public record PostgresGraphStoreOptions(
         ApacheAgeMode apacheAgeMode,
-        int maxBatchRecords,
-        long maxBatchPayloadBytes,
         PostgresVectorIndexStrategy vectorIndexStrategy,
         Set<Integer> indexedVectorDimensions,
         int hnswM,
@@ -27,13 +25,6 @@ public record PostgresGraphStoreOptions(
         Objects.requireNonNull(vectorIndexStrategy, "vectorIndexStrategy");
         indexedVectorDimensions = Set.copyOf(
                 Objects.requireNonNull(indexedVectorDimensions, "indexedVectorDimensions"));
-        if (maxBatchRecords < 1 || maxBatchRecords > 10_000) {
-            throw new IllegalArgumentException("maxBatchRecords must be between 1 and 10000");
-        }
-        if (maxBatchPayloadBytes < 1 || maxBatchPayloadBytes > 64L * 1024 * 1024) {
-            throw new IllegalArgumentException(
-                    "maxBatchPayloadBytes must be between 1 byte and 64 MiB");
-        }
         if (indexedVectorDimensions.stream()
                 .anyMatch(dimension -> dimension == null
                         || dimension < 1
@@ -62,8 +53,6 @@ public record PostgresGraphStoreOptions(
     public static PostgresGraphStoreOptions defaults() {
         return new PostgresGraphStoreOptions(
                 ApacheAgeMode.OPTIONAL,
-                200,
-                4L * 1024 * 1024,
                 PostgresVectorIndexStrategy.HNSW,
                 Set.of(1536),
                 16,
@@ -75,8 +64,6 @@ public record PostgresGraphStoreOptions(
     public PostgresGraphStoreOptions withApacheAgeMode(ApacheAgeMode mode) {
         return new PostgresGraphStoreOptions(
                 mode,
-                maxBatchRecords,
-                maxBatchPayloadBytes,
                 vectorIndexStrategy,
                 indexedVectorDimensions,
                 hnswM,

@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.postgres;
 
+import static com.orgmemory.graphrag.postgres.PostgresProjectionSupport.namespaceParameters;
+
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.model.EvidenceReference;
@@ -8,7 +10,6 @@ import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -257,13 +258,6 @@ public final class PostgresGraphRagCacheStore
                 """, parameters);
     }
 
-    public void invalidateAll(ProjectionNamespace namespace) {
-        transactions.executeWithoutResult(status -> {
-            invalidate(namespace);
-            invalidateNamespace(namespace);
-        });
-    }
-
     private UUID upsertRetrieval(
             RetrievalResultCache.Key key, RetrievalResultCache.Entry entry) {
         MapSqlParameterSource parameters = retrievalKeyParameters(key)
@@ -364,29 +358,11 @@ public final class PostgresGraphRagCacheStore
                         key.modelRouteFingerprint());
     }
 
-    private static MapSqlParameterSource namespaceParameters(
-            ProjectionNamespace namespace) {
-        Objects.requireNonNull(namespace, "namespace");
-        return new MapSqlParameterSource()
-                .addValue("organizationId", namespace.organizationId())
-                .addValue("workspace", namespace.workspace())
-                .addValue("collection", namespace.collection());
-    }
-
     private static String projectionKinds(Set<ProjectionKind> projections) {
         return projections.stream()
                 .sorted(Comparator.comparingInt(Enum::ordinal))
                 .map(Enum::name)
                 .collect(Collectors.joining(","));
-    }
-
-    static Set<ProjectionKind> parseProjectionKinds(String value) {
-        if (value == null || value.isBlank()) {
-            return Set.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(ProjectionKind::valueOf)
-                .collect(Collectors.toUnmodifiableSet());
     }
 
     private record CachedRetrieval(

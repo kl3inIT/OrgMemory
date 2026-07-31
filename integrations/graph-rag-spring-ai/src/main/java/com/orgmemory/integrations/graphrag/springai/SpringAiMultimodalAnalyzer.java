@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.springai;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.multimodal.MultimodalAnalysisContent;
 import com.orgmemory.graphrag.multimodal.MultimodalAnalysisOutcome;
 import com.orgmemory.graphrag.multimodal.MultimodalAnalysisRequest;
@@ -23,6 +25,13 @@ import org.springframework.util.MimeType;
 
 /** Spring AI model adapter for LightRAG-compatible image, table, and equation analysis. */
 public final class SpringAiMultimodalAnalyzer implements MultimodalAnalyzer {
+
+    private static final BeanOutputConverter<ImageResponse> IMAGE_CONVERTER =
+            new BeanOutputConverter<>(ImageResponse.class);
+    private static final BeanOutputConverter<TableResponse> TABLE_CONVERTER =
+            new BeanOutputConverter<>(TableResponse.class);
+    private static final BeanOutputConverter<EquationResponse> EQUATION_CONVERTER =
+            new BeanOutputConverter<>(EquationResponse.class);
 
     private final String provider;
     private final MultimodalAnalyzerRole role;
@@ -86,19 +95,19 @@ public final class SpringAiMultimodalAnalyzer implements MultimodalAnalyzer {
         return switch (request.item().modality()) {
             case IMAGE -> analyze(
                     request,
-                    new BeanOutputConverter<>(ImageResponse.class),
+                    IMAGE_CONVERTER,
                     response -> new MultimodalAnalysisContent.Image(
                             response.name(),
                             response.imageType(),
                             response.description()));
             case TABLE -> analyze(
                     request,
-                    new BeanOutputConverter<>(TableResponse.class),
+                    TABLE_CONVERTER,
                     response -> new MultimodalAnalysisContent.Table(
                             response.name(), response.description()));
             case EQUATION -> analyze(
                     request,
-                    new BeanOutputConverter<>(EquationResponse.class),
+                    EQUATION_CONVERTER,
                     response -> new MultimodalAnalysisContent.Equation(
                             response.name(),
                             response.equation(),
@@ -198,14 +207,6 @@ public final class SpringAiMultimodalAnalyzer implements MultimodalAnalyzer {
                 reasonCode,
                 detail,
                 transientFailure);
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     record ImageResponse(String name, String imageType, String description) {}

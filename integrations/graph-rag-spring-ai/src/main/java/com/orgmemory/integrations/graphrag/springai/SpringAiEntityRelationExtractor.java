@@ -1,5 +1,7 @@
 package com.orgmemory.integrations.graphrag.springai;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+
 import com.orgmemory.graphrag.chunking.TextTokenizer;
 import com.orgmemory.graphrag.extraction.LightRagEntityRelationExtractor;
 import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
@@ -49,12 +51,4 @@ public final class SpringAiEntityRelationExtractor implements EntityRelationExtr
         }
     }
 
-    private static String requireText(String value, String field) {
-        Objects.requireNonNull(value, field);
-        String normalized = value.strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

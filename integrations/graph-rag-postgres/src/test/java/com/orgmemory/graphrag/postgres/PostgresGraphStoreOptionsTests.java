@@ -14,8 +14,6 @@ class PostgresGraphStoreOptionsTests {
 
         assertEquals(PostgresVectorIndexStrategy.HNSW, options.vectorIndexStrategy());
         assertEquals(Set.of(1536), options.indexedVectorDimensions());
-        assertEquals(200, options.maxBatchRecords());
-        assertEquals(4L * 1024 * 1024, options.maxBatchPayloadBytes());
     }
 
     @Test
@@ -24,8 +22,6 @@ class PostgresGraphStoreOptionsTests {
                 IllegalArgumentException.class,
                 () -> new PostgresGraphStoreOptions(
                         ApacheAgeMode.REQUIRED,
-                        200,
-                        1024,
                         PostgresVectorIndexStrategy.HNSW,
                         Set.of(),
                         16,

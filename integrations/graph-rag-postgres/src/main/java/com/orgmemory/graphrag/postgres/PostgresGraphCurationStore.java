@@ -1,5 +1,8 @@
 package com.orgmemory.graphrag.postgres;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+import static com.orgmemory.graphrag.postgres.PostgresProjectionSupport.namespaceParameters;
+
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.curation.CurationProvenance;
 import com.orgmemory.graphrag.curation.GraphCurationFingerprint;
@@ -494,23 +497,6 @@ public final class PostgresGraphCurationStore implements GraphCurationStore {
             offset = end;
         }
         return List.copyOf(values);
-    }
-
-    private static MapSqlParameterSource namespaceParameters(
-            ProjectionNamespace namespace) {
-        Objects.requireNonNull(namespace, "namespace");
-        return new MapSqlParameterSource()
-                .addValue("organizationId", namespace.organizationId())
-                .addValue("workspace", namespace.workspace())
-                .addValue("collection", namespace.collection());
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     private record StoredCuration(
