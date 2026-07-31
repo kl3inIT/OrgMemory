@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
+Reconciled: `2026-08-01-browser-skill-authoring (250e1705)`.
 
 ## Current Behavior
 

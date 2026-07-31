@@ -70,12 +70,19 @@ after a concurrent main run cancelled the original docs-changing CI job.
       explanation; do not publish internal design details.
 - [x] Run full backend/frontend/docs/release gates and same-viewport visual QA;
       record the final result in `design-qa.md`.
-- [ ] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+- [x] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+
+Delivered by PR #197 and merge commit `250e1705`. Main CI, immutable product
+and docs image publication, automatic ZM production/docs deployment, exact-SHA
+container inspection, public web/API/docs health checks, and the public OIDC
+issuer check passed on 2026-08-01. CodeRabbit's final check was rate-limited
+after every prior actionable finding had been fixed and individually
+acknowledged.
 
 ## 4. Closeout
 
-- [ ] Reconcile `ARCHITECTURE.md`, the Asset Registry spec/test pair, and
+- [x] Reconcile `ARCHITECTURE.md`, the Asset Registry spec/test pair, and
       roadmap against the merged implementation.
-- [ ] Archive this increment only after production verifies all three creation
+- [x] Archive this increment only after production verifies all three creation
       paths and ordinary Draft publication remains intact.
-- [ ] Persist the verified architecture and delivery checkpoint in Northstar.
+- [x] Persist the verified architecture and delivery checkpoint in Northstar.
