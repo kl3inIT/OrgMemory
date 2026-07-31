@@ -34,7 +34,7 @@ public class KnowledgeAsset extends BaseEntity {
     protected KnowledgeAsset() {
     }
 
-    KnowledgeAsset(UUID organizationId, UUID knowledgeSpaceId, UUID sourceObjectId) {
+    public KnowledgeAsset(UUID organizationId, UUID knowledgeSpaceId, UUID sourceObjectId) {
         super(UUID.randomUUID());
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.knowledgeSpaceId = Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
@@ -48,7 +48,7 @@ public class KnowledgeAsset extends BaseEntity {
         currentVersionId = Objects.requireNonNull(versionId, "versionId");
     }
 
-    void archive(Instant timestamp) {
+    public void archive(Instant timestamp) {
         archivedAt = Objects.requireNonNull(timestamp, "timestamp");
         currentVersionId = null;
     }

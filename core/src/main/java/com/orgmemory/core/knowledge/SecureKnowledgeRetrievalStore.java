@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-class SecureKnowledgeRetrievalStore {
+public class SecureKnowledgeRetrievalStore {
 
     private static final String PRINCIPAL_MATCH = """
             (
@@ -307,7 +307,7 @@ class SecureKnowledgeRetrievalStore {
                         "knowledge_asset_id", UUID.class));
     }
 
-    List<UUID> visibleSourceObjectIds(RetrievalScope scope) {
+    public List<UUID> visibleSourceObjectIds(RetrievalScope scope) {
         String sql = """
                 SELECT DISTINCT kc.source_object_id
                 """ + ELIGIBLE_FROM + """
@@ -362,7 +362,7 @@ class SecureKnowledgeRetrievalStore {
         return result.wasNull() ? null : value;
     }
 
-    record RetrievalScope(
+    public record RetrievalScope(
             UUID organizationId,
             UUID actorUserId,
             UUID actorDepartmentId,
@@ -371,7 +371,7 @@ class SecureKnowledgeRetrievalStore {
             String authorizationModelId,
             Instant evaluatedAt) {
 
-        RetrievalScope {
+        public RetrievalScope {
             authorizedAssetIds = List.copyOf(authorizedAssetIds);
         }
     }

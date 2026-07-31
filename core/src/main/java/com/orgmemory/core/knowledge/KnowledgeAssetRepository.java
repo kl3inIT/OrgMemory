@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface KnowledgeAssetRepository extends JpaRepository<KnowledgeAsset, UUID> {
+public interface KnowledgeAssetRepository extends JpaRepository<KnowledgeAsset, UUID> {
 
     Optional<KnowledgeAsset> findByIdAndOrganizationId(UUID id, UUID organizationId);
 

@@ -23,6 +23,13 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerIsAnOpenNestedModuleDuringTheRefactor() {
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+
+        assertTrue(sourceLedger.isOpen());
+    }
+
+    @Test
     void objectStorageIsAnExplicitKnowledgeInterface() {
         var knowledge = modules.getModuleByName("knowledge").orElseThrow();
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();

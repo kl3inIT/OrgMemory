@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.NormalizedRecord;
+
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
@@ -16,7 +18,7 @@ import java.util.UUID;
 /** Immutable content and policy provenance for one stable Knowledge Asset. */
 @Entity
 @Table(name = "knowledge_asset_versions")
-class KnowledgeAssetVersion extends BaseEntity {
+public class KnowledgeAssetVersion extends BaseEntity {
 
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
@@ -82,7 +84,7 @@ class KnowledgeAssetVersion extends BaseEntity {
     protected KnowledgeAssetVersion() {
     }
 
-    KnowledgeAssetVersion(
+    public KnowledgeAssetVersion(
             KnowledgeAsset asset,
             long versionNumber,
             UUID sourceRevisionId,
@@ -122,7 +124,7 @@ class KnowledgeAssetVersion extends BaseEntity {
         activatedAt = Objects.requireNonNull(timestamp, "timestamp");
     }
 
-    void retire(Instant timestamp) {
+    public void retire(Instant timestamp) {
         if (status != KnowledgeAssetVersionStatus.ACTIVE) {
             throw new IllegalStateException("Only an active knowledge asset version can be retired");
         }
@@ -134,7 +136,7 @@ class KnowledgeAssetVersion extends BaseEntity {
         return organizationId;
     }
 
-    UUID getKnowledgeAssetId() {
+    public UUID getKnowledgeAssetId() {
         return knowledgeAssetId;
     }
 
@@ -142,7 +144,7 @@ class KnowledgeAssetVersion extends BaseEntity {
         return versionNumber;
     }
 
-    UUID getKnowledgeSpaceId() {
+    public UUID getKnowledgeSpaceId() {
         return knowledgeSpaceId;
     }
 
@@ -150,15 +152,15 @@ class KnowledgeAssetVersion extends BaseEntity {
         return sourceRevisionId;
     }
 
-    UUID getRawSourceObjectId() {
+    public UUID getRawSourceObjectId() {
         return rawSourceObjectId;
     }
 
-    UUID getNormalizedRecordId() {
+    public UUID getNormalizedRecordId() {
         return normalizedRecordId;
     }
 
-    UUID getSourceAclSnapshotId() {
+    public UUID getSourceAclSnapshotId() {
         return sourceAclSnapshotId;
     }
 
@@ -166,7 +168,7 @@ class KnowledgeAssetVersion extends BaseEntity {
         return language;
     }
 
-    KnowledgeAssetVersionStatus getStatus() {
+    public KnowledgeAssetVersionStatus getStatus() {
         return status;
     }
 }

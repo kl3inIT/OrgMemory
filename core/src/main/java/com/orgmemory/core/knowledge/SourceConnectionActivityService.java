@@ -1,5 +1,9 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatusCount;
+
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.Comparator;
 import java.util.List;

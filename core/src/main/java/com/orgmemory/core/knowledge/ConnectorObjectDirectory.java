@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;

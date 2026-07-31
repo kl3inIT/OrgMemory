@@ -1,5 +1,7 @@
 package com.orgmemory.worker.connector;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

@@ -7,6 +7,6 @@ import java.util.UUID;
  * connector to decide whether to register a new source (no head yet) or rotate the ACL of an
  * existing one, and to supply the compare-and-set expectation.
  */
-record ConnectorHeadView(
+public record ConnectorHeadView(
         UUID rawSourceObjectId, UUID currentSnapshotId, long aclGeneration, String currentContentRevision) {
 }

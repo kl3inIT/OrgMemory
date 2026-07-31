@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceObject;
+
 /**
  * Marks an object that no longer exists at the source. The connector retires the matching
  * {@code SourceObject} so it drops out of retrieval while its evidence is retained.

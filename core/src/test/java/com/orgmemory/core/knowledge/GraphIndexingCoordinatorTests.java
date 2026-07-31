@@ -1,5 +1,9 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;

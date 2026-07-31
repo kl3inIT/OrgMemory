@@ -1,5 +1,12 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
+import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
+import com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;

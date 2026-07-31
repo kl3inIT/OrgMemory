@@ -1,6 +1,7 @@
 package com.orgmemory.api.source;
 
-import com.orgmemory.core.knowledge.SourceSummary;
+import com.orgmemory.core.knowledge.sourceledger.SourceSummary;
+
 import java.time.Instant;
 import java.util.UUID;
 

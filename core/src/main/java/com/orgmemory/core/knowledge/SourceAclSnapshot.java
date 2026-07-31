@@ -47,7 +47,7 @@ public class SourceAclSnapshot {
     protected SourceAclSnapshot() {
     }
 
-    SourceAclSnapshot(
+    public SourceAclSnapshot(
             UUID organizationId,
             UUID rawSourceObjectId,
             long aclGeneration,

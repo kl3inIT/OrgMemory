@@ -55,6 +55,20 @@ sibling code already calls become public only where Java compilation requires
 it. These are recorded as edge debt; later slices replace repository access
 with the owning module's facade before `space` becomes closed.
 
+## Second Delivery Slice
+
+The second code pull request moves the canonical source and revision ledger,
+evidence blob, raw/normalized processing records, upload/query services, and
+durable ingestion job into `knowledge.sourceledger`. Connector identity and
+membership, source ACL, Knowledge Asset, retrieval, and graph types remain in
+their owning future slices. As with `space`, the module starts open and every
+compiler-forced visibility increase is recorded as edge debt.
+
+The compiler-exposed edge debt is concentrated at the future ACL, Knowledge
+Asset, graph, and retrieval boundaries. Existing sibling coordinators still
+call source-ledger entity/repository members directly; the later closing slices
+must replace those calls with intentional facades before removing `OPEN`.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

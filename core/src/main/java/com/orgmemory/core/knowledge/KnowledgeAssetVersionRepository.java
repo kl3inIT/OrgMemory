@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface KnowledgeAssetVersionRepository extends JpaRepository<KnowledgeAssetVersion, UUID> {
+public interface KnowledgeAssetVersionRepository extends JpaRepository<KnowledgeAssetVersion, UUID> {
 
     Optional<KnowledgeAssetVersion> findByNormalizedRecordId(UUID normalizedRecordId);
 

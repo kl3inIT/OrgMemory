@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -13,7 +15,7 @@ import org.springframework.stereotype.Service;
  * revision has reached READY in the caller's transaction.
  */
 @Service
-class GraphIndexJobQueue {
+public class GraphIndexJobQueue {
 
     private final GraphIndexJobRepository jobs;
     private final KnowledgeAssetVersionRepository versions;
@@ -37,7 +39,7 @@ class GraphIndexJobQueue {
         this.jdbc = jdbc;
     }
 
-    UUID enqueue(
+    public UUID enqueue(
             UUID organizationId,
             UUID sourceRevisionId,
             KnowledgeAssetRef assetRef,
