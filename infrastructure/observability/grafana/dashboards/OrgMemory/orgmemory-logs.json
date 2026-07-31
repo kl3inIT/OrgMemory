@@ -1,0 +1,144 @@
+{
+  "uid": "orgmemory-logs",
+  "title": "OrgMemory — Logs",
+  "tags": ["orgmemory", "logs"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+        "query": { "label": "container", "refId": "LokiVariableQueryEditor-VariableQuery", "stream": "", "type": 1 },
+        "definition": "label_values(container)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": ["orgmemory-api-1", "orgmemory-worker-1", "orgmemory-mcp-1"], "value": ["orgmemory-api-1", "orgmemory-worker-1", "orgmemory-mcp-1"] },
+        "options": [],
+        "sort": 1
+      },
+      {
+        "name": "search",
+        "label": "Contains",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Reading this board",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "An empty chart here usually means the applications are idle rather than broken — with no requests in flight they emit almost nothing, and `orgmemory-worker-1` produces no line at all between scheduled runs. Confirm the pipeline itself with **Log volume** below, which counts every container: if that has bars and the OrgMemory services do not, the services are quiet.\n\nA trace id in a log line is a link. The Loki datasource extracts it and jumps to the trace in Tempo, which is the only way to get from a message back to the request that produced it."
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Log volume by container",
+      "description": "Every container the collector tails, so an empty OrgMemory series can be told apart from a dead pipeline.",
+      "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 4 },
+      "fieldConfig": {
+        "defaults": { "unit": "logs", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "lineWidth": 0 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["sum"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+          "expr": "sum by (container) (count_over_time({container=~\".+\"}[$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{container}}"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Errors and warnings — selected containers",
+      "description": "Matched on the line text rather than a parsed level, because the applications do not emit structured JSON logs.",
+      "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 20 }] }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["sum"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+          "expr": "sum by (level) (count_over_time({container=~\"$container\"} | regexp `(?P<level>ERROR|WARN)` [$__auto]))",
+          "queryType": "range",
+          "legendFormat": "{{level}}"
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Logs",
+      "description": "Filtered by the Container and Contains variables above.",
+      "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 12 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+          "expr": "{container=~\"$container\"} |= `$search`",
+          "queryType": "range",
+          "maxLines": 500
+        }
+      ]
+    },
+    {
+      "type": "logs",
+      "title": "Errors and warnings only",
+      "description": "The same stream reduced to lines carrying ERROR or WARN.",
+      "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "orgmemory-loki" },
+          "expr": "{container=~\"$container\"} |~ `ERROR|WARN` |= `$search`",
+          "queryType": "range",
+          "maxLines": 300
+        }
+      ]
+    }
+  ]
+}

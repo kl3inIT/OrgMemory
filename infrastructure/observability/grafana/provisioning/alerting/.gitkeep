@@ -1,0 +1,4 @@
+Grafana logs an ERROR for every provisioning directory it cannot open, including
+the ones nothing uses. Two of those on every restart make a healthy stack read as
+a broken one. The directory exists to keep the log honest; there is nothing to
+provision here.
