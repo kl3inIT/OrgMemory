@@ -5,6 +5,7 @@
   "root": true,
   "pagesIndex": "work-with-governed-assets",
   "pages": [
-    "work-with-governed-assets"
+    "work-with-governed-assets",
+    "create-governed-skills"
   ]
 }

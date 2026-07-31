@@ -187,6 +187,7 @@ class SkillDistributionServiceTests {
                 "Claude Code and Codex",
                 "Read",
                 Map.of("owner", "support"),
+                null,
                 new SkillPackageSpec.Artifact(
                         PACKAGE_DIGEST,
                         7,

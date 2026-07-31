@@ -290,7 +290,10 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("link", { name: /Upload a skill/ })).toBeVisible()
   await expect(page.getByText("Start from scratch", { exact: true })).toBeVisible()
   await expect(page.getByText("Import from GitHub", { exact: true })).toBeVisible()
-  await expect(page.locator('[aria-disabled="true"]')).toHaveCount(1)
+  await expect(page.getByRole("link", { name: /Import from GitHub/i })).toHaveAttribute(
+    "href",
+    "/assets/new/skill/github",
+  )
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.setViewportSize({ width: 1598, height: 910 })
@@ -443,6 +446,76 @@ test("Skill upload keeps the Draft form open and explains a server rejection", a
   expect(harness.browserErrors.filter((message) => !message.includes("409 (Conflict)"))).toEqual([])
 })
 
+test("GitHub Skill import pins preview, supports private access, and reports partial results", async ({
+  page,
+}) => {
+  const harness = await assetHarness(page, "owner")
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.emulateMedia({ colorScheme: "dark" })
+    await page.setViewportSize({ width: 1598, height: 910 })
+  }
+
+  await page.goto("/assets/new/skill/github")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Engineering knowledge" }).click()
+  await page.getByRole("textbox", { name: "Repository", exact: true }).fill("acme/skills")
+  await page.getByRole("combobox", { name: "Repository access" }).click()
+  await page.getByRole("option", { name: "private-app" }).click()
+  await page.getByRole("button", { name: "Preview Skills" }).click()
+
+  await expect(page.getByText("Private", { exact: true })).toBeVisible()
+  await expect(page.getByText("support-triage", { exact: true })).toBeVisible()
+  await expect(page.getByText("email-reply", { exact: true })).toBeVisible()
+  await expect(page.getByText("Package exceeds the import limit")).toBeVisible()
+  await page.getByLabel("Namespace").fill("support")
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.locator('[data-slot="page-layout"]').evaluate((element) => element.scrollTo(0, 0))
+    await page.screenshot({
+      path: "../output/design-qa/skill-github-import.png",
+      fullPage: false,
+    })
+    if (process.env.DOCS_CAPTURE) {
+      await page.screenshot({
+        path: "../docs/public/images/product-guides/skill-github-import.png",
+        fullPage: false,
+      })
+    }
+    await page.emulateMedia({ colorScheme: "light" })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.screenshot({
+      path: "../output/design-qa/skill-github-import-mobile.png",
+      fullPage: false,
+    })
+    await page.emulateMedia({ colorScheme: "dark" })
+    await page.setViewportSize({ width: 1598, height: 910 })
+  }
+  await page.getByRole("button", { name: "Import 2 Skills" }).click()
+
+  await expect(page.getByText("1 Draft created", { exact: true })).toBeVisible()
+  await expect(page.getByText("1 not imported", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Open Draft/ })).toBeVisible()
+  expect(harness.githubPreviewBodies).toEqual([
+    expect.objectContaining({
+      repository: "acme/skills",
+      connectionKey: "private-app",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    }),
+  ])
+  expect(harness.githubImportBodies[0]).toMatchObject({
+    source: {
+      repository: "acme/skills",
+      revision: "a".repeat(40),
+      connectionKey: "private-app",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+    },
+    namespace: "support",
+    paths: ["skills/support-triage/SKILL.md", "skills/email-reply/SKILL.md"],
+  })
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 async function assetHarness(
   page: Page,
   actor: "owner" | "support",
@@ -457,6 +530,8 @@ async function assetHarness(
   const skillImportQueries: Array<Record<string, string | null>> = []
   const skillImportContentTypes: string[] = []
   const skillImportCsrfTokens: Array<string | undefined> = []
+  const githubPreviewBodies: Array<Record<string, unknown>> = []
+  const githubImportBodies: Array<Record<string, unknown>> = []
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
@@ -504,6 +579,68 @@ async function assetHarness(
           departmentId: DEPARTMENT_ID,
         },
       ])
+      return
+    }
+    if (request.method() === "GET" && url.pathname === "/api/assets/skills/github/connections") {
+      if (url.searchParams.get("knowledgeSpaceId") !== "88888888-8888-4888-8888-888888888802") {
+        harness.unexpectedRequests.push(signature)
+        await json(route, { message: "Missing authorized Knowledge Space" }, 400)
+        return
+      }
+      await json(route, [{ key: "private-app" }])
+      return
+    }
+    if (request.method() === "POST" && url.pathname === "/api/assets/skills/github/preview") {
+      githubPreviewBodies.push(request.postDataJSON())
+      await json(route, {
+        repository: "acme/skills",
+        revision: "a".repeat(40),
+        visibility: "PRIVATE",
+        skills: [
+          {
+            path: "skills/support-triage/SKILL.md",
+            importable: true,
+            name: "support-triage",
+            description: "Triage support requests.",
+            fileCount: 3,
+          },
+          {
+            path: "skills/email-reply/SKILL.md",
+            importable: true,
+            name: "email-reply",
+            description: "Draft customer replies.",
+            fileCount: 2,
+          },
+          {
+            path: "skills/large/SKILL.md",
+            importable: false,
+            errorCode: "skill.github-package-too-large",
+            errorMessage: "Package exceeds the import limit",
+          },
+        ],
+      })
+      return
+    }
+    if (request.method() === "POST" && url.pathname === "/api/assets/skills/github/import") {
+      githubImportBodies.push(request.postDataJSON())
+      await json(route, {
+        repository: "acme/skills",
+        revision: "a".repeat(40),
+        visibility: "PRIVATE",
+        skills: [
+          {
+            path: "skills/support-triage/SKILL.md",
+            imported: true,
+            asset: skillDraftAsset(false),
+          },
+          {
+            path: "skills/email-reply/SKILL.md",
+            imported: false,
+            errorCode: "asset.conflict",
+            errorMessage: "An Asset already uses this namespace and slug.",
+          },
+        ],
+      })
       return
     }
     if (
@@ -603,6 +740,8 @@ async function assetHarness(
     skillImportQueries,
     skillImportContentTypes,
     skillImportCsrfTokens,
+    githubPreviewBodies,
+    githubImportBodies,
   }
 }
 

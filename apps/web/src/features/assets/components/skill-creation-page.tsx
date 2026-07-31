@@ -35,9 +35,9 @@ const CREATION_METHODS = [
     title: "Import from GitHub",
     description: "Preview and import one or more Skills from a repository.",
     icon: GitFork,
-    tone: "bg-surface-subtle text-content-primary",
-    available: false,
-    to: undefined,
+    tone: "bg-status-info-surface text-status-info-content",
+    available: true,
+    to: "/assets/new/skill/github",
   },
 ] as const
 
