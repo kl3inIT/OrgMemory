@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.connector;
+package com.orgmemory.core.knowledge.acl;
 
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;

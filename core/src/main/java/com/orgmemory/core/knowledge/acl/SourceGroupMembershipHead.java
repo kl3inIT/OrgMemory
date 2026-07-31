@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 
 import com.orgmemory.core.shared.BaseEntity;
@@ -42,7 +40,7 @@ public class SourceGroupMembershipHead extends BaseEntity {
     }
 
     void advance(SourceGroupMembershipSnapshot snapshot, Instant activatedAt) {
-        if (snapshot.getCaptureStatus() != ConnectorCaptureStatus.COMPLETE) {
+        if (snapshot.getCaptureStatus() != SourceMembershipCaptureStatus.COMPLETE) {
             throw new IllegalArgumentException(
                     "only complete source group membership may become active");
         }

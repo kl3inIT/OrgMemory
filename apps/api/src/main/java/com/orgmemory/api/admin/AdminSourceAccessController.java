@@ -7,6 +7,7 @@ import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingStatus;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalView;
 
 import com.orgmemory.core.knowledge.connector.SourceConnectionView;
+import com.orgmemory.core.knowledge.connector.SourceConnectionAdminService;
 import com.orgmemory.core.knowledge.acl.SourceGroupView;
 import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 import com.orgmemory.core.organization.CurrentActor;
@@ -34,10 +35,15 @@ class AdminSourceAccessController {
 
     private final AdminAccessGuard guard;
     private final SourcePrincipalAdminService sourceAdmin;
+    private final SourceConnectionAdminService connectionAdmin;
 
-    AdminSourceAccessController(AdminAccessGuard guard, SourcePrincipalAdminService sourceAdmin) {
+    AdminSourceAccessController(
+            AdminAccessGuard guard,
+            SourcePrincipalAdminService sourceAdmin,
+            SourceConnectionAdminService connectionAdmin) {
         this.guard = guard;
         this.sourceAdmin = sourceAdmin;
+        this.connectionAdmin = connectionAdmin;
     }
 
     record AdminSourceConnectionResponse(
@@ -168,7 +174,7 @@ class AdminSourceAccessController {
     @Operation(operationId = "listAdminSourceConnections", summary = "List observed connections and their trust level")
     List<AdminSourceConnectionResponse> connections(Authentication authentication) {
         CurrentActor actor = guard.requireSourceManager(authentication);
-        return sourceAdmin.listConnections(actor.organizationId()).stream()
+        return connectionAdmin.listConnections(actor.organizationId()).stream()
                 .map(AdminSourceConnectionResponse::from)
                 .toList();
     }
@@ -178,7 +184,7 @@ class AdminSourceAccessController {
     AdminSourceConnectionResponse setIdentityTrust(
             @RequestBody IdentityTrustRequest request, Authentication authentication) {
         CurrentActor actor = guard.requireSourceManager(authentication);
-        return AdminSourceConnectionResponse.from(sourceAdmin.setIdentityTrust(
+        return AdminSourceConnectionResponse.from(connectionAdmin.setIdentityTrust(
                 actor.organizationId(),
                 request.sourceSystem(),
                 request.sourceConnectionKey(),

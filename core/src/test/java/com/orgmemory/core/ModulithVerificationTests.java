@@ -2,6 +2,7 @@ package com.orgmemory.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -50,6 +51,20 @@ class ModulithVerificationTests {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
 
         assertTrue(acl.isOpen());
+    }
+
+    @Test
+    void knowledgeAclDoesNotDependOnConnectorImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.acl");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.acl..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.connector..")
+                .check(classes);
     }
 
     @Test

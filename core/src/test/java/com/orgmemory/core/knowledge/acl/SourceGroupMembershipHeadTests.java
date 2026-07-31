@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,7 +19,7 @@ class SourceGroupMembershipHeadTests {
                 organizationId,
                 groupPrincipalId,
                 2,
-                ConnectorCaptureStatus.COMPLETE,
+                SourceMembershipCaptureStatus.COMPLETE,
                 null,
                 now);
         SourceGroupMembershipHead head = new SourceGroupMembershipHead(generationTwo, now);
@@ -36,7 +34,7 @@ class SourceGroupMembershipHeadTests {
                                 organizationId,
                                 groupPrincipalId,
                                 3,
-                                ConnectorCaptureStatus.INCOMPLETE,
+                                SourceMembershipCaptureStatus.INCOMPLETE,
                                 "UPSTREAM_PARTIAL",
                                 now.plusSeconds(2)),
                         now.plusSeconds(2)));
@@ -46,7 +44,7 @@ class SourceGroupMembershipHeadTests {
             UUID organizationId,
             UUID groupPrincipalId,
             long generation,
-            ConnectorCaptureStatus captureStatus,
+            SourceMembershipCaptureStatus captureStatus,
             String incompleteReason,
             Instant capturedAt) {
         return new SourceGroupMembershipSnapshot(

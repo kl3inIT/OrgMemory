@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge.connector;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution;
+
 
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
@@ -68,7 +70,7 @@ public class ConnectorIngestionService {
         ConnectorSourceProfile profile = validateEnvelope(batch);
 
         ConnectorIngestionContext ctx = ConnectorIngestionContext.from(batch, profile);
-        ConnectorIdentityResolution resolution =
+        SourcePrincipalResolution resolution =
                 perObjectTransaction.execute(status -> reconciler.resolveIdentities(ctx, batch));
         if (pendingComponents.contains(ConnectorSyncComponent.MEMBERSHIP)) {
             perObjectTransaction.executeWithoutResult(
