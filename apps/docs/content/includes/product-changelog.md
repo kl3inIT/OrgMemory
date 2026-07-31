@@ -1,6 +1,4 @@
-# OrgMemory changelog
-
-Product releases are assembled from reviewed entries under `.tegami/`.
+[//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)
 
 ## orgmemory@0.1.1
 

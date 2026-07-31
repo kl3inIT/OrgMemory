@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import com.orgmemory.core.authorization.AdministrativeTupleScope;
 import com.orgmemory.core.authorization.PermissionKey;
@@ -11,6 +11,7 @@ import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.DepartmentRepository;

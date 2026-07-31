@@ -2,6 +2,22 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "route": "/docs/changelog",
+      "content": "content/docs/changelog.mdx",
+      "area": "changelog",
+      "order": 10,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/vi/docs/changelog",
+      "content": "content/docs/changelog.vi.mdx",
+      "area": "changelog",
+      "order": 10,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
       "route": "/docs/getting-started",
       "content": "content/docs/getting-started/index.mdx",
       "area": "getting-started",

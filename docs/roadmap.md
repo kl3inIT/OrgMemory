@@ -38,6 +38,7 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Asset ownership navigation](increments/active/2026-07-31-asset-ownership-navigation/plan.md) | active | owner-scoped API, unified Assets layout, browser proof, review, and merge |
+| [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
 | [Production CI/CD and ZM runtime](increments/active/2026-07-25-production-cicd-zm/plan.md) | active | shared-PostgreSQL cutover, restore proof, end-to-end runtime and rollback gates |
@@ -93,10 +94,6 @@ implementation-active until their predecessor exit gates pass.
   interfaces backed by the existing `RestClient` configuration. Retain direct
   `RestClient` for streaming/uploads, runtime-dynamic requests, and
   provider-specific retry/error flows.
-- Refactor oversized Spring Modulith packages into cohesive internal
-  subpackages while preserving each logical module and public named interface.
-  Choose boundaries from actual responsibilities; do not create one Gradle
-  module or top-level Modulith module per class or Asset profile.
 - Add Storybook only when the reusable component catalog justifies a second
   preview/build surface.
 - Add authoring interaction libraries only with their owning workflows:

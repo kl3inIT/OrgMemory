@@ -110,7 +110,10 @@ Reference
 └── Known limitations
 ```
 
-Changelog is a global navigation link. Deployment & Operations becomes a root
+Changelog is a global navigation link. Its release history is generated from
+the canonical `release/CHANGELOG.md` into
+`content/includes/product-changelog.md`; do not copy or edit release entries in
+the English or Vietnamese page wrappers. Deployment & Operations becomes a root
 only after reviewed content and reader demand justify promotion. During the
 incremental migration, no temporary **Guides** root or placeholder page is
 published. Administration, Deployment, and Integration categories return only

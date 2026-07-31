@@ -1,9 +1,12 @@
 const IMPACTING_PATH =
   /^(?:(?:apps|build-logic|components|contracts|core|evaluation|gradle|infrastructure|integrations|patches)\/|\.github\/workflows\/|(?:\.dockerignore|\.gitleaks\.toml|build\.gradle\.kts|compose\.yaml|gradlew(?:\.bat)?|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|settings\.gradle\.kts)$)/;
 const ENTRY_PATH = /^\.tegami\/[a-z0-9][a-z0-9._-]*\.md$/;
+const VERSION_GENERATED_PATH = /^apps\/docs\/content\/includes\/product-changelog\.md$/;
 
 export function releaseRequirementFailure(changes, pullRequestBody) {
-  const impacting = changes.some(({ path }) => IMPACTING_PATH.test(path));
+  const impacting = changes.some(
+    ({ path }) => IMPACTING_PATH.test(path) && !VERSION_GENERATED_PATH.test(path),
+  );
   if (!impacting) return undefined;
   const addedEntry = changes.some(
     ({ status, path }) => /^(?:A|M)/.test(status) && ENTRY_PATH.test(path),

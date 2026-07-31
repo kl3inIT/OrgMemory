@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

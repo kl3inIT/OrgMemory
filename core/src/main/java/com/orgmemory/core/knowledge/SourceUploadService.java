@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStorageException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
