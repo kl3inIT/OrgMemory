@@ -28,8 +28,6 @@ public class AccessExplanationService {
      */
     private static final int MAXIMUM_DEPTH = 8;
 
-    private static final String LOCAL_POLICY_VERSION = "orgmemory-boundary-v1";
-
     private final RelationshipAuthorizationPort relationships;
     private final RelationshipExpansionPort expansion;
     private final Clock clock;
@@ -55,12 +53,14 @@ public class AccessExplanationService {
     private AuthorizationDecision decide(
             UUID organizationId, PrincipalRef principal, PermissionKey permission, ResourceRef resource) {
         if (!Objects.equals(organizationId, resource.organizationId())) {
-            return AuthorizationDecision.deny("ORGANIZATION_MISMATCH", LOCAL_POLICY_VERSION);
+            return AuthorizationDecision.deny(
+                    "ORGANIZATION_MISMATCH", EffectiveAuthorizationService.LOCAL_POLICY_VERSION);
         }
         try {
             return relationships.check(new RelationshipAuthorizationQuery(principal, permission, resource));
         } catch (RuntimeException exception) {
-            return AuthorizationDecision.indeterminate("AUTHORIZATION_ENGINE_UNAVAILABLE", LOCAL_POLICY_VERSION);
+            return AuthorizationDecision.indeterminate(
+                    "AUTHORIZATION_ENGINE_UNAVAILABLE", EffectiveAuthorizationService.LOCAL_POLICY_VERSION);
         }
     }
 

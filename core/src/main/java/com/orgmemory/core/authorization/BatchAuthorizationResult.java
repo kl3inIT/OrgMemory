@@ -1,5 +1,7 @@
 package com.orgmemory.core.authorization;
 
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,11 +43,4 @@ public record BatchAuthorizationResult(
         return outcome == AuthorizationQueryOutcome.RESOLVED;
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

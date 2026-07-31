@@ -1,8 +1,5 @@
 package com.orgmemory.core.assetregistry;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -57,13 +54,7 @@ class AssetPayloadDigester {
     }
 
     private static String sha256(String canonicalValue) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(canonicalValue.getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 is not available", impossible);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(canonicalValue);
     }
 
     record CanonicalAssetPayload(

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Framework-neutral LightRAG extraction orchestration.
@@ -30,6 +31,8 @@ import java.util.Objects;
  * endpoint validation.
  */
 public final class LightRagEntityRelationExtractor implements EntityRelationExtractor {
+
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private final ExtractionModel model;
     private final TextTokenizer tokenizer;
@@ -269,10 +272,11 @@ public final class LightRagEntityRelationExtractor implements EntityRelationExtr
     }
 
     private static String normalizeName(String value) {
-        return Normalizer.normalize(
+        return WHITESPACE
+                .matcher(Normalizer.normalize(
                         Objects.requireNonNull(value, "value"),
-                        Normalizer.Form.NFKC)
-                .replaceAll("\\s+", " ")
+                        Normalizer.Form.NFKC))
+                .replaceAll(" ")
                 .strip()
                 .toLowerCase(Locale.ROOT);
     }

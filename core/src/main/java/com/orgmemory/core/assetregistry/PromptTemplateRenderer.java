@@ -2,9 +2,6 @@ package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.shared.error.BusinessValidationException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -184,14 +181,8 @@ public class PromptTemplateRenderer {
     }
 
     private static String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(Objects.requireNonNull(value, "value")
-                            .getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 is not available", impossible);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(
+                Objects.requireNonNull(value, "value"));
     }
 
     public record RenderedTemplate(

@@ -67,26 +67,6 @@ class PackAssignment extends BaseEntity {
         completedAt = Objects.requireNonNull(timestamp, "timestamp");
     }
 
-    UUID getOrganizationId() {
-        return organizationId;
-    }
-
-    UUID getPackAssetId() {
-        return packAssetId;
-    }
-
-    UUID getPackReleaseId() {
-        return packReleaseId;
-    }
-
-    String getReleaseDigest() {
-        return releaseDigest;
-    }
-
-    UUID getActorUserId() {
-        return actorUserId;
-    }
-
     PackAssignmentStatus getStatus() {
         return status;
     }

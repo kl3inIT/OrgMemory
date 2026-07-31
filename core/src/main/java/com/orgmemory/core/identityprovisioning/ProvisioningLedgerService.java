@@ -1,5 +1,7 @@
 package com.orgmemory.core.identityprovisioning;
 
+import static com.orgmemory.core.shared.Texts.optionalText;
+
 import com.orgmemory.core.organization.UserProvisioningService;
 import java.time.Clock;
 import java.time.Instant;
@@ -269,10 +271,6 @@ public class ProvisioningLedgerService {
             throw new IllegalArgumentException(field + " is required");
         }
         return normalized.toLowerCase(java.util.Locale.ROOT);
-    }
-
-    private static String optionalText(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record ConnectionView(

@@ -16,7 +16,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -176,7 +175,7 @@ public final class LightRagQueryEngine {
     }
 
     /**
-     * Applies one final budget across permission-equivalent Knowledge Spaces.
+     * Applies one final budget across permission-equivalent projection namespaces.
      *
      * <p>The application shell calls this before closing and rechecking the
      * complete evidence set. Rendering the returned grounding again is
@@ -969,15 +968,6 @@ public final class LightRagQueryEngine {
                     chunk, origin, frequency, order, retrievalScore, score);
         }
 
-        private LightRagQueryResult.ChunkSignal signal() {
-            return new LightRagQueryResult.ChunkSignal(
-                    chunk.id(),
-                    origin,
-                    frequency,
-                    order,
-                    retrievalScore,
-                    rerankScore);
-        }
     }
 
     private record RerankOutcome(

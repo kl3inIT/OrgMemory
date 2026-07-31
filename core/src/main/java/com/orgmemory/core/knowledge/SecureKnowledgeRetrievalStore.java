@@ -4,7 +4,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -324,8 +323,6 @@ public class SecureKnowledgeRetrievalStore {
                 .addValue("organizationId", scope.organizationId())
                 .addValue("authorizedAssetIds", scope.authorizedAssetIds())
                 .addValue("authorizationModelId", scope.authorizationModelId())
-                .addValue("evaluatedAt", OffsetDateTime.ofInstant(scope.evaluatedAt(), java.time.ZoneOffset.UTC),
-                        Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("actorUserKey", scope.actorUserId().toString())
                 .addValue("actorUserId", scope.actorUserId(), Types.OTHER)
                 .addValue("actorDepartmentKey",

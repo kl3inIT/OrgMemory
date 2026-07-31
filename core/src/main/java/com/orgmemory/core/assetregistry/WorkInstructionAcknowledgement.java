@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -31,22 +30,6 @@ class WorkInstructionAcknowledgement extends BaseEntity {
     private Instant acknowledgedAt;
 
     protected WorkInstructionAcknowledgement() {
-    }
-
-    WorkInstructionAcknowledgement(
-            UUID organizationId,
-            UUID assetId,
-            UUID releaseId,
-            String releaseDigest,
-            UUID actorUserId,
-            Instant acknowledgedAt) {
-        super(UUID.randomUUID());
-        this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
-        this.assetId = Objects.requireNonNull(assetId, "assetId");
-        this.releaseId = Objects.requireNonNull(releaseId, "releaseId");
-        this.releaseDigest = Objects.requireNonNull(releaseDigest, "releaseDigest");
-        this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId");
-        this.acknowledgedAt = Objects.requireNonNull(acknowledgedAt, "acknowledgedAt");
     }
 
     Instant acknowledgedAt() {

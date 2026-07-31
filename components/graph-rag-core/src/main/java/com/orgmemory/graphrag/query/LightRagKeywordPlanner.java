@@ -85,7 +85,8 @@ public final class LightRagKeywordPlanner {
         if (!candidate.empty()) {
             return planning;
         }
-        if (normalizedQuery.length() < SHORT_QUERY_FALLBACK_LIMIT) {
+        if (trustedKeywords == null
+                && normalizedQuery.length() < SHORT_QUERY_FALLBACK_LIMIT) {
             return new PlanningResult(
                     new KeywordPlan(
                             List.of(),

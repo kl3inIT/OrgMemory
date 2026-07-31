@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.query;
 
+import static com.orgmemory.graphrag.validation.TextValidation.normalizeOptional;
+
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import java.time.Duration;
@@ -111,11 +113,4 @@ public record LightRagPreparedQuery(
         return normalized;
     }
 
-    private static String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.strip();
-        return normalized.isEmpty() ? null : normalized;
-    }
 }

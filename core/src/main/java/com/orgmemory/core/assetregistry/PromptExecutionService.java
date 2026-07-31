@@ -10,9 +10,6 @@ import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessConflictException;
 import com.orgmemory.core.shared.error.BusinessException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -366,12 +363,6 @@ public class PromptExecutionService {
     }
 
     private static String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 is not available", impossible);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(value);
     }
 }

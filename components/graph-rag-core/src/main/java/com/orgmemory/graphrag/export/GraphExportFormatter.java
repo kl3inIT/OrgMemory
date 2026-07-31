@@ -141,7 +141,18 @@ public final class GraphExportFormatter {
     }
 
     private static String csv(String value) {
-        return "\"" + value.replace("\"", "\"\"") + "\"";
+        String safe = startsSpreadsheetFormula(value) ? "'" + value : value;
+        return "\"" + safe.replace("\"", "\"\"") + "\"";
+    }
+
+    private static boolean startsSpreadsheetFormula(String value) {
+        if (value.isEmpty()) {
+            return false;
+        }
+        return switch (value.charAt(0)) {
+            case '=', '+', '-', '@', '\t', '\r' -> true;
+            default -> false;
+        };
     }
 
     private static String jsonEscape(String value) {

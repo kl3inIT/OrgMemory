@@ -1,5 +1,7 @@
 package com.orgmemory.core.identityprovisioning;
 
+import static com.orgmemory.core.shared.Texts.optionalText;
+
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -104,7 +106,4 @@ class ProvisioningEvent extends BaseEntity {
         return text;
     }
 
-    private static String optionalText(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
 }

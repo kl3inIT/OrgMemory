@@ -26,12 +26,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Converts chunk-local model references into deterministic canonical graph identity while
  * retaining descriptions and confidence on evidence-scoped contributions.
  */
 public final class GraphContributionAssembler {
+
+    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     public static final String MERGE_SEMANTICS_VERSION =
             "orgmemory-evidence-scoped-merge-v1";
@@ -215,8 +218,9 @@ public final class GraphContributionAssembler {
 
     private static String normalizeText(String value) {
         Objects.requireNonNull(value, "value");
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC)
-                .replaceAll("\\s+", " ")
+        String normalized = WHITESPACE
+                .matcher(Normalizer.normalize(value, Normalizer.Form.NFKC))
+                .replaceAll(" ")
                 .strip();
         if (normalized.isEmpty()) {
             throw new IllegalArgumentException("canonical graph text must not be blank");

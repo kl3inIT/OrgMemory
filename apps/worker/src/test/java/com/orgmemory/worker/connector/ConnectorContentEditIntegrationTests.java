@@ -9,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -114,6 +116,11 @@ class ConnectorContentEditIntegrationTests {
     private static final String INCIDENT_EDITED =
             "The database failover postmortem was withdrawn pending a legal confidentiality review.";
 
+    private static final String RETRY_OBJECT = "C-retry-msg";
+    private static final String RETRY_CHANNEL = "C-retry";
+    private static final String RETRY_CONTENT =
+            "The connector publication retry keeps its staged evidence blob available.";
+
     private static final String MODEL_ID = "model-1";
 
     @Container
@@ -198,6 +205,36 @@ class ConnectorContentEditIntegrationTests {
                 afterRetire.failures().getFirst().reason().contains("retired object"),
                 () -> "unexpected reason: " + afterRetire.failures().getFirst().reason());
         assertFalse(answers("confidentiality"), "the retired object stays out of retrieval");
+    }
+
+    @Test
+    void aFailedPublicationKeepsItsBlobAndResumesTheStagedRevision() throws Exception {
+        seedDirectory();
+        stubPorts();
+        when(embeddingModel.embed(anyList(), isNull(), any(TokenCountBatchingStrategy.class)))
+                .thenThrow(new IllegalStateException("embedding temporarily unavailable"))
+                .thenAnswer(invocation -> {
+                    List<Document> documents = invocation.getArgument(0);
+                    return documents.stream()
+                            .map(ignored -> new float[] {0.1F, 0.2F, 0.3F})
+                            .toList();
+                });
+        ConnectorCrawlBatch batch = crawl(
+                "cursor-retry-1", RETRY_OBJECT, RETRY_CHANNEL, RETRY_CONTENT, "rev-1");
+
+        ConnectorIngestionResult failed = connector.ingest(batch);
+
+        assertEquals(1, failed.failures().size());
+        assertEquals(1L, revisionCount(RETRY_OBJECT));
+        verify(objects, never()).delete(any());
+
+        ConnectorIngestionResult retried = connector.ingest(batch);
+
+        assertTrue(retried.failures().isEmpty(), retried::toString);
+        assertEquals(List.of(RETRY_OBJECT), retried.rematerialized(), retried::toString);
+        assertTrue(answers("staged evidence blob"));
+        assertEquals(1L, revisionCount(RETRY_OBJECT));
+        verify(objects, never()).delete(any());
     }
 
     private ConnectorCrawlBatch crawl(

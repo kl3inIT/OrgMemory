@@ -1,5 +1,7 @@
 package com.orgmemory.core.authorization;
 
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -36,14 +38,6 @@ public record RelationshipTuplePage(
 
     public boolean hasNextPage() {
         return continuationToken != null;
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     private static String blankToNull(String value) {

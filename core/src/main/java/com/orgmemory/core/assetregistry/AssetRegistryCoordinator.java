@@ -745,9 +745,7 @@ class AssetRegistryCoordinator {
         Instant now = Instant.now();
         availability.saveAndFlush(new AssetReleaseAvailabilityEvent(
                 release, next, requireReason(reason), actor.userId(), now));
-        if (next == AssetAvailability.DEPRECATED) {
-            asset.startSunsetting();
-        } else if (allReleasesWithdrawn(asset, releaseId)) {
+        if (next == AssetAvailability.WITHDRAWN && allReleasesWithdrawn(asset, releaseId)) {
             asset.retire();
         } else {
             asset.startSunsetting();

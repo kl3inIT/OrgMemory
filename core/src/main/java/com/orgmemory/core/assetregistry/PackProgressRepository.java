@@ -2,7 +2,6 @@ package com.orgmemory.core.assetregistry;
 
 import java.util.List;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,9 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface PackProgressRepository extends JpaRepository<PackProgress, UUID> {
-
-    Optional<PackProgress> findByOrganizationIdAndAssignmentIdAndItemKey(
-            UUID organizationId, UUID assignmentId, String itemKey);
 
     List<PackProgress> findByOrganizationIdAndAssignmentIdOrderByItemKey(
             UUID organizationId, UUID assignmentId);

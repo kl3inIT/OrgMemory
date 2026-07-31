@@ -103,10 +103,8 @@ public class KnowledgeGraphExplorerService {
                     policyVersion,
                     "NO_AUTHORIZED_GRAPH_EVIDENCE");
         }
-        ProjectionNamespace namespace = new ProjectionNamespace(
-                actor.organizationId(),
-                "default",
-                knowledgeSpaceId.toString());
+        ProjectionNamespace namespace = KnowledgeProjectionNamespaces.forSpace(
+                actor.organizationId(), knowledgeSpaceId);
         GraphExportDocument document = graphs.read(
                 initial.forKnowledgeSpace(knowledgeSpaceId),
                 namespace);

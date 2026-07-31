@@ -10,7 +10,6 @@ import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,14 +45,13 @@ public final class StoreBackedAuthorizedQueryProjection
         List<VectorIndex.VectorHit> hits =
                 vectorHits(scope, snapshot, search, VectorIndex.VectorKind.ENTITY, Set.of());
         Map<UUID, Double> scores = subjectScores(hits);
-        return graph.loadEntities(scope, snapshot, scores.keySet()).stream()
+        List<RankedItem<CanonicalEntity>> candidates = graph.loadEntities(scope, snapshot, scores.keySet()).stream()
                 .map(entity -> new RankedItem<>(
                         entity.id().toString(),
                         entity,
                         scores.get(entity.id())))
-                .sorted(rankedOrder())
-                .limit(search.limit())
                 .toList();
+        return DeterministicRanker.rank(candidates, search.limit());
     }
 
     @Override
@@ -64,14 +62,13 @@ public final class StoreBackedAuthorizedQueryProjection
         List<VectorIndex.VectorHit> hits =
                 vectorHits(scope, snapshot, search, VectorIndex.VectorKind.RELATION, Set.of());
         Map<UUID, Double> scores = subjectScores(hits);
-        return graph.loadRelations(scope, snapshot, scores.keySet()).stream()
+        List<RankedItem<CanonicalRelation>> candidates = graph.loadRelations(scope, snapshot, scores.keySet()).stream()
                 .map(relation -> new RankedItem<>(
                         relation.id().toString(),
                         relation,
                         scores.get(relation.id())))
-                .sorted(rankedOrder())
-                .limit(search.limit())
                 .toList();
+        return DeterministicRanker.rank(candidates, search.limit());
     }
 
     @Override
@@ -202,15 +199,15 @@ public final class StoreBackedAuthorizedQueryProjection
                 VectorIndex.VectorHit::similarity,
                 Math::max,
                 LinkedHashMap::new));
-        return content.get(scope, snapshot, scores.keySet()).stream()
+        List<RankedItem<Chunk>> candidates = content.get(scope, snapshot, scores.keySet()).stream()
                 .filter(record -> record.kind() == ContentStore.ContentKind.CHUNK)
                 .filter(record -> scores.containsKey(record.id()))
                 .map(record -> new RankedItem<>(
                         record.id(),
                         chunk(record),
                         scores.get(record.id())))
-                .sorted(rankedOrder())
                 .toList();
+        return DeterministicRanker.rank(candidates, hits.size());
     }
 
     static Chunk chunk(ContentStore.ContentRecord record) {
@@ -232,10 +229,4 @@ public final class StoreBackedAuthorizedQueryProjection
                 LinkedHashMap::new));
     }
 
-    private static <T> Comparator<RankedItem<T>> rankedOrder() {
-        return Comparator
-                .comparingDouble((RankedItem<T> item) -> item.score())
-                .reversed()
-                .thenComparing(RankedItem::stableKey);
-    }
 }

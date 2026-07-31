@@ -15,4 +15,12 @@ public final class TextValidation {
         }
         return normalized;
     }
+
+    public static String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.strip();
+        return normalized.isEmpty() ? null : normalized;
+    }
 }

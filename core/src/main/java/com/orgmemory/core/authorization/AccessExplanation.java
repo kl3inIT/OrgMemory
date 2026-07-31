@@ -1,5 +1,7 @@
 package com.orgmemory.core.authorization;
 
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -37,11 +39,4 @@ public record AccessExplanation(
         }
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

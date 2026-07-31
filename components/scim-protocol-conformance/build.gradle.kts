@@ -28,7 +28,9 @@ tasks.register("verifyPingCandidateSurface") {
             .map { it.name }
             .sorted()
         val forbidden = modules.filter {
-            it.startsWith("jackson-databind-2.") ||
+            (it.startsWith("jackson-") &&
+                !it.startsWith("jackson-annotations-") &&
+                Regex("-2\\.[0-9]").containsMatchIn(it)) ||
                 it.startsWith("javax.ws.rs-api-") ||
                 it.startsWith("jakarta.ws.rs-api-") ||
                 it.startsWith("jersey-") ||

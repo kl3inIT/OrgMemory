@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.asset;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
 
 import com.orgmemory.core.authorization.PermissionKey;
+import com.orgmemory.core.knowledge.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -26,7 +27,6 @@ public class KnowledgeAssetLifecycleService {
     private static final String RESOURCE_TYPE = "knowledge_asset";
 
     private final KnowledgeAssetRepository assets;
-    private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeIngestionService ingestion;
     private final RelationshipAuthorizationPort authorization;
     private final ModelInvocationCache modelCache;
@@ -34,13 +34,11 @@ public class KnowledgeAssetLifecycleService {
 
     KnowledgeAssetLifecycleService(
             KnowledgeAssetRepository assets,
-            KnowledgeAssetVersionRepository versions,
             KnowledgeIngestionService ingestion,
             RelationshipAuthorizationPort authorization,
             ModelInvocationCache modelCache,
             RetrievalResultCache retrievalCache) {
         this.assets = assets;
-        this.versions = versions;
         this.ingestion = ingestion;
         this.authorization = authorization;
         this.modelCache = modelCache;
@@ -67,18 +65,11 @@ public class KnowledgeAssetLifecycleService {
             throw new IllegalStateException(
                     "Knowledge Asset has no active version");
         }
-        KnowledgeAssetVersion current = versions
-                .findByIdAndOrganizationId(
-                        currentVersionId, actor.organizationId())
-                .orElseThrow(() -> new IllegalStateException(
-                        "Knowledge Asset version is missing"));
         KnowledgeAssetRef retired =
                 ingestion.retire(actor.organizationId(), knowledgeAssetId);
         invalidate(
-                new ProjectionNamespace(
-                        actor.organizationId(),
-                        "default",
-                        asset.getKnowledgeSpaceId().toString()));
+                KnowledgeProjectionNamespaces.forSpace(
+                        actor.organizationId(), asset.getKnowledgeSpaceId()));
         return retired;
     }
 
