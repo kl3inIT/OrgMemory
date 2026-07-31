@@ -1,6 +1,7 @@
 export const PERMISSION_LABELS: Record<string, string> = {
   can_manage_members: "Administer the organization",
   can_manage_sources: "Manage connected sources",
+  can_manage_ai: "Manage AI models",
   can_create_knowledge_space: "Create knowledge spaces",
   can_search_knowledge: "Search knowledge",
   can_view_directory: "View the directory",

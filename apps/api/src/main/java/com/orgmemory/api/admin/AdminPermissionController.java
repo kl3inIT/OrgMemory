@@ -45,6 +45,7 @@ class AdminPermissionController {
     private static final List<PermissionKey> ORGANIZATION_PERMISSIONS = List.of(
             PermissionKey.of("can_manage_members"),
             PermissionKey.of("can_manage_sources"),
+            PermissionKey.of("can_manage_ai"),
             PermissionKey.of("can_create_knowledge_space"),
             PermissionKey.of("can_search_knowledge"),
             PermissionKey.of("can_view_directory"),
