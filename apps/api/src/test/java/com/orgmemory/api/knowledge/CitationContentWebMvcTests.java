@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.orgmemory.api.ApiExceptionHandler;
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.CitationContentService;
-import com.orgmemory.core.knowledge.CitationNotFoundException;
+import com.orgmemory.core.knowledge.retrieval.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.CitationNotFoundException;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;

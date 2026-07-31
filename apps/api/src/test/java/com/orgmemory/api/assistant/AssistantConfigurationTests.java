@@ -6,8 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
-import com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
 import java.time.Duration;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;

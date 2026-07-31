@@ -6,7 +6,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashSet;

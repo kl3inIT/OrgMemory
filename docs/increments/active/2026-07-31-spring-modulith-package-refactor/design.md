@@ -150,6 +150,14 @@ the exact consumers and exact internal retrieval types they use, making that
 temporary migration surface explicit until retrieval owns its runtime half and
 can expose a smaller intentional interface.
 
+The second retrieval pull request moves authorized hybrid search, canonical
+authorization rechecks, evidence-scope resolution, catalog federation,
+citation streaming, GraphRAG result assembly, retrieval policy/configuration,
+and PostgreSQL-backed retrieval into the same nested module. The structural
+guard is refreshed to the complete runtime boundary. The module stays open
+until the later Knowledge closing phase replaces its broad sibling consumers
+with intentional interfaces and declares bounded dependencies.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

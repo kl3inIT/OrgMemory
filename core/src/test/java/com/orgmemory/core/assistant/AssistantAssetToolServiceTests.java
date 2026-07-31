@@ -21,7 +21,7 @@ import com.orgmemory.core.assetregistry.PromptExecutionService;
 import com.orgmemory.core.assetregistry.PromptRunResult;
 import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
-import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;

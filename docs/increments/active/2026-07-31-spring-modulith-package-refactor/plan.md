@@ -167,7 +167,7 @@ repository-wide `clean test` completed successfully in 6m26s across 99 tasks.
 PR #190 merged as `7a970969ff51e25f5db75a9619fddad64198f4bb` after all
 required CI checks and the CodeRabbit review passed.
 
-## Current Pull Request Gates
+## Eighth Pull Request Evidence
 
 - Query embedding contracts, embedding profiles and registry, projection
   namespaces, and embedding configuration form the first half of the open
@@ -190,3 +190,30 @@ contains 55 changed paths.
 After merging current `origin/main` at `95b71730`, a second repository-wide
 `clean test` completed successfully in 6m22s across 99 tasks; the PR diff
 remained 55 changed files.
+
+PR #193 merged as `1535aa1338c22283816c1da9dd847102b8750bb4` after all
+required CI checks passed. CodeRabbit's one actionable Markdown heading
+finding was fixed and its review thread resolved before merge.
+
+## Current Pull Request Gates
+
+- Authorized hybrid search, canonical authorization rechecks, evidence-scope
+  resolution, catalog federation, citation streaming, GraphRAG result
+  assembly, retrieval policy/configuration, and persistence join the existing
+  open `knowledge.retrieval` nested module.
+- Production and test code compile under the new fully qualified names without
+  widening package-private implementation details.
+- The structural allowlist pins the complete runtime boundary's exact core
+  consumers and exposed internal retrieval types.
+- Focused retrieval, Assistant, graph, source-ledger, API, worker, and Modulith
+  tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before Knowledge boundary closing starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused retrieval and Modulith tests passed; affected API and worker
+integration tests passed; `:core:test` passed; and the terminating
+repository-wide `clean test` completed successfully in 6m18s across 108 tasks.
+The docs operating-model, release contract, and mechanical source checks
+passed. The pre-stage worktree contains 94 changed paths.

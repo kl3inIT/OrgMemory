@@ -1,6 +1,6 @@
 package com.orgmemory.core.assistant;
 
-import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence;
 
 /**
  * One prompt-scoped citation whose number is assigned by the server when the
