@@ -153,7 +153,14 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 }) => {
   const harness = await assetHarness(page, "support", catalogRecommendations())
 
-  await page.setViewportSize({ width: 1536, height: 1024 })
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.emulateMedia({ colorScheme: "dark" })
+  }
+  await page.setViewportSize(
+    process.env.DESIGN_QA_CAPTURE
+      ? { width: 1257, height: 723 }
+      : { width: 1536, height: 1024 },
+  )
   await page.goto("/assets")
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
@@ -169,9 +176,26 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
 
   const searchBox = await page.locator('[data-slot="input-group"]').first().boundingBox()
   const scopeTabs = await page.getByRole("tablist", { name: "Asset scope" }).boundingBox()
+  const pageHeader = await page.locator('[data-slot="page-header"]').boundingBox()
+  const filterCluster = await page.locator('[data-slot="filter-bar-filters"]').boundingBox()
+  const trailingControls = await page.locator('[data-slot="filter-bar-trailing"]').boundingBox()
   expect(searchBox).not.toBeNull()
   expect(scopeTabs).not.toBeNull()
+  expect(pageHeader).not.toBeNull()
+  expect(filterCluster).not.toBeNull()
+  expect(trailingControls).not.toBeNull()
   expect(Math.abs(searchBox!.y - scopeTabs!.y)).toBeLessThanOrEqual(2)
+  expect(scopeTabs!.width).toBeLessThanOrEqual(320)
+  expect(trailingControls!.x).toBeGreaterThan(filterCluster!.x + filterCluster!.width)
+  expect(
+    Math.abs(
+      trailingControls!.x + trailingControls!.width - (pageHeader!.x + pageHeader!.width),
+    ),
+  ).toBeLessThanOrEqual(2)
+  await expect(page.getByRole("button", { name: "Grid view" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
 
   await page.goto("/assets?page=2")
   await page.getByRole("tab", { name: "My Assets" }).click()
@@ -199,9 +223,9 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.getByRole("option", { name: "All types" }).click()
   await expect(page.getByRole("listbox")).toBeHidden()
   if (process.env.DESIGN_QA_CAPTURE) {
-    await page.screenshot({
-      path: "../output/design-qa/asset-catalog-mine.png",
-      fullPage: false,
+    await page.locator('[data-slot="page-header"]').click({ position: { x: 1, y: 1 } })
+    await page.locator('[data-slot="page-layout"]').screenshot({
+      path: "../output/design-qa/asset-layout-balance-implementation.png",
     })
   }
   await page.getByRole("tab", { name: "All Assets" }).click()
