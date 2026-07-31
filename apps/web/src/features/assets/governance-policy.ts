@@ -17,6 +17,17 @@ export function initialGovernanceTab(asset: AssetView): GovernanceTab {
   return "changes"
 }
 
+export function canPublishSkillDirectly(
+  asset: AssetView,
+  actions: AssetGovernanceActions | undefined,
+): boolean {
+  return Boolean(
+    asset.type === "SKILL" &&
+      actions?.canPublishSkill &&
+      !asset.reviews?.some((review) => review.state === "IN_REVIEW"),
+  )
+}
+
 export function canDecideReview(
   review: Review,
   revisions: Revision[],
@@ -29,4 +40,3 @@ export function canDecideReview(
   const revision = revisions.find((candidate) => candidate.id === review.revisionId)
   return Boolean(revision?.createdByUserId && revision.createdByUserId !== currentUserId)
 }
-

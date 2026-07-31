@@ -3,6 +3,8 @@ package com.orgmemory.core.assetregistry;
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Locale;
@@ -31,6 +33,10 @@ class AssetRelease extends BaseEntity {
 
     @Column(name = "version_label", nullable = false, length = 64, updatable = false)
     private String versionLabel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "publication_mode", nullable = false, length = 16, updatable = false)
+    private AssetPublicationMode publicationMode;
 
     @Column(nullable = false, length = 256, updatable = false)
     private String title;
@@ -63,6 +69,7 @@ class AssetRelease extends BaseEntity {
             AssetRevision revision,
             long sequence,
             String versionLabel,
+            AssetPublicationMode publicationMode,
             UUID releasedByUserId,
             Instant releasedAt) {
         super(UUID.randomUUID());
@@ -74,6 +81,8 @@ class AssetRelease extends BaseEntity {
         this.revisionId = revision.getId();
         this.sequence = sequence;
         this.versionLabel = validateVersionLabel(versionLabel);
+        this.publicationMode =
+                Objects.requireNonNull(publicationMode, "publicationMode");
         this.title = revision.getTitle();
         this.summary = revision.getSummary();
         this.classification = revision.getClassification();
@@ -102,6 +111,10 @@ class AssetRelease extends BaseEntity {
 
     String getVersionLabel() {
         return versionLabel;
+    }
+
+    AssetPublicationMode getPublicationMode() {
+        return publicationMode;
     }
 
     String getTitle() {

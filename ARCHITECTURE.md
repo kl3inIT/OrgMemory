@@ -115,8 +115,10 @@ review decisions, immutable releases, append-only availability history, and
 actor-scoped consumption evidence. Prompt Template, Work Instruction,
 Capability Pack, and Skill Package are code-owned profiles over this common
 kernel. A Skill import validates one bounded Agent Skills ZIP before its
-original bytes enter object storage; immutable revision and release references
-pin the exact object key and SHA-256. Existing
+original bytes enter object storage. An owner-class actor may publish that
+Draft directly into an immutable Revision and Release; the optional reviewed
+path remains available, and every release records `DIRECT` or `REVIEWED`
+provenance. Both paths pin the exact object key and SHA-256. Existing
 Knowledge remains in its canonical ledger and is federated by exact visible
 version; it is not copied into registry tables.
 

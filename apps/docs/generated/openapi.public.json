@@ -1450,6 +1450,48 @@
         }
       }
     },
+    "/api/assets/{assetId}/skill-releases": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Publish a Skill draft as an immutable release",
+        "operationId": "publishSkillRelease",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishSkillReleaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/role-assignments": {
       "post": {
         "tags": [
@@ -5076,6 +5118,13 @@
           "versionLabel": {
             "type": "string"
           },
+          "publicationMode": {
+            "type": "string",
+            "enum": [
+              "REVIEWED",
+              "DIRECT"
+            ]
+          },
           "title": {
             "type": "string"
           },
@@ -6500,6 +6549,14 @@
         "type": "object",
         "properties": {
           "changeNote": {
+            "type": "string"
+          }
+        }
+      },
+      "PublishSkillReleaseRequest": {
+        "type": "object",
+        "properties": {
+          "versionLabel": {
             "type": "string"
           }
         }
@@ -8051,6 +8108,13 @@
           "version": {
             "type": "string"
           },
+          "publicationMode": {
+            "type": "string",
+            "enum": [
+              "REVIEWED",
+              "DIRECT"
+            ]
+          },
           "title": {
             "type": "string"
           },
@@ -8168,6 +8232,9 @@
           "canPublish": {
             "type": "boolean"
           },
+          "canPublishSkill": {
+            "type": "boolean"
+          },
           "canWithdraw": {
             "type": "boolean"
           }
@@ -8235,6 +8302,13 @@
           },
           "versionLabel": {
             "type": "string"
+          },
+          "publicationMode": {
+            "type": "string",
+            "enum": [
+              "REVIEWED",
+              "DIRECT"
+            ]
           },
           "title": {
             "type": "string"

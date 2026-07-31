@@ -135,6 +135,7 @@ class PromptExecutionServiceTests {
                 "support",
                 "triage",
                 "1.0.0",
+                AssetPublicationMode.REVIEWED,
                 "Triage",
                 "Triage a support ticket",
                 "INTERNAL",

@@ -58,6 +58,7 @@ class AssetValidationTests {
                         revision,
                         1,
                         "a".repeat(65),
+                        AssetPublicationMode.REVIEWED,
                         actorId,
                         Instant.parse("2026-07-25T00:00:00Z")));
     }

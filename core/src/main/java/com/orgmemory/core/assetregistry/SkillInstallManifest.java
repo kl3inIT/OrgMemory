@@ -17,6 +17,7 @@ public record SkillInstallManifest(
         String slug,
         String coordinate,
         String version,
+        AssetPublicationMode publicationMode,
         String title,
         String description,
         String releaseDigest,

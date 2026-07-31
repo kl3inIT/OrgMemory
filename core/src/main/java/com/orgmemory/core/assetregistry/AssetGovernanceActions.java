@@ -11,5 +11,6 @@ public record AssetGovernanceActions(
         boolean canSubmitReview,
         boolean canReview,
         boolean canPublish,
+        boolean canPublishSkill,
         boolean canWithdraw) {
 }

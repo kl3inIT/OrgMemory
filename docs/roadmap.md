@@ -44,6 +44,7 @@ The table is a delivery index, not a second description of current behavior.
 | [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
+| [Direct Skill sharing](increments/active/2026-07-31-skill-direct-sharing/plan.md) | active | merge the verified direct-publication path and prove the deployed migration and browser flow |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
