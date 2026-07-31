@@ -271,3 +271,7 @@ terminating repository-wide `clean test` completed successfully in 6m52s
 across 108 tasks. The docs operating-model, release contract, diff hygiene,
 and zero ACL-to-Connector import checks passed. The pre-stage worktree
 contains 31 changed paths.
+
+After merging current `origin/main` at `26c4f68f`, a second repository-wide
+`clean test` completed successfully in 4m26s across 99 tasks; the PR diff
+remained 31 changed files.
