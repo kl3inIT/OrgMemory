@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.graph.GraphIndexJobQueue;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -16,14 +14,14 @@ public class SourceIngestionCoordinator {
     private final SourceRevisionRepository revisions;
     private final SourceObjectRepository sources;
     private final EvidenceBlobRepository blobs;
-    private final GraphIndexJobQueue graphIndexJobs;
+    private final SourceGraphIndexPort graphIndexJobs;
 
     SourceIngestionCoordinator(
             SourceIngestionJobRepository jobs,
             SourceRevisionRepository revisions,
             SourceObjectRepository sources,
             EvidenceBlobRepository blobs,
-            GraphIndexJobQueue graphIndexJobs) {
+            SourceGraphIndexPort graphIndexJobs) {
         this.jobs = jobs;
         this.revisions = revisions;
         this.sources = sources;

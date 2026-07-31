@@ -368,7 +368,7 @@ PR #205 merged as `7b69132897a69324252e09effe108c063d254389` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Fifteenth Pull Request Evidence
 
 - The current source head view belongs to Source Ledger and exposes only the
   identity, ACL generation, and content revision needed by Connector.
@@ -387,3 +387,30 @@ focused Connector, Source Ledger, Worker, and Modulith tests passed;
 completed successfully in 4m56s across 108 tasks. The docs operating-model,
 release contract, diff hygiene, and zero Source Ledger-to-Connector import
 checks passed. The pre-stage worktree contains 8 changed paths.
+
+PR #206 merged as `0f0ebd4438c83257c2810d5ad2c3f1356a3b4f06` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns the graph-index scheduling port used after source
+  publication reaches READY.
+- Graph implements that port and keeps Asset validation, profile resolution,
+  idempotency-key construction, and durable queue persistence inside Graph.
+- Production and test code under `knowledge.sourceledger` have zero imports
+  from `knowledge.graph`; an ArchUnit rule prevents that edge returning.
+- The temporary Graph consumer allowlist shrinks to Connector alone.
+- Focused Source Ledger, Graph, Worker, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before Source Ledger's ACL boundary is addressed.
+
+Pre-PR verification completed: production and test compilation across Core,
+API, and Worker passed; focused Source Ledger pipeline, Graph lifecycle,
+Graph coordinator, and Modulith tests passed; `:core:test` passed; the docs
+operating-model check passed across 396 Markdown files and 8 mirrored domain
+pairs; all 37 release-policy tests passed; and the terminating repository
+`clean test` gate completed successfully in 4m55s across 108 tasks. Diff
+hygiene and the zero Source Ledger-to-Graph import check passed. The pre-stage
+worktree contains 7 changed paths.

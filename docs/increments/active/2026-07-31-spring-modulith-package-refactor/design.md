@@ -247,6 +247,18 @@ Renaming the operation to `findSourceHead` removes Connector terminology from
 the ledger API. An ArchUnit rule now makes any new Source Ledger-to-Connector
 dependency fail the build.
 
+## Sixth Cycle-Removal Slice
+
+Source Ledger no longer calls the Graph queue implementation directly. It
+publishes the stable source revision and Asset/version identities through an
+outbound scheduling port; Graph implements that port and retains active-version
+validation, processing-profile resolution, idempotency, and durable enqueue
+semantics.
+
+The port returns no Graph job type because Source Ledger does not consume the
+job identity. An ArchUnit rule now makes any new Source Ledger-to-Graph
+dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and
