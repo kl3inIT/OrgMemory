@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+import com.orgmemory.core.shared.error.BusinessConflictException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -25,7 +25,7 @@ class SourceGroupMembershipHeadTests {
         SourceGroupMembershipHead head = new SourceGroupMembershipHead(generationTwo, now);
 
         assertThrows(
-                KnowledgeIngestionConflictException.class,
+                BusinessConflictException.class,
                 () -> head.advance(generationTwo, now.plusSeconds(1)));
         assertThrows(
                 IllegalArgumentException.class,

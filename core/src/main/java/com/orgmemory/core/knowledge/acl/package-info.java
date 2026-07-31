@@ -1,9 +1,9 @@
 /**
  * Source ACL evidence, external principals, mappings, and sealed group memberships.
  *
- * <p>Connector ingestion now calls ACL-owned commands and queries, so this module no longer
- * depends on Connector. It remains open while its remaining source-ledger and retrieval seams
- * are replaced with explicit APIs.
+ * <p>Connector and Source Ledger now consume ACL-owned inputs, so this module no longer
+ * depends on either implementation. It remains open while its remaining retrieval seam is
+ * replaced with an explicit API.
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN)
