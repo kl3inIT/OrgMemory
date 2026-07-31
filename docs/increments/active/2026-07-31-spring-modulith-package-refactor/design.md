@@ -236,6 +236,17 @@ Promotion's organization check uses the same port, so Source Ledger does not
 duplicate Space repository policy. An ArchUnit rule now makes any new Source
 Ledger-to-Space dependency fail the build.
 
+## Fifth Cycle-Removal Slice
+
+The Source Ledger query for the current raw/ACL head no longer constructs a
+Connector-owned projection. The compact head view belongs to Source Ledger,
+whose repositories supply every field, while Connector consumes that view to
+choose between content registration and ACL rotation.
+
+Renaming the operation to `findSourceHead` removes Connector terminology from
+the ledger API. An ArchUnit rule now makes any new Source Ledger-to-Connector
+dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

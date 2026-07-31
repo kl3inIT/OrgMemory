@@ -14,7 +14,6 @@ import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
-import com.orgmemory.core.knowledge.connector.ConnectorHeadView;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
 import com.orgmemory.core.organization.DepartmentRepository;
@@ -499,7 +498,7 @@ public class KnowledgeIngestionService {
     }
 
     /** The current ACL head for a source object identity, if a generation has been sealed. */
-    public Optional<ConnectorHeadView> findConnectorHead(
+    public Optional<SourceHeadView> findSourceHead(
             UUID organizationId, String sourceSystem, String sourceConnectionKey, String externalObjectId) {
         return aclHeads
                 .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
@@ -507,7 +506,7 @@ public class KnowledgeIngestionService {
                         sourceSystem.trim(),
                         sourceConnectionKey.trim(),
                         externalObjectId.trim())
-                .map(head -> new ConnectorHeadView(
+                .map(head -> new SourceHeadView(
                         head.getCurrentRawSourceObjectId(),
                         head.getCurrentSnapshotId(),
                         head.getAclGeneration(),

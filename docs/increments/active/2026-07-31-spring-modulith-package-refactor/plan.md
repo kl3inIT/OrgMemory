@@ -340,7 +340,7 @@ PR #202 merged as `be73bf7e7d15bc65cf7d77dbc8e3b81f34764736` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Fourteenth Pull Request Evidence
 
 - Source Ledger owns the upload-target and organization-membership port plus
   the compact Space facts required to persist source provenance.
@@ -363,3 +363,27 @@ The pre-stage worktree contains 11 changed paths.
 After merging current `origin/main` at `9ff6f6d7`, a second repository-wide
 `clean test` completed successfully in 9s across 99 tasks with the shared
 build cache; the PR diff remained 11 changed files.
+
+PR #205 merged as `7b69132897a69324252e09effe108c063d254389` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- The current source head view belongs to Source Ledger and exposes only the
+  identity, ACL generation, and content revision needed by Connector.
+- Connector consumes `findSourceHead` without making Source Ledger return a
+  Connector-owned projection type.
+- Production and test code under `knowledge.sourceledger` have zero imports
+  from `knowledge.connector`; an ArchUnit rule prevents that edge returning.
+- Focused Connector, Source Ledger, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the Source Ledger-to-Graph seam is removed.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused Connector, Source Ledger, Worker, and Modulith tests passed;
+`:core:test` passed; and the terminating repository-wide `clean test`
+completed successfully in 4m56s across 108 tasks. The docs operating-model,
+release contract, diff hygiene, and zero Source Ledger-to-Connector import
+checks passed. The pre-stage worktree contains 8 changed paths.
