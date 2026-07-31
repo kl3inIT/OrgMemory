@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.acl;
 
 import java.time.Instant;
 import java.util.List;

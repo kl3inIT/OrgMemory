@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.SourceFailureMessage;
+import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
 
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.sourceledger;
 
 public final class SourceFailureMessage {
 

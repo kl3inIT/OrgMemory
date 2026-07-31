@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;

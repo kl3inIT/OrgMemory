@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,18 @@ class ModulithVerificationTests {
     @Test
     void modulesAreWellFormed() {
         modules.verify();
+    }
+
+    @Test
+    void knowledgeRootPackageContainsNoDomainTypes() {
+        var rootTypes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge")
+                .stream()
+                .filter(type -> type.getPackageName().equals("com.orgmemory.core.knowledge"))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(Set.of(), rootTypes);
     }
 
     @Test

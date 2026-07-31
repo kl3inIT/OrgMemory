@@ -5,7 +5,7 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft;
 import com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand;
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 
 
 import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
