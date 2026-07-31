@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
-
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.ExternalIdentity;
@@ -52,7 +50,7 @@ public class SourcePrincipalMappingService {
             SourcePrincipal principal,
             String idpIssuer,
             String idpSubject,
-            SourceIdentityTrust connectionTrust) {
+            boolean connectionVouchesForEmail) {
         if (principal.getKind() != SourcePrincipalKind.SOURCE_USER) {
             return Optional.empty();
         }
@@ -69,7 +67,8 @@ public class SourcePrincipalMappingService {
                 return byIdp;
             }
         }
-        if (hasText(principal.getObservedEmail()) && emailIsVouchedFor(principal, connectionTrust)) {
+        if (hasText(principal.getObservedEmail())
+                && emailIsVouchedFor(principal, connectionVouchesForEmail)) {
             return users.findByOrganizationIdAndEmailIgnoreCase(
                             principal.getOrganizationId(), principal.getObservedEmail())
                     .filter(AppUser::isActive)
@@ -90,8 +89,9 @@ public class SourcePrincipalMappingService {
      * not of any one user, which is why the decision lives on the connection. Absent both, the
      * principal stays unmapped and therefore denied.
      */
-    private static boolean emailIsVouchedFor(SourcePrincipal principal, SourceIdentityTrust connectionTrust) {
-        return principal.isSsoVerified() || connectionTrust == SourceIdentityTrust.SSO_VERIFIED;
+    private static boolean emailIsVouchedFor(
+            SourcePrincipal principal, boolean connectionVouchesForEmail) {
+        return principal.isSsoVerified() || connectionVouchesForEmail;
     }
 
     /** Records which of the two signals carried the bind, so the audit trail can be read back. */

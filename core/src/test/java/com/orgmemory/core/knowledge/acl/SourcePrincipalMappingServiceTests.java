@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -62,7 +60,7 @@ class SourcePrincipalMappingServiceTests {
         when(users.findById(IDP_USER_ID)).thenReturn(Optional.of(idpUser));
 
         Optional<SourcePrincipalMapping> mapping =
-                service.autoMap(principal, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED);
+                service.autoMap(principal, ISSUER, SUBJECT, false);
 
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.IDP_JOIN, mapping.get().getMethod());
@@ -78,7 +76,7 @@ class SourcePrincipalMappingServiceTests {
         when(users.findByOrganizationIdAndEmailIgnoreCase(ORGANIZATION_ID, EMAIL))
                 .thenReturn(Optional.of(emailUser));
 
-        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED).isEmpty());
+        assertTrue(service.autoMap(principal, null, null, false).isEmpty());
         verify(mappings, never()).save(any());
         verify(audit, never()).record(any());
     }
@@ -92,7 +90,7 @@ class SourcePrincipalMappingServiceTests {
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
 
         Optional<SourcePrincipalMapping> mapping =
-                service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED);
+                service.autoMap(principal, null, null, false);
 
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.SSO_EMAIL_JOIN, mapping.get().getMethod());
@@ -109,7 +107,7 @@ class SourcePrincipalMappingServiceTests {
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
 
         Optional<SourcePrincipalMapping> mapping =
-                service.autoMap(principal, null, null, SourceIdentityTrust.SSO_VERIFIED);
+                service.autoMap(principal, null, null, true);
 
         assertTrue(mapping.isPresent());
         assertEquals(SourcePrincipalMappingMethod.SSO_EMAIL_JOIN, mapping.get().getMethod());
@@ -120,7 +118,7 @@ class SourcePrincipalMappingServiceTests {
     void connectionTrustDoesNotInventAnEmailToJoinOn() {
         SourcePrincipal principal = userPrincipal(false, null);
 
-        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.SSO_VERIFIED).isEmpty());
+        assertTrue(service.autoMap(principal, null, null, true).isEmpty());
         verify(users, never()).findByOrganizationIdAndEmailIgnoreCase(any(), any());
         verify(mappings, never()).save(any());
     }
@@ -129,7 +127,7 @@ class SourcePrincipalMappingServiceTests {
     void unmappedWhenNoTierMatches() {
         SourcePrincipal principal = userPrincipal(false, EMAIL);
 
-        assertTrue(service.autoMap(principal, null, null, SourceIdentityTrust.UNTRUSTED).isEmpty());
+        assertTrue(service.autoMap(principal, null, null, false).isEmpty());
         verify(mappings, never()).save(any());
     }
 
@@ -141,7 +139,7 @@ class SourcePrincipalMappingServiceTests {
                 .thenReturn(Optional.of(new ExternalIdentity(IDP_USER_ID, ISSUER, SUBJECT)));
         when(users.findById(IDP_USER_ID)).thenReturn(Optional.of(idpUser));
 
-        assertTrue(service.autoMap(principal, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED).isEmpty());
+        assertTrue(service.autoMap(principal, ISSUER, SUBJECT, false).isEmpty());
         verify(mappings, never()).save(any());
     }
 
@@ -151,7 +149,7 @@ class SourcePrincipalMappingServiceTests {
                 PRINCIPAL_ID, ORGANIZATION_ID, "slack", "T1", "C1",
                 SourcePrincipalKind.SOURCE_GROUP, null, "general", false, Instant.now());
 
-        assertTrue(service.autoMap(group, ISSUER, SUBJECT, SourceIdentityTrust.UNTRUSTED).isEmpty());
+        assertTrue(service.autoMap(group, ISSUER, SUBJECT, false).isEmpty());
         assertThrows(BusinessValidationException.class,
                 () -> service.selfClaim(group, IDP_USER_ID, "claim"));
     }

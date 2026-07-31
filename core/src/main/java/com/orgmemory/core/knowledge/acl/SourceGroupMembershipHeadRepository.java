@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.ActiveGroupMembershipRow;
-
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +18,7 @@ public interface SourceGroupMembershipHeadRepository
             UUID groupPrincipalId);
 
     @Query("""
-            SELECT new com.orgmemory.core.knowledge.connector.ActiveGroupMembershipRow(
+            SELECT new com.orgmemory.core.knowledge.acl.ActiveGroupMembershipRow(
                 head.groupPrincipalId,
                 head.currentSnapshotId,
                 head.membershipGeneration,

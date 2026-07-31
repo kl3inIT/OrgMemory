@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,7 +28,7 @@ public class SourceGroupMembershipSnapshot extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "capture_status", nullable = false, length = 16, updatable = false)
-    private ConnectorCaptureStatus captureStatus;
+    private SourceMembershipCaptureStatus captureStatus;
 
     @Column(name = "incomplete_reason", length = 128, updatable = false)
     private String incompleteReason;
@@ -46,7 +44,7 @@ public class SourceGroupMembershipSnapshot extends BaseEntity {
             UUID syncRunId,
             UUID groupPrincipalId,
             long membershipGeneration,
-            ConnectorCaptureStatus captureStatus,
+            SourceMembershipCaptureStatus captureStatus,
             String incompleteReason,
             Instant capturedAt) {
         super(UUID.randomUUID());
@@ -71,7 +69,7 @@ public class SourceGroupMembershipSnapshot extends BaseEntity {
         return membershipGeneration;
     }
 
-    ConnectorCaptureStatus getCaptureStatus() {
+    SourceMembershipCaptureStatus getCaptureStatus() {
         return captureStatus;
     }
 }
