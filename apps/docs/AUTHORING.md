@@ -86,7 +86,6 @@ Architecture & Security
 ├── System context
 ├── Runtime components
 ├── Domain and data model
-├── Governed Asset lifecycle
 ├── Ingestion and indexing
 ├── Identity and authorization
 ├── Secure retrieval and GraphRAG
@@ -107,10 +106,9 @@ Reference
 
 Changelog is a global navigation link. Deployment & Operations becomes a root
 only after reviewed content and reader demand justify promotion. During the
-incremental migration, the existing **Guides** root keeps reviewed
-Administration, Deployment, and Integration pages at their stable URLs.
-Categories move only when their first replacement page is co-authored; no empty
-root or placeholder page is published.
+incremental migration, no temporary **Guides** root or placeholder page is
+published. Administration, Deployment, and Integration categories return only
+when their first replacement page is co-authored and reviewed.
 
 ## Authoring Queue
 
@@ -127,26 +125,25 @@ architecture available for readers who need the underlying model.
 | 5 | Search organizational knowledge | Product Guides | search contracts, UI, and tests | missing |
 | 6 | Ask with Assistant and verify citations | Product Guides | Assistant and citation contracts/tests | missing |
 | 7 | Explore the knowledge graph | Product Guides | graph viewer behavior and tests | missing |
-| 8 | Connect and synchronize a source | Administration | `guides/administration/sources-connections.mdx` | review and migrate |
-| 9 | Manage identities and permissions | Administration | `guides/administration/identity-permissions.mdx` | split, review, and migrate |
+| 8 | Connect and synchronize a source | Administration | connector contracts, ingestion code, and tests | rewrite from evidence |
+| 9 | Manage identities and permissions | Administration | identity, SCIM, and authorization specs/tests | rewrite from evidence |
 | 10 | Audit effective access | Administration | permission evidence specs/tests | missing |
-| 11 | Self-host Organizational AI Memory | Deployment & Operations | `guides/deployment-operations/self-hosting.mdx` | review and migrate |
+| 11 | Self-host Organizational AI Memory | Deployment & Operations | deployment configuration and runbooks | rewrite from evidence |
 | 12 | Configuration and secrets | Deployment & Operations | environment contracts/runbooks | missing |
 | 13 | Observability and health | Deployment & Operations | deployment and telemetry evidence | missing |
 | 14 | Backup, restore, upgrade, and rollback | Deployment & Operations | runbooks and release workflows | split later |
-| 15 | Connect an MCP client | Developers & Integrations | `guides/integrations/assistant-mcp.mdx` | split, review, and migrate |
+| 15 | Connect an MCP client | Developers & Integrations | MCP contracts and integration tests | rewrite from evidence |
 | 16 | Ingest through the API | Developers & Integrations | ingestion API contract | missing |
 | 17 | System context | Architecture & Security | `architecture-security/system-description.mdx` | review |
 | 18 | Domain and data model | Architecture & Security | domain specs and schema | missing |
-| 19 | Governed Asset lifecycle | Architecture & Security | `architecture-security/asset-lifecycle.mdx` | review |
-| 20 | Ingestion and indexing | Architecture & Security | `architecture-security/ingestion-lifecycle.mdx` | review |
-| 21 | Identity and authorization | Architecture & Security | `architecture-security/authorization.mdx` | review |
-| 22 | Secure retrieval and GraphRAG | Architecture & Security | `architecture-security/secure-retrieval-graphrag.mdx` | review |
-| 23 | Runtime components | Architecture & Security | system description and `ARCHITECTURE.md` | missing |
-| 24 | Trust boundaries and threat model | Architecture & Security | security decisions/specs | missing |
-| 25 | API overview, auth, and errors | Reference | authored API overview/auth pages | review |
-| 26 | API endpoint groups | Reference | generated OpenAPI pages | generated |
-| 27 | Configuration reference | Reference | committed environment contracts | missing |
+| 19 | Ingestion and indexing | Architecture & Security | `architecture-security/ingestion-lifecycle.mdx` | review |
+| 20 | Identity and authorization | Architecture & Security | `architecture-security/authorization.mdx` | review |
+| 21 | Secure retrieval and GraphRAG | Architecture & Security | `architecture-security/secure-retrieval-graphrag.mdx` | review |
+| 22 | Runtime components | Architecture & Security | system description and `ARCHITECTURE.md` | missing |
+| 23 | Trust boundaries and threat model | Architecture & Security | security decisions/specs | missing |
+| 24 | API overview, auth, and errors | Reference | authored API overview/auth pages | review |
+| 25 | API endpoint groups | Reference | generated OpenAPI pages | generated |
+| 26 | Configuration reference | Reference | committed environment contracts | missing |
 | 28 | Connector capability matrix | Reference | connector specs/tests | missing |
 | 29 | Roles and permissions matrix | Reference | OpenFGA model and domain specs | missing |
 | 30 | MCP tools and resources | Reference | MCP contracts/tests | missing |

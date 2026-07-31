@@ -7,43 +7,79 @@ audience:
   - evaluator
 status: public
 sourceRefs:
-  - docs/specs/domains/identity-and-organization.md
-  - docs/specs/domains/permission-evidence-and-audit.md
-  - docs/specs/domains/secure-retrieval.md
-  - docs/tests/domains/permission-evidence-and-audit.md
-  - docs/decisions/0009-dynamic-source-acl-ceiling.md
-lastReviewed: 2026-07-29
+  - core/src/main/java/com/orgmemory/core/organization/UserProvisioningService.java
+  - core/src/main/java/com/orgmemory/core/permission/KnowledgePermissionPolicy.java
+  - core/src/main/java/com/orgmemory/core/knowledge/CanonicalEvidenceAuthorizationService.java
+  - apps/api/src/main/java/com/orgmemory/api/scim/ScimSecurityConfiguration.java
+  - apps/mcp/src/main/java/com/orgmemory/mcp/McpSecurityConfiguration.java
+  - core/src/test/java/com/orgmemory/core/organization/UserProvisioningServiceTests.java
+  - core/src/test/java/com/orgmemory/core/knowledge/CanonicalEvidenceAuthorizationServiceTests.java
+  - apps/api/src/test/java/com/orgmemory/api/scim/ScimMachineSecurityIntegrationTests.java
+  - apps/mcp/src/test/java/com/orgmemory/mcp/McpApiAuthorizationTests.java
+lastReviewed: 2026-07-31
 ---
 
-Organizational AI Memory does not reduce access control to one role or one prefilter. A content
-read succeeds only when identity, tenant, relationships, source evidence,
-classification, lifecycle, and projection identity agree.
+Authentication proves who presented a credential. Authorization decides
+whether specific evidence may influence a response.
+
+Organizational AI Memory makes that decision as an intersection:
+
+`active actor ∩ organization ∩ OpenFGA relationship ∩ source permission ∩ classification ∩ current state`
+
+No administrator role, connector, MCP client, or search adapter can bypass a
+missing gate.
 
 <ArchitectureDiagram
-  alt="Authorization architecture with five mandatory gates: authenticate, bind identity, check OpenFGA relationships, apply canonical evidence, and audit before disclosure."
-  description="Authorization is an intersection, not a role hierarchy. Failure or ambiguity at any gate fails closed, and protected-object denial remains opaque."
-  height={941}
+  alt="Permission-aware authorization pipeline with five mandatory stages: authenticate, bind the canonical actor, resolve OpenFGA relationships, intersect source evidence and current state, then audit before disclosure."
+  description="SCIM provisioning and MCP are separate security planes, not authorization bypasses. Any missing, stale, denied, or ambiguous gate fails closed."
+  height={887}
   src="/images/architecture/authorization-layers.webp"
-  title="Layered authorization gates"
-  width={1672}
+  title="Permission-aware authorization"
+  width={1774}
 />
 
-## Authentication is not authorization
+## Request flow
 
-OIDC issuer and subject are the only automatic identity lookup key. A verified
-email may select exactly one open invitation during first sign-in, but the
-durable binding is still issuer/subject. Email, display name, identity-provider
-roles, and the local application role cannot grant organization or Knowledge
-access.
+Every protected content read passes the same five stages:
 
-Browser and bearer paths resolve the same server-derived actor. Unknown,
-inactive, stale, or ambiguous identity state fails closed.
+1. **Authenticate:** accept a browser session or a bearer token from the
+   configured identity boundary.
+2. **Bind the actor:** resolve an active application user, organization, and
+   department from the durable OIDC issuer/subject binding.
+3. **Resolve relationship scope:** ask OpenFGA which organizations, Knowledge
+   Spaces, and stable Assets are candidates under the active authorization
+   model.
+4. **Intersect canonical evidence:** apply source ACLs, source identity and
+   membership, classification, lifecycle, current version, and projection
+   state before ranking or disclosure.
+5. **Audit and disclose:** commit the permission decision, then return only
+   authorized evidence.
+
+Unknown, inactive, stale, or ambiguous state fails closed at the stage where it
+is discovered.
+
+## Identity binding
+
+After initial binding, the OIDC issuer/subject pair is the only automatic
+identity lookup key. Email, display name, and identity-provider roles do not
+grant organization or Knowledge access.
+
+During the first sign-in before a durable binding exists, an email claim marked
+verified by the identity provider may bootstrap that binding. The application
+first searches directory-managed users. Exactly one active directory match
+wins even when an invitation also exists. Only when there is no directory
+match may exactly one open invitation be used. Multiple matches within either
+category create no binding.
+
+Browser and bearer paths resolve the same server-derived actor. The caller
+cannot select an organization or department by changing token attributes.
 
 ## Relationship authorization
 
 OpenFGA relationships govern organization administration, Knowledge Spaces,
-stable Knowledge Assets, and registry Assets. The versioned model is exercised
-with allow, deny, list-object, and type-restriction tests.
+stable Knowledge Assets, and registry Assets. A request pins the authorization
+model ID used for its decision. A projection prepared under another model is
+stale and cannot be disclosed during a model rollout.
 
 An administrator can create a Knowledge Space and author supported grants, but
 cannot write arbitrary `knowledge_asset` tuples. Connected sources own the ACL
@@ -52,18 +88,26 @@ permissions to diverge.
 
 ## Source evidence and classification
 
-Canonical retrieval intersects:
+OpenFGA narrows the candidate set, but it is not the final content decision.
+Canonical retrieval also checks:
 
-1. organization and active actor;
-2. OpenFGA candidate Assets;
-3. immutable ingestion ACL;
-4. current sealed complete ACL head;
-5. source-principal mappings and current group membership;
-6. lifecycle, current version, source revision, model, and projection state;
-7. classification policy.
+- the ACL bound at ingestion for application-authored content;
+- the latest sealed, complete ACL generation for source-authored content;
+- current source-principal mappings and group membership;
+- organization, lifecycle, version, revision, model, and projection state;
+- classification policy.
 
-Control-plane roles and knowledge roles are separate. In particular, an Admin
-is not automatically an Executive.
+Here, `ORGMEMORY` means content whose ACL is authored in Organizational AI
+Memory. `SOURCE` means content whose ACL is imported from a connected source.
+
+Control-plane roles and knowledge roles remain separate. An Admin controls
+system configuration but is not automatically an Executive. The `EXECUTIVE`
+application role affects only the classification gate and never replaces an
+OpenFGA relationship or source permission.
+
+In this table, an ordinary knowledge role means an active employee without the
+`EXECUTIVE` application role. `Public` is the broadest authenticated
+classification inside the product; it does not mean anonymous internet access.
 
 | Classification | Ordinary knowledge roles | Executive |
 | --- | --- | --- |
@@ -72,29 +116,45 @@ is not automatically an Executive.
 | Confidential | Own department only | May cross departments when the other gates allow |
 | Restricted | Denied | Allowed when the other gates allow |
 
-## Opaque denial
+## Separate security planes
 
-Eligible callers receive the same generic not-found response for missing,
-changed, or unauthorized object identifiers. Citation content is served through
-an opaque API route that performs a fresh authorization and integrity check.
-Object-store addresses and denial reasons are not disclosed.
+### SCIM provisioning
 
-A caller missing the control-plane role is rejected at the request boundary;
-that is distinct from hiding whether a specific protected object exists.
+Directory provisioning uses a separate stateless SCIM filter chain with scoped
+user and group credentials and its own rate limits. Credentials prefixed with
+`omscim_` are rejected on the product API. They can provision directory state
+but cannot read Knowledge or act as a user or agent.
+
+### MCP for agents
+
+MCP is a separate OAuth2 resource server. It validates its own token audience,
+requires `assets:read` or `assets:write` at the route boundary, and applies
+per-caller and global rate limits. The gateway exchanges the caller token for
+the API audience and invokes the same API authorization path. It has no direct
+database or object-storage access.
+
+## Opaque denial and citations
+
+After request-boundary authentication, missing, changed, and unauthorized
+protected object IDs produce the same generic not-found response. Object-store
+addresses and internal denial reasons are not disclosed.
+
+Opening a citation is a new request. The API performs a fresh canonical access
+check, verifies the source revision and blob integrity, and only then streams
+the original bytes after its audit record commits. Missing or corrupt bytes
+produce the same opaque response as a denied citation.
+
+A caller missing a required control-plane role is rejected at the route
+boundary. That is distinct from hiding whether a particular protected object
+exists.
 
 ## Audit evidence
 
 Permission audit is append-only and commits independently of the surrounding
-business transaction. It stores actor, resource, operation, decision, reason,
-policy, request fingerprint, query fingerprint, and exact ACL snapshot IDs.
-Raw query text and unrestricted metadata are not stored.
+business transaction. It records actor, resource, operation, decision, reason,
+policy, request identifier, query fingerprint, and exact ACL snapshot IDs. Raw
+query text and unrestricted metadata are not stored.
 
 An audit attempt proves that a decision was recorded, not that the surrounding
-business transaction committed.
-
-<VerificationBlock title="Required evidence">
-  Negative tests prove tenant isolation, pre-ranking SQL authorization, stale
-  writer rejection, sealed evidence immutability, missing/denied opacity,
-  complete graph-closure recheck, and removal of denied evidence at the final
-  citation boundary.
-</VerificationBlock>
+business transaction committed. A protected read returns only after its audit
+record commits. If audit persistence fails, the read fails closed.

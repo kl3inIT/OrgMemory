@@ -34,13 +34,13 @@ The root pnpm workspace owns dependency installation and the lockfile.
 Turbopack is Next.js 16's default bundler; no explicit flag or Turborepo layer is
 required.
 
-The four root folders are the reader's high-level mode switcher: Getting
-Started, Guides, Architecture & Security, and Reference. Guides groups product,
-administration, deployment/operations, and integration procedures until one
-subgroup has enough reviewed content and reader demand to justify promotion.
-Their Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese
-route may inherit reviewed English content until its matching `.vi.mdx` is
-authored; the reader shows that fallback state explicitly.
+The current root folders are the reader's high-level mode switcher: Getting
+Started, Product Guides, Architecture & Security, and Reference.
+Administration, deployment/operations, and integration sections are not
+published until their first replacement pages are co-authored and reviewed.
+Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese route
+may inherit reviewed English content until its matching `.vi.mdx` is authored;
+the reader shows that fallback state explicitly.
 
 Each root also has a stable visual identity shared by English and Vietnamese.
 Localized metadata owns its label, description, and Lucide icon;

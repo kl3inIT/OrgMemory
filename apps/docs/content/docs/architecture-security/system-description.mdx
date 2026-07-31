@@ -16,11 +16,12 @@ sourceRefs:
 lastReviewed: 2026-07-31
 ---
 
-Organizational AI Memory is a set of services that you deploy on your own
-infrastructure: five services and a command-line client around four
-infrastructure dependencies. Content comes in through connectors and uploads.
-Every original byte is kept as immutable evidence, and people and AI agents
-only ever see what they are allowed to see.
+The Organizational AI Memory product runtime has four application services, a
+command-line client, and four infrastructure dependencies. It can run on
+self-managed infrastructure or use compatible managed services. Content comes
+in through connectors and uploads. Original bytes are stored as immutable
+revision evidence, and people and AI agents only ever see what they are allowed
+to see.
 
 This page describes what runs, how the services talk to each other, and where
 data and authority live. The lifecycle and authorization pages build on it.
@@ -28,77 +29,91 @@ data and authority live. The lifecycle and authorization pages build on it.
 ## System architecture
 
 <ArchitectureDiagram
-  alt="High-level Organizational AI Memory architecture: sources pass through ingestion into canonical governance, secure retrieval, and delivery, while actor authorization flows back into retrieval."
-  description="Sources contribute content and ACL evidence. The worker publishes governed projections, and every delivery surface sends the current actor and authorization scope back through secure retrieval."
+  alt="Organizational AI Memory architecture: browser users and AI agents enter through Nginx Proxy Manager and the web gateway; API and MCP requests converge on permission-aware retrieval; the worker ingests content into canonical storage and governed projections."
+  description="The edge proxy terminates public traffic. The web gateway serves the React client and routes application calls. The API authorizes synchronous requests, while the background worker captures source content and ACL evidence and publishes governed projections."
   height={887}
   src="/images/architecture/system-overview.webp"
   title="Organizational AI Memory system context"
   width={1774}
 />
 
-Note the arrow flowing right to left: every request carries the current user
-and their authorization scope back into retrieval, so authorization shapes the
-candidates rather than filtering them afterwards.
+The two Nginx layers have different jobs. Nginx Proxy Manager owns the public
+DNS and TLS boundary. The Nginx process in the web container serves the built
+React and Vite client and routes application traffic to the API or MCP gateway.
+API and MCP are not exposed directly.
 
 ## Core components
 
 ### Application layer
 
-- **`apps/web`** — React product shell for the Assistant, Assets, governance,
-  administration, and MCP connection setup. Knowledge search for agents is
-  delivered over MCP, not through the web app.
-- **`apps/api`** — Spring Boot REST server that handles business logic for
-  browser and bearer clients, publishes the OpenAPI contract, and is the only
-  service that runs database migrations.
-- **`apps/worker`** — background service that polls connectors, leases
-  ingestion jobs, parses and embeds content, and publishes the search and
-  graph projections.
-- **`apps/mcp`** — small stateless gateway that lets AI agents search
-  Knowledge and fetch Assets over MCP. It has no database or domain-model
-  access; it validates the caller's token and forwards the credential to the
-  API.
-- **`apps/cli`** — command-line client for connecting agents over MCP and for
+- **Edge reverse proxy:** Nginx Proxy Manager terminates public TLS and routes
+  the product and identity-provider hostnames into the private deployment
+  network. It is deployment infrastructure, not a product service.
+- **Web gateway and frontend client:** An unprivileged Nginx process serves the
+  built React and Vite application and routes same-origin calls to the API and
+  MCP gateway. The client provides the Assistant, governed Assets, source
+  administration, knowledge graph exploration, and MCP connection setup.
+- **API server:** Spring Boot service handling product business logic, browser
+  sessions, bearer-token requests, the public REST contract, and database
+  migrations.
+- **Background worker:** Spring Boot service polling connectors, leasing
+  ingestion and graph-indexing jobs, parsing and embedding content, and
+  publishing search and graph projections.
+- **MCP gateway:** Stateless Spring Boot resource server allowing AI agents to
+  search Knowledge and retrieve governed Assets. It validates the caller's
+  token and forwards that credential to the API; it has no direct database or
+  object-storage access.
+- **Command-line client:** OAuth-enabled client connecting agents to MCP and
   validating, publishing, and installing Skill packages.
-- **`apps/docs`** — this documentation site. It is fully independent and never
-  reads product databases.
 
-The API and worker share the `core` domain model. Core depends on no
-deployable application or provider integration.
+The API server and background worker share one application and domain model.
+The domain does not depend on a deployable service or provider integration.
 
-### AI layer
+A Knowledge Asset is governed source content used in retrieval. A registry
+Asset is a separately versioned package, such as a Skill, delivered through the
+Assets registry.
 
-Administrators configure model gateways per workload: Assistant chat, graph
-extraction, keyword planning, and document embeddings. The shipped adapters
-speak the OpenAI-compatible and Anthropic Messages protocols through Spring
-AI. Model output is never trusted — extraction is validated before
-publication, and retrieval evidence is authorized before it enters a prompt.
+The documentation portal is a separate Next.js and Fumadocs deployment. It is
+not part of the product runtime shown above and never reads product databases.
 
-The default retrieval engine is GraphRAG with a server-owned plan that mixes
-entity, relation, and chunk evidence. Clients cannot pick a strategy, widen
-scope, or renumber citations. Reranking ships disabled and requires a named
-adapter to enable.
+### Model and retrieval layer
+
+- **Model gateways:** Provider-neutral adapters route Assistant chat, graph
+  extraction, keyword planning, and document embeddings to configured AI
+  providers. The shipped adapters support OpenAI-compatible and Anthropic
+  Messages protocols through Spring AI.
+- **Permission-aware retrieval:** The default GraphRAG engine mixes entity,
+  relation, and chunk evidence under a server-owned plan. A separate canonical
+  hybrid engine provides full-text and vector retrieval.
+
+Model output is untrusted. Extraction is validated before publication, and
+retrieval evidence is authorized before it enters a prompt. Clients cannot pick
+a retrieval strategy, widen scope, or renumber citations. Reranking ships
+disabled and requires a named adapter to enable.
 
 ### Data layer
 
-- **PostgreSQL 18** — the source of truth: identity, source and Asset
-  ledgers, immutable versions, sealed ACL generations, jobs, publication
-  heads, audit trail, vectors, and graph contributions.
-- **Object storage (MinIO)** — original file bytes and Skill packages,
-  streamed only through authenticated application routes. There are no
-  presigned URLs.
+- **Relational database:** PostgreSQL 18 is the source of truth for identity,
+  source and Asset ledgers, immutable versions, sealed ACL generations, jobs,
+  publication heads, audit records, vectors, and graph contributions.
+- **Object storage:** MinIO stores original source bytes and Skill packages.
+  The API streams them through authenticated application routes; clients never
+  receive presigned object-store URLs.
 
 Full-text, vector, and graph records are rebuildable projections. If a
 projection is lost, it is rebuilt from the ledger and the immutable bytes.
 
 ### Identity and authorization layer
 
-- **Keycloak** — signs in browser users and issues tokens for agents. An
+- **Identity provider:** Keycloak signs in browser users and issues tokens for
+  agents. An
   external user becomes an actor only through an explicit OIDC issuer/subject
   binding; directory-managed provisioning (SCIM) runs on its own plane with
   credentials the product API rejects.
-- **OpenFGA** — answers relationship questions for organizations, Knowledge
-  Spaces, Knowledge Assets, and registry Assets, with a versioned model.
-- **Source ACL evidence** — permissions captured from the source system form
+- **Relationship authorization store:** OpenFGA answers relationship questions
+  for organizations, Knowledge Spaces, Knowledge Assets, and registry Assets
+  under a versioned authorization model.
+- **Source permission evidence:** Permissions captured from the source system form
   a separate, immutable ceiling on content reads that no admin grant can
   bypass.
 
@@ -107,11 +122,14 @@ model.
 
 ## How the services talk to each other
 
+- Public traffic first reaches Nginx Proxy Manager. The web container then
+  serves the frontend or routes the request to the API or MCP gateway over the
+  private application network.
 - Browsers authenticate through the API's confidential OIDC flow against
   Keycloak and hold an HttpOnly session cookie — never a token.
-- AI agents and the CLI present bearer tokens to the MCP gateway, which
-  validates audience and scope, applies rate limits, and forwards the caller's
-  credential to the API.
+- AI agents and the CLI reach the MCP gateway through the same trusted ingress
+  boundary. MCP validates audience and scope, applies rate limits, exchanges
+  the caller token for the API audience, and calls the API.
 - Both paths converge on one canonical actor. The API derives identity,
   organization, and department server-side; token roles, email, and display
   attributes are never authorization inputs.
@@ -130,7 +148,6 @@ model.
 - Replacing an adapter never moves authorization into it. Adapters return
   candidates; the application always performs the final recheck.
 
-Continue with [Asset lifecycle](/docs/architecture-security/asset-lifecycle),
-[Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle),
+Continue with [Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle),
 [Authorization](/docs/architecture-security/authorization), or
 [Secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag).
