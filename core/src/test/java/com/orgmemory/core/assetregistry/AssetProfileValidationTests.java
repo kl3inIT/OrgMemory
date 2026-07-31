@@ -1,6 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,6 +75,18 @@ class AssetProfileValidationTests {
                         skillPayload().replace(
                                 "\"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
                                 "\"sha256\": \"not-a-sha256\"")));
+    }
+
+    @Test
+    void skillSchemaReadsLegacyAndCurrentPayloadsWithoutOrigin() {
+        SkillPackageSpec legacy = skills.read(skillPayload());
+        SkillPackageSpec current = skills.read(skillPayload().replace(
+                "\"artifact\": {", "\"origin\": null, \"artifact\": {"));
+
+        assertNull(legacy.origin());
+        assertNull(current.origin());
+        registry.require(AssetType.SKILL).validate("1", skillPayload());
+        registry.require(AssetType.SKILL).validate("2", skillPayload());
     }
 
     static String promptPayload(String template) {

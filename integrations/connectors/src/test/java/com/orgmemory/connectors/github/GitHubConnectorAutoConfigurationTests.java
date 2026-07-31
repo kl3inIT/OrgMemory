@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
 import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbe;
 import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorScopeBrowser;
 import com.orgmemory.core.knowledge.connector.ConnectorSourceProfile;
+import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -47,6 +49,7 @@ class GitHubConnectorAutoConfigurationTests {
             assertEquals(1, context.getBeansOfType(ConnectorCredentialProbe.class).size());
             assertEquals(1, context.getBeansOfType(ConnectorScopeBrowser.class).size());
             assertEquals(1, context.getBeansOfType(ConnectorBatchSource.class).size());
+            assertEquals(1, context.getBeansOfType(SkillGitHubSourcePort.class).size());
         });
     }
 
@@ -75,6 +78,11 @@ class GitHubConnectorAutoConfigurationTests {
             ConnectorConnectionDirectory directory = mock(ConnectorConnectionDirectory.class);
             when(directory.enabledCrawls("github")).thenReturn(List.of());
             return directory;
+        }
+
+        @Bean
+        PermissionAuditService permissionAuditService() {
+            return mock(PermissionAuditService.class);
         }
     }
 }

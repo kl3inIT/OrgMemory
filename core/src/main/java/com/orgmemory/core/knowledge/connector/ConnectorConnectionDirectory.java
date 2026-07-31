@@ -36,4 +36,12 @@ public interface ConnectorConnectionDirectory {
      */
     Optional<SecretValue> resolveCredential(
             UUID organizationId, String sourceSystem, String sourceConnectionKey);
+
+    /** Non-secret settings for one configured connection. */
+    Optional<ConnectorConnectionConfiguration> configuration(
+            UUID organizationId, String sourceSystem, String sourceConnectionKey);
+
+    /** Non-secret settings for all connections of one source in an organization. */
+    List<ConnectorConnectionConfiguration> configurations(
+            UUID organizationId, String sourceSystem);
 }

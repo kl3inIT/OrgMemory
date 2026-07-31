@@ -36,6 +36,7 @@ import { Route as AdminConnectorsSourceSystemIndexRouteImport } from './routes/a
 import { Route as AdminConnectorsSourceSystemConnectionKeyRouteImport } from './routes/admin/connectors/$sourceSystem.$connectionKey'
 import { Route as AuthenticatedAssetsAssetIdPacksReleaseIdRouteImport } from './routes/_authenticated/assets/$assetId.packs.$releaseId'
 import { Route as AuthenticatedAssetsNewSkillIndexRouteImport } from './routes/_authenticated/assets/new.skill.index'
+import { Route as AuthenticatedAssetsNewSkillGithubRouteImport } from './routes/_authenticated/assets/new.skill.github'
 import { Route as AuthenticatedAssetsNewSkillScratchRouteImport } from './routes/_authenticated/assets/new.skill.scratch'
 import { Route as AuthenticatedAssetsNewSkillUploadRouteImport } from './routes/_authenticated/assets/new.skill.upload'
 
@@ -182,6 +183,12 @@ const AuthenticatedAssetsNewSkillIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAssetsNewSkillRoute,
   } as any)
+const AuthenticatedAssetsNewSkillGithubRoute =
+  AuthenticatedAssetsNewSkillGithubRouteImport.update({
+    id: '/github',
+    path: '/github',
+    getParentRoute: () => AuthenticatedAssetsNewSkillRoute,
+  } as any)
 const AuthenticatedAssetsNewSkillScratchRoute =
   AuthenticatedAssetsNewSkillScratchRouteImport.update({
     id: '/scratch',
@@ -221,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
   '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/assets/new/skill/github': typeof AuthenticatedAssetsNewSkillGithubRoute
   '/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/assets/new/skill/': typeof AuthenticatedAssetsNewSkillIndexRoute
@@ -249,6 +257,7 @@ export interface FileRoutesByTo {
   '/assets/$assetId': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem': typeof AdminConnectorsSourceSystemIndexRoute
   '/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/assets/new/skill/github': typeof AuthenticatedAssetsNewSkillGithubRoute
   '/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/assets/new/skill': typeof AuthenticatedAssetsNewSkillIndexRoute
@@ -281,6 +290,7 @@ export interface FileRoutesById {
   '/_authenticated/assets/$assetId/': typeof AuthenticatedAssetsAssetIdIndexRoute
   '/admin/connectors/$sourceSystem/': typeof AdminConnectorsSourceSystemIndexRoute
   '/_authenticated/assets/$assetId/packs/$releaseId': typeof AuthenticatedAssetsAssetIdPacksReleaseIdRoute
+  '/_authenticated/assets/new/skill/github': typeof AuthenticatedAssetsNewSkillGithubRoute
   '/_authenticated/assets/new/skill/scratch': typeof AuthenticatedAssetsNewSkillScratchRoute
   '/_authenticated/assets/new/skill/upload': typeof AuthenticatedAssetsNewSkillUploadRoute
   '/_authenticated/assets/new/skill/': typeof AuthenticatedAssetsNewSkillIndexRoute
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
     | '/assets/$assetId/packs/$releaseId'
+    | '/assets/new/skill/github'
     | '/assets/new/skill/scratch'
     | '/assets/new/skill/upload'
     | '/assets/new/skill/'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/assets/$assetId'
     | '/admin/connectors/$sourceSystem'
     | '/assets/$assetId/packs/$releaseId'
+    | '/assets/new/skill/github'
     | '/assets/new/skill/scratch'
     | '/assets/new/skill/upload'
     | '/assets/new/skill'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/_authenticated/assets/$assetId/'
     | '/admin/connectors/$sourceSystem/'
     | '/_authenticated/assets/$assetId/packs/$releaseId'
+    | '/_authenticated/assets/new/skill/github'
     | '/_authenticated/assets/new/skill/scratch'
     | '/_authenticated/assets/new/skill/upload'
     | '/_authenticated/assets/new/skill/'
@@ -574,6 +587,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssetsNewSkillIndexRouteImport
       parentRoute: typeof AuthenticatedAssetsNewSkillRoute
     }
+    '/_authenticated/assets/new/skill/github': {
+      id: '/_authenticated/assets/new/skill/github'
+      path: '/github'
+      fullPath: '/assets/new/skill/github'
+      preLoaderRoute: typeof AuthenticatedAssetsNewSkillGithubRouteImport
+      parentRoute: typeof AuthenticatedAssetsNewSkillRoute
+    }
     '/_authenticated/assets/new/skill/scratch': {
       id: '/_authenticated/assets/new/skill/scratch'
       path: '/scratch'
@@ -592,6 +612,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAssetsNewSkillRouteChildren {
+  AuthenticatedAssetsNewSkillGithubRoute: typeof AuthenticatedAssetsNewSkillGithubRoute
   AuthenticatedAssetsNewSkillScratchRoute: typeof AuthenticatedAssetsNewSkillScratchRoute
   AuthenticatedAssetsNewSkillUploadRoute: typeof AuthenticatedAssetsNewSkillUploadRoute
   AuthenticatedAssetsNewSkillIndexRoute: typeof AuthenticatedAssetsNewSkillIndexRoute
@@ -599,6 +620,8 @@ interface AuthenticatedAssetsNewSkillRouteChildren {
 
 const AuthenticatedAssetsNewSkillRouteChildren: AuthenticatedAssetsNewSkillRouteChildren =
   {
+    AuthenticatedAssetsNewSkillGithubRoute:
+      AuthenticatedAssetsNewSkillGithubRoute,
     AuthenticatedAssetsNewSkillScratchRoute:
       AuthenticatedAssetsNewSkillScratchRoute,
     AuthenticatedAssetsNewSkillUploadRoute:

@@ -2218,6 +2218,68 @@
         }
       }
     },
+    "/api/assets/skills/github/preview": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Discover and validate Skills at one GitHub repository revision",
+        "operationId": "previewGitHubSkills",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubSkillSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preview"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/skills/github/import": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Import selected Skills from an exact GitHub commit",
+        "operationId": "importGitHubSkills",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GitHubSkillImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/asset-delivery/{assetId}/releases/{releaseId}/prompt-render": {
       "post": {
         "tags": [
@@ -3868,6 +3930,41 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/AssetGovernanceActions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/skills/github/connections": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List approved GitHub connections available for private Skill import",
+        "operationId": "listGitHubSkillConnections",
+        "parameters": [
+          {
+            "name": "knowledgeSpaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionOption"
+                  }
                 }
               }
             }
@@ -7045,6 +7142,164 @@
           }
         }
       },
+      "GitHubSkillSourceRequest": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "revision": {
+            "type": "string"
+          },
+          "subpath": {
+            "type": "string"
+          },
+          "connectionKey": {
+            "type": "string"
+          },
+          "knowledgeSpaceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "knowledgeSpaceId",
+          "repository"
+        ]
+      },
+      "Preview": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewItem"
+            }
+          }
+        }
+      },
+      "PreviewItem": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "importable": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "fileCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        }
+      },
+      "GitHubSkillImportRequest": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/GitHubSkillSourceRequest"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 20,
+            "minItems": 1
+          },
+          "namespace": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "INTERNAL",
+              "CONFIDENTIAL",
+              "RESTRICTED"
+            ]
+          }
+        },
+        "required": [
+          "namespace",
+          "paths",
+          "source"
+        ]
+      },
+      "ImportItem": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "imported": {
+            "type": "boolean"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/AssetView"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "repository": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportItem"
+            }
+          }
+        }
+      },
       "AssignRoleRequest": {
         "type": "object",
         "properties": {
@@ -8414,6 +8669,14 @@
           },
           "canWithdraw": {
             "type": "boolean"
+          }
+        }
+      },
+      "ConnectionOption": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
           }
         }
       },
