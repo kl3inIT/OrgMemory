@@ -1,5 +1,7 @@
 package com.orgmemory.core.authorization;
 
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.util.Objects;
 
 public record AuthorizationDecision(
@@ -29,11 +31,4 @@ public record AuthorizationDecision(
         return outcome == AuthorizationOutcome.ALLOW;
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

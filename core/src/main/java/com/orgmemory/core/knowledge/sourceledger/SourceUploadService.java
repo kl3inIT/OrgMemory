@@ -112,9 +112,6 @@ public class SourceUploadService {
         }
         String fileName = safeFileName(command.fileName());
         requiredUploadType(fileName);
-        KnowledgeClassification classification = command.classification() == null
-                ? KnowledgeClassification.CONFIDENTIAL
-                : command.classification();
         if (command.knowledgeSpaceId() == null) {
             throw invalidUpload(
                     "source.upload-space-required",

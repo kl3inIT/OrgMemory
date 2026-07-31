@@ -1,6 +1,5 @@
 package com.orgmemory.core.assistant;
 
-import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatModelPort;
@@ -132,10 +131,6 @@ public class AssistantService {
                     search.requestId(),
                     prepared.citations(),
                     content);
-        } catch (AiGatewayUnavailableException exception) {
-            throw failed(observation, context, exception);
-        } catch (AssistantUnavailableException exception) {
-            throw failed(observation, context, exception);
         } catch (RuntimeException exception) {
             throw failed(observation, context, exception);
         }

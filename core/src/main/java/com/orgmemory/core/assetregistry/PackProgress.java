@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -28,18 +27,6 @@ class PackProgress extends BaseEntity {
     private Instant completedAt;
 
     protected PackProgress() {
-    }
-
-    PackProgress(UUID organizationId, UUID assignmentId, String itemKey) {
-        super(UUID.randomUUID());
-        this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
-        this.assignmentId = Objects.requireNonNull(assignmentId, "assignmentId");
-        this.itemKey = Objects.requireNonNull(itemKey, "itemKey");
-    }
-
-    void setCompleted(boolean value, Instant timestamp) {
-        completed = value;
-        completedAt = value ? Objects.requireNonNull(timestamp, "timestamp") : null;
     }
 
     String getItemKey() {

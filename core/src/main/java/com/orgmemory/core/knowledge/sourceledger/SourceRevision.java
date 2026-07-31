@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.EmbeddingProfile;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.SourceFailureMessage;
@@ -273,11 +272,4 @@ public class SourceRevision extends BaseEntity {
         return knowledgeAssetVersionId;
     }
 
-    String getProcessingProfile() {
-        return processingProfile;
-    }
-
-    String getProcessingProfileSha256() {
-        return processingProfileSha256;
-    }
 }

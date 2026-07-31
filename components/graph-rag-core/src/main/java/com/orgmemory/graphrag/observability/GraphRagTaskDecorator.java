@@ -1,7 +1,6 @@
 package com.orgmemory.graphrag.observability;
 
 import java.util.concurrent.Callable;
-import java.util.function.Supplier;
 
 /**
  * Carries ambient observation context across a thread boundary.
@@ -61,16 +60,4 @@ public interface GraphRagTaskDecorator {
         };
     }
 
-    default <T> Supplier<T> decorateSupplier(Supplier<T> task) {
-        Callable<T> decorated = decorate(task::get);
-        return () -> {
-            try {
-                return decorated.call();
-            } catch (RuntimeException | Error propagated) {
-                throw propagated;
-            } catch (Exception checked) {
-                throw new IllegalStateException(checked);
-            }
-        };
-    }
 }

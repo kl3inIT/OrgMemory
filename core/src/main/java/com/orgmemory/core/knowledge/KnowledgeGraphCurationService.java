@@ -334,14 +334,7 @@ public class KnowledgeGraphCurationService {
 
     private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
             ResolvedKnowledgeEvidenceScope scope) {
-        return new SecureKnowledgeRetrievalStore.RetrievalScope(
-                scope.organizationId(),
-                scope.actorUserId(),
-                scope.actorDepartmentId(),
-                scope.actorExecutive(),
-                scope.allAssetIds().stream().sorted().toList(),
-                scope.authorizationModelId(),
-                scope.evaluatedAt());
+        return scope.toRetrievalScope();
     }
 
     private void requireSpace(CurrentActor actor, UUID knowledgeSpaceId) {
@@ -376,7 +369,6 @@ public class KnowledgeGraphCurationService {
 
     private static ProjectionNamespace namespace(
             UUID organizationId, UUID knowledgeSpaceId) {
-        return new ProjectionNamespace(
-                organizationId, "default", knowledgeSpaceId.toString());
+        return KnowledgeProjectionNamespaces.forSpace(organizationId, knowledgeSpaceId);
     }
 }

@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -73,6 +74,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 class ConnectorReconciler {
+
+    private static final Pattern PARAGRAPH_BREAK = Pattern.compile("\\n\\s*\\n");
 
     private static final String PIPELINE_VERSION = "connector-pipeline-v1";
     private static final String NORMALIZER_VERSION = "connector-normalizer-v1";
@@ -440,7 +443,7 @@ class ConnectorReconciler {
                 PIPELINE_VERSION,
                 PARSER.toString(),
                 CHUNKER.toString(),
-                connectorProcessingProfile(content, embedding.profile()),
+                connectorProcessingProfile(contentSha256, embedding.profile()),
                 embedding.profile(),
                 raw,
                 normalized,
@@ -448,7 +451,7 @@ class ConnectorReconciler {
     }
 
     private static DocumentProcessingProfileSnapshot connectorProcessingProfile(
-            ConnectorContentItem content,
+            String contentSha256,
             EmbeddingProfileRef embeddingProfile) {
         var semanticEmbedding = new ProcessingComponentRef(
                 embeddingProfile.provider(),
@@ -465,7 +468,7 @@ class ConnectorReconciler {
                         "maximumChunks", Integer.toString(MAX_CHUNKS),
                         "pipeline", PIPELINE_VERSION,
                         "normalizer", NORMALIZER_VERSION),
-                sha256(content.body()));
+                contentSha256);
         return new DocumentProcessingProfileSnapshot(
                 resolved.canonicalForm(),
                 resolved.profileSha256());
@@ -559,7 +562,7 @@ class ConnectorReconciler {
 
     private static List<String> chunk(String body) {
         List<String> chunks = new ArrayList<>();
-        for (String paragraph : body.strip().split("\\n\\s*\\n")) {
+        for (String paragraph : PARAGRAPH_BREAK.split(body.strip())) {
             String trimmed = paragraph.strip();
             if (trimmed.isEmpty()) {
                 continue;

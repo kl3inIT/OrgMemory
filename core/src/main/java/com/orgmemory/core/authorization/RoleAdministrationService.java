@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -48,7 +47,6 @@ public class RoleAdministrationService {
     private static final Map<String, String> RELATION_ROLES = ROLE_RELATIONS.entrySet().stream()
             .collect(java.util.stream.Collectors.toUnmodifiableMap(
                     Map.Entry::getValue, Map.Entry::getKey));
-    private static final Set<String> MANAGED_RELATIONS = Set.copyOf(RELATION_ROLES.keySet());
 
     private final RelationshipTupleWritePort writes;
     private final RelationshipTupleReconciliationPort tuples;
@@ -151,7 +149,7 @@ public class RoleAdministrationService {
     private static String relation(String value) {
         String normalized = Objects.requireNonNull(value, "role").trim();
         String relation = ROLE_RELATIONS.get(normalized);
-        if (relation == null || !MANAGED_RELATIONS.contains(relation)) {
+        if (relation == null) {
             throw new BusinessValidationException(
                     "role.unknown",
                     "Unknown organization role");

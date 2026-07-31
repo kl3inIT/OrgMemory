@@ -1,6 +1,7 @@
 package com.orgmemory.core.authorization;
 
-import java.util.Objects;
+import static com.orgmemory.core.shared.Texts.requireText;
+
 
 /**
  * A relationship derived from the current transactional record and supplied only for one check.
@@ -26,11 +27,4 @@ public record ContextualRelationship(String user, String relation, String object
         return normalized;
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }

@@ -71,10 +71,6 @@ class AssetRoleAssignment extends BaseEntity {
         projectedAt = Objects.requireNonNull(timestamp, "timestamp");
     }
 
-    PrincipalRef principal() {
-        return new PrincipalRef(principalType, principalId);
-    }
-
     String getPrincipalType() {
         return principalType;
     }

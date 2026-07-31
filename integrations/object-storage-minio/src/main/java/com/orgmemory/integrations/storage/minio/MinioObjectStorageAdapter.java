@@ -104,7 +104,6 @@ final class MinioObjectStorageAdapter implements ObjectStoragePort {
         }
     }
 
-    @Override
     public StoredObject stat(ObjectKey key) {
         try {
             StatObjectResponse response = client.statObject(StatObjectArgs.builder()

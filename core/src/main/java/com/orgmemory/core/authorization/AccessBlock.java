@@ -1,5 +1,7 @@
 package com.orgmemory.core.authorization;
 
+import static com.orgmemory.core.shared.Texts.requireText;
+
 import java.util.Objects;
 
 /**
@@ -30,11 +32,4 @@ public record AccessBlock(String branch, Kind kind, String detail) {
         return new AccessBlock(branch, Kind.EXPLICIT_DENY, detail);
     }
 
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
-    }
 }
