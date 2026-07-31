@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.authorization.RelationshipTuple;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;

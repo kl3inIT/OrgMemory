@@ -1,5 +1,9 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;

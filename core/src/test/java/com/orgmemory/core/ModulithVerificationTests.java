@@ -44,6 +44,13 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAssetIsAnOpenNestedModuleDuringTheRefactor() {
+        var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
+
+        assertTrue(asset.isOpen());
+    }
+
+    @Test
     void objectStorageIsAnExplicitKnowledgeInterface() {
         var knowledge = modules.getModuleByName("knowledge").orElseThrow();
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();

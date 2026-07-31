@@ -1,4 +1,5 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,7 +31,7 @@ public interface KnowledgeAssetRepository extends JpaRepository<KnowledgeAsset, 
             @Param("assetIds") Collection<UUID> assetIds);
 
     @Query("""
-            select new com.orgmemory.core.knowledge.KnowledgeAssetAuthorizationScope(
+            select new com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope(
                 asset.id,
                 asset.knowledgeSpaceId
             )

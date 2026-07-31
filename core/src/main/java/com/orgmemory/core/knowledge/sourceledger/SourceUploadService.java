@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.KnowledgeContentType;
+import com.orgmemory.core.knowledge.asset.KnowledgeContentType;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;

@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.knowledge.sourceledger.NormalizedRecord;
 
@@ -140,7 +140,7 @@ public class KnowledgeAssetVersion extends BaseEntity {
         return knowledgeAssetId;
     }
 
-    long getVersionNumber() {
+    public long getVersionNumber() {
         return versionNumber;
     }
 
@@ -148,7 +148,7 @@ public class KnowledgeAssetVersion extends BaseEntity {
         return knowledgeSpaceId;
     }
 
-    UUID getSourceRevisionId() {
+    public UUID getSourceRevisionId() {
         return sourceRevisionId;
     }
 
@@ -164,7 +164,7 @@ public class KnowledgeAssetVersion extends BaseEntity {
         return sourceAclSnapshotId;
     }
 
-    String getLanguage() {
+    public String getLanguage() {
         return language;
     }
 

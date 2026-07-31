@@ -1,6 +1,6 @@
 package com.orgmemory.worker.authorization;
 
-import com.orgmemory.core.knowledge.KnowledgeAuthorizationConvergenceService;
+import com.orgmemory.core.knowledge.asset.KnowledgeAuthorizationConvergenceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

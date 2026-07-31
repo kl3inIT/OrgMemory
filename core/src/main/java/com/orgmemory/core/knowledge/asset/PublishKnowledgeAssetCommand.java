@@ -1,4 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
+import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 
 import java.util.List;
 import java.util.Objects;

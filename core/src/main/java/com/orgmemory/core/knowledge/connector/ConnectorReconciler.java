@@ -1,10 +1,10 @@
 package com.orgmemory.core.knowledge.connector;
 
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.KnowledgeAssetPublicationService;
-import com.orgmemory.core.knowledge.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.KnowledgeChunkDraft;
-import com.orgmemory.core.knowledge.PublishKnowledgeAssetCommand;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft;
+import com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand;
 import com.orgmemory.core.knowledge.SourceIdentityTrust;
 
 

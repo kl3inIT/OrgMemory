@@ -1,4 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
+import com.orgmemory.core.knowledge.KnowledgeCatalogItem;
 
 import java.util.Optional;
 import java.util.Collection;
@@ -35,7 +37,7 @@ public interface KnowledgeAssetVersionRepository extends JpaRepository<Knowledge
              and asset.currentVersionId = version.id
              and asset.archivedAt is null
             where version.organizationId = :organizationId
-              and version.status = com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus.ACTIVE
+              and version.status = com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus.ACTIVE
               and asset.id in :assetIds
             order by lower(version.title), asset.id
             """)
@@ -63,7 +65,7 @@ public interface KnowledgeAssetVersionRepository extends JpaRepository<Knowledge
             where version.organizationId = :organizationId
               and version.knowledgeAssetId = :assetId
               and version.id = :versionId
-              and version.status = com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus.ACTIVE
+              and version.status = com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus.ACTIVE
             """)
     Optional<KnowledgeCatalogItem> findCurrentCatalogItem(
             @Param("organizationId") UUID organizationId,

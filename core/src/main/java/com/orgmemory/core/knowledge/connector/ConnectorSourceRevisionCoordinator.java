@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge.connector;
 
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.GraphIndexJobQueue;
-import com.orgmemory.core.knowledge.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 
 
 import com.orgmemory.core.knowledge.acl.AclAuthority;

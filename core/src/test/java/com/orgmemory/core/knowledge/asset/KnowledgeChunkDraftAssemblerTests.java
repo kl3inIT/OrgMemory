@@ -1,4 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
+import com.orgmemory.core.knowledge.KnowledgeTextChunk;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,11 +1,11 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
 
 import java.util.Objects;
 import java.util.UUID;
 
-record KnowledgeAssetAuthorizationScope(UUID assetId, UUID knowledgeSpaceId) {
+public record KnowledgeAssetAuthorizationScope(UUID assetId, UUID knowledgeSpaceId) {
 
-    KnowledgeAssetAuthorizationScope {
+    public KnowledgeAssetAuthorizationScope {
         Objects.requireNonNull(assetId, "assetId");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
     }

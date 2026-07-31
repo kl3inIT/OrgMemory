@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;

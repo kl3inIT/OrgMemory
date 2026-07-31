@@ -21,8 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.core.knowledge.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;

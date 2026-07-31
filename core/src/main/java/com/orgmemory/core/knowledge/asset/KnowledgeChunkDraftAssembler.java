@@ -1,4 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
+import com.orgmemory.core.knowledge.KnowledgeTextChunk;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

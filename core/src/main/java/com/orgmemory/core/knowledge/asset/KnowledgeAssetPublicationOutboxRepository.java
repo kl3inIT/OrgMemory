@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
 
 import jakarta.persistence.LockModeType;
 
@@ -24,7 +24,7 @@ interface KnowledgeAssetPublicationOutboxRepository
     @Query("""
             select publication
             from KnowledgeAssetPublicationOutbox publication
-            where publication.status = com.orgmemory.core.knowledge.KnowledgeAssetPublicationStatus.APPLIED
+            where publication.status = com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationStatus.APPLIED
               and (
                     publication.authorizationModelId is null
                     or publication.authorizationModelId <> :authorizationModelId

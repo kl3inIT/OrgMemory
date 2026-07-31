@@ -1,4 +1,8 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.asset;
+
+import com.orgmemory.core.knowledge.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.GraphIndexChunk;
+import com.orgmemory.core.knowledge.PgVectorLiteral;
 
 import java.sql.Types;
 import java.time.Instant;
