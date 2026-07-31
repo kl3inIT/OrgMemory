@@ -301,3 +301,7 @@ passed; and the terminating repository-wide `clean test` completed
 successfully in 7m22s across 108 tasks. Mechanical checks confirm zero Source
 Ledger-to-Retrieval imports and zero stale not-found exception references. The
 pre-stage worktree contains 28 changed paths.
+
+After merging current `origin/main` at `78b4d503`, a second repository-wide
+`clean test` completed successfully in 12s across 99 tasks with the shared
+build cache; the PR diff remained 28 changed files.
