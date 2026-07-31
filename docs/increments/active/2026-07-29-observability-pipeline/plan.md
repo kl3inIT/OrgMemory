@@ -5,11 +5,11 @@ increment, and the `GENERATE` boundary and telemetry-egress questions are
 settled by decisions 0020 and 0019. Two items remain open here, and both are
 decisions rather than implementation:
 
-- **Deletion and rebuild.** Missing from the stage enum entirely. Before it
-  becomes a stage, establish whether `ConnectorIngestionService.retire` reaches
-  all five read paths the drill names — content, lexical, vector, graph and
-  citation — or stops at content. Instrumenting an incomplete deletion would
-  report success for it, which is the failure this program exists to remove.
+- ~~**Deletion and rebuild.**~~ Answered 2026-07-31: OrgMemory deletes nothing,
+  so there is no deletion pipeline to stage. Retirement sets a flag and every
+  read path funnels through one recheck that honours it. What is worth emitting
+  is the evidence mismatch that recheck already detects and nothing publishes.
+  See the item in phase 2.
 - **`finish_reason=length` counter.** Needs the `ChatModelPort` change that
   would let the adapter see the `ChatResponse` it currently discards.
 
@@ -141,8 +141,57 @@ Depends on the composite sink merged in PR #132.
       is one operation across two processors. The engine measures each window and
       carries both out, because its caller makes one `process` call and cannot
       see where parsing ended.
-- [ ] Deletion and rebuild: missing from the enum entirely, and the runbook
-      requires a drill for it. Decide separately.
+- [x] Deletion and rebuild: **no stage, and the comparison that asked for one was
+      reading OrgMemory as if it deleted.** Investigated 2026-07-31.
+
+      LightRAG has a deletion pipeline because it removes derived records, so a
+      stage there measures work that can partially fail. OrgMemory removes
+      nothing. `ConnectorReconciler.retire` calls `SourceObject.archive()`, which
+      sets `status = ARCHIVED` and returns — "its evidence and history are
+      retained", as its own javadoc says. An update is the same shape from the
+      other side: `rematerialize` writes a new revision and advances
+      `current_revision_id`, leaving the superseded chunks in place.
+
+      So the question was never whether a deletion reached five read paths. It
+      was whether five read paths honour two flags. They do, and not by each
+      remembering to: every path funnels through
+      `SecureKnowledgeRetrievalStore.recheck`, whose SQL is assembled from the
+      shared `ELIGIBLE_FROM` fragment carrying `so.status = 'ACTIVE'` and
+      `so.current_revision_id = kc.source_revision_id`, alongside
+      `ka.archived_at IS NULL`, `kav.status`, `sr.status`, `rso.status`,
+      `nr.status` and `publication.status`. Confirmed callers:
+      `GraphRagKnowledgeRetrievalService` line 350, unconditional and immediately
+      after `AUTHORIZE`; `CanonicalHybridKnowledgeSearch` line 191, the other
+      engine; and `CanonicalEvidenceAuthorizationService.findCanonical`, the
+      citation path. `PostgresAuthorizedGraphSql` carries both conditions itself
+      as well.
+
+      The lexical and vector projections do not filter on either flag —
+      `projection_lexical_documents` and `projection_vector_records` are scoped by
+      `batch_id` and never join `source_objects`. That is not a gap, because
+      nothing they return reaches an answer without passing the recheck. Four
+      files touch `knowledge_chunks`; the fourth,
+      `KnowledgeChunkProjectionStore`, is worker-side indexing and publication
+      rather than user retrieval.
+
+      A stage over this would time a flag write. What is worth emitting instead
+      is the mismatch already detected and currently unpublished:
+      `GraphRagKnowledgeRetrievalService` compares `sameEvidence(closure,
+      verified)` and diverts to `retryOrFail` when the recheck returns less than
+      the closure held — which is exactly the moment a retirement or an edit took
+      effect against an in-flight answer. That is a real event with a real cause,
+      unlike a stage that cannot fail.
+
+      Two things this did not establish. It is a reading, not the drill the
+      hardening runbook asks for; it shows the gate exists on every path found,
+      not that no future path bypasses it. And it holds for the deployed
+      classpath only — `apps/api` and `apps/worker` take `graph-rag-postgres`
+      alone, so the OpenSearch and Neo4j adapters were not analysed and would
+      need their own reading before deployment.
+
+      Superseded revisions are never reclaimed. Ten edits leave ten chunk and
+      embedding sets, nine invisible and all of them stored, with no metric on
+      the growth. Out of scope here; recorded so it is not rediscovered.
 - [x] Extraction cost. `ProviderTokenUsage` is its own record rather than a
       forced reuse of `TokenUsage`: one is a budget the deployment estimated,
       the other a bill a vendor counted, and the difference between them is
