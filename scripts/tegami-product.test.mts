@@ -64,6 +64,7 @@ function evidenceLoader(expected = artifacts()) {
         image: {
           reference: expected.docs.image.reference,
           digest: expected.docs.image.digest,
+          sourceSha: expected.docs.image.sourceSha,
         },
       });
     }
@@ -405,7 +406,7 @@ test("lock-status mode recognizes a completed release tag on an ancestor", async
   }
 });
 
-test("pinned Tegami contract versions in a temporary repository with a bare remote", async () => {
+test("pinned Tegami contract versions in a temporary repository with a bare remote", { concurrency: false }, async () => {
   const cwd = await fixture();
   const remote = await mkdtemp(join(tmpdir(), "orgmemory-tegami-remote-"));
   const originalCwd = process.cwd();
@@ -438,7 +439,7 @@ test("pinned Tegami contract versions in a temporary repository with a bare remo
   }
 });
 
-test("production GitHub hook retries after Release creation fails behind a successful tag", async () => {
+test("production GitHub hook retries after Release creation fails behind a successful tag", { concurrency: false }, async () => {
   const cwd = await fixture();
   const remote = await mkdtemp(join(tmpdir(), "orgmemory-tegami-github-remote-"));
   const originalCwd = process.cwd();
@@ -501,7 +502,7 @@ test("production GitHub hook retries after Release creation fails behind a succe
   }
 });
 
-test("production Git hook retries a failed tag push from a fresh runner", async () => {
+test("production Git hook retries a failed tag push from a fresh runner", { concurrency: false }, async () => {
   const cwd = await fixture();
   const remote = await mkdtemp(join(tmpdir(), "orgmemory-tegami-push-remote-"));
   const originalCwd = process.cwd();

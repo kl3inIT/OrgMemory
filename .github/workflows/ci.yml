@@ -140,13 +140,16 @@ jobs:
               - "apps/docs/Dockerfile.dockerignore"
             release:
               - "apps/**"
+              - "build-logic/**"
               - "components/**"
               - "contracts/**"
               - "core/**"
               - "evaluation/**"
+              - "gradle/**"
               - "integrations/**"
               - "infrastructure/**"
               - "patches/**"
+              - ".github/workflows/**"
               - ".dockerignore"
               - "build.gradle.kts"
               - "compose.yaml"
@@ -174,6 +177,7 @@ jobs:
               - "scripts/tsconfig.release.json"
               - "package.json"
               - "pnpm-lock.yaml"
+              - "pnpm-workspace.yaml"
 
   secrets:
     name: Secret scan · Gitleaks 8.30.1

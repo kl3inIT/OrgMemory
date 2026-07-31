@@ -98,13 +98,24 @@ for (const invariant of [
   "github.event.workflow_run.head_branch == 'main'",
   "cancel-in-progress: false",
   "scripts/check-publish-lock.mts",
-  "lock_status\" -eq 2",
+  "release-workflow-policy.mjs automatic",
+  "release-workflow-policy.mjs current-main",
+  "release-workflow-policy.mjs phase",
   "Revalidate current main immediately before mutation",
 ]) {
   if (!releaseWorkflow.includes(invariant)) failures.push(`release.yml lacks trust invariant: ${invariant}`);
 }
 const ciWorkflow = await readFile(join(root, ".github", "workflows", "ci.yml"), "utf8");
-for (const impactPath of ["apps/**", "core/**", "integrations/**", "infrastructure/**"]) {
+for (const impactPath of [
+  "apps/**",
+  "build-logic/**",
+  "core/**",
+  "gradle/**",
+  "integrations/**",
+  "infrastructure/**",
+  "pnpm-workspace.yaml",
+  ".github/workflows/**",
+]) {
   if (!ciWorkflow.includes(`- \"${impactPath}\"`)) {
     failures.push(`ci.yml must route product-impact path ${impactPath} through release validation`);
   }

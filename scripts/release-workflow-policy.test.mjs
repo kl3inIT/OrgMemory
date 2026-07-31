@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   automaticRunTrusted,
   currentMainTrusted,
@@ -7,6 +9,7 @@ import {
 } from "./release-workflow-policy.mjs";
 
 const sha = "a".repeat(40);
+const policyCli = fileURLToPath(new URL("./release-workflow-policy.mjs", import.meta.url));
 const trusted = {
   conclusion: "success",
   event: "push",
@@ -45,4 +48,27 @@ test("pending failed locks block newer entries", () => {
   );
   assert.equal(decideReleasePhase({ hasEntries: false, hasLock: true }), "publish");
   assert.equal(decideReleasePhase({ hasEntries: false, hasLock: false }), "idle");
+  assert.equal(decideReleasePhase({ hasEntries: true, hasLock: false }), "version");
+  assert.throws(
+    () => decideReleasePhase({ hasEntries: true, hasLock: true, lockStatus: "unknown" }),
+    /Unable to prove/,
+  );
+});
+
+test("phase CLI preserves recovery exit codes", () => {
+  const run = (lockStatus) =>
+    spawnSync(process.execPath, [policyCli, "phase"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HAS_ENTRIES: "true",
+        HAS_LOCK: "true",
+        LOCK_STATUS: lockStatus,
+      },
+    });
+  assert.equal(run("pending").status, 65);
+  assert.equal(run("unknown").status, 66);
+  const success = run("success");
+  assert.equal(success.status, 0);
+  assert.equal(success.stdout.trim(), "mode=version");
 });

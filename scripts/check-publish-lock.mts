@@ -8,4 +8,4 @@ const paper = createOrgMemoryTegami({
 });
 const { status, reason } = await paper.getPublishStatus();
 console.log(`Publish lock status: ${status}${reason ? ` (${reason})` : ""}`);
-process.exit(status === "success" ? 0 : status === "pending" ? 2 : 3);
+process.exitCode = status === "success" ? 0 : status === "pending" ? 2 : 3;

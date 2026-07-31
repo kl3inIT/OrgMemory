@@ -19,6 +19,7 @@ async function run(command, args, options = {}) {
     encoding: "utf8",
     windowsHide: true,
     maxBuffer: 10 * 1024 * 1024,
+    timeout: 5 * 60_000,
     ...options,
   });
 }
@@ -132,7 +133,7 @@ const combined = {
     image: {
       reference: docs.image.reference,
       digest: docs.image.digest,
-      sourceSha: docs.commitSha,
+      sourceSha: docs.image.sourceSha,
     },
   },
 };

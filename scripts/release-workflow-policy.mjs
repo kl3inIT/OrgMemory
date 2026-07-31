@@ -1,3 +1,6 @@
+import process from "node:process";
+import { pathToFileURL } from "node:url";
+
 export function automaticRunTrusted(run, repository) {
   return (
     run?.conclusion === "success" &&
@@ -29,4 +32,56 @@ export function currentMainTrusted({ candidateSha, originMainSha, isAncestor }) 
     candidateSha === originMainSha &&
     isAncestor === true
   );
+}
+
+function requiredBoolean(name) {
+  const value = process.env[name];
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${name} must be true or false`);
+}
+
+function runCli() {
+  const command = process.argv[2];
+  if (command === "automatic") {
+    const run = JSON.parse(process.env.WORKFLOW_RUN_JSON ?? "null");
+    if (!automaticRunTrusted(run, process.env.REPOSITORY ?? "")) {
+      console.error("The automatic release trigger is not a trusted green main push");
+      process.exitCode = 64;
+      return;
+    }
+    console.log(run.head_sha);
+    return;
+  }
+  if (command === "current-main") {
+    console.log(
+      currentMainTrusted({
+        candidateSha: process.env.CANDIDATE_SHA ?? "",
+        originMainSha: process.env.ORIGIN_MAIN_SHA ?? "",
+        isAncestor: requiredBoolean("IS_ANCESTOR"),
+      }),
+    );
+    return;
+  }
+  if (command === "phase") {
+    try {
+      const mode = decideReleasePhase({
+        hasEntries: requiredBoolean("HAS_ENTRIES"),
+        hasLock: requiredBoolean("HAS_LOCK"),
+        lockStatus: process.env.LOCK_STATUS,
+      });
+      console.log(`mode=${mode}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(message);
+      process.exitCode = message.startsWith("A pending failed") ? 65 : 66;
+    }
+    return;
+  }
+  console.error("Usage: release-workflow-policy.mjs <automatic|current-main|phase>");
+  process.exitCode = 64;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runCli();
 }

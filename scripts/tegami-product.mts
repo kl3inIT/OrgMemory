@@ -87,6 +87,8 @@ const defaultCommandRunner: CommandRunner = async (command, args, cwd) => {
     cwd,
     encoding: "utf8",
     windowsHide: true,
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 5 * 60_000,
   });
   return { stdout: result.stdout, stderr: result.stderr };
 };
@@ -473,7 +475,8 @@ async function assertArtifactEvidence(
     docsProof.commitSha !== artifacts.docs.commitSha ||
     !isRecord(docsProof.image) ||
     docsProof.image.reference !== artifacts.docs.image.reference ||
-    docsProof.image.digest !== artifacts.docs.image.digest
+    docsProof.image.digest !== artifacts.docs.image.digest ||
+    docsProof.image.sourceSha !== artifacts.docs.image.sourceSha
   ) {
     throw new Error("Docs image manifest does not match release evidence");
   }
