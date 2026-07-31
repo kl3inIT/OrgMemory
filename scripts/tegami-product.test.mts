@@ -442,6 +442,7 @@ test("production GitHub hook retries after Release creation fails behind a succe
   const cwd = await fixture();
   const remote = await mkdtemp(join(tmpdir(), "orgmemory-tegami-github-remote-"));
   const originalCwd = process.cwd();
+  const originalActions = process.env.GITHUB_ACTIONS;
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = globalThis.fetch;
   const git = (directory: string, args: string[]) =>
@@ -460,6 +461,10 @@ test("production GitHub hook retries after Release creation fails behind a succe
     }
     throw new Error(`Unexpected GitHub request method: ${init?.method ?? "GET"}`);
   };
+  // The test exercises the release hook against a bare Git remote. Do not let
+  // the ambient GitHub Actions context turn the preceding `version` command
+  // into a real Version PR push to the checked-out repository.
+  delete process.env.GITHUB_ACTIONS;
   process.env.GITHUB_TOKEN = "test-token";
   try {
     await git(cwd, ["init", "--initial-branch=main"]);
@@ -483,6 +488,8 @@ test("production GitHub hook retries after Release creation fails behind a succe
   } finally {
     process.chdir(originalCwd);
     globalThis.fetch = originalFetch;
+    if (originalActions === undefined) delete process.env.GITHUB_ACTIONS;
+    else process.env.GITHUB_ACTIONS = originalActions;
     if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
     else process.env.GITHUB_TOKEN = originalToken;
     await rm(cwd, { recursive: true, force: true });
