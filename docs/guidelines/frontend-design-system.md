@@ -66,6 +66,10 @@ when it is generic, tested, and compatible with the new information architecture
 - Status tabs omit zero-value badges while preserving the full accessible
   count. On narrow screens, use concise visible labels without changing their
   accessible names.
+- Collection filter bars keep search and filters at the leading edge and group
+  result context with view or refresh actions at the trailing edge on wider
+  screens. The trailing group returns to normal document order on narrow
+  screens instead of forcing horizontal overflow.
 - Dense tables retain the decision-critical columns at narrow widths and reveal
   operational detail progressively at `md`, `lg`, and `xl`. Do not solve table
   density by shrinking all text or allowing the whole page to overflow.

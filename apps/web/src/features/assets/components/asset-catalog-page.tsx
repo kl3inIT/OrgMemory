@@ -499,7 +499,7 @@ export function AssetCatalogPage({
           </Button>
         }
       >
-        <div className="grid gap-2 pt-2 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
+        <div className="grid gap-2 pt-2 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <InputGroup className="h-11 bg-surface-raised">
             <InputGroupAddon>
               <Search aria-hidden="true" />
@@ -517,10 +517,16 @@ export function AssetCatalogPage({
             className="w-full gap-0"
           >
             <TabsList aria-label="Asset scope" className="h-11 w-full">
-              <TabsTrigger value="ALL" className="text-sm sm:text-base">
+              <TabsTrigger
+                value="ALL"
+                className="text-sm data-[state=active]:border-border-strong data-[state=active]:bg-action-secondary-hover sm:text-base"
+              >
                 All Assets
               </TabsTrigger>
-              <TabsTrigger value="MINE" className="text-sm sm:text-base">
+              <TabsTrigger
+                value="MINE"
+                className="text-sm data-[state=active]:border-border-strong data-[state=active]:bg-action-secondary-hover sm:text-base"
+              >
                 My Assets
               </TabsTrigger>
             </TabsList>
@@ -561,7 +567,7 @@ export function AssetCatalogPage({
                 size="icon"
                 aria-label="List view"
                 aria-pressed={view === "LIST"}
-                className="aria-pressed:bg-action-secondary aria-pressed:text-action-secondary-foreground"
+                className="aria-pressed:border-border-strong aria-pressed:bg-action-secondary-hover aria-pressed:text-content-primary aria-pressed:shadow-inner"
                 onClick={() => onViewChange("LIST")}
               >
                 <List aria-hidden="true" />
@@ -572,7 +578,7 @@ export function AssetCatalogPage({
                 size="icon"
                 aria-label="Grid view"
                 aria-pressed={view === "GRID"}
-                className="aria-pressed:bg-action-secondary aria-pressed:text-action-secondary-foreground"
+                className="aria-pressed:border-border-strong aria-pressed:bg-action-secondary-hover aria-pressed:text-content-primary aria-pressed:shadow-inner"
                 onClick={() => onViewChange("GRID")}
               >
                 <LayoutGrid aria-hidden="true" />
