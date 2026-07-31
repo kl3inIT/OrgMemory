@@ -94,7 +94,7 @@ class AssetRegistryServiceTests {
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             return switch (query.permission().value()) {
-                case "can_view", "can_submit_review", "can_publish",
+                case "can_view", "can_edit", "can_submit_review", "can_publish",
                         "can_publish_skill" ->
                     AuthorizationDecision.allow("model-v1");
                 default -> AuthorizationDecision.deny(
@@ -110,6 +110,7 @@ class AssetRegistryServiceTests {
         AssetGovernanceActions actions =
                 service.governanceActions(actor, assetId);
 
+        assertEquals(true, actions.canEdit());
         assertEquals(true, actions.canSubmitReview());
         assertEquals(false, actions.canReview());
         assertEquals(true, actions.canPublish());

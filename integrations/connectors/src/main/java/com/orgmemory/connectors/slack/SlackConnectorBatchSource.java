@@ -22,13 +22,9 @@ import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.shared.secret.SecretValue;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -236,12 +232,14 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         SlackCrawlSettings settings = SlackCrawlSettings.from(configuration.sourceConfig());
         Crawl crawl = new Crawl();
         Map<String, SlackUser> usersById = users(client);
+        Map<String, String> displayNames = new LinkedHashMap<>();
+        usersById.forEach((id, user) -> displayNames.put(id, user.displayName()));
         List<JsonNode> channels = channels(client, settings, crawl);
 
         int failed = 0;
         for (JsonNode channel : channels) {
             try {
-                crawlChannel(client, channel, usersById, settings, crawl);
+                crawlChannel(client, channel, usersById, displayNames, settings, crawl);
             } catch (SlackApiException failure) {
                 // A channel the bot cannot read is not a channel that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the workspace its index.
@@ -459,6 +457,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             SlackWebApiClient client,
             JsonNode channel,
             Map<String, SlackUser> usersById,
+            Map<String, String> displayNames,
             SlackCrawlSettings settings,
             Crawl crawl) {
         String channelId = channel.path("id").asString("");
@@ -486,7 +485,12 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
                 crawl.incomplete();
                 break;
             }
-            crawl.addThread(channelId, channelName, thread(client, channelId, message), usersById);
+            crawl.addThread(
+                    channelId,
+                    channelName,
+                    thread(client, channelId, message),
+                    usersById,
+                    displayNames);
         }
     }
 
@@ -580,12 +584,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
     }
 
     private static String sha256(String value) {
-        try {
-            return HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException unavailable) {
-            throw new IllegalStateException("SHA-256 is unavailable", unavailable);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(value);
     }
 
     private record SlackUser(String id, String email, String displayName) {
@@ -644,7 +643,11 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
         }
 
         private void addThread(
-                String channelId, String channelName, List<JsonNode> messages, Map<String, SlackUser> usersById) {
+                String channelId,
+                String channelName,
+                List<JsonNode> messages,
+                Map<String, SlackUser> usersById,
+                Map<String, String> displayNames) {
             if (messages.isEmpty()) {
                 return;
             }
@@ -659,7 +662,7 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
             if (!seenObjectIds.add(externalObjectId)) {
                 return;
             }
-            String body = render(messages, usersById);
+            String body = render(messages, usersById, displayNames);
             if (body.isBlank()) {
                 return;
             }
@@ -676,9 +679,10 @@ class SlackConnectorBatchSource implements ConnectorBatchSource {
          * markup first: {@code <@U024BE7LH>} is noise in a full-text index and worse in an
          * embedding, where an opaque id cannot match the name somebody would actually ask about.
          */
-        private String render(List<JsonNode> messages, Map<String, SlackUser> usersById) {
-            Map<String, String> displayNames = new LinkedHashMap<>();
-            usersById.forEach((id, user) -> displayNames.put(id, user.displayName()));
+        private String render(
+                List<JsonNode> messages,
+                Map<String, SlackUser> usersById,
+                Map<String, String> displayNames) {
             StringBuilder rendered = new StringBuilder();
             for (JsonNode message : messages) {
                 if (isIgnorable(message)) {

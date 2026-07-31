@@ -104,7 +104,7 @@ final class MinioObjectStorageAdapter implements ObjectStoragePort {
         }
     }
 
-    public StoredObject stat(ObjectKey key) {
+    private StoredObject stat(ObjectKey key) {
         try {
             StatObjectResponse response = client.statObject(StatObjectArgs.builder()
                     .bucket(properties.bucket())

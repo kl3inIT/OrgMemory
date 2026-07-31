@@ -4,6 +4,7 @@ import com.orgmemory.core.ai.AiGatewayConnection;
 import com.orgmemory.core.ai.AiGatewayEndpointPolicy;
 import com.orgmemory.core.ai.AiGatewayPreset;
 import com.orgmemory.core.ai.AiGatewayProtocol;
+import com.orgmemory.core.shared.Texts;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.net.URI;
 import java.time.Duration;
@@ -164,8 +165,7 @@ public final class AiModelCatalogProbe {
         if (value == null || !value.isString()) {
             return null;
         }
-        String normalized = value.asString().strip();
-        return normalized.isBlank() ? null : normalized;
+        return Texts.optionalText(value.asString());
     }
 
     private static URI modelsUri(
@@ -203,13 +203,6 @@ public final class AiModelCatalogProbe {
                 case 404 -> "models_unsupported";
                 default -> "provider_error";
             };
-        }
-        if (failure instanceof org.springframework.web.client.HttpClientErrorException.Unauthorized
-                || failure instanceof org.springframework.web.client.HttpClientErrorException.Forbidden) {
-            return "invalid_credential";
-        }
-        if (failure instanceof org.springframework.web.client.HttpClientErrorException.NotFound) {
-            return "models_unsupported";
         }
         if (failure instanceof org.springframework.web.client.ResourceAccessException) {
             return "unreachable";

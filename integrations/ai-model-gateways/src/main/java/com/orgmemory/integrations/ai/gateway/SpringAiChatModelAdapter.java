@@ -5,7 +5,6 @@ import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
-import com.orgmemory.core.ai.AiGatewayProtocol;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -202,19 +201,4 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
                 candidate.supersededBy(active));
     }
 
-    private record ModelKey(
-            UUID organizationId,
-            AiWorkload workload,
-            AiRoute route,
-            AiGatewayProtocol protocol,
-            long profileVersion) {
-
-        private boolean supersededBy(ModelKey active) {
-            return organizationId.equals(active.organizationId)
-                    && (workload == active.workload
-                            || (route.gatewayId().equals(active.route.gatewayId())
-                                    && profileVersion < active.profileVersion))
-                    && !equals(active);
-        }
-    }
 }

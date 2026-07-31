@@ -4,7 +4,6 @@ import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
-import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -18,18 +17,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.opensearch.client.opensearch._types.FieldValue;
-import org.opensearch.client.opensearch._types.OpenSearchException;
-import org.opensearch.client.opensearch._types.SortOrder;
-import org.opensearch.client.opensearch._types.Time;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
-import org.opensearch.client.opensearch.core.DeletePitRequest;
 import org.opensearch.client.opensearch.core.bulk.BulkOperation;
-import org.opensearch.client.opensearch.core.search.Hit;
-import org.opensearch.client.opensearch.core.search.Pit;
 
 final class OpenSearchStagedIndex {
 
-    private static final int SCAN_PAGE_SIZE = 500;
     private static final ConcurrentHashMap<String, ReentrantLock> COPY_LOCKS =
             new ConcurrentHashMap<>();
 
@@ -39,6 +31,7 @@ final class OpenSearchStagedIndex {
     private final Function<ProjectionBatch, String> batchIndex;
     private final Function<ProjectionSnapshot, String> snapshotIndex;
     private final ProjectionKind kind;
+    private final OpenSearchScanner scanner;
 
     OpenSearchStagedIndex(
             OpenSearchOperations operations,
@@ -68,6 +61,7 @@ final class OpenSearchStagedIndex {
         this.batchIndex = Objects.requireNonNull(batchIndex, "batchIndex");
         this.snapshotIndex = Objects.requireNonNull(snapshotIndex, "snapshotIndex");
         this.kind = Objects.requireNonNull(kind, "kind");
+        this.scanner = new OpenSearchScanner(operations);
     }
 
     void stageUpsert(
@@ -306,66 +300,9 @@ final class OpenSearchStagedIndex {
             String index,
             Query query,
             int limit) {
-        if (limit <= 0) {
-            return List.of();
-        }
-        String pitId = null;
-        try {
-            pitId = operations.client()
-                    .createPit(request -> request
-                            .index(List.of(index))
-                            .keepAlive(Time.of(time -> time.time("1m"))))
-                    .pitId();
-            String activePitId = pitId;
-            List<Map<String, Object>> result = new ArrayList<>();
-            List<FieldValue> searchAfter = List.of();
-            while (result.size() < limit) {
-                int pageSize = Math.min(SCAN_PAGE_SIZE, limit - result.size());
-                var request = new org.opensearch.client.opensearch.core.SearchRequest.Builder()
-                        .size(pageSize)
-                        .query(query)
-                        .pit(Pit.of(pit -> pit.id(activePitId).keepAlive("1m")))
-                        .sort(sort -> sort.field(field -> field
-                                .field("_shard_doc")
-                                .order(SortOrder.Asc)));
-                if (!searchAfter.isEmpty()) {
-                    request.searchAfter(searchAfter);
-                }
-                var response = operations.client().search(request.build(), Map.class);
-                List<Hit<Map>> hits = response.hits().hits();
-                if (hits.isEmpty()) {
-                    break;
-                }
-                for (Hit<Map> hit : hits) {
-                    if (hit.source() != null) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> source =
-                                (Map<String, Object>) hit.source();
-                        result.add(Map.copyOf(source));
-                    }
-                }
-                searchAfter = hits.getLast().sort();
-                if (hits.size() < pageSize) {
-                    break;
-                }
-            }
-            return List.copyOf(result);
-        } catch (IOException | OpenSearchException exception) {
-            throw new OpenSearchProjectionException(
-                    "OpenSearch failed to scan staged index " + index,
-                    exception);
-        } finally {
-            if (pitId != null) {
-                try {
-                    operations.client().deletePit(
-                            new DeletePitRequest.Builder()
-                                    .pitId(List.of(pitId))
-                                    .build());
-                } catch (Exception ignored) {
-                    // The PIT expires automatically. Query correctness is already decided.
-                }
-            }
-        }
+        return scanner.scan(index, query, limit).stream()
+                .map(OpenSearchScanner.StoredHit::source)
+                .toList();
     }
 
     private Query authorizedQuery(
@@ -418,15 +355,11 @@ final class OpenSearchStagedIndex {
     }
 
     static Query term(String field, String value) {
-        return Query.of(query -> query.term(term -> term
-                .field(field)
-                .value(FieldValue.of(value))));
+        return OpenSearchStoreSupport.term(field, value);
     }
 
     static Query term(String field, long value) {
-        return Query.of(query -> query.term(term -> term
-                .field(field)
-                .value(FieldValue.of(value))));
+        return OpenSearchStoreSupport.term(field, value);
     }
 
     static Query terms(String field, Collection<String> values) {

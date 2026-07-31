@@ -187,3 +187,6 @@ passed; `:core:test` passed; and the terminating repository-wide `clean test`
 completed successfully in 5m15s across 108 tasks. The docs operating-model,
 release contract, and mechanical source checks passed. The pre-stage worktree
 contains 55 changed paths.
+After merging current `origin/main` at `95b71730`, a second repository-wide
+`clean test` completed successfully in 6m22s across 99 tasks; the PR diff
+remained 55 changed files.

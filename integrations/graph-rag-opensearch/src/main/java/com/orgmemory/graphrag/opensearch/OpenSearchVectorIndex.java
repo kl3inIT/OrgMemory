@@ -10,10 +10,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -52,11 +54,14 @@ public final class OpenSearchVectorIndex implements VectorIndex {
                 batch, record.evidence()));
         ensureCopyForward(batch);
         Map<String, List<BulkOperation>> byIndex = new LinkedHashMap<>();
+        Set<String> ensured = new HashSet<>();
         for (VectorRecord record : immutable) {
             String index = indexes.vectors(
                     record.embeddingProfileId(),
                     record.vector().dimensions());
-            operations.ensureIndex(index, OpenSearchSchemas.vector(record.vector().dimensions()));
+            if (ensured.add(index)) {
+                operations.ensureIndex(index, OpenSearchSchemas.vector(record.vector().dimensions()));
+            }
             byIndex.computeIfAbsent(index, ignored -> new ArrayList<>())
                     .add(BulkOperation.of(operation -> operation.index(write -> write
                             .index(index)

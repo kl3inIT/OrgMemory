@@ -106,13 +106,36 @@ reviewed workflow instead.
 
 The browser provides the same canonical ZIP-import path without introducing a
 second lifecycle. The Assets header first chooses the Asset profile; Skill then
-opens a creation-only surface. Upload loads only live authorized Knowledge
-Space targets, performs cheap file/namespace usability checks, and submits the
-multipart package through the generated same-origin CSRF-aware client. Core
-repeats authorization and complete structural validation before object storage
-and Draft creation. Success opens the ordinary Governance workspace. The
-browser never unpacks the ZIP, grants an owner from a session role, publishes
-the Skill, or describes structural validation as content or malware review.
+opens a creation-only surface. An author may write `SKILL.md` content from
+scratch or choose an existing `SKILL.md`, ZIP, or folder. Browser packaging is
+deterministic and applies cheap path, file-count, compressed-size, and
+unpacked-size bounds before upload. A stateless inspection endpoint runs the
+canonical server validator and returns only bounded portable metadata,
+instructions, manifest, digest, and size; it neither stores the package nor
+creates identity. Editing scratch content invalidates that inspection. Create
+and replace always validate the submitted bytes again, so inspection is never
+an authorization or integrity grant.
+
+Both creation paths load only live authorized Knowledge Space targets, perform
+cheap namespace usability checks, and submit the multipart package through the
+generated same-origin CSRF-aware client. Core repeats authorization and
+complete structural validation before object storage and Draft creation.
+Success opens the ordinary Governance workspace. The browser never executes
+package content, grants an owner from a session role, publishes the Skill, or
+describes structural validation as content or malware review.
+
+An actor with live `can_edit` may replace the package attached to a mutable
+Skill Draft. Core inspects and stores a fresh object before the transaction,
+then repeats authorization and takes the Asset lock. The transaction requires
+the expected Draft lock version, deletes only the old `DRAFT` payload
+reference, inserts the fresh reference, updates the canonical Draft, records an
+audit event, and writes a durable supersession row. Database guards continue to
+reject payload-reference updates and all Revision or Release reference
+deletion. After commit, cleanup deletes the superseded object only when an
+exact organization/reference query proves that no Draft, Revision, or Release
+still references it. Otherwise it is retained; transient storage failures stay
+in the bounded retry queue. A published Revision or Release therefore keeps
+its exact original bytes when the working Draft changes.
 
 ### Federated Knowledge
 
@@ -152,10 +175,10 @@ The authenticated web application provides four generic surfaces:
   available. Both server collections return bounded pages, authorized totals,
   and explicit stable orders. An `Add asset` menu preserves the shared profile
   taxonomy without a full-page catalog duplicate. Skill opens a creation-only
-  route whose upload path creates a governed private Draft through the
-  canonical multipart operation; unsupported profiles and future Skill methods
-  are visible but non-interactive. The browser does not infer authorization or
-  owner identity from the session.
+  route whose scratch and upload paths create a governed private Draft through
+  the canonical multipart operation; GitHub import and unsupported profiles are
+  visible but non-interactive until shipped. The browser does not infer
+  authorization or owner identity from the session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and
@@ -171,7 +194,7 @@ The authenticated web application provides four generic surfaces:
   an independent content review. Historical review evidence remains readable.
 
 Before rendering mutation controls, the web application asks Core for the
-current actor's live `can_submit_review`, `can_review`, `can_publish`,
+current actor's live `can_edit`, `can_submit_review`, `can_review`, `can_publish`,
 `can_publish_skill`, and `can_withdraw` decisions on the Asset. The Skill-only
 direct permission is owner-class and still requires `can_create_asset` on the
 parent Space. Core first requires `can_view` and does not return denial reasons
@@ -269,7 +292,6 @@ separate owner and support-agent sessions.
 ## Explicitly Deferred
 
 - controlled SOP effectivity
-- Skill draft package replacement and orphan cleanup
 - Skill update/remove commands and compatibility policy enforcement
 - public npm publication and signed CLI release automation
 - cross-company public marketplace, ratings, and social publishing

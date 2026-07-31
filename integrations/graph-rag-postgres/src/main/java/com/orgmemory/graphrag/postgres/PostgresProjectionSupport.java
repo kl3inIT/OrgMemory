@@ -4,6 +4,7 @@ import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
+import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.Collection;
 import java.util.List;
@@ -125,6 +126,14 @@ final class PostgresProjectionSupport {
                 .addValue("chunkId", evidence.chunkId())
                 .addValue("aclSnapshotId", evidence.aclSnapshotId())
                 .addValue("aclGeneration", evidence.aclGeneration());
+    }
+
+    static MapSqlParameterSource namespaceParameters(ProjectionNamespace namespace) {
+        Objects.requireNonNull(namespace, "namespace");
+        return new MapSqlParameterSource()
+                .addValue("organizationId", namespace.organizationId())
+                .addValue("workspace", namespace.workspace())
+                .addValue("collection", namespace.collection());
     }
 
     static EvidenceReference evidence(java.sql.ResultSet resultSet)

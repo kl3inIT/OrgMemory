@@ -283,7 +283,8 @@ class SkillPackageInspector {
                 optionalString(frontmatter, "license", 1024),
                 optionalString(frontmatter, "compatibility", 500),
                 optionalString(frontmatter, "allowed-tools", 2048),
-                metadata(frontmatter.get("metadata")));
+                metadata(frontmatter.get("metadata")),
+                normalized.substring(closing + "\n---\n".length()).strip());
     }
 
     private static Map<String, String> metadata(Object value) {
@@ -425,7 +426,8 @@ class SkillPackageInspector {
             String license,
             String compatibility,
             String allowedTools,
-            Map<String, String> metadata) {
+            Map<String, String> metadata,
+            String instructions) {
     }
 
     record InspectedPackage(

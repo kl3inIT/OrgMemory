@@ -1,5 +1,6 @@
 package com.orgmemory.graphrag.validation;
 
+import java.time.Duration;
 import java.util.Objects;
 
 /** Shared validation for required, normalized graph-RAG text fields. */
@@ -22,5 +23,13 @@ public final class TextValidation {
         }
         String normalized = value.strip();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    public static Duration requirePositiveDuration(Duration value, String field) {
+        Duration duration = Objects.requireNonNull(value, field);
+        if (duration.isZero() || duration.isNegative()) {
+            throw new IllegalArgumentException(field + " must be positive");
+        }
+        return duration;
     }
 }

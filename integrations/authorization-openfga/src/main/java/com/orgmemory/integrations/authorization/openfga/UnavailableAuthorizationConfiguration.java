@@ -39,8 +39,8 @@ public class UnavailableAuthorizationConfiguration {
         return query -> {
             Objects.requireNonNull(query, "query");
             return AuthorizationDecision.indeterminate(
-                    "OPENFGA_NOT_CONFIGURED",
-                    "openfga-unconfigured");
+                    NOT_CONFIGURED,
+                    UNCONFIGURED);
         };
     }
 
@@ -50,8 +50,8 @@ public class UnavailableAuthorizationConfiguration {
         return request -> {
             Objects.requireNonNull(request, "request");
             return RelationshipTupleWriteResult.indeterminate(
-                    "OPENFGA_NOT_CONFIGURED",
-                    "openfga-unconfigured");
+                    NOT_CONFIGURED,
+                    UNCONFIGURED);
         };
     }
 
@@ -111,7 +111,7 @@ public class UnavailableAuthorizationConfiguration {
                     com.orgmemory.core.authorization.AuthorizedResourceQuery query) {
                 Objects.requireNonNull(query, "query");
                 return AuthorizedResourceSetResult.indeterminate(
-                        "OPENFGA_NOT_CONFIGURED", "openfga-unconfigured");
+                        NOT_CONFIGURED, UNCONFIGURED);
             }
 
             @Override
@@ -119,7 +119,7 @@ public class UnavailableAuthorizationConfiguration {
                     com.orgmemory.core.authorization.BatchAuthorizationQuery query) {
                 Objects.requireNonNull(query, "query");
                 return BatchAuthorizationResult.indeterminate(
-                        "OPENFGA_NOT_CONFIGURED", "openfga-unconfigured");
+                        NOT_CONFIGURED, UNCONFIGURED);
             }
         };
     }

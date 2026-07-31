@@ -8,6 +8,7 @@ package com.orgmemory.core.assetregistry;
  * reject.
  */
 public record AssetGovernanceActions(
+        boolean canEdit,
         boolean canSubmitReview,
         boolean canReview,
         boolean canPublish,
