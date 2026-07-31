@@ -98,6 +98,22 @@
       "reviewOwner": "product-and-documentation"
     },
     {
+      "route": "/docs/product-guides/create-governed-skills",
+      "content": "content/docs/product-guides/create-governed-skills.mdx",
+      "area": "product-guides",
+      "order": 20,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/vi/docs/product-guides/create-governed-skills",
+      "content": "content/docs/product-guides/create-governed-skills.vi.mdx",
+      "area": "product-guides",
+      "order": 20,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
       "route": "/docs/reference/api-reference",
       "content": "content/docs/reference/api-reference/index.mdx",
       "area": "reference",

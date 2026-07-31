@@ -12,6 +12,7 @@ dependencies {
     implementation("org.springframework:spring-context")
     implementation("org.springframework.boot:spring-boot")
     implementation("tools.jackson.core:jackson-databind")
+    implementation(libs.commons.compress)
 
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.mockito:mockito-core")

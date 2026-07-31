@@ -46,24 +46,29 @@ public web/API health checks passed on 2026-08-01.
       both create and replace time.
 - [x] Update generated OpenAPI clients, focused backend/frontend tests, domain
       spec, and mirrored test matrix.
-- [ ] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+- [x] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+
+Delivered by PR #191 and merge commit `fc435a74`. Main CI, immutable image
+publication, ZM deployment, Flyway v16, application health, and public web/docs
+checks passed on 2026-08-01. The docs image was rebuilt and deployed manually
+after a concurrent main run cancelled the original docs-changing CI job.
 
 ## 3. PR 3 — GitHub import and product completion
 
-- [ ] Add bounded public GitHub preview and optional private preview through an
+- [x] Add bounded public GitHub preview and optional private preview through an
       administrator-managed GitHub App source connection.
-- [ ] Resolve and persist immutable commit provenance, preview multiple Skills,
+- [x] Resolve and persist immutable commit provenance, preview multiple Skills,
       and import a selected subset with per-item results.
-- [ ] Enforce HTTPS host allowlisting, redirect and Authorization stripping,
+- [x] Enforce HTTPS host allowlisting, redirect and Authorization stripping,
       administrator opt-in for private GitHub App import, credential-use audit,
       40-character commit pinning, and bounded one-pass archive inspection.
-- [ ] Import each selected Skill in its own transaction and return independent
+- [x] Import each selected Skill in its own transaction and return independent
       results without an outer batch transaction.
-- [ ] Finish error, empty, partial-success, keyboard, theme, responsive, and
+- [x] Finish error, empty, partial-success, keyboard, theme, responsive, and
       authorization states.
-- [ ] Update public Product Guide content only where the shipped behavior needs
+- [x] Update public Product Guide content only where the shipped behavior needs
       explanation; do not publish internal design details.
-- [ ] Run full backend/frontend/docs/release gates and same-viewport visual QA;
+- [x] Run full backend/frontend/docs/release gates and same-viewport visual QA;
       record the final result in `design-qa.md`.
 - [ ] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
 

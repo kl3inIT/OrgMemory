@@ -8,7 +8,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader {
 
-    static final String SCHEMA_VERSION = "1";
+    static final String SCHEMA_VERSION = "2";
 
     private final ObjectMapper json = JsonMapper.builder().build();
 
@@ -19,7 +19,7 @@ class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader
 
     @Override
     public Set<String> schemaVersions() {
-        return Set.of(SCHEMA_VERSION);
+        return Set.of("1", SCHEMA_VERSION);
     }
 
     @Override
@@ -33,7 +33,7 @@ class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader
             return json.readValue(payload, SkillPackageSpec.class);
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException(
-                    "Skill package payload does not match schema version 1", exception);
+                    "Skill package payload does not match a supported schema version", exception);
         }
     }
 }

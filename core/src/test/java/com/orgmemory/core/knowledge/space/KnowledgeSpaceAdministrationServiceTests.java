@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.space;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;

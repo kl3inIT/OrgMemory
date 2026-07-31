@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.graph.GraphIndexJobQueue;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 
@@ -78,7 +77,7 @@ public class SourceIngestionCoordinator {
             String parserVersion,
             String chunkerVersion,
             DocumentProcessingProfileSnapshot processingProfile,
-            EmbeddingProfileRef embeddingProfile,
+            SourceEmbeddingProfileRef embeddingProfile,
             RawSourceRef raw,
             NormalizedRecordRef normalized,
             KnowledgeAssetRef asset) {
