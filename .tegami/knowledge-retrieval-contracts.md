@@ -4,6 +4,8 @@ packages:
 subject: Isolate retrieval and embedding contracts
 ---
 
+# Knowledge retrieval contracts
+
 ## Improvements
 
 Query embedding contracts, embedding profiles, and projection namespaces now
