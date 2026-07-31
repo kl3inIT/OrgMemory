@@ -11,7 +11,7 @@ import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
 import com.orgmemory.core.knowledge.connector.ConnectorContentItem;
 import com.orgmemory.core.knowledge.connector.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
-import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.connector.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.connector.ConnectorPermissionItem;

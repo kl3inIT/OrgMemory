@@ -94,6 +94,16 @@ the second connector pull request. The nested module starts open until that
 runtime and persistence half joins the same boundary and its remaining sibling
 dependencies can be replaced with intentional APIs.
 
+## Fifth Delivery Slice
+
+The second connector pull request moves the remaining crawl attempt and
+checkpoint persistence, source connection administration and credentials,
+identity observations, and membership sync runs into `knowledge.connector`.
+This completes the physical connector extraction without widening additional
+implementation details. The module remains open while direct source-ledger and
+ACL calls are replaced with intentional module APIs and allowed dependencies
+are declared.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

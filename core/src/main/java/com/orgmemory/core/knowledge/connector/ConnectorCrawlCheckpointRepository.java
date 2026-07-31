@@ -1,6 +1,5 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 
 import java.util.List;
 import java.util.Optional;
