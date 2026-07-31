@@ -31,6 +31,7 @@ import com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
 import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceHeadView;
 import com.orgmemory.core.knowledge.sourceledger.SourceObject;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
@@ -219,7 +220,7 @@ class ConnectorReconciler {
             ConnectorPermissionItem permission,
             SourcePrincipalResolution resolution) {
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
-        var head = ingestion.findConnectorHead(
+        var head = ingestion.findSourceHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
         if (head.isEmpty()) {
             // The source object itself is created by the revision coordinator, in the committed
@@ -229,7 +230,7 @@ class ConnectorReconciler {
             audit(ctx, "CONNECTOR_MATERIALIZE", content.externalObjectId(), "OBJECT_MATERIALIZED");
             return ObjectOutcome.MATERIALIZED;
         }
-        ConnectorHeadView current = head.get();
+        SourceHeadView current = head.get();
         if (content.contentRevision().equals(current.currentContentRevision())) {
             boolean published = revisionCoordinator
                     .findExisting(ctx, content, sha256(content.body()))
@@ -256,7 +257,7 @@ class ConnectorReconciler {
      */
     private ObjectOutcome rematerialize(
             ConnectorIngestionContext ctx,
-            ConnectorHeadView current,
+            SourceHeadView current,
             ConnectorContentItem content,
             AclPlan plan) {
         SourceObject source = sources
@@ -283,7 +284,7 @@ class ConnectorReconciler {
             ConnectorPermissionItem permission,
             SourcePrincipalResolution resolution) {
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
-        var head = ingestion.findConnectorHead(
+        var head = ingestion.findSourceHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), permission.externalObjectId());
         if (head.isEmpty()) {
             throw new IllegalArgumentException(
@@ -295,7 +296,7 @@ class ConnectorReconciler {
 
     private ObjectOutcome rotate(
             ConnectorIngestionContext ctx,
-            ConnectorHeadView current,
+            SourceHeadView current,
             AclPlan plan,
             String externalObjectId) {
         SourceAclRotationRef result = ingestion.rotateConnectorAcl(
