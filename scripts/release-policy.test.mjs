@@ -45,6 +45,30 @@ test("release-only Version PR changes do not demand another entry", () => {
   );
 });
 
+test("the exact generated docs changelog in a Version PR does not demand another entry", () => {
+  assert.equal(
+    releaseRequirementFailure(
+      [
+        { status: "M", path: "release/product.json" },
+        { status: "M", path: "apps/docs/content/includes/product-changelog.md" },
+        { status: "D", path: ".tegami/feature.md" },
+      ],
+      "",
+    ),
+    undefined,
+  );
+});
+
+test("other docs changes still require a release entry", () => {
+  assert.match(
+    releaseRequirementFailure(
+      [{ status: "M", path: "apps/docs/content/docs/getting-started/index.mdx" }],
+      "",
+    ) ?? "",
+    /require a \.tegami entry/,
+  );
+});
+
 for (const path of [
   "build-logic/src/main/kotlin/conventions.gradle.kts",
   "gradle/libs.versions.toml",

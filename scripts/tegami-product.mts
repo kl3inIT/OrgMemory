@@ -1,5 +1,5 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -17,6 +17,9 @@ export const PRODUCT_NAME = "orgmemory";
 export const PRODUCT_MANAGER = "product";
 export const PRODUCT_CHANGELOG_PREAMBLE =
   "# OrgMemory changelog\n\nProduct releases are assembled from reviewed entries under `.tegami/`.";
+export const PUBLIC_CHANGELOG_MARKER =
+  "[//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)";
+const PUBLIC_CHANGELOG_INCLUDE = "apps/docs/content/includes/product-changelog.md";
 export const REQUIRED_COMPONENTS = [
   "api",
   "worker",
@@ -31,6 +34,7 @@ const VERSION_DIFF_ALLOWLIST = [
   /^release\/product\.json$/,
   /^release\/CHANGELOG\.md$/,
   /^release\/artifacts\.json$/,
+  /^apps\/docs\/content\/includes\/product-changelog\.md$/,
 ];
 
 export interface ProductManifest {
@@ -243,6 +247,12 @@ export function normalizeProductChangelog(raw: string): string {
   }
   const releases = raw.replace(PRODUCT_CHANGELOG_PREAMBLE, "").trim();
   return `${PRODUCT_CHANGELOG_PREAMBLE}${releases ? `\n\n${releases}` : ""}\n`;
+}
+
+export function renderPublicProductChangelog(raw: string): string {
+  const normalized = normalizeProductChangelog(raw);
+  const releases = normalized.slice(PRODUCT_CHANGELOG_PREAMBLE.length).trim();
+  return `${PUBLIC_CHANGELOG_MARKER}${releases ? `\n\n${releases}` : ""}\n`;
 }
 
 class OrgMemoryProductPackage extends WorkspacePackage {
@@ -593,9 +603,15 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
     async applyCliDraft() {
       if (verifyCurrentMain) await assertCurrentMain(run, this.cwd);
       const changelogPath = join(this.cwd, "release", "CHANGELOG.md");
+      const normalizedChangelog = normalizeProductChangelog(
+        await readFile(changelogPath, "utf8"),
+      );
+      await writeFile(changelogPath, normalizedChangelog, "utf8");
+      const publicChangelogPath = join(this.cwd, ...PUBLIC_CHANGELOG_INCLUDE.split("/"));
+      await mkdir(join(this.cwd, "apps", "docs", "content", "includes"), { recursive: true });
       await writeFile(
-        changelogPath,
-        normalizeProductChangelog(await readFile(changelogPath, "utf8")),
+        publicChangelogPath,
+        renderPublicProductChangelog(normalizedChangelog),
         "utf8",
       );
       const tracked = await run("git", ["diff", "--name-only", "--relative", "HEAD"], this.cwd);

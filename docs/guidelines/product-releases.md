@@ -49,8 +49,8 @@ the pull-request description; it is a review convention, not a bypass label.
 3. It selects the latest complete manifests applicable to that commit and
    writes one consolidated `release/artifacts.json`.
 4. `tegami ci` opens or updates `tegami/version-packages`. Its diff is limited
-   to consumed entries, publish lock, product version, changelog, and artifact
-   manifest.
+   to consumed entries, publish lock, product version, changelog, its generated
+   public docs fragment, and the artifact manifest.
 5. CodeRabbit and required CI review that Version Packages pull request like
    any other pull request.
 6. After it merges and the exact commit is green, Tegami validates the manifest,

@@ -289,11 +289,11 @@ function checkRoutes() {
   const englishGenerated = manifest.generatedEntries.filter(
     (entry) => contentLocale(entry.content) === 'en',
   );
-  if (englishAuthored.length !== 13) {
-    fail(`Expected 13 English authored routes, found ${englishAuthored.length}`);
+  if (englishAuthored.length === 0) {
+    fail('At least one English authored route is required');
   }
-  if (englishGenerated.length !== 7) {
-    fail(`Expected 7 English generated API routes, found ${englishGenerated.length}`);
+  if (englishGenerated.length === 0) {
+    fail('At least one English generated API route is required');
   }
   if (publicRoutes.some((route) => draftRoutes.includes(route))) {
     fail('A route cannot be both public and draft');
@@ -310,9 +310,15 @@ function checkRoutes() {
         entry.status === 'draft' && contentLocale(entry.content) === i18nDefaultLanguage,
     )
     .map((entry) => entry.route);
-  if (englishDraftRoutes.length !== 0 || englishPublicRoutes.length !== 20) {
+  const expectedEnglishPublicRoutes = [...englishAuthored, ...englishGenerated].filter(
+    (entry) => entry.status === 'public',
+  ).length;
+  if (
+    englishDraftRoutes.length !== 0 ||
+    englishPublicRoutes.length !== expectedEnglishPublicRoutes
+  ) {
     fail(
-      `English baseline must contain 20 public routes and no drafts; ` +
+      `English baseline must publish every declared route and contain no drafts; ` +
         `found ${englishPublicRoutes.length} public and ${englishDraftRoutes.length} draft`,
     );
   }

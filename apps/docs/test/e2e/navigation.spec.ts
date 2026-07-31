@@ -288,6 +288,12 @@ test('responses carry security headers and use explicit Markdown URLs', async ({
     expect(response.headers()['permissions-policy']).toBe(
       'camera=(), microphone=(), geolocation=()',
     );
+    expect(response.headers()['content-security-policy']).toContain("default-src 'self'");
+    expect(response.headers()['strict-transport-security']).toBe(
+      'max-age=31536000; includeSubDomains',
+    );
+    expect(response.headers()['x-powered-by']).toBeUndefined();
+    expect(response.headers()['cache-control']).toBe('public, max-age=0, must-revalidate');
 
     const negotiated = await request.get(route, {
       headers: {
@@ -298,6 +304,34 @@ test('responses carry security headers and use explicit Markdown URLs', async ({
 
     const markdown = await request.get(`${route}.md`);
     expect(markdown.headers()['content-type']).toContain('text/markdown');
+  }
+});
+
+test('global changelog navigation is localized and renders Tegami history', async ({
+  page,
+}, testInfo) => {
+  for (const localized of [
+    { route: '/docs/getting-started', label: 'Changelog', href: '/docs/changelog' },
+    {
+      route: '/vi/docs/getting-started',
+      label: 'Nhật ký thay đổi',
+      href: '/vi/docs/changelog',
+    },
+  ]) {
+    await page.goto(localized.route);
+    if (testInfo.project.name === 'mobile-chromium') {
+      await page
+        .getByRole('button', {
+          name: localized.route.startsWith('/vi/') ? 'Mở thanh bên' : 'Open Sidebar',
+        })
+        .click();
+    }
+    await page.getByRole('link', { name: localized.label, exact: true }).first().click();
+    await expect(page).toHaveURL(new RegExp(`${localized.href}$`));
+    await expect(page.getByRole('heading', { level: 2, name: 'orgmemory@0.1.0' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 3, name: 'Product release management' }),
+    ).toBeVisible();
   }
 });
 
@@ -314,17 +348,26 @@ test('generated API reference renders with its playground disabled', async ({ pa
 test('server-side search discovers the key product vocabulary', async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Run the corpus contract once');
 
-  for (const term of ['Asset', 'OpenFGA', 'GraphRAG', 'MCP', 'connector']) {
-    for (const locale of ['en', 'vi']) {
+  const queries = [
+    ...['Asset', 'OpenFGA', 'GraphRAG', 'MCP', 'connector'].flatMap((term) =>
+      ['en', 'vi'].map((locale) => ({ term, locale })),
+    ),
+    { term: 'Không gian tri thức', locale: 'vi' },
+    { term: 'bản phát hành', locale: 'vi' },
+  ];
+
+  for (const { term, locale } of queries) {
       const response = await request.get(
         `/api/search?query=${encodeURIComponent(term)}&locale=${locale}`,
       );
       expect(response.ok(), `Search request failed for ${term} in ${locale}`).toBeTruthy();
+      const searchableResponse = (await response.text())
+        .replaceAll(/<\/?mark>/g, '')
+        .toLowerCase();
       expect(
-        (await response.text()).toLowerCase(),
+        searchableResponse,
         `No search result for ${term} in ${locale}`,
       ).toContain(term.toLowerCase());
-    }
   }
 });
 
@@ -379,4 +422,6 @@ test('every manifest route and machine-readable output is public-safe', async ({
       expect(sitemap, `Sitemap is missing /vi${route}`).toContain(`/vi${route}`);
     }
   }
+  expect(sitemap).toContain('hreflang="en"');
+  expect(sitemap).toContain('hreflang="vi"');
 });
