@@ -4,10 +4,12 @@ import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetGovernanceActions;
+import com.orgmemory.core.assetregistry.AssetOwnedSort;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetRole;
 import com.orgmemory.core.assetregistry.AssetSummary;
+import com.orgmemory.core.assetregistry.AssetSummaryPage;
 import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.SkillRegistryService;
@@ -167,6 +169,21 @@ class AssetRegistryController {
             @RequestParam(required = false) AssetType type,
             Authentication authentication) {
         return assets.search(actors.current(authentication), q, type);
+    }
+
+    @GetMapping("/owned")
+    @Operation(
+            operationId = "listOwnedAssets",
+            summary = "List Assets currently owned by the actor")
+    AssetSummaryPage owned(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) AssetType type,
+            @RequestParam(defaultValue = "RECENTLY_UPDATED") AssetOwnedSort sort,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "24") int pageSize,
+            Authentication authentication) {
+        return assets.owned(
+                actors.current(authentication), q, type, sort, page, pageSize);
     }
 
     @GetMapping("/{assetId}")

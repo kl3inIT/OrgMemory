@@ -18,6 +18,7 @@ import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
 import com.orgmemory.core.assetregistry.AssetCatalogSort;
+import com.orgmemory.core.assetregistry.AssetOwnedSort;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.AssetRecommendationPage;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
@@ -39,6 +40,7 @@ import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetRole;
 import com.orgmemory.core.assetregistry.AssetType;
+import com.orgmemory.core.assetregistry.AssetSummaryPage;
 import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -377,6 +379,39 @@ class AssetRegistryIntegrationTests {
                 recent.items().getFirst().releasedAt().toEpochMilli());
         assertEquals(zulu.id(), recent.items().getLast().assetId());
         assertEquals(firstZuluRelease.id(), recent.items().getLast().releaseId());
+    }
+
+    @Test
+    void ownedWorkspaceIncludesDraftsAndUsesOnlyActiveOwnerAssignments() {
+        AssetView ownedDraft = create("owned-draft");
+        AssetView editableButNotOwned = assets.create(
+                REVIEWER,
+                AssetType.PROMPT_TEMPLATE,
+                "support",
+                "editable-not-owned",
+                SPACE_ID,
+                input("{\"task\":\"editable\"}"));
+        when(authorizationSets.listAuthorizedResources(any()))
+                .thenReturn(AuthorizedResourceSetResult.resolved(
+                        List.of(
+                                ResourceRef.of(
+                                        ORGANIZATION_ID,
+                                        "asset",
+                                        ownedDraft.id()),
+                                ResourceRef.of(
+                                        ORGANIZATION_ID,
+                                        "asset",
+                                        editableButNotOwned.id())),
+                        MODEL_ID));
+
+        AssetSummaryPage result = assets.owned(
+                AUTHOR, "owned", null, AssetOwnedSort.NAME, 1, 24);
+
+        assertEquals(1, result.total());
+        assertEquals(ownedDraft.id(), result.items().getFirst().id());
+        assertEquals("DRAFT_ONLY", result.items().getFirst().portfolioState().name());
+        assertEquals(AssetOwnedSort.NAME, result.sort());
+        assertTrue(result.items().getFirst().updatedAt() != null);
     }
 
     @Test

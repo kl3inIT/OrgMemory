@@ -3,20 +3,72 @@ package com.orgmemory.core.assetregistry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.AuthorizedResourceQuery;
+import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
+import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 class AssetRegistryServiceTests {
+
+    @Test
+    void ownedWorkspaceResolvesVisibilityAndCanonicalOwnerAssignments() {
+        UUID organizationId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                organizationId,
+                null,
+                "Owner",
+                "owner@example.test");
+        AssetRegistryCoordinator coordinator = mock(AssetRegistryCoordinator.class);
+        RelationshipAuthorizationSetPort authorizationSets =
+                mock(RelationshipAuthorizationSetPort.class);
+        when(authorizationSets.listAuthorizedResources(any())).thenReturn(
+                AuthorizedResourceSetResult.resolved(
+                        List.of(ResourceRef.of(organizationId, "asset", assetId)),
+                        "model-v1"));
+        AssetSummaryPage expected = AssetSummaryPage.empty(
+                1, 24, AssetOwnedSort.RECENTLY_UPDATED);
+        when(coordinator.ownedSummaryPage(
+                        eq(organizationId),
+                        eq(actor.userId()),
+                        eq(Set.of(assetId)),
+                        eq(null),
+                        eq(null),
+                        eq(AssetOwnedSort.RECENTLY_UPDATED),
+                        eq(1),
+                        eq(24)))
+                .thenReturn(expected);
+        AssetRegistryService service = new AssetRegistryService(
+                coordinator,
+                mock(AssetAuthorizationProjectionService.class),
+                mock(RelationshipAuthorizationPort.class),
+                authorizationSets);
+
+        assertEquals(expected, service.owned(actor, null, null, null, 1, 24));
+
+        ArgumentCaptor<AuthorizedResourceQuery> query =
+                ArgumentCaptor.forClass(AuthorizedResourceQuery.class);
+        verify(authorizationSets).listAuthorizedResources(query.capture());
+        assertEquals("can_view", query.getValue().permission().value());
+        assertEquals(actor.principal(), query.getValue().principal());
+    }
 
     @Test
     void governanceActionsUseLivePermissionsAfterRequiringAssetView() {
