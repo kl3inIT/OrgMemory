@@ -78,6 +78,25 @@ The links are the point. Three signals with one login is three silos; exemplars,
   board. The API refuses to delete it too, because the file still exists. Move
   the file away, restart so `disableDeletion: false` removes the row, move it
   back, restart again.
+- **A panel's metric name is worth checking against the server, not against
+  memory.** Micrometer's OTLP export does not use the suffixes a Prometheus
+  scrape would: the meter is `jvm_threads_live`, not `jvm_threads_live_threads`,
+  and durations are `_milliseconds_*`, not `_seconds_*`. A wrong name is not an
+  error anywhere — the panel is simply empty forever. Compare exactly:
+
+  ```bash
+  curl -s localhost:9090/api/v1/label/__name__/values
+  ```
+
+  Some absences are correct. `orgmemory_graph_rag_model_tokens_total` and
+  `orgmemory_graph_rag_stage_failures_total` exist in code and appear the first
+  time extraction runs or a stage fails; a counter with no occurrence has no
+  series. The inherited PostgreSQL board asks for `pg_stat_bgwriter_*` counters
+  this exporter no longer publishes, and the node board asks for collectors that
+  are off by default, so both carry some permanently empty panels.
+- **`cadvisor` is the largest single CPU consumer on the host** — around 8% of a
+  core, above every application. That is normal for cAdvisor and worth knowing
+  before someone reads the container CPU board and starts an investigation.
 - **`postgres-exporter` sits behind the `database` profile** because it needs a
   monitoring role in the production database. Create the role, put its DSN in
   `observability.env`, then `--profile database up -d`.
