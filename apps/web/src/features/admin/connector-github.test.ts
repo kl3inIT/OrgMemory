@@ -27,11 +27,13 @@ describe("GitHub connector administration", () => {
     const descriptor = CONNECTOR_FORMS.github
     const draft = draftFrom(descriptor, {
       repositoryIds: ["77", "88"],
+      allowPrivateSkillImports: true,
       maxItemsPerRepository: 250,
     })
 
     expect(configFrom(descriptor, draft)).toEqual({
       repositoryIds: ["77", "88"],
+      allowPrivateSkillImports: true,
       maxItemsPerRepository: 250,
     })
   })

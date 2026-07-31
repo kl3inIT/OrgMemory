@@ -121,6 +121,14 @@ export const CONNECTOR_FORMS: Record<string, ConnectorFormDescriptor> = {
     ],
     advanced: [
       {
+        type: "checkbox",
+        name: "allowPrivateSkillImports",
+        label: "Allow private Skill imports",
+        default: false,
+        description:
+          "Let authenticated members import Skills from repositories selected for this GitHub App installation.",
+      },
+      {
         type: "number",
         name: "maxItemsPerRepository",
         label: "Issues and pull requests per repository",
