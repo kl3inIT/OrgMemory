@@ -18,7 +18,7 @@ class McpFailureBoundaryTests {
         var failure = assertThrows(
                 McpFailureBoundary.McpRequestFailedException.class,
                 () -> McpFailureBoundary.sanitized(() -> {
-                    throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                    throw new McpGatewayException(
                             "OrgMemory Asset delivery is temporarily unavailable",
                             new UnknownHostException(INTERNAL_HOST));
                 }));

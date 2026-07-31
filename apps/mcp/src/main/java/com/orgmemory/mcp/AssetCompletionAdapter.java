@@ -140,8 +140,7 @@ class AssetCompletionAdapter {
         try {
             return assets.search(
                     authorization.require(context), null, type);
-        } catch (AssetDeliveryApiClient.AssetDeliveryGatewayException
-                        unavailable) {
+        } catch (McpGatewayException unavailable) {
             log.debug(
                     "MCP completion returned no value: {}",
                     unavailable.getMessage());
@@ -190,6 +189,6 @@ class AssetCompletionAdapter {
             return null;
         }
         String value = arguments.get(name);
-        return value == null || value.isBlank() ? null : value.strip();
+        return McpValues.optionalText(value);
     }
 }

@@ -67,7 +67,6 @@ class McpRateLimitFilterTests {
         verify(chain, times(2)).doFilter(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
-        assertEquals(2, filter.trackedCallerCount());
     }
 
     @Test

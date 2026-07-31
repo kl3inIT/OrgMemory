@@ -9,7 +9,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.ai.mcp.annotation.McpArg;
 import org.springframework.ai.mcp.annotation.McpPrompt;
 import org.springframework.stereotype.Component;
@@ -62,8 +61,8 @@ class ReleasedPromptAdapter {
         AssetDeliveryApiClient.PromptRender rendered =
                 McpFailureBoundary.sanitized(() -> assets.renderPrompt(
                         authorization.require(context),
-                        parse(assetId),
-                        parse(releaseId),
+                        McpValues.assetIdentifier(assetId),
+                        McpValues.assetIdentifier(releaseId),
                         variables(variablesJson)));
         String content = """
                 Approved system instruction:
@@ -102,17 +101,9 @@ class ReleasedPromptAdapter {
             return Collections.unmodifiableMap(
                     new LinkedHashMap<>(parsed));
         } catch (RuntimeException invalid) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+            throw new McpGatewayException(
                     "variables_json must be a JSON object");
         }
     }
 
-    private static UUID parse(String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException invalid) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
-                    "The Asset identifier is invalid");
-        }
-    }
 }

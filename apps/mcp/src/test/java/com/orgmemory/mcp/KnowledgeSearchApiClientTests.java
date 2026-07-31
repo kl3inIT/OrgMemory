@@ -85,7 +85,7 @@ class KnowledgeSearchApiClientTests {
                         .contentType(MediaType.TEXT_PLAIN));
 
         var refused = assertThrows(
-                KnowledgeSearchApiClient.KnowledgeSearchGatewayException.class,
+                McpGatewayException.class,
                 () -> client().search(
                         "Bearer api-token",
                         "forecast",
@@ -93,6 +93,30 @@ class KnowledgeSearchApiClientTests {
 
         assertFalse(refused.getMessage().contains(
                 "internal-policy-detail"));
+        server.verify();
+    }
+
+    @Test
+    void mapsInvalidSearchRequestsSeparatelyFromAvailabilityFailures() {
+        server.expect(requestTo(
+                        "https://api.example.test/api/knowledge/search"
+                                + "?q=invalid"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .body("internal-validation-detail")
+                        .contentType(MediaType.TEXT_PLAIN));
+
+        var refused = assertThrows(
+                McpGatewayException.class,
+                () -> client().search(
+                        "Bearer api-token",
+                        "invalid",
+                        null));
+
+        assertEquals(
+                "The knowledge search request is invalid",
+                refused.getMessage());
+        assertFalse(refused.getMessage().contains(
+                "internal-validation-detail"));
         server.verify();
     }
 
@@ -105,7 +129,7 @@ class KnowledgeSearchApiClientTests {
                         new IOException("private network topology")));
 
         var failure = assertThrows(
-                KnowledgeSearchApiClient.KnowledgeSearchGatewayException.class,
+                McpGatewayException.class,
                 () -> client().search(
                         "Bearer api-token",
                         "expense",
