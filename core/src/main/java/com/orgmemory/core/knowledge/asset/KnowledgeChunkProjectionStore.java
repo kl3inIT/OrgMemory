@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.GraphIndexChunk;
 import com.orgmemory.core.knowledge.PgVectorLiteral;
 
 import java.sql.Types;
@@ -149,7 +148,7 @@ public class KnowledgeChunkProjectionStore {
     }
 
     @Transactional(readOnly = true)
-    public List<GraphIndexChunk> loadActive(
+    public List<KnowledgeChunkProjection> loadActive(
             UUID organizationId,
             UUID sourceRevisionId,
             UUID knowledgeAssetId,
@@ -173,7 +172,7 @@ public class KnowledgeChunkProjectionStore {
                         .addValue("knowledgeAssetId", knowledgeAssetId)
                         .addValue("knowledgeAssetVersionId", knowledgeAssetVersionId)
                         .addValue("projectionGeneration", projectionGeneration),
-                (resultSet, rowNumber) -> new GraphIndexChunk(
+                (resultSet, rowNumber) -> new KnowledgeChunkProjection(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getInt("chunk_index"),
                         resultSet.getString("content"),

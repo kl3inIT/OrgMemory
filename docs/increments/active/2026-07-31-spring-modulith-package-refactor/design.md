@@ -118,6 +118,23 @@ indexing, and the PostgreSQL vector literal utility shared by chunk projection
 and retrieval. These dependencies must be replaced or declared intentionally
 before `knowledge.asset`, `knowledge.graph`, and `knowledge.retrieval` close.
 
+## Seventh Delivery Slice
+
+The Knowledge Graph pull request moves graph-index jobs and claiming,
+processing-profile persistence and resolution, lifecycle orchestration,
+curation, exploration, and export into `knowledge.graph`. GraphRAG query
+retrieval remains in the future retrieval slice because it owns authorized
+evidence resolution and result assembly rather than graph lifecycle.
+
+The compiler exposes temporary graph edges to the embedding-profile registry,
+retrieval evidence scope and canonical recheck, Knowledge Asset chunk
+projection, connector reconciliation, and source ingestion. The nested module
+starts open, and structural tests pin both its current consumer types and the
+internal graph types they consume so this migration debt cannot grow silently.
+The asset-owned projection store returns a graph-neutral
+`KnowledgeChunkProjection`; `knowledge.graph` maps that value into
+`GraphIndexChunk`, preventing a reciprocal Asset-to-Graph dependency.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

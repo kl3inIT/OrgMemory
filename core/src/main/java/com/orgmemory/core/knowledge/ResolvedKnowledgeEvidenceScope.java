@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-record ResolvedKnowledgeEvidenceScope(
+public record ResolvedKnowledgeEvidenceScope(
         UUID organizationId,
         UUID actorUserId,
         UUID actorDepartmentId,
@@ -19,7 +19,7 @@ record ResolvedKnowledgeEvidenceScope(
         Map<UUID, Set<UUID>> assetIdsByKnowledgeSpace,
         Map<UUID, Long> aclGenerationByKnowledgeSpace) {
 
-    ResolvedKnowledgeEvidenceScope {
+    public ResolvedKnowledgeEvidenceScope {
         Objects.requireNonNull(organizationId, "organizationId");
         Objects.requireNonNull(actorUserId, "actorUserId");
         authorizationModelId = required(
@@ -42,17 +42,17 @@ record ResolvedKnowledgeEvidenceScope(
         }
     }
 
-    Set<UUID> allAssetIds() {
+    public Set<UUID> allAssetIds() {
         LinkedHashSet<UUID> all = new LinkedHashSet<>();
         assetIdsByKnowledgeSpace.values().forEach(all::addAll);
         return Set.copyOf(all);
     }
 
-    Set<UUID> knowledgeSpaceIds() {
+    public Set<UUID> knowledgeSpaceIds() {
         return assetIdsByKnowledgeSpace.keySet();
     }
 
-    SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
+    public SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
         return new SecureKnowledgeRetrievalStore.RetrievalScope(
                 organizationId,
                 actorUserId,
@@ -63,7 +63,7 @@ record ResolvedKnowledgeEvidenceScope(
                 evaluatedAt);
     }
 
-    AuthorizedEvidenceScope forKnowledgeSpace(UUID knowledgeSpaceId) {
+    public AuthorizedEvidenceScope forKnowledgeSpace(UUID knowledgeSpaceId) {
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         return new AuthorizedEvidenceScope(
                 organizationId,

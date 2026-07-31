@@ -7,9 +7,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.KnowledgeGraphCurationCommand;
-import com.orgmemory.core.knowledge.KnowledgeGraphCurationService;
-import com.orgmemory.core.knowledge.KnowledgeGraphExportService;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationCommand;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService;
+import com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

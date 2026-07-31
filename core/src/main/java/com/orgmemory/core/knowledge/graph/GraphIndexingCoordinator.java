@@ -1,5 +1,8 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
+import com.orgmemory.core.knowledge.EmbeddingProfile;
+import com.orgmemory.core.knowledge.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.EmbeddingProfileRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
@@ -179,11 +182,20 @@ public class GraphIndexingCoordinator {
         GraphProcessingProfileRef graphProcessingProfile =
                 graphProcessingProfiles.get(job.getGraphProcessingProfileId());
         var activeChunks = chunks.loadActive(
-                job.getOrganizationId(),
-                job.getSourceRevisionId(),
-                job.getKnowledgeAssetId(),
-                job.getKnowledgeAssetVersionId(),
-                job.getProjectionGeneration());
+                        job.getOrganizationId(),
+                        job.getSourceRevisionId(),
+                        job.getKnowledgeAssetId(),
+                        job.getKnowledgeAssetVersionId(),
+                        job.getProjectionGeneration())
+                .stream()
+                .map(chunk -> new GraphIndexChunk(
+                        chunk.id(),
+                        chunk.index(),
+                        chunk.content(),
+                        chunk.heading(),
+                        chunk.tokenCount(),
+                        chunk.embedding()))
+                .toList();
         if (activeChunks.isEmpty()) {
             throw new IllegalStateException(
                     "Graph index source has no active chunks for the pinned generation");

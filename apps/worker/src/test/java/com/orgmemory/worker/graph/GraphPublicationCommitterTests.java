@@ -9,12 +9,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.ClaimedGraphIndex;
+import com.orgmemory.core.knowledge.graph.ClaimedGraphIndex;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.GraphIndexChunk;
-import com.orgmemory.core.knowledge.GraphIndexingCoordinator;
-import com.orgmemory.core.knowledge.GraphProcessingProfileRef;
+import com.orgmemory.core.knowledge.graph.GraphIndexChunk;
+import com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator;
+import com.orgmemory.core.knowledge.graph.GraphProcessingProfileRef;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.model.FloatVector;

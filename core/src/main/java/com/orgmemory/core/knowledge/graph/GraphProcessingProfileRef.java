@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.graphrag.processing.GraphProcessingProfile;
 import java.util.Objects;

@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge;
 
 import java.util.UUID;
 
-record SecureRetrievalCandidate(
+public record SecureRetrievalCandidate(
         UUID organizationId,
         UUID chunkId,
         UUID knowledgeAssetId,
