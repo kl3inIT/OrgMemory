@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
 import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
 import com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate;

@@ -16,6 +16,7 @@ import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceObject;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
 
@@ -143,7 +144,8 @@ class ConnectorSourceRevisionCoordinator {
                 parserVersion,
                 chunkerVersion,
                 processingProfile,
-                embeddingProfile,
+                new SourceEmbeddingProfileRef(
+                        embeddingProfile.id(), embeddingProfile.dimensions()),
                 raw,
                 normalized,
                 asset,

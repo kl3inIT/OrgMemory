@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;

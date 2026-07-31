@@ -1,8 +1,4 @@
-package com.orgmemory.core.knowledge.retrieval;
-
-import com.orgmemory.core.shared.error.BusinessErrorCategory;
-import com.orgmemory.core.shared.error.BusinessErrorExposure;
-import com.orgmemory.core.shared.error.BusinessException;
+package com.orgmemory.core.shared.error;
 
 /** Opaque not-found result for absent or cross-tenant knowledge resources. */
 public final class KnowledgeResourceNotFoundException extends BusinessException {

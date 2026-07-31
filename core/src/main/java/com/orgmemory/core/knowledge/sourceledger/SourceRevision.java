@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage;
 
@@ -170,7 +169,7 @@ public class SourceRevision extends BaseEntity {
             String parserVersion,
             String chunkerVersion,
             DocumentProcessingProfileSnapshot processingProfile,
-            EmbeddingProfileRef embeddingProfile,
+            SourceEmbeddingProfileRef embeddingProfile,
             RawSourceRef raw,
             NormalizedRecordRef normalized,
             KnowledgeAssetRef asset,

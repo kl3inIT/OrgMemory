@@ -47,6 +47,20 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerDoesNotDependOnRetrievalImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.sourceledger");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.retrieval..")
+                .check(classes);
+    }
+
+    @Test
     void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
 
@@ -118,7 +132,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.assistant.AssistantCitation",
                         "com.orgmemory.core.assistant.AssistantPromptFactory",
                         "com.orgmemory.core.assistant.AssistantService",
-                        "com.orgmemory.core.knowledge.acl.SourcePrincipalAdminService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationOutbox",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
@@ -133,26 +146,17 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService",
-                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
-                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceQueryService",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceRevision",
-                        "com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministrationService",
-                        "com.orgmemory.core.knowledge.space.KnowledgeSpaceService"),
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService"),
                 consumerTypes);
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfile",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
-                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk",
                         "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",

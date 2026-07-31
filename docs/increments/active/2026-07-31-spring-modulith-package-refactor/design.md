@@ -196,6 +196,20 @@ repositories or entities. ACL mapping receives the semantic fact that a
 connection vouches for email rather than importing Connector's trust enum. An
 ArchUnit rule makes a future ACL-to-Connector dependency a build failure.
 
+## Second Cycle-Removal Slice
+
+Source Ledger no longer reaches into Retrieval for authorization queries,
+embedding profile metadata, completion values, or a generic not-found error.
+It owns narrow visibility and embedding-profile ports plus the stable profile
+facts persisted with a completed revision. Retrieval implements those ports
+and keeps OpenFGA/retrieval-store policy inside its boundary; Worker and
+Connector translate richer retrieval profiles into the ledger completion ref.
+
+The opaque knowledge-resource not-found error is shared across ACL, Space,
+Graph, Source Ledger, and Retrieval, so it belongs to `shared.error` rather
+than making every consumer depend on Retrieval. An ArchUnit rule now makes any
+new Source Ledger-to-Retrieval dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

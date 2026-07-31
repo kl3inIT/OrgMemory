@@ -12,6 +12,7 @@ import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
 import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator;
+import com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
 
 import com.orgmemory.core.ai.AiRouteResolver;
@@ -273,7 +274,8 @@ class SourceIngestionProcessor {
                     new DocumentProcessingProfileSnapshot(
                             processed.profile().canonicalForm(),
                             processed.profile().profileSha256()),
-                    embeddingProfile,
+                    new SourceEmbeddingProfileRef(
+                            embeddingProfile.id(), embeddingProfile.dimensions()),
                     raw,
                     normalized,
                     asset);
