@@ -17,10 +17,6 @@ import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -352,14 +348,7 @@ public class AssistantAssetToolService {
     }
 
     private static String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest((value == null ? "" : value)
-                            .getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException("SHA-256 is not available", impossible);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(value == null ? "" : value);
     }
 
     public record RecommendationResult(

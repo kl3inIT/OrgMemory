@@ -49,8 +49,6 @@ import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -581,13 +579,7 @@ class ConnectorReconciler {
     }
 
     private static String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(value.getBytes(StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is unavailable", exception);
-        }
+        return com.orgmemory.core.shared.Digests.sha256(value);
     }
 
     enum ObjectOutcome {
