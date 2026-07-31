@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.connector;
+package com.orgmemory.core.knowledge.acl;
 
 import java.time.Instant;
 import java.util.UUID;

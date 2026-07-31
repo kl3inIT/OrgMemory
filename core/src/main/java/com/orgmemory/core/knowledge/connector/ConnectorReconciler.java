@@ -13,10 +13,15 @@ import com.orgmemory.core.knowledge.acl.RotateSourceAclCommand;
 import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
 import com.orgmemory.core.knowledge.acl.SourceAclRotationRef;
 import com.orgmemory.core.knowledge.acl.SourceGroupMembershipService;
+import com.orgmemory.core.knowledge.acl.SourceGroupMembershipCommand;
+import com.orgmemory.core.knowledge.acl.SourceGroupMembershipMemberCommand;
+import com.orgmemory.core.knowledge.acl.SourceIdentityObservation;
+import com.orgmemory.core.knowledge.acl.SourceMembershipCaptureStatus;
 import com.orgmemory.core.knowledge.acl.SourcePrincipal;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalMappingService;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalRepository;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalService;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
@@ -30,8 +35,8 @@ import com.orgmemory.core.knowledge.sourceledger.SourceObject;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
 
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.PrincipalKey;
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.ResolvedPrincipal;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.PrincipalKey;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.ResolvedPrincipal;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStorageException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -130,7 +135,7 @@ class ConnectorReconciler {
      * group memberships. Runs once per batch; the returned resolution is reused by every
      * object reconcile.
      */
-    ConnectorIdentityResolution resolveIdentities(ConnectorIngestionContext ctx, ConnectorCrawlBatch batch) {
+    SourcePrincipalResolution resolveIdentities(ConnectorIngestionContext ctx, ConnectorCrawlBatch batch) {
         Instant now = Instant.now();
         SourceIdentityTrust connectionTrust = identityTrustOf(ctx);
         Map<PrincipalKey, ResolvedPrincipal> resolvedPrincipals = new LinkedHashMap<>();
@@ -155,18 +160,37 @@ class ConnectorReconciler {
                         "connector identity repeats typed native principal " + key);
             }
             if (item.kind() == SourcePrincipalKind.SOURCE_USER) {
-                mappings.autoMap(principal, item.idpIssuer(), item.idpSubject(), connectionTrust);
+                mappings.autoMap(
+                        principal,
+                        item.idpIssuer(),
+                        item.idpSubject(),
+                        connectionTrust == SourceIdentityTrust.SSO_VERIFIED);
             }
         }
-        return new ConnectorIdentityResolution(resolvedPrincipals);
+        return new SourcePrincipalResolution(resolvedPrincipals);
     }
 
     /** Captures membership once per group, independently from every resource ACL. */
     void reconcileMemberships(
             ConnectorIngestionContext ctx,
             ConnectorCrawlBatch batch,
-            ConnectorIdentityResolution resolution) {
-        groupMemberships.reconcile(ctx, batch.memberships(), resolution);
+            SourcePrincipalResolution resolution) {
+        List<SourceGroupMembershipCommand> memberships = batch.memberships().stream()
+                .map(item -> new SourceGroupMembershipCommand(
+                        item.groupNativePrincipalId(),
+                        membershipCaptureStatus(item.captureStatus()),
+                        item.incompleteReason(),
+                        item.members().stream()
+                                .map(member -> new SourceGroupMembershipMemberCommand(
+                                        member.kind(), member.nativePrincipalId()))
+                                .toList()))
+                .toList();
+        groupMemberships.reconcile(
+                ctx.organizationId(),
+                ctx.sourceSystem(),
+                ctx.sourceConnectionKey(),
+                memberships,
+                resolution);
     }
 
     /**
@@ -193,7 +217,7 @@ class ConnectorReconciler {
             ConnectorIngestionContext ctx,
             ConnectorContentItem content,
             ConnectorPermissionItem permission,
-            ConnectorIdentityResolution resolution) {
+            SourcePrincipalResolution resolution) {
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
         var head = ingestion.findConnectorHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), content.externalObjectId());
@@ -257,7 +281,7 @@ class ConnectorReconciler {
     ObjectOutcome reconcilePermissions(
             ConnectorIngestionContext ctx,
             ConnectorPermissionItem permission,
-            ConnectorIdentityResolution resolution) {
+            SourcePrincipalResolution resolution) {
         AclPlan plan = buildAclPlan(ctx, permission, resolution);
         var head = ingestion.findConnectorHead(
                 ctx.organizationId(), ctx.sourceSystem(), ctx.sourceConnectionKey(), permission.externalObjectId());
@@ -293,7 +317,7 @@ class ConnectorReconciler {
     private AclPlan buildAclPlan(
             ConnectorIngestionContext ctx,
             ConnectorPermissionItem permission,
-            ConnectorIdentityResolution resolution) {
+            SourcePrincipalResolution resolution) {
         List<SourceAclEntryCommand> entries = new ArrayList<>();
         for (ConnectorAclGrant grant : grantsOf(permission)) {
             ResolvedPrincipal principal = resolve(
@@ -499,7 +523,7 @@ class ConnectorReconciler {
             ConnectorIngestionContext ctx,
             String nativePrincipalId,
             SourcePrincipalKind kind,
-            ConnectorIdentityResolution resolution) {
+            SourcePrincipalResolution resolution) {
         ResolvedPrincipal resolved = resolution.find(kind, nativePrincipalId);
         if (resolved != null) {
             return resolved;
@@ -525,6 +549,14 @@ class ConnectorReconciler {
                         nativePrincipalId)
                 .map(principal -> new ResolvedPrincipal(principal.getId(), principal.getKind()))
                 .orElse(null);
+    }
+
+    private static SourceMembershipCaptureStatus membershipCaptureStatus(
+            ConnectorCaptureStatus captureStatus) {
+        return switch (captureStatus) {
+            case COMPLETE -> SourceMembershipCaptureStatus.COMPLETE;
+            case INCOMPLETE -> SourceMembershipCaptureStatus.INCOMPLETE;
+        };
     }
 
     private ConnectorTextEmbedder requireEmbedder() {

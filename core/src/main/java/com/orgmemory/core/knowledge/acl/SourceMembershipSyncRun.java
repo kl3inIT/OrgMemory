@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.connector;
+package com.orgmemory.core.knowledge.acl;
 
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
@@ -27,7 +27,7 @@ public class SourceMembershipSyncRun extends BaseEntity {
     protected SourceMembershipSyncRun() {
     }
 
-    public SourceMembershipSyncRun(
+    SourceMembershipSyncRun(
             UUID organizationId,
             String sourceSystem,
             String sourceConnectionKey,

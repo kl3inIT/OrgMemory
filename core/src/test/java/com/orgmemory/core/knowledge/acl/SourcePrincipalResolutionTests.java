@@ -1,22 +1,20 @@
-package com.orgmemory.core.knowledge.connector;
-
-import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+package com.orgmemory.core.knowledge.acl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.PrincipalKey;
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.ResolvedPrincipal;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.PrincipalKey;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.ResolvedPrincipal;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class ConnectorIdentityResolutionTests {
+class SourcePrincipalResolutionTests {
 
     @Test
     void principalKindIsPartOfTheNativeIdentityKey() {
         UUID userId = UUID.randomUUID();
         UUID groupId = UUID.randomUUID();
-        ConnectorIdentityResolution resolution = new ConnectorIdentityResolution(Map.of(
+        SourcePrincipalResolution resolution = new SourcePrincipalResolution(Map.of(
                 new PrincipalKey(SourcePrincipalKind.SOURCE_USER, "shared-id"),
                 new ResolvedPrincipal(userId, SourcePrincipalKind.SOURCE_USER),
                 new PrincipalKey(SourcePrincipalKind.SOURCE_GROUP, "shared-id"),

@@ -1,13 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution;
-import com.orgmemory.core.knowledge.connector.ConnectorIngestionContext;
-import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
-import com.orgmemory.core.knowledge.connector.SourceMembershipSyncRun;
-import com.orgmemory.core.knowledge.connector.SourceMembershipSyncRunRepository;
-
-import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.ResolvedPrincipal;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.ResolvedPrincipal;
 import jakarta.persistence.EntityManager;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -50,34 +43,36 @@ public class SourceGroupMembershipService {
 
     @Transactional
     public void reconcile(
-            ConnectorIngestionContext ctx,
-            List<ConnectorMembershipItem> capturedMemberships,
-            ConnectorIdentityResolution identities) {
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            List<SourceGroupMembershipCommand> capturedMemberships,
+            SourcePrincipalResolution identities) {
         if (capturedMemberships.isEmpty()) {
             return;
         }
         Instant capturedAt = Instant.now();
         SourceMembershipSyncRun run = syncRuns.saveAndFlush(new SourceMembershipSyncRun(
-                ctx.organizationId(),
-                ctx.sourceSystem(),
-                ctx.sourceConnectionKey(),
+                organizationId,
+                sourceSystem,
+                sourceConnectionKey,
                 capturedAt));
         Set<String> seenGroups = new HashSet<>();
-        for (ConnectorMembershipItem captured : capturedMemberships) {
+        for (SourceGroupMembershipCommand captured : capturedMemberships) {
             if (!seenGroups.add(captured.groupNativePrincipalId())) {
                 throw new IllegalArgumentException(
                         "connector membership repeats group "
                                 + captured.groupNativePrincipalId());
             }
-            reconcileGroup(ctx, run, captured, identities, capturedAt);
+            reconcileGroup(organizationId, run, captured, identities, capturedAt);
         }
     }
 
     private void reconcileGroup(
-            ConnectorIngestionContext ctx,
+            UUID organizationId,
             SourceMembershipSyncRun run,
-            ConnectorMembershipItem captured,
-            ConnectorIdentityResolution identities,
+            SourceGroupMembershipCommand captured,
+            SourcePrincipalResolution identities,
             Instant capturedAt) {
         ResolvedPrincipal group = requirePrincipal(
                 identities,
@@ -102,12 +97,12 @@ public class SourceGroupMembershipService {
                         .thenComparing(member -> member.id().toString()))
                 .toList();
 
-        acquireTransactionLock(ctx.organizationId(), group.id());
+        acquireTransactionLock(organizationId, group.id());
         SourceGroupMembershipHead head = heads
-                .findByOrganizationIdAndGroupPrincipalId(ctx.organizationId(), group.id())
+                .findByOrganizationIdAndGroupPrincipalId(organizationId, group.id())
                 .orElse(null);
         String membersSha = sha256(canonicalMembers(resolvedMembers));
-        if (captured.captureStatus() == ConnectorCaptureStatus.COMPLETE
+        if (captured.captureStatus() == SourceMembershipCaptureStatus.COMPLETE
                 && head != null
                 && seals.findByMembershipSnapshotId(head.getCurrentSnapshotId())
                         .map(SourceGroupMembershipSnapshotSeal::getMembersSha256)
@@ -118,12 +113,12 @@ public class SourceGroupMembershipService {
 
         long generation = snapshots
                 .findFirstByOrganizationIdAndGroupPrincipalIdOrderByMembershipGenerationDesc(
-                        ctx.organizationId(), group.id())
+                        organizationId, group.id())
                 .map(snapshot -> snapshot.getMembershipGeneration() + 1)
                 .orElse(1L);
         SourceGroupMembershipSnapshot snapshot = snapshots.saveAndFlush(
                 new SourceGroupMembershipSnapshot(
-                        ctx.organizationId(),
+                        organizationId,
                         run.getId(),
                         group.id(),
                         generation,
@@ -132,13 +127,13 @@ public class SourceGroupMembershipService {
                         capturedAt));
         members.saveAllAndFlush(resolvedMembers.stream()
                 .map(member -> new SourceGroupMembershipMember(
-                        ctx.organizationId(),
+                        organizationId,
                         snapshot.getId(),
                         member.id(),
                         member.kind(),
                         capturedAt))
                 .toList());
-        if (captured.captureStatus() != ConnectorCaptureStatus.COMPLETE) {
+        if (captured.captureStatus() != SourceMembershipCaptureStatus.COMPLETE) {
             return;
         }
         seals.saveAndFlush(new SourceGroupMembershipSnapshotSeal(
@@ -155,7 +150,7 @@ public class SourceGroupMembershipService {
     }
 
     private static ResolvedPrincipal requirePrincipal(
-            ConnectorIdentityResolution identities,
+            SourcePrincipalResolution identities,
             String nativePrincipalId,
             SourcePrincipalKind expectedKind,
             String role) {
