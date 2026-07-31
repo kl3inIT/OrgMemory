@@ -1,0 +1,103 @@
+---
+title: Create governed Skills
+description: Author, upload, or import reusable AI Skills as private Drafts with exact package provenance.
+audience:
+  - user
+  - adopter
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetRegistryController.java
+  - apps/web/src/features/assets/components/skill-creation-page.tsx
+  - apps/web/src/features/assets/components/skill-github-import-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-08-01
+---
+
+Use this guide to turn a reusable set of AI instructions and supporting files
+into a governed Skill. You need permission to create Assets in the destination
+Knowledge Space. Every creation path stops at a private Draft; publishing is a
+separate accountable action.
+
+<Steps>
+  <Step>
+
+  ### Choose how to create the Skill
+
+  Open **Assets**, select **Add asset → Skill**, then choose one path:
+
+  - **Start from scratch** to write `SKILL.md` instructions and add supporting
+    files in the browser;
+  - **Upload a skill** to inspect an existing `SKILL.md`, folder, or ZIP;
+  - **Import from GitHub** to discover one or more Skills in a repository.
+
+  OrgMemory validates package structure but does not execute the Skill or treat
+  structural validation as a security or content review.
+
+  </Step>
+  <Step>
+
+  ### Preview a GitHub repository
+
+  Enter `owner/repository` or the repository HTTPS URL. You may also supply a
+  branch, tag, commit, and directory. Public repositories are read anonymously
+  by the server. For a private repository, choose a GitHub App connection that
+  an administrator has explicitly enabled for Skill import; credentials never
+  enter the browser.
+
+  Select **Preview Skills**. The preview resolves the requested revision to a
+  full commit SHA, discovers bounded `SKILL.md` roots, and marks packages that
+  cannot be imported. Choose up to 20 valid Skills.
+
+  <ArchitectureDiagram
+    alt="Organizational AI Memory GitHub Skill import showing a private repository, exact commit preview, selectable valid Skills, and a bounded invalid package."
+    description="The repository is resolved to an exact commit before selection. Each valid Skill can be imported independently; invalid packages remain visible with an actionable reason. This screenshot uses synthetic documentation data captured from the current product UI."
+    height={910}
+    src="/images/product-guides/skill-github-import.png"
+    title="Preview and select exact repository Skills"
+    width={1598}
+  />
+
+  </Step>
+  <Step>
+
+  ### Place the Drafts
+
+  Choose one namespace, an authorized Knowledge Space, and a classification.
+  Import fetches the exact previewed commit again and records the server-derived
+  repository, commit SHA, and `SKILL.md` path in each Draft's package
+  provenance.
+
+  Each selected Skill is imported independently. A duplicate or invalid package
+  appears under **Not imported** without rolling back successful Drafts. Open a
+  successful result to continue in the ordinary Governance workspace.
+
+  </Step>
+  <Step>
+
+  ### Review and publish deliberately
+
+  In Governance, inspect the package digest, file manifest, compatibility, and
+  source provenance. Replace the mutable Draft package when necessary. An
+  authorized owner may then publish a version directly or use the reviewed
+  route when organizational policy requires it. Published revisions and
+  releases keep their original immutable package bytes.
+
+  </Step>
+</Steps>
+
+## If import cannot continue
+
+- **Repository unavailable:** confirm the repository, revision, and optional
+  directory without assuming a private repository exists.
+- **Private import disabled:** ask an administrator to select the repository in
+  the GitHub App installation and enable private Skill imports on that
+  connection.
+- **Package rejected:** fix the reported `SKILL.md`, path, file-count, or size
+  issue at the pinned revision, then preview again.
+- **One Skill conflicts:** open the successful Drafts and resolve the duplicate
+  namespace/slug before retrying only the failed Skill.
+
+## Continue
+
+- Learn how to [work with an exact released Asset](/docs/product-guides/work-with-governed-assets).

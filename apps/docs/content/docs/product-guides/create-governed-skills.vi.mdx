@@ -1,0 +1,100 @@
+---
+title: Tạo Skill được quản trị
+description: Soạn, tải lên hoặc import AI Skill tái sử dụng thành Draft riêng tư với provenance package chính xác.
+audience:
+  - user
+  - adopter
+status: public
+sourceRefs:
+  - docs/specs/domains/asset-registry.md
+  - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetRegistryController.java
+  - apps/web/src/features/assets/components/skill-creation-page.tsx
+  - apps/web/src/features/assets/components/skill-github-import-page.tsx
+  - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
+lastReviewed: 2026-08-01
+---
+
+Dùng hướng dẫn này để đưa một bộ instruction AI và file hỗ trợ có thể tái sử
+dụng thành Skill được quản trị. Bạn cần quyền tạo Asset trong Knowledge Space
+đích. Mọi cách tạo đều dừng ở Draft riêng tư; publish là một hành động có trách
+nhiệm riêng biệt.
+
+<Steps>
+  <Step>
+
+  ### Chọn cách tạo Skill
+
+  Mở **Assets**, chọn **Add asset → Skill**, sau đó chọn một cách:
+
+  - **Start from scratch** để viết instruction `SKILL.md` và thêm file hỗ trợ
+    trong trình duyệt;
+  - **Upload a skill** để kiểm tra `SKILL.md`, folder hoặc ZIP có sẵn;
+  - **Import from GitHub** để tìm một hoặc nhiều Skill trong repository.
+
+  OrgMemory kiểm tra cấu trúc package nhưng không thực thi Skill và không coi
+  structural validation là bước review nội dung hoặc bảo mật.
+
+  </Step>
+  <Step>
+
+  ### Preview repository GitHub
+
+  Nhập `owner/repository` hoặc URL HTTPS của repository. Bạn cũng có thể nhập
+  branch, tag, commit và directory. Repository public được server đọc ẩn danh.
+  Với repository private, chọn GitHub App connection đã được administrator bật
+  rõ ràng cho Skill import; credential không bao giờ đi vào trình duyệt.
+
+  Chọn **Preview Skills**. Preview resolve revision đã nhập thành commit SHA đầy
+  đủ, tìm các root `SKILL.md` trong giới hạn và đánh dấu package không thể
+  import. Chọn tối đa 20 Skill hợp lệ.
+
+  <ArchitectureDiagram
+    alt="Màn GitHub Skill import của Organizational AI Memory hiển thị repository private, preview commit chính xác, các Skill hợp lệ có thể chọn và một package vượt giới hạn."
+    description="Repository được resolve thành commit chính xác trước khi chọn. Mỗi Skill hợp lệ có thể được import độc lập; package không hợp lệ vẫn hiển thị kèm lý do có thể xử lý. Screenshot dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+    height={910}
+    src="/images/product-guides/skill-github-import.png"
+    title="Preview và chọn đúng Skill trong repository"
+    width={1598}
+  />
+
+  </Step>
+  <Step>
+
+  ### Đặt các Draft
+
+  Chọn một namespace, Knowledge Space được cấp quyền và classification. Import
+  tải lại đúng commit đã preview rồi ghi repository, commit SHA và đường dẫn
+  `SKILL.md` do server xác định vào package provenance của từng Draft.
+
+  Mỗi Skill được import độc lập. Package trùng hoặc không hợp lệ xuất hiện dưới
+  **Not imported** mà không rollback các Draft đã tạo thành công. Mở một kết quả
+  thành công để tiếp tục trong Governance workspace thông thường.
+
+  </Step>
+  <Step>
+
+  ### Kiểm tra và publish có chủ đích
+
+  Trong Governance, kiểm tra package digest, file manifest, compatibility và
+  source provenance. Thay package của Draft mutable khi cần. Owner được cấp
+  quyền có thể publish trực tiếp một version hoặc dùng luồng review khi chính
+  sách tổ chức yêu cầu. Revision và Release đã publish giữ nguyên package bytes
+  bất biến ban đầu.
+
+  </Step>
+</Steps>
+
+## Khi không thể tiếp tục import
+
+- **Repository unavailable:** kiểm tra repository, revision và directory tùy
+  chọn mà không giả định repository private đó tồn tại.
+- **Private import disabled:** yêu cầu administrator chọn repository trong
+  GitHub App installation và bật private Skill import trên connection đó.
+- **Package rejected:** sửa lỗi `SKILL.md`, path, file-count hoặc size được báo
+  tại revision đã pin, sau đó preview lại.
+- **Một Skill bị conflict:** mở các Draft thành công, xử lý namespace/slug trùng
+  rồi chỉ retry Skill thất bại.
+
+## Tiếp tục
+
+- Tìm hiểu cách [làm việc với một Asset release chính xác](/vi/docs/product-guides/work-with-governed-assets).

@@ -86,6 +86,12 @@ _openapi:
       title: Validate and inspect one Agent Skill package without storing it
       url: '#validate-and-inspect-one-agent-skill-package-without-storing-it'
     - depth: 2
+      title: Discover and validate Skills at one GitHub repository revision
+      url: '#discover-and-validate-skills-at-one-github-repository-revision'
+    - depth: 2
+      title: Import selected Skills from an exact GitHub commit
+      url: '#import-selected-skills-from-an-exact-github-commit'
+    - depth: 2
       title: Deterministically render an exact authorized Prompt release
       url: '#deterministically-render-an-exact-authorized-prompt-release-1'
     - depth: 2
@@ -109,6 +115,9 @@ _openapi:
     - depth: 2
       title: Read the current actor's available Governance actions
       url: '#read-the-current-actors-available-governance-actions'
+    - depth: 2
+      title: List approved GitHub connections available for private Skill import
+      url: '#list-approved-github-connections-available-for-private-skill-import'
     - depth: 2
       title: List Assets currently owned by the actor
       url: '#list-assets-currently-owned-by-the-actor'
@@ -192,6 +201,10 @@ _openapi:
         id: validate-and-import-one-agent-skill-package
       - content: Validate and inspect one Agent Skill package without storing it
         id: validate-and-inspect-one-agent-skill-package-without-storing-it
+      - content: Discover and validate Skills at one GitHub repository revision
+        id: discover-and-validate-skills-at-one-github-repository-revision
+      - content: Import selected Skills from an exact GitHub commit
+        id: import-selected-skills-from-an-exact-github-commit
       - content: Deterministically render an exact authorized Prompt release
         id: deterministically-render-an-exact-authorized-prompt-release-1
       - content: Read graph indexing lifecycle status
@@ -209,6 +222,8 @@ _openapi:
         id: read-the-ordered-authorized-items-pinned-by-a-capability-pack-release
       - content: Read the current actor's available Governance actions
         id: read-the-current-actors-available-governance-actions
+      - content: List approved GitHub connections available for private Skill import
+        id: list-approved-github-connections-available-for-private-skill-import
       - content: List Assets currently owned by the actor
         id: list-assets-currently-owned-by-the-actor
       - content: List exact usable Asset releases authorized for the current actor
@@ -243,7 +258,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assets/{assetId}/skill-draft","method":"put"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-progress/{itemKey}","method":"put"},{"path":"/api/assets/{assetId}/draft","method":"put"},{"path":"/api/knowledge-assets/{knowledgeAssetId}/graph-index","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/resume","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/cancel","method":"post"},{"path":"/api/assets","method":"get"},{"path":"/api/assets","method":"post"},{"path":"/api/assets/{assetId}/submissions","method":"post"},{"path":"/api/assets/{assetId}/skill-releases","method":"post"},{"path":"/api/assets/{assetId}/role-assignments","method":"post"},{"path":"/api/assets/{assetId}/reviews/{reviewCaseId}/decisions","method":"post"},{"path":"/api/assets/{assetId}/releases","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction/acknowledgement","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/withdrawal","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/runs","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/render","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/evaluations","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-assignment","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/forks","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/deprecation","method":"post"},{"path":"/api/assets/{assetId}/prompt/evaluation-comparisons","method":"post"},{"path":"/api/assets/skills","method":"post"},{"path":"/api/assets/skills/inspections","method":"post"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}","method":"get"},{"path":"/api/assets/{assetId}","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-journey","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-definition","method":"get"},{"path":"/api/assets/{assetId}/governance-actions","method":"get"},{"path":"/api/assets/owned","method":"get"},{"path":"/api/assets/catalog","method":"get"},{"path":"/api/asset-delivery","method":"get"},{"path":"/api/asset-delivery/{assetId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-package","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/relations","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/asset-delivery/skills/{namespace}/{slug}/versions/{version}/manifest","method":"get"},{"path":"/api/knowledge-assets/{knowledgeAssetId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assets/{assetId}/skill-draft","method":"put"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-progress/{itemKey}","method":"put"},{"path":"/api/assets/{assetId}/draft","method":"put"},{"path":"/api/knowledge-assets/{knowledgeAssetId}/graph-index","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/resume","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}/cancel","method":"post"},{"path":"/api/assets","method":"get"},{"path":"/api/assets","method":"post"},{"path":"/api/assets/{assetId}/submissions","method":"post"},{"path":"/api/assets/{assetId}/skill-releases","method":"post"},{"path":"/api/assets/{assetId}/role-assignments","method":"post"},{"path":"/api/assets/{assetId}/reviews/{reviewCaseId}/decisions","method":"post"},{"path":"/api/assets/{assetId}/releases","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction/acknowledgement","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/withdrawal","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/runs","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/render","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/prompt/evaluations","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-assignment","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/forks","method":"post"},{"path":"/api/assets/{assetId}/releases/{releaseId}/deprecation","method":"post"},{"path":"/api/assets/{assetId}/prompt/evaluation-comparisons","method":"post"},{"path":"/api/assets/skills","method":"post"},{"path":"/api/assets/skills/inspections","method":"post"},{"path":"/api/assets/skills/github/preview","method":"post"},{"path":"/api/assets/skills/github/import","method":"post"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/knowledge-assets/graph-jobs/{jobId}","method":"get"},{"path":"/api/assets/{assetId}","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-journey","method":"get"},{"path":"/api/assets/{assetId}/releases/{releaseId}/pack-definition","method":"get"},{"path":"/api/assets/{assetId}/governance-actions","method":"get"},{"path":"/api/assets/skills/github/connections","method":"get"},{"path":"/api/assets/owned","method":"get"},{"path":"/api/assets/catalog","method":"get"},{"path":"/api/asset-delivery","method":"get"},{"path":"/api/asset-delivery/{assetId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-package","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/skill-manifest","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/relations","method":"get"},{"path":"/api/asset-delivery/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/asset-delivery/skills/{namespace}/{slug}/versions/{version}/manifest","method":"get"},{"path":"/api/knowledge-assets/{knowledgeAssetId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }

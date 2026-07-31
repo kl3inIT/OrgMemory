@@ -45,3 +45,34 @@ OrgMemory Asset prototype. PR 2 intentionally preserves OrgMemory visual
 identity rather than copying Onyx styling. Final same-viewport PASS remains a
 PR 3 closeout gate after the GitHub, empty, error, and partial-success states
 exist.
+
+## PR 3 — GitHub import and completed creation flow
+
+Status: local PASS; production verification remains the delivery gate.
+
+The owner-supplied Onyx Skills reference and the OrgMemory GitHub import were
+compared together at 1598 x 910. Onyx contributes the three clear creation
+choices and compact task language. OrgMemory keeps its existing sidebar,
+PageLayout, form density, semantic tokens, and governed Draft placement rather
+than copying the standalone Onyx catalog or its visual theme.
+
+Implementation captures (local verification artifacts):
+
+- `apps/output/design-qa/skill-github-import.png`, dark theme at 1598 x 910.
+- `apps/output/design-qa/skill-github-import-mobile.png`, light theme at
+  390 x 844.
+- `apps/docs/public/images/product-guides/skill-github-import.png`, sanitized
+  public-guide capture at 1598 x 910.
+
+The desktop state visibly covers a private administrator-approved connection,
+the resolved commit, two selectable valid Skills, and one rejected package.
+The mobile state stacks all controls without horizontal overflow. Focused
+Playwright coverage verifies exact-SHA preview/import requests, private access,
+partial success, Draft links, the active GitHub creation route, and absence of
+unexpected browser/API errors. Empty and transport-error states are explicit in
+the UI, while backend tests cover anonymous public access, private credential
+audit, redirect boundaries, archive limits, and independent per-Skill results.
+
+Completion gates passed on Node 24.15.0: full Gradle `clean test`, web lint,
+typecheck, unit tests and production build, docs publication checks and build,
+OpenAPI drift generation, release policy checks, and focused Chromium flows.
