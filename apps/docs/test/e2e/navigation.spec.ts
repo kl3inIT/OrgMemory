@@ -45,12 +45,12 @@ test('public corpus exposes the section switcher and focused page tree', async (
   ).toBeVisible();
   await expect(
     page.getByRole('img', {
-      name: /high-level organizational ai memory architecture/i,
+      name: /organizational ai memory architecture/i,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole('img', {
-      name: /high-level organizational ai memory architecture/i,
+      name: /organizational ai memory architecture/i,
     }),
   ).toHaveAttribute('src', '/images/architecture/system-overview.webp');
   await expect(page.getByText('Editorial preview')).toHaveCount(0);
@@ -61,7 +61,6 @@ test('public corpus exposes the section switcher and focused page tree', async (
   for (const section of [
     'Getting Started',
     'Product Guides',
-    'Guides',
     'Architecture & Security',
     'Reference',
   ]) {
@@ -76,7 +75,6 @@ test('category visual identity follows the active root and locale', async ({ pag
   const categories = {
     'getting-started': '/docs/getting-started',
     'product-guides': '/docs/product-guides/work-with-governed-assets',
-    guides: '/docs/guides/administration/identity-permissions',
     'architecture-security': '/docs/architecture-security/system-description',
     reference: '/docs/reference/api-reference',
   } as const;
@@ -128,7 +126,6 @@ test('Vietnamese shell and authored Getting Started pages are localized', async 
   for (const section of [
     'Bắt đầu',
     'Hướng dẫn sản phẩm',
-    'Hướng dẫn',
     'Kiến trúc & bảo mật',
     'Tham chiếu',
   ]) {
@@ -207,15 +204,19 @@ test('legacy docs URLs permanently redirect to the new taxonomy', async ({
     ],
     [
       '/vi/docs/admins/identity-permissions',
-      '/vi/docs/guides/administration/identity-permissions',
+      '/vi/docs/architecture-security/authorization',
     ],
     [
       '/docs/deployment/self-hosting.md',
-      '/docs/guides/deployment-operations/self-hosting.md',
+      '/docs/architecture-security/system-description.md',
     ],
     [
       '/docs/getting-started/quickstart',
-      '/docs/guides/deployment-operations/self-hosting',
+      '/docs/getting-started',
+    ],
+    [
+      '/docs/guides/administration/identity-permissions',
+      '/docs/architecture-security/authorization',
     ],
     [
       '/docs/developers/api-reference/search-catalog.md',

@@ -7,92 +7,138 @@ audience:
   - evaluator
 status: public
 sourceRefs:
-  - docs/specs/domains/knowledge-ingestion.md
-  - docs/tests/domains/knowledge-ingestion.md
   - contracts/connector/crawl-batch.schema.json
-lastReviewed: 2026-07-29
+  - core/src/main/java/com/orgmemory/core/knowledge/ConnectorSourceProfile.java
+  - core/src/main/java/com/orgmemory/core/knowledge/ConnectorReconciler.java
+  - core/src/main/java/com/orgmemory/core/knowledge/GraphIndexingCoordinator.java
+  - apps/worker/src/main/java/com/orgmemory/worker/connector/ConnectorCrawlRunner.java
+  - apps/worker/src/test/java/com/orgmemory/worker/connector/ConnectorCrawlCheckpointIntegrationTests.java
+  - apps/worker/src/test/java/com/orgmemory/worker/connector/ConnectorPruningIntegrationTests.java
+  - core/src/test/java/com/orgmemory/core/knowledge/GraphIndexingCoordinatorTests.java
+lastReviewed: 2026-07-31
 ---
 
-Ingestion turns source content into governed Knowledge without treating a search
-index as the source of truth. Uploads and connectors converge on the same ledger
-and derived-index publication rules.
+Ingestion turns source content into governed Knowledge. Connectors and direct
+uploads enter through different trust boundaries, then converge on one
+immutable ledger and one publication model.
 
-## Lifecycle stages
+Search, vector, and graph records are outputs of this process. They are never
+the source of truth.
+
+## Ingestion flow
 
 <ArchitectureDiagram
-  alt="Governed ingestion lifecycle from source observation through immutable recording, worker normalization, projection staging, and compare-and-set publication."
-  description="Only a complete generation becomes visible. Incomplete crawls retire nothing, while stale or partial batches remain unpublished."
-  height={941}
+  alt="Governed ingestion lifecycle: connector batches and direct uploads pass through observation, immutable recording, permission governance, processing, and compare-and-set publication."
+  description="The worker records immutable source evidence before it builds full-text, vector, and graph projections. Incomplete crawls retire nothing, expired connector ACLs make content unreadable, and failed publication leaves the previous generation live."
+  height={887}
   src="/images/architecture/ingestion-lifecycle.webp"
   title="Governed ingestion lifecycle"
-  width={1672}
+  width={1774}
 />
 
-## Source contract
+The lifecycle has five stages:
 
-A connector contributes a versioned crawl batch. Each object separates:
+1. **Observe:** accept a versioned connector batch or an authorized direct
+   upload and record whether the supplied evidence is complete.
+2. **Record:** append an immutable source revision and retain the original
+   bytes in object storage.
+3. **Govern:** resolve source identities, seal permission evidence, and apply
+   the Organizational AI Memory classification ceiling — the sensitivity
+   policy that can narrow, but never widen, source permissions.
+4. **Process:** validate and parse content, create chunks and embeddings, and
+   extract graph contributions under pinned processing profiles.
+5. **Publish:** advance the current head with compare-and-set only when the
+   version and projection generation are still current. Compare-and-set means
+   the worker may replace only the head it originally checked.
 
-- `source_system`: the adapter-owned origin, such as Slack, Google Drive, or
-  GitHub;
-- `acl_authority`: whether source permissions or Organizational AI Memory permissions govern
-  the content;
-- immutable source-native object and revision identifiers;
-- permission principals with typed stable native IDs;
-- independent content, permission, and membership cursors;
-- completeness claims for each component.
+## Inputs
 
-An adapter that cannot establish an object's ACL omits that object. It never
-sends an empty grant list as a substitute, because a sealed empty ACL means the
-source explicitly granted nobody.
+### Connector batches
 
-## Checkpoints and convergence
+A connector sends one versioned crawl envelope for a source connection and
+Knowledge Space. `sourceSystem` appears once on that envelope. Content,
+identity, membership, and permission payloads have independent versions and
+component checkpoints. Unknown versions fail closed.
 
-The worker reads enabled connection configuration and encrypted credentials from
-the ledger on every poll. A configuration change applies on the next poll
-without a restart.
+Objects carry source-native IDs and revision markers. Permission entries use
+stable native principal IDs; email and display name are aliases, not
+authorization keys.
 
-Per-connection checkpoints distinguish observed state from successfully
-reconciled content, permissions, and membership. A permanent per-item rejection
-can be checkpointed past while a transient failure remains pending. A restarted
-worker resumes rather than replaying completed work.
+Connectors cannot choose ACL authority. Every connector profile is
+source-authoritative, and the ledger records the object as `SOURCE` when it is
+first ingested. If an adapter cannot establish an object's permissions, it
+omits the object. It must not replace missing evidence with an empty grant list,
+because a sealed empty ACL means the source granted nobody.
 
-Membership is independently sealed. Removing a user from a source group can
-revoke access on the next request without rewriting content, rotating the
-object's stable group ACL, rechunking, or re-embedding.
+### Direct uploads
 
-## Immutable evidence
+The API first verifies `can_create_asset` on the target Knowledge Space. It
+retains that Space identity through the source ledger and records the object as
+`ORGMEMORY`-authoritative.
 
-One source revision cannot change content. ACL rotation appends a new sealed
-generation and compare-and-set advances the current head. Database constraints
-reject mutation of sealed ACL evidence. Original bytes are retained through the
-object-storage port; chunks, vectors, graph topology, and search indexes are
-rebuildable.
+New versions remain inactive until required OpenFGA relationships and the
+publication head are confirmed. Later access is governed by the
+application-managed relationships and classification rules described in
+[Authorization](/docs/architecture-security/authorization).
 
-Direct uploads first verify `can_create_asset` on a Knowledge Space and preserve
-that Space identity through the source ledger. Publication keeps new versions
-inactive until required OpenFGA relationships are confirmed.
+## Permission evidence
 
-## Graph publication
+Content and permission evidence change independently. A new ACL is appended as
+a sealed generation: an immutable, numbered permission snapshot. An existing
+sealed generation cannot be edited.
 
-When a source revision becomes ready, the worker creates a durable graph-index
-job pinned to:
+Membership is sealed separately. Removing someone from a source group can
+revoke their next request without rewriting content, rotating the object's
+group ACL, rechunking, or re-embedding.
 
-- the current Knowledge Asset version and source revision;
-- active chunks and ACL generation;
-- immutable embedding and graph-processing profiles;
-- exact model and prompt coordinates.
+An unmapped source principal grants nothing. Automatic identity mapping
+requires either an SSO-verified identity or an administrator's trust
+attestation for that connection.
 
-Multi-replica workers claim jobs with leases. Contributions and embeddings
-publish atomically after a current-version recheck. A failed publish leaves the
-previous generation available; a stale version is superseded rather than made
-current.
+Connector ACL generations expire 23 hours after capture. If a connector stops
+refreshing them, the affected content becomes unreadable instead of remaining
+visible under stale permissions.
 
-## Deletion and incompleteness
+## Checkpoints and retries
 
-A complete crawl may retire content the source stopped mentioning. An
-incomplete crawl retires nothing merely because it was not observed. A
-tombstoned object is archived out of retrieval and cannot be revived by a later
-content revision.
+The worker reloads enabled connection configuration and encrypted credentials
+on every poll, so configuration changes apply without restarting it.
+
+Content, permissions, and membership keep separate observed and successfully
+reconciled checkpoints:
+
+- an invalid envelope or unsupported payload version rejects the whole pending
+  batch and records it as observed without advancing successful reconciliation;
+- a failure for one connector object leaves that component pending for retry;
+- after restart, another worker resumes from the recorded component
+  checkpoints;
+- a permanent direct-upload processing failure follows the upload quarantine
+  path instead of the connector retry path.
+
+Workers claim ingestion and graph jobs with leases. A graph job pins the
+Knowledge Asset version, source revision, target projection generation, and
+immutable graph-processing profile. The current ACL generation, active chunks,
+and embedding profile are resolved when the worker claims the job and are
+rechecked before publication.
+
+## Publication and deletion
+
+Full-text, vector, and graph data become visible only through a current
+publication head. Contributions and embeddings publish atomically after a
+current-version check.
+
+| Condition | Result |
+| --- | --- |
+| Processing or publication fails | The previous generation remains available; if none exists, the new content remains invisible |
+| A job targets a stale version | The job is superseded and cannot become current |
+| A complete crawl omits an old object | Reconciliation may retire it because the source declared the crawl exhaustive |
+| An incomplete crawl omits an object | Nothing is retired merely because it was not observed |
+| A source sends a tombstone | The object is archived out of retrieval and cannot be revived by a later content revision |
+
+PostgreSQL remains the canonical ledger for revisions, sealed ACL evidence,
+checkpoints, jobs, and publication heads. Object storage retains immutable
+bytes. Search, vector, and graph records can be recreated from that evidence,
+although the product does not currently expose one full-rebuild command.
 
 <VerificationBlock title="What is proven">
   Integration tests cover idempotency, concurrent convergence, sealed ACL

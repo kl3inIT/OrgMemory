@@ -66,46 +66,6 @@
       "reviewOwner": "product-and-documentation"
     },
     {
-      "route": "/docs/architecture-security/asset-lifecycle",
-      "content": "content/docs/architecture-security/asset-lifecycle.mdx",
-      "area": "architecture-security",
-      "order": 40,
-      "status": "public",
-      "reviewOwner": "asset-registry-maintainers"
-    },
-    {
-      "route": "/docs/guides/deployment-operations/self-hosting",
-      "content": "content/docs/guides/deployment-operations/self-hosting.mdx",
-      "area": "guides",
-      "order": 10,
-      "status": "public",
-      "reviewOwner": "operations-maintainers"
-    },
-    {
-      "route": "/docs/guides/administration/identity-permissions",
-      "content": "content/docs/guides/administration/identity-permissions.mdx",
-      "area": "guides",
-      "order": 10,
-      "status": "public",
-      "reviewOwner": "identity-and-authorization-maintainers"
-    },
-    {
-      "route": "/docs/guides/administration/sources-connections",
-      "content": "content/docs/guides/administration/sources-connections.mdx",
-      "area": "guides",
-      "order": 20,
-      "status": "public",
-      "reviewOwner": "connector-maintainers"
-    },
-    {
-      "route": "/docs/guides/integrations/assistant-mcp",
-      "content": "content/docs/guides/integrations/assistant-mcp.mdx",
-      "area": "guides",
-      "order": 10,
-      "status": "public",
-      "reviewOwner": "assistant-and-mcp-maintainers"
-    },
-    {
       "route": "/docs/reference/api-reference",
       "content": "content/docs/reference/api-reference/index.mdx",
       "area": "reference",

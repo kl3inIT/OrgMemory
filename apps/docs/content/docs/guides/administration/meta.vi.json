@@ -1,9 +1,0 @@
-{
-  "title": "Quản trị",
-  "description": "Quản lý danh tính, quyền, chính sách và nguồn dữ liệu.",
-  "icon": "ShieldCheck",
-  "pages": [
-    "identity-permissions",
-    "sources-connections"
-  ]
-}
