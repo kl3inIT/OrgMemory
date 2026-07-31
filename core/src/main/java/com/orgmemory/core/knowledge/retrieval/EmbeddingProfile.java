@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

@@ -3,7 +3,7 @@ package com.orgmemory.api.assistant;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.GraphRagRetrievalPolicy;
-import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.chunking.TextEmbeddingPort;

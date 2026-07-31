@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;

@@ -1,12 +1,17 @@
 package com.orgmemory.core.knowledge;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
-
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;

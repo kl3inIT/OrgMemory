@@ -8,7 +8,7 @@ import com.orgmemory.core.ai.AiGatewayProfileView;
 import com.orgmemory.core.ai.AiGatewayProtocol;
 import com.orgmemory.core.ai.AiRouteOverrideView;
 import com.orgmemory.core.ai.AiWorkload;
-import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.secret.SecretValue;
 import com.orgmemory.integrations.ai.gateway.AiGatewayProperties;

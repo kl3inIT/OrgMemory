@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import java.util.UUID;
 

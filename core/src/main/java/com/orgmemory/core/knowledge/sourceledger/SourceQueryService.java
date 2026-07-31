@@ -1,8 +1,8 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.EmbeddingProfile;
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.SecureKnowledgeRetrievalStore;

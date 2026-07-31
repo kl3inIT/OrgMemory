@@ -26,7 +26,7 @@ import com.orgmemory.core.knowledge.connector.ConnectorIngestionService;
 import com.orgmemory.core.knowledge.connector.ConnectorItemFailure;
 import com.orgmemory.core.knowledge.connector.ConnectorPoll;
 import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.connector.UnsupportedConnectorPayloadException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import java.util.ArrayList;

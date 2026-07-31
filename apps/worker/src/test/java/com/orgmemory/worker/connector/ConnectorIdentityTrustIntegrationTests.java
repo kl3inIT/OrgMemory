@@ -33,7 +33,7 @@ import com.orgmemory.core.knowledge.connector.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;

@@ -4,7 +4,7 @@ import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
 
 import com.orgmemory.core.knowledge.graph.GraphExplorerProperties;
 import com.orgmemory.core.knowledge.graph.GraphProcessingProperties;
-import com.orgmemory.core.knowledge.KnowledgeEmbeddingProperties;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.shared.secret.SecretCipherProperties;
 import org.springframework.boot.SpringApplication;

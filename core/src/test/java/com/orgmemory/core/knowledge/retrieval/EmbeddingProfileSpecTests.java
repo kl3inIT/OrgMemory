@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;

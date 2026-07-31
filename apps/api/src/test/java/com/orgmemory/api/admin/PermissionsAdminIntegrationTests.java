@@ -22,7 +22,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
