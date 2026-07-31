@@ -4,6 +4,8 @@ packages:
 subject: Clearer errors, consistent sizes, and a lighter web app
 ---
 
+# Clearer errors, consistent sizes, and a lighter web app
+
 ## Improvements
 
 Admin AI model screens now surface the real error details returned by the

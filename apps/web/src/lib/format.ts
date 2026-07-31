@@ -1,4 +1,10 @@
 export type FormatDateOptions = {
+  /**
+   * Render only the date portion. The input must still be a timestamp
+   * instant (ISO 8601 with timezone); bare calendar dates like
+   * "2026-08-01" are parsed as UTC midnight and may display as the
+   * previous day in western timezones.
+   */
   dateOnly?: boolean
   fallback?: string
 }
@@ -15,7 +21,9 @@ export function formatDate(value?: string, options: FormatDateOptions = {}) {
 }
 
 export function formatBytes(value?: number, fallback = "0 B") {
-  if (value === undefined) return fallback
+  if (value === undefined || !Number.isFinite(value) || value < 0) {
+    return fallback
+  }
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`
   return `${(value / (1024 * 1024)).toFixed(1)} MiB`
