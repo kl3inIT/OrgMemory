@@ -173,11 +173,31 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   expect(scopeTabs).not.toBeNull()
   expect(Math.abs(searchBox!.y - scopeTabs!.y)).toBeLessThanOrEqual(2)
 
+  await page.goto("/assets?page=2")
   await page.getByRole("tab", { name: "My Assets" }).click()
   await expect(page).toHaveURL(/scope=MINE/)
+  await expect(page).not.toHaveURL(/page=2/)
   await expect(page.getByText("1 result", { exact: true })).toBeVisible()
   await expect(page.getByRole("link", { name: "Draft incident response skill" })).toBeVisible()
   await expect(page.getByText("Draft", { exact: true })).toBeVisible()
+  expect(harness.ownedQueries.at(-1)).toMatchObject({
+    page: "1",
+    pageSize: "24",
+    sort: "RECENTLY_UPDATED",
+    q: null,
+    type: null,
+  })
+
+  await page.getByRole("textbox", { name: "Search visible assets" }).fill("incident")
+  await expect.poll(() => harness.ownedQueries.at(-1)?.q).toBe("incident")
+  await page.getByRole("combobox", { name: "Filter assets by type" }).click()
+  await page.getByRole("option", { name: "Skills" }).click()
+  await expect.poll(() => harness.ownedQueries.at(-1)?.type).toBe("SKILL")
+
+  await page.getByRole("textbox", { name: "Search visible assets" }).fill("")
+  await page.getByRole("combobox", { name: "Filter assets by type" }).click()
+  await page.getByRole("option", { name: "All types" }).click()
+  await expect(page.getByRole("listbox")).toBeHidden()
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
       path: "../output/design-qa/asset-catalog-mine.png",
@@ -286,6 +306,7 @@ async function assetHarness(
 ) {
   const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
+  const ownedQueries: Array<Record<string, string | null>> = []
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
@@ -306,13 +327,21 @@ async function assetHarness(
       return
     }
     if (url.pathname === "/api/assets/owned") {
+      const requestedPage = Number(url.searchParams.get("page") ?? "1")
+      ownedQueries.push({
+        page: url.searchParams.get("page"),
+        pageSize: url.searchParams.get("pageSize"),
+        sort: url.searchParams.get("sort"),
+        q: url.searchParams.get("q"),
+        type: url.searchParams.get("type"),
+      })
       await json(route, {
-        items: [ownedDraftSummary()],
+        items: requestedPage === 1 ? [ownedDraftSummary()] : [],
         total: 1,
-        page: 1,
+        page: requestedPage,
         pageSize: 24,
         totalPages: 1,
-        sort: "RECENTLY_UPDATED",
+        sort: url.searchParams.get("sort") ?? "RECENTLY_UPDATED",
       })
       return
     }
@@ -361,7 +390,7 @@ async function assetHarness(
     await json(route, { message: "Unexpected golden POC request" }, 500)
   })
 
-  return harness.result
+  return { ...harness.result, ownedQueries }
 }
 
 function supportPackRecommendation() {

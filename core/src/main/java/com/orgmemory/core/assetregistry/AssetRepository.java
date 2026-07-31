@@ -83,6 +83,31 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
               asset.id asc
             """;
 
+    String SUMMARY_FROM_AND_PREDICATES = """
+            from Asset asset
+            join AssetDraft draft
+              on draft.assetId = asset.id
+             and draft.organizationId = asset.organizationId
+            where asset.organizationId = :organizationId
+              and asset.id in :ids
+              and asset.authorizationReady = true
+              and (:type is null or asset.type = :type)
+              and (
+                    :query = ''
+                    or lower(concat(
+                        asset.namespace, ' ', asset.slug, ' ',
+                        draft.title, ' ', draft.summary))
+                       like concat('%', :query, '%')
+              )
+            """;
+
+    String OWNED_SUMMARY_ORDER = """
+            order by
+              case when :sort = 'NAME' then lower(draft.title) end asc,
+              case when :sort = 'RECENTLY_UPDATED' then asset.updatedAt end desc,
+              asset.id asc
+            """;
+
     Optional<Asset> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -110,23 +135,9 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                 asset.knowledgeSpaceId,
                 asset.portfolioState,
                 asset.updatedAt)
-            from Asset asset
-            join AssetDraft draft
-              on draft.assetId = asset.id
-             and draft.organizationId = asset.organizationId
-            where asset.organizationId = :organizationId
-              and asset.id in :ids
-              and asset.authorizationReady = true
-              and (:type is null or asset.type = :type)
-              and (
-                    :query = ''
-                    or lower(concat(
-                        asset.namespace, ' ', asset.slug, ' ',
-                        draft.title, ' ', draft.summary))
-                       like concat('%', :query, '%')
-              )
-            order by asset.namespace, asset.slug
-            """)
+            """
+            + SUMMARY_FROM_AND_PREDICATES
+            + "order by asset.namespace, asset.slug")
     List<AssetSummary> searchAuthorized(
             @Param("organizationId") UUID organizationId,
             @Param("ids") Collection<UUID> ids,
@@ -146,44 +157,10 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
                         asset.knowledgeSpaceId,
                         asset.portfolioState,
                         asset.updatedAt)
-                    from Asset asset
-                    join AssetDraft draft
-                      on draft.assetId = asset.id
-                     and draft.organizationId = asset.organizationId
-                    where asset.organizationId = :organizationId
-                      and asset.id in :ids
-                      and asset.authorizationReady = true
-                      and (:type is null or asset.type = :type)
-                      and (
-                            :query = ''
-                            or lower(concat(
-                                asset.namespace, ' ', asset.slug, ' ',
-                                draft.title, ' ', draft.summary))
-                               like concat('%', :query, '%')
-                      )
-                    order by
-                      case when :sort = 'NAME' then lower(draft.title) end asc,
-                      case when :sort = 'RECENTLY_UPDATED' then asset.updatedAt end desc,
-                      asset.id asc
-                    """,
-            countQuery = """
-                    select count(asset.id)
-                    from Asset asset
-                    join AssetDraft draft
-                      on draft.assetId = asset.id
-                     and draft.organizationId = asset.organizationId
-                    where asset.organizationId = :organizationId
-                      and asset.id in :ids
-                      and asset.authorizationReady = true
-                      and (:type is null or asset.type = :type)
-                      and (
-                            :query = ''
-                            or lower(concat(
-                                asset.namespace, ' ', asset.slug, ' ',
-                                draft.title, ' ', draft.summary))
-                               like concat('%', :query, '%')
-                      )
-                    """)
+                    """
+                    + SUMMARY_FROM_AND_PREDICATES
+                    + OWNED_SUMMARY_ORDER,
+            countQuery = "select count(asset.id)\n" + SUMMARY_FROM_AND_PREDICATES)
     Page<AssetSummary> searchOwnedSummaries(
             @Param("organizationId") UUID organizationId,
             @Param("ids") Collection<UUID> ids,

@@ -4,9 +4,13 @@
 
 - Source visual truth:
   `docs/increments/active/2026-07-31-asset-ownership-navigation/onyx-agents-layout-reference.png`
-- Browser-rendered implementation:
-  `docs/increments/active/2026-07-31-asset-ownership-navigation/asset-catalog-all-desktop.png`,
-  `asset-catalog-mine-desktop.png`, and `asset-catalog-mobile.png`
+- Browser-rendered implementation is produced by Playwright under
+  `apps/output/design-qa/asset-catalog-grid.png`,
+  `apps/output/design-qa/asset-catalog-mine.png`, and
+  `apps/output/design-qa/asset-catalog-mobile.png`.
+- Durable copies reviewed for this increment are archived under
+  `docs/increments/active/2026-07-31-asset-ownership-navigation/` with those
+  same three filenames.
 - Side-by-side comparison:
   `docs/increments/active/2026-07-31-asset-ownership-navigation/asset-layout-comparison.png`
 - Browser: Microsoft Edge through Playwright channel `msedge`
