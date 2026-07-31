@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-07-31-spring-modulith-package-refactor (this change)`.
+Reconciled: `2026-07-31-spring-modulith-package-refactor (d4555b3)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 

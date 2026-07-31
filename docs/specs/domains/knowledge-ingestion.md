@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-07-31-spring-modulith-package-refactor (this change)`.
+Reconciled: `2026-07-31-spring-modulith-package-refactor (d4555b3)`.
 
 ## Current Behavior
 
