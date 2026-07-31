@@ -44,12 +44,6 @@ export function connectionLabel(sourceSystem?: string, sourceConnectionKey?: str
   return [sourceSystem, sourceConnectionKey].filter(Boolean).join(" · ") || "Unknown connection"
 }
 
-export function formatTimestamp(value?: string) {
-  if (!value) return "—"
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleString()
-}
-
 /**
  * The same instant without the seconds, for a table cell. Nobody reads a row to learn that a
  * credential was stored at 31 seconds past, and the full form is wide enough to push a table

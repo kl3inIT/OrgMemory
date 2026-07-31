@@ -1,4 +1,6 @@
-export const MAX_SKILL_ARCHIVE_BYTES = 20 * 1024 * 1024
+import { MAX_SKILL_ARCHIVE_BYTES } from "@/features/assets/skill-package-limits"
+
+export { MAX_SKILL_ARCHIVE_BYTES } from "@/features/assets/skill-package-limits"
 
 const NAMESPACE = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 
@@ -21,7 +23,7 @@ export function validateSkillUpload({
     return { ok: false, message: "The package must be a ZIP file." }
   }
   if (file.size > MAX_SKILL_ARCHIVE_BYTES) {
-    return { ok: false, message: "The ZIP package must be 20 MB or smaller." }
+    return { ok: false, message: "The ZIP package must be 20 MiB or smaller." }
   }
   if (
     !normalizedNamespace ||

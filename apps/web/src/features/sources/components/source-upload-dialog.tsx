@@ -42,7 +42,8 @@ export function SourceUploadDialog({
   const [error, setError] = useState<string>()
   const availableSpaces = spaces.filter(
     (space): space is KnowledgeSpaceResponse & { id: string; name: string } =>
-      Boolean(space.id && space.name) && (classification === "INTERNAL" || Boolean(space.departmentId)),
+      Boolean(space.id && space.name) &&
+      (classification !== "CONFIDENTIAL" || Boolean(space.departmentId)),
   )
 
   function reset() {

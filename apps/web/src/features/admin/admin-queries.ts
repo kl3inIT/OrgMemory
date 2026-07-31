@@ -3,32 +3,19 @@ import { queryOptions, type QueryClient } from "@tanstack/react-query"
 import {
   contextOptions,
   getAdminConnectionActivityOptions,
-  listAdminConnectionScopesOptions,
   listAdminConnectionScopesQueryKey,
-  listAdminConnectionsOptions,
   listAdminConnectionsQueryKey,
-  listAdminConnectorSourcesOptions,
-  listAdminSourceConnectionsOptions,
   listAdminSourceConnectionsQueryKey,
-  listAdminSourceGroupsOptions,
   listAdminSourceGroupsQueryKey,
-  listAdminSourcePrincipalsOptions,
   listAdminSourcePrincipalsQueryKey,
-  listAdminInvitationsOptions,
   listAdminInvitationsQueryKey,
   listAdminKnowledgeSpaceGrantOptionsOptions,
-  listAdminKnowledgeSpacesOptions,
   listAdminKnowledgeSpacesQueryKey,
-  listAdminRolesOptions,
   listAdminRolesQueryKey,
   listAdminUserPermissionsOptions,
   listAdminUserPermissionsQueryKey,
-  listAdminUsersOptions,
   listAdminUsersQueryKey,
-  listKnowledgeSpaceUploadTargetsOptions,
-  listProvisioningConnectionsOptions,
   listProvisioningConnectionsQueryKey,
-  listProvisioningCredentialsOptions,
   listProvisioningCredentialsQueryKey,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
@@ -36,20 +23,8 @@ import {
 // cached briefly and invalidated explicitly after every mutation.
 const ADMIN_STALE_TIME = 15_000
 
-export function adminUsersQueryOptions() {
-  return queryOptions({ ...listAdminUsersOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function adminInvitationsQueryOptions() {
-  return queryOptions({ ...listAdminInvitationsOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function adminRolesQueryOptions() {
-  return queryOptions({ ...listAdminRolesOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function adminKnowledgeSpacesQueryOptions() {
-  return queryOptions({ ...listAdminKnowledgeSpacesOptions(), staleTime: ADMIN_STALE_TIME })
+export function adminQuery<TOptions extends object>(options: TOptions) {
+  return { ...options, staleTime: ADMIN_STALE_TIME }
 }
 
 /**
@@ -80,53 +55,6 @@ export function adminUserPermissionsQueryOptions(userId: string) {
   })
 }
 
-export function adminSourcePrincipalsQueryOptions() {
-  return queryOptions({ ...listAdminSourcePrincipalsOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function adminSourceConnectionsQueryOptions() {
-  return queryOptions({ ...listAdminSourceConnectionsOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function adminSourceGroupsQueryOptions() {
-  return queryOptions({ ...listAdminSourceGroupsOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function provisioningConnectionsQueryOptions() {
-  return queryOptions({ ...listProvisioningConnectionsOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
-export function provisioningCredentialsQueryOptions(connectionId: string) {
-  return queryOptions({
-    ...listProvisioningCredentialsOptions({ path: { connectionId } }),
-    staleTime: ADMIN_STALE_TIME,
-  })
-}
-
-/** A source's connections. The path is the source system, so every source uses this one. */
-export function adminConnectionsQueryOptions(sourceSystem: string) {
-  return queryOptions({
-    ...listAdminConnectionsOptions({ path: { sourceSystem } }),
-    staleTime: ADMIN_STALE_TIME,
-  })
-}
-
-/**
- * What a connection could be pointed at, read from the source with its stored credential. Only
- * once there is a connection to read it with, which is why the key is part of the path.
- */
-export function adminConnectionScopesQueryOptions(sourceSystem: string, connectionKey: string) {
-  return queryOptions({
-    ...listAdminConnectionScopesOptions({ path: { sourceSystem, connectionKey } }),
-    staleTime: ADMIN_STALE_TIME,
-  })
-}
-
-/** Which sources this deployment can actually ingest, from the adapters it has installed. */
-export function adminConnectorSourcesQueryOptions() {
-  return queryOptions({ ...listAdminConnectorSourcesOptions(), staleTime: ADMIN_STALE_TIME })
-}
-
 /**
  * What a connection has done. Kept fresher than the rest of administration because it moves
  * without anybody acting: a crawl runs on the worker's schedule, so a stale answer here is a
@@ -143,11 +71,6 @@ export function adminConnectionActivityQueryOptions(sourceSystem: string, connec
     staleTime: 5_000,
     refetchInterval: 10_000,
   })
-}
-
-/** The Spaces a crawl may publish into are the same ones an upload may target. */
-export function knowledgeSpacesQueryOptions() {
-  return queryOptions({ ...listKnowledgeSpaceUploadTargetsOptions(), staleTime: ADMIN_STALE_TIME })
 }
 
 /**

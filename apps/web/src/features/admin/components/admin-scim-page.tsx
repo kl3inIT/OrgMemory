@@ -13,14 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
+  adminQuery,
   invalidateAdminData,
-  provisioningConnectionsQueryOptions,
-  provisioningCredentialsQueryOptions,
 } from "@/features/admin/admin-queries"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
 import {
   createProvisioningConnectionMutation,
   issueProvisioningCredentialMutation,
+  listProvisioningConnectionsOptions,
+  listProvisioningCredentialsOptions,
   revokeProvisioningCredentialMutation,
   rotateProvisioningCredentialMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
@@ -29,6 +30,8 @@ import type {
   CredentialResponse,
   IssuedCredentialResponse,
 } from "@/lib/hey-api"
+import { formatDate } from "@/lib/format"
+import { copyWithToast } from "@/lib/copy"
 
 const PROVIDERS = [
   { value: "MICROSOFT_ENTRA", label: "Microsoft Entra ID" },
@@ -40,14 +43,6 @@ type ProviderProfile = (typeof PROVIDERS)[number]["value"]
 
 function providerLabel(profile?: string) {
   return PROVIDERS.find((candidate) => candidate.value === profile)?.label ?? profile ?? "SCIM"
-}
-
-function formatTimestamp(value?: string) {
-  if (!value) return "Never"
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value))
 }
 
 function CredentialRow({
@@ -111,8 +106,8 @@ function CredentialRow({
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground">
-          Last used {formatTimestamp(credential.lastUsedAt)} · Created{" "}
-          {formatTimestamp(credential.createdAt)}
+          Last used {formatDate(credential.lastUsedAt, { fallback: "Never" })} · Created{" "}
+          {formatDate(credential.createdAt, { fallback: "Never" })}
         </p>
       </div>
       {!revoked && !expired ? (
@@ -143,7 +138,9 @@ function CredentialRow({
 
 function ConnectionCard({ connection }: { connection: ConnectionResponse }) {
   const queryClient = useQueryClient()
-  const credentials = useQuery(provisioningCredentialsQueryOptions(connection.id!))
+  const credentials = useQuery(
+    adminQuery(listProvisioningCredentialsOptions({ path: { connectionId: connection.id! } })),
+  )
   const issue = useMutation(issueProvisioningCredentialMutation())
   const [issued, setIssued] = useState<IssuedCredentialResponse | null>(null)
   const tenantUrl = `${window.location.origin}/scim/v2`
@@ -159,15 +156,6 @@ function ConnectionCard({ connection }: { connection: ConnectionResponse }) {
       toast.success("SCIM token created")
     } catch {
       toast.error("The SCIM token could not be created")
-    }
-  }
-
-  async function copy(value: string, label: string) {
-    try {
-      await navigator.clipboard.writeText(value)
-      toast.success(`${label} copied`)
-    } catch {
-      toast.error(`${label} could not be copied`)
     }
   }
 
@@ -192,7 +180,7 @@ function ConnectionCard({ connection }: { connection: ConnectionResponse }) {
                 variant="outline"
                 size="icon"
                 aria-label="Copy Tenant URL"
-                onClick={() => void copy(tenantUrl, "Tenant URL")}
+                onClick={() => void copyWithToast(tenantUrl, "Tenant URL")}
               >
                 <Copy className="size-4" aria-hidden />
               </Button>
@@ -231,7 +219,7 @@ function ConnectionCard({ connection }: { connection: ConnectionResponse }) {
                   variant="outline"
                   size="icon"
                   aria-label="Copy secret token"
-                  onClick={() => void copy(issued.token!, "Secret token")}
+                  onClick={() => void copyWithToast(issued.token!, "Secret token")}
                 >
                   <Copy className="size-4" aria-hidden />
                 </Button>
@@ -293,7 +281,7 @@ function ConnectionCard({ connection }: { connection: ConnectionResponse }) {
 
 export function AdminScimPage() {
   const queryClient = useQueryClient()
-  const connections = useQuery(provisioningConnectionsQueryOptions())
+  const connections = useQuery(adminQuery(listProvisioningConnectionsOptions()))
   const create = useMutation(createProvisioningConnectionMutation())
   const [alias, setAlias] = useState("")
   const [provider, setProvider] = useState<ProviderProfile>("MICROSOFT_ENTRA")

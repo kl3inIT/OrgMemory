@@ -7,11 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { adminUsersQueryOptions } from "@/features/admin/admin-queries"
+import { adminQuery } from "@/features/admin/admin-queries"
 import { PERMISSION_LABELS } from "@/features/admin/access-permission-labels"
 import { AccessDenied, AccessPath } from "@/features/admin/components/access-path"
 import { AccessVerdict, type AccessState } from "@/features/admin/components/access-verdict"
-import { explainAdminAccessMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
+import {
+  explainAdminAccessMutation,
+  listAdminUsersOptions,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 
 /**
  * A relation only exists on the types the model declares it for. Offering every permission
@@ -56,7 +59,7 @@ const RESOURCE_TYPES = [
  * or merely stale.
  */
 export function AccessInspector({ userId }: { userId?: string }) {
-  const users = useQuery(adminUsersQueryOptions())
+  const users = useQuery(adminQuery(listAdminUsersOptions()))
   const explain = useMutation(explainAdminAccessMutation())
 
   const [subject, setSubject] = useState(userId ?? "")

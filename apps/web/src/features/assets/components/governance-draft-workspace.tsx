@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { formatDate, parsePayload } from "@/features/assets/asset-format"
+import { parsePayload } from "@/features/assets/asset-format"
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
 import { canPublishSkillDirectly } from "@/features/assets/governance-policy"
 import {
@@ -22,6 +22,7 @@ import type {
   AssetView,
   Draft,
 } from "@/lib/hey-api"
+import { formatBytes, formatDate } from "@/lib/format"
 
 type SkillDraftPayload = {
   compatibility?: string
@@ -229,7 +230,7 @@ function SkillDraftPackage({
           <DraftMetric label="Files" value={String(files.length)} mono />
           <DraftMetric
             label="Archive"
-            value={formatBytes(skill.artifact.contentLength)}
+            value={formatBytes(skill.artifact.contentLength, "—")}
           />
           <DraftMetric
             label="Compatibility"
@@ -260,7 +261,7 @@ function SkillDraftPackage({
                 {file.path}
               </span>
               <span className="shrink-0 text-metadata text-content-muted">
-                {formatBytes(file.size)}
+                {formatBytes(file.size, "—")}
               </span>
             </div>
           ))}
@@ -290,12 +291,4 @@ function DraftMetric({
       <p className={`mt-2 text-label ${mono ? "font-mono" : ""}`}>{value || "—"}</p>
     </div>
   )
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) return "—"
-  if (value < 1_024) return `${value} B`
-  const kibibytes = value / 1_024
-  if (kibibytes < 1_024) return `${kibibytes.toFixed(1)} KB`
-  return `${(kibibytes / 1_024).toFixed(1)} MB`
 }

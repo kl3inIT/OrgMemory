@@ -12,9 +12,7 @@ import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
 import {
   adminKnowledgeSpaceGrantOptionsQueryOptions,
-  adminKnowledgeSpacesQueryOptions,
-  adminRolesQueryOptions,
-  adminUsersQueryOptions,
+  adminQuery,
   invalidateAdminData,
   organizationContextQueryOptions,
 } from "@/features/admin/admin-queries"
@@ -22,6 +20,9 @@ import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admi
 import {
   createAdminKnowledgeSpaceMutation,
   grantAdminKnowledgeSpaceAccessMutation,
+  listAdminKnowledgeSpacesOptions,
+  listAdminRolesOptions,
+  listAdminUsersOptions,
   revokeAdminKnowledgeSpaceAccessMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminKnowledgeSpaceResponse } from "@/lib/hey-api"
@@ -368,10 +369,10 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
  */
 export function AdminSpacesPage() {
   const queryClient = useQueryClient()
-  const spaces = useQuery(adminKnowledgeSpacesQueryOptions())
+  const spaces = useQuery(adminQuery(listAdminKnowledgeSpacesOptions()))
   const context = useQuery(organizationContextQueryOptions())
-  const users = useQuery(adminUsersQueryOptions())
-  const roles = useQuery(adminRolesQueryOptions())
+  const users = useQuery(adminQuery(listAdminUsersOptions()))
+  const roles = useQuery(adminQuery(listAdminRolesOptions()))
   const grantOptions = useQuery(adminKnowledgeSpaceGrantOptionsQueryOptions())
   const create = useMutation(createAdminKnowledgeSpaceMutation())
 

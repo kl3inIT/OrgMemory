@@ -67,6 +67,7 @@ import {
   testStoredAdminAiGatewayMutation,
   updateAdminAiGatewayMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { apiErrorMessage } from "@/lib/api-error"
 
 const CATEGORY_COPY = {
   DIRECT_PROVIDER: {
@@ -102,11 +103,6 @@ const WORKLOADS = [
 function safeKey(preset: ProviderPresetResponse) {
   const base = (preset.preset ?? "gateway").toLowerCase().replaceAll("_", "-")
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
-}
-
-function apiErrorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message) return error.message
-  return fallback
 }
 
 export function AdminLanguageModelsPage() {

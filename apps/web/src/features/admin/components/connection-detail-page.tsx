@@ -9,18 +9,21 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { formatTimestamp } from "@/features/admin/admin-labels"
 import {
   adminConnectionActivityQueryOptions,
-  adminConnectionsQueryOptions,
-  knowledgeSpacesQueryOptions,
+  adminQuery,
 } from "@/features/admin/admin-queries"
-import { requestAdminConnectionCrawlMutation } from "@/lib/hey-api/@tanstack/react-query.gen"
+import {
+  listAdminConnectionsOptions,
+  listKnowledgeSpaceUploadTargetsOptions,
+  requestAdminConnectionCrawlMutation,
+} from "@/lib/hey-api/@tanstack/react-query.gen"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import { SourceIcon, type SourceIconName } from "@/features/admin/components/source-icon"
 import { CONNECTOR_CATALOG } from "@/features/admin/connector-catalog"
 import { allFields, CONNECTOR_FORMS } from "@/features/admin/connector-forms"
 import type { AdminComponentCheckpointResponse, AdminCrawlAttemptResponse } from "@/lib/hey-api"
+import { formatDate } from "@/lib/format"
 
 /**
  * How each outcome reads on the screen.
@@ -88,7 +91,7 @@ const attemptColumns: ColumnDef<AdminCrawlAttemptResponse>[] = [
     header: "When",
     enableSorting: true,
     meta: { cellClassName: "text-muted-foreground" },
-    cell: ({ row }) => formatTimestamp(row.original.attemptedAt),
+    cell: ({ row }) => formatDate(row.original.attemptedAt),
   },
   {
     id: "changed",
@@ -138,7 +141,7 @@ function ComponentCheckpoint({ checkpoint }: { checkpoint: AdminComponentCheckpo
         </Badge>
         <span>
           Last successful:{" "}
-          {checkpoint.lastSuccessfulAt ? formatTimestamp(checkpoint.lastSuccessfulAt) : "Never"}
+          {formatDate(checkpoint.lastSuccessfulAt, { fallback: "Never" })}
         </span>
       </div>
       {checkpoint.incompleteReason ? (
@@ -164,9 +167,9 @@ export function ConnectionDetailPage({
 }) {
   const [connections, activity, spaces] = useQueries({
     queries: [
-      adminConnectionsQueryOptions(sourceSystem),
+      adminQuery(listAdminConnectionsOptions({ path: { sourceSystem } })),
       adminConnectionActivityQueryOptions(sourceSystem, connectionKey),
-      knowledgeSpacesQueryOptions(),
+      adminQuery(listKnowledgeSpaceUploadTargetsOptions()),
     ],
   })
 
@@ -256,12 +259,12 @@ export function ConnectionDetailPage({
           { label: "Retired", value: activity.data?.objectsArchived ?? 0 },
           {
             label: "Last indexed",
-            value: activity.data?.lastCrawlAt ? formatTimestamp(activity.data.lastCrawlAt) : "Never",
+            value: formatDate(activity.data?.lastCrawlAt, { fallback: "Never" }),
             hint: activity.data?.lastCrawlAt ? undefined : "Nothing has been checkpointed",
           },
           {
             label: "Last change",
-            value: activity.data?.lastObjectAt ? formatTimestamp(activity.data.lastObjectAt) : "None",
+            value: formatDate(activity.data?.lastObjectAt, { fallback: "None" }),
           },
         ]}
       />
@@ -339,7 +342,7 @@ export function ConnectionDetailPage({
           </SettingRow>
           <SettingRow label="Credential">
             {connection?.credentialSet ? (
-              <span>Stored {formatTimestamp(connection.credentialSetAt)}</span>
+              <span>Stored {formatDate(connection.credentialSetAt)}</span>
             ) : (
               <Badge variant="warning">None</Badge>
             )}

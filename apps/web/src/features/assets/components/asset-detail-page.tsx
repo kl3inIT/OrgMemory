@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
-  Copy,
   History,
   MessageSquareWarning,
   PackageCheck,
@@ -19,6 +18,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
+import { CopyButton } from "@/components/patterns/copy-button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -54,7 +54,6 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   ASSET_TYPE_META,
   formatAssetCoordinate,
-  formatDate,
   latestUsableRelease,
   parsePayload,
 } from "@/features/assets/asset-format"
@@ -73,6 +72,7 @@ import {
   submitAssistantAssetFeedbackMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AssetView, Release } from "@/lib/hey-api"
+import { formatBytes, formatDate } from "@/lib/format"
 
 type PromptVariable = {
   name: string
@@ -820,7 +820,7 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3">
-            <Metadata label="Package" value={formatBytes(skill.packageLength)} />
+            <Metadata label="Package" value={formatBytes(skill.packageLength, "—")} />
             <Metadata label="Files" value={String(skill.files?.length ?? 0)} />
             <Metadata label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
           </div>
@@ -861,7 +861,7 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
                       {file.path}
                     </code>
                     <span className="shrink-0 font-mono text-metadata text-content-muted">
-                      {formatBytes(file.size)}
+                      {formatBytes(file.size, "—")}
                     </span>
                   </li>
                 ))}
@@ -907,34 +907,14 @@ function InstallCommand({ agent, command }: { agent: string; command: string }) 
         <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-supporting text-content-secondary">
           {command}
         </code>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={`Copy ${agent} install command`}
-          onClick={() => {
-            if (!navigator.clipboard?.writeText) {
-              toast.error("Could not copy command")
-              return
-            }
-            void navigator.clipboard
-              .writeText(command)
-              .then(() => toast.success("Install command copied"))
-              .catch(() => toast.error("Could not copy command"))
-          }}
-        >
-          <Copy aria-hidden="true" />
-        </Button>
+        <CopyButton
+          value={command}
+          label={`Copy ${agent} install command`}
+          toastLabel="Install command"
+        />
       </div>
     </div>
   )
-}
-
-function formatBytes(value?: number) {
-  if (value === undefined) return "—"
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`
-  return `${(value / (1024 * 1024)).toFixed(1)} MiB`
 }
 
 function FeedbackCard({ assetId, release }: { assetId: string; release: Release }) {

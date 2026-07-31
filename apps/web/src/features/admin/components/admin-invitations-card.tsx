@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
-import { adminInvitationsQueryOptions, invalidateAdminData } from "@/features/admin/admin-queries"
+import { adminQuery, invalidateAdminData } from "@/features/admin/admin-queries"
 import {
   createAdminInvitationMutation,
+  listAdminInvitationsOptions,
   revokeAdminInvitationMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
@@ -31,7 +32,7 @@ const STATUS_VARIANTS = {
  */
 export function AdminInvitationsCard() {
   const queryClient = useQueryClient()
-  const invitations = useQuery(adminInvitationsQueryOptions())
+  const invitations = useQuery(adminQuery(listAdminInvitationsOptions()))
   const create = useMutation(createAdminInvitationMutation())
   const revoke = useMutation(revokeAdminInvitationMutation())
 
