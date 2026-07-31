@@ -1,5 +1,6 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
+import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,7 +28,7 @@ import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
-import com.orgmemory.core.knowledge.KnowledgeSpaceSubject.Kind;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceSubject.Kind;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Duration;

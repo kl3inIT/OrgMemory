@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.PermissionKey;
@@ -6,6 +6,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.util.LinkedHashSet;
@@ -101,7 +102,7 @@ public class KnowledgeSpaceService {
     }
 
     @Transactional(readOnly = true)
-    void requireInOrganization(UUID organizationId, UUID knowledgeSpaceId) {
+    public void requireInOrganization(UUID organizationId, UUID knowledgeSpaceId) {
         if (!spaces.existsByIdAndOrganizationIdAndActiveTrue(knowledgeSpaceId, organizationId)) {
             throw new KnowledgeResourceNotFoundException();
         }

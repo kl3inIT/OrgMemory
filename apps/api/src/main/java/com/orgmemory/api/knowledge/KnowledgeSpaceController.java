@@ -1,7 +1,7 @@
 package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.KnowledgeSpaceService;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import org.springframework.security.core.Authentication;

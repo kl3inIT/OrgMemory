@@ -1,5 +1,8 @@
 package com.orgmemory.core;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
 
@@ -10,5 +13,20 @@ class ModulithVerificationTests {
     @Test
     void modulesAreWellFormed() {
         modules.verify();
+    }
+
+    @Test
+    void knowledgeSpaceIsAnOpenNestedModuleDuringTheRefactor() {
+        var space = modules.getModuleByName("knowledge.space").orElseThrow();
+
+        assertTrue(space.isOpen());
+    }
+
+    @Test
+    void objectStorageIsAnExplicitKnowledgeInterface() {
+        var knowledge = modules.getModuleByName("knowledge").orElseThrow();
+        var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();
+
+        assertTrue(storage.contains(ObjectStoragePort.class));
     }
 }

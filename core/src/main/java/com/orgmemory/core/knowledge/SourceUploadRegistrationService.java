@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.DeclaredAccessScope;

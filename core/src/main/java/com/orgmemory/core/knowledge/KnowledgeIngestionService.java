@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
 import com.orgmemory.core.permission.AccessGate;

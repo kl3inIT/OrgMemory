@@ -113,8 +113,12 @@ build file, so taking the convention is taking the boundary. See
   has no runtime dependency on the product services. Turbopack is its default
   Next.js bundler, not a repository task runner.
 
-`core` uses Spring Modulith package boundaries and a verification test. Leased
-database jobs carry ingestion work across processes. A specific Knowledge Asset
+`core` uses Spring Modulith package boundaries and a verification test.
+`core.knowledge.space` is the first responsibility-oriented nested module and
+remains explicitly open while sibling repository dependencies are replaced by
+intentional APIs. The provider-neutral object-storage port is exposed as the
+`knowledge::storage` named interface. Leased database jobs carry ingestion work
+across processes. A specific Knowledge Asset
 publication outbox records direct-upload authorization projection attempts and
 the pinned OpenFGA model; no generic event framework has been introduced.
 

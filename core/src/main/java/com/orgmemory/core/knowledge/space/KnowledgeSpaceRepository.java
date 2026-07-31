@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.space;
 
 import java.util.Collection;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-interface KnowledgeSpaceRepository extends JpaRepository<KnowledgeSpace, UUID> {
+public interface KnowledgeSpaceRepository extends JpaRepository<KnowledgeSpace, UUID> {
 
     Optional<KnowledgeSpace> findByIdAndOrganizationIdAndActiveTrue(UUID id, UUID organizationId);
 
