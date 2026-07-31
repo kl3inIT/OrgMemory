@@ -28,7 +28,11 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], channel: browserChannel },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: browserChannel,
+        ...(process.env.DESIGN_QA_CAPTURE ? { deviceScaleFactor: 1.5 } : {}),
+      },
     },
   ],
   webServer: {

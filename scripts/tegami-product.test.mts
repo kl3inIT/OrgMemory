@@ -12,9 +12,14 @@ import {
   PRODUCT_ID,
   PRODUCT_CHANGELOG_PREAMBLE,
   PUBLIC_CHANGELOG_MARKER,
+  RECENT_RELEASE_LIMIT,
   assertCurrentMain,
   normalizeProductChangelog,
+  parseProductReleases,
+  renderArchivedProductChangelog,
   renderPublicProductChangelog,
+  renderReleaseNavigationMeta,
+  validateProductReleaseHistory,
   parseProductManifest,
   parseReleaseArtifacts,
   productReleasePlugins,
@@ -163,7 +168,66 @@ test("public changelog fragment contains release history without a second page H
   const canonical = `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0\n\n### Release management\n`;
   assert.equal(
     renderPublicProductChangelog(canonical),
-    `${PUBLIC_CHANGELOG_MARKER}\n\n## orgmemory@0.1.0\n\n### Release management\n`,
+    `${PUBLIC_CHANGELOG_MARKER}\n\n## Organizational AI Memory v0.1.0\n\n### Release management\n`,
+  );
+});
+
+test("release projections split recent history from the internal archive", () => {
+  const releases = Array.from(
+    { length: RECENT_RELEASE_LIMIT + 2 },
+    (_, index) => `## orgmemory@0.${RECENT_RELEASE_LIMIT + 1 - index}.0\n\n### Release ${index}`,
+  );
+  const canonical = `${PRODUCT_CHANGELOG_PREAMBLE}\n\n${releases.join("\n\n")}\n`;
+  const parsed = parseProductReleases(canonical);
+  assert.equal(parsed.length, RECENT_RELEASE_LIMIT + 2);
+  assert.match(renderPublicProductChangelog(canonical), /Organizational AI Memory v0\.11\.0/);
+  assert.doesNotMatch(renderPublicProductChangelog(canonical), /Organizational AI Memory v0\.1\.0/);
+  assert.match(renderArchivedProductChangelog(canonical), /Organizational AI Memory v0\.1\.0/);
+  assert.doesNotMatch(renderArchivedProductChangelog(canonical), /Organizational AI Memory v0\.11\.0/);
+});
+
+test("release navigation is localized, deterministic, and repository-independent", () => {
+  const canonical = `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@1.2.3-beta.1\n\n### Preview\n`;
+  const english = renderReleaseNavigationMeta(canonical, "en");
+  const vietnamese = renderReleaseNavigationMeta(canonical, "vi");
+  assert.match(english, /\[Latest\]\(\/docs\/changelog\)/);
+  assert.match(english, /#organizational-ai-memory-v123-beta1/);
+  assert.match(vietnamese, /\[Mới nhất\]\(\/vi\/docs\/changelog\)/);
+  assert.match(english, /"archive"/);
+  assert.doesNotMatch(english, /github\.com|external:/);
+});
+
+test("release parsing rejects duplicate or non-release top-level sections", () => {
+  assert.throws(
+    () => parseProductReleases(`${PRODUCT_CHANGELOG_PREAMBLE}\n\n## Notes\n`),
+    /only orgmemory release sections/,
+  );
+  assert.throws(
+    () =>
+      parseProductReleases(
+        `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@1.0.0\n\n## orgmemory@1.0.0\n`,
+      ),
+    /Duplicate product release/,
+  );
+});
+
+test("release history matches the manifest and descends by semantic precedence", () => {
+  const valid = `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@1.0.0\n\n### Stable\n\n## orgmemory@1.0.0-rc.2\n\n### RC 2\n\n## orgmemory@1.0.0-rc.1\n\n### RC 1\n\n## orgmemory@0.9.0\n\n### Earlier\n`;
+  assert.equal(validateProductReleaseHistory(valid, "1.0.0").length, 4);
+  assert.throws(() => validateProductReleaseHistory(valid, "1.0.1"), /does not match/);
+  assert.throws(
+    () =>
+      validateProductReleaseHistory(
+        `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@1.0.0-rc.1\n\n## orgmemory@1.0.0-rc.2\n`,
+      ),
+    /strictly descending/,
+  );
+  assert.throws(
+    () =>
+      validateProductReleaseHistory(
+        `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@1.0.0+build.2\n\n## orgmemory@1.0.0+build.1\n`,
+      ),
+    /strictly descending/,
   );
 });
 
@@ -452,6 +516,24 @@ test("pinned Tegami contract versions in a temporary repository with a bare remo
         "utf8",
       ),
       renderPublicProductChangelog(changelog),
+    );
+    assert.equal(
+      await readFile(
+        join(cwd, "apps", "docs", "content", "includes", "product-changelog-archive.md"),
+        "utf8",
+      ),
+      renderArchivedProductChangelog(changelog),
+    );
+    assert.equal(
+      await readFile(join(cwd, "apps", "docs", "content", "docs", "changelog", "meta.json"), "utf8"),
+      renderReleaseNavigationMeta(changelog, "en"),
+    );
+    assert.equal(
+      await readFile(
+        join(cwd, "apps", "docs", "content", "docs", "changelog", "meta.vi.json"),
+        "utf8",
+      ),
+      renderReleaseNavigationMeta(changelog, "vi"),
     );
     assert.equal(parseProductManifest(await readFile(join(cwd, "release", "product.json"), "utf8")).version, "0.1.0");
     assert.match(await readFile(join(cwd, ".tegami", "publish-lock.yaml"), "utf8"), /product:orgmemory/);

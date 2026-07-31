@@ -3,7 +3,7 @@
   "entries": [
     {
       "route": "/docs/changelog",
-      "content": "content/docs/changelog.mdx",
+      "content": "content/docs/changelog/index.mdx",
       "area": "changelog",
       "order": 10,
       "status": "public",
@@ -11,9 +11,25 @@
     },
     {
       "route": "/vi/docs/changelog",
-      "content": "content/docs/changelog.vi.mdx",
+      "content": "content/docs/changelog/index.vi.mdx",
       "area": "changelog",
       "order": 10,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/docs/changelog/archive",
+      "content": "content/docs/changelog/archive.mdx",
+      "area": "changelog",
+      "order": 20,
+      "status": "public",
+      "reviewOwner": "product-and-documentation"
+    },
+    {
+      "route": "/vi/docs/changelog/archive",
+      "content": "content/docs/changelog/archive.vi.mdx",
+      "area": "changelog",
+      "order": 20,
       "status": "public",
       "reviewOwner": "product-and-documentation"
     },
