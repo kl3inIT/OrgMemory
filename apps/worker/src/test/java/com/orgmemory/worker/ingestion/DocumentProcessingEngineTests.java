@@ -20,8 +20,6 @@ class DocumentProcessingEngineTests {
     @Test
     void rejectsDefiniteChunkOverflowBeforeCallingSemanticEmbedding() {
         var properties = new SourceProcessingProperties(
-                false,
-                Duration.ofSeconds(1),
                 "test-worker",
                 Duration.ofMinutes(1),
                 "test-pipeline",
@@ -88,8 +86,6 @@ class DocumentProcessingEngineTests {
             String parserId,
             String chunkerId) {
         return new SourceProcessingProperties(
-                false,
-                Duration.ofSeconds(1),
                 "test-worker",
                 Duration.ofMinutes(1),
                 "test-pipeline",

@@ -3,6 +3,7 @@ package com.orgmemory.api.scim;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import tools.jackson.core.io.JsonStringEncoder;
 
 final class ScimErrorWriter {
 
@@ -24,29 +25,7 @@ final class ScimErrorWriter {
 
     private static String escape(String value) {
         StringBuilder escaped = new StringBuilder(value.length() + 16);
-        for (int index = 0; index < value.length(); index++) {
-            char character = value.charAt(index);
-            switch (character) {
-                case '"' -> escaped.append("\\\"");
-                case '\\' -> escaped.append("\\\\");
-                case '\b' -> escaped.append("\\b");
-                case '\f' -> escaped.append("\\f");
-                case '\n' -> escaped.append("\\n");
-                case '\r' -> escaped.append("\\r");
-                case '\t' -> escaped.append("\\t");
-                default -> {
-                    if (character < 0x20) {
-                        escaped.append("\\u");
-                        escaped.append(Character.forDigit((character >> 12) & 0xf, 16));
-                        escaped.append(Character.forDigit((character >> 8) & 0xf, 16));
-                        escaped.append(Character.forDigit((character >> 4) & 0xf, 16));
-                        escaped.append(Character.forDigit(character & 0xf, 16));
-                    } else {
-                        escaped.append(character);
-                    }
-                }
-            }
-        }
+        JsonStringEncoder.getInstance().quoteAsString(value, escaped);
         return escaped.toString();
     }
 }

@@ -9,8 +9,6 @@ import com.orgmemory.graphrag.parsing.DocumentParser;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import com.orgmemory.graphrag.processing.ResolvedDocumentProcessingProfile;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -38,10 +36,6 @@ class SpringAiDocumentParser implements DocumentParser {
             "text/markdown");
 
     private final Tika detector = new Tika();
-
-    ParsedSource read(Path file, String fileName) throws IOException {
-        return read(Files.readAllBytes(file), fileName);
-    }
 
     @Override
     public ProcessingComponentRef component() {
@@ -97,12 +91,7 @@ class SpringAiDocumentParser implements DocumentParser {
         if (normalizedDocuments.isEmpty()) {
             throw new RejectedSourceException("NO_EXTRACTABLE_TEXT", "No extractable text was found");
         }
-        String normalizedText = normalizedDocuments.stream()
-                .map(Document::getText)
-                .reduce((left, right) -> left + "\n\n" + right)
-                .orElseThrow(() -> new RejectedSourceException(
-                        "NO_EXTRACTABLE_TEXT", "No extractable text was found"));
-        return new ParsedSource(normalizedDocuments, normalizedText, detectedMediaType);
+        return new ParsedSource(normalizedDocuments, detectedMediaType);
     }
 
     private static CanonicalDocument canonical(List<Document> documents) {

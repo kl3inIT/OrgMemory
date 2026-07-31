@@ -3,6 +3,7 @@ package com.orgmemory.api.scim;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Clock;
@@ -74,6 +75,14 @@ class ScimRequestGuardFilterTests {
         });
 
         assertTrue(response.getHeader("X-Request-ID").matches("[0-9a-f-]{36}"));
+    }
+
+    @Test
+    void rejectsAnUnrepresentableBodyLimitAtConstruction() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> new ScimRequestGuardFilter(
+                        properties(false, Integer.MAX_VALUE, 120)));
     }
 
     @Test

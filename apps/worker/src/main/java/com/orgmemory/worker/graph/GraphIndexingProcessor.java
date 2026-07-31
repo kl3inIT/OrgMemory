@@ -27,7 +27,6 @@ import com.orgmemory.graphrag.port.GraphRevisionProjection;
 import com.orgmemory.graphrag.processing.GraphProcessingProfile;
 import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
 import com.orgmemory.integrations.graphrag.springai.GraphExtractionException;
-import com.orgmemory.integrations.graphrag.springai.SpringAiEntityRelationExtractor;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,6 +58,8 @@ import org.springframework.stereotype.Component;
 class GraphIndexingProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(GraphIndexingProcessor.class);
+    private static final TokenCountBatchingStrategy BATCHING_STRATEGY =
+            new TokenCountBatchingStrategy();
 
     private final GraphIndexingCoordinator coordinator;
     private final GraphPublicationCommitter publications;
@@ -92,26 +93,6 @@ class GraphIndexingProcessor {
                         GraphRagEventSink.composite(eventSinks.orderedStream().toList())),
                 taskDecorators.getIfAvailable(() -> GraphRagTaskDecorator.NONE),
                 tracers);
-    }
-
-    GraphIndexingProcessor(
-            GraphIndexingCoordinator coordinator,
-            GraphPublicationCommitter publications,
-            GraphExtractorFactory extractors,
-            ObjectProvider<EmbeddingModel> embeddingModels,
-            AiRouteResolver routes,
-            GraphIndexingProperties properties,
-            GraphRagEventSink events) {
-        this(
-                coordinator,
-                publications,
-                extractors,
-                embeddingModels,
-                routes,
-                properties,
-                events,
-                GraphRagTaskDecorator.NONE,
-                null);
     }
 
     GraphIndexingProcessor(
@@ -610,7 +591,7 @@ class GraphIndexingProcessor {
             if (model == null) {
                 throw new IllegalStateException("Embedding model is unavailable for graph indexing");
             }
-            vectors = model.embed(documents, null, new TokenCountBatchingStrategy());
+            vectors = model.embed(documents, null, BATCHING_STRATEGY);
         }
         if (vectors.size() != documents.size()) {
             throw new IllegalStateException("Graph embedding response count does not match contributions");
