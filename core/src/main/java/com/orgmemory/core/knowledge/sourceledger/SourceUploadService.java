@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStorageException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -26,14 +24,14 @@ public class SourceUploadService {
     private final SourceUploadRegistrationService registrations;
     private final KnowledgePermissionPolicy permissionPolicy;
     private final SourceIngestionProperties properties;
-    private final KnowledgeSpaceService knowledgeSpaces;
+    private final SourceKnowledgeSpacePort knowledgeSpaces;
 
     SourceUploadService(
             ObjectStoragePort objects,
             SourceUploadRegistrationService registrations,
             KnowledgePermissionPolicy permissionPolicy,
             SourceIngestionProperties properties,
-            KnowledgeSpaceService knowledgeSpaces) {
+            SourceKnowledgeSpacePort knowledgeSpaces) {
         this.objects = objects;
         this.registrations = registrations;
         this.permissionPolicy = permissionPolicy;
@@ -44,7 +42,7 @@ public class SourceUploadService {
     public SourceSummary upload(CreateUploadSourceCommand command, InputStream content) {
         validate(command, content);
         CurrentActor actor = command.actor();
-        KnowledgeSpaceTarget targetSpace = knowledgeSpaces.requireUploadTarget(
+        SourceKnowledgeSpaceRef targetSpace = knowledgeSpaces.requireUploadTarget(
                 actor, command.knowledgeSpaceId());
         String fileName = safeFileName(command.fileName());
         String mediaType = requiredUploadType(fileName).canonicalMediaType();

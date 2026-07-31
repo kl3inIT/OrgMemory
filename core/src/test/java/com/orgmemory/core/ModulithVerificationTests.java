@@ -75,6 +75,20 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerDoesNotDependOnSpaceImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.sourceledger");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.space..")
+                .check(classes);
+    }
+
+    @Test
     void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
 

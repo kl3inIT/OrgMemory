@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,13 +36,9 @@ class SourceUploadServiceTests {
         ObjectStoragePort objects = mock(ObjectStoragePort.class);
         SourceUploadRegistrationService registrations =
                 mock(SourceUploadRegistrationService.class);
-        KnowledgeSpaceService spaces = mock(KnowledgeSpaceService.class);
+        SourceKnowledgeSpacePort spaces = mock(SourceKnowledgeSpacePort.class);
         when(spaces.requireUploadTarget(actor, spaceId)).thenReturn(
-                new KnowledgeSpaceTarget(
-                        spaceId,
-                        "human-resources",
-                        "Human Resources",
-                        departmentId));
+                new SourceKnowledgeSpaceRef(spaceId, departmentId));
         when(objects.put(any(), any())).thenReturn(new StoredObject(
                 new ObjectKey("organizations/test/sources/workflow.txt"),
                 4,
@@ -97,7 +91,7 @@ class SourceUploadServiceTests {
                 UUID.randomUUID(), organizationId, departmentId, "Uploader", "uploader@example.com");
         ObjectStoragePort objects = mock(ObjectStoragePort.class);
         SourceUploadRegistrationService registrations = mock(SourceUploadRegistrationService.class);
-        KnowledgeSpaceService spaces = mock(KnowledgeSpaceService.class);
+        SourceKnowledgeSpacePort spaces = mock(SourceKnowledgeSpacePort.class);
         when(spaces.requireUploadTarget(actor, spaceId)).thenThrow(
                 new OrgMemoryAccessDeniedException("Not authorized"));
         SourceUploadService service = new SourceUploadService(
@@ -136,7 +130,7 @@ class SourceUploadServiceTests {
                 registrations,
                 new KnowledgePermissionPolicy(),
                 new SourceIngestionProperties(DataSize.ofMegabytes(25), 5),
-                mock(KnowledgeSpaceService.class));
+                mock(SourceKnowledgeSpacePort.class));
 
         BusinessValidationException failure = assertThrows(
                 BusinessValidationException.class,

@@ -224,6 +224,18 @@ originate, and Graph enqueue accepts stable Asset/version IDs before checking
 the active version in its own Asset-facing adapter. An ArchUnit rule makes any
 new Source Ledger-to-Asset dependency fail the build.
 
+## Fourth Cycle-Removal Slice
+
+Source Ledger no longer imports Space services or projection types. It owns a
+narrow target port whose compact result contains only the Space ID and optional
+department ID needed to validate and register evidence. Space implements the
+port by retaining the existing active-space lookup and `can_create_asset`
+authorization decision.
+
+Promotion's organization check uses the same port, so Source Ledger does not
+duplicate Space repository policy. An ArchUnit rule now makes any new Source
+Ledger-to-Space dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

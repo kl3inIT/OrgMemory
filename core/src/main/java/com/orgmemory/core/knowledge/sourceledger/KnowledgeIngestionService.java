@@ -17,7 +17,6 @@ import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 import com.orgmemory.core.knowledge.connector.ConnectorHeadView;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
 import com.orgmemory.core.permission.AccessGate;
@@ -60,7 +59,7 @@ public class KnowledgeIngestionService {
     private final SourceObjectRepository sourceObjects;
     private final SourceRevisionRepository sourceRevisions;
     private final KnowledgePermissionPolicy permissionPolicy;
-    private final KnowledgeSpaceService knowledgeSpaces;
+    private final SourceKnowledgeSpacePort knowledgeSpaces;
     private final EntityManager entityManager;
 
     public KnowledgeIngestionService(
@@ -76,7 +75,7 @@ public class KnowledgeIngestionService {
             SourceObjectRepository sourceObjects,
             SourceRevisionRepository sourceRevisions,
             KnowledgePermissionPolicy permissionPolicy,
-            KnowledgeSpaceService knowledgeSpaces,
+            SourceKnowledgeSpacePort knowledgeSpaces,
             EntityManager entityManager) {
         this.organizations = organizations;
         this.departments = departments;
