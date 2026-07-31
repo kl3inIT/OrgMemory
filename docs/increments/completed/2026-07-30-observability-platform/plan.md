@@ -3,8 +3,17 @@
 Read `design.md` for why each of these is shaped the way it is. This file is the
 execution order and the state of each item.
 
-Phases 1 through 5 are done and running in production. Phase 6 — making a
-silent exporter fail the deployment — is what remains.
+Closed 2026-07-31. Phases 1 through 5 are done and running in production.
+Phase 6 — making a silent exporter fail the deployment — was dropped by the
+project owner rather than deferred; the phase records what that leaves standing.
+
+Three faults were found after phase 5 by driving real authenticated traffic
+through production, and fixed the same day: the time-to-first-token handler was
+never registered because a bean condition ran before auto-configuration; no
+timer published a usable histogram bucket, so every quantile panel was NaN; and
+the first bound set for HTTP was below the streamed assistant turn it serves.
+All three shared the shape this increment exists to attack — correct code,
+correct wiring, no output, nothing that says so.
 
 ## 0. State this increment inherits
 
@@ -151,10 +160,11 @@ memory, and no dashboards worth inheriting wholesale.
 - [x] Exemplars and trace-to-logs wired on the datasources; every board
       provisioned read-only from the repository.
 
-## 6. Make a silent exporter fail the deployment — needs phase 4
+## 6. Make a silent exporter fail the deployment — not built, owner's decision
 
-The point of the whole increment. Until this exists, a collector that stops
-receiving looks exactly like a system with nothing to report.
+Called the point of the whole increment when this plan was written, and dropped
+by the project owner on 2026-07-31 rather than deferred to a date. Recorded here
+because an increment that closes must say what it did not do.
 
 - [ ] Extend `smoke-production.sh` to export a known signal and assert it arrives.
 - [ ] Fail the deployment when it does not.
@@ -164,13 +174,42 @@ receiving looks exactly like a system with nothing to report.
       is infrastructure-only either rides with an application change or waits for
       that repair.
 
+`smoke-production.sh` contains no reference to the collector, so the deployment
+gate is unchanged: a deployment whose telemetry never arrives still reports
+success.
+
+What that leaves standing is measured rather than assumed. Three faults of
+exactly the shape this phase was meant to catch were found on 2026-07-31, all by
+driving real authenticated traffic through production and asking Prometheus for
+what a panel asks for — a handler that Boot silently never registered, twenty-
+eight histogram families with no usable bucket, and a ceiling that pinned HTTP
+p95 to itself. Each passed CI, review and deployment. None would have been found
+by a person looking at a dashboard, because the failure renders as an empty
+chart on an idle system.
+
+The compensating controls that do exist: both startup verifiers fail the context
+rather than warn, `ConfigurationConditionTests` and `MetricsDistributionTests`
+hold the two bean-and-bucket failure modes at build time, and `service.version`
+on every span and metric equals the running image tag, so arrival is checkable by
+hand. The gap is that nothing checks it on the deployment's behalf.
+
 ## Open decisions — owner's, analysed and not taken
 
-1. ~~**Grafana exposure.**~~ Settled 2026-07-30, and inspecting the host decided
-   it: Keycloak's database is the same PostgreSQL the product uses, so a
-   published Grafana would have depended on the thing it exists to diagnose.
-   Loopback plus an SSH tunnel, local administrator, no Keycloak. See
-   [decision 0021](../../../decisions/0021-grafana-authenticates-through-keycloak-gated-by-a-role.md).
+1. ~~**Grafana exposure.**~~ Settled 2026-07-30, then re-opened by the owner the
+   same day and settled the other way. The first answer was loopback plus an SSH
+   tunnel with a local administrator and no Keycloak, on the argument that
+   Keycloak's database is the same PostgreSQL the product uses, so a published
+   Grafana would depend on the thing it exists to diagnose. Asked why the product
+   identity provider was not being used, that argument turned out to justify
+   keeping a break-glass path, not refusing Keycloak: both can hold at once.
+   Grafana is published at `grafana.zeromail.vn` through Nginx Proxy Manager and
+   authenticates against realm `orgmemory`, gated by an `observability` role with
+   `role_attribute_strict` on — without which a product user Keycloak
+   authenticates would be admitted as a Viewer of telemetry spanning every
+   organization. The local administrator stays enabled for the outage that takes
+   Keycloak with it. See
+   [decision 0021](../../../decisions/0021-grafana-authenticates-through-keycloak-gated-by-a-role.md),
+   which is authoritative and was rewritten when the decision flipped.
 2. ~~**`GENERATE` telemetry boundary.**~~ Settled 2026-07-30. The counterargument
    was answered rather than overruled: the new surface carries the boundary in a
    record the convention reads through, so it is structural there too.
