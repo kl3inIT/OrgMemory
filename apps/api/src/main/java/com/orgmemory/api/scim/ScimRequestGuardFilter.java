@@ -19,9 +19,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 final class ScimRequestGuardFilter extends OncePerRequestFilter {
 
     private final ScimSecurityProperties properties;
+    private final int maximumBodySize;
 
     ScimRequestGuardFilter(ScimSecurityProperties properties) {
         this.properties = properties;
+        long maximumBytes = properties.maximumRequestSize().toBytes();
+        if (maximumBytes >= Integer.MAX_VALUE) {
+            throw new IllegalStateException(
+                    "SCIM maximum request size must be less than 2 GiB");
+        }
+        this.maximumBodySize = (int) maximumBytes;
     }
 
     @Override
@@ -37,26 +44,13 @@ final class ScimRequestGuardFilter extends OncePerRequestFilter {
             ScimErrorWriter.write(response, 403, "TLS is required");
             return;
         }
-        long maximumBytes = properties.maximumRequestSize().toBytes();
-        if (request.getContentLengthLong() > maximumBytes) {
+        if (request.getContentLengthLong() > maximumBodySize) {
             ScimErrorWriter.write(response, 413, "Request body exceeds the configured limit");
             return;
         }
 
         HttpServletRequest guardedRequest = request;
         if (mayCarryBody(request)) {
-            if (maximumBytes >= Integer.MAX_VALUE) {
-                throw new IllegalStateException(
-                        "SCIM maximum request size must be less than 2 GiB");
-            }
-            int maximumBodySize;
-            try {
-                maximumBodySize = Math.toIntExact(maximumBytes);
-            } catch (ArithmeticException tooLarge) {
-                throw new IllegalStateException(
-                        "SCIM maximum request size must fit in a signed 32-bit integer",
-                        tooLarge);
-            }
             byte[] body = request.getInputStream().readNBytes(maximumBodySize + 1);
             if (body.length > maximumBodySize) {
                 ScimErrorWriter.write(

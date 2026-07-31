@@ -7,16 +7,12 @@ import org.springframework.util.Assert;
 
 @ConfigurationProperties("orgmemory.graph-rag.indexing")
 public record GraphIndexingProperties(
-        Boolean schedulingEnabled,
-        Duration pollInterval,
         String workerId,
         Duration leaseDuration,
         Duration extractionTimeout,
         Integer maximumConcurrency) {
 
     public GraphIndexingProperties {
-        schedulingEnabled = schedulingEnabled == null || schedulingEnabled;
-        pollInterval = pollInterval == null ? Duration.ofSeconds(3) : pollInterval;
         workerId = workerId == null || workerId.isBlank()
                 ? "graph-worker-" + UUID.randomUUID()
                 : workerId.strip();
@@ -24,9 +20,6 @@ public record GraphIndexingProperties(
         extractionTimeout =
                 extractionTimeout == null ? Duration.ofMinutes(2) : extractionTimeout;
         maximumConcurrency = maximumConcurrency == null ? 4 : maximumConcurrency;
-        Assert.isTrue(
-                !pollInterval.isNegative() && !pollInterval.isZero(),
-                "graph indexing poll interval must be positive");
         Assert.isTrue(
                 !leaseDuration.isNegative() && !leaseDuration.isZero(),
                 "graph indexing lease duration must be positive");

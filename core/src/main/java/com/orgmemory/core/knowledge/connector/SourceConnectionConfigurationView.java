@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.SourceIdentityTrust;
+import com.orgmemory.core.knowledge.connector.SourceIdentityTrust;
 
 import java.time.Instant;
 import java.util.UUID;

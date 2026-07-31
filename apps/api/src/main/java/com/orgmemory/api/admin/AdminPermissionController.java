@@ -9,7 +9,7 @@ import com.orgmemory.core.authorization.PrincipalRef;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.knowledge.AuthorizationResourceDirectory;
+import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -45,6 +45,7 @@ class AdminPermissionController {
     private static final List<PermissionKey> ORGANIZATION_PERMISSIONS = List.of(
             PermissionKey.of("can_manage_members"),
             PermissionKey.of("can_manage_sources"),
+            PermissionKey.of("can_manage_ai"),
             PermissionKey.of("can_create_knowledge_space"),
             PermissionKey.of("can_search_knowledge"),
             PermissionKey.of("can_view_directory"),

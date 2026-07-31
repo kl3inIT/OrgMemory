@@ -1,6 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.knowledge.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.ArrayList;
 import java.util.List;

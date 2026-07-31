@@ -51,6 +51,9 @@ class SecurityConfig {
         "/actuator/health/liveness",
         "/actuator/health/readiness"
     };
+    private static final String[] SWAGGER_ENDPOINTS = {
+        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
+    };
 
     @Bean
     @Order(2)
@@ -86,7 +89,6 @@ class SecurityConfig {
     SecurityFilterChain browserSecurityFilterChain(
             HttpSecurity http,
             OrgMemoryOidcProperties oidc,
-            ClientRegistrationRepository registrations,
             BrowserLoginFlow loginFlow,
             LogoutSuccessHandler oidcLogoutSuccessHandler,
             Environment environment) throws Exception {
@@ -98,14 +100,11 @@ class SecurityConfig {
                         .sessionFixation(fixation -> fixation.changeSessionId()))
                 .authorizeHttpRequests(authorize -> {
                     authorize.requestMatchers(PUBLIC_HEALTH_ENDPOINTS).permitAll();
+                    var swaggerEndpoints = authorize.requestMatchers(SWAGGER_ENDPOINTS);
                     if (isSwaggerPermitted(environment)) {
-                        authorize.requestMatchers(
-                                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
-                                .permitAll();
+                        swaggerEndpoints.permitAll();
                     } else {
-                        authorize.requestMatchers(
-                                        "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
-                                .denyAll();
+                        swaggerEndpoints.denyAll();
                     }
                     authorize.requestMatchers("/oauth2/**", "/login/**", "/error").permitAll();
                     authorize.requestMatchers(

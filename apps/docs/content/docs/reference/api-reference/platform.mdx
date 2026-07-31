@@ -23,9 +23,6 @@ _openapi:
       title: Context
       url: '#context'
     - depth: 2
-      title: Me
-      url: '#me'
-    - depth: 2
       title: List Knowledge Spaces visible to the current user
       url: '#list-knowledge-spaces-visible-to-the-current-user'
     - depth: 2
@@ -42,8 +39,6 @@ _openapi:
         id: issue-a-csrf-token-for-browser-mutations
       - content: Context
         id: context
-      - content: Me
-        id: me
       - content: List Knowledge Spaces visible to the current user
         id: list-knowledge-spaces-visible-to-the-current-user
       - content: List Knowledge Spaces where the current user may add knowledge
@@ -62,7 +57,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/session","method":"get"},{"path":"/api/session/csrf","method":"get"},{"path":"/api/organization/context","method":"get"},{"path":"/api/me","method":"get"},{"path":"/api/knowledge-spaces/visible","method":"get"},{"path":"/api/knowledge-spaces/upload-targets","method":"get"},{"path":"/api/health","method":"get"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/session","method":"get"},{"path":"/api/session/csrf","method":"get"},{"path":"/api/organization/context","method":"get"},{"path":"/api/knowledge-spaces/visible","method":"get"},{"path":"/api/knowledge-spaces/upload-targets","method":"get"},{"path":"/api/health","method":"get"}]} showTitle showDescription />
     </>
   );
 }

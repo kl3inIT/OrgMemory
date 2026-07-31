@@ -17,7 +17,7 @@ class FileConnectorBatchSourceTests {
     @Test
     void readsCommittedFixturesInFilenameOrder() {
         FileConnectorBatchSource source = new FileConnectorBatchSource(
-                new ConnectorCrawlProperties(false, null, ConnectorFixtures.directory().toString()));
+                new ConnectorCrawlProperties(ConnectorFixtures.directory().toString()));
 
         List<ConnectorCrawlBatch> batches = source.pendingBatches().batches();
 
@@ -53,7 +53,7 @@ class FileConnectorBatchSourceTests {
     @Test
     void unsetDirectoryYieldsNoBatches() {
         FileConnectorBatchSource source = new FileConnectorBatchSource(
-                new ConnectorCrawlProperties(false, null, ""));
+                new ConnectorCrawlProperties(""));
 
         assertTrue(source.pendingBatches().batches().isEmpty());
     }

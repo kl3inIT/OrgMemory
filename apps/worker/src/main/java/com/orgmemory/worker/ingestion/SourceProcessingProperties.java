@@ -7,8 +7,6 @@ import org.springframework.util.Assert;
 
 @ConfigurationProperties("orgmemory.ingestion.processing")
 public record SourceProcessingProperties(
-        Boolean schedulingEnabled,
-        Duration pollInterval,
         String workerId,
         Duration leaseDuration,
         String pipelineVersion,
@@ -25,8 +23,6 @@ public record SourceProcessingProperties(
         Integer maximumChunks) {
 
     public SourceProcessingProperties {
-        schedulingEnabled = schedulingEnabled == null || schedulingEnabled;
-        pollInterval = pollInterval == null ? Duration.ofSeconds(2) : pollInterval;
         workerId = workerId == null || workerId.isBlank()
                 ? "worker-" + UUID.randomUUID()
                 : workerId.strip();
@@ -44,7 +40,6 @@ public record SourceProcessingProperties(
         semanticEmbeddingBatchSize =
                 semanticEmbeddingBatchSize == null ? 64 : semanticEmbeddingBatchSize;
         maximumChunks = maximumChunks == null ? 500 : maximumChunks;
-        Assert.isTrue(!pollInterval.isNegative() && !pollInterval.isZero(), "poll interval must be positive");
         Assert.isTrue(!leaseDuration.isNegative() && !leaseDuration.isZero(), "lease duration must be positive");
         Assert.isTrue(
                 embeddingDimensions > 0 && embeddingDimensions <= 16000,

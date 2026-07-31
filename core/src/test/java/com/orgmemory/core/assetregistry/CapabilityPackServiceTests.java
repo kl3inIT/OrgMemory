@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.List;

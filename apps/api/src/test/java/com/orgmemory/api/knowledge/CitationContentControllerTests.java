@@ -9,8 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.CitationContent;
-import com.orgmemory.core.knowledge.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.CitationContent;
+import com.orgmemory.core.knowledge.retrieval.CitationContentService;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.StoredObject;

@@ -3211,26 +3211,6 @@
         }
       }
     },
-    "/api/me": {
-      "get": {
-        "tags": [
-          "Platform"
-        ],
-        "operationId": "me",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/knowledge/search": {
       "get": {
         "tags": [
@@ -8009,49 +7989,6 @@
           },
           "email": {
             "type": "string"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
-            ]
-          }
-        }
-      },
-      "MeResponse": {
-        "type": "object",
-        "properties": {
-          "authenticated": {
-            "type": "boolean"
-          },
-          "subject": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "authorizationProvider": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "organizationId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "departmentId": {
-            "type": "string",
-            "format": "uuid"
           },
           "role": {
             "type": "string",

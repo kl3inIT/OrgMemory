@@ -150,6 +150,37 @@ the exact consumers and exact internal retrieval types they use, making that
 temporary migration surface explicit until retrieval owns its runtime half and
 can expose a smaller intentional interface.
 
+The second retrieval pull request moves authorized hybrid search, canonical
+authorization rechecks, evidence-scope resolution, catalog federation,
+citation streaming, GraphRAG result assembly, retrieval policy/configuration,
+and PostgreSQL-backed retrieval into the same nested module. The structural
+guard is refreshed to the complete runtime boundary. The module stays open
+until the later Knowledge closing phase replaces its broad sibling consumers
+with intentional interfaces and declares bounded dependencies.
+
+## Ninth Delivery Slice
+
+The final physical Knowledge cleanup assigns the three remaining root-package
+types to their actual owners: source group views to `knowledge.acl`, connection
+identity trust to `knowledge.connector`, and bounded source failure messages to
+`knowledge.sourceledger`. A structural test prevents domain types from
+returning to the parent `knowledge` package.
+
+A close-all verification probe demonstrated that openness cannot be removed by
+annotation alone. The current implementation contains real cycles through
+ACL/Connector crawl contracts, Source Ledger/Asset publication orchestration,
+Asset/Retrieval value types, and Graph lifecycle coordination. Declaring those
+dependencies as allowed would document the cycles without removing them, while
+Spring Modulith still rejects the closed graph.
+
+The closing phase therefore proceeds by seam rather than module name: first
+replace reciprocal ACL/Connector types with owner-defined commands and lookup
+facades; then remove Source Ledger's outward dependencies on Retrieval, Asset,
+and Space; then make Asset own its catalog/chunk/publication value types so
+Retrieval depends one way on Asset; finally route Graph lifecycle through the
+resulting module APIs. Only after the graph is acyclic are `OPEN` annotations
+removed and exact `allowedDependencies` declared.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and
