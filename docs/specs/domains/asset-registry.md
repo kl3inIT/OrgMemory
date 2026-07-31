@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-07-31-asset-ownership-navigation (7aa917b)`.
+Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
 
 ## Current Behavior
 
@@ -104,6 +104,16 @@ From there the accountable author normally chooses a version and publishes the
 Skill directly; an actor who lacks direct-publication authority may use the
 reviewed workflow instead.
 
+The browser provides the same canonical ZIP-import path without introducing a
+second lifecycle. The Assets header first chooses the Asset profile; Skill then
+opens a creation-only surface. Upload loads only live authorized Knowledge
+Space targets, performs cheap file/namespace usability checks, and submits the
+multipart package through the generated same-origin CSRF-aware client. Core
+repeats authorization and complete structural validation before object storage
+and Draft creation. Success opens the ordinary Governance workspace. The
+browser never unpacks the ZIP, grants an owner from a session role, publishes
+the Skill, or describes structural validation as content or malware review.
+
 ### Federated Knowledge
 
 Knowledge remains owned by the canonical Knowledge ledger. The read-only
@@ -140,10 +150,12 @@ The authenticated web application provides four generic surfaces:
   not expand the page horizontally. Search, scope, type, sort, layout, and page
   are URL state; the grid is the clean-URL default and the list remains
   available. Both server collections return bounded pages, authorized totals,
-  and explicit stable orders. An `Add asset` action opens the shared profile
-  chooser. This chooser is navigation-only until a profile-specific authoring
-  flow is implemented; it does not create a Draft or infer authorization or
-  owner identity from the browser session.
+  and explicit stable orders. An `Add asset` menu preserves the shared profile
+  taxonomy without a full-page catalog duplicate. Skill opens a creation-only
+  route whose upload path creates a governed private Draft through the
+  canonical multipart operation; unsupported profiles and future Skill methods
+  are visible but non-interactive. The browser does not infer authorization or
+  owner identity from the session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and
