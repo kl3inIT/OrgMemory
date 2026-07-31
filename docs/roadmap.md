@@ -44,6 +44,7 @@ The table is a delivery index, not a second description of current behavior.
 | [Observability platform](increments/active/2026-07-30-observability-platform/plan.md) | active | close the Spring AI observation content gap, then separate the shared collector stack from Zero Mail and give the telemetry a reader |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
 | [Observability pipeline and payload boundary](increments/active/2026-07-29-observability-pipeline/plan.md) | active | settle the `GENERATE` telemetry boundary, the deletion/rebuild stage, and where telemetry egress lives |
+| [Direct Skill sharing](increments/active/2026-07-31-skill-direct-sharing/plan.md) | active | implement owner-class direct publication with durable reviewed/direct provenance |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
