@@ -62,7 +62,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query-devtools": "^5.101.2",
     "@tanstack/router-plugin": "1.168.23",
