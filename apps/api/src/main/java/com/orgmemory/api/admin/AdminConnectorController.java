@@ -1,14 +1,14 @@
 package com.orgmemory.api.admin;
 
 import com.orgmemory.api.ApiRequestException;
-import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbeRegistry;
 import com.orgmemory.core.knowledge.ConnectorComponentCheckpointView;
-import com.orgmemory.core.knowledge.ConnectorScope;
-import com.orgmemory.core.knowledge.ConnectorScopeBrowserRegistry;
-import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
+import com.orgmemory.core.knowledge.connector.ConnectorScope;
+import com.orgmemory.core.knowledge.connector.ConnectorScopeBrowserRegistry;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbeResult;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
-import com.orgmemory.core.knowledge.ConnectorSourceProfile;
-import com.orgmemory.core.knowledge.ConnectorSourceRegistry;
+import com.orgmemory.core.knowledge.connector.ConnectorSourceProfile;
+import com.orgmemory.core.knowledge.connector.ConnectorSourceRegistry;
 import com.orgmemory.core.knowledge.SourceConnectionActivityService;
 import com.orgmemory.core.knowledge.SourceConnectionActivityView;
 import com.orgmemory.core.knowledge.SourceConnectionAdminService;

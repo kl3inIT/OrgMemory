@@ -1,11 +1,11 @@
 package com.orgmemory.connectors.github;
 
-import com.orgmemory.core.knowledge.ConnectorBatchSource;
-import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
-import com.orgmemory.core.knowledge.ConnectorCredentialProbe;
-import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
-import com.orgmemory.core.knowledge.ConnectorScopeBrowser;
-import com.orgmemory.core.knowledge.ConnectorSourceProfile;
+import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbe;
+import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorScopeBrowser;
+import com.orgmemory.core.knowledge.connector.ConnectorSourceProfile;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestClient;

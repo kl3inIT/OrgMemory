@@ -78,6 +78,22 @@ and sync-run orchestration remain in the future `knowledge.connector` slice.
 The ACL module starts open; compiler-forced connector edges are recorded for
 facade extraction before either module is closed.
 
+## Fourth Delivery Slice
+
+The connector boundary is delivered in two code pull requests so each remains
+below the 100-file ceiling. The first connector pull request moves the
+provider-neutral contracts, crawl batch envelope and component state, source
+profiles and registries, and ingestion/reconciliation orchestration into
+`knowledge.connector`. Keeping the orchestration beside its package-private
+contracts avoids widening internal implementation types merely to cross a
+temporary package seam.
+
+Connector crawl attempts and checkpoints, source connections and credentials,
+identity observations, and membership sync runs remain in the root package for
+the second connector pull request. The nested module starts open until that
+runtime and persistence half joins the same boundary and its remaining sibling
+dependencies can be replaced with intentional APIs.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

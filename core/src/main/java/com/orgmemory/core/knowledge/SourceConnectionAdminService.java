@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
+
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditDecision;

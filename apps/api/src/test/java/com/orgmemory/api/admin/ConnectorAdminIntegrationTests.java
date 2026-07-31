@@ -17,8 +17,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.orgmemory.core.knowledge.ConnectorCredentialProbeRegistry;
-import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbeRegistry;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbeResult;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;

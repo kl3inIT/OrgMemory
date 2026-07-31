@@ -1,14 +1,14 @@
 package com.orgmemory.worker.connector;
 
-import com.orgmemory.core.knowledge.ConnectorBatchSource;
-import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
-import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
-import com.orgmemory.core.knowledge.ConnectorIngestionResult;
-import com.orgmemory.core.knowledge.ConnectorIngestionService;
-import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.ConnectorSyncComponent;
+import com.orgmemory.core.knowledge.connector.ConnectorIngestionResult;
+import com.orgmemory.core.knowledge.connector.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.connector.ConnectorPoll;
+import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.shared.error.BusinessErrorCategory;
 import com.orgmemory.core.shared.error.BusinessException;
 import java.util.List;

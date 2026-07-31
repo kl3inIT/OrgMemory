@@ -3,8 +3,8 @@ package com.orgmemory.worker.connector;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orgmemory.core.knowledge.ConnectorContractVersions;
-import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.connector.ConnectorContractVersions;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

@@ -14,14 +14,14 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.ConnectorConnectionDirectory;
-import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
-import com.orgmemory.core.knowledge.ConnectorIdentityItem;
-import com.orgmemory.core.knowledge.ConnectorObjectDirectory;
-import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.ConnectorSyncComponent;
+import com.orgmemory.core.knowledge.connector.ConnectorIdentityItem;
+import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
+import com.orgmemory.core.knowledge.connector.ConnectorPoll;
+import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
 import java.time.Duration;
