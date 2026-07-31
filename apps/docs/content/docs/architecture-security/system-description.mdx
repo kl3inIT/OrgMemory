@@ -1,6 +1,6 @@
 ---
 title: System description
-description: See how Organizational AI Memory components work together to deliver governed, permission-aware organizational memory.
+description: What runs in an Organizational AI Memory deployment, how the services communicate, and where data and authority live.
 audience:
   - adopter
   - developer
@@ -8,18 +8,24 @@ audience:
 status: public
 sourceRefs:
   - ARCHITECTURE.md
-  - docs/vision.md
-  - docs/decisions/0002-one-domain-three-deployables.md
-  - docs/decisions/0003-postgresql-ledger-openfga-authorization.md
-lastReviewed: 2026-07-29
+  - settings.gradle.kts
+  - compose.yaml
+  - apps/api/src/main/java/com/orgmemory/api/security/SecurityConfig.java
+  - apps/mcp/build.gradle.kts
+  - core/src/main/java/com/orgmemory/core/knowledge/GraphRagRetrievalPolicy.java
+lastReviewed: 2026-07-31
 ---
 
-Organizational AI Memory is a modular, self-hosted system that preserves source evidence and
-authorization context from ingestion through AI delivery. Product services
-share one canonical domain model; public documentation is an independent
-application with no runtime dependency on them.
+Organizational AI Memory is a set of services that you deploy on your own
+infrastructure: five services and a command-line client around four
+infrastructure dependencies. Content comes in through connectors and uploads.
+Every original byte is kept as immutable evidence, and people and AI agents
+only ever see what they are allowed to see.
 
-## System context
+This page describes what runs, how the services talk to each other, and where
+data and authority live. The lifecycle and authorization pages build on it.
+
+## System architecture
 
 <ArchitectureDiagram
   alt="High-level Organizational AI Memory architecture: sources pass through ingestion into canonical governance, secure retrieval, and delivery, while actor authorization flows back into retrieval."
@@ -30,76 +36,101 @@ application with no runtime dependency on them.
   width={1774}
 />
 
-The important direction is not simply left to right. A current actor and
-authorization scope also flow from the delivery boundary back into candidate
-selection, graph expansion, evidence closure, and citation reads.
+Note the arrow flowing right to left: every request carries the current user
+and their authorization scope back into retrieval, so authorization shapes the
+candidates rather than filtering them afterwards.
 
-## Delivery components
+## Core components
 
-| Component | Responsibility |
-| --- | --- |
-| `apps/web` | React product shell for search, Assistant, Assets, governance, administration, and MCP connection |
-| `apps/api` | REST, OIDC BFF and bearer boundaries, canonical application services, OpenAPI, health, and Flyway ownership |
-| `apps/worker` | Connector polling, leased ingestion, parsing, embeddings, authorization projection, and graph publication |
-| `apps/mcp` | Stateless authenticated MCP adapter for permission-aware Knowledge and immutable Asset delivery |
-| `apps/cli` | OAuth PKCE client for MCP connection and bounded Skill validation, publication, and installation |
-| `apps/docs` | Independent Next.js/Fumadocs publication surface; it never reads product databases or private engineering docs at runtime |
+### Application layer
 
-API, worker, and MCP depend on the shared `core` domain. Core never depends on a
+- **`apps/web`** — React product shell for the Assistant, Assets, governance,
+  administration, and MCP connection setup. Knowledge search for agents is
+  delivered over MCP, not through the web app.
+- **`apps/api`** — Spring Boot REST server that handles business logic for
+  browser and bearer clients, publishes the OpenAPI contract, and is the only
+  service that runs database migrations.
+- **`apps/worker`** — background service that polls connectors, leases
+  ingestion jobs, parses and embeds content, and publishes the search and
+  graph projections.
+- **`apps/mcp`** — small stateless gateway that lets AI agents search
+  Knowledge and fetch Assets over MCP. It has no database or domain-model
+  access; it validates the caller's token and forwards the credential to the
+  API.
+- **`apps/cli`** — command-line client for connecting agents over MCP and for
+  validating, publishing, and installing Skill packages.
+- **`apps/docs`** — this documentation site. It is fully independent and never
+  reads product databases.
+
+The API and worker share the `core` domain model. Core depends on no
 deployable application or provider integration.
 
-## Governance layer
+### AI layer
 
-Keycloak authenticates browser and bearer principals. Organizational AI Memory maps an external
-principal through an explicit issuer/subject binding. OpenFGA then answers
-relationship questions for organizations, spaces, Knowledge Assets, and
-registry Assets. Source ACL snapshots remain a separate, immutable permission
-ceiling.
+Administrators configure model gateways per workload: Assistant chat, graph
+extraction, keyword planning, and document embeddings. The shipped adapters
+speak the OpenAI-compatible and Anthropic Messages protocols through Spring
+AI. Model output is never trusted — extraction is validated before
+publication, and retrieval evidence is authorized before it enters a prompt.
 
-The API derives the actor, organization, and department server-side. Browser
-requests use a confidential OIDC BFF and an HttpOnly JDBC-backed session;
-stateless bearer requests serve MCP, CLI, and integrations. Both paths converge
-on the same canonical actor.
+The default retrieval engine is GraphRAG with a server-owned plan that mixes
+entity, relation, and chunk evidence. Clients cannot pick a strategy, widen
+scope, or renumber citations. Reranking ships disabled and requires a named
+adapter to enable.
 
-## Data layer
+### Data layer
 
-| Store | Canonical responsibility |
-| --- | --- |
-| PostgreSQL 18 | Identity, source and Asset ledgers, immutable versions, ACL heads, jobs, projection publication state, audit, vectors, and canonical graph contributions |
-| MinIO | Original source bytes and exact Skill packages behind opaque application routes |
-| OpenFGA | Relationship authorization tuples and versioned authorization model |
-| Apache AGE | Tenant-separated topology candidates only; never descriptions, ACLs, or provenance |
+- **PostgreSQL 18** — the source of truth: identity, source and Asset
+  ledgers, immutable versions, sealed ACL generations, jobs, publication
+  heads, audit trail, vectors, and graph contributions.
+- **Object storage (MinIO)** — original file bytes and Skill packages,
+  streamed only through authenticated application routes. There are no
+  presigned URLs.
 
-Full-text, vector, graph, OpenSearch, and Neo4j records are rebuildable
-projections. PostgreSQL ledger rows and immutable object bytes remain the
-evidence authority.
+Full-text, vector, and graph records are rebuildable projections. If a
+projection is lost, it is rebuilt from the ledger and the immutable bytes.
 
-## AI and retrieval layer
+### Identity and authorization layer
 
-Provider-neutral routes separate Assistant chat, graph extraction, keyword
-planning, reranking, and document embeddings. The current adapter supports
-OpenAI-compatible providers through Spring AI. Provider output is untrusted:
-structured extraction validates limits and provenance before publication, and
-retrieval evidence is authorized before it enters a model prompt.
+- **Keycloak** — signs in browser users and issues tokens for agents. An
+  external user becomes an actor only through an explicit OIDC issuer/subject
+  binding; directory-managed provisioning (SCIM) runs on its own plane with
+  credentials the product API rejects.
+- **OpenFGA** — answers relationship questions for organizations, Knowledge
+  Spaces, Knowledge Assets, and registry Assets, with a versioned model.
+- **Source ACL evidence** — permissions captured from the source system form
+  a separate, immutable ceiling on content reads that no admin grant can
+  bypass.
 
-`SECURE_MIX` is the internal default GraphRAG strategy. Strategy selection,
-authorization scope, and citation numbering remain server-owned.
+[Authorization](/docs/architecture-security/authorization) covers the full
+model.
 
-## Replacement boundaries
+## How the services talk to each other
 
-Replaceable integrations implement core ports: model providers, object storage,
-OpenFGA, graph/search stores, observability, connectors, and sidecar JSON.
-Replacing one does not move authorization authority into the adapter.
+- Browsers authenticate through the API's confidential OIDC flow against
+  Keycloak and hold an HttpOnly session cookie — never a token.
+- AI agents and the CLI present bearer tokens to the MCP gateway, which
+  validates audience and scope, applies rate limits, and forwards the caller's
+  credential to the API.
+- Both paths converge on one canonical actor. The API derives identity,
+  organization, and department server-side; token roles, email, and display
+  attributes are never authorization inputs.
+- Only the API and worker open database connections. The worker validates the
+  schema and never runs migrations.
 
-Deliberate couplings remain:
+## Component replacements
 
-- API is the only Flyway migration owner;
-- worker owns ingestion and derived-index publication;
-- PostgreSQL owns canonical evidence identities and publication heads;
-- OpenFGA owns product relationships, while source ACL evidence caps content
-  reads;
-- exact Asset releases and Knowledge versions are immutable coordinates.
+- Model providers, object storage, connectors, observability, and sidecar
+  decoding are ports — adapters can be swapped without touching the domain.
+- OpenSearch and Neo4j adapters exist for the graph and search projections but
+  are not part of the default deployment.
+- The PostgreSQL ledger is not replaceable. It is the evidence authority that
+  every projection rebuilds from, and exact Asset releases are immutable by
+  database constraint.
+- Replacing an adapter never moves authorization into it. Adapters return
+  candidates; the application always performs the final recheck.
 
-Continue with [Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle),
-[Authorization architecture](/docs/architecture-security/authorization), or
+Continue with [Asset lifecycle](/docs/architecture-security/asset-lifecycle),
+[Ingestion lifecycle](/docs/architecture-security/ingestion-lifecycle),
+[Authorization](/docs/architecture-security/authorization), or
 [Secure retrieval and GraphRAG](/docs/architecture-security/secure-retrieval-graphrag).
