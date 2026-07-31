@@ -115,6 +115,7 @@ for (const impactPath of [
   "infrastructure/**",
   "pnpm-workspace.yaml",
   ".github/workflows/**",
+  ".gitleaks.toml",
 ]) {
   if (!ciWorkflow.includes(`- \"${impactPath}\"`)) {
     failures.push(`ci.yml must route product-impact path ${impactPath} through release validation`);
