@@ -61,6 +61,64 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeRetrievalIsAnOpenNestedModuleDuringTheRefactor() {
+        var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+
+        assertTrue(retrieval.isOpen());
+    }
+
+    @Test
+    void knowledgeRetrievalTemporaryOpenBoundaryDoesNotGainNewConsumers() {
+        var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+        var dependencies = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(retrieval))
+                .toList();
+        var consumerTypes = dependencies.stream()
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+        var consumedInternalTypes = dependencies.stream()
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalConfiguration",
+                        "com.orgmemory.core.knowledge.GraphRagKnowledgeRetrievalService",
+                        "com.orgmemory.core.knowledge.SecureKnowledgeRetrievalStore",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationOutbox",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
+                        "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand",
+                        "com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult",
+                        "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
+                        "com.orgmemory.core.knowledge.graph.ClaimedGraphIndex",
+                        "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceQueryService",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRevision"),
+                consumerTypes);
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfile",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbedding",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort"),
+                consumedInternalTypes);
+    }
+
+    @Test
     void knowledgeGraphTemporaryOpenBoundaryDoesNotGainNewConsumers() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var dependencies = modules.stream()

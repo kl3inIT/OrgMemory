@@ -135,7 +135,7 @@ passed; the terminating repository-wide `clean test` completed successfully;
 the docs operating-model and mechanical source checks passed; and both
 CodeRabbit findings were resolved. The pull request contains 60 changed files.
 
-## Current Pull Request Gates
+## Seventh Pull Request Evidence
 
 - Graph-index jobs and claiming, processing profiles, lifecycle orchestration,
   curation, exploration, and export form the open `knowledge.graph` nested
@@ -164,3 +164,29 @@ Review identified and removed the reciprocal Asset-to-Graph projection type
 dependency; Asset now returns a graph-neutral projection that Graph maps at its
 own boundary. Focused and core tests passed after that repair, and the final
 repository-wide `clean test` completed successfully in 6m26s across 99 tasks.
+PR #190 merged as `7a970969ff51e25f5db75a9619fddad64198f4bb` after all
+required CI checks and the CodeRabbit review passed.
+
+## Current Pull Request Gates
+
+- Query embedding contracts, embedding profiles and registry, projection
+  namespaces, and embedding configuration form the first half of the open
+  `knowledge.retrieval` nested module.
+- Runtime search, authorization rechecks, evidence/citation assembly, and
+  retrieval persistence remain for the next retrieval code pull request.
+- A structural allowlist pins the exact consumers and internal contract types
+  exposed while the retrieval module is temporarily open.
+- Focused retrieval, graph, source-ledger, API, worker, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the retrieval runtime slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused retrieval, graph, source-ledger, API, worker, and Modulith tests
+passed; `:core:test` passed; and the terminating repository-wide `clean test`
+completed successfully in 5m15s across 108 tasks. The docs operating-model,
+release contract, and mechanical source checks passed. The pre-stage worktree
+contains 55 changed paths.
+After merging current `origin/main` at `95b71730`, a second repository-wide
+`clean test` completed successfully in 6m22s across 99 tasks; the PR diff
+remained 55 changed files.

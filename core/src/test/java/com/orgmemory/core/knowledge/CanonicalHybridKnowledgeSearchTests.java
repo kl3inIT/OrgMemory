@@ -12,6 +12,8 @@ import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditService;

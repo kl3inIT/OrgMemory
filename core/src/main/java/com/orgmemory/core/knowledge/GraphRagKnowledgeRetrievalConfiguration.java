@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;

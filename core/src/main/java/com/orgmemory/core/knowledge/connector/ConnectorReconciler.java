@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft;

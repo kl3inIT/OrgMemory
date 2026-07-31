@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.util.UUID;

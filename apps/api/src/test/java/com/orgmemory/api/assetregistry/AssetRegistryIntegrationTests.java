@@ -57,7 +57,7 @@ import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.knowledge.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.KnowledgeCatalogService;
-import com.orgmemory.core.knowledge.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.SecureKnowledgeSearchResult;

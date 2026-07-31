@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.Assert;

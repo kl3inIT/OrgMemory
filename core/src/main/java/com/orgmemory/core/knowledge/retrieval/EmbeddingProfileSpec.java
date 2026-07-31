@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge;
+package com.orgmemory.core.knowledge.retrieval;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

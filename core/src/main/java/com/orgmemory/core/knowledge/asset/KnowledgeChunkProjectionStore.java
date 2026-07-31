@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.PgVectorLiteral;
 
 import java.sql.Types;

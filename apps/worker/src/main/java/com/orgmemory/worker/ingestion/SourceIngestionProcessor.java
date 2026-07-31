@@ -16,10 +16,10 @@ import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
 
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
-import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
-import com.orgmemory.core.knowledge.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
-import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraftAssembler;
 import com.orgmemory.core.knowledge.KnowledgeTextChunk;
