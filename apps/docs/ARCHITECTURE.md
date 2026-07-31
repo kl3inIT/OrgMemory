@@ -39,7 +39,10 @@ Started, Product Guides, Architecture & Security, Reference, and the focused
 Release Notes context. The first four are the Diátaxis-oriented documentation
 categories. Release Notes is a presentation root reached from the global
 Changelog link; its generated tree contains Latest, recent version anchors, and
-the internal archive without becoming a fifth documentation category.
+the internal archive without becoming a fifth documentation category. The
+layout filters that presentation root from the category tabs, so Changelog
+routes intentionally show no selected category control; the nested-active
+global link provides the persistent location cue across the archive subtree.
 Administration, deployment/operations, and integration sections are not
 published until their first replacement pages are co-authored and reviewed.
 Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese route

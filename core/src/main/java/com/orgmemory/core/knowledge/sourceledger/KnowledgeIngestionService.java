@@ -14,15 +14,15 @@ import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
-import com.orgmemory.core.knowledge.ConnectorHeadView;
-import com.orgmemory.core.knowledge.KnowledgeAsset;
-import com.orgmemory.core.knowledge.KnowledgeAssetEvidenceLink;
-import com.orgmemory.core.knowledge.KnowledgeAssetEvidenceLinkRepository;
-import com.orgmemory.core.knowledge.KnowledgeAssetNotFoundException;
-import com.orgmemory.core.knowledge.KnowledgeAssetRef;
-import com.orgmemory.core.knowledge.KnowledgeAssetRepository;
-import com.orgmemory.core.knowledge.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.connector.ConnectorHeadView;
+import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetEvidenceLink;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetEvidenceLinkRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;

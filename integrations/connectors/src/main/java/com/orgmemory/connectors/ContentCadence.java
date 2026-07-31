@@ -1,6 +1,6 @@
 package com.orgmemory.connectors;
 
-import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlConfiguration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

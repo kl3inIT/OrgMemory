@@ -1,5 +1,10 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
 
 import java.nio.charset.StandardCharsets;

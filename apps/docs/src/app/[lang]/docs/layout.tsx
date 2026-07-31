@@ -26,9 +26,12 @@ export default async function Layout({
       tabs={{
         transform(option, node) {
           const meta = source.getNodeMeta(node);
-          if (!meta || !node.icon) return option;
+          if (!meta) return option;
 
           const category = getDocsCategory(meta.path);
+          if (category === 'changelog') return null;
+          if (!node.icon) return option;
+
           return {
             ...option,
             icon: (

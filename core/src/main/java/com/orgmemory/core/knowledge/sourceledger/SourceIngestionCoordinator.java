@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.knowledge.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.GraphIndexJobQueue;
-import com.orgmemory.core.knowledge.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 
 import java.time.Duration;
 import java.time.Instant;

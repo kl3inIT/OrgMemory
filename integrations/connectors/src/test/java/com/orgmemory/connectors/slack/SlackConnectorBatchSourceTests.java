@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.connector.ConnectorContentItem;
-import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.connector.ConnectorIdentityItem;

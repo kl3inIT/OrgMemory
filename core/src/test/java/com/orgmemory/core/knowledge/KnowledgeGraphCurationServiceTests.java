@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

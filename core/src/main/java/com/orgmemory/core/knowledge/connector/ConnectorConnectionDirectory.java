@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.ConnectorCrawlConfiguration;
 
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.util.List;
