@@ -443,6 +443,7 @@ test("production GitHub hook retries after Release creation fails behind a succe
   const remote = await mkdtemp(join(tmpdir(), "orgmemory-tegami-github-remote-"));
   const originalCwd = process.cwd();
   const originalActions = process.env.GITHUB_ACTIONS;
+  const originalCi = process.env.CI;
   const originalToken = process.env.GITHUB_TOKEN;
   const originalFetch = globalThis.fetch;
   const git = (directory: string, args: string[]) =>
@@ -465,6 +466,7 @@ test("production GitHub hook retries after Release creation fails behind a succe
   // the ambient GitHub Actions context turn the preceding `version` command
   // into a real Version PR push to the checked-out repository.
   delete process.env.GITHUB_ACTIONS;
+  delete process.env.CI;
   process.env.GITHUB_TOKEN = "test-token";
   try {
     await git(cwd, ["init", "--initial-branch=main"]);
@@ -490,6 +492,8 @@ test("production GitHub hook retries after Release creation fails behind a succe
     globalThis.fetch = originalFetch;
     if (originalActions === undefined) delete process.env.GITHUB_ACTIONS;
     else process.env.GITHUB_ACTIONS = originalActions;
+    if (originalCi === undefined) delete process.env.CI;
+    else process.env.CI = originalCi;
     if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
     else process.env.GITHUB_TOKEN = originalToken;
     await rm(cwd, { recursive: true, force: true });
