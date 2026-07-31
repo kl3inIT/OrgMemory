@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
@@ -47,20 +46,21 @@ public class GraphIndexJobQueue {
     public UUID enqueue(
             UUID organizationId,
             UUID sourceRevisionId,
-            KnowledgeAssetRef assetRef,
+            UUID knowledgeAssetId,
+            UUID knowledgeAssetVersionId,
             Instant availableAt) {
-        if (assetRef.status() != KnowledgeAssetVersionStatus.ACTIVE) {
-            throw new IllegalStateException(
-                    "Graph indexing requires an active Knowledge Asset version");
-        }
         KnowledgeAssetVersion version = versions
                 .findByIdAndOrganizationId(
-                        assetRef.knowledgeAssetVersionId(), organizationId)
+                        knowledgeAssetVersionId, organizationId)
                 .filter(candidate -> candidate.getKnowledgeAssetId()
-                        .equals(assetRef.knowledgeAssetId()))
+                        .equals(knowledgeAssetId))
                 .filter(candidate -> sourceRevisionId.equals(candidate.getSourceRevisionId()))
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph indexing target does not match the active Knowledge Asset version"));
+        if (version.getStatus() != KnowledgeAssetVersionStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "Graph indexing requires an active Knowledge Asset version");
+        }
         GraphProcessingProfileRef profile =
                 profileRegistry.resolve(processingProfiles.current());
         String idempotencyKey = GraphIndexJob.idempotencyKey(

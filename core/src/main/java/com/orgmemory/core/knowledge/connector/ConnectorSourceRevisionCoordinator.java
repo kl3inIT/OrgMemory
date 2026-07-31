@@ -17,6 +17,7 @@ import com.orgmemory.core.knowledge.sourceledger.SourceObject;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
 import com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
 
@@ -148,13 +149,22 @@ class ConnectorSourceRevisionCoordinator {
                         embeddingProfile.id(), embeddingProfile.dimensions()),
                 raw,
                 normalized,
-                asset,
+                new SourceKnowledgeAssetRef(
+                        asset.knowledgeAssetId(),
+                        asset.knowledgeAssetVersionId(),
+                        asset.normalizedRecordId(),
+                        asset.rawSourceObjectId(),
+                        asset.sourceAclSnapshotId()),
                 completedAt);
         SourceObject source = sources.findById(draft.sourceObjectId()).orElseThrow();
         source.publishRevision(revision.getId());
         revisions.saveAndFlush(revision);
         graphIndexJobs.enqueue(
-                revision.getOrganizationId(), revision.getId(), asset, completedAt);
+                revision.getOrganizationId(),
+                revision.getId(),
+                asset.knowledgeAssetId(),
+                asset.knowledgeAssetVersionId(),
+                completedAt);
         sources.save(source);
     }
 

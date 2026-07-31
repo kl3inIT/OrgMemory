@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
@@ -23,7 +22,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 class GraphIndexLifecycleServiceTests {
 
@@ -68,6 +66,7 @@ class GraphIndexLifecycleServiceTests {
                         any(),
                         any(),
                         any(),
+                        any(),
                         any()))
                 .thenReturn(JOB_ID);
         when(coordinator.status(ORGANIZATION_ID, JOB_ID)).thenReturn(expected);
@@ -75,17 +74,12 @@ class GraphIndexLifecycleServiceTests {
         GraphIndexJobView actual = service.ensureCurrentProfile(actor, ASSET_ID);
 
         assertEquals(expected, actual);
-        var reference = ArgumentCaptor.forClass(KnowledgeAssetRef.class);
         verify(queue).enqueue(
                 org.mockito.ArgumentMatchers.eq(ORGANIZATION_ID),
                 org.mockito.ArgumentMatchers.eq(REVISION_ID),
-                reference.capture(),
+                org.mockito.ArgumentMatchers.eq(ASSET_ID),
+                org.mockito.ArgumentMatchers.eq(VERSION_ID),
                 any(Instant.class));
-        assertEquals(ASSET_ID, reference.getValue().knowledgeAssetId());
-        assertEquals(VERSION_ID, reference.getValue().knowledgeAssetVersionId());
-        assertEquals(
-                KnowledgeAssetVersionStatus.ACTIVE,
-                reference.getValue().status());
     }
 
     @Test
@@ -98,7 +92,7 @@ class GraphIndexLifecycleServiceTests {
                 () -> service.ensureCurrentProfile(actor, ASSET_ID));
 
         verify(assets, never()).findByIdAndOrganizationId(any(), any());
-        verify(queue, never()).enqueue(any(), any(), any(), any());
+        verify(queue, never()).enqueue(any(), any(), any(), any(), any());
         verify(coordinator, never()).status(any(), any());
     }
 }

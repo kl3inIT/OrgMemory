@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.asset;
+package com.orgmemory.core.knowledge.sourceledger;
 
 import java.util.Locale;
 import java.util.Optional;

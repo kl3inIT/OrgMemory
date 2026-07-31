@@ -61,6 +61,20 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerDoesNotDependOnAssetImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.sourceledger");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.asset..")
+                .check(classes);
+    }
+
+    @Test
     void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
 
@@ -219,18 +233,12 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
-                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
-                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceRevision",
-                        "com.orgmemory.core.knowledge.sourceledger.SourceUploadService"),
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator"),
                 consumerTypes);
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.knowledge.asset.KnowledgeAsset",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetEvidenceLink",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetEvidenceLinkRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRef",
@@ -241,7 +249,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeContentType",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
                 consumedInternalTypes);
     }

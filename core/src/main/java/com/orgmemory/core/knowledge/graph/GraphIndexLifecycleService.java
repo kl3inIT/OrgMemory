@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
@@ -106,13 +105,8 @@ public class GraphIndexLifecycleService {
                 actor.organizationId(),
                 Objects.requireNonNull(
                         version.getSourceRevisionId(), "sourceRevisionId"),
-                new KnowledgeAssetRef(
-                        assetId,
-                        version.getId(),
-                        version.getNormalizedRecordId(),
-                        version.getRawSourceObjectId(),
-                        version.getSourceAclSnapshotId(),
-                        version.getStatus()),
+                assetId,
+                version.getId(),
                 java.time.Instant.now());
         return coordinator.status(actor.organizationId(), jobId);
     }

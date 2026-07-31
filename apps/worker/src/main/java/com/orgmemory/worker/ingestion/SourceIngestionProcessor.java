@@ -13,6 +13,7 @@ import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator;
 import com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
 
 import com.orgmemory.core.ai.AiRouteResolver;
@@ -278,7 +279,12 @@ class SourceIngestionProcessor {
                             embeddingProfile.id(), embeddingProfile.dimensions()),
                     raw,
                     normalized,
-                    asset);
+                    new SourceKnowledgeAssetRef(
+                            asset.knowledgeAssetId(),
+                            asset.knowledgeAssetVersionId(),
+                            asset.normalizedRecordId(),
+                            asset.rawSourceObjectId(),
+                            asset.sourceAclSnapshotId()));
             log.info(
                     "Source revision {} is ready with {} chunks on attempt {}",
                     claim.sourceRevisionId(),

@@ -2,7 +2,7 @@ package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.retrieval.CitationContentService;
-import com.orgmemory.core.knowledge.asset.KnowledgeContentType;
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeContentType;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.UUID;
 import org.springframework.http.CacheControl;

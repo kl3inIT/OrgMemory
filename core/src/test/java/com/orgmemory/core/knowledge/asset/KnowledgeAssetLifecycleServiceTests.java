@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
-
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -30,8 +28,8 @@ class KnowledgeAssetLifecycleServiceTests {
 
     private final KnowledgeAssetRepository assets =
             mock(KnowledgeAssetRepository.class);
-    private final KnowledgeIngestionService ingestion =
-            mock(KnowledgeIngestionService.class);
+    private final KnowledgeAssetVersionRepository versions =
+            mock(KnowledgeAssetVersionRepository.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
     private final ModelInvocationCache modelCache =
@@ -40,40 +38,42 @@ class KnowledgeAssetLifecycleServiceTests {
             mock(RetrievalResultCache.class);
     private final CurrentActor actor =
             new CurrentActor(USER_ID, ORGANIZATION_ID, null, "User", "user@example.com");
+    private final KnowledgeAsset asset = mock(KnowledgeAsset.class);
+    private final KnowledgeAssetVersion version = mock(KnowledgeAssetVersion.class);
 
     private final KnowledgeAssetLifecycleService service =
             new KnowledgeAssetLifecycleService(
                     assets,
-                    ingestion,
+                    versions,
                     authorization,
                     modelCache,
                     retrievalCache);
 
     @BeforeEach
     void setUpAsset() {
-        KnowledgeAsset asset = mock(KnowledgeAsset.class);
         when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(asset));
         when(asset.getCurrentVersionId()).thenReturn(VERSION_ID);
         when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
-        when(ingestion.retire(ORGANIZATION_ID, ASSET_ID))
-                .thenReturn(new KnowledgeAssetRef(
-                        ASSET_ID,
-                        VERSION_ID,
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        KnowledgeAssetVersionStatus.RETIRED));
+        when(asset.getId()).thenReturn(ASSET_ID);
+        when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
+                .thenReturn(Optional.of(version));
+        when(version.getKnowledgeAssetId()).thenReturn(ASSET_ID);
+        when(version.getId()).thenReturn(VERSION_ID);
+        when(version.getStatus()).thenReturn(KnowledgeAssetVersionStatus.RETIRED);
     }
 
     @Test
-    void deleteRetiresCanonicalLedgerThenInvalidatesCaches() {
+    void deleteRetiresAssetThenInvalidatesCaches() {
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
 
         service.delete(actor, ASSET_ID);
 
-        verify(ingestion).retire(ORGANIZATION_ID, ASSET_ID);
+        verify(version).retire(any());
+        verify(asset).archive(any());
+        verify(versions).save(version);
+        verify(assets).save(asset);
         verify(modelCache).invalidate(any());
         verify(retrievalCache).invalidateNamespace(any());
     }
@@ -87,6 +87,7 @@ class KnowledgeAssetLifecycleServiceTests {
                 OrgMemoryAccessDeniedException.class,
                 () -> service.delete(actor, ASSET_ID));
 
-        verify(ingestion, never()).retire(any(), any());
+        verify(version, never()).retire(any());
+        verify(assets, never()).save(any());
     }
 }

@@ -280,7 +280,7 @@ PR #198 merged as `827a16dc7c0b98b6f9f882d35c5149fd0e1c42af` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twelfth Pull Request Evidence
 
 - Source Ledger owns visibility and embedding-profile ports plus the compact
   profile ref persisted on revision completion.
@@ -305,3 +305,33 @@ pre-stage worktree contains 28 changed paths.
 After merging current `origin/main` at `78b4d503`, a second repository-wide
 `clean test` completed successfully in 12s across 99 tasks with the shared
 build cache; the PR diff remained 28 changed files.
+
+PR #200 merged as `80123f5f1dc595b68bd848f9a1a83c195a01a049` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns the asset-promotion port, request, and provenance ref;
+  Asset implements persistence behind that outbound boundary.
+- Asset owns version retirement directly, so deletion no longer calls back
+  into Source Ledger for Asset state changes.
+- Evidence content-type policy belongs to Source Ledger, while Graph enqueue
+  accepts stable Asset/version IDs and validates Asset state internally.
+- Production and test code under `knowledge.sourceledger` have zero imports
+  from `knowledge.asset`; an ArchUnit rule prevents that edge returning.
+- Focused Source Ledger, Asset, Graph, API, Worker, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the Source Ledger-to-Space slice starts.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused Source Ledger, Asset, Graph, API, Worker, and Modulith tests passed;
+`:core:test` passed; and the terminating repository-wide `clean test`
+completed successfully in 5m35s across 108 tasks. The docs operating-model,
+release contract, diff hygiene, and zero Source Ledger-to-Asset import checks
+passed. The pre-stage worktree contains 24 changed paths.
+
+After merging current `origin/main` at `250e1705`, a second repository-wide
+`clean test` completed successfully in 6m53s across 108 tasks; the PR diff
+remained 24 changed files.

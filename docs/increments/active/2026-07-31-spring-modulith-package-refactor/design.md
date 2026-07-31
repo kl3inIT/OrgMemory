@@ -210,6 +210,20 @@ Graph, Source Ledger, and Retrieval, so it belongs to `shared.error` rather
 than making every consumer depend on Retrieval. An ArchUnit rule now makes any
 new Source Ledger-to-Retrieval dependency fail the build.
 
+## Third Cycle-Removal Slice
+
+Source Ledger no longer persists Asset entities or imports Asset lifecycle
+types. It validates canonical source, revision, ACL, and normalization state,
+then calls a Source-Ledger-owned promotion port. Asset implements that port,
+creates its identity/version/evidence rows, and returns only the stable IDs
+that Source Ledger records as provenance.
+
+Asset deletion now retires its current version inside the Asset boundary.
+The shared evidence content-type policy moves to Source Ledger, where uploads
+originate, and Graph enqueue accepts stable Asset/version IDs before checking
+the active version in its own Asset-facing adapter. An ArchUnit rule makes any
+new Source Ledger-to-Asset dependency fail the build.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and
