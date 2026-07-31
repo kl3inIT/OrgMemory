@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.postgres;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
@@ -14,6 +15,7 @@ import com.orgmemory.graphrag.storage.VectorIndex;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.context.annotation.ImportCandidates;
@@ -82,6 +84,19 @@ class PostgresGraphRagAutoConfigurationTests {
                         context.getBeansOfType(port).isEmpty(),
                         "disabling the adapter must not leave %s wired"
                                 .formatted(port.getSimpleName()))));
+    }
+
+    @Test
+    void sharedDevelopmentCanDisableIndexProvisioning() throws Exception {
+        var manager = mock(PostgresGraphVectorIndexManager.class);
+        var properties = new PostgresGraphRagProperties();
+        properties.setProvisionIndexes(false);
+
+        new PostgresGraphRagAutoConfiguration()
+                .postgresGraphVectorIndexProvisioner(manager, properties)
+                .run(mock(ApplicationArguments.class));
+
+        verifyNoInteractions(manager);
     }
 
     private static List<String> registeredAutoConfigurations() {

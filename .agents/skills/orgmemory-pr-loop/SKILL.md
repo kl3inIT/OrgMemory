@@ -35,6 +35,12 @@ the workflow.
   Verification). Batch related items; under ~100 changed files per PR is the
   accepted ceiling.
 - CodeRabbit reviews PRs automatically and can hit rate limits.
+- OrgMemory preserves the complete reviewed branch history, including sync and
+  follow-up fix commits. Do not clean or rewrite that history before merge. Use
+  a GitHub merge commit for every PR so every branch commit SHA remains
+  reachable from `main` and the merge commit records the PR boundary. Squash
+  merge and rebase merge are prohibited because they replace the reviewed
+  commit ancestry.
 
 ## Procedure
 
@@ -56,9 +62,16 @@ the workflow.
    Address every actionable CodeRabbit finding with a fix commit or a reasoned
    reply. If CodeRabbit is rate-limited or silent, all-green CI is sufficient
    to merge.
-6. **Merge on origin, then pull.** Merge the PR remotely (or hand the merge to
-   the user when they've said they merge), then update local `main` and remove
-   the worktree/branch. Never merge the branch into local main by hand.
+6. **Merge on origin without losing commits, then pull.** Merge the PR remotely
+   with GitHub's merge-commit strategy, for example
+   `gh pr merge <n> --merge --delete-branch` (or hand the merge to the user when
+   they've said they merge). Never use `--squash` or `--rebase`; keeping all
+   reviewed commits and their original SHAs is part of the audit trail. Do not
+   force-push or rebuild the branch to remove sync/fix commits before merging.
+   Then update local `main` and remove the worktree/branch. Never merge
+   the branch into local main by hand. A local branch-deletion warning because
+   another worktree still owns the branch does not mean the remote merge
+   failed; verify the PR state and merge commit on `origin/main` first.
 7. **Verify post-merge when deployment applies.** CI/CD deploys on merge:
    check the deployed behavior through the server API, a Playwright pass, or
    on the ZM host — `ssh zm`, then `docker logs` on `orgmemory-api-1` /
@@ -70,9 +83,11 @@ the workflow.
 
 ## Verification
 
-The iteration is done when: PR merged into `origin/main`, local main updated,
-worktree cleaned, CI green on main, review findings addressed or answered, and
-deployed behavior spot-checked when the change ships to the server.
+The iteration is done when: PR merged into `origin/main` with a merge commit,
+the reviewed branch commits remain ancestors of that merge commit, local main
+updated, worktree cleaned, CI green on main, review findings addressed or
+answered, and deployed behavior spot-checked when the change ships to the
+server.
 
 ## Failure Handling
 

@@ -61,13 +61,16 @@ One increment is one coherent delivery cycle:
 Work smaller than an increment may skip design and plan, but never skips
 consolidation when durable behavior changes.
 
-Material decisions about domain boundaries, authorization, persistence,
-publication, concurrency, cache isolation, parity scope, or deployment require
-an independent architecture challenge before implementation. Record the
-proposal, strongest counterargument, repository evidence, final choice, and
-rejected alternative in the active design or a decision. If the configured
-reviewer is unavailable, record that fact and obtain explicit project-owner
-direction before proceeding.
+High-impact, hard-to-reverse decisions about canonical domain boundaries,
+authorization or trust boundaries, persistence ownership, publication
+semantics, cache isolation, parity scope, or production topology require an
+independent architecture challenge before implementation when the alternatives
+remain materially contested. Routine implementation choices, established-pattern
+extensions, documentation workflow, configuration, and reversible
+non-production development tooling do not. Record the proposal, strongest
+counterargument, repository evidence, final choice, and rejected alternative in
+the active design or a decision. If the configured reviewer is unavailable,
+follow the reviewer fallback in the architecture-challenge skill.
 
 ## Documentation Hygiene
 

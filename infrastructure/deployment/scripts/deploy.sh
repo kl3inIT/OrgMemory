@@ -14,12 +14,15 @@ runtime_root="${ORGMEMORY_RUNTIME_ROOT:-/apps/orgmemory-runtime}"
 model_file="${ORGMEMORY_OPENFGA_MODEL_FILE:-$repo_root/integrations/authorization-openfga/src/main/openfga/model.fga}"
 keycloak_configuration_script="${ORGMEMORY_KEYCLOAK_CONFIGURATION_SCRIPT:-$repo_root/infrastructure/deployment/scripts/configure-keycloak-mcp.sh}"
 smoke_script="${ORGMEMORY_SMOKE_SCRIPT:-$repo_root/infrastructure/deployment/scripts/smoke-production.sh}"
+coordination_script="${ORGMEMORY_TEAM_DEV_COORDINATION_SCRIPT:-$repo_root/infrastructure/deployment/scripts/team-dev-coordination.sh}"
 lock_file="$runtime_root/deploy.lock"
 release_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 release_environment="$runtime_root/releases/$release_stamp.env"
 previous_environment="$runtime_root/releases/$release_stamp.previous.env"
 current_commit_file="$runtime_root/current-commit"
 had_previous_release=false
+maintenance_acquired=false
+maintenance_session="deploy-$commit_sha"
 
 if [[ -s "$current_commit_file" ]]; then
   had_previous_release=true
@@ -35,6 +38,35 @@ if [[ ! -f "$environment_file" ]]; then
   printf 'Missing production environment file: %s\n' "$environment_file" >&2
   exit 1
 fi
+
+release_maintenance() {
+  if [[ "$maintenance_acquired" == "true" ]]; then
+    "$coordination_script" release maintenance "$maintenance_session" || true
+    maintenance_acquired=false
+  fi
+}
+
+shared_state_changed() {
+  local previous_commit
+  if [[ "${ORGMEMORY_FORCE_SHARED_MAINTENANCE:-}" == "true" ]]; then
+    return 0
+  fi
+  if [[ "${ORGMEMORY_FORCE_SHARED_MAINTENANCE:-}" == "false" ]]; then
+    return 1
+  fi
+  if [[ ! -s "$current_commit_file" ]]; then
+    return 0
+  fi
+  previous_commit="$(tr -d '[:space:]' < "$current_commit_file")"
+  if [[ ! "$previous_commit" =~ ^[0-9a-f]{40}$ ]] || \
+     ! git -C "$repo_root" cat-file -e "$previous_commit^{commit}" 2>/dev/null; then
+    return 0
+  fi
+  ! git -C "$repo_root" diff --quiet \
+    "$previous_commit" "$commit_sha" -- \
+    core/src/main/resources/db/migration \
+    integrations/authorization-openfga/src/main/openfga/model.fga
+}
 
 if [[ "$(stat -c '%a' "$environment_file")" != "600" ]]; then
   printf 'Production environment file must have mode 0600: %s\n' \
@@ -164,6 +196,7 @@ rollback() {
 }
 
 trap rollback ERR
+trap release_maintenance EXIT
 
 pin_release_values
 
@@ -176,6 +209,17 @@ public_smoke="${ORGMEMORY_REQUIRE_PUBLIC_SMOKE:-$(read_environment_value ORGMEMO
 if [[ -z "$openfga_store_id" || -z "$openfga_model_id" ]]; then
   printf 'OpenFGA identifiers are missing. Run bootstrap-openfga.sh first.\n' >&2
   exit 78
+fi
+
+if shared_state_changed; then
+  "$coordination_script" acquire \
+    maintenance \
+    "$maintenance_session" \
+    deployment \
+    deployment-host \
+    "$commit_sha" \
+    1800
+  maintenance_acquired=true
 fi
 
 compose=(
@@ -228,5 +272,6 @@ ORGMEMORY_REQUIRE_PUBLIC_SMOKE="${public_smoke:-true}" \
   "$smoke_script"
 
 printf '%s\n' "$commit_sha" > "$current_commit_file"
+release_maintenance
 trap - ERR
 printf 'Deployed OrgMemory commit %s.\n' "$commit_sha"

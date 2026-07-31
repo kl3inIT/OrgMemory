@@ -15,6 +15,8 @@ const execFile = promisify(execFileCallback);
 export const PRODUCT_ID = "product:orgmemory";
 export const PRODUCT_NAME = "orgmemory";
 export const PRODUCT_MANAGER = "product";
+export const PRODUCT_CHANGELOG_PREAMBLE =
+  "# OrgMemory changelog\n\nProduct releases are assembled from reviewed entries under `.tegami/`.";
 export const REQUIRED_COMPONENTS = [
   "api",
   "worker",
@@ -232,6 +234,17 @@ export function parseReleaseArtifacts(raw: string): ReleaseArtifacts {
   return parsed;
 }
 
+export function normalizeProductChangelog(raw: string): string {
+  const occurrences = raw.split(PRODUCT_CHANGELOG_PREAMBLE).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(
+      `release/CHANGELOG.md must contain exactly one canonical preamble; found ${occurrences}`,
+    );
+  }
+  const releases = raw.replace(PRODUCT_CHANGELOG_PREAMBLE, "").trim();
+  return `${PRODUCT_CHANGELOG_PREAMBLE}${releases ? `\n\n${releases}` : ""}\n`;
+}
+
 class OrgMemoryProductPackage extends WorkspacePackage {
   readonly name = PRODUCT_NAME;
   readonly manager = PRODUCT_MANAGER;
@@ -317,7 +330,7 @@ async function assertTagAvailable(
   }
 }
 
-async function assertCurrentMain(run: CommandRunner, cwd: string): Promise<string> {
+export async function assertCurrentMain(run: CommandRunner, cwd: string): Promise<string> {
   await run("git", ["fetch", "--no-tags", "origin", "main"], cwd);
   const currentHead = await headSha(run, cwd);
   const { stdout } = await run("git", ["rev-parse", "origin/main"], cwd);
@@ -579,6 +592,12 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
     },
     async applyCliDraft() {
       if (verifyCurrentMain) await assertCurrentMain(run, this.cwd);
+      const changelogPath = join(this.cwd, "release", "CHANGELOG.md");
+      await writeFile(
+        changelogPath,
+        normalizeProductChangelog(await readFile(changelogPath, "utf8")),
+        "utf8",
+      );
       const tracked = await run("git", ["diff", "--name-only", "--relative", "HEAD"], this.cwd);
       const untracked = await run(
         "git",
@@ -605,9 +624,10 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
       );
       if (verifyArtifacts) await assertArtifactEvidence(run, this.cwd, artifacts, loadEvidence);
       if (verifyRemote) {
-        if (verifyCurrentMain) {
-          await assertCurrentMain(run, this.cwd);
-        }
+        // GitHub's Version PR hook runs package preflights after creating the
+        // release commit, so HEAD is intentionally no longer origin/main here.
+        // Main freshness is enforced before draft mutation and again by the
+        // whole-plan hooks immediately before and after a real publication.
         const expectedSha = await headSha(run, this.cwd);
         const tag = `v${pkg.version}`;
         if (statusOnly) {

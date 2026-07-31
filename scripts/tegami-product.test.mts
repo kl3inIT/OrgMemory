@@ -10,6 +10,9 @@ import { createCli } from "tegami/cli";
 import { createOrgMemoryTegami } from "./tegami-config.mts";
 import {
   PRODUCT_ID,
+  PRODUCT_CHANGELOG_PREAMBLE,
+  assertCurrentMain,
+  normalizeProductChangelog,
   parseProductManifest,
   parseReleaseArtifacts,
   productReleasePlugins,
@@ -117,7 +120,7 @@ async function fixture() {
   await mkdir(join(cwd, "infrastructure", "deployment"), { recursive: true });
   await mkdir(join(cwd, ".tegami"), { recursive: true });
   await writeFile(join(cwd, "release", "product.json"), '{"name":"orgmemory","version":"0.0.0"}\n');
-  await writeFile(join(cwd, "release", "CHANGELOG.md"), "# Changelog\n");
+  await writeFile(join(cwd, "release", "CHANGELOG.md"), `${PRODUCT_CHANGELOG_PREAMBLE}\n`);
   await writeFile(join(cwd, "release", "artifacts.json"), `${JSON.stringify(artifacts(), null, 2)}\n`);
   await writeFile(join(cwd, "package.json"), '{"name":"root","private":true,"version":"0.0.0"}\n');
   await writeFile(join(cwd, "apps", "web", "package.json"), '{"name":"web","private":true,"version":"0.0.0"}\n');
@@ -127,7 +130,7 @@ async function fixture() {
   await writeFile(join(cwd, "infrastructure", "deployment", "compose.yml"), "services: {}\n");
   await writeFile(
     join(cwd, ".tegami", "first-release.md"),
-    "---\npackages:\n  orgmemory: minor\nsubject: Release management\n---\n\n## Features\n\nAdd product releases.\n",
+    "---\npackages:\n  orgmemory: minor\nsubject: Release management\n---\n\n# Release management\n\n## Features\n\nAdd product releases.\n",
   );
   return cwd;
 }
@@ -143,6 +146,15 @@ test("product and artifact manifests are strict", () => {
   const incomplete = artifacts();
   incomplete.product.images.pop();
   assert.throws(() => parseReleaseArtifacts(JSON.stringify(incomplete)), /exactly/);
+});
+
+test("product changelog keeps its canonical H1 before generated releases", () => {
+  const generated = `## orgmemory@0.1.0\n\n### Release management\n\n${PRODUCT_CHANGELOG_PREAMBLE}\n`;
+  assert.equal(
+    normalizeProductChangelog(generated),
+    `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0\n\n### Release management\n`,
+  );
+  assert.throws(() => normalizeProductChangelog("## orgmemory@0.1.0\n"), /canonical preamble/);
 });
 
 test("Tegami 1.2.7 bumps only the synthetic product and writes its lock", async () => {
@@ -230,7 +242,7 @@ test("publish fails closed when a registry digest differs", async () => {
   }
 });
 
-test("preflight rejects a stale main checkout immediately before mutation", async () => {
+test("current-main guard rejects a stale checkout immediately before mutation", async () => {
   const cwd = await fixture();
   const run: CommandRunner = async (command, args) => {
     if (command === "git" && args[0] === "fetch") return { stdout: "", stderr: "" };
@@ -243,10 +255,7 @@ test("preflight rejects a stale main checkout immediately before mutation", asyn
     throw new Error(`Unexpected command: ${command} ${args.join(" ")}`);
   };
   try {
-    const paper = tegami({ cwd, ignore: [/^npm:/], npm: { updateLockFile: false }, plugins: productReleasePlugins({ run, verifyRemote: true, verifyArtifacts: false }) });
-    const draft = await paper.draft();
-    await draft.apply();
-    await assert.rejects(() => paper.publish({ dryRun: true }), /is stale/);
+    await assert.rejects(() => assertCurrentMain(run, cwd), /is stale/);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
@@ -424,6 +433,9 @@ test("pinned Tegami contract versions in a temporary repository with a bare remo
     process.chdir(cwd);
     const paper = createOrgMemoryTegami({ verifyRemote: false, verifyCurrentMain: false });
     await createCli(paper).parseAsync(["version"]);
+    const changelog = await readFile(join(cwd, "release", "CHANGELOG.md"), "utf8");
+    assert.equal(changelog.startsWith(`${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0`), true);
+    assert.equal((changelog.match(/### Release management/g) ?? []).length, 1);
     assert.equal(parseProductManifest(await readFile(join(cwd, "release", "product.json"), "utf8")).version, "0.1.0");
     assert.match(await readFile(join(cwd, ".tegami", "publish-lock.yaml"), "utf8"), /product:orgmemory/);
     const plan = await paper.publish();
