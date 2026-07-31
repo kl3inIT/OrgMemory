@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;

@@ -1,5 +1,15 @@
 package com.orgmemory.api.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
+import com.orgmemory.core.knowledge.sourceledger.NormalizationIssue;
+import com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
+import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordStatus;
+import com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand;
+import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
+import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -8,15 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.orgmemory.core.knowledge.AclCaptureStatus;
 import com.orgmemory.core.knowledge.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.KnowledgeAssetVersionStatus;
-import com.orgmemory.core.knowledge.KnowledgeIngestionConflictException;
-import com.orgmemory.core.knowledge.KnowledgeIngestionService;
-import com.orgmemory.core.knowledge.NormalizationIssue;
-import com.orgmemory.core.knowledge.NormalizeRawSourceCommand;
-import com.orgmemory.core.knowledge.NormalizedRecordRef;
-import com.orgmemory.core.knowledge.NormalizedRecordStatus;
-import com.orgmemory.core.knowledge.PromoteNormalizedRecordCommand;
-import com.orgmemory.core.knowledge.RawSourceRef;
-import com.orgmemory.core.knowledge.RegisterRawSourceCommand;
 import com.orgmemory.core.knowledge.RotateSourceAclCommand;
 import com.orgmemory.core.knowledge.SourceAclEntryCommand;
 import com.orgmemory.core.knowledge.SourceAclRotationRef;

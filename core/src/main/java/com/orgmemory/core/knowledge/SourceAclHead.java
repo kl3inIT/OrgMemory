@@ -1,5 +1,8 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+import com.orgmemory.core.knowledge.sourceledger.RawSourceObject;
+
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "source_acl_heads")
-class SourceAclHead extends BaseEntity {
+public class SourceAclHead extends BaseEntity {
 
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
@@ -34,7 +37,7 @@ class SourceAclHead extends BaseEntity {
     protected SourceAclHead() {
     }
 
-    SourceAclHead(RawSourceObject raw, SourceAclSnapshot snapshot) {
+    public SourceAclHead(RawSourceObject raw, SourceAclSnapshot snapshot) {
         super(UUID.randomUUID());
         this.organizationId = raw.getOrganizationId();
         this.sourceSystem = raw.getSourceSystem();
@@ -45,7 +48,7 @@ class SourceAclHead extends BaseEntity {
         this.aclGeneration = snapshot.getAclGeneration();
     }
 
-    void advance(RawSourceObject raw, SourceAclSnapshot snapshot) {
+    public void advance(RawSourceObject raw, SourceAclSnapshot snapshot) {
         if (!organizationId.equals(raw.getOrganizationId())
                 || !sourceSystem.equals(raw.getSourceSystem())
                 || !sourceConnectionKey.equals(raw.getSourceConnectionKey())
@@ -60,15 +63,15 @@ class SourceAclHead extends BaseEntity {
         aclGeneration = snapshot.getAclGeneration();
     }
 
-    UUID getCurrentRawSourceObjectId() {
+    public UUID getCurrentRawSourceObjectId() {
         return currentRawSourceObjectId;
     }
 
-    UUID getCurrentSnapshotId() {
+    public UUID getCurrentSnapshotId() {
         return currentSnapshotId;
     }
 
-    long getAclGeneration() {
+    public long getAclGeneration() {
         return aclGeneration;
     }
 }

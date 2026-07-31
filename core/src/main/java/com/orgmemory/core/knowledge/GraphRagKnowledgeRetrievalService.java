@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
+
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.PermissionKey;

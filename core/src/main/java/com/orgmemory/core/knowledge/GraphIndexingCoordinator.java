@@ -1,5 +1,9 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;

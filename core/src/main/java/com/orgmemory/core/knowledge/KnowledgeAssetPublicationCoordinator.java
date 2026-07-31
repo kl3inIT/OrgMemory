@@ -1,5 +1,11 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
+import com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceObject;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+
 import com.orgmemory.core.permission.AccessGate;
 import java.time.Instant;
 import java.util.List;

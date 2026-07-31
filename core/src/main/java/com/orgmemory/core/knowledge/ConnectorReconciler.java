@@ -1,5 +1,15 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
+import com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
+import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
+import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceObject;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+
 import com.orgmemory.core.knowledge.ConnectorIdentityResolution.PrincipalKey;
 import com.orgmemory.core.knowledge.ConnectorIdentityResolution.ResolvedPrincipal;
 import com.orgmemory.core.knowledge.storage.ObjectKey;

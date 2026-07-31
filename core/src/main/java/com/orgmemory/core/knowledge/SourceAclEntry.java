@@ -41,7 +41,7 @@ public class SourceAclEntry {
     protected SourceAclEntry() {
     }
 
-    SourceAclEntry(
+    public SourceAclEntry(
             UUID organizationId,
             UUID sourceAclSnapshotId,
             SourceAclEntryCommand command,

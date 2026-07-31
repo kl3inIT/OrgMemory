@@ -9,7 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "source_acl_snapshot_seals")
-class SourceAclSnapshotSeal {
+public class SourceAclSnapshotSeal {
 
     @Id
     @Column(name = "source_acl_snapshot_id", nullable = false, updatable = false)
@@ -30,7 +30,7 @@ class SourceAclSnapshotSeal {
     protected SourceAclSnapshotSeal() {
     }
 
-    SourceAclSnapshotSeal(
+    public SourceAclSnapshotSeal(
             UUID sourceAclSnapshotId,
             UUID organizationId,
             int entryCount,

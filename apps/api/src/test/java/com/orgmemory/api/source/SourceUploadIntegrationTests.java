@@ -1,18 +1,19 @@
 package com.orgmemory.api.source;
 
+import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceIngestionCoordinator;
+import com.orgmemory.core.knowledge.sourceledger.SourceQueryService;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceTarget;
-import com.orgmemory.core.knowledge.SourceIngestionCoordinator;
-import com.orgmemory.core.knowledge.SourceQueryService;
-import com.orgmemory.core.knowledge.SourceRevisionStatus;
-import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;

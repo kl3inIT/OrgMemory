@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface SourceAclHeadRepository extends JpaRepository<SourceAclHead, UUID> {
+public interface SourceAclHeadRepository extends JpaRepository<SourceAclHead, UUID> {
 
     Optional<SourceAclHead> findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
             UUID organizationId,

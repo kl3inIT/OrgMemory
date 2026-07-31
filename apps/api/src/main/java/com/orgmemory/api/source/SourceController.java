@@ -1,10 +1,11 @@
 package com.orgmemory.api.source;
 
+import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceQueryService;
+import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
+
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
-import com.orgmemory.core.knowledge.SourceQueryService;
-import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;

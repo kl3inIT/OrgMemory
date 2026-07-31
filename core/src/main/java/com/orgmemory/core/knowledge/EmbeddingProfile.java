@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "embedding_profiles")
-class EmbeddingProfile {
+public class EmbeddingProfile {
 
     @Id
     private UUID id;

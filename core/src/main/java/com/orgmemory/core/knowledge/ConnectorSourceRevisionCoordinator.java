@@ -1,5 +1,17 @@
 package com.orgmemory.core.knowledge;
 
+import com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot;
+import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
+import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
+import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
+import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
+import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceObject;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import java.time.Instant;
 import java.util.Optional;

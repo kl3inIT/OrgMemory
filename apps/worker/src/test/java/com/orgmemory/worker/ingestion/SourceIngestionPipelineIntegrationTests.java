@@ -1,5 +1,8 @@
 package com.orgmemory.worker.ingestion;
 
+import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
+import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,11 +26,9 @@ import com.orgmemory.core.authorization.RelationshipTupleReconciliationPort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.EmbeddingProfileSpec;
-import com.orgmemory.core.knowledge.SourceUploadService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.QueryEmbedding;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;

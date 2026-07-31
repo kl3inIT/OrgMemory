@@ -1,13 +1,13 @@
 package com.orgmemory.core.knowledge;
 
-final class SourceFailureMessage {
+public final class SourceFailureMessage {
 
     private static final int MAXIMUM_LENGTH = 512;
 
     private SourceFailureMessage() {
     }
 
-    static String truncate(String value) {
+    public static String truncate(String value) {
         if (value == null) {
             return null;
         }

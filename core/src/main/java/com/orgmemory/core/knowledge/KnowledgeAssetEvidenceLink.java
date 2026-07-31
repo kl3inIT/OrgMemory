@@ -12,7 +12,7 @@ import java.util.UUID;
 /** Append-only provenance linking a knowledge version to contributing evidence. */
 @Entity
 @Table(name = "knowledge_asset_evidence_links")
-class KnowledgeAssetEvidenceLink extends BaseEntity {
+public class KnowledgeAssetEvidenceLink extends BaseEntity {
 
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
@@ -39,7 +39,7 @@ class KnowledgeAssetEvidenceLink extends BaseEntity {
     protected KnowledgeAssetEvidenceLink() {
     }
 
-    static KnowledgeAssetEvidenceLink primary(
+    public static KnowledgeAssetEvidenceLink primary(
             UUID organizationId,
             UUID knowledgeAssetVersionId,
             UUID sourceRevisionId,

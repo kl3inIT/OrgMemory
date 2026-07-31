@@ -116,7 +116,10 @@ build file, so taking the convention is taking the boundary. See
 `core` uses Spring Modulith package boundaries and a verification test.
 `core.knowledge.space` is the first responsibility-oriented nested module and
 remains explicitly open while sibling repository dependencies are replaced by
-intentional APIs. The provider-neutral object-storage port is exposed as the
+intentional APIs. `core.knowledge.sourceledger` owns the canonical source and
+revision ledger, evidence blobs, raw/normalized processing records, upload and
+query services, and durable ingestion jobs under the same transitional rule.
+The provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset
 publication outbox records direct-upload authorization projection attempts and
