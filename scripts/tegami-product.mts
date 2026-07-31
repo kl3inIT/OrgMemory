@@ -15,6 +15,8 @@ const execFile = promisify(execFileCallback);
 export const PRODUCT_ID = "product:orgmemory";
 export const PRODUCT_NAME = "orgmemory";
 export const PRODUCT_MANAGER = "product";
+export const PRODUCT_CHANGELOG_PREAMBLE =
+  "# OrgMemory changelog\n\nProduct releases are assembled from reviewed entries under `.tegami/`.";
 export const REQUIRED_COMPONENTS = [
   "api",
   "worker",
@@ -230,6 +232,17 @@ export function parseReleaseArtifacts(raw: string): ReleaseArtifacts {
     throw new Error("docs image reference must use docs.commitSha");
   }
   return parsed;
+}
+
+export function normalizeProductChangelog(raw: string): string {
+  const occurrences = raw.split(PRODUCT_CHANGELOG_PREAMBLE).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(
+      `release/CHANGELOG.md must contain exactly one canonical preamble; found ${occurrences}`,
+    );
+  }
+  const releases = raw.replace(PRODUCT_CHANGELOG_PREAMBLE, "").trim();
+  return `${PRODUCT_CHANGELOG_PREAMBLE}${releases ? `\n\n${releases}` : ""}\n`;
 }
 
 class OrgMemoryProductPackage extends WorkspacePackage {
@@ -579,6 +592,12 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
     },
     async applyCliDraft() {
       if (verifyCurrentMain) await assertCurrentMain(run, this.cwd);
+      const changelogPath = join(this.cwd, "release", "CHANGELOG.md");
+      await writeFile(
+        changelogPath,
+        normalizeProductChangelog(await readFile(changelogPath, "utf8")),
+        "utf8",
+      );
       const tracked = await run("git", ["diff", "--name-only", "--relative", "HEAD"], this.cwd);
       const untracked = await run(
         "git",
