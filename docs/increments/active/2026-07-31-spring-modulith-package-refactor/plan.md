@@ -310,7 +310,7 @@ PR #200 merged as `80123f5f1dc595b68bd848f9a1a83c195a01a049` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Thirteenth Pull Request Evidence
 
 - Source Ledger owns the asset-promotion port, request, and provenance ref;
   Asset implements persistence behind that outbound boundary.
@@ -335,3 +335,27 @@ passed. The pre-stage worktree contains 24 changed paths.
 After merging current `origin/main` at `250e1705`, a second repository-wide
 `clean test` completed successfully in 6m53s across 108 tasks; the PR diff
 remained 24 changed files.
+
+PR #202 merged as `be73bf7e7d15bc65cf7d77dbc8e3b81f34764736` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns the upload-target and organization-membership port plus
+  the compact Space facts required to persist source provenance.
+- Space implements authorization and directory lookup behind that port,
+  retaining its existing permission and active-space policy.
+- Production and test code under `knowledge.sourceledger` have zero imports
+  from `knowledge.space`; an ArchUnit rule prevents that edge returning.
+- Focused upload, promotion, Space, API, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the remaining Knowledge boundaries are closed.
+
+Local verification on 2026-08-01: production and test sources compiled;
+focused upload, promotion, Space, API, and Modulith tests passed; `:core:test`
+passed; and the terminating repository-wide `clean test` completed
+successfully in 5m14s across 108 tasks. The docs operating-model, release
+contract, diff hygiene, and zero Source Ledger-to-Space import checks passed.
+The pre-stage worktree contains 11 changed paths.
