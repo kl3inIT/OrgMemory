@@ -49,6 +49,14 @@ import {
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 
 const ASSET_PAGE_SIZE = 24
+const OWNED_PORTFOLIO_STATES = [
+  "DRAFT_ONLY",
+  "ACTIVE",
+  "SUNSETTING",
+  "RETIRED",
+] as const
+
+type OwnedPortfolioState = (typeof OWNED_PORTFOLIO_STATES)[number]
 
 type CatalogAsset = AssetRecommendation & {
   assetId: string
@@ -63,22 +71,30 @@ type OwnedAsset = AssetSummary & {
   slug: string
   title: string
   summary: string
-  portfolioState: "DRAFT_ONLY" | "ACTIVE" | "SUNSETTING" | "RETIRED"
+  portfolioState: OwnedPortfolioState
 }
 
 function isCatalogAsset(asset: AssetRecommendation): asset is CatalogAsset {
   return Boolean(asset.assetId && asset.releaseId && asset.type)
 }
 
+function isOwnedPortfolioState(
+  state: AssetSummary["portfolioState"],
+): state is OwnedPortfolioState {
+  return OWNED_PORTFOLIO_STATES.some((candidate) => candidate === state)
+}
+
 function isOwnedAsset(asset: AssetSummary): asset is OwnedAsset {
-  return Boolean(
-    asset.id &&
-      asset.type &&
-      asset.namespace &&
-      asset.slug &&
-      asset.title &&
-      asset.summary &&
-      asset.portfolioState,
+  return (
+    Boolean(
+      asset.id &&
+        asset.type &&
+        asset.namespace &&
+        asset.slug &&
+        asset.title,
+    ) &&
+    asset.summary != null &&
+    isOwnedPortfolioState(asset.portfolioState)
   )
 }
 
@@ -105,6 +121,8 @@ function portfolioLabel(state: OwnedAsset["portfolioState"]) {
       return "Sunsetting"
     case "RETIRED":
       return "Retired"
+    default:
+      return "Unknown"
   }
 }
 

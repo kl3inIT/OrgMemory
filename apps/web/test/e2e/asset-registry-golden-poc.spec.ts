@@ -418,7 +418,7 @@ function ownedDraftSummary() {
     namespace: "engineering",
     slug: "incident-response",
     title: "Draft incident response skill",
-    summary: "A reusable incident response procedure being prepared for release.",
+    summary: "",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
     portfolioState: "DRAFT_ONLY",
     updatedAt: "2026-07-31T12:00:00Z",
