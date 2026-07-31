@@ -1,5 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
+import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
+
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 
 import com.orgmemory.core.authorization.ResourceRef;
