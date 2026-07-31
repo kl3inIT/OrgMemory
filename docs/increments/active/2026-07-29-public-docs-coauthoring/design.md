@@ -56,7 +56,7 @@ steps but does not replace repository or runtime evidence.
 
 ## Information-Architecture Decision
 
-Use four root categories adapted from the Diátaxis reader needs:
+Use four documentation categories adapted from the Diátaxis reader needs:
 
 1. **Getting Started** — orientation and the first successful tutorial.
 2. **Guides** — task-oriented product, administration, deployment, operations,
@@ -67,8 +67,11 @@ Use four root categories adapted from the Diátaxis reader needs:
    and compatibility contracts.
 
 Deployment & Operations remains a Guides subgroup until it has enough reviewed
-material to justify an independent root. Changelog remains a global navigation
-link rather than a root documentation mode.
+material to justify an independent documentation category. Changelog remains a
+global navigation link and also uses a Fumadocs root context containing Latest,
+recent versions, and the internal archive. That presentation root keeps the
+area selector visible and gives release history a focused tree; it is not a
+fifth Diátaxis documentation category.
 
 ### Strongest Counterargument
 
@@ -88,8 +91,13 @@ copying another product's scale.
 Choose the four-root structure now. Preserve old URLs with permanent redirects.
 Promote a subgroup only after real reviewed pages and reader demand justify it.
 
-The rejected alternative is retaining the five current roots and documenting
-their overlap. That would describe the inconsistency rather than remove it.
+The rejected documentation alternative is retaining the five audience-based
+roots and documenting their overlap. That would describe the inconsistency
+rather than remove it. For Changelog specifically, the rejected alternative is
+a custom runtime sidebar or a GitHub-hosted archive: the former duplicates
+Fumadocs navigation behavior, while the latter makes public history depend on
+repository visibility. The independent evidence and must-fix constraints are
+recorded in [challenge-verdict.md](challenge-verdict.md).
 
 ## Public And Private Documentation Boundary
 

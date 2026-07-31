@@ -1,0 +1,13 @@
+{
+  "title": "Ghi chú phát hành Organizational AI Memory",
+  "description": "Xem các bản phát hành Organizational AI Memory gần đây và toàn bộ lịch sử phát hành.",
+  "icon": "ClockArrowUp",
+  "root": true,
+  "pagesIndex": "index",
+  "pages": [
+    "[Mới nhất](/vi/docs/changelog)",
+    "[v0.1.1](/vi/docs/changelog#organizational-ai-memory-v011)",
+    "[v0.1.0](/vi/docs/changelog#organizational-ai-memory-v010)",
+    "archive"
+  ]
+}

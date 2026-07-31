@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 import {
   parseProductManifest,
   parseReleaseArtifacts,
+  renderArchivedProductChangelog,
   renderPublicProductChangelog,
+  renderReleaseNavigationMeta,
+  validateProductReleaseHistory,
 } from "./tegami-product.mts";
 import { releaseRequirementFailure } from "./release-policy.mjs";
 
@@ -24,22 +27,39 @@ const forbidden = [
   /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/,
 ];
 
+let productManifest;
 try {
-  parseProductManifest(await readFile(join(root, "release", "product.json"), "utf8"));
+  productManifest = parseProductManifest(
+    await readFile(join(root, "release", "product.json"), "utf8"),
+  );
 } catch (error) {
   failures.push(error instanceof Error ? error.message : String(error));
 }
 
 try {
   const canonicalChangelog = await readFile(join(root, "release", "CHANGELOG.md"), "utf8");
-  const publicChangelog = await readFile(
-    join(root, "apps", "docs", "content", "includes", "product-changelog.md"),
-    "utf8",
-  );
-  if (publicChangelog !== renderPublicProductChangelog(canonicalChangelog)) {
-    failures.push(
-      "apps/docs/content/includes/product-changelog.md is not synchronized with release/CHANGELOG.md",
-    );
+  validateProductReleaseHistory(canonicalChangelog, productManifest?.version);
+  const generatedChangelogFiles = new Map([
+    [
+      "apps/docs/content/includes/product-changelog.md",
+      renderPublicProductChangelog(canonicalChangelog),
+    ],
+    [
+      "apps/docs/content/includes/product-changelog-archive.md",
+      renderArchivedProductChangelog(canonicalChangelog),
+    ],
+    [
+      "apps/docs/content/docs/changelog/meta.json",
+      renderReleaseNavigationMeta(canonicalChangelog, "en"),
+    ],
+    [
+      "apps/docs/content/docs/changelog/meta.vi.json",
+      renderReleaseNavigationMeta(canonicalChangelog, "vi"),
+    ],
+  ]);
+  for (const [path, expected] of generatedChangelogFiles) {
+    const actual = await readFile(join(root, ...path.split("/")), "utf8").catch(() => "");
+    if (actual !== expected) failures.push(`${path} is not synchronized with release/CHANGELOG.md`);
   }
 } catch (error) {
   failures.push(error instanceof Error ? error.message : String(error));

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import GithubSlugger from "github-slugger";
 import {
   WorkspacePackage,
   type PackagePublishResult,
@@ -11,6 +12,8 @@ import {
 } from "tegami";
 
 const execFile = promisify(execFileCallback);
+const SEMANTIC_VERSION_PATTERN =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*))(?:\.(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*)))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 export const PRODUCT_ID = "product:orgmemory";
 export const PRODUCT_NAME = "orgmemory";
@@ -20,6 +23,11 @@ export const PRODUCT_CHANGELOG_PREAMBLE =
 export const PUBLIC_CHANGELOG_MARKER =
   "[//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)";
 const PUBLIC_CHANGELOG_INCLUDE = "apps/docs/content/includes/product-changelog.md";
+const PUBLIC_CHANGELOG_ARCHIVE_INCLUDE =
+  "apps/docs/content/includes/product-changelog-archive.md";
+const PUBLIC_CHANGELOG_META = "apps/docs/content/docs/changelog/meta.json";
+const PUBLIC_CHANGELOG_META_VI = "apps/docs/content/docs/changelog/meta.vi.json";
+export const RECENT_RELEASE_LIMIT = 10;
 export const REQUIRED_COMPONENTS = [
   "api",
   "worker",
@@ -35,6 +43,8 @@ const VERSION_DIFF_ALLOWLIST = [
   /^release\/CHANGELOG\.md$/,
   /^release\/artifacts\.json$/,
   /^apps\/docs\/content\/includes\/product-changelog\.md$/,
+  /^apps\/docs\/content\/includes\/product-changelog-archive\.md$/,
+  /^apps\/docs\/content\/docs\/changelog\/meta(?:\.vi)?\.json$/,
 ];
 
 export interface ProductManifest {
@@ -157,11 +167,7 @@ export function parseProductManifest(raw: string): ProductManifest {
     throw new Error(`release/product.json must name ${PRODUCT_NAME}`);
   }
   const version = requireString(value, "version");
-  if (
-    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*))(?:\.(?:(?:0|[1-9]\d*)|(?:\d*[A-Za-z-][0-9A-Za-z-]*)))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(
-      version,
-    )
-  ) {
+  if (!SEMANTIC_VERSION_PATTERN.test(version)) {
     throw new Error(`Invalid semantic product version: ${version}`);
   }
   return { name: PRODUCT_NAME, version };
@@ -249,10 +255,153 @@ export function normalizeProductChangelog(raw: string): string {
   return `${PRODUCT_CHANGELOG_PREAMBLE}${releases ? `\n\n${releases}` : ""}\n`;
 }
 
-export function renderPublicProductChangelog(raw: string): string {
+export interface ProductReleaseNote {
+  version: string;
+  markdown: string;
+}
+
+interface ParsedSemanticVersion {
+  core: [number, number, number];
+  prerelease: string[];
+}
+
+function parseSemanticVersion(version: string): ParsedSemanticVersion {
+  const match = version.match(SEMANTIC_VERSION_PATTERN);
+  if (!match) throw new Error(`Invalid semantic product version: ${version}`);
+  return {
+    core: [Number(match[1]), Number(match[2]), Number(match[3])],
+    prerelease: match[4]?.split(".") ?? [],
+  };
+}
+
+function compareSemanticVersions(left: string, right: string): number {
+  const a = parseSemanticVersion(left);
+  const b = parseSemanticVersion(right);
+  for (let index = 0; index < a.core.length; index += 1) {
+    const difference = (a.core[index] ?? 0) - (b.core[index] ?? 0);
+    if (difference !== 0) return Math.sign(difference);
+  }
+  if (a.prerelease.length === 0 || b.prerelease.length === 0) {
+    return a.prerelease.length === b.prerelease.length ? 0 : a.prerelease.length === 0 ? 1 : -1;
+  }
+  const length = Math.max(a.prerelease.length, b.prerelease.length);
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = a.prerelease[index];
+    const rightPart = b.prerelease[index];
+    if (leftPart === undefined || rightPart === undefined) {
+      return leftPart === rightPart ? 0 : leftPart === undefined ? -1 : 1;
+    }
+    if (leftPart === rightPart) continue;
+    const leftNumeric = /^\d+$/.test(leftPart);
+    const rightNumeric = /^\d+$/.test(rightPart);
+    if (leftNumeric && rightNumeric) return Math.sign(Number(leftPart) - Number(rightPart));
+    if (leftNumeric !== rightNumeric) return leftNumeric ? -1 : 1;
+    return leftPart < rightPart ? -1 : 1;
+  }
+  return 0;
+}
+
+export function parseProductReleases(raw: string): ProductReleaseNote[] {
   const normalized = normalizeProductChangelog(raw);
-  const releases = normalized.slice(PRODUCT_CHANGELOG_PREAMBLE.length).trim();
-  return `${PUBLIC_CHANGELOG_MARKER}${releases ? `\n\n${releases}` : ""}\n`;
+  const body = normalized.slice(PRODUCT_CHANGELOG_PREAMBLE.length).trim();
+  if (!body) return [];
+
+  const heading = /^## orgmemory@([^\s]+)\s*$/gm;
+  const matches = [...body.matchAll(heading)];
+  if (matches.length === 0 || matches[0]?.index !== 0) {
+    throw new Error("release/CHANGELOG.md must contain only orgmemory release sections after its preamble");
+  }
+
+  const seen = new Set<string>();
+  return matches.map((match, index) => {
+    const version = match[1];
+    if (!version) throw new Error("Product release heading must contain a semantic version");
+    parseSemanticVersion(version);
+    if (seen.has(version)) throw new Error(`Duplicate product release in changelog: ${version}`);
+    seen.add(version);
+    const start = match.index ?? 0;
+    const end = matches[index + 1]?.index ?? body.length;
+    return { version, markdown: body.slice(start, end).trim() };
+  });
+}
+
+export function validateProductReleaseHistory(
+  raw: string,
+  currentVersion?: string,
+): ProductReleaseNote[] {
+  const releases = parseProductReleases(raw);
+  if (currentVersion && releases[0]?.version !== currentVersion) {
+    throw new Error(
+      `Latest changelog version ${releases[0]?.version ?? "missing"} does not match product version ${currentVersion}`,
+    );
+  }
+  for (let index = 1; index < releases.length; index += 1) {
+    const previous = releases[index - 1];
+    const current = releases[index];
+    if (!previous || !current || compareSemanticVersions(previous.version, current.version) <= 0) {
+      throw new Error("Product changelog versions must be strictly descending by semantic version");
+    }
+  }
+  return releases;
+}
+
+function renderReleaseFragment(releases: ProductReleaseNote[], emptyMessage = ""): string {
+  const body = releases
+    .map((release) => {
+      const publicMarkdown = release.markdown.replace(
+        /^## orgmemory@[^\s]+[ \t]*$/m,
+        `## ${publicReleaseHeading(release.version)}`,
+      );
+      return publicMarkdown;
+    })
+    .join("\n\n");
+  const content = body || emptyMessage;
+  return `${PUBLIC_CHANGELOG_MARKER}${content ? `\n\n${content}` : ""}\n`;
+}
+
+export function renderPublicProductChangelog(raw: string): string {
+  return renderReleaseFragment(validateProductReleaseHistory(raw).slice(0, RECENT_RELEASE_LIMIT));
+}
+
+export function renderArchivedProductChangelog(raw: string): string {
+  return renderReleaseFragment(
+    validateProductReleaseHistory(raw).slice(RECENT_RELEASE_LIMIT),
+    "No releases have moved to the archive yet.",
+  );
+}
+
+function publicReleaseHeading(version: string): string {
+  return `Organizational AI Memory v${version}`;
+}
+
+export function renderReleaseNavigationMeta(raw: string, language: "en" | "vi"): string {
+  const localized = language === "vi";
+  const base = localized ? "/vi/docs/changelog" : "/docs/changelog";
+  const releases = validateProductReleaseHistory(raw).slice(0, RECENT_RELEASE_LIMIT);
+  const slugger = new GithubSlugger();
+  const pages = [
+    `[${localized ? "Mới nhất" : "Latest"}](${base})`,
+    ...releases.map(
+      ({ version }) => `[v${version}](${base}#${slugger.slug(publicReleaseHeading(version))})`,
+    ),
+    "archive",
+  ];
+  return `${JSON.stringify(
+    {
+      title: localized
+        ? "Ghi chú phát hành Organizational AI Memory"
+        : "Organizational AI Memory Release Notes",
+      description: localized
+        ? "Xem các bản phát hành Organizational AI Memory gần đây và toàn bộ lịch sử phát hành."
+        : "Browse recent Organizational AI Memory product releases and the complete release archive.",
+      icon: "ClockArrowUp",
+      root: true,
+      pagesIndex: "index",
+      pages,
+    },
+    null,
+    2,
+  )}\n`;
 }
 
 class OrgMemoryProductPackage extends WorkspacePackage {
@@ -606,14 +755,21 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
       const normalizedChangelog = normalizeProductChangelog(
         await readFile(changelogPath, "utf8"),
       );
+      validateProductReleaseHistory(normalizedChangelog, product?.version);
       await writeFile(changelogPath, normalizedChangelog, "utf8");
-      const publicChangelogPath = join(this.cwd, ...PUBLIC_CHANGELOG_INCLUDE.split("/"));
       await mkdir(join(this.cwd, "apps", "docs", "content", "includes"), { recursive: true });
-      await writeFile(
-        publicChangelogPath,
-        renderPublicProductChangelog(normalizedChangelog),
-        "utf8",
-      );
+      await mkdir(join(this.cwd, "apps", "docs", "content", "docs", "changelog"), {
+        recursive: true,
+      });
+      const generatedFiles = new Map([
+        [PUBLIC_CHANGELOG_INCLUDE, renderPublicProductChangelog(normalizedChangelog)],
+        [PUBLIC_CHANGELOG_ARCHIVE_INCLUDE, renderArchivedProductChangelog(normalizedChangelog)],
+        [PUBLIC_CHANGELOG_META, renderReleaseNavigationMeta(normalizedChangelog, "en")],
+        [PUBLIC_CHANGELOG_META_VI, renderReleaseNavigationMeta(normalizedChangelog, "vi")],
+      ]);
+      for (const [path, content] of generatedFiles) {
+        await writeFile(join(this.cwd, ...path.split("/")), content, "utf8");
+      }
       const tracked = await run("git", ["diff", "--name-only", "--relative", "HEAD"], this.cwd);
       const untracked = await run(
         "git",

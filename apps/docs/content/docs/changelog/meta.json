@@ -1,0 +1,13 @@
+{
+  "title": "Organizational AI Memory Release Notes",
+  "description": "Browse recent Organizational AI Memory product releases and the complete release archive.",
+  "icon": "ClockArrowUp",
+  "root": true,
+  "pagesIndex": "index",
+  "pages": [
+    "[Latest](/docs/changelog)",
+    "[v0.1.1](/docs/changelog#organizational-ai-memory-v011)",
+    "[v0.1.0](/docs/changelog#organizational-ai-memory-v010)",
+    "archive"
+  ]
+}
