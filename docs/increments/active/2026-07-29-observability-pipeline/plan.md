@@ -1,5 +1,18 @@
 # Observability pipeline plan
 
+Narrowed 2026-07-31. Phase 3 shipped inside the observability platform
+increment, and the `GENERATE` boundary and telemetry-egress questions are
+settled by decisions 0020 and 0019. Two items remain open here, and both are
+decisions rather than implementation:
+
+- **Deletion and rebuild.** Missing from the stage enum entirely. Before it
+  becomes a stage, establish whether `ConnectorIngestionService.retire` reaches
+  all five read paths the drill names — content, lexical, vector, graph and
+  citation — or stops at content. Instrumenting an incomplete deletion would
+  report success for it, which is the failure this program exists to remove.
+- **`finish_reason=length` counter.** Needs the `ChatModelPort` change that
+  would let the adapter see the `ChatResponse` it currently discards.
+
 ## 0. Close the payload bypasses — code done, production evidence outstanding
 
 Highest priority. These are live paths, independent of the pipeline work.
@@ -206,7 +219,8 @@ Gate: module tests, `:core:test`, API context load, worker indexing tests.
 
 ## 3. Collector and dashboards — moved
 
-Superseded by `docs/increments/active/2026-07-30-observability-platform/`.
+Superseded by `docs/increments/completed/2026-07-30-observability-platform/`,
+which shipped 2026-07-31.
 
 It stopped being the last phase of an application-instrumentation cycle and
 became its own: server topology, a stack shared with another product, a network
