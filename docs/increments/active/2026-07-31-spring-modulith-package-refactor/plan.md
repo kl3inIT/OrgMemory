@@ -330,4 +330,8 @@ focused Source Ledger, Asset, Graph, API, Worker, and Modulith tests passed;
 `:core:test` passed; and the terminating repository-wide `clean test`
 completed successfully in 5m35s across 108 tasks. The docs operating-model,
 release contract, diff hygiene, and zero Source Ledger-to-Asset import checks
-passed. The pre-stage worktree contains 26 changed paths.
+passed. The pre-stage worktree contains 24 changed paths.
+
+After merging current `origin/main` at `250e1705`, a second repository-wide
+`clean test` completed successfully in 6m53s across 108 tasks; the PR diff
+remained 24 changed files.
