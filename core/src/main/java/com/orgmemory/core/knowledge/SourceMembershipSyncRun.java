@@ -10,7 +10,7 @@ import java.util.UUID;
 /** Immutable provenance shared by every group-membership snapshot captured in one batch. */
 @Entity
 @Table(name = "source_membership_sync_runs")
-class SourceMembershipSyncRun extends BaseEntity {
+public class SourceMembershipSyncRun extends BaseEntity {
 
     @Column(name = "organization_id", nullable = false, updatable = false)
     private UUID organizationId;
@@ -27,7 +27,7 @@ class SourceMembershipSyncRun extends BaseEntity {
     protected SourceMembershipSyncRun() {
     }
 
-    SourceMembershipSyncRun(
+    public SourceMembershipSyncRun(
             UUID organizationId,
             String sourceSystem,
             String sourceConnectionKey,

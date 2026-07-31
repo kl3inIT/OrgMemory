@@ -1,5 +1,7 @@
 package com.orgmemory.api.source;
 
+import com.orgmemory.core.knowledge.acl.AclAuthority;
+
 import com.orgmemory.core.knowledge.sourceledger.SourceSummary;
 
 import java.time.Instant;

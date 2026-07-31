@@ -1,7 +1,8 @@
 package com.orgmemory.connectors.googledrive;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import com.orgmemory.core.knowledge.ConnectorAclGrant;
-import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.permission.AccessGate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;

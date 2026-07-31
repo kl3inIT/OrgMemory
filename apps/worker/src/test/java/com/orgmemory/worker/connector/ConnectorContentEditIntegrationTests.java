@@ -1,5 +1,7 @@
 package com.orgmemory.worker.connector;
 
+import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -33,7 +35,6 @@ import com.orgmemory.core.knowledge.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.SourcePrincipalKind;
 import com.orgmemory.core.knowledge.ConnectorTombstone;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;

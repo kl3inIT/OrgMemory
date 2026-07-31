@@ -30,6 +30,13 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
+        var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+
+        assertTrue(acl.isOpen());
+    }
+
+    @Test
     void objectStorageIsAnExplicitKnowledgeInterface() {
         var knowledge = modules.getModuleByName("knowledge").orElseThrow();
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();

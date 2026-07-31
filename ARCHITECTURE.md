@@ -119,6 +119,10 @@ remains explicitly open while sibling repository dependencies are replaced by
 intentional APIs. `core.knowledge.sourceledger` owns the canonical source and
 revision ledger, evidence blobs, raw/normalized processing records, upload and
 query services, and durable ingestion jobs under the same transitional rule.
+The `core.knowledge.acl` nested module owns source ACL snapshots and heads,
+external-principal mappings, and group-membership evidence; it is also
+temporarily open while connector and source-ledger callers are routed through
+intentional facades.
 The provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

@@ -1,7 +1,8 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.AclCaptureStatus;
-import com.orgmemory.core.knowledge.SourceAclEntryCommand;
+import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
+
 
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;

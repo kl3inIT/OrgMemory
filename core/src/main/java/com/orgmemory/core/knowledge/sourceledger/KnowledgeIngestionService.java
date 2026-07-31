@@ -1,6 +1,19 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
+import com.orgmemory.core.knowledge.acl.RotateSourceAclCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclEntry;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
+import com.orgmemory.core.knowledge.acl.SourceAclEntryRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclHead;
+import com.orgmemory.core.knowledge.acl.SourceAclHeadRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclRotationRef;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
+import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
+
 import com.orgmemory.core.knowledge.ConnectorHeadView;
 import com.orgmemory.core.knowledge.KnowledgeAsset;
 import com.orgmemory.core.knowledge.KnowledgeAssetEvidenceLink;
@@ -11,18 +24,6 @@ import com.orgmemory.core.knowledge.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.KnowledgeAssetVersion;
 import com.orgmemory.core.knowledge.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
-import com.orgmemory.core.knowledge.RotateSourceAclCommand;
-import com.orgmemory.core.knowledge.SourceAclEntry;
-import com.orgmemory.core.knowledge.SourceAclEntryCommand;
-import com.orgmemory.core.knowledge.SourceAclEntryRepository;
-import com.orgmemory.core.knowledge.SourceAclHead;
-import com.orgmemory.core.knowledge.SourceAclHeadRepository;
-import com.orgmemory.core.knowledge.SourceAclRotationRef;
-import com.orgmemory.core.knowledge.SourceAclSnapshot;
-import com.orgmemory.core.knowledge.SourceAclSnapshotRepository;
-import com.orgmemory.core.knowledge.SourceAclSnapshotSeal;
-import com.orgmemory.core.knowledge.SourceAclSnapshotSealRepository;
-import com.orgmemory.core.knowledge.SourcePrincipalType;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceService;
 import com.orgmemory.core.organization.DepartmentRepository;
