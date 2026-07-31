@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-07-31-asset-ownership-navigation (7aa917b)`.
+Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -48,7 +48,8 @@ Reconciled: `2026-07-31-asset-ownership-navigation (7aa917b)`.
 | Asset type projection exposes every governed profile, reports the active filter, clears to the shared catalog, and preserves the grid-default URL plus explicit list state | `asset-type-filter.test.tsx`, `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | The Assets page keeps search and `All Assets | My Assets` as its primary navigation, encodes only the non-default owned scope in the URL, and stacks the controls without horizontal overflow on mobile | `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
-| The Asset catalog exposes one Add asset entry point, the profile chooser preserves the unified Asset surface, and the incomplete authoring step cannot create a Draft | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
+| The Asset catalog exposes one category-aware Add asset menu, keeps unsupported profiles non-interactive, and routes Skill into a creation-only surface rather than a second catalog | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
+| Browser Skill ZIP import preflights file/namespace input, loads live authorized Space targets, retains same-origin multipart CSRF protection, creates a private Draft through the canonical endpoint, reports public server rejection details without leaving the form, and navigates successful imports to Governance | `api-error.test.ts`, `skill-upload-validation.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Assistant action registry has no governance or arbitrary-execution path | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
