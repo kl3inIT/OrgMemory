@@ -1,6 +1,6 @@
 package com.orgmemory.api.assistant;
 
-import com.orgmemory.core.knowledge.GraphRagRetrievalPolicy;
+import com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy;
 import com.orgmemory.graphrag.query.SecureContextBudget;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;

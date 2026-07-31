@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.acl;
 
 import com.orgmemory.core.knowledge.connector.ActiveGroupMembershipRow;
-import com.orgmemory.core.knowledge.KnowledgeResourceNotFoundException;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.connector.SourceConnection;
 import com.orgmemory.core.knowledge.connector.SourceConnectionRepository;
 import com.orgmemory.core.knowledge.connector.SourceConnectionView;

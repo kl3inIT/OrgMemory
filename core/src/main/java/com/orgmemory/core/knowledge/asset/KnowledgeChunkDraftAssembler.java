@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.KnowledgeTextChunk;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk;
 
 import java.util.ArrayList;
 import java.util.List;
