@@ -58,6 +58,8 @@ import org.springframework.stereotype.Component;
 class SourceIngestionProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(SourceIngestionProcessor.class);
+    private static final TokenCountBatchingStrategy BATCHING_STRATEGY =
+            new TokenCountBatchingStrategy();
 
     private final SourceIngestionCoordinator coordinator;
     private final KnowledgeIngestionService ingestion;
@@ -245,7 +247,7 @@ class SourceIngestionProcessor {
                     .map(candidate -> new Document(candidate.content()))
                     .toList();
             List<float[]> vectors = embeddingModel.embed(
-                    embeddingDocuments, null, new TokenCountBatchingStrategy());
+                    embeddingDocuments, null, BATCHING_STRATEGY);
             var drafts = KnowledgeChunkDraftAssembler.assemble(
                     candidates, vectors, embeddingProfile.dimensions());
 

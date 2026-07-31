@@ -48,10 +48,6 @@ public record ScimSecurityProperties(
                 "SCIM rotation overlap must be between zero and 24 hours");
     }
 
-    public byte[] decodedVerifierKey() {
-        return Base64.getUrlDecoder().decode(verifierKey);
-    }
-
     public Map<Integer, byte[]> decodedVerifierKeys() {
         return decodedVerifierKeys(verifierKey, currentKeyVersion, previousVerifierKeys);
     }

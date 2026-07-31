@@ -35,6 +35,7 @@ import com.orgmemory.graphrag.model.ExtractionRoundMetrics;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
 import com.orgmemory.graphrag.port.EntityRelationExtractor;
 import com.orgmemory.graphrag.port.GraphRevisionProjection;
 import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
@@ -139,7 +140,7 @@ class GraphIndexingProcessorTests {
                             .toList();
                 });
 
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -266,7 +267,7 @@ class GraphIndexingProcessorTests {
         when(extractors.create(any())).thenReturn(request ->
                 new ExtractionResult(request.profile(), List.of(), List.of()));
 
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -313,7 +314,7 @@ class GraphIndexingProcessorTests {
             }
             return new ExtractionResult(request.profile(), List.of(), List.of());
         });
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -363,7 +364,7 @@ class GraphIndexingProcessorTests {
             }
             return new ExtractionResult(request.profile(), List.of(), List.of());
         });
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -406,7 +407,7 @@ class GraphIndexingProcessorTests {
             }
             return new ExtractionResult(request.profile(), List.of(), List.of());
         });
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -451,7 +452,7 @@ class GraphIndexingProcessorTests {
         doThrow(new IllegalStateException("lease expired"))
                 .when(coordinator)
                 .fail(any(), any(), any(), any());
-        GraphIndexingProcessor processor = new GraphIndexingProcessor(
+        GraphIndexingProcessor processor = processor(
                 coordinator,
                 publications,
                 extractors,
@@ -468,6 +469,26 @@ class GraphIndexingProcessorTests {
     private static ClaimedGraphIndex claim() {
         return claim(List.of(chunk(
                 CHUNK_ID, 0, "OrgMemory builds secure retrieval.", null)));
+    }
+
+    private static GraphIndexingProcessor processor(
+            GraphIndexingCoordinator coordinator,
+            GraphPublicationCommitter publications,
+            GraphExtractorFactory extractors,
+            ObjectProvider<EmbeddingModel> embeddingModels,
+            AiRouteResolver routes,
+            GraphIndexingProperties properties,
+            GraphRagEventSink events) {
+        return new GraphIndexingProcessor(
+                coordinator,
+                publications,
+                extractors,
+                embeddingModels,
+                routes,
+                properties,
+                events,
+                GraphRagTaskDecorator.NONE,
+                null);
     }
 
     /**
@@ -497,7 +518,7 @@ class GraphIndexingProcessorTests {
                         .stream()
                         .map(ignored -> new float[] {1.0f, 0.0f, 0.0f})
                         .toList());
-        return new GraphIndexingProcessor(
+        return processor(
                 coordinator,
                 mock(GraphPublicationCommitter.class),
                 extractors,
@@ -621,8 +642,6 @@ class GraphIndexingProcessorTests {
     private static GraphIndexingProperties properties(
             Duration leaseDuration, Duration extractionTimeout) {
         return new GraphIndexingProperties(
-                false,
-                Duration.ofSeconds(3),
                 "graph-worker-test",
                 leaseDuration,
                 extractionTimeout,
