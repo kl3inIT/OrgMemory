@@ -27,7 +27,8 @@ export function parseAssetCatalogSearch(search: Record<string, unknown>): {
     search.sort === "NAME" || search.sort === "RECENTLY_RELEASED"
       ? search.sort
       : undefined
-  const view = search.view === "GRID" ? search.view : undefined
+  const view =
+    search.view === "LIST" || search.view === "GRID" ? search.view : undefined
   const parsedPage =
     typeof search.page === "number"
       ? search.page

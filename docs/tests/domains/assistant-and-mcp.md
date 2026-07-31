@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-30-observability-platform (98d0f53)`.
+Reconciled: `2026-07-30-observability-platform (ddb4891)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -24,6 +24,7 @@ Reconciled: `2026-07-30-observability-platform (98d0f53)`.
 | Hostile upload media types cannot make citation content execute inline | `SourceUploadServiceTests#derivesTheStoredMediaTypeFromTheAllowlistedExtension`, `CitationContentControllerTests` | covered |
 | Empty evidence, provider retry, and user abort are browser-tested | `assistant-pipeline.spec.ts` | covered |
 | GraphRAG is selected explicitly with no silent fallback | `AssistantConfigurationTests` | covered |
+| Application configuration declares no bean condition Boot evaluates before auto-configuration, so an observation handler cannot be silently dropped | `ConfigurationConditionTests#applicationConfigurationDoesNotUseBeanConditions` | covered |
 | MCP publishes only read-only permission-aware contracts with object output schemas | `OrgMemoryMcpContextTests#publishesOnlyThePermissionAwareReadOnlyContracts` | covered |
 | Completion is published for the released Prompt argument and both Asset resource templates | `OrgMemoryMcpContextTests#completesEveryPublishedPromptArgumentAndResourceTemplate` | covered |
 | Completion suggests only authorized values, narrows releases to the resolved Asset, and stays empty when delivery refuses the identity | `AssetCompletionAdapterTests` | covered |
@@ -40,4 +41,6 @@ Reconciled: `2026-07-30-observability-platform (98d0f53)`.
 | A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
 | Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |
 | The turn event structurally refuses free text where a failure code belongs | `AssistantTurnEventTests` | covered |
+| Every row above about time to first token holds against the handler in isolation and held while the handler was never registered in a running application; only `ConfigurationConditionTests` and production traffic distinguish the two | `AssistantTurnObservationTests` construct the handler directly | partial |
+| Every meter a dashboard charts as a quantile publishes a bounded percentile histogram | `MetricsDistributionTests` | covered |
 | General chat-turn idempotency | none | not implemented |

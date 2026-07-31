@@ -133,6 +133,23 @@ management:
       # leaves most indexing jobs with no trace at all. The API keeps 0.1 because
       # its request volume is the reason sampling exists.
       probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:1.0}
+  metrics:
+    distribution:
+      # See the API's copy for why: without this a Micrometer timer exports one
+      # `+Inf` bucket and every `histogram_quantile` panel is silently NaN. The
+      # worker owns the graph-rag stages the pipeline board charts.
+      percentiles-histogram:
+        jvm.gc.pause: true
+        orgmemory.graph_rag: true
+        gen_ai.client.operation: true
+      minimum-expected-value:
+        orgmemory.graph_rag: 5ms
+        gen_ai.client.operation: 50ms
+      maximum-expected-value:
+        # Extraction and indexing run long by design, so the worker's ceiling is
+        # higher than the API's rather than copied from it.
+        orgmemory.graph_rag: 300s
+        gen_ai.client.operation: 300s
   otlp:
     metrics:
       export:

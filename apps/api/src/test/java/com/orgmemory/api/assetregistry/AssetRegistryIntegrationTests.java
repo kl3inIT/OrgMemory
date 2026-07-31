@@ -34,6 +34,7 @@ import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.assetregistry.AssetConflictException;
 import com.orgmemory.core.assetregistry.AssetDraftInput;
 import com.orgmemory.core.assetregistry.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetRole;
@@ -49,6 +50,7 @@ import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
+import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.knowledge.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.KnowledgeCatalogService;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
@@ -972,7 +974,7 @@ class AssetRegistryIntegrationTests {
     }
 
     @Test
-    void skillImportPinsTheValidatedBlobToRevisionAndRelease() throws Exception {
+    void skillImportPublishesDirectlyAndPinsTheValidatedBlob() throws Exception {
         byte[] archive = skillArchive(
                 "support-triage",
                 "Triage a support ticket using the approved company workflow.");
@@ -986,16 +988,8 @@ class AssetRegistryIntegrationTests {
         assertEquals(AssetType.SKILL, created.type());
         assertEquals("support-triage", created.slug());
         assertFalse(created.draft().payload().contains("assets/skills/"));
-        grantWorkflowRoles(created.id());
-
-        AssetView submitted =
-                assets.submit(AUTHOR, created.id(), "Import support triage Skill");
-        approve(created.id(), submitted);
-        AssetView published = assets.publish(
-                AUTHOR,
-                created.id(),
-                submitted.revisions().getFirst().id(),
-                "1.0.0");
+        AssetView published =
+                assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0");
 
         List<Map<String, Object>> references = jdbc.queryForList(
                 """
@@ -1024,7 +1018,35 @@ class AssetRegistryIntegrationTests {
                 references.getFirst().get("content_length"),
                 references.getLast().get("content_length"));
         assertEquals("application/zip", references.getFirst().get("media_type"));
+        assertEquals(1, published.revisions().size());
+        assertTrue(published.reviews().isEmpty());
         assertEquals(1, published.releases().size());
+        assertEquals(
+                AssetPublicationMode.DIRECT,
+                published.releases().getFirst().publicationMode());
+        assertEquals(
+                "DIRECT",
+                jdbc.queryForObject(
+                        """
+                        SELECT publication_mode
+                        FROM asset_releases
+                        WHERE id = ?
+                        """,
+                        String.class,
+                        published.releases().getFirst().id()));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM asset_audit_events
+                        WHERE asset_id = ?
+                          AND event_type = 'SKILL_RELEASE_PUBLISHED_DIRECTLY'
+                          AND decision_context ->> 'policy' = 'skill-direct-v1'
+                          AND decision_context ->> 'permission' = 'can_publish_skill'
+                        """,
+                        Integer.class,
+                        created.id()));
 
         AssetConflictException failure = assertThrows(
                 AssetConflictException.class,
@@ -1036,6 +1058,50 @@ class AssetRegistryIntegrationTests {
                         "support-triage-copy",
                         SPACE_ID));
         assertEquals("Skill releases cannot be forked yet.", failure.getMessage());
+    }
+
+    @Test
+    void directSkillPublicationDoesNotBypassAnActiveReview() throws Exception {
+        byte[] archive = skillArchive(
+                "reviewed-skill",
+                "A Skill whose author explicitly selected the reviewed path.");
+        AssetView created = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                archive.length,
+                new ByteArrayInputStream(archive));
+        AssetView submitted =
+                assets.submit(AUTHOR, created.id(), "Request independent review");
+
+        AssetConflictException failure = assertThrows(
+                AssetConflictException.class,
+                () -> assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0"));
+
+        assertEquals(
+                "This Skill already has a revision in review; finish or cancel it first",
+                failure.getMessage());
+        assertEquals(1, submitted.reviews().size());
+        assertTrue(assets.get(AUTHOR, created.id()).releases().isEmpty());
+    }
+
+    @Test
+    void directSkillPublicationRejectsEveryOtherAssetProfile() {
+        AssetView prompt = assets.create(
+                AUTHOR,
+                AssetType.PROMPT_TEMPLATE,
+                "support",
+                "not-a-skill",
+                SPACE_ID,
+                input("Classify {{ticket_text}}"));
+
+        BusinessValidationException failure = assertThrows(
+                BusinessValidationException.class,
+                () -> assets.publishSkillDraft(AUTHOR, prompt.id(), "1.0.0"));
+
+        assertEquals("skill.direct-publish-unsupported", failure.code());
+        assertTrue(assets.get(AUTHOR, prompt.id()).releases().isEmpty());
     }
 
     @Test

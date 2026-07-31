@@ -33,11 +33,11 @@ import type {
 } from "@/features/assets/asset-catalog-state"
 import {
   ASSET_TYPE_META,
-  ASSET_TYPES,
   type AssetType,
   formatAssetCoordinate,
 } from "@/features/assets/asset-format"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
+import { AssetTypeFilter } from "@/features/assets/components/asset-type-filter"
 import type { AssetRecommendation } from "@/lib/hey-api"
 import { listAssetCatalogOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
 
@@ -121,9 +121,14 @@ function AssetGrid({ assets }: { assets: CatalogAsset[] }) {
                 <p className="truncate text-metadata font-mono text-content-muted">
                   {formatAssetCoordinate(asset)}
                 </p>
-                <h2 className="mt-2 line-clamp-2 text-section-title text-content-primary">
-                  {asset.title}
-                </h2>
+                <AssetLink
+                  asset={asset}
+                  className="mt-2 block rounded-sm outline-none hover:text-action-link-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  <h2 className="line-clamp-2 text-section-title text-content-primary">
+                    {asset.title}
+                  </h2>
+                </AssetLink>
               </div>
             </CardHeader>
             <CardContent className="px-5 pb-4">
@@ -327,38 +332,18 @@ export function AssetCatalogPage({
             </InputGroup>
           }
           filters={
-            <>
-              <Select
-                value={type ?? "ALL"}
-                onValueChange={(value: string) =>
-                  onTypeChange(value === "ALL" ? undefined : (value as AssetType))
-                }
-              >
-                <SelectTrigger aria-label="Filter asset type" className="w-full sm:w-48">
-                  <SelectValue placeholder="All asset types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All asset types</SelectItem>
-                  {ASSET_TYPES.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={sort}
-                onValueChange={(value: string) => onSortChange(value as AssetCatalogSort)}
-              >
-                <SelectTrigger aria-label="Sort assets" className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RECENTLY_RELEASED">Recently released</SelectItem>
-                  <SelectItem value="NAME">Name</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
+            <Select
+              value={sort}
+              onValueChange={(value: string) => onSortChange(value as AssetCatalogSort)}
+            >
+              <SelectTrigger aria-label="Sort assets" className="w-full sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="RECENTLY_RELEASED">Recently released</SelectItem>
+                <SelectItem value="NAME">Name</SelectItem>
+              </SelectContent>
+            </Select>
           }
           actions={
             <ButtonGroup aria-label="Asset layout">
@@ -387,6 +372,7 @@ export function AssetCatalogPage({
             </ButtonGroup>
           }
         />
+        <AssetTypeFilter value={type} onValueChange={onTypeChange} />
       </PageLayout.Header>
 
       <PageLayout.Body>

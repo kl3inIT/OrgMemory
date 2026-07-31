@@ -42,6 +42,7 @@ class SkillDistributionServiceTests {
 
         assertEquals("support/triage", manifest.coordinate());
         assertEquals("1.2.0", manifest.version());
+        assertEquals(AssetPublicationMode.DIRECT, manifest.publicationMode());
         assertEquals(PACKAGE_DIGEST, manifest.packageDigest());
         assertEquals("SKILL.md", manifest.files().getFirst().path());
         assertTrue(manifest.toString().indexOf("private/skill.zip") < 0);
@@ -167,6 +168,7 @@ class SkillDistributionServiceTests {
                 "support",
                 "triage",
                 "1.2.0",
+                AssetPublicationMode.DIRECT,
                 "Support triage",
                 "Triage customer issues",
                 "INTERNAL",

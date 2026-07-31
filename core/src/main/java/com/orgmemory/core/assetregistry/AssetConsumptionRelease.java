@@ -11,6 +11,7 @@ public record AssetConsumptionRelease(
         String namespace,
         String slug,
         String versionLabel,
+        AssetPublicationMode publicationMode,
         String title,
         String summary,
         String classification,

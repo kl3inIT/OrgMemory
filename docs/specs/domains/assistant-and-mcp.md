@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-30-observability-platform (98d0f53)`.
+Reconciled: `2026-07-30-observability-platform (ddb4891)`.
 
 ## Current Behavior
 
@@ -45,6 +45,19 @@ permission-scoped retrieval runs while the user waits. Spring AI's
 usage and finish reason; it observes inside `ChatModel`, below `ChatModelPort`,
 and starts after retrieval, so the two measurements answer different questions.
 No meter carries an organization, request or conversation identifier.
+
+Those two meters are load-bearing because the trace does not cover the turn. The
+streamed generation runs on a thread the request's trace context does not reach,
+so its span becomes the root of a separate trace instead of a child of the HTTP
+request — the parent-child limitation Spring AI documents for streaming calls.
+A measured turn on 2026-07-31 spent 3.2 of 13.0 seconds in retrieval, fully
+broken down by `orgmemory.graph_rag.*`, and the remaining 9.8 seconds carries no
+span at all: 75% of the turn. The ChatClient and advisor layer between
+`AssistantService` and `ChatModel` is unobserved for a second reason —
+`ChatClient.builder(ChatModel)` supplies `ObservationRegistry.NOOP` — but that
+layer is a chat-memory read, not the missing time. Turn duration and time to
+first token are what answer "how long, and how long until the user saw
+something" while the trace cannot.
 
 Assistant chat and governed Prompt execution now resolve their model route with
 the current `organizationId`. An organization override selects one encrypted

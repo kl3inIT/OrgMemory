@@ -18,7 +18,6 @@ const KNOWLEDGE_ID = "90000000-0000-0000-0000-000000000002"
 const KNOWLEDGE_VERSION_ID = "90000000-0000-0000-0000-000000000007"
 const SKILL_ID = "b1000000-0000-0000-0000-000000000001"
 const SKILL_REVISION_ID = "b1000000-0000-0000-0000-000000000002"
-const SKILL_REVIEW_ID = "b1000000-0000-0000-0000-000000000003"
 const SKILL_RELEASE_ID = "b1000000-0000-0000-0000-000000000005"
 const SKILL_DIGEST = "c".repeat(64)
 
@@ -37,21 +36,22 @@ test("Skill publication hands the author to capability-aware Governance", async 
   await expect(page.getByText(SKILL_DIGEST)).toBeVisible()
   await expect(page.getByText("references/policy.md")).toBeVisible()
 
-  await page.getByLabel("Change note").fill("Ready for governed review")
-  await page.getByRole("button", { name: "Submit for review" }).click()
-  await page.getByRole("button", { name: "Confirm submit for review" }).click()
+  await expect(page.getByRole("tab", { name: "Review" })).toHaveCount(0)
+  await page.getByLabel("Version").fill("1.0.0")
+  await page.getByRole("button", { name: "Publish Skill" }).click()
+  await page.getByRole("button", { name: "Confirm publish skill" }).click()
 
-  await expect(page.getByRole("tab", { name: "Review" })).toHaveAttribute(
+  await expect(page.getByRole("tab", { name: "Releases" })).toHaveAttribute(
     "data-state",
     "active",
   )
-  await expect(page.getByText("IN_REVIEW", { exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Approve exact digest" })).toHaveCount(0)
+  await expect(page.getByText("Direct", { exact: true })).toBeVisible()
+  await expect(page.getByText("1.0.0", { exact: true })).toBeVisible()
   expect(harness.requests).toContain(
     `GET /api/assets/${SKILL_ID}/governance-actions`,
   )
   expect(harness.requests).toContain(
-    `POST /api/assets/${SKILL_ID}/submissions`,
+    `POST /api/assets/${SKILL_ID}/skill-releases`,
   )
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
@@ -148,7 +148,7 @@ test("two users prove governed release and second-user Pack completion", async (
   await supportContext.close()
 })
 
-test("asset catalog defaults to a dense list and keeps grid state in the URL", async ({
+test("asset catalog defaults to a grid and keeps list state in the URL", async ({
   page,
 }) => {
   const harness = await assetHarness(page, "support", catalogRecommendations())
@@ -157,25 +157,25 @@ test("asset catalog defaults to a dense list and keeps grid state in the URL", a
   await page.goto("/assets")
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
-  await expect(page.getByRole("table")).toBeVisible()
-  await expect(page.getByRole("columnheader", { name: "Released" })).toBeVisible()
+  await expect(page.getByRole("table")).toHaveCount(0)
+  await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
 
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
-      path: "../output/design-qa/asset-catalog-list.png",
+      path: "../output/design-qa/asset-catalog-grid.png",
       fullPage: false,
     })
   }
 
+  await page.getByRole("button", { name: "List view" }).click()
+  await expect(page).toHaveURL(/view=LIST/)
+  await expect(page.getByRole("table")).toBeVisible()
+
   await page.getByRole("button", { name: "Grid view" }).click()
-  await expect(page).toHaveURL(/view=GRID/)
+  await expect(page).not.toHaveURL(/view=/)
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
-
-  await page.getByRole("button", { name: "List view" }).click()
-  await expect(page).not.toHaveURL(/view=/)
-  await expect(page.getByRole("table")).toBeVisible()
 
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
@@ -325,14 +325,14 @@ function catalogRecommendations() {
 
 async function skillGovernanceHarness(page: Page) {
   const harness = baseHarness(page, "owner", "skill-governance-token")
-  let submitted = false
+  let published = false
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
     if (!requestContext) return
     const { request, url, signature } = requestContext
     if (url.pathname === `/api/assets/${SKILL_ID}`) {
-      await json(route, skillDraftAsset(submitted))
+      await json(route, skillDraftAsset(published))
       return
     }
     if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
@@ -340,15 +340,16 @@ async function skillGovernanceHarness(page: Page) {
         canSubmitReview: true,
         canReview: false,
         canPublish: false,
+        canPublishSkill: true,
         canWithdraw: false,
       })
       return
     }
     if (
       request.method() === "POST" &&
-      url.pathname === `/api/assets/${SKILL_ID}/submissions`
+      url.pathname === `/api/assets/${SKILL_ID}/skill-releases`
     ) {
-      submitted = true
+      published = true
       await json(route, skillDraftAsset(true))
       return
     }
@@ -550,7 +551,7 @@ function packAsset() {
   }
 }
 
-function skillDraftAsset(submitted: boolean) {
+function skillDraftAsset(published: boolean) {
   const timestamp = "2026-07-27T00:00:00Z"
   const payload = JSON.stringify({
     name: "expense-review",
@@ -574,7 +575,7 @@ function skillDraftAsset(submitted: boolean) {
     namespace: "finance",
     slug: "expense-review",
     knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
-    portfolioState: "ACTIVE",
+    portfolioState: published ? "ACTIVE" : "DRAFT_ONLY",
     authorizationReady: true,
     draft: {
       id: "b1000000-0000-0000-0000-000000000004",
@@ -587,7 +588,7 @@ function skillDraftAsset(submitted: boolean) {
       editedByUserId: OWNER_ID,
       updatedAt: timestamp,
     },
-    revisions: submitted
+    revisions: published
       ? [
           {
             id: SKILL_REVISION_ID,
@@ -598,27 +599,41 @@ function skillDraftAsset(submitted: boolean) {
             schemaVersion: "agent-skill.v1",
             payload,
             digest: SKILL_DIGEST,
-            changeNote: "Ready for governed review",
+            changeNote: "Direct Skill publication",
             createdByUserId: OWNER_ID,
             createdAt: timestamp,
           },
         ]
       : [],
-    reviews: submitted
+    reviews: [],
+    releases: published
       ? [
           {
-            id: SKILL_REVIEW_ID,
+            id: SKILL_RELEASE_ID,
             revisionId: SKILL_REVISION_ID,
-            revisionDigest: SKILL_DIGEST,
-            state: "IN_REVIEW",
-            policyVersion: "asset-review-v1",
-            requestedByUserId: OWNER_ID,
-            createdAt: timestamp,
-            decisions: [],
+            sequence: 1,
+            versionLabel: "1.0.0",
+            publicationMode: "DIRECT",
+            title: "Expense review",
+            summary: "Review one expense using approved policy",
+            classification: "INTERNAL",
+            schemaVersion: "agent-skill.v1",
+            payload,
+            digest: SKILL_DIGEST,
+            releasedByUserId: OWNER_ID,
+            releasedAt: timestamp,
+            availability: "AVAILABLE",
+            availabilityHistory: [
+              {
+                availability: "AVAILABLE",
+                reason: "Direct Skill publication",
+                changedByUserId: OWNER_ID,
+                effectiveAt: timestamp,
+              },
+            ],
           },
         ]
       : [],
-    releases: [],
     ownershipHealth: {
       ownerPresent: true,
       backupOwnerPresent: true,
@@ -645,6 +660,7 @@ function releasedSkillAsset() {
         revisionId: SKILL_REVISION_ID,
         sequence: 1,
         versionLabel: "1.0.0",
+        publicationMode: "DIRECT",
         title: "decision-record-writer",
         summary: "Turn a completed discussion into a concise decision record",
         classification: "INTERNAL",
@@ -675,6 +691,7 @@ function skillInstallManifest() {
     slug: "decision-record-writer",
     coordinate: "productivity/decision-record-writer",
     version: "1.0.0",
+    publicationMode: "DIRECT",
     title: "decision-record-writer",
     description: "Turn a completed discussion into a concise decision record",
     releaseDigest: SKILL_DIGEST,

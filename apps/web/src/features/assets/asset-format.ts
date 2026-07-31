@@ -11,10 +11,10 @@ import type { AssetSummary, AssetView, Release } from "@/lib/hey-api"
 export type AssetType = NonNullable<AssetSummary["type"]>
 
 export const ASSET_TYPES: Array<{ value: AssetType; label: string }> = [
-  { value: "PROMPT_TEMPLATE", label: "Prompt template" },
-  { value: "WORK_INSTRUCTION", label: "Work instruction" },
-  { value: "CAPABILITY_PACK", label: "Capability pack" },
-  { value: "SKILL", label: "Skill" },
+  { value: "PROMPT_TEMPLATE", label: "Prompt templates" },
+  { value: "WORK_INSTRUCTION", label: "Work instructions" },
+  { value: "CAPABILITY_PACK", label: "Capability packs" },
+  { value: "SKILL", label: "Skills" },
 ]
 
 export const ASSET_TYPE_META: Record<

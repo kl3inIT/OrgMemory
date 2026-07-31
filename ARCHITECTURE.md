@@ -115,8 +115,10 @@ review decisions, immutable releases, append-only availability history, and
 actor-scoped consumption evidence. Prompt Template, Work Instruction,
 Capability Pack, and Skill Package are code-owned profiles over this common
 kernel. A Skill import validates one bounded Agent Skills ZIP before its
-original bytes enter object storage; immutable revision and release references
-pin the exact object key and SHA-256. Existing
+original bytes enter object storage. An owner-class actor may publish that
+Draft directly into an immutable Revision and Release; the optional reviewed
+path remains available, and every release records `DIRECT` or `REVIEWED`
+provenance. Both paths pin the exact object key and SHA-256. Existing
 Knowledge remains in its canonical ledger and is federated by exact visible
 version; it is not copied into registry tables.
 
@@ -440,6 +442,33 @@ atomically pins a new model before recreating API and worker containers only
 when the repository model digest changes; unchanged models are no-ops. Failed
 deployment rollback restores the previous images and previous model pin.
 
+Telemetry leaves each application over OTLP to one collector and nothing else,
+so a backend can be replaced without redeploying the product. Applications name
+`observability-alloy:4318` over the pre-existing `shared-infra` network through
+Spring properties, never `OTEL_*`: production sets
+`management.opentelemetry.map-environment-variables: false`, which makes every
+`OTEL_*` variable inert. The exporters are opt-in — Micrometer's OTLP registry
+defaults to `http://localhost:4318`, which inside a container is the container
+itself, and an application exported there for weeks while looking healthy.
+
+The collector stack lives in `infrastructure/observability/`, is started and
+stopped independently of the product, and runs Grafana, Prometheus, Loki, Tempo,
+Alloy, and host, container and database exporters. Alloy fans OTLP traces to
+Tempo and metrics to Prometheus by remote write with exemplars on, and tails
+container logs from the json-file driver into Loki. Grafana is published through
+the edge proxy and authenticates against the product Keycloak realm, gated by an
+`observability` role rather than by realm membership. See
+[the stack README](infrastructure/observability/README.md) and
+[decision 0021](docs/decisions/0021-grafana-authenticates-through-keycloak-gated-by-a-role.md).
+
+Timers that a dashboard charts as a quantile declare
+`management.metrics.distribution.percentiles-histogram` with a bounded expected
+range. A Micrometer timer publishes one `+Inf` bucket otherwise, which exports a
+correct count and sum while every `histogram_quantile` over it returns NaN — a
+latency panel that is empty rather than wrong. The bound matters in both
+directions: set below the real tail it pins the quantile to itself, so the HTTP
+range covers a streamed assistant turn rather than an ordinary request.
+
 ## Build And Run
 
 ```powershell
@@ -454,3 +483,14 @@ corepack pnpm --filter @orgmemory/web build
 corepack pnpm --filter @orgmemory/docs check
 corepack pnpm --filter @orgmemory/docs build
 ```
+
+The collector stack is a separate compose project, so it starts and stops
+without touching the product:
+
+```bash
+cd infrastructure/observability
+docker compose -f compose.observability.yaml --env-file observability.env up -d
+```
+
+Readiness is not evidence that telemetry arrives. Push a trace through the real
+path and read it back; the README carries the exact commands.

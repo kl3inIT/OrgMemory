@@ -37,7 +37,8 @@ leave a durable verdict artifact.
 ## Procedure
 
 1. **Write a challenge brief file** — `challenge-brief.md` in the active
-   increment (pattern: `docs/increments/active/2026-07-29-observability-pipeline/challenge-brief.md`).
+   increment (pattern: `docs/increments/active/<YYYY-MM-DD-slug>/challenge-brief.md`; a worked
+   example is `docs/increments/completed/2026-07-29-observability-pipeline/challenge-brief.md`).
    It must contain:
    - adversarial framing: the reviewer's job is to attack the proposal, not
      validate it, and to verify claims in the code itself;

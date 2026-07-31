@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assetregistry.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
@@ -121,6 +122,7 @@ class AssetConsumptionControllerTests {
                 "decision-record-writer",
                 "productivity/decision-record-writer",
                 "1.0.0",
+                AssetPublicationMode.DIRECT,
                 "Decision record writer",
                 "Write a concise decision record",
                 "a".repeat(64),

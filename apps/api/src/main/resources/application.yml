@@ -191,6 +191,46 @@ management:
   tracing:
     sampling:
       probability: ${ORGMEMORY_TRACING_SAMPLING_PROBABILITY:0.1}
+  metrics:
+    distribution:
+      # Without this a Micrometer timer exports exactly one bucket, `+Inf`, and
+      # every `histogram_quantile` over it is NaN. Nothing errors: the count and
+      # sum are exported, the panel is wired to the right metric, and the chart
+      # is simply empty forever. Every latency panel on every board was in that
+      # state until this was set.
+      #
+      # Percentile histograms rather than `distribution.percentiles`: a quantile
+      # computed inside one instance cannot be re-aggregated across instances or
+      # re-windowed by a dashboard, so client-side percentiles answer a narrower
+      # question than the one the panels ask. Keys match by prefix, longest wins.
+      percentiles-histogram:
+        http.server.requests: true
+        jvm.gc.pause: true
+        orgmemory.assistant: true
+        orgmemory.graph_rag: true
+        gen_ai.client.operation: true
+      # Bucket count is the series multiplier, and these meters are already
+      # tagged — `orgmemory.graph_rag.stage` by thirteen stages. Bounding the
+      # expected range bounds the buckets Micrometer generates within it.
+      minimum-expected-value:
+        http.server.requests: 5ms
+        orgmemory.assistant: 50ms
+        orgmemory.graph_rag: 5ms
+        gen_ai.client.operation: 50ms
+      maximum-expected-value:
+        # The assistant and the model calls beneath it are answered by an LLM
+        # over permission-scoped retrieval; ten seconds is a normal turn, so a
+        # range that stops there would put every real answer in the top bucket.
+        #
+        # That applies to `http.server.requests` too, which is the mistake this
+        # ceiling used to make: `/api/assistant/chat` is an HTTP request that
+        # streams for the whole turn, so a ten-second ceiling sent every real
+        # chat into the overflow bucket and pinned HTTP p95 at exactly 10s. A
+        # quantile sitting precisely on its own bound is the signature.
+        http.server.requests: 120s
+        orgmemory.assistant: 120s
+        orgmemory.graph_rag: 60s
+        gen_ai.client.operation: 120s
   otlp:
     metrics:
       export:

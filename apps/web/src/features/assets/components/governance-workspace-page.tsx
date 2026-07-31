@@ -88,6 +88,11 @@ export function GovernanceWorkspacePage({
     )
   }
   const activeTab = selectedTab ?? initialGovernanceTab(asset.data)
+  const showReviewTab = Boolean(
+    asset.data.type !== "SKILL" ||
+      asset.data.reviews?.length ||
+      actions.data?.canReview,
+  )
 
   return (
     <PageLayout.Root variant="wide">
@@ -121,7 +126,7 @@ export function GovernanceWorkspacePage({
             <TabsList aria-label="Governance sections">
               {asset.data.draft ? <TabsTrigger value="draft">Draft</TabsTrigger> : null}
               <TabsTrigger value="changes">Changes</TabsTrigger>
-              <TabsTrigger value="review">Review</TabsTrigger>
+              {showReviewTab ? <TabsTrigger value="review">Review</TabsTrigger> : null}
               <TabsTrigger value="releases">Releases</TabsTrigger>
             </TabsList>
           </PageLayout.Tabs>
@@ -132,6 +137,7 @@ export function GovernanceWorkspacePage({
                 actions={actions.data}
                 onChanged={refresh}
                 onSubmitted={() => setSelectedTab("review")}
+                onPublished={() => setSelectedTab("releases")}
               />
             </TabsContent>
           ) : null}
@@ -457,6 +463,9 @@ function ReleaseHistory({
                 </Badge>
                 <Badge className={availabilityTone(release.availability)}>
                   {release.availability}
+                </Badge>
+                <Badge variant="outline">
+                  {release.publicationMode === "DIRECT" ? "Direct" : "Reviewed"}
                 </Badge>
               </div>
               <h2 className="mt-4 text-section-title">{release.title}</h2>

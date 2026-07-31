@@ -1,6 +1,22 @@
 # Observability pipeline plan
 
-## 0. Close the payload bypasses — code done, production evidence outstanding
+Closed 2026-07-31. Phase 3 shipped inside the observability platform increment,
+and the `GENERATE` boundary and telemetry egress are settled by decisions 0020
+and 0019. The two questions that outlived them were answered by reading the
+system rather than by building, and both answers were no:
+
+- **Deletion and rebuild.** OrgMemory deletes nothing, so there is no deletion
+  pipeline to stage. Retirement sets a flag and every read path funnels through
+  one recheck that honours it. The event worth emitting is the evidence mismatch
+  that recheck already detects and nothing publishes.
+- **`finish_reason=length` counter.** The premise was wrong: Spring AI observes
+  below the port, so production spans already carry the finish reason. What the
+  port costs is the rate, not the fact, and there is no observed occurrence to
+  measure the rate of.
+
+Both are recorded in place with what would change the answer.
+
+## 0. Close the payload bypasses — done, verified in production
 
 Highest priority. These are live paths, independent of the pipeline work.
 
@@ -81,7 +97,7 @@ exporter silence held across the restart: zero publish failures, zero mentions o
 service, and the startup boundary verifier raised nothing against the real
 configuration.
 
-## 2. Metrics that answer stage latency — partly done
+## 2. Metrics that answer stage latency — done
 
 Depends on the composite sink merged in PR #132.
 
@@ -107,11 +123,33 @@ Depends on the composite sink merged in PR #132.
       counts both, measured after merging so deduplication is not mistaken for
       eviction, and meters count both how much context was refused and how many
       answers were affected.
-- [ ] Counter for `finish_reason=length`. This is output-side truncation and the
-      chat port cannot see it: `ChatModelPort` streams `Flux<String>` and the
-      adapter calls `.stream().content()`, which discards the `ChatResponse`
-      holding the finish reason. It lands with `GENERATE` below, where the port
-      change is already required.
+- [x] Counter for `finish_reason=length`: **not built, and the premise was
+      wrong.** Reviewed 2026-07-31.
+
+      `ChatModelPort` does stream `Flux<String>` and the adapter does call
+      `.stream().content()`, discarding the `ChatResponse`. What that sentence
+      missed is that Spring AI observes `ChatModel`, which sits *below* the port,
+      so the finish reason never depended on the port to survive. Production
+      spans carry `gen_ai.response.finish_reasons` today. The observability
+      platform increment had already settled this as a trace query rather than a
+      panel; this item outlived that decision by describing the port instead of
+      the signal.
+
+      What the port genuinely costs is the *rate*, not the fact. API tracing
+      samples at 0.1, so a truncated answer is findable but its share of turns is
+      not measurable and cannot be alerted on. A counter is unsampled and would
+      give both.
+
+      Not worth the port change on current evidence. Tempo over 48 hours holds
+      zero spans with a finish reason other than `STOP`, and the assistant path
+      sets no `maxTokens` at all — it takes the provider default, which is far
+      above a normal answer. The change would touch six port overloads, two
+      consumers, the adapter and their tests, to measure the rate of something
+      with no observed occurrence.
+
+      Revisit if either input changes: a `maxTokens` ceiling on the chat route,
+      or a real `LENGTH` span. Until then the query is
+      `{span.gen_ai.response.finish_reasons != "[\"STOP\"]"}`.
 - [x] Separate `GLEAN` from extraction. The extractor already recorded per-round
       metrics and a gleaning outcome and the worker already held them on every
       `ExtractedChunk`; nothing published either, so gleaning working and
@@ -128,8 +166,57 @@ Depends on the composite sink merged in PR #132.
       is one operation across two processors. The engine measures each window and
       carries both out, because its caller makes one `process` call and cannot
       see where parsing ended.
-- [ ] Deletion and rebuild: missing from the enum entirely, and the runbook
-      requires a drill for it. Decide separately.
+- [x] Deletion and rebuild: **no stage, and the comparison that asked for one was
+      reading OrgMemory as if it deleted.** Investigated 2026-07-31.
+
+      LightRAG has a deletion pipeline because it removes derived records, so a
+      stage there measures work that can partially fail. OrgMemory removes
+      nothing. `ConnectorReconciler.retire` calls `SourceObject.archive()`, which
+      sets `status = ARCHIVED` and returns — "its evidence and history are
+      retained", as its own javadoc says. An update is the same shape from the
+      other side: `rematerialize` writes a new revision and advances
+      `current_revision_id`, leaving the superseded chunks in place.
+
+      So the question was never whether a deletion reached five read paths. It
+      was whether five read paths honour two flags. They do, and not by each
+      remembering to: every path funnels through
+      `SecureKnowledgeRetrievalStore.recheck`, whose SQL is assembled from the
+      shared `ELIGIBLE_FROM` fragment carrying `so.status = 'ACTIVE'` and
+      `so.current_revision_id = kc.source_revision_id`, alongside
+      `ka.archived_at IS NULL`, `kav.status`, `sr.status`, `rso.status`,
+      `nr.status` and `publication.status`. Confirmed callers:
+      `GraphRagKnowledgeRetrievalService` line 350, unconditional and immediately
+      after `AUTHORIZE`; `CanonicalHybridKnowledgeSearch` line 191, the other
+      engine; and `CanonicalEvidenceAuthorizationService.findCanonical`, the
+      citation path. `PostgresAuthorizedGraphSql` carries both conditions itself
+      as well.
+
+      The lexical and vector projections do not filter on either flag —
+      `projection_lexical_documents` and `projection_vector_records` are scoped by
+      `batch_id` and never join `source_objects`. That is not a gap, because
+      nothing they return reaches an answer without passing the recheck. Four
+      files touch `knowledge_chunks`; the fourth,
+      `KnowledgeChunkProjectionStore`, is worker-side indexing and publication
+      rather than user retrieval.
+
+      A stage over this would time a flag write. What is worth emitting instead
+      is the mismatch already detected and currently unpublished:
+      `GraphRagKnowledgeRetrievalService` compares `sameEvidence(closure,
+      verified)` and diverts to `retryOrFail` when the recheck returns less than
+      the closure held — which is exactly the moment a retirement or an edit took
+      effect against an in-flight answer. That is a real event with a real cause,
+      unlike a stage that cannot fail.
+
+      Two things this did not establish. It is a reading, not the drill the
+      hardening runbook asks for; it shows the gate exists on every path found,
+      not that no future path bypasses it. And it holds for the deployed
+      classpath only — `apps/api` and `apps/worker` take `graph-rag-postgres`
+      alone, so the OpenSearch and Neo4j adapters were not analysed and would
+      need their own reading before deployment.
+
+      Superseded revisions are never reclaimed. Ten edits leave ten chunk and
+      embedding sets, nine invisible and all of them stored, with no metric on
+      the growth. Out of scope here; recorded so it is not rediscovered.
 - [x] Extraction cost. `ProviderTokenUsage` is its own record rather than a
       forced reuse of `TokenUsage`: one is a budget the deployment estimated,
       the other a bill a vendor counted, and the difference between them is
@@ -206,7 +293,8 @@ Gate: module tests, `:core:test`, API context load, worker indexing tests.
 
 ## 3. Collector and dashboards — moved
 
-Superseded by `docs/increments/active/2026-07-30-observability-platform/`.
+Superseded by `docs/increments/completed/2026-07-30-observability-platform/`,
+which shipped 2026-07-31.
 
 It stopped being the last phase of an application-instrumentation cycle and
 became its own: server topology, a stack shared with another product, a network
@@ -241,11 +329,17 @@ belong with the collector, because the collector is what would show them.
       the other two services. Without them a third service would have begun
       exporting metrics to `localhost:4318` every minute — reintroducing exactly
       the production symptom this increment opened to fix.
+- [x] Repair the production-profile regression found during the next immutable
+      deployment. The added OpenTelemetry setting had been placed in a second
+      top-level `management` mapping, which Spring Boot rejects as duplicate
+      YAML before the MCP process can start. The setting now lives in the
+      existing mapping, and `ApplicationConfigurationTests` loads both shipped
+      YAML files so this class of image-only failure is caught in CI.
 - [x] Proved: context reaches a fresh virtual thread, an undecorated task shows
       the fixture would have caught a no-op, capture happens at decoration rather
       than execution, and the scope closes so one job cannot leak into the next.
 
-## 5. Consolidate — not started
+## 5. Consolidate — done
 
 - [x] Whole-export test. `WholeExportAllowlistTests` walks the span name,
       attributes, status, every event and event attribute, instrumentation scope
