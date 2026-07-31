@@ -6,7 +6,6 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
-  Plus,
   Search,
 } from "lucide-react"
 import type { ReactNode } from "react"
@@ -41,6 +40,7 @@ import {
   formatAssetCoordinate,
 } from "@/features/assets/asset-format"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
+import { AssetCreateMenu } from "@/features/assets/components/asset-create-menu"
 import { AssetTypeFilter } from "@/features/assets/components/asset-type-filter"
 import type { AssetRecommendation, AssetSummary } from "@/lib/hey-api"
 import {
@@ -490,14 +490,7 @@ export function AssetCatalogPage({
         icon={<Boxes className="size-7" strokeWidth={1.7} aria-hidden="true" />}
         title="Assets"
         description="Discover reusable capabilities and manage the Assets you own."
-        actions={
-          <Button asChild size="lg">
-            <Link to="/assets/new">
-              <Plus aria-hidden="true" />
-              Add asset
-            </Link>
-          </Button>
-        }
+        actions={<AssetCreateMenu />}
       >
         <div className="grid gap-2 pt-2 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <InputGroup className="h-11 bg-surface-raised">
@@ -612,7 +605,7 @@ export function AssetCatalogPage({
                   </Button>
                 ) : scope === "MINE" ? (
                   <Button asChild>
-                    <Link to="/assets/new">Add your first asset</Link>
+                    <Link to="/assets/new/skill">Add your first asset</Link>
                   </Button>
                 ) : undefined
               }

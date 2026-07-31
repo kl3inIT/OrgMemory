@@ -164,7 +164,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.goto("/assets")
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
-  await expect(page.getByRole("link", { name: "Add asset" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Add asset" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "All Assets" })).toHaveAttribute(
     "data-state",
     "active",
@@ -252,44 +252,62 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
 
-  await page.getByRole("link", { name: "Add asset" }).click()
-  await expect(page).toHaveURL(/\/assets\/new$/)
+  await page.getByRole("button", { name: "Add asset" }).click()
+  await expect(page.getByRole("menuitem", { name: /^Skill/ })).toBeVisible()
+  await expect(page.getByRole("menuitem", { name: /^Prompt template/ })).toHaveAttribute(
+    "data-disabled",
+  )
+  await page.getByRole("menuitem", { name: /^Skill/ }).click()
+  await expect(page).toHaveURL(/\/assets\/new\/skill\/?$/)
   await expect(page.locator('[data-sidebar="menu-button"][href="/assets"]')).toHaveAttribute(
     "aria-current",
     "page",
   )
-  await expect(page.getByRole("heading", { level: 1, name: "Add an asset" })).toBeVisible()
-  await expect(page.getByRole("button", { name: /Skill/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  )
-  await expect(page.getByText("SKILL.md required", { exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0)
+  await expect(page.getByRole("heading", { level: 1, name: "Create a Skill" })).toBeVisible()
+  await expect(page.getByRole("link", { name: /Upload a skill/ })).toBeVisible()
+  await expect(page.getByText("Start from scratch", { exact: true })).toBeVisible()
+  await expect(page.getByText("Import from GitHub", { exact: true })).toBeVisible()
+  await expect(page.locator('[aria-disabled="true"]')).toHaveCount(2)
 
   if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1598, height: 910 })
     await page.screenshot({
-      path: "../output/design-qa/asset-add-entry.png",
+      path: "../output/design-qa/skill-create-entry.png",
       fullPage: false,
     })
   }
 
-  await page.getByRole("button", { name: /Prompt template/ }).click()
-  await expect(page.getByRole("button", { name: /Prompt template/ })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  )
-  await expect(
-    page.getByText("Browser authoring for this Asset type is not available yet."),
-  ).toBeVisible()
-
   await page.setViewportSize({ width: 390, height: 844 })
-  await expect(page.getByRole("heading", { level: 1, name: "Add an asset" })).toBeVisible()
+  await expect(page.getByRole("heading", { level: 1, name: "Create a Skill" })).toBeVisible()
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true)
 
-  await page.getByRole("link", { name: "Back to Assets" }).click()
-  await expect(page).toHaveURL(/\/assets$/)
+  await page.setViewportSize({ width: 1536, height: 1024 })
+  await page.getByRole("link", { name: /Upload a skill/ }).click()
+  await expect(page).toHaveURL(/\/assets\/new\/skill\/upload$/)
+  await expect(page.getByRole("heading", { level: 1, name: "Upload a Skill" })).toBeVisible()
+  await page.getByLabel("ZIP package").setInputFiles({
+    name: "incident-response.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from("PK test package"),
+  })
+  await page.getByLabel("Namespace").fill("Engineering_Team")
+  await page.getByRole("combobox", { name: "Knowledge Space" }).click()
+  await page.getByRole("option", { name: "Engineering knowledge" }).click()
+  await page.getByRole("button", { name: "Create Draft" }).click()
+
+  await expect(page).toHaveURL(new RegExp(`/assets/${SKILL_ID}/governance$`))
+  await expect(page.getByRole("heading", { name: "Governance workspace" })).toBeVisible()
+  expect(harness.skillImportQueries).toEqual([
+    {
+      namespace: "engineering_team",
+      knowledgeSpaceId: "88888888-8888-4888-8888-888888888802",
+      classification: "INTERNAL",
+    },
+  ])
+  expect(harness.skillImportContentTypes[0]).toContain("multipart/form-data")
+  expect(harness.skillImportCsrfTokens).toEqual(["golden-poc-token"])
 
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
@@ -331,6 +349,9 @@ async function assetHarness(
   const harness = baseHarness(page, actor, "golden-poc-token")
   const completed = new Set<string>()
   const ownedQueries: Array<Record<string, string | null>> = []
+  const skillImportQueries: Array<Record<string, string | null>> = []
+  const skillImportContentTypes: string[] = []
+  const skillImportCsrfTokens: Array<string | undefined> = []
 
   await page.route("**/api/**", async (route) => {
     const requestContext = await harness.beginRoute(route)
@@ -366,6 +387,42 @@ async function assetHarness(
         pageSize: 24,
         totalPages: 1,
         sort: url.searchParams.get("sort") ?? "RECENTLY_UPDATED",
+      })
+      return
+    }
+    if (url.pathname === "/api/knowledge-spaces/upload-targets") {
+      await json(route, [
+        {
+          id: "88888888-8888-4888-8888-888888888802",
+          key: "engineering",
+          name: "Engineering knowledge",
+          departmentId: DEPARTMENT_ID,
+        },
+      ])
+      return
+    }
+    if (request.method() === "POST" && url.pathname === "/api/assets/skills") {
+      skillImportQueries.push({
+        namespace: url.searchParams.get("namespace"),
+        knowledgeSpaceId: url.searchParams.get("knowledgeSpaceId"),
+        classification: url.searchParams.get("classification"),
+      })
+      skillImportContentTypes.push(request.headers()["content-type"] ?? "")
+      skillImportCsrfTokens.push(request.headers()["x-xsrf-token"])
+      await json(route, skillDraftAsset(false), 201)
+      return
+    }
+    if (url.pathname === `/api/assets/${SKILL_ID}`) {
+      await json(route, skillDraftAsset(false))
+      return
+    }
+    if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
+      await json(route, {
+        canSubmitReview: true,
+        canReview: false,
+        canPublish: false,
+        canPublishSkill: true,
+        canWithdraw: false,
       })
       return
     }
@@ -414,7 +471,13 @@ async function assetHarness(
     await json(route, { message: "Unexpected golden POC request" }, 500)
   })
 
-  return { ...harness.result, ownedQueries }
+  return {
+    ...harness.result,
+    ownedQueries,
+    skillImportQueries,
+    skillImportContentTypes,
+    skillImportCsrfTokens,
+  }
 }
 
 function supportPackRecommendation() {
