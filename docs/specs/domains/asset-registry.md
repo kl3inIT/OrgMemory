@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-07-31-skill-direct-sharing (a190d63)`.
+Reconciled: `2026-07-31-asset-ownership-navigation (7aa917b)`.
 
 ## Current Behavior
 

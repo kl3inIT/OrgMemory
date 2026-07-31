@@ -3,16 +3,16 @@
 ## Comparison target
 
 - Source visual truth:
-  `docs/increments/active/2026-07-31-asset-ownership-navigation/onyx-agents-layout-reference.png`
+  `docs/increments/completed/2026-07-31-asset-ownership-navigation/onyx-agents-layout-reference.png`
 - Browser-rendered implementation is produced by Playwright under
   `apps/output/design-qa/asset-catalog-grid.png`,
   `apps/output/design-qa/asset-catalog-mine.png`, and
   `apps/output/design-qa/asset-catalog-mobile.png`.
 - Durable copies reviewed for this increment are archived under
-  `docs/increments/active/2026-07-31-asset-ownership-navigation/` with those
+  `docs/increments/completed/2026-07-31-asset-ownership-navigation/` with those
   same three filenames.
 - Side-by-side comparison:
-  `docs/increments/active/2026-07-31-asset-ownership-navigation/asset-layout-comparison.png`
+  `docs/increments/completed/2026-07-31-asset-ownership-navigation/asset-layout-comparison.png`
 - Browser: Microsoft Edge through Playwright channel `msedge`
 - Desktop viewport and CSS size: `1536 x 1024`
 - Mobile viewport and CSS size: `390 x 844`

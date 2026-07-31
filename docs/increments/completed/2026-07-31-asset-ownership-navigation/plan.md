@@ -9,5 +9,6 @@
 - [x] Cover owner isolation, Draft visibility, URL state, and responsive
   browser behavior.
 - [x] Reconcile the Asset Registry spec and test matrix.
-- [ ] Run backend, frontend, browser, and design-QA gates.
-- [ ] Merge the reviewed pull request and archive this increment.
+- [x] Run backend, frontend, browser, and design-QA gates.
+- [x] Take the reviewed pull request through the green merge gate and archive
+  this increment.
