@@ -31,4 +31,6 @@
 Local verification on 2026-07-31: all production and test sources compiled,
 the focused Knowledge Space and Modulith tests passed, `:core:test` passed, and
 the terminating repository-wide `clean test` completed successfully across 108
-tasks. The working change contains 47 files before the final main merge.
+tasks. After merging current `origin/main`, a second `clean test` completed in
+8m42s across the same 108 tasks and `python scripts/check_docs.py` passed. The
+pull request contains 48 changed files.
