@@ -4,6 +4,7 @@ import { Command, Option } from "commander"
 
 import {
   orgMemoryUuidSchema,
+  namespaceSchema,
   parseSkillReference,
   resolvePackageUrl,
   skillManifestLinkSchema,
@@ -27,7 +28,6 @@ const DEFAULT_SERVER = "https://om.kl3in.tech/mcp"
 const DEFAULT_CALLBACK_PORT = 53_682
 const PACKAGE_DOWNLOAD_TIMEOUT_MS = 60_000
 const SKILL_PUBLISH_SCOPE = "assets:read assets:write"
-const NAMESPACE = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 
 const program = new Command()
   .name("orgmemory")
@@ -81,7 +81,7 @@ skill
         json?: boolean
       },
     ) => {
-      if (!NAMESPACE.test(options.namespace) || options.namespace.length > 128) {
+      if (!namespaceSchema.safeParse(options.namespace).success) {
         throw new Error("The Skill namespace is invalid")
       }
       if (!orgMemoryUuidSchema.safeParse(options.knowledgeSpace).success) {

@@ -34,7 +34,7 @@ class McpToolErrorSurfaceTests {
         when(authorization.require(context))
                 .thenReturn("Bearer exchanged-api-token");
         when(search.search(any(), any(), any()))
-                .thenThrow(new KnowledgeSearchApiClient.KnowledgeSearchGatewayException(
+                .thenThrow(new McpGatewayException(
                         "OrgMemory knowledge search is temporarily unavailable",
                         new ResourceAccessException(
                                 "I/O error on GET request for \"http://"

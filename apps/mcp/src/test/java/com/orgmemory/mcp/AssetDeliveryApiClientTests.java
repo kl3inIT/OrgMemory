@@ -165,10 +165,10 @@ class AssetDeliveryApiClientTests {
                         .body("denied for actor"));
 
         var missing = assertThrows(
-                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                McpGatewayException.class,
                 () -> client().getAsset("Bearer api-token", ASSET_ID));
         var denied = assertThrows(
-                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                McpGatewayException.class,
                 () -> client().getAsset("Bearer api-token", ASSET_ID));
 
         assertFalse(missing.getMessage().contains(
@@ -186,7 +186,7 @@ class AssetDeliveryApiClientTests {
                         new IOException("private network topology")));
 
         var failure = assertThrows(
-                AssetDeliveryApiClient.AssetDeliveryGatewayException.class,
+                McpGatewayException.class,
                 () -> client().getAsset("Bearer api-token", ASSET_ID));
 
         assertEquals(
