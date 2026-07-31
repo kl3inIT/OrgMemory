@@ -50,6 +50,7 @@ for (const path of [
   "gradle/libs.versions.toml",
   "patches/dependency.patch",
   ".dockerignore",
+  ".gitleaks.toml",
 ]) {
   test(`${path} is a product-impacting build input`, () => {
     assert.match(

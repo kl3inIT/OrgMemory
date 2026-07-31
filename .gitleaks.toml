@@ -1,0 +1,12 @@
+title = "OrgMemory Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Immutable GHCR references use public Git commit SHAs"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''"reference":\s*"ghcr\.io/kl3init/orgmemory-[a-z0-9-]+:sha-[0-9a-f]{40}"''']
+paths = ['''^release/artifacts\.json$''']

@@ -157,6 +157,7 @@ jobs:
               - "gradlew.bat"
               - "settings.gradle.kts"
               - ".gitleaksignore"
+              - ".gitleaks.toml"
               - ".tegami/**"
               - ".github/workflows/ci.yml"
               - ".github/workflows/release.yml"
