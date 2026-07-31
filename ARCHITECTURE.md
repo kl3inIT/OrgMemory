@@ -41,7 +41,18 @@ Current baseline: Java 25, Gradle 9.6.1, Spring Boot 4.1.0, Spring Modulith
 and Apache AGE commit `e43dc1a12b78fba4acef9835b2b10379b8d243b4`,
 React 19.2.7, TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, Node 24 in
 CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
-15.2.0.
+15.2.0. Tegami 1.2.7 manages one synthetic whole-product release unit backed
+by `release/product.json`; it does not publish the Gradle or pnpm workspaces to
+a package registry.
+
+Green `main` commits remain the executable delivery identity. Production and
+docs workflows publish immutable SHA-addressed images and manifests. Tegami
+collects reviewed `.tegami` entries into a Version Packages pull request and,
+after that exact commit passes CI, creates a `v<version>` tag and GitHub Release
+with a consolidated immutable artifact manifest. Release-only commits carry
+forward verified digests and do not rebuild or deploy images. Writable release
+automation rejects stale main SHAs and tag collisions; pull-request preview
+runs untrusted code read-only and a separate trusted workflow posts its result.
 
 Dependency direction is `apps/* -> core`. The adapter rule in force is
 `apps -> core + selected integrations`, `integrations -> core ports` (or the

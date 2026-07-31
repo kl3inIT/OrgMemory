@@ -17,6 +17,8 @@ encyclopedia. Follow links for detail instead of duplicating it here.
 - [docs/conventions.md](docs/conventions.md) — how code is written and committed.
 - [docs/guidelines](docs/guidelines) — reusable framework, platform, security,
   delivery, and testing mechanics.
+- [product release guideline](docs/guidelines/product-releases.md) — Tegami
+  entries, semantic product releases, public-content safety, and recovery.
 - [docs/decisions](docs/decisions) — append-only rationale for significant
   choices. A decision explains why; it is not a current-state source.
 - [docs/specs/domains](docs/specs/domains) — current behavior and contracts by

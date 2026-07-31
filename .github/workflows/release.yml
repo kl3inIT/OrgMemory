@@ -1,0 +1,193 @@
+name: Release OrgMemory
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact green main commit to process
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orgmemory-product-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version or publish OrgMemory
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == 'main')
+    permissions:
+      actions: read
+      contents: write
+      packages: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out main history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate exact green main commit
+        id: trust
+        shell: bash
+        env:
+          AUTOMATIC_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL_SHA: ${{ inputs.commit_sha || '' }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            commit_sha="$MANUAL_SHA"
+          else
+            commit_sha="$AUTOMATIC_SHA"
+          fi
+          [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin main
+          git cat-file -e "$commit_sha^{commit}"
+          git merge-base --is-ancestor "$commit_sha" origin/main
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            green_runs="$(
+              gh run list --workflow CI --commit "$commit_sha" --limit 20 \
+                --json conclusion,event,headBranch \
+                --jq '[.[] | select(.conclusion == "success" and .event == "push" and .headBranch == "main")] | length'
+            )"
+            [[ "$green_runs" -gt 0 ]]
+          fi
+          if [[ "$commit_sha" != "$(git rev-parse origin/main)" ]]; then
+            printf 'Skipping stale release run for %s; main is %s.\n' \
+              "$commit_sha" "$(git rev-parse origin/main)"
+            printf 'current=false\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git checkout --detach "$commit_sha"
+          printf 'commit_sha=%s\n' "$commit_sha" >> "$GITHUB_OUTPUT"
+          printf 'current=true\n' >> "$GITHUB_OUTPUT"
+
+      - name: Set up pnpm
+        if: steps.trust.outputs.current == 'true'
+        uses: pnpm/action-setup@v6.0.9
+
+      - name: Set up Node 24
+        if: steps.trust.outputs.current == 'true'
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install pinned release tooling
+        if: steps.trust.outputs.current == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Docker Buildx for artifact verification
+        if: steps.trust.outputs.current == 'true'
+        uses: docker/setup-buildx-action@v4.2.0
+
+      - name: Log in to the immutable image registry
+        if: steps.trust.outputs.current == 'true'
+        uses: docker/login-action@v4.5.1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect release phase
+        if: steps.trust.outputs.current == 'true'
+        id: phase
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          has_entries=false
+          has_lock=false
+          if find .tegami -maxdepth 1 -type f -name '*.md' -print -quit | grep -q .; then
+            has_entries=true
+          fi
+          if [[ -f .tegami/publish-lock.yaml ]]; then
+            has_lock=true
+          fi
+          if [[ "$has_entries" == "true" && "$has_lock" == "true" ]]; then
+            set +e
+            pnpm exec tsx scripts/check-publish-lock.mts
+            lock_status=$?
+            set -e
+            if [[ "$lock_status" -eq 2 ]]; then
+              printf 'A pending failed publish lock must be recovered before versioning.\n' >&2
+              exit 65
+            fi
+            if [[ "$lock_status" -ne 0 ]]; then
+              printf 'Unable to prove the existing publish lock is complete.\n' >&2
+              exit 66
+            fi
+            printf 'mode=version\n' >> "$GITHUB_OUTPUT"
+          elif [[ "$has_entries" == "true" ]]; then
+            printf 'mode=version\n' >> "$GITHUB_OUTPUT"
+          elif [[ "$has_lock" == "true" ]]; then
+            printf 'mode=publish\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'mode=idle\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve immutable artifact evidence for a pending version
+        if: steps.trust.outputs.current == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SOURCE_SHA: ${{ steps.trust.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.phase.outputs.mode }}" == "version" ]]; then
+            pnpm exec tsx scripts/resolve-release-artifacts.mjs "$RELEASE_SOURCE_SHA"
+          fi
+
+      - name: Revalidate current main immediately before mutation
+        if: steps.trust.outputs.current == 'true'
+        shell: bash
+        env:
+          COMMIT_SHA: ${{ steps.trust.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          [[ "$COMMIT_SHA" == "$(git rev-parse origin/main)" ]]
+          [[ "$COMMIT_SHA" == "$(git rev-parse HEAD)" ]]
+
+      - name: Version or publish product release
+        if: steps.trust.outputs.current == 'true'
+        env:
+          CI: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm release ci
+
+      - name: Verify remote release state when a publish lock exists
+        if: steps.trust.outputs.current == 'true' && steps.phase.outputs.mode == 'publish'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -f .tegami/publish-lock.yaml ]]; then
+            version="$(node -p "JSON.parse(require('fs').readFileSync('release/product.json')).version")"
+            tag="v${version}"
+            remote_sha="$(git ls-remote --tags origin "refs/tags/${tag}" | awk '{print $1}')"
+            [[ "$remote_sha" == "$(git rev-parse HEAD)" ]]
+            [[ "$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --jq .tag_name)" == "$tag" ]]
+          fi
