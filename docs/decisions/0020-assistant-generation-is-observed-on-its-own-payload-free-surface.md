@@ -21,7 +21,7 @@ interface that has no such concept, which inverts the dependency that interface 
 prevent.
 
 The counterargument was recorded in
-`docs/increments/active/2026-07-29-observability-pipeline/challenge-generation-telemetry.md`
+`docs/increments/completed/2026-07-29-observability-pipeline/challenge-generation-telemetry.md`
 and is the reason this sat open: `GraphRagEventSink` is not a telemetry convenience, it is
 where the payload boundary of [0018](0018-telemetry-carries-counts-never-payload.md) is
 enforced. Generation is the highest-risk stage in the system for payload leakage, because it
@@ -95,7 +95,7 @@ when a mode the product deliberately does not run becomes one it does.
 
 `CLAUDE.md` requires an independent architecture challenge before a domain-boundary decision
 is implemented. The brief was written
-(`docs/increments/active/2026-07-29-observability-pipeline/challenge-generation-telemetry.md`)
+(`docs/increments/completed/2026-07-29-observability-pipeline/challenge-generation-telemetry.md`)
 and no independent reviewer ran it; the counterargument above is the author's own. The project
 owner directed the choice explicitly on 2026-07-30 after the alternatives and their trade-offs
 were laid out, which is the escape `CLAUDE.md` provides when the configured reviewer is

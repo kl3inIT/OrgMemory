@@ -20,7 +20,7 @@ this pattern. Representative ones:
   architecture decision without file access.
 - **Observability payload policy (repo artifacts + claude bfc22d2b,
   2026-07-29).** The workflow's mature artifact form exists in the repo:
-  `docs/increments/active/2026-07-29-observability-pipeline/challenge-brief.md`
+  `docs/increments/completed/2026-07-29-observability-pipeline/challenge-brief.md`
   (adversarial framing, rule quoted with enforcing file paths,
   comparable-system table read from `tmp/onyx` and other pinned sources,
   operational cost) and `challenge-verdict.md` (date, commit SHA, committed
