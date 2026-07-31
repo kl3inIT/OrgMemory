@@ -134,7 +134,10 @@ The authenticated web application provides four generic surfaces:
   catalog and its Prompt Template, Work Instruction, Capability Pack, and Skill
   profiles. Search, type, sort, layout, and page are URL state; the grid is the
   clean-URL default and the list remains available. The server returns a bounded
-  page plus the authorized total and applies an explicit stable order.
+  page plus the authorized total and applies an explicit stable order. An
+  `Add asset` action opens the shared profile chooser. This chooser is
+  navigation-only until a profile-specific authoring flow is implemented; it
+  does not create a Draft or infer authorization from the browser session.
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and

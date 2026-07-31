@@ -30,6 +30,10 @@ const NAVIGATION = [
 const ITEM_CLASSES =
   "h-9 rounded-lg px-2.5 text-content-secondary data-[active=true]:bg-surface-raised data-[active=true]:text-content-primary data-[active=true]:shadow-xs"
 
+function isNavigationItemActive(pathname: string, to: string) {
+  return to === "/" ? pathname === to : pathname === to || pathname.startsWith(`${to}/`)
+}
+
 export function AppSidebar({ identity }: { identity: SessionResponse }) {
   const location = useLocation()
   const pathname = location.pathname
@@ -62,21 +66,25 @@ export function AppSidebar({ identity }: { identity: SessionResponse }) {
         <SidebarGroup className="pt-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              {NAVIGATION.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.to}
-                    tooltip={item.label}
-                    className={ITEM_CLASSES}
-                  >
-                    <Link to={item.to} aria-current={pathname === item.to ? "page" : undefined}>
-                      <item.icon aria-hidden="true" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {NAVIGATION.map((item) => {
+                const isActive = isNavigationItemActive(pathname, item.to)
+
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={item.label}
+                      className={ITEM_CLASSES}
+                    >
+                      <Link to={item.to} aria-current={isActive ? "page" : undefined}>
+                        <item.icon aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
