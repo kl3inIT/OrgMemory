@@ -22,25 +22,29 @@
 - [x] Ship the existing canonical ZIP upload path so this slice creates a real
       Draft instead of replacing one dead end with another.
 - [x] Add focused unit/browser coverage and pass frontend completion gates.
-- [ ] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+- [x] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
+
+Delivered by PR #188 and merge commit `e088e9c9`. Main CI, immutable image
+publication, automatic ZM deployment, exact-SHA container inspection, and the
+public web/API health checks passed on 2026-08-01.
 
 ## 2. PR 2 — scratch, upload, and mutable Draft
 
-- [ ] Add bounded server inspection for `SKILL.md`, ZIP, and browser-packaged
+- [x] Add bounded server inspection for `SKILL.md`, ZIP, and browser-packaged
       folders without storing or executing content.
-- [ ] Add scratch authoring for Details, Instructions, Supporting files,
+- [x] Add scratch authoring for Details, Instructions, Supporting files,
       Knowledge Space, and classification.
-- [ ] Create a governed private Draft from inspected or scratch content.
-- [ ] Add optimistic, reference-safe package replacement for mutable Skill
+- [x] Create a governed private Draft from inspected or scratch content.
+- [x] Add optimistic, reference-safe package replacement for mutable Skill
       Drafts and retain exact immutable Revision/Release bytes.
-- [ ] Add a migration that permits only deletion of `DRAFT` payload references;
+- [x] Add a migration that permits only deletion of `DRAFT` payload references;
       keep all updates and Revision/Release deletion rejected and tested.
-- [ ] Run replacement under the Asset lock plus expected Draft version; write a
+- [x] Run replacement under the Asset lock plus expected Draft version; write a
       durable supersession row in the swap transaction and retry exact-reference
       cleanup after commit.
-- [ ] Keep inspection stateless and re-run the canonical package validator at
+- [x] Keep inspection stateless and re-run the canonical package validator at
       both create and replace time.
-- [ ] Update generated OpenAPI clients, focused backend/frontend tests, domain
+- [x] Update generated OpenAPI clients, focused backend/frontend tests, domain
       spec, and mirrored test matrix.
 - [ ] Complete the PR/CI/CodeRabbit/merge/deploy/live-verification loop.
 

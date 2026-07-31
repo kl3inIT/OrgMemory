@@ -65,6 +65,65 @@
         }
       }
     },
+    "/api/assets/{assetId}/skill-draft": {
+      "put": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Replace the package of one mutable Skill draft",
+        "operationId": "replaceSkillDraftPackage",
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "expectedLockVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/releases/{releaseId}/pack-progress/{itemKey}": {
       "put": {
         "tags": [
@@ -2113,6 +2172,45 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/AssetView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/skills/inspections": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Validate and inspect one Agent Skill package without storing it",
+        "operationId": "inspectSkillPackage",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillPackageInspection"
                 }
               }
             }
@@ -4982,30 +5080,6 @@
           }
         }
       },
-      "UpdateAssetDraftRequest": {
-        "type": "object",
-        "properties": {
-          "expectedLockVersion": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "title": {
-            "type": "string"
-          },
-          "summary": {
-            "type": "string"
-          },
-          "classification": {
-            "type": "string"
-          },
-          "schemaVersion": {
-            "type": "string"
-          },
-          "payload": {
-            "type": "string"
-          }
-        }
-      },
       "AssetView": {
         "type": "object",
         "properties": {
@@ -5374,6 +5448,30 @@
           "projectedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "UpdateAssetDraftRequest": {
+        "type": "object",
+        "properties": {
+          "expectedLockVersion": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string"
+          },
+          "schemaVersion": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "string"
           }
         }
       },
@@ -6910,6 +7008,63 @@
           }
         }
       },
+      "FileEntry": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        }
+      },
+      "SkillPackageInspection": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "compatibility": {
+            "type": "string"
+          },
+          "allowedTools": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "contentLength": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileEntry"
+            }
+          }
+        }
+      },
       "AssignRoleRequest": {
         "type": "object",
         "properties": {
@@ -8305,6 +8460,9 @@
       "AssetGovernanceActions": {
         "type": "object",
         "properties": {
+          "canEdit": {
+            "type": "boolean"
+          },
           "canSubmitReview": {
             "type": "boolean"
           },

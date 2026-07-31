@@ -5,13 +5,17 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
+Reconciled: `2026-08-01-browser-skill-draft-authoring (38986594)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
 | Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
 | Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
 | Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |
+| Stateless Skill inspection returns canonical bounded metadata without storage; Scratch, raw `SKILL.md`, ZIP, and folder packaging converge on the same server validator | `SkillRegistryServiceTests#inspectionIsStatelessAndReturnsOnlyValidatedPackageFacts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| Skill Draft replacement requires live edit authorization plus the expected Draft version, compensates fresh storage on transaction failure, and never mutates an immutable package reference | `SkillRegistryServiceTests`, `AssetRegistryIntegrationTests#replacingAReleasedSkillDraftKeepsTheImmutablePackageAndClearsTheCleanupRow`, `AssetRegistryIntegrationTests#replacingAnUnreleasedSkillDraftDeletesItsUnreferencedOldPackage` | covered |
+| Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
+| Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |
@@ -26,7 +30,7 @@ Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
 | CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
 | CLI Draft publication returns an exact same-origin Governance URL for the created Asset | `publish.test.ts` | covered |
 | Skill publication requires `assets:write`, uses the publisher token-exchange registration, bounds multipart size, and delegates only to canonical Skill import | `OrgMemoryMcpContextTests`, `SkillPublicationControllerTests`, `SkillPublicationApiClientTests`, `McpApiAuthorizationTests`, `McpRateLimitFilterTests` | covered |
-| Governance action discovery first requires Asset visibility and reports actor-specific submit, review, reviewed publish, direct Skill publish, and withdrawal affordances without granting authority | `AssetRegistryServiceTests#governanceActionsUseLivePermissionsAfterRequiringAssetView` | covered |
+| Governance action discovery first requires Asset visibility and reports actor-specific edit, submit, review, reviewed publish, direct Skill publish, and withdrawal affordances without granting authority | `AssetRegistryServiceTests#governanceActionsUseLivePermissionsAfterRequiringAssetView` | covered |
 | A newly imported Skill Draft exposes bounded package identity and the accountable author publishes a version directly; the UI records and displays `DIRECT` provenance and hides an empty review journey | `governance-policy.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Prompt rendering is deterministic and validates typed variables | `PromptTemplateRendererTests` | covered |
 | Inserted variables and grounding remain untrusted data | `PromptTemplateRendererTests`, `PromptExecutionServiceTests` | covered |
@@ -49,7 +53,8 @@ Reconciled: `2026-08-01-browser-skill-upload (4e7b2c0)`.
 | The Assets page keeps search and `All Assets | My Assets` as its primary navigation, encodes only the non-default owned scope in the URL, and stacks the controls without horizontal overflow on mobile | `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | The Asset catalog exposes one category-aware Add asset menu, keeps unsupported profiles non-interactive, and routes Skill into a creation-only surface rather than a second catalog | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
-| Browser Skill ZIP import preflights file/namespace input, loads live authorized Space targets, retains same-origin multipart CSRF protection, creates a private Draft through the canonical endpoint, reports public server rejection details without leaving the form, and navigates successful imports to Governance | `api-error.test.ts`, `skill-upload-validation.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| Browser Skill Scratch and Upload require fresh server inspection, invalidate stale scratch previews, preflight package/namespace input, load live authorized Space targets, retain same-origin multipart CSRF protection, create a private Draft through the canonical endpoint, report public server rejection details without leaving the form, and navigate success to Governance | `api-error.test.ts`, `skill-upload-validation.test.ts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
+| The Governance Draft surface exposes package replacement only with live `can_edit`; successful replacement returns to the same Asset workspace while optimistic conflicts remain explicit | `asset-registry-golden-poc.spec.ts#Skill publication hands the author to capability-aware Governance` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Assistant action registry has no governance or arbitrary-execution path | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |

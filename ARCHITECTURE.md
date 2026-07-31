@@ -144,6 +144,13 @@ provenance. Both paths pin the exact object key and SHA-256. Existing
 Knowledge remains in its canonical ledger and is federated by exact visible
 version; it is not copied into registry tables.
 
+A mutable Skill Draft may replace its package under live edit authorization,
+an expected Draft version, and the Asset lock. The swap deletes and recreates
+only the Draft payload reference; immutable Revision and Release references
+cannot be updated or deleted. A durable supersession row drives post-commit
+cleanup, and object storage bytes are deleted only after an exact
+organization/reference query proves that no persisted owner still pins them.
+
 All REST, Assistant, web, and MCP consumption resolves an exact released
 version and live actor authorization. Capability Packs pin exact component
 releases and independently authorize every item, so a replacement cannot
