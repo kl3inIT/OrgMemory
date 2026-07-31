@@ -121,4 +121,3 @@ boundaries.
 - reuse the existing GitHub connector credential and fetch only through its
   provider adapter;
 - reject multi-Skill repositories and import one explicit path at a time.
-

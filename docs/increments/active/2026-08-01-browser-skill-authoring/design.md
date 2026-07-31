@@ -129,4 +129,3 @@ from the new `origin/main`; commits are never squashed.
 - no automatic publication, review requirement, execution, or tool grant;
 - no user-entered GitHub PAT;
 - no ratings, usage counters, contribution rewards, or public marketplace.
-
