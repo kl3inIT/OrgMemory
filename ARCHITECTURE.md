@@ -151,6 +151,15 @@ cannot be updated or deleted. A durable supersession row drives post-commit
 cleanup, and object storage bytes are deleted only after an exact
 organization/reference query proves that no persisted owner still pins them.
 
+The browser reaches that same lifecycle through Scratch authoring, bounded
+`SKILL.md`/ZIP/folder upload, or GitHub import; each path ends at an ordinary
+private Draft in the Assets Governance workspace. GitHub preview and eligible
+private-connection discovery require Skill-create permission on the selected
+Knowledge Space. Import re-fetches the exact previewed 40-character commit,
+creates each selected Skill independently, and records server-derived
+repository, commit, and source-path provenance without exposing credentials to
+the browser.
+
 All REST, Assistant, web, and MCP consumption resolves an exact released
 version and live actor authorization. Capability Packs pin exact component
 releases and independently authorize every item, so a replacement cannot

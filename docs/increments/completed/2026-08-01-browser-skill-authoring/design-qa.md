@@ -48,7 +48,7 @@ exist.
 
 ## PR 3 — GitHub import and completed creation flow
 
-Status: local PASS; production verification remains the delivery gate.
+Status: PASS locally and on the production delivery chain.
 
 The owner-supplied Onyx Skills reference and the OrgMemory GitHub import were
 compared together at 1598 x 910. Onyx contributes the three clear creation
@@ -81,3 +81,11 @@ limits, legacy payload compatibility, and independent per-Skill results.
 Completion gates passed on Node 24.15.0: full Gradle `clean test`, web lint,
 typecheck, unit tests and production build, docs publication checks and build,
 OpenAPI drift generation, release policy checks, and focused Chromium flows.
+
+PR #197 merged as `250e1705` after the final same-viewport comparison and
+review fixes. Main CI then repeated the backend, Node 24 web, Chromium, public
+docs, release, CLI, evaluation, documentation-model, and secret-scan gates.
+The automatic immutable-image chain deployed the same commit to ZM. The host
+checkout and API, web, worker, MCP, Keycloak, and docs images all reported that
+SHA; the health-bearing containers were healthy. Public web, API, docs, the
+governed Skill guide, and the OIDC issuer check returned HTTP 200.

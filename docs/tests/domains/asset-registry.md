@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-browser-skill-github-import (4cf339b3)`.
+Reconciled: `2026-08-01-browser-skill-authoring (250e1705)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
