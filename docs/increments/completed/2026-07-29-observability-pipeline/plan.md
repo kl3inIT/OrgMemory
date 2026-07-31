@@ -1,19 +1,22 @@
 # Observability pipeline plan
 
-Narrowed 2026-07-31. Phase 3 shipped inside the observability platform
-increment, and the `GENERATE` boundary and telemetry-egress questions are
-settled by decisions 0020 and 0019. Two items remain open here, and both are
-decisions rather than implementation:
+Closed 2026-07-31. Phase 3 shipped inside the observability platform increment,
+and the `GENERATE` boundary and telemetry egress are settled by decisions 0020
+and 0019. The two questions that outlived them were answered by reading the
+system rather than by building, and both answers were no:
 
-- ~~**Deletion and rebuild.**~~ Answered 2026-07-31: OrgMemory deletes nothing,
-  so there is no deletion pipeline to stage. Retirement sets a flag and every
-  read path funnels through one recheck that honours it. What is worth emitting
-  is the evidence mismatch that recheck already detects and nothing publishes.
-  See the item in phase 2.
-- **`finish_reason=length` counter.** Needs the `ChatModelPort` change that
-  would let the adapter see the `ChatResponse` it currently discards.
+- **Deletion and rebuild.** OrgMemory deletes nothing, so there is no deletion
+  pipeline to stage. Retirement sets a flag and every read path funnels through
+  one recheck that honours it. The event worth emitting is the evidence mismatch
+  that recheck already detects and nothing publishes.
+- **`finish_reason=length` counter.** The premise was wrong: Spring AI observes
+  below the port, so production spans already carry the finish reason. What the
+  port costs is the rate, not the fact, and there is no observed occurrence to
+  measure the rate of.
 
-## 0. Close the payload bypasses — code done, production evidence outstanding
+Both are recorded in place with what would change the answer.
+
+## 0. Close the payload bypasses — done, verified in production
 
 Highest priority. These are live paths, independent of the pipeline work.
 
@@ -94,7 +97,7 @@ exporter silence held across the restart: zero publish failures, zero mentions o
 service, and the startup boundary verifier raised nothing against the real
 configuration.
 
-## 2. Metrics that answer stage latency — partly done
+## 2. Metrics that answer stage latency — done
 
 Depends on the composite sink merged in PR #132.
 
@@ -120,11 +123,33 @@ Depends on the composite sink merged in PR #132.
       counts both, measured after merging so deduplication is not mistaken for
       eviction, and meters count both how much context was refused and how many
       answers were affected.
-- [ ] Counter for `finish_reason=length`. This is output-side truncation and the
-      chat port cannot see it: `ChatModelPort` streams `Flux<String>` and the
-      adapter calls `.stream().content()`, which discards the `ChatResponse`
-      holding the finish reason. It lands with `GENERATE` below, where the port
-      change is already required.
+- [x] Counter for `finish_reason=length`: **not built, and the premise was
+      wrong.** Reviewed 2026-07-31.
+
+      `ChatModelPort` does stream `Flux<String>` and the adapter does call
+      `.stream().content()`, discarding the `ChatResponse`. What that sentence
+      missed is that Spring AI observes `ChatModel`, which sits *below* the port,
+      so the finish reason never depended on the port to survive. Production
+      spans carry `gen_ai.response.finish_reasons` today. The observability
+      platform increment had already settled this as a trace query rather than a
+      panel; this item outlived that decision by describing the port instead of
+      the signal.
+
+      What the port genuinely costs is the *rate*, not the fact. API tracing
+      samples at 0.1, so a truncated answer is findable but its share of turns is
+      not measurable and cannot be alerted on. A counter is unsampled and would
+      give both.
+
+      Not worth the port change on current evidence. Tempo over 48 hours holds
+      zero spans with a finish reason other than `STOP`, and the assistant path
+      sets no `maxTokens` at all — it takes the provider default, which is far
+      above a normal answer. The change would touch six port overloads, two
+      consumers, the adapter and their tests, to measure the rate of something
+      with no observed occurrence.
+
+      Revisit if either input changes: a `maxTokens` ceiling on the chat route,
+      or a real `LENGTH` span. Until then the query is
+      `{span.gen_ai.response.finish_reasons != "[\"STOP\"]"}`.
 - [x] Separate `GLEAN` from extraction. The extractor already recorded per-round
       metrics and a gleaning outcome and the worker already held them on every
       `ExtractedChunk`; nothing published either, so gleaning working and
@@ -314,7 +339,7 @@ belong with the collector, because the collector is what would show them.
       the fixture would have caught a no-op, capture happens at decoration rather
       than execution, and the scope closes so one job cannot leak into the next.
 
-## 5. Consolidate — not started
+## 5. Consolidate — done
 
 - [x] Whole-export test. `WholeExportAllowlistTests` walks the span name,
       attributes, status, every event and event attribute, instrumentation scope
