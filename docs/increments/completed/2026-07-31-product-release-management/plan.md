@@ -46,11 +46,11 @@ architecture challenge is recorded in `challenge-verdict.md`.
 ## Delivery Gate
 
 - [x] Run focused release tests and repository documentation checks.
-- [ ] Run the complete affected CI surface locally where reproducible.
-- [ ] Open one pull request and complete CI and CodeRabbit review.
-- [ ] Merge and verify the green-main release workflow creates or updates the
+- [x] Run the complete affected CI surface locally where reproducible.
+- [x] Open one pull request and complete CI and CodeRabbit review.
+- [x] Merge and verify the green-main release workflow creates or updates the
   Version Packages pull request.
-- [ ] Rehearse the first version release, verify the exact tag and GitHub
+- [x] Rehearse the first version release, verify the exact tag and GitHub
   Release, and retain evidence.
-- [ ] Consolidate durable facts, move the increment to completed, and update
+- [x] Consolidate durable facts, move the increment to completed, and update
   the roadmap and Northstar checkpoint.
