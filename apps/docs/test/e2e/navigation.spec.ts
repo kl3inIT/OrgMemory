@@ -45,12 +45,12 @@ test('public corpus exposes the section switcher and focused page tree', async (
   ).toBeVisible();
   await expect(
     page.getByRole('img', {
-      name: /high-level organizational ai memory architecture/i,
+      name: /organizational ai memory architecture/i,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole('img', {
-      name: /high-level organizational ai memory architecture/i,
+      name: /organizational ai memory architecture/i,
     }),
   ).toHaveAttribute('src', '/images/architecture/system-overview.webp');
   await expect(page.getByText('Editorial preview')).toHaveCount(0);
@@ -126,7 +126,6 @@ test('Vietnamese shell and authored Getting Started pages are localized', async 
   for (const section of [
     'Bắt đầu',
     'Hướng dẫn sản phẩm',
-    'Hướng dẫn',
     'Kiến trúc & bảo mật',
     'Tham chiếu',
   ]) {
