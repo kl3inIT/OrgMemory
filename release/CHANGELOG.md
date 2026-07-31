@@ -2,6 +2,31 @@
 
 Product releases are assembled from reviewed entries under `.tegami/`.
 
+## orgmemory@0.1.1
+
+### Update the Skill CLI command parser
+
+#### Improvements
+
+Update the OrgMemory Skill CLI to Commander 15 while retaining its existing
+ESM and Node 24 runtime contract.
+
+### Update graph database runtime dependencies
+
+#### Improvements
+
+Update the Neo4j Java Driver to 6.2 for the graph storage adapter and refresh
+the JUnit platform used by the backend test suite.
+
+### Refresh Node application runtime dependencies
+
+#### Improvements
+
+Update the MCP CLI, Assistant web client, and public documentation runtime
+dependencies to their latest compatible minor and patch releases.
+
+
+
 ## orgmemory@0.1.0
 
 ### Changelog layout
