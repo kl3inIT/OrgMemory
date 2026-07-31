@@ -50,4 +50,7 @@ Local verification on 2026-07-31: all production and test sources compiled,
 the focused source-ledger, connector, graph, citation, lifecycle, and Modulith
 tests passed, `:core:test` passed, and the terminating repository-wide
 `clean test` completed successfully in 6m56s across 99 tasks. The docs
-operating-model check passed. The pull request contains 89 changed files.
+operating-model check passed. After merging current `origin/main` at
+`af8b701`, a second `clean test` completed in 7m10s across 99 tasks and the
+docs check passed against 361 Markdown files. The pull request contains 89
+changed files.
