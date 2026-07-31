@@ -1,6 +1,6 @@
 package com.orgmemory.worker.graph;
 
-import com.orgmemory.core.knowledge.KnowledgeProjectionNamespaces;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.graph.ClaimedGraphIndex;
 import com.orgmemory.core.knowledge.graph.GraphIndexChunk;
 import com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator;
