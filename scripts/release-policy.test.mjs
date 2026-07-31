@@ -32,11 +32,17 @@ test("an explicit skip-release reason satisfies the gate", () => {
   );
 });
 
-test("release-only Version PR changes do not demand another entry", () => {
+test("a structurally valid Tegami Version PR does not recurse", () => {
   assert.equal(
     releaseRequirementFailure(
       [
         { status: "M", path: "release/product.json" },
+        { status: "M", path: "release/CHANGELOG.md" },
+        { status: "M", path: ".tegami/publish-lock.yaml" },
+        { status: "M", path: "apps/docs/content/includes/product-changelog.md" },
+        { status: "M", path: "apps/docs/content/includes/product-changelog-archive.md" },
+        { status: "M", path: "apps/docs/content/docs/changelog/meta.json" },
+        { status: "M", path: "apps/docs/content/docs/changelog/meta.vi.json" },
         { status: "D", path: ".tegami/feature.md" },
       ],
       "",
@@ -45,17 +51,38 @@ test("release-only Version PR changes do not demand another entry", () => {
   );
 });
 
-test("the exact generated docs changelog in a Version PR does not demand another entry", () => {
-  assert.equal(
+for (const path of [
+  "apps/docs/content/includes/product-changelog.md",
+  "apps/docs/content/includes/product-changelog-archive.md",
+  "apps/docs/content/docs/changelog/meta.json",
+  "apps/docs/content/docs/changelog/meta.vi.json",
+]) {
+  test(`${path} is an exact Version PR generated output`, () => {
+    assert.equal(
+      releaseRequirementFailure(
+        [
+          { status: "M", path },
+          { status: "A", path: ".tegami/generated-navigation.md" },
+        ],
+        "",
+      ),
+      undefined,
+    );
+  });
+}
+
+test("a synchronized manual changelog rewrite cannot impersonate a Version PR", () => {
+  assert.match(
     releaseRequirementFailure(
       [
-        { status: "M", path: "release/product.json" },
+        { status: "M", path: "release/CHANGELOG.md" },
         { status: "M", path: "apps/docs/content/includes/product-changelog.md" },
-        { status: "D", path: ".tegami/feature.md" },
+        { status: "M", path: "apps/docs/content/docs/changelog/meta.json" },
+        { status: "A", path: ".tegami/manual-edit.md" },
       ],
       "",
-    ),
-    undefined,
+    ) ?? "",
+    /only in a structurally valid Tegami Version PR/,
   );
 });
 

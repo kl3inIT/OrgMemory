@@ -1,6 +1,6 @@
 [//]: # (Generated from release/CHANGELOG.md by Tegami. Do not edit manually.)
 
-## orgmemory@0.1.1
+## Organizational AI Memory v0.1.1
 
 ### Update the Skill CLI command parser
 
@@ -23,9 +23,7 @@ the JUnit platform used by the backend test suite.
 Update the MCP CLI, Assistant web client, and public documentation runtime
 dependencies to their latest compatible minor and patch releases.
 
-
-
-## orgmemory@0.1.0
+## Organizational AI Memory v0.1.0
 
 ### Changelog layout
 

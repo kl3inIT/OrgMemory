@@ -35,7 +35,11 @@ Turbopack is Next.js 16's default bundler; no explicit flag or Turborepo layer i
 required.
 
 The current root folders are the reader's high-level mode switcher: Getting
-Started, Product Guides, Architecture & Security, and Reference.
+Started, Product Guides, Architecture & Security, Reference, and the focused
+Release Notes context. The first four are the Diátaxis-oriented documentation
+categories. Release Notes is a presentation root reached from the global
+Changelog link; its generated tree contains Latest, recent version anchors, and
+the internal archive without becoming a fifth documentation category.
 Administration, deployment/operations, and integration sections are not
 published until their first replacement pages are co-authored and reviewed.
 Vietnamese labels come from adjacent `meta.vi.json` files. A Vietnamese route
@@ -60,6 +64,13 @@ Published document URLs have one representation: `/docs/...` and
 `/vi/docs/...` always return HTML, while their explicit `.md` siblings return
 Markdown. The reverse proxy therefore never has to cache-vary one document URL
 by `Accept`.
+
+`release/CHANGELOG.md` is the sole release-history source. Tegami's post-version
+hook generates the recent and archived public includes plus localized Release
+Notes metadata. Release checks compare those projections byte-for-byte and
+validate that the newest strictly descending semantic version equals
+`release/product.json`; public docs never fetch the source repository at build
+or request time.
 
 ## Publication Invariant
 
