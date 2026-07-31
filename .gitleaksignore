@@ -1,0 +1,7 @@
+# Parser markers and runtime-generated test keys, never committed secret values.
+d326d4621050e1d3d20f70d923a418865175fdeb:integrations/connectors/src/main/java/com/orgmemory/connectors/github/GitHubAppKey.java:private-key:71
+d326d4621050e1d3d20f70d923a418865175fdeb:integrations/connectors/src/test/java/com/orgmemory/connectors/github/GitHubTestCredential.java:private-key:42
+557daa0acf61729dd5209acdabae2eca1e3a5d55:integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveTestKeys.java:private-key:28
+integrations/connectors/src/main/java/com/orgmemory/connectors/github/GitHubAppKey.java:private-key:71
+integrations/connectors/src/test/java/com/orgmemory/connectors/github/GitHubTestCredential.java:private-key:36
+integrations/connectors/src/test/java/com/orgmemory/connectors/googledrive/GoogleDriveTestKeys.java:private-key:28
