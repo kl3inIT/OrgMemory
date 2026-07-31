@@ -1,7 +1,7 @@
 package com.orgmemory.connectors.slack;
 
-import com.orgmemory.core.knowledge.ConnectorScope;
-import com.orgmemory.core.knowledge.ConnectorScopeBrowser;
+import com.orgmemory.core.knowledge.connector.ConnectorScope;
+import com.orgmemory.core.knowledge.connector.ConnectorScopeBrowser;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.util.ArrayList;
 import java.util.List;

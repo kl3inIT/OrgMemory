@@ -1,13 +1,13 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.ConnectorIdentityResolution;
-import com.orgmemory.core.knowledge.ConnectorIngestionContext;
-import com.orgmemory.core.knowledge.ConnectorMembershipItem;
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution;
+import com.orgmemory.core.knowledge.connector.ConnectorIngestionContext;
+import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.SourceMembershipSyncRun;
 import com.orgmemory.core.knowledge.SourceMembershipSyncRunRepository;
 
-import com.orgmemory.core.knowledge.ConnectorIdentityResolution.ResolvedPrincipal;
+import com.orgmemory.core.knowledge.connector.ConnectorIdentityResolution.ResolvedPrincipal;
 import jakarta.persistence.EntityManager;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

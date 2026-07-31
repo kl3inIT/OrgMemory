@@ -1,5 +1,7 @@
 package com.orgmemory.worker.connector;
 
+import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,22 +12,22 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
-import com.orgmemory.core.knowledge.ConnectorConnectionFailure;
-import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
-import com.orgmemory.core.knowledge.ConnectorComponentState;
-import com.orgmemory.core.knowledge.ConnectorContractVersions;
+import com.orgmemory.core.knowledge.connector.ConnectorConnectionFailure;
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
+import com.orgmemory.core.knowledge.connector.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptService;
 import com.orgmemory.core.knowledge.ConnectorCrawlAttemptView;
-import com.orgmemory.core.knowledge.ConnectorCrawlBatch;
+import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
 import com.orgmemory.core.knowledge.ConnectorCrawlCheckpointService;
 import com.orgmemory.core.knowledge.ConnectorCrawlOutcome;
-import com.orgmemory.core.knowledge.ConnectorIngestionResult;
-import com.orgmemory.core.knowledge.ConnectorIngestionService;
-import com.orgmemory.core.knowledge.ConnectorItemFailure;
-import com.orgmemory.core.knowledge.ConnectorPoll;
-import com.orgmemory.core.knowledge.ConnectorSyncComponent;
+import com.orgmemory.core.knowledge.connector.ConnectorIngestionResult;
+import com.orgmemory.core.knowledge.connector.ConnectorIngestionService;
+import com.orgmemory.core.knowledge.connector.ConnectorItemFailure;
+import com.orgmemory.core.knowledge.connector.ConnectorPoll;
+import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.knowledge.QueryEmbeddingPort;
-import com.orgmemory.core.knowledge.UnsupportedConnectorPayloadException;
+import com.orgmemory.core.knowledge.connector.UnsupportedConnectorPayloadException;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import java.util.ArrayList;
 import java.util.List;
@@ -499,7 +501,7 @@ class ConnectorCrawlCheckpointIntegrationTests {
     }
 
     /** A source producing exactly these batches and reporting no unreachable connection. */
-    private static List<com.orgmemory.core.knowledge.ConnectorBatchSource> producing(
+    private static List<com.orgmemory.core.knowledge.connector.ConnectorBatchSource> producing(
             ConnectorCrawlBatch... batches) {
         return List.of(() -> ConnectorPoll.of(List.of(batches)));
     }

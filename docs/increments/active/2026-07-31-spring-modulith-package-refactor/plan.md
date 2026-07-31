@@ -55,7 +55,7 @@ operating-model check passed. After merging current `origin/main` at
 docs check passed against 361 Markdown files. The pull request contains 89
 changed files.
 
-## Current Pull Request Gates
+## Third Pull Request Evidence
 
 - Source ACL snapshots/heads, external principals/mappings, and group
   membership evidence form the open `knowledge.acl` nested module.
@@ -70,3 +70,22 @@ focused ACL, principal, membership, connector, retrieval, graph, and Modulith
 tests passed; `:core:test` passed; and the terminating repository-wide
 `clean test` completed successfully in 6m46s across 108 tasks. The docs
 operating-model check passed. The pull request contains 84 changed files.
+
+## Current Pull Request Gates
+
+- Connector contracts, crawl batch state, source profiles and registries, and
+  ingestion orchestration form the first half of the open
+  `knowledge.connector` nested module.
+- Production and test code compile under the new fully qualified names without
+  widening package-private connector implementation details.
+- Focused connector, adapter, worker, and `ModulithVerificationTests` pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the connector persistence/runtime half starts.
+
+Local verification on 2026-08-01: all production and test sources compiled;
+focused connector and Modulith tests passed; connector adapter tests and the
+worker connector integration suite passed; `:core:test` passed; and the
+terminating repository-wide `clean test` completed successfully in 5m55s
+across 108 tasks. The docs operating-model and mechanical source checks passed.
+The pull request contains 88 changed files.

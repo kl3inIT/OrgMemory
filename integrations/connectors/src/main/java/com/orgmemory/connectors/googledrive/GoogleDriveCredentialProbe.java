@@ -1,7 +1,7 @@
 package com.orgmemory.connectors.googledrive;
 
-import com.orgmemory.core.knowledge.ConnectorCredentialProbe;
-import com.orgmemory.core.knowledge.ConnectorCredentialProbeResult;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbe;
+import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbeResult;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
 import java.util.List;

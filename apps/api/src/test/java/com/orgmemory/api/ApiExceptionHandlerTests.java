@@ -9,7 +9,7 @@ import com.orgmemory.core.assetregistry.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.AssetUnavailableException;
 import com.orgmemory.core.assistant.AssistantConversationNotFoundException;
 import com.orgmemory.core.knowledge.CitationNotFoundException;
-import com.orgmemory.core.knowledge.UnsupportedConnectorSourceException;
+import com.orgmemory.core.knowledge.connector.UnsupportedConnectorSourceException;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import java.net.URI;
 import java.util.Arrays;

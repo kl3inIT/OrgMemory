@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.ConnectorCaptureStatus;
+import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 
