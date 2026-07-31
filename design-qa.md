@@ -1,11 +1,11 @@
 # Asset Catalog Layout Balance — Design QA
 
 - Source visual truth:
-  `docs/increments/active/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-target.png`
+  `docs/increments/completed/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-target.png`
 - Browser implementation:
-  `docs/increments/active/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-implementation.png`
+  `docs/increments/completed/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-implementation.png`
 - Combined comparison:
-  `docs/increments/active/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-comparison.png`
+  `docs/increments/completed/2026-07-31-asset-catalog-layout-balance/asset-layout-balance-comparison.png`
 - State: dark theme, `My Assets`, grid layout, no open menus or visible
   focus ring.
 - Browser viewport: `1257 x 723` CSS px with `deviceScaleFactor: 1.5`.
