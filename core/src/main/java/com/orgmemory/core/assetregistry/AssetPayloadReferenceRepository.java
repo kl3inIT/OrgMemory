@@ -15,4 +15,7 @@ interface AssetPayloadReferenceRepository
 
     Optional<AssetPayloadReference> findByReleaseIdAndOrganizationId(
             UUID releaseId, UUID organizationId);
+
+    boolean existsByOrganizationIdAndReferenceValue(
+            UUID organizationId, String referenceValue);
 }

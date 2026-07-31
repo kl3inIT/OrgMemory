@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiRouteResolver;
@@ -1009,6 +1011,137 @@ class AssetRegistryIntegrationTests {
     }
 
     @Test
+    void onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected()
+            throws Exception {
+        byte[] archive = skillArchive(
+                "reference-guard",
+                "Prove mutable Draft pointers do not weaken immutable package pins.");
+        AssetView created = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                archive.length,
+                new ByteArrayInputStream(archive));
+        assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0");
+
+        UUID draftReferenceId = jdbc.queryForObject(
+                "SELECT id FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
+                UUID.class);
+        UUID revisionReferenceId = jdbc.queryForObject(
+                "SELECT id FROM asset_payload_references WHERE owner_kind = 'REVISION'",
+                UUID.class);
+        UUID releaseReferenceId = jdbc.queryForObject(
+                "SELECT id FROM asset_payload_references WHERE owner_kind = 'RELEASE'",
+                UUID.class);
+
+        assertThrows(
+                DataAccessException.class,
+                () -> jdbc.update(
+                        "UPDATE asset_payload_references SET updated_at = now() WHERE id = ?",
+                        draftReferenceId));
+        assertEquals(
+                1,
+                jdbc.update(
+                        "DELETE FROM asset_payload_references WHERE id = ?",
+                        draftReferenceId));
+        assertThrows(
+                DataAccessException.class,
+                () -> jdbc.update(
+                        "DELETE FROM asset_payload_references WHERE id = ?",
+                        revisionReferenceId));
+        assertThrows(
+                DataAccessException.class,
+                () -> jdbc.update(
+                        "UPDATE asset_payload_references SET updated_at = now() WHERE id = ?",
+                        releaseReferenceId));
+    }
+
+    @Test
+    void replacingAReleasedSkillDraftKeepsTheImmutablePackageAndClearsTheCleanupRow()
+            throws Exception {
+        byte[] original = skillArchive(
+                "replacement-history",
+                "The original Skill package remains pinned by its release.");
+        AssetView created = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                original.length,
+                new ByteArrayInputStream(original));
+        AssetView published = assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0");
+        String originalKey = jdbc.queryForObject(
+                "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
+                String.class);
+        byte[] replacement = skillArchive(
+                "replacement-history",
+                "The mutable Draft now points at a separately validated package.");
+
+        AssetView replaced = skills.replacePackage(
+                AUTHOR,
+                created.id(),
+                published.draft().lockVersion(),
+                replacement.length,
+                new ByteArrayInputStream(replacement));
+
+        String replacementKey = jdbc.queryForObject(
+                "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
+                String.class);
+        assertNotEquals(originalKey, replacementKey);
+        assertEquals(
+                2,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM asset_payload_references WHERE reference_value = ?",
+                        Integer.class,
+                        originalKey));
+        assertEquals(
+                "The mutable Draft now points at a separately validated package.",
+                replaced.draft().summary());
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM skill_package_supersessions",
+                        Integer.class));
+        verify(skillStorage, never()).delete(originalKey);
+    }
+
+    @Test
+    void replacingAnUnreleasedSkillDraftDeletesItsUnreferencedOldPackage()
+            throws Exception {
+        byte[] original = skillArchive(
+                "replacement-cleanup",
+                "The original package has no immutable consumers.");
+        AssetView created = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                original.length,
+                new ByteArrayInputStream(original));
+        String originalKey = jdbc.queryForObject(
+                "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
+                String.class);
+        byte[] replacement = skillArchive(
+                "replacement-cleanup",
+                "The replacement supersedes the unreferenced package.");
+
+        skills.replacePackage(
+                AUTHOR,
+                created.id(),
+                created.draft().lockVersion(),
+                replacement.length,
+                new ByteArrayInputStream(replacement));
+
+        verify(skillStorage).delete(originalKey);
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM skill_package_supersessions",
+                        Integer.class));
+    }
+
+    @Test
     void skillImportPublishesDirectlyAndPinsTheValidatedBlob() throws Exception {
         byte[] archive = skillArchive(
                 "support-triage",
@@ -1741,6 +1874,7 @@ class AssetRegistryIntegrationTests {
                     pack_progress,
                     pack_assignments,
                     work_instruction_acknowledgements,
+                    skill_package_supersessions,
                     asset_audit_events,
                     asset_payload_references,
                     asset_relations,

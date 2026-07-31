@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,6 +17,8 @@ import com.orgmemory.core.permission.KnowledgeClassification;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -40,7 +43,11 @@ class SkillRegistryServiceTests {
                 .when(assets)
                 .requireSkillCreate(ACTOR, SPACE_ID);
         SkillRegistryService service =
-                new SkillRegistryService(new SkillPackageInspector(), storage, assets);
+                new SkillRegistryService(
+                        new SkillPackageInspector(),
+                        storage,
+                        assets,
+                        mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 OrgMemoryAccessDeniedException.class,
@@ -75,7 +82,11 @@ class SkillRegistryServiceTests {
                         any()))
                 .thenThrow(new AssetConflictException("Duplicate"));
         SkillRegistryService service =
-                new SkillRegistryService(new SkillPackageInspector(), storage, assets);
+                new SkillRegistryService(
+                        new SkillPackageInspector(),
+                        storage,
+                        assets,
+                        mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 AssetConflictException.class,
@@ -102,13 +113,106 @@ class SkillRegistryServiceTests {
         when(assets.projectCreated(ACTOR, assetId))
                 .thenThrow(new AssetUnavailableException("Projection pending"));
         SkillRegistryService service =
-                new SkillRegistryService(new SkillPackageInspector(), storage, assets);
+                new SkillRegistryService(
+                        new SkillPackageInspector(),
+                        storage,
+                        assets,
+                        mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 AssetUnavailableException.class,
                 () -> importArchive(service, archive));
 
         verify(storage, never()).delete(any());
+    }
+
+    @Test
+    void inspectionIsStatelessAndReturnsOnlyValidatedPackageFacts() throws Exception {
+        byte[] archive = archive();
+        SkillPackageStoragePort storage = mock(SkillPackageStoragePort.class);
+        SkillRegistryService service = new SkillRegistryService(
+                new SkillPackageInspector(),
+                storage,
+                mock(AssetRegistryService.class),
+                mock(SkillPackageSupersessionCleanupService.class));
+
+        SkillPackageInspection inspection = service.inspectPackage(
+                ACTOR, archive.length, new ByteArrayInputStream(archive));
+
+        assertEquals("support-triage", inspection.name());
+        assertEquals(1, inspection.files().size());
+        assertEquals("# Support triage", inspection.instructions());
+        verify(storage, never()).put(any(), any());
+    }
+
+    @Test
+    void replacementAuthorizesBeforeStorageAndCleansTheDurableSupersession()
+            throws Exception {
+        byte[] archive = archive();
+        UUID assetId = UUID.randomUUID();
+        UUID supersessionId = UUID.randomUUID();
+        SkillPackageStoragePort storage = mock(SkillPackageStoragePort.class);
+        AssetRegistryService assets = mock(AssetRegistryService.class);
+        SkillPackageSupersessionCleanupService cleanup =
+                mock(SkillPackageSupersessionCleanupService.class);
+        AssetView current = skillView(assetId, 7);
+        doNothing().when(assets).requireSkillEdit(ACTOR, assetId);
+        when(assets.get(ACTOR, assetId)).thenReturn(current);
+        when(storage.put(any(), any())).thenAnswer(invocation -> {
+            SkillPackageStoragePort.SkillPackageWriteRequest request =
+                    invocation.getArgument(0);
+            return stored(request);
+        });
+        when(assets.replaceValidatedSkillDraft(
+                        eq(ACTOR), eq(assetId), eq(7L), any(), any()))
+                .thenReturn(new SkillDraftReplacement(current, supersessionId));
+        SkillRegistryService service = new SkillRegistryService(
+                new SkillPackageInspector(), storage, assets, cleanup);
+
+        AssetView replaced = service.replacePackage(
+                ACTOR,
+                assetId,
+                7,
+                archive.length,
+                new ByteArrayInputStream(archive));
+
+        assertEquals(assetId, replaced.id());
+        verify(assets).requireSkillEdit(ACTOR, assetId);
+        verify(cleanup).cleanup(supersessionId);
+        verify(storage, never()).delete(any());
+    }
+
+    @Test
+    void replacementDeletesTheNewObjectWhenTheDatabaseSwapFails() throws Exception {
+        byte[] archive = archive();
+        UUID assetId = UUID.randomUUID();
+        SkillPackageStoragePort storage = mock(SkillPackageStoragePort.class);
+        AssetRegistryService assets = mock(AssetRegistryService.class);
+        doNothing().when(assets).requireSkillEdit(ACTOR, assetId);
+        when(assets.get(ACTOR, assetId)).thenReturn(skillView(assetId, 2));
+        when(storage.put(any(), any())).thenAnswer(invocation -> {
+            SkillPackageStoragePort.SkillPackageWriteRequest request =
+                    invocation.getArgument(0);
+            return stored(request);
+        });
+        when(assets.replaceValidatedSkillDraft(any(), any(), any(Long.class), any(), any()))
+                .thenThrow(new AssetConflictException("Changed"));
+        SkillRegistryService service = new SkillRegistryService(
+                new SkillPackageInspector(),
+                storage,
+                assets,
+                mock(SkillPackageSupersessionCleanupService.class));
+
+        assertThrows(
+                AssetConflictException.class,
+                () -> service.replacePackage(
+                        ACTOR,
+                        assetId,
+                        2,
+                        archive.length,
+                        new ByteArrayInputStream(archive)));
+
+        verify(storage).delete(any());
     }
 
     private static AssetView importArchive(
@@ -133,6 +237,32 @@ class SkillRegistryServiceTests {
                 request.contentLength(),
                 "application/zip",
                 request.expectedSha256());
+    }
+
+    private static AssetView skillView(UUID assetId, long lockVersion) {
+        return new AssetView(
+                assetId,
+                AssetType.SKILL,
+                "support",
+                "support-triage",
+                SPACE_ID,
+                AssetPortfolioState.DRAFT_ONLY,
+                true,
+                new AssetView.Draft(
+                        UUID.randomUUID(),
+                        lockVersion,
+                        "support-triage",
+                        "Support triage",
+                        "INTERNAL",
+                        "1",
+                        "{}",
+                        ACTOR.userId(),
+                        Instant.now()),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of());
     }
 
     private static byte[] archive() throws Exception {
