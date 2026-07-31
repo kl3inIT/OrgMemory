@@ -6,81 +6,226 @@ audience:
   - evaluator
 status: public
 sourceRefs:
-  - docs/specs/domains/secure-retrieval.md
-  - docs/specs/domains/secure-graph-rag.md
-  - docs/tests/domains/secure-graph-rag.md
-lastReviewed: 2026-07-29
+  - core/src/main/java/com/orgmemory/core/knowledge/GraphRagRetrievalPolicy.java
+  - core/src/main/java/com/orgmemory/core/knowledge/GraphRagKnowledgeRetrievalService.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/extraction/LightRagEntityRelationExtractor.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/indexing/GraphContributionAssembler.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/query/LightRagKeywordPlanner.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/query/LightRagQueryEngine.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/query/LightRagGroundingAssembler.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/query/RoundRobinInterleaver.java
+  - components/graph-rag-core/src/main/java/com/orgmemory/graphrag/query/WholeItemBudgetAllocator.java
+  - components/graph-rag-core/src/test/java/com/orgmemory/graphrag/query/LightRagUpstreamOracleTests.java
+  - integrations/graph-rag-postgres/src/main/java/com/orgmemory/graphrag/postgres/PostgresGraphStore.java
+  - integrations/graph-rag-neo4j/src/main/java/com/orgmemory/graphrag/neo4j/Neo4jGraphRagAutoConfiguration.java
+  - apps/api/src/main/java/com/orgmemory/api/assistant/AssistantConfiguration.java
+  - core/src/test/java/com/orgmemory/core/knowledge/GraphRagKnowledgeRetrievalServiceTests.java
+  - integrations/graph-rag-neo4j/src/test/java/com/orgmemory/graphrag/neo4j/Neo4jGraphStoreIntegrationTests.java
+  - integrations/graph-rag-opensearch/src/test/java/com/orgmemory/graphrag/opensearch/OpenSearchProjectionPublicationIntegrationTests.java
+lastReviewed: 2026-07-31
 ---
 
-Secure retrieval treats authorization as part of relevance computation, not a
-filter added after ranking. Graph nodes and relations have no independent ACL:
-their evidence contributions remain tied to authorized Knowledge Assets.
+Secure retrieval makes authorization part of candidate generation. Evidence
+outside the caller's current Knowledge Asset scope cannot affect ranking,
+graph traversal, or the model prompt.
 
-## Retrieval model
+## Retrieval flow
 
 <ArchitectureDiagram
-  alt="Secure retrieval and GraphRAG pipeline resolving an authorized scope before ranking, retrieving parallel full-text, vector, and graph candidates, rechecking the complete evidence closure, and only then rendering the model prompt."
-  description="Authorization constrains candidate generation and is rechecked across every selected chunk, entity, and relation. Unauthorized evidence never enters the model prompt."
-  height={941}
+  alt="Secure retrieval pipeline resolving authorized Knowledge Assets, pinning canonical state, retrieving and ranking candidates, rechecking the evidence closure, and building a model prompt with authorized citations."
+  description="Authorization constrains candidate generation and is rechecked across every selected chunk, entity, and relation before the model receives evidence."
+  height={887}
   src="/images/architecture/secure-retrieval-graphrag.webp"
-  title="Permission-aware retrieval"
-  width={1672}
+  title="Secure retrieval and GraphRAG"
+  width={1774}
 />
 
-## Canonical scope before ranking
+The application executes these stages in order:
 
-Search first resolves candidate stable Knowledge Asset IDs through OpenFGA.
-Canonical SQL then checks organization, lifecycle, current-version pointer,
-source revision, ingestion and current ACLs, classification, and publication,
-model, and profile state before full-text, vector, or graph ranking.
+1. **Resolve scope.** The signed-in actor and organization determine which
+   stable Knowledge Asset IDs OpenFGA may return.
+2. **Pin current state.** Canonical SQL verifies lifecycle, current source
+   revision, ACL generation, publication state, projection generation,
+   embedding model, and retrieval profile.
+3. **Retrieve authorized candidates.** The selected engine searches only
+   evidence contributed by the authorized Assets.
+4. **Rank and budget context.** The server expands, merges, and ranks the
+   candidates, then applies one token budget across entities, relations, and
+   chunks.
+5. **Close and recheck evidence.** The budget-selected grounding becomes a
+   complete evidence closure. OpenFGA BatchCheck and the canonical ledger must
+   still agree for every item in it.
+6. **Build the prompt.** Citation references are assigned and only the
+   rechecked evidence reaches the model gateway.
 
-This order prevents a denied chunk, neighbor, degree, edge weight, or hidden
-entity description from affecting visible results.
+This ordering prevents a denied chunk, hidden neighbor, node degree, edge
+weight, or entity description from influencing a visible result.
 
-## Graph evidence model
+## Choose the retrieval engine
 
-Canonical entities and relations do not hold merged authorization-free
-descriptions. Each description, keyword, confidence, source revision, chunk,
-Knowledge Asset, ACL coordinate, model, prompt, and extraction time remains on
-an immutable evidence contribution.
+The deployment selects one retrieval engine with
+`orgmemory.assistant.retrieval-engine`. This is an operator setting, not a
+request parameter.
 
-`SECURE_MIX` combines chunk, entity, and relation evidence under one internal
-retrieval plan. The strategy is not a public request option. Results keep their
-structured contributions until the final pure-Java renderer assigns references
-and applies one model-context budget across every selected Knowledge Space.
+| Engine | What it retrieves | Important boundary |
+| --- | --- | --- |
+| **GraphRAG** (default) | Vector-ranked chunks plus related entity and relation evidence | It does not perform full-text search and never falls back silently to the canonical hybrid engine. |
+| **Canonical hybrid** | Full-text and vector candidates from the canonical retrieval path | It is a separate OrgMemory engine, not LightRAG's `hybrid` mode or a degraded GraphRAG mode. |
 
-## Projection boundaries
+Within GraphRAG, the server owns the mixed chunk-and-graph plan. A client cannot
+select an internal query mode or weaken the authorization stages.
 
-PostgreSQL owns canonical graph identities, contributions, publication heads,
-and entity/relation vectors. Apache AGE stores topology identifiers for bounded
-candidate traversal. OpenSearch and Neo4j are replaceable adapters under the
-same contribution-level authorization conformance suite.
+## How GraphRAG works
 
-Every adapter returns candidates, not authorization decisions. AGE candidates
-are edge-filtered by authorized Knowledge Asset and then rechecked relationally.
-A bounded relational breadth-first traversal supplies the same port when AGE is
-disabled.
+OrgMemory implements a LightRAG-inspired pipeline with LightRAG v1.5.4 as its
+pinned semantic comparison baseline, not as a wire-compatible dependency. The
+GraphRAG engine always uses a server-owned `MIX` plan: one query combines
+entity, relation, and chunk retrieval instead of choosing only one view of the
+knowledge.
 
-## Request authorization snapshot
+<ArchitectureDiagram
+  alt="LightRAG-inspired indexing and query pipeline. Document chunks produce entity and relation contributions and vector indexes. A question produces low-level keywords, high-level keywords, and a raw-query vector that drive local entity, global relation, and direct chunk retrieval before graph expansion, merging, reranking, and secure context assembly."
+  description="The internal MIX strategy combines local entity context, global relationship context, and direct vector chunks. Every branch operates inside the authorized Knowledge Asset projection."
+  height={887}
+  src="/images/architecture/lightrag-query-pipeline.webp"
+  title="How GraphRAG builds and retrieves context"
+  width={1774}
+/>
 
-After ranking, the application BatchChecks and re-reads the complete
-entity/relation/chunk closure. Organization, OpenFGA model, ACL snapshot, source
-revision, and projection generation must still match. If authorization changes
-during retrieval, the request retries without sending evidence to the model.
+### Build the graph from evidence
+
+1. **Chunk the current source revision.** Each chunk keeps its source span and
+   Knowledge Asset identity.
+2. **Extract entities and relations.** The extraction model returns typed
+   entities and relations with descriptions, keywords, orientation, weight,
+   and confidence. Token and response guards bound every extraction round.
+3. **Resolve canonical identities.** Equivalent names and endpoints map to
+   stable organization-scoped graph identities. Their descriptions are not
+   collapsed into one authorization-free summary; each source remains an
+   immutable contribution.
+4. **Publish a complete generation.** Chunk, entity, and relation vectors are
+   associated with the same source revision, ACL coordinate, extraction
+   profile, and publication generation. A partial graph never becomes the
+   current read generation.
+
+### Run one mixed query
+
+The server prepares keyword planning and embeddings once for the logical
+request, then executes three internal branches:
+
+| Branch | Query signal | Retrieved context |
+| --- | --- | --- |
+| **Local** | Low-level keywords that name concrete concepts | Entity vector seeds and graph evidence connected to those seeds |
+| **Global** | High-level keywords that express themes or relationships | Relation vector seeds and their endpoint entities |
+| **Direct chunks** | The raw question embedding | Semantically similar document chunks |
+
+For example, a question about which suppliers depend on Project Atlas may
+produce low-level terms such as `Project Atlas` and `supplier`, while a
+high-level term such as `dependency` targets relationship descriptions. These
+are planning signals, not filters supplied by the client. If planning returns
+no usable graph keywords, direct chunk retrieval can still provide evidence;
+the engine does not invent graph seeds.
+
+The local branch performs a bounded walk from entity seeds and loads their
+incident relations. The global branch keeps the relation seeds and their
+endpoint entities. After merging those graph results, the engine selects
+supporting chunks: source chunks whose contributions support the selected
+entities and relations. It interleaves and deduplicates those chunks with the
+direct vector results. A configured reranker may reorder only the
+already-authorized chunks; entity and relation ordering remains part of the
+graph result.
+
+Without a reranker, chunks are interleaved round-robin in direct, entity,
+relation order and deduplicated by chunk ID. Across Knowledge Spaces, entities,
+relations, and chunks are merged by their stable IDs, then ordered by score,
+original branch order, and stable ID for deterministic tie-breaking.
+
+The grounding assembler applies separate token caps to the already-ordered
+entity and relation lists, then gives the remaining total allowance to chunks.
+Allocation keeps whole items and stops a list at the first item that would
+cross its cap. The resulting budget-selected grounding defines the evidence
+closure that the application rechecks before rendering the prompt.
+
+These branches are internal mechanics, not public query modes. OrgMemory does
+not expose LightRAG's `local`, `global`, `hybrid`, `naive`, or `mix` choices to
+a client. The application fixes GraphRAG to `MIX` so every branch receives the
+same authorization snapshot, limits, model profile, and failure policy.
+
+### Adapt LightRAG to governed memory
+
+The pinned LightRAG baseline exposes query modes and aggregates graph
+descriptions for retrieval. The repository records the exact upstream revision
+in its parity oracle test. OrgMemory keeps the retrieval technique but changes
+its trust boundary:
+
+- entity and relation descriptions remain evidence contributions tied to
+  source chunks and Knowledge Assets;
+- keyword seeds, vector candidates, graph neighbors, degrees, and relation
+  weights are computed only from the authorized projection;
+- graph expansion is depth- and result-bounded;
+- the complete selected closure is checked again before prompt construction;
+- source updates publish a complete immutable generation before it can replace
+  the current read generation.
+
+## Evidence remains Asset-scoped
+
+Graph entities and relations do not have independent ACLs. Their descriptions,
+keywords, confidence values, and links remain attached to immutable evidence
+contributions that identify the source chunk, Knowledge Asset, source revision,
+ACL coordinate, model, prompt, and extraction time.
+
+GraphRAG filters those contributions to the authorized Asset scope before it
+uses them for traversal or ranking. Structured contributions remain intact
+until the renderer applies one model-context budget across the selected
+Knowledge Spaces.
+
+## Default graph-store boundary
+
+The reference deployment selects the PostgreSQL `GraphStore`. In that
+configuration, PostgreSQL owns graph identities, contributions, publication
+heads, entity and relation vectors, and the live traversal path. Bounded graph
+walks run as recursive SQL over contribution-filtered relations.
+
+Neo4j can replace that `GraphStore` when its adapter is explicitly enabled; it
+does not replace PostgreSQL's canonical application and authorization ledger.
+OpenSearch implements the publication projection contract, but it is not the
+live GraphRAG read path in the reference deployment.
+
+Every adapter returns candidates, not authorization decisions. The application
+rechecks the complete evidence closure against the canonical ledger before any
+candidate can enter a model prompt.
+
+## Authorization is stable for one turn
+
+The snapshot boundary separates two cases: an authorization change detected
+before the snapshot is finalized triggers a retry, while a change after
+finalization applies to later turns and citation opens.
+
+After ranking the already authorization-scoped candidates, the application
+BatchChecks and re-reads the complete chunk, entity, and relation closure.
+Organization, OpenFGA model, ACL snapshot, source revision, and projection
+generation must still match. If authorization changes during retrieval, the
+request retries exactly once without sending evidence to the model. A second
+change fails the request closed.
 
 The verified closure becomes an immutable snapshot for that Assistant turn.
 Revocation applies to the next turn. An already-started turn may finish under
 its snapshot and remains bounded by the configured turn timeout.
 
-## Citations
+The snapshot governs model generation only. Opening a citation is a new access
+decision, so a citation may stop opening after access is revoked even when its
+originating turn was allowed to finish.
+
+## Citations are checked again
 
 Only evidence that fits the final prompt budget receives a citation number.
-The browser makes interactive only the markers declared by the server.
-Opening a citation runs a fresh canonical check, validates revision and blob
-integrity, and streams original bytes through an authenticated no-store route.
-Missing, changed, and denied citations are indistinguishable.
+The browser makes interactive only the markers declared by the server. Opening
+a citation runs a fresh canonical access check, validates its source revision
+and blob integrity, and streams the original bytes through an authenticated
+no-store route. Missing, changed, corrupt, and denied citations return the same
+opaque response.
 
-## Failure behavior
+## Limits and failure behavior
 
 - a missing model route, mismatched immutable profile, malformed extraction, or
   failed snapshot closes the request;
@@ -88,11 +233,9 @@ Missing, changed, and denied citations are indistinguishable.
 - reranking defaults off and cannot start without a named adapter;
 - a transient reranker failure may retain the already-authorized order while
   emitting sanitized telemetry;
-- one failed Knowledge Space fails a multi-space request closed.
-
-<VerificationBlock title="Security conformance">
-  Pure-Java and adapter suites prove that restricted contributions, seeds,
-  neighbors, degrees, weights, stale generations, and cross-tenant evidence
-  cannot influence the visible result. Provider-backed quality and load
-  evaluation remain separate operational gaps.
-</VerificationBlock>
+- one request may span at most 20 Knowledge Spaces and its complete evidence
+  closure may contain at most 2,000 items;
+- multi-space retrieval with reranking enabled is refused rather than running
+  with ambiguous global ordering;
+- an authorization mismatch, timeout, adapter failure, or malformed result in
+  one Knowledge Space fails the complete multi-space request closed.

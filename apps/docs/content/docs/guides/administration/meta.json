@@ -1,9 +1,0 @@
-{
-  "title": "Administration",
-  "description": "Manage identity, permissions, policy, and governed sources.",
-  "icon": "ShieldCheck",
-  "pages": [
-    "identity-permissions",
-    "sources-connections"
-  ]
-}

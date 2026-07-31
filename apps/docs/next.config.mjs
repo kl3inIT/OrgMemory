@@ -5,23 +5,38 @@ const withMDX = createMDX();
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const movedDocsPages = [
   ['/docs/overview', '/docs/getting-started'],
-  ['/docs/overview/quickstart', '/docs/guides/deployment-operations/self-hosting'],
-  ['/docs/getting-started/quickstart', '/docs/guides/deployment-operations/self-hosting'],
+  ['/docs/overview/quickstart', '/docs/getting-started'],
+  ['/docs/getting-started/quickstart', '/docs/getting-started'],
   ['/docs/overview/core-concepts', '/docs/getting-started/core-concepts'],
-  ['/docs/overview/asset-lifecycle', '/docs/architecture-security/asset-lifecycle'],
-  ['/docs/admins', '/docs/guides/administration/identity-permissions'],
+  ['/docs/overview/asset-lifecycle', '/docs/product-guides/work-with-governed-assets'],
   [
-    '/docs/admins/identity-permissions',
+    '/docs/architecture-security/asset-lifecycle',
+    '/docs/product-guides/work-with-governed-assets',
+  ],
+  ['/docs/guides', '/docs/getting-started'],
+  ['/docs/guides/administration', '/docs/architecture-security/authorization'],
+  [
     '/docs/guides/administration/identity-permissions',
+    '/docs/architecture-security/authorization',
   ],
   [
-    '/docs/admins/sources-connections',
     '/docs/guides/administration/sources-connections',
+    '/docs/architecture-security/ingestion-lifecycle',
   ],
-  ['/docs/deployment', '/docs/guides/deployment-operations/self-hosting'],
-  ['/docs/deployment/self-hosting', '/docs/guides/deployment-operations/self-hosting'],
-  ['/docs/developers', '/docs/guides/integrations/assistant-mcp'],
-  ['/docs/developers/assistant-mcp', '/docs/guides/integrations/assistant-mcp'],
+  ['/docs/guides/deployment-operations', '/docs/architecture-security/system-description'],
+  [
+    '/docs/guides/deployment-operations/self-hosting',
+    '/docs/architecture-security/system-description',
+  ],
+  ['/docs/guides/integrations', '/docs/reference/api-reference/assistant'],
+  ['/docs/guides/integrations/assistant-mcp', '/docs/reference/api-reference/assistant'],
+  ['/docs/admins', '/docs/architecture-security/authorization'],
+  ['/docs/admins/identity-permissions', '/docs/architecture-security/authorization'],
+  ['/docs/admins/sources-connections', '/docs/architecture-security/ingestion-lifecycle'],
+  ['/docs/deployment', '/docs/architecture-security/system-description'],
+  ['/docs/deployment/self-hosting', '/docs/architecture-security/system-description'],
+  ['/docs/developers', '/docs/reference/api-reference/assistant'],
+  ['/docs/developers/assistant-mcp', '/docs/reference/api-reference/assistant'],
   ['/docs/developers/api-reference', '/docs/reference/api-reference'],
 ];
 const sectionLandingPages = [
@@ -45,6 +60,11 @@ const config = {
   output: 'standalone',
   outputFileTracingRoot: repositoryRoot,
   reactStrictMode: true,
+  experimental: {
+    staticGenerationMaxConcurrency: 1,
+    staticGenerationMinPagesPerWorker: 150,
+    staticGenerationRetryCount: 1,
+  },
   async redirects() {
     return [
       ...localizedPageRedirects(movedDocsPages),

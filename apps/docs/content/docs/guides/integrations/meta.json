@@ -1,8 +1,0 @@
-{
-  "title": "Integrations",
-  "description": "Connect supported clients and delivery interfaces.",
-  "icon": "Cable",
-  "pages": [
-    "assistant-mcp"
-  ]
-}
