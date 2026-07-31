@@ -5,6 +5,7 @@ import {
   ChevronRight,
   LayoutGrid,
   List,
+  Plus,
   Search,
 } from "lucide-react"
 import { useMemo, type ReactNode } from "react"
@@ -315,6 +316,14 @@ export function AssetCatalogPage({
           <span className="text-sm tabular-nums text-content-muted">
             {total} {total === 1 ? "result" : "results"}
           </span>
+        }
+        actions={
+          <Button asChild>
+            <Link to="/assets/new">
+              <Plus aria-hidden="true" />
+              Add asset
+            </Link>
+          </Button>
         }
       >
         <FilterBar

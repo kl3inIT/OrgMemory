@@ -157,6 +157,7 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.goto("/assets")
 
   await expect(page.getByText("18 results", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Add asset" })).toBeVisible()
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
   await expect(page.getByText("Showing 1–18 of 18", { exact: true })).toBeVisible()
@@ -176,6 +177,45 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page).not.toHaveURL(/view=/)
   await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByRole("region", { name: "Visible assets" })).toBeVisible()
+
+  await page.getByRole("link", { name: "Add asset" }).click()
+  await expect(page).toHaveURL(/\/assets\/new$/)
+  await expect(page.locator('[data-sidebar="menu-button"][href="/assets"]')).toHaveAttribute(
+    "aria-current",
+    "page",
+  )
+  await expect(page.getByRole("heading", { level: 1, name: "Add an asset" })).toBeVisible()
+  await expect(page.getByRole("button", { name: /Skill/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await expect(page.getByText("SKILL.md required", { exact: true })).toBeVisible()
+  await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0)
+
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/asset-add-entry.png",
+      fullPage: false,
+    })
+  }
+
+  await page.getByRole("button", { name: /Prompt template/ }).click()
+  await expect(page.getByRole("button", { name: /Prompt template/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  )
+  await expect(
+    page.getByText("Browser authoring for this Asset type is not available yet."),
+  ).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.getByRole("heading", { level: 1, name: "Add an asset" })).toBeVisible()
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+
+  await page.getByRole("link", { name: "Back to Assets" }).click()
+  await expect(page).toHaveURL(/\/assets$/)
 
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])

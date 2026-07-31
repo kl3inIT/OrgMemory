@@ -46,6 +46,7 @@ Reconciled: `2026-07-31-skill-direct-sharing (a190d63)`.
 | Asset catalog total, filtering, stable name sorting, and pages are evaluated over the authorized latest-release set | `AssetRegistryIntegrationTests#catalogPagesAndSortsTheLatestAuthorizedReleasesOnTheServer` | covered |
 | Asset type projection exposes every governed profile, reports the active filter, clears to the shared catalog, and preserves the grid-default URL plus explicit list state | `asset-type-filter.test.tsx`, `asset-catalog-state.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
+| The Asset catalog exposes one Add asset entry point, the profile chooser preserves the unified Asset surface, and the incomplete authoring step cannot create a Draft | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Assistant action registry has no governance or arbitrary-execution path | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
