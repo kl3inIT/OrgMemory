@@ -62,19 +62,4 @@ public final class SpringAiChatModelProvider {
         models.keySet().removeIf(candidate -> candidate.supersededBy(active));
     }
 
-    private record ModelKey(
-            UUID organizationId,
-            AiWorkload workload,
-            AiRoute route,
-            com.orgmemory.core.ai.AiGatewayProtocol protocol,
-            long profileVersion) {
-
-        private boolean supersededBy(ModelKey active) {
-            return java.util.Objects.equals(organizationId, active.organizationId)
-                    && (workload == active.workload
-                            || (route.gatewayId().equals(active.route.gatewayId())
-                                    && profileVersion < active.profileVersion))
-                    && !equals(active);
-        }
-    }
 }

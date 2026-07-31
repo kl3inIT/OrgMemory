@@ -37,6 +37,15 @@ public final class Neo4jGraphStore implements GraphStore {
             AND contribution.knowledgeAssetId IN $authorizedAssetIds
             """;
 
+    private static final String VISIBLE_RELATION_CONTRIBUTION = """
+            contribution.batchId = $batchId
+            AND contribution.organizationId = $organizationId
+            AND contribution.workspace = $workspace
+            AND contribution.collection = $collection
+            AND contribution.generation = $generation
+            AND contribution.knowledgeAssetId IN $authorizedAssetIds
+            """;
+
     private static final String VISIBLE_RELATION = """
             relation.batchId = $batchId
             AND relation.generation = $generation
@@ -233,12 +242,7 @@ public final class Neo4jGraphStore implements GraphStore {
                         MATCH (contribution:OrgMemoryGraphRelationContribution)
                         WHERE contribution.relationId = relation.relationId
                           AND contribution.relationId IN $ids
-                          AND contribution.batchId = $batchId
-                          AND contribution.organizationId = $organizationId
-                          AND contribution.workspace = $workspace
-                          AND contribution.collection = $collection
-                          AND contribution.generation = $generation
-                          AND contribution.knowledgeAssetId IN $authorizedAssetIds
+                          AND %s
                           AND %s
                         RETURN properties(contribution) AS contribution,
                                relation.relationId AS relationId,
@@ -247,7 +251,9 @@ public final class Neo4jGraphStore implements GraphStore {
                                relation.orientation AS orientation
                         ORDER BY contribution.contributionId
                         """
-                                .formatted(VISIBLE_RELATION),
+                                .formatted(
+                                        VISIBLE_RELATION_CONTRIBUTION,
+                                        VISIBLE_RELATION),
                         parameters)
                 .list(Neo4jGraphStore::relationContribution));
     }
@@ -337,18 +343,15 @@ public final class Neo4jGraphStore implements GraphStore {
                         MATCH (contribution:OrgMemoryGraphRelationContribution)
                         WHERE contribution.relationId = relation.relationId
                           AND contribution.relationId IN $ids
-                          AND contribution.batchId = $batchId
-                          AND contribution.organizationId = $organizationId
-                          AND contribution.workspace = $workspace
-                          AND contribution.collection = $collection
-                          AND contribution.generation = $generation
-                          AND contribution.knowledgeAssetId IN $authorizedAssetIds
+                          AND %s
                           AND %s
                         RETURN relation.relationId AS relationId,
                                sum(contribution.weight) AS weight
                         ORDER BY relation.relationId
                         """
-                                .formatted(VISIBLE_RELATION),
+                                .formatted(
+                                        VISIBLE_RELATION_CONTRIBUTION,
+                                        VISIBLE_RELATION),
                         parameters)
                 .list());
         records.forEach(record -> result.put(

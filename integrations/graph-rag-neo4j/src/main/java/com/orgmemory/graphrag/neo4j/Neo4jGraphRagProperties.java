@@ -1,5 +1,8 @@
 package com.orgmemory.graphrag.neo4j;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requireText;
+import static com.orgmemory.graphrag.validation.TextValidation.requirePositiveDuration;
+
 import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
@@ -79,7 +82,7 @@ public class Neo4jGraphRagProperties {
     }
 
     public void setConnectionTimeout(Duration connectionTimeout) {
-        this.connectionTimeout = requirePositive(connectionTimeout, "connectionTimeout");
+        this.connectionTimeout = requirePositiveDuration(connectionTimeout, "connectionTimeout");
     }
 
     public Duration getConnectionAcquisitionTimeout() {
@@ -88,7 +91,7 @@ public class Neo4jGraphRagProperties {
 
     public void setConnectionAcquisitionTimeout(Duration connectionAcquisitionTimeout) {
         this.connectionAcquisitionTimeout =
-                requirePositive(connectionAcquisitionTimeout, "connectionAcquisitionTimeout");
+                requirePositiveDuration(connectionAcquisitionTimeout, "connectionAcquisitionTimeout");
     }
 
     public Duration getMaximumTransactionRetryTime() {
@@ -97,7 +100,7 @@ public class Neo4jGraphRagProperties {
 
     public void setMaximumTransactionRetryTime(Duration maximumTransactionRetryTime) {
         this.maximumTransactionRetryTime =
-                requirePositive(maximumTransactionRetryTime, "maximumTransactionRetryTime");
+                requirePositiveDuration(maximumTransactionRetryTime, "maximumTransactionRetryTime");
     }
 
     public Duration getQueryTimeout() {
@@ -105,7 +108,7 @@ public class Neo4jGraphRagProperties {
     }
 
     public void setQueryTimeout(Duration queryTimeout) {
-        this.queryTimeout = requirePositive(queryTimeout, "queryTimeout");
+        this.queryTimeout = requirePositiveDuration(queryTimeout, "queryTimeout");
     }
 
     public long getFetchSize() {
@@ -148,7 +151,7 @@ public class Neo4jGraphRagProperties {
     }
 
     public void setCopyWaitTimeout(Duration copyWaitTimeout) {
-        this.copyWaitTimeout = requirePositive(copyWaitTimeout, "copyWaitTimeout");
+        this.copyWaitTimeout = requirePositiveDuration(copyWaitTimeout, "copyWaitTimeout");
     }
 
     public Duration getCopyLease() {
@@ -156,7 +159,7 @@ public class Neo4jGraphRagProperties {
     }
 
     public void setCopyLease(Duration copyLease) {
-        this.copyLease = requirePositive(copyLease, "copyLease");
+        this.copyLease = requirePositiveDuration(copyLease, "copyLease");
     }
 
     void validate() {
@@ -205,22 +208,6 @@ public class Neo4jGraphRagProperties {
             throw new IllegalArgumentException(field + " must be positive");
         }
         return value;
-    }
-
-    private static Duration requirePositive(Duration value, String field) {
-        Duration duration = Objects.requireNonNull(value, field);
-        if (duration.isZero() || duration.isNegative()) {
-            throw new IllegalArgumentException(field + " must be positive");
-        }
-        return duration;
-    }
-
-    private static String requireText(String value, String field) {
-        String normalized = Objects.requireNonNull(value, field).strip();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
-        return normalized;
     }
 
     private static String requireIdentifier(String value, String field) {

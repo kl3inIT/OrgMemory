@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.opensearch;
 
+import static com.orgmemory.graphrag.validation.TextValidation.requirePositiveDuration;
+
 import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
@@ -64,7 +66,7 @@ public class OpenSearchGraphRagProperties {
     }
 
     public void setConnectTimeout(Duration connectTimeout) {
-        this.connectTimeout = requirePositive(connectTimeout, "connectTimeout");
+        this.connectTimeout = requirePositiveDuration(connectTimeout, "connectTimeout");
     }
 
     public Duration getSocketTimeout() {
@@ -72,7 +74,7 @@ public class OpenSearchGraphRagProperties {
     }
 
     public void setSocketTimeout(Duration socketTimeout) {
-        this.socketTimeout = requirePositive(socketTimeout, "socketTimeout");
+        this.socketTimeout = requirePositiveDuration(socketTimeout, "socketTimeout");
     }
 
     public int getBulkMaximumOperations() {
@@ -143,11 +145,4 @@ public class OpenSearchGraphRagProperties {
         return Objects.requireNonNull(value, "value").strip();
     }
 
-    private static Duration requirePositive(Duration value, String field) {
-        Duration duration = Objects.requireNonNull(value, field);
-        if (duration.isZero() || duration.isNegative()) {
-            throw new IllegalArgumentException(field + " must be positive");
-        }
-        return duration;
-    }
 }
