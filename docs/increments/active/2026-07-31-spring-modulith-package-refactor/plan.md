@@ -153,9 +153,10 @@ Local verification on 2026-08-01: production and test sources compiled;
 focused graph, retrieval-regression, API, worker, and Modulith tests passed;
 `:core:test` passed; and the terminating repository-wide `clean test`
 completed successfully in 5m13s across 108 tasks. The docs operating-model
-and mechanical source checks passed. The pull request contains 54 changed
+and mechanical source checks passed. The pull request contains 55 changed
 files. After merging current `origin/main` at `e088e9c9`, a second `clean test`
 completed successfully in 6m18s across 99 tasks and the docs check passed
 against 378 Markdown files. After merging current `origin/main` again at
 `f99afb9f`, resolving the retrieval-scope helper seam, and rerunning focused
 tests, a third `clean test` completed successfully in 6m46s across 108 tasks.
+The product release contract check passed with the required Tegami entry.
