@@ -10,6 +10,7 @@ import { createCli } from "tegami/cli";
 import { createOrgMemoryTegami } from "./tegami-config.mts";
 import {
   PRODUCT_ID,
+  assertCurrentMain,
   parseProductManifest,
   parseReleaseArtifacts,
   productReleasePlugins,
@@ -230,7 +231,7 @@ test("publish fails closed when a registry digest differs", async () => {
   }
 });
 
-test("preflight rejects a stale main checkout immediately before mutation", async () => {
+test("current-main guard rejects a stale checkout immediately before mutation", async () => {
   const cwd = await fixture();
   const run: CommandRunner = async (command, args) => {
     if (command === "git" && args[0] === "fetch") return { stdout: "", stderr: "" };
@@ -243,10 +244,7 @@ test("preflight rejects a stale main checkout immediately before mutation", asyn
     throw new Error(`Unexpected command: ${command} ${args.join(" ")}`);
   };
   try {
-    const paper = tegami({ cwd, ignore: [/^npm:/], npm: { updateLockFile: false }, plugins: productReleasePlugins({ run, verifyRemote: true, verifyArtifacts: false }) });
-    const draft = await paper.draft();
-    await draft.apply();
-    await assert.rejects(() => paper.publish({ dryRun: true }), /is stale/);
+    await assert.rejects(() => assertCurrentMain(run, cwd), /is stale/);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

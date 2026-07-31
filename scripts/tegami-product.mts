@@ -317,7 +317,7 @@ async function assertTagAvailable(
   }
 }
 
-async function assertCurrentMain(run: CommandRunner, cwd: string): Promise<string> {
+export async function assertCurrentMain(run: CommandRunner, cwd: string): Promise<string> {
   await run("git", ["fetch", "--no-tags", "origin", "main"], cwd);
   const currentHead = await headSha(run, cwd);
   const { stdout } = await run("git", ["rev-parse", "origin/main"], cwd);
@@ -605,9 +605,10 @@ export function productReleasePlugins(options: ProductPluginOptions = {}): Tegam
       );
       if (verifyArtifacts) await assertArtifactEvidence(run, this.cwd, artifacts, loadEvidence);
       if (verifyRemote) {
-        if (verifyCurrentMain) {
-          await assertCurrentMain(run, this.cwd);
-        }
+        // GitHub's Version PR hook runs package preflights after creating the
+        // release commit, so HEAD is intentionally no longer origin/main here.
+        // Main freshness is enforced before draft mutation and again by the
+        // whole-plan hooks immediately before and after a real publication.
         const expectedSha = await headSha(run, this.cwd);
         const tag = `v${pkg.version}`;
         if (statusOnly) {
