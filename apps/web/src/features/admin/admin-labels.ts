@@ -1,5 +1,6 @@
 import type { AdminSourcePrincipalResponse } from "@/lib/hey-api"
 
+// Keep aligned with the UserRole union in the generated OpenAPI types.
 export const USER_ROLES = [
   "EMPLOYEE",
   "TEAM_LEAD",

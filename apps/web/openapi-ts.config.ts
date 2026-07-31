@@ -6,6 +6,5 @@ export default {
     "@hey-api/typescript",
     "@hey-api/sdk",
     "@tanstack/react-query",
-    "zod",
   ],
 }
