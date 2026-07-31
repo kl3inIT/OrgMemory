@@ -3,6 +3,20 @@ import { fileURLToPath } from 'node:url';
 
 const withMDX = createMDX();
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  'upgrade-insecure-requests',
+].join('; ');
 const movedDocsPages = [
   ['/docs/overview', '/docs/getting-started'],
   ['/docs/overview/quickstart', '/docs/getting-started'],
@@ -59,6 +73,7 @@ function localizedPageRedirects(pages) {
 const config = {
   output: 'standalone',
   outputFileTracingRoot: repositoryRoot,
+  poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
     staticGenerationMaxConcurrency: 1,
@@ -86,6 +101,14 @@ const config = {
       {
         source: '/(.*)',
         headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: contentSecurityPolicy,
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',

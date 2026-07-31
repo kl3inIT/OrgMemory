@@ -17,6 +17,7 @@ html {
   --docs-guides-color: hsl(24, 90%, 38%);
   --docs-architecture-security-color: hsl(199, 89%, 34%);
   --docs-reference-color: hsl(258, 70%, 48%);
+  --docs-changelog-color: hsl(328, 72%, 39%);
 }
 
 .dark {
@@ -26,6 +27,7 @@ html {
   --docs-guides-color: #fdba74;
   --docs-architecture-security-color: #67e8f9;
   --docs-reference-color: #c4b5fd;
+  --docs-changelog-color: #f9a8d4;
 }
 
 .getting-started {
@@ -46,6 +48,10 @@ html {
 
 .reference {
   --color-fd-primary: var(--docs-reference-color);
+}
+
+.changelog {
+  --color-fd-primary: var(--docs-changelog-color);
 }
 
 header span.truncate {

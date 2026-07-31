@@ -8,6 +8,14 @@ const { rewrite: rewriteSuffix } = rewritePath(
   `${docsContentRoute}{/*path}/content.md`,
 );
 const internalLocaleHeader = 'x-orgmemory-docs-locale-rewrite';
+const mutableDocsCacheControl = 'public, max-age=0, must-revalidate';
+
+function withDocsCacheControl(response: NextResponse, pathname: string) {
+  if (/^\/(?:en\/|vi\/)?docs(?:\/|$)/.test(pathname)) {
+    response.headers.set('Cache-Control', mutableDocsCacheControl);
+  }
+  return response;
+}
 
 function parseLocale(pathname: string) {
   const segments = pathname.split('/').filter(Boolean);
@@ -30,16 +38,19 @@ function rewriteLocalized(request: NextRequest, language: string, pathname: stri
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(internalLocaleHeader, language);
 
-  return NextResponse.rewrite(new URL(`/${language}${pathname}`, request.nextUrl), {
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return withDocsCacheControl(
+    NextResponse.rewrite(new URL(`/${language}${pathname}`, request.nextUrl), {
+      request: {
+        headers: requestHeaders,
+      },
+    }),
+    pathname,
+  );
 }
 
 export default function proxy(request: NextRequest, _event: NextFetchEvent) {
   if (request.headers.has(internalLocaleHeader)) {
-    return NextResponse.next();
+    return withDocsCacheControl(NextResponse.next(), request.nextUrl.pathname);
   }
 
   if (request.nextUrl.pathname === '/') {
@@ -72,7 +83,7 @@ export default function proxy(request: NextRequest, _event: NextFetchEvent) {
     request.nextUrl.pathname === `/${localized.language}` ||
     request.nextUrl.pathname.startsWith(`/${localized.language}/`)
   ) {
-    return NextResponse.next();
+    return withDocsCacheControl(NextResponse.next(), request.nextUrl.pathname);
   }
 
   return rewriteLocalized(request, localized.language, localized.pathname);

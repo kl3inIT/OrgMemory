@@ -4,6 +4,7 @@ export const docsCategories = [
   'guides',
   'architecture-security',
   'reference',
+  'changelog',
 ] as const;
 
 export type DocsCategory = (typeof docsCategories)[number];

@@ -11,8 +11,10 @@ import { createOrgMemoryTegami } from "./tegami-config.mts";
 import {
   PRODUCT_ID,
   PRODUCT_CHANGELOG_PREAMBLE,
+  PUBLIC_CHANGELOG_MARKER,
   assertCurrentMain,
   normalizeProductChangelog,
+  renderPublicProductChangelog,
   parseProductManifest,
   parseReleaseArtifacts,
   productReleasePlugins,
@@ -155,6 +157,14 @@ test("product changelog keeps its canonical H1 before generated releases", () =>
     `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0\n\n### Release management\n`,
   );
   assert.throws(() => normalizeProductChangelog("## orgmemory@0.1.0\n"), /canonical preamble/);
+});
+
+test("public changelog fragment contains release history without a second page H1", () => {
+  const canonical = `${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0\n\n### Release management\n`;
+  assert.equal(
+    renderPublicProductChangelog(canonical),
+    `${PUBLIC_CHANGELOG_MARKER}\n\n## orgmemory@0.1.0\n\n### Release management\n`,
+  );
 });
 
 test("Tegami 1.2.7 bumps only the synthetic product and writes its lock", async () => {
@@ -436,6 +446,13 @@ test("pinned Tegami contract versions in a temporary repository with a bare remo
     const changelog = await readFile(join(cwd, "release", "CHANGELOG.md"), "utf8");
     assert.equal(changelog.startsWith(`${PRODUCT_CHANGELOG_PREAMBLE}\n\n## orgmemory@0.1.0`), true);
     assert.equal((changelog.match(/### Release management/g) ?? []).length, 1);
+    assert.equal(
+      await readFile(
+        join(cwd, "apps", "docs", "content", "includes", "product-changelog.md"),
+        "utf8",
+      ),
+      renderPublicProductChangelog(changelog),
+    );
     assert.equal(parseProductManifest(await readFile(join(cwd, "release", "product.json"), "utf8")).version, "0.1.0");
     assert.match(await readFile(join(cwd, ".tegami", "publish-lock.yaml"), "utf8"), /product:orgmemory/);
     const plan = await paper.publish();
