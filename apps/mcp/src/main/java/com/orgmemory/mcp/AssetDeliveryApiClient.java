@@ -14,8 +14,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
 @Component
 class AssetDeliveryApiClient {
@@ -37,20 +35,20 @@ class AssetDeliveryApiClient {
 
     List<AssetSummary> search(
             String authorization, String query, String type) {
-        return request(() -> {
+        return GatewayRequests.request(() -> {
             List<AssetSummary> response = restClient.get()
                     .uri(builder -> builder
                             .path("/api/asset-delivery")
                             .queryParamIfPresent(
-                                    "q", Optional.ofNullable(blankToNull(query)))
+                                    "q", Optional.ofNullable(McpValues.optionalText(query)))
                             .queryParamIfPresent(
-                                    "type", Optional.ofNullable(blankToNull(type)))
+                                    "type", Optional.ofNullable(McpValues.optionalText(type)))
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, authorization)
                     .retrieve()
                     .body(ASSET_SUMMARIES);
             return response == null ? List.of() : List.copyOf(response);
-        });
+        }, GatewayRequests.ASSET);
     }
 
     AssetRelease getAsset(String authorization, UUID assetId) {
@@ -120,7 +118,7 @@ class AssetDeliveryApiClient {
             UUID assetId,
             UUID releaseId,
             OutputStream output) {
-        request(() -> restClient.get()
+        GatewayRequests.request(() -> restClient.get()
                 .uri(
                         "/api/asset-delivery/{assetId}/releases/{releaseId}/skill-package",
                         assetId,
@@ -128,18 +126,18 @@ class AssetDeliveryApiClient {
                 .header(HttpHeaders.AUTHORIZATION, authorization)
                 .exchange((request, response) -> {
                     if (!response.getStatusCode().is2xxSuccessful()) {
-                        throw new AssetDeliveryGatewayException(
+                        throw new McpGatewayException(
                                 "The requested Skill package is not available to the current identity");
                     }
                     try {
                         response.getBody().transferTo(output);
                     } catch (IOException unavailable) {
-                        throw new AssetDeliveryGatewayException(
+                        throw new McpGatewayException(
                                 "OrgMemory Skill package delivery was interrupted",
                                 unavailable);
                     }
                     return Boolean.TRUE;
-                }));
+                }), GatewayRequests.ASSET);
     }
 
     PromptRender renderPrompt(
@@ -147,7 +145,7 @@ class AssetDeliveryApiClient {
             UUID assetId,
             UUID releaseId,
             Map<String, Object> variables) {
-        return request(() -> restClient.post()
+        return GatewayRequests.request(() -> restClient.post()
                 .uri(
                         "/api/asset-delivery/{assetId}/releases/{releaseId}/prompt-render",
                         assetId,
@@ -157,7 +155,7 @@ class AssetDeliveryApiClient {
                         "variables",
                         copyVariables(variables)))
                 .retrieve()
-                .body(PromptRender.class));
+                .body(PromptRender.class), GatewayRequests.ASSET);
     }
 
     private <T> T get(
@@ -165,38 +163,11 @@ class AssetDeliveryApiClient {
             String path,
             Class<T> responseType,
             Object... uriVariables) {
-        return request(() -> restClient.get()
+        return GatewayRequests.request(() -> restClient.get()
                 .uri(path, uriVariables)
                 .header(HttpHeaders.AUTHORIZATION, authorization)
                 .retrieve()
-                .body(responseType));
-    }
-
-    private static <T> T request(ApiCall<T> call) {
-        try {
-            T response = call.execute();
-            if (response == null) {
-                throw new AssetDeliveryGatewayException(
-                        "OrgMemory returned an empty Asset response");
-            }
-            return response;
-        } catch (RestClientResponseException refused) {
-            int status = refused.getStatusCode().value();
-            if (status == 400) {
-                throw new AssetDeliveryGatewayException(
-                        "The Asset request is invalid");
-            }
-            if (status == 401 || status == 403 || status == 404) {
-                throw new AssetDeliveryGatewayException(
-                        "The requested Asset is not available to the current identity");
-            }
-            throw new AssetDeliveryGatewayException(
-                    "OrgMemory Asset delivery is temporarily unavailable");
-        } catch (RestClientException unavailable) {
-            throw new AssetDeliveryGatewayException(
-                    "OrgMemory Asset delivery is temporarily unavailable",
-                    unavailable);
-        }
+                .body(responseType), GatewayRequests.ASSET);
     }
 
     private static Map<String, Object> copyVariables(
@@ -206,19 +177,6 @@ class AssetDeliveryApiClient {
         }
         return Collections.unmodifiableMap(
                 new LinkedHashMap<>(variables));
-    }
-
-    private static String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.strip();
-    }
-
-    @FunctionalInterface
-    private interface ApiCall<T> {
-
-        T execute();
     }
 
     record AssetSummary(
@@ -351,16 +309,4 @@ class AssetDeliveryApiClient {
     record SkillFile(String path, long size, String sha256) {
     }
 
-    static final class AssetDeliveryGatewayException
-            extends RuntimeException {
-
-        AssetDeliveryGatewayException(String message) {
-            super(message);
-        }
-
-        AssetDeliveryGatewayException(
-                String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }

@@ -27,9 +27,7 @@ final class McpFailureBoundary {
     static <T> T sanitized(Supplier<T> call) {
         try {
             return call.get();
-        } catch (AssetDeliveryApiClient.AssetDeliveryGatewayException
-                | KnowledgeSearchApiClient.KnowledgeSearchGatewayException
-                        failure) {
+        } catch (McpGatewayException failure) {
             log.warn(
                     "MCP request failed: {}",
                     failure.getMessage(),

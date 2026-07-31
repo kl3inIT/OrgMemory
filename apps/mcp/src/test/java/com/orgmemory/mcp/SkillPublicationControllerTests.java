@@ -105,7 +105,7 @@ class SkillPublicationControllerTests {
     void mapsDownstreamAuthorizationFailureToAnOpaqueUnavailableResponse() {
         var authentication = mock(Authentication.class);
         when(authorization.requirePublisher(authentication))
-                .thenThrow(new AssetDeliveryApiClient.AssetDeliveryGatewayException(
+                .thenThrow(new McpGatewayException(
                         "private issuer response"));
 
         var failure = assertThrows(

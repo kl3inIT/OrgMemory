@@ -1,7 +1,6 @@
 package com.orgmemory.mcp;
 
 import io.modelcontextprotocol.common.McpTransportContext;
-import java.util.UUID;
 import org.springframework.ai.mcp.annotation.McpResource;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -37,7 +36,8 @@ class AssetDeliveryResources {
     String getAsset(String assetId, McpTransportContext context) {
         return McpFailureBoundary.sanitized(() ->
                 json.writeValueAsString(assets.getAsset(
-                        authorization.require(context), parse(assetId))));
+                        authorization.require(context),
+                        McpValues.assetIdentifier(assetId))));
     }
 
     @McpResource(
@@ -53,16 +53,8 @@ class AssetDeliveryResources {
         return McpFailureBoundary.sanitized(() ->
                 json.writeValueAsString(assets.getRelease(
                         authorization.require(context),
-                        parse(assetId),
-                        parse(releaseId))));
+                        McpValues.assetIdentifier(assetId),
+                        McpValues.assetIdentifier(releaseId))));
     }
 
-    private static UUID parse(String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException invalid) {
-            throw new AssetDeliveryApiClient.AssetDeliveryGatewayException(
-                    "The Asset identifier is invalid");
-        }
-    }
 }
