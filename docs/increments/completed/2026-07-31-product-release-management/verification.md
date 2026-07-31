@@ -40,14 +40,19 @@ The test suite proves:
 - product-impacting PR entry/`skip-release` enforcement and Version PR
   exemption.
 
-## Remaining Delivery Evidence
+## Delivery Evidence
 
-- GitHub CI and CodeRabbit review on the implementation pull request;
-- green-main creation of the Version Packages pull request;
-- CI and CodeRabbit review on that generated pull request;
-- the first `v0.1.0` tag and GitHub Release;
-- downloaded Release asset, remote tag SHA, artifact digests, no-op image/docs
-  build jobs, no deployments, and idempotent retry evidence.
-
-These require the implementation to merge and therefore remain open delivery
-gates rather than local implementation claims.
+- PR #168 added the production Tegami workflow and merged as `cc3ebb3` after
+  required CI and CodeRabbit review.
+- PR #169 repaired generated version commit preflight and merged as `27fae54`.
+- PR #172 allowed immutable image SHA references and merged as `7a84cbb`.
+- PR #173 normalized the generated changelog layout and merged as `8499c10`.
+- PR #170, **Version Packages**, merged as `fe3b303`.
+- The release workflow completed successfully for `fe3b303`.
+- Lightweight tag `v0.1.0` resolves exactly to `fe3b303`, the Version Packages
+  merge commit.
+- GitHub Release `v0.1.0` was published from `main` on 2026-07-31.
+- The release contains the immutable `artifacts.json` manifest with a recorded
+  SHA-256 digest.
+- `release/product.json`, `release/CHANGELOG.md`, and the publish lock retain
+  the durable product version, generated history, and publication evidence.
