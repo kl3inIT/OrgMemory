@@ -59,7 +59,7 @@
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } }, "overrides": [] },
       "targets": [
-        { "refId": "A", "expr": "sum by (job) (jvm_threads_live_threads{job=~\"$job\"})", "legendFormat": "{{job}}" }
+        { "refId": "A", "expr": "sum by (job) (jvm_threads_live{job=~\"$job\"})", "legendFormat": "{{job}}" }
       ]
     },
     {

@@ -80,7 +80,11 @@ services:
       - shared-infra
       # Published through Nginx Proxy Manager at grafana.zeromail.vn.
       - proxy
-    mem_limit: ${GRAFANA_MEM_LIMIT:-384m}
+    # 384m was measured at 93% in production. Grafana 13 ships more bundled
+    # panel and app plugins than the figure was chosen against, and a limit that
+    # close to the working set makes the OOM killer a matter of which dashboard
+    # someone opens.
+    mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
     logging: *default-logging
 
   prometheus:
