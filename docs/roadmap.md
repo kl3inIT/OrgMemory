@@ -36,6 +36,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Observability pipeline and payload boundary | shipped | [completed verification](increments/completed/2026-07-29-observability-pipeline/verification.md) |
 | Authorization consolidation: typed batch-recheck policy and served governance affordances | shipped | [completed plan](increments/completed/2026-08-01-authz-consolidation/plan.md), [decision 0023](decisions/0023-batch-recheck-policy-and-served-affordances.md) |
 | Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
+| MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -51,7 +52,6 @@ The table is a delivery index, not a second description of current behavior.
 | [Slack connector live proof](increments/active/2026-07-23-slack-connector-live/plan.md) | active | live workspace crawl and next-crawl revocation |
 | [Asset projection generation repair](increments/active/2026-07-25-asset-projection-generation/plan.md) | active | production Assistant/citation/permission verification |
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
-| [MCP search reliability](increments/active/2026-07-28-mcp-search-reliability/plan.md) | active | deploy merged timeout repair and prove the production MCP call |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
 
@@ -69,8 +69,8 @@ implementation-active until their predecessor exit gates pass.
    path.
 4. Run the Slack live proof with credentials outside the repository and retain
    only redacted evidence.
-5. Close the production proofs for asset projection generation, LightRAG
-   latency, and MCP search reliability.
+5. Close the production proofs for asset projection generation and LightRAG
+   latency.
 6. Continue the dependency-ordered native identity program: provisioning
    foundation, Users private beta, inert Directory Groups, optional explicit
    authorization mapping, then vendor/operations certification.
