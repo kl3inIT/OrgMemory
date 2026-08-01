@@ -450,10 +450,28 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeConnectorIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeConnectorIsAClosedNestedModule() {
         var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var allowedDependencies = connector.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(connector.isOpen());
+        assertFalse(connector.isOpen());
+        assertEquals(
+                Set.of(
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge.retrieval",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error",
+                        "shared::secret"),
+                allowedDependencies);
     }
 
     @Test

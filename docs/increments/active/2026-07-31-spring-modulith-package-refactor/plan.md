@@ -813,7 +813,7 @@ PR #228 merged as `703ddb20` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Thirtieth Pull Request Evidence
 
 - Source Ledger owns revision lookup, evidence/revision staging, completion,
   and graph scheduling through `SourceRevisionService` plus owner-defined
@@ -843,3 +843,31 @@ successfully in 6m27s across 99 tasks. Mechanical package, zero-byte, and
 migration-name checks, diff hygiene, the zero Coordinator persistence/Graph
 import scan, duplicate-draft removal scan, and the 13-path pull-request scope
 check passed.
+
+PR #229 merged as `378d0518` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.connector` is a closed nested application module rather than an
+  open migration module.
+- Its outgoing allowlist is limited to ACL, Asset, Retrieval, Source Ledger,
+  Space, the Knowledge storage interface, organization, permission, shared,
+  `shared::error`, and `shared::secret`.
+- `modules.verify()` passes, proving Connector consumes only public contracts
+  and has no undeclared outgoing edge or remaining module cycle.
+- The closure regression test pins both the closed state and exact eleven-entry
+  dependency allowlist.
+- Focused Modulith tests, `:core:test`, docs/release checks, and the terminating
+  repository `clean test` gate pass.
+- The pull request contains production module metadata and tests and remains
+  below 100 changed files before Asset and Retrieval are assessed.
+
+Pre-PR verification completed: repository compilation passed in 9s; focused
+`ModulithVerificationTests` passed in 33s; `:core:test` passed in 1m43s; the
+documentation operating-model check passed across 437 Markdown files and 8
+mirrored domain pairs; all 37 release-policy tests passed under Node 24.15;
+and the terminating repository-wide `clean test` completed successfully across
+99 tasks. Mechanical package, zero-byte, and migration-name checks, diff
+hygiene, and the 5-path pull-request scope check passed.

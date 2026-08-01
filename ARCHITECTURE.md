@@ -126,7 +126,8 @@ Ledger-owned inventory and lifecycle APIs rather than its persistence model.
 Connector revision lookup, staging, completion, and atomic graph scheduling
 cross a Source Ledger-owned `REQUIRES_NEW` service and outbound graph port;
 Connector consumes neither Source Ledger persistence nor Graph queue types.
-Connector, Asset, and Retrieval remain explicitly open while their remaining
+Connector is closed with an exact dependency allowlist after those seams were
+replaced. Asset and Retrieval remain explicitly open while their remaining
 cross-owned persistence and orchestration seams are replaced by intentional
 APIs.
 The provider-neutral object-storage port is exposed as the
