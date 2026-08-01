@@ -14,7 +14,7 @@
     "check:docs": "pnpm --filter @orgmemory/docs check",
     "docs:dev": "pnpm --filter @orgmemory/docs dev",
     "release": "tsx scripts/tegami.mts",
-    "release:check": "tsc -p scripts/tsconfig.release.json && tsx --test scripts/tegami-product.test.mts && node --test scripts/release-policy.test.mjs scripts/release-workflow-policy.test.mjs && tsx scripts/check-release.mjs"
+    "release:check": "tsc -p scripts/tsconfig.release.json && tsx --test scripts/tegami-product.test.mts && node --test scripts/release-policy.test.mjs scripts/release-workflow-policy.test.mjs scripts/npm-publish-workflow-policy.test.mjs && tsx scripts/check-release.mjs"
   },
   "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b",
   "devDependencies": {
