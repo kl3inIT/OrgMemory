@@ -1,6 +1,7 @@
 package com.orgmemory.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -40,10 +41,23 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void sourceLedgerIsAnOpenNestedModuleDuringTheRefactor() {
+    void sourceLedgerIsAClosedNestedModule() {
         var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var allowedDependencies = sourceLedger.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(sourceLedger.isOpen());
+        assertFalse(sourceLedger.isOpen());
+        assertEquals(
+                Set.of(
+                        "knowledge.acl",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
@@ -149,6 +163,32 @@ class ModulithVerificationTests {
                 .dependOnClassesThat()
                 .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
                 .check(classes);
+    }
+
+    @Test
+    void sourceLedgerConsumesOnlyAclFacadeContracts() {
+        var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(acl))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.sourceledger"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.acl.AclAuthority",
+                        "com.orgmemory.core.knowledge.acl.AclCaptureStatus",
+                        "com.orgmemory.core.knowledge.acl.RotateSourceAclCommand",
+                        "com.orgmemory.core.knowledge.acl.SourceAclEntryCommand",
+                        "com.orgmemory.core.knowledge.acl.SourceAclFacade",
+                        "com.orgmemory.core.knowledge.acl.SourceAclHeadRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclRotationRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclTarget"),
+                consumedTypes);
     }
 
     @Test

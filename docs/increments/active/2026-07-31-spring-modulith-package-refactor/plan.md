@@ -419,7 +419,7 @@ PR #207 merged as `109d03a3a367f1e8d0f7008b2af04139fff24ddf` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Seventeenth Pull Request Evidence
 
 - ACL owns the compact source target value used to create and advance an ACL
   head; it no longer accepts a Source Ledger persistence entity.
@@ -448,3 +448,64 @@ also needed an explicit organization/raw-source identity match. The constructor
 and advance path now reject both mismatch classes before mutating the head;
 four focused mismatch cases passed, and the terminating repository `clean
 test` gate passed again in 5m28s across 99 tasks.
+
+PR #208 merged as `a47c6e278e2c370797d50855ffe310715531d5aa` after all
+required CI checks passed. Its actionable CodeRabbit finding was fixed in
+`fc8b3be5`, confirmed by the reviewer, and the only review thread was resolved
+before merge.
+
+## Eighteenth Pull Request Evidence
+
+- ACL owns a transactional facade for validation, snapshot/entry/seal
+  persistence, head advancement, and normalization/promotion readiness.
+- Source Ledger retains the raw-source identity lock but has zero dependencies
+  on ACL repositories or JPA entities.
+- ACL exposes immutable snapshot/head facts rather than persistence objects.
+- An exact Modulith assertion pins the ACL contracts consumed by Source Ledger
+  so the boundary cannot widen silently.
+- Focused ACL facade/head, ingestion API, connector, worker, and Modulith tests
+  pass; `:core:test` and the terminating repository `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the remaining ACL value-type seam is assessed.
+
+Pre-PR verification completed: Core, API, and Worker production/test sources
+compiled; focused ACL facade/head, ingestion API, Connector, Worker, and
+Modulith tests passed; the full `:core:test` plus ingestion API/Worker suite
+passed in 1m37s; the docs operating-model check passed across 398 Markdown
+files and 8 mirrored domain pairs; all 37 release-policy tests passed; and the
+terminating repository `clean test` gate completed successfully in 5m46s
+across 108 tasks. Diff hygiene, the zero Source Ledger-to-ACL-persistence scan,
+and the 12-path PR limit check passed.
+
+PR #209 merged as `daeeb75adf3a6396522778ef9f5e7a7c83854935` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.sourceledger` is a closed nested application module rather than
+  an open migration module.
+- Its outgoing allowlist is limited to `knowledge.acl`, `knowledge::storage`,
+  organization, permission, shared, and `shared::error`.
+- `modules.verify()` passes, proving current consumers use only Source Ledger's
+  public module surface and no undeclared outgoing edge exists.
+- Focused Modulith and Source Ledger consumer tests pass; `:core:test` and the
+  terminating repository `clean test` gate pass.
+- The pull request contains production module metadata and tests, remains below
+  100 files, and completes CI/review/merge before the next Knowledge module is
+  assessed for closure.
+
+Pre-PR verification completed: the initial closed-module probe passed; the
+explicit outgoing allowlist passed `modules.verify()`; focused Source Ledger,
+Connector, API, Worker, and Modulith tests passed in 1m47s; `:core:test` passed
+in 1m24s; the docs operating-model check passed across 399 Markdown files and
+8 mirrored domain pairs; all 37 release-policy tests passed; and the
+terminating repository `clean test` gate completed successfully in 6m30s
+across 108 tasks. Diff hygiene and the under-100-file scope check passed.
+
+CodeRabbit requested that the regression test pin the exact outgoing allowlist
+and that the release note link the existing independent architecture
+challenge. Both review findings are addressed without rerunning the settled
+challenge or changing the closure outcome. The focused Modulith, docs, and
+release gates passed, and the terminating repository `clean test` gate passed
+again in 1m23s across 99 tasks using the shared build cache.

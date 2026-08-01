@@ -1,19 +1,10 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
 import com.orgmemory.core.knowledge.acl.RotateSourceAclCommand;
-import com.orgmemory.core.knowledge.acl.SourceAclEntry;
-import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
-import com.orgmemory.core.knowledge.acl.SourceAclEntryRepository;
-import com.orgmemory.core.knowledge.acl.SourceAclHead;
-import com.orgmemory.core.knowledge.acl.SourceAclHeadRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclFacade;
 import com.orgmemory.core.knowledge.acl.SourceAclRotationRef;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 import com.orgmemory.core.knowledge.acl.SourceAclTarget;
-import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
@@ -23,21 +14,17 @@ import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.permission.KnowledgePermissionPolicy;
+import com.orgmemory.core.shared.error.BusinessConflictException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import jakarta.persistence.EntityManager;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,15 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class KnowledgeIngestionService {
 
-    private static final Duration MAX_ACL_TTL = Duration.ofHours(24);
-
     private final OrganizationRepository organizations;
     private final DepartmentRepository departments;
     private final RawSourceObjectRepository rawSources;
-    private final SourceAclSnapshotRepository snapshots;
-    private final SourceAclEntryRepository aclEntries;
-    private final SourceAclSnapshotSealRepository aclSeals;
-    private final SourceAclHeadRepository aclHeads;
+    private final SourceAclFacade sourceAcls;
     private final NormalizedRecordRepository normalizedRecords;
     private final KnowledgeAssetPromotionPort assetPromotions;
     private final SourceObjectRepository sourceObjects;
@@ -66,10 +48,7 @@ public class KnowledgeIngestionService {
             OrganizationRepository organizations,
             DepartmentRepository departments,
             RawSourceObjectRepository rawSources,
-            SourceAclSnapshotRepository snapshots,
-            SourceAclEntryRepository aclEntries,
-            SourceAclSnapshotSealRepository aclSeals,
-            SourceAclHeadRepository aclHeads,
+            SourceAclFacade sourceAcls,
             NormalizedRecordRepository normalizedRecords,
             KnowledgeAssetPromotionPort assetPromotions,
             SourceObjectRepository sourceObjects,
@@ -80,10 +59,7 @@ public class KnowledgeIngestionService {
         this.organizations = organizations;
         this.departments = departments;
         this.rawSources = rawSources;
-        this.snapshots = snapshots;
-        this.aclEntries = aclEntries;
-        this.aclSeals = aclSeals;
-        this.aclHeads = aclHeads;
+        this.sourceAcls = sourceAcls;
         this.normalizedRecords = normalizedRecords;
         this.assetPromotions = assetPromotions;
         this.sourceObjects = sourceObjects;
@@ -122,12 +98,6 @@ public class KnowledgeIngestionService {
         String canonicalSourceUri = SourceCitationUri.canonicalize(command.sourceUri());
         Instant sourceModifiedAt = dbInstant(command.sourceModifiedAt());
         Instant aclValidUntil = dbInstant(command.aclValidUntil());
-        String aclSha = command.aclCaptureStatus() == AclCaptureStatus.COMPLETE
-                ? aclSha(
-                        command.aclCaptureStatus(),
-                        command.defaultGate(),
-                        command.aclEntries())
-                : null;
         acquireTransactionLock(sourceIdentityLockKey(
                 command.organizationId(), sourceSystem, connectionKey, externalObjectId));
 
@@ -136,8 +106,8 @@ public class KnowledgeIngestionService {
                         command.organizationId(), sourceSystem, connectionKey, externalObjectId, sourceVersion);
         if (existing.isPresent()) {
             RawSourceObject raw = existing.get();
-            SourceAclSnapshot snapshot = snapshots
-                    .findFirstByRawSourceObjectIdOrderByAclGenerationAsc(raw.getId())
+            SourceAclSnapshotRef snapshot = sourceAcls
+                    .findInitialSnapshot(command.organizationId(), raw.getId())
                     .orElseThrow();
             if (!sameRevision(
                     raw,
@@ -146,43 +116,30 @@ public class KnowledgeIngestionService {
                     payloadSha,
                     canonicalSourceUri,
                     sourceModifiedAt,
-                    allowExternalPrincipals ? snapshot.getValidUntil() : aclValidUntil,
-                    aclSha)) {
+                    aclValidUntil,
+                    allowExternalPrincipals)) {
                 throw new KnowledgeIngestionConflictException(
                         "The source revision already exists with different content or security metadata");
             }
             return rawRef(raw, snapshot);
         }
 
-        SourceAclHead head = aclHeads
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
-                        command.organizationId(), sourceSystem, connectionKey, externalObjectId)
-                .orElse(null);
-        requireExpectedHead(command.expectedCurrentAclSnapshotId(), head);
-        long aclGeneration = head == null ? 1 : head.getAclGeneration() + 1;
         Instant capturedAt = dbInstant(Instant.now());
-        validateSnapshotWindow(command.aclCaptureStatus(), capturedAt, aclValidUntil);
         RawSourceObject raw = rawSources.save(new RawSourceObject(
                 command, payloadSha, canonicalSourceUri, sourceModifiedAt));
-        SourceAclSnapshot snapshot = snapshots.saveAndFlush(new SourceAclSnapshot(
-                command.organizationId(),
-                raw.getId(),
-                aclGeneration,
-                command.aclCaptureStatus(),
-                command.defaultGate(),
-                aclSha,
-                capturedAt,
-                aclValidUntil));
-        List<SourceAclEntry> entries = command.aclEntries().stream()
-                .map(entry -> new SourceAclEntry(command.organizationId(), snapshot.getId(), entry, capturedAt))
-                .toList();
-        aclEntries.saveAllAndFlush(entries);
-        sealSnapshot(snapshot, command.aclEntries(), capturedAt);
-        if (head == null) {
-            aclHeads.save(new SourceAclHead(sourceAclTarget(raw), snapshot));
-        } else {
-            head.advance(sourceAclTarget(raw), snapshot);
-            aclHeads.save(head);
+        SourceAclSnapshotRef snapshot;
+        try {
+            snapshot = sourceAcls.createAndAdvance(
+                    sourceAclTarget(raw),
+                    command.expectedCurrentAclSnapshotId(),
+                    command.aclCaptureStatus(),
+                    command.defaultGate(),
+                    aclValidUntil,
+                    command.aclEntries(),
+                    allowExternalPrincipals,
+                    capturedAt);
+        } catch (BusinessConflictException conflict) {
+            throw new KnowledgeIngestionConflictException(conflict.getMessage());
         }
         return rawRef(raw, snapshot);
     }
@@ -209,7 +166,7 @@ public class KnowledgeIngestionService {
         Objects.requireNonNull(command.organizationId(), "organizationId");
         Objects.requireNonNull(command.rawSourceObjectId(), "rawSourceObjectId");
         Objects.requireNonNull(command.expectedCurrentSnapshotId(), "expectedCurrentSnapshotId");
-        validateAcl(
+        sourceAcls.validate(
                 command.aclCaptureStatus(),
                 command.defaultGate(),
                 command.aclValidUntil(),
@@ -224,61 +181,15 @@ public class KnowledgeIngestionService {
                 raw.getSourceSystem(),
                 raw.getSourceConnectionKey(),
                 raw.getExternalObjectId()));
-        SourceAclHead head = aclHeads.findForRawSourceObject(raw.getId(), command.organizationId())
-                .orElseThrow(() -> new IllegalStateException("Source ACL head is missing"));
-        if (!head.getCurrentRawSourceObjectId().equals(raw.getId())) {
-            throw new KnowledgeIngestionConflictException(
-                    "ACL rotation must target the current raw source revision");
+        try {
+            return sourceAcls.rotate(
+                    sourceAclTarget(raw),
+                    command,
+                    allowExternalPrincipals,
+                    dbInstant(Instant.now()));
+        } catch (BusinessConflictException conflict) {
+            throw new KnowledgeIngestionConflictException(conflict.getMessage());
         }
-
-        Instant validUntil = dbInstant(command.aclValidUntil());
-        String aclSha = command.aclCaptureStatus() == AclCaptureStatus.COMPLETE
-                ? aclSha(
-                        command.aclCaptureStatus(),
-                        command.defaultGate(),
-                        command.aclEntries())
-                : null;
-        SourceAclSnapshot current = snapshots
-                .findByIdAndOrganizationId(head.getCurrentSnapshotId(), command.organizationId())
-                .orElseThrow();
-        if ((allowExternalPrincipals
-                        && sameConnectorAcl(
-                                current,
-                                command.aclCaptureStatus(),
-                                command.defaultGate(),
-                                aclSha))
-                || sameAcl(
-                current,
-                command.aclCaptureStatus(),
-                command.defaultGate(),
-                validUntil,
-                aclSha)) {
-            return rotationRef(current);
-        }
-        if (!command.expectedCurrentSnapshotId().equals(current.getId())) {
-            throw new KnowledgeIngestionConflictException(
-                    "Source ACL head changed before this rotation was applied");
-        }
-
-        Instant capturedAt = dbInstant(Instant.now());
-        validateSnapshotWindow(command.aclCaptureStatus(), capturedAt, validUntil);
-        SourceAclSnapshot snapshot = snapshots.saveAndFlush(new SourceAclSnapshot(
-                command.organizationId(),
-                raw.getId(),
-                head.getAclGeneration() + 1,
-                command.aclCaptureStatus(),
-                command.defaultGate(),
-                aclSha,
-                capturedAt,
-                validUntil));
-        aclEntries.saveAllAndFlush(command.aclEntries().stream()
-                .map(entry -> new SourceAclEntry(
-                        command.organizationId(), snapshot.getId(), entry, capturedAt))
-                .toList());
-        sealSnapshot(snapshot, command.aclEntries(), capturedAt);
-        head.advance(sourceAclTarget(raw), snapshot);
-        aclHeads.save(head);
-        return rotationRef(snapshot);
     }
 
     @Transactional
@@ -292,12 +203,8 @@ public class KnowledgeIngestionService {
         RawSourceObject raw = rawSources
                 .findByIdAndOrganizationId(command.rawSourceObjectId(), command.organizationId())
                 .orElseThrow(KnowledgeResourceNotFoundException::new);
-        SourceAclSnapshot snapshot = snapshots
-                .findFirstByRawSourceObjectIdOrderByAclGenerationAsc(raw.getId())
-                .orElseThrow();
-        if (!aclSeals.existsBySourceAclSnapshotIdAndOrganizationId(snapshot.getId(), command.organizationId())) {
-            throw new IllegalStateException("Source ACL snapshot is not sealed");
-        }
+        SourceAclSnapshotRef snapshot = sourceAcls.requireInitialSealedSnapshot(
+                command.organizationId(), raw.getId());
         String normalizedContent = blankToNull(command.normalizedContent());
         String contentSha = normalizedContent == null ? null : sha256(normalizedContent);
 
@@ -317,7 +224,7 @@ public class KnowledgeIngestionService {
                 ? NormalizedRecordStatus.READY
                 : NormalizedRecordStatus.QUARANTINED;
         NormalizedRecord normalized = normalizedRecords.save(new NormalizedRecord(
-                raw, snapshot, command, contentSha, status, issue));
+                raw, snapshot.id(), command, contentSha, status, issue));
         raw.markNormalized();
         rawSources.save(raw);
         return normalizedRef(normalized);
@@ -356,22 +263,13 @@ public class KnowledgeIngestionService {
         RawSourceObject raw = rawSources
                 .findByIdAndOrganizationId(normalized.getRawSourceObjectId(), command.organizationId())
                 .orElseThrow();
-        SourceAclSnapshot snapshot = snapshots
-                .findByIdAndOrganizationId(normalized.getSourceAclSnapshotId(), command.organizationId())
-                .orElseThrow();
-        SourceAclHead head = aclHeads.findForRawSourceObject(raw.getId(), command.organizationId())
-                .orElseThrow();
-        SourceAclSnapshot currentSnapshot = snapshots
-                .findByIdAndOrganizationId(head.getCurrentSnapshotId(), command.organizationId())
-                .orElseThrow();
         Instant evaluatedAt = Instant.now();
         if (raw.getStatus() != RawSourceStatus.NORMALIZED
-                || !snapshot.isUsableAt(evaluatedAt)
-                || !currentSnapshot.isUsableAt(evaluatedAt)
-                || !aclSeals.existsBySourceAclSnapshotIdAndOrganizationId(
-                        snapshot.getId(), command.organizationId())
-                || !aclSeals.existsBySourceAclSnapshotIdAndOrganizationId(
-                        currentSnapshot.getId(), command.organizationId())) {
+                || !sourceAcls.isReadyForPromotion(
+                        command.organizationId(),
+                        raw.getId(),
+                        normalized.getSourceAclSnapshotId(),
+                        evaluatedAt)) {
             throw new IllegalStateException("Source security metadata is not ready for promotion");
         }
         validatePromotableMetadata(normalized);
@@ -435,7 +333,7 @@ public class KnowledgeIngestionService {
                     "The source URI is invalid",
                     invalidUri);
         }
-        validateAcl(
+        sourceAcls.validate(
                 command.aclCaptureStatus(),
                 command.defaultGate(),
                 command.aclValidUntil(),
@@ -443,82 +341,27 @@ public class KnowledgeIngestionService {
                 allowExternalPrincipals);
     }
 
-    private void validateAcl(
-            AclCaptureStatus captureStatus,
-            AccessGate defaultGate,
-            Instant validUntil,
-            List<SourceAclEntryCommand> entries,
-            boolean allowExternalPrincipals) {
-        Objects.requireNonNull(captureStatus, "aclCaptureStatus");
-        Objects.requireNonNull(defaultGate, "defaultGate");
-        if (captureStatus == AclCaptureStatus.COMPLETE) {
-            Instant canonicalValidUntil = dbInstant(validUntil);
-            Instant now = dbInstant(Instant.now());
-            if (canonicalValidUntil == null
-                    || !canonicalValidUntil.isAfter(now)
-                    || canonicalValidUntil.isAfter(now.plus(MAX_ACL_TTL))) {
-                throw invalidIngestion(
-                        "knowledge-ingestion.acl-window-invalid",
-                        "A complete ACL snapshot requires validUntil within the next 24 hours");
-            }
-        } else if (defaultGate != AccessGate.UNKNOWN
-                || validUntil != null
-                || !entries.isEmpty()) {
-            throw invalidIngestion(
-                    "knowledge-ingestion.acl-invalid",
-                    "Unknown or unsupported ACL capture must remain UNKNOWN without entries or expiry");
-        }
-
-        Set<String> principals = new HashSet<>();
-        for (SourceAclEntryCommand entry : entries) {
-            if (entry == null || entry.principalType() == null) {
-                throw invalidIngestion(
-                        "knowledge-ingestion.acl-invalid",
-                        "ACL principal type is required");
-            }
-            boolean external = entry.principalType() == SourcePrincipalType.SOURCE_USER
-                    || entry.principalType() == SourcePrincipalType.SOURCE_GROUP;
-            if (external && !allowExternalPrincipals) {
-                throw invalidIngestion(
-                        "knowledge-ingestion.acl-invalid",
-                        "External source ACLs require an identity mapping and cannot be marked complete");
-            }
-            requireText(entry.principalKey(), "acl principal key");
-            if (entry.gate() != AccessGate.ALLOW && entry.gate() != AccessGate.DENY) {
-                throw invalidIngestion(
-                        "knowledge-ingestion.acl-invalid",
-                        "ACL entries must be ALLOW or DENY");
-            }
-            String key = entry.principalType() + ":" + entry.principalKey().trim();
-            if (!principals.add(key)) {
-                throw invalidIngestion(
-                        "knowledge-ingestion.acl-invalid",
-                        "ACL principal is duplicated: " + key);
-            }
-        }
-    }
-
     /** The current ACL head for a source object identity, if a generation has been sealed. */
     public Optional<SourceHeadView> findSourceHead(
             UUID organizationId, String sourceSystem, String sourceConnectionKey, String externalObjectId) {
-        return aclHeads
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+        return sourceAcls
+                .findHead(
                         organizationId,
                         sourceSystem.trim(),
                         sourceConnectionKey.trim(),
                         externalObjectId.trim())
                 .map(head -> new SourceHeadView(
-                        head.getCurrentRawSourceObjectId(),
-                        head.getCurrentSnapshotId(),
-                        head.getAclGeneration(),
-                        rawSources.findByIdAndOrganizationId(head.getCurrentRawSourceObjectId(), organizationId)
+                        head.currentRawSourceObjectId(),
+                        head.currentSnapshotId(),
+                        head.aclGeneration(),
+                        rawSources.findByIdAndOrganizationId(head.currentRawSourceObjectId(), organizationId)
                                 .map(RawSourceObject::getSourceVersion)
                                 .orElse(null)));
     }
 
     private NormalizationIssue normalizationIssue(
             RawSourceObject raw,
-            SourceAclSnapshot snapshot,
+            SourceAclSnapshotRef snapshot,
             NormalizeRawSourceCommand command,
             Instant evaluatedAt) {
         if (blankToNull(command.title()) == null || blankToNull(command.normalizedContent()) == null) {
@@ -557,13 +400,13 @@ public class KnowledgeIngestionService {
 
     private boolean sameRevision(
             RawSourceObject raw,
-            SourceAclSnapshot snapshot,
+            SourceAclSnapshotRef snapshot,
             RegisterRawSourceCommand command,
             String payloadSha,
             String canonicalSourceUri,
             Instant sourceModifiedAt,
             Instant aclValidUntil,
-            String aclSha) {
+            boolean ignoreAclValidUntil) {
         return Objects.equals(raw.getDepartmentId(), command.departmentId())
                 && raw.getObjectType().equals(command.objectType().trim())
                 && raw.getTitle().equals(command.title().trim())
@@ -572,71 +415,13 @@ public class KnowledgeIngestionService {
                 && Objects.equals(raw.getSourceModifiedAt(), sourceModifiedAt)
                 && raw.getClassification() == command.classification()
                 && raw.getDeclaredAccess() == command.declaredAccess()
-                && snapshot.getCaptureStatus() == command.aclCaptureStatus()
-                && snapshot.getDefaultGate() == command.defaultGate()
-                && Objects.equals(snapshot.getAclSha256(), aclSha)
-                && Objects.equals(snapshot.getValidUntil(), aclValidUntil);
-    }
-
-    private static boolean sameAcl(
-            SourceAclSnapshot snapshot,
-            AclCaptureStatus captureStatus,
-            AccessGate defaultGate,
-            Instant validUntil,
-            String aclSha) {
-        return snapshot.getCaptureStatus() == captureStatus
-                && snapshot.getDefaultGate() == defaultGate
-                && Objects.equals(snapshot.getValidUntil(), validUntil)
-                && Objects.equals(snapshot.getAclSha256(), aclSha);
-    }
-
-    private static boolean sameConnectorAcl(
-            SourceAclSnapshot snapshot,
-            AclCaptureStatus captureStatus,
-            AccessGate defaultGate,
-            String aclSha) {
-        return snapshot.getCaptureStatus() == captureStatus
-                && snapshot.getDefaultGate() == defaultGate
-                && Objects.equals(snapshot.getAclSha256(), aclSha);
-    }
-
-    private static void requireExpectedHead(UUID expectedSnapshotId, SourceAclHead head) {
-        if (head == null) {
-            if (expectedSnapshotId != null) {
-                throw new KnowledgeIngestionConflictException(
-                        "The source ACL head does not exist for the expected snapshot");
-            }
-            return;
-        }
-        if (expectedSnapshotId == null || !expectedSnapshotId.equals(head.getCurrentSnapshotId())) {
-            throw new KnowledgeIngestionConflictException(
-                    "The source ACL head changed before this source revision was registered");
-        }
-    }
-
-    private static void validateSnapshotWindow(
-            AclCaptureStatus captureStatus,
-            Instant capturedAt,
-            Instant validUntil) {
-        if (captureStatus == AclCaptureStatus.COMPLETE
-                && (validUntil == null
-                        || !validUntil.isAfter(capturedAt)
-                        || validUntil.isAfter(capturedAt.plus(MAX_ACL_TTL)))) {
-            throw new KnowledgeIngestionConflictException(
-                    "ACL validity expired or exceeded the 24-hour refresh window while waiting to persist");
-        }
-    }
-
-    private void sealSnapshot(
-            SourceAclSnapshot snapshot,
-            List<SourceAclEntryCommand> entries,
-            Instant sealedAt) {
-        aclSeals.saveAndFlush(new SourceAclSnapshotSeal(
-                snapshot.getId(),
-                snapshot.getOrganizationId(),
-                entries.size(),
-                sha256(canonicalEntries(entries)),
-                sealedAt));
+                && sourceAcls.matchesSnapshot(
+                        snapshot,
+                        command.aclCaptureStatus(),
+                        command.defaultGate(),
+                        aclValidUntil,
+                        command.aclEntries(),
+                        ignoreAclValidUntil);
     }
 
     private static boolean sameNormalization(
@@ -648,25 +433,6 @@ public class KnowledgeIngestionService {
                 && Objects.equals(normalized.getNormalizedContent(), blankToNull(command.normalizedContent()))
                 && Objects.equals(normalized.getLanguage(), blankToNull(command.language()))
                 && Objects.equals(normalized.getContentSha256(), contentSha);
-    }
-
-    private static String aclSha(
-            AclCaptureStatus captureStatus,
-            AccessGate defaultGate,
-            List<SourceAclEntryCommand> aclEntries) {
-        return sha256(captureStatus
-                + "|" + defaultGate
-                + "|" + canonicalEntries(aclEntries));
-    }
-
-    private static String canonicalEntries(List<SourceAclEntryCommand> aclEntries) {
-        return aclEntries.stream()
-                .sorted(Comparator.comparing((SourceAclEntryCommand entry) -> entry.principalType().name())
-                        .thenComparing(entry -> entry.principalKey().trim())
-                        .thenComparing(entry -> entry.gate().name()))
-                .map(entry -> entry.principalType() + ":" + entry.principalKey().trim() + ":" + entry.gate())
-                .reduce((left, right) -> left + "|" + right)
-                .orElse("");
     }
 
     private static String sha256(String value) {
@@ -698,8 +464,8 @@ public class KnowledgeIngestionService {
                 + "|" + externalObjectId;
     }
 
-    private static RawSourceRef rawRef(RawSourceObject raw, SourceAclSnapshot snapshot) {
-        return new RawSourceRef(raw.getId(), snapshot.getId(), raw.getStatus());
+    private static RawSourceRef rawRef(RawSourceObject raw, SourceAclSnapshotRef snapshot) {
+        return new RawSourceRef(raw.getId(), snapshot.id(), raw.getStatus());
     }
 
     private static SourceAclTarget sourceAclTarget(RawSourceObject raw) {
@@ -709,14 +475,6 @@ public class KnowledgeIngestionService {
                 raw.getSourceSystem(),
                 raw.getSourceConnectionKey(),
                 raw.getExternalObjectId());
-    }
-
-    private static SourceAclRotationRef rotationRef(SourceAclSnapshot snapshot) {
-        return new SourceAclRotationRef(
-                snapshot.getRawSourceObjectId(),
-                snapshot.getId(),
-                snapshot.getAclGeneration(),
-                snapshot.getCaptureStatus());
     }
 
     private static NormalizedRecordRef normalizedRef(NormalizedRecord normalized) {
