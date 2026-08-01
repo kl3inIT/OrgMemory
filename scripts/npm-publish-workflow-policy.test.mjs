@@ -41,7 +41,11 @@ test("CLI publication verifies Node 24, the tarball, provenance, and npx executi
   assert.match(workflow, /PACKAGE_VERSION.*orgmemory --version/s);
   assert.match(workflow, /npm publish --access public --provenance/);
   assert.match(workflow, /attestations/);
-  assert.match(workflow, /did not appear on npm within 120 seconds/);
+  assert.match(workflow, /--prefer-online/);
+  assert.match(workflow, /expected_integrity/);
+  assert.match(workflow, /Exact package already exists with matching integrity/);
+  assert.match(workflow, /did not become fully verifiable on npm within 180 seconds/);
+  assert.doesNotMatch(workflow, /if \[\[ -n "\$published" \]\]; then break; fi/);
   assert.match(workflow, /npm exec --yes --package=/);
   assert.doesNotMatch(workflow, /cache:/);
 });
