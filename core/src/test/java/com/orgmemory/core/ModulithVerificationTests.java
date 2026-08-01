@@ -842,6 +842,57 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void retrievalDoesNotDependOnOrganizationPersistenceOrRoleTypes() {
+        var forbiddenTypes = Set.of(
+                "com.orgmemory.core.organization.AppUser",
+                "com.orgmemory.core.organization.AppUserRepository",
+                "com.orgmemory.core.organization.DepartmentRepository",
+                "com.orgmemory.core.organization.OrganizationRepository",
+                "com.orgmemory.core.organization.UserRole");
+        var consumers = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .filter(dependency -> forbiddenTypes.contains(
+                        dependency.getTargetType().getName()))
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(Set.of(), consumers);
+    }
+
+    @Test
+    void retrievalOrganizationReadsUseOnlyOwnerQueries() {
+        var ownerQueryTypes = Set.of(
+                "com.orgmemory.core.organization.KnowledgeAccessSubject",
+                "com.orgmemory.core.organization.KnowledgeAccessSubjectQuery",
+                "com.orgmemory.core.organization.OrganizationResourceQuery");
+        var dependencies = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .filter(dependency -> ownerQueryTypes.contains(
+                        dependency.getTargetType().getName()))
+                .toList();
+        var consumers = dependencies.stream()
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+        var consumedTypes = dependencies.stream()
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.SecureSourceVisibilityAdapter"),
+                consumers);
+        assertEquals(ownerQueryTypes, consumedTypes);
+    }
+
+    @Test
     void objectStorageIsAnExplicitKnowledgeInterface() {
         var knowledge = modules.getModuleByName("knowledge").orElseThrow();
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();

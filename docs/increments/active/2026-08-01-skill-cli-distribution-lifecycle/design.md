@@ -27,11 +27,12 @@ npm Trusted Publishing after a green `main` commit and an approved GitHub
 environment. The workflow must use OIDC, no write token, Node 24, npm 11.5.1 or
 newer, no dependency cache, and public-package provenance.
 
-The first publication is a controlled bootstrap because npm cannot configure a
-trusted publisher for a package that does not yet exist. It requires the
-project owner to create or control the `@orgmemory` npm organization and perform
-the first public publish with short-lived authorized access. Subsequent
-versions are workflow-only.
+The first publication is a controlled bootstrap. Current npm 11 allows the
+authenticated package owner to preconfigure the GitHub trusted publisher with
+`npm trust github`, even before the package exists. The owner must create or
+control the `@orgmemory` npm organization and establish that trust, but the
+package itself is published only by the same OIDC workflow used for subsequent
+versions; no interactive publish token is introduced.
 
 Upgrade the receipt to schema version 2. Each installed entry records the
 verified package manifest file paths, sizes, and SHA-256 digests. Enforce one
@@ -137,3 +138,13 @@ receipt v2, offline fail-closed verification, same-coordinate exact updates,
 verified-only removal without `--force`, one canonical target owner, scope-wide
 mutation locking, durable crash recovery, dedicated approved npm publication,
 and registry proof before UI activation.
+
+## 2026-08-02 pre-publication correction
+
+Live npm 11 verification disproved the earlier assumption that Trusted
+Publishing could only be configured after a package already existed. The
+accepted OIDC-only boundary is now stronger: the owner establishes trust with
+`npm trust github`, then the first package is published from the protected
+GitHub-hosted workflow. The packed package also carries the exact repository
+identity required for provenance, and the workflow executes the local tarball's
+`orgmemory` binary before any registry mutation.

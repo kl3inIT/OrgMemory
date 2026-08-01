@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (00aabe15)`.
 
 ## Current Behavior
 
@@ -35,6 +35,10 @@ ranking, and persistence while its remaining adapter seams are closed.
 Asset existence, active authorization-scope, and current catalog reads cross
 one Asset-owned query that keeps tenant and lifecycle predicates behind the
 closed Asset module; Retrieval imports neither Asset repository.
+Retrieval also reloads the current active subject, department, and Executive
+state through Organization-owned queries before resolving evidence or source
+visibility. It does not trust those actor fields as authorization facts and
+imports no Organization entity, role, or repository.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob

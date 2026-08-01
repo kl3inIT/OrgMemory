@@ -10,10 +10,9 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.KnowledgeAccessSubject;
+import com.orgmemory.core.organization.KnowledgeAccessSubjectQuery;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +30,8 @@ class SecureSourceVisibilityAdapterTests {
             "Nguyen Van An",
             "an@example.com");
 
-    private final AppUserRepository users = mock(AppUserRepository.class);
+    private final KnowledgeAccessSubjectQuery subjects =
+            mock(KnowledgeAccessSubjectQuery.class);
     private final RelationshipAuthorizationSetPort authorization =
             mock(RelationshipAuthorizationSetPort.class);
     private final SecureKnowledgeRetrievalStore visibility =
@@ -39,13 +39,14 @@ class SecureSourceVisibilityAdapterTests {
     private final KnowledgeRetrievalProperties properties =
             new KnowledgeRetrievalProperties(null, null, null, null);
     private final SecureSourceVisibilityAdapter adapter = new SecureSourceVisibilityAdapter(
-            users, authorization, visibility, properties);
+            subjects, authorization, visibility, properties);
 
     @Test
     void resolvesAuthorizedAssetsThroughTheSecureRetrievalStore() {
         UUID assetId = UUID.randomUUID();
         UUID sourceId = UUID.randomUUID();
-        when(users.findById(USER_ID)).thenReturn(Optional.of(activeUser(UserRole.EMPLOYEE)));
+        when(subjects.findActive(ORGANIZATION_ID, USER_ID))
+                .thenReturn(Optional.of(subject(false)));
         when(authorization.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.resolved(
                         List.of(ResourceRef.of(
@@ -59,7 +60,8 @@ class SecureSourceVisibilityAdapterTests {
 
     @Test
     void authorizationOutageFailsClosed() {
-        when(users.findById(USER_ID)).thenReturn(Optional.of(activeUser(UserRole.EMPLOYEE)));
+        when(subjects.findActive(ORGANIZATION_ID, USER_ID))
+                .thenReturn(Optional.of(subject(false)));
         when(authorization.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.indeterminate(
                         "OPENFGA_UNAVAILABLE", "model-1"));
@@ -71,7 +73,8 @@ class SecureSourceVisibilityAdapterTests {
 
     @Test
     void platformAdminDoesNotBypassDataAuthorization() {
-        when(users.findById(USER_ID)).thenReturn(Optional.of(activeUser(UserRole.ADMIN)));
+        when(subjects.findActive(ORGANIZATION_ID, USER_ID))
+                .thenReturn(Optional.of(subject(false)));
         when(authorization.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.indeterminate(
                         "OPENFGA_UNAVAILABLE", "model-1"));
@@ -82,12 +85,11 @@ class SecureSourceVisibilityAdapterTests {
         verify(authorization).listAuthorizedResources(any());
     }
 
-    private static AppUser activeUser(UserRole role) {
-        return new AppUser(
+    private static KnowledgeAccessSubject subject(boolean executive) {
+        return new KnowledgeAccessSubject(
+                USER_ID,
                 ORGANIZATION_ID,
                 DEPARTMENT_ID,
-                "Nguyen Van An",
-                "an@example.com",
-                role);
+                executive);
     }
 }

@@ -206,7 +206,11 @@ changing the immutable release.
 ## Persisted Model
 
 The identity ledger persists organizations, departments, users, and external
-identities. The knowledge slice persists Knowledge Spaces and the canonical
+identities. Knowledge retrieval reloads an active subject's canonical department
+and Executive state through `KnowledgeAccessSubjectQuery`, and resolves
+organization/department authorization resources through
+`OrganizationResourceQuery`; it does not import Organization entities, roles,
+or repositories. The knowledge slice persists Knowledge Spaces and the canonical
 source ledger (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob`
 metadata), leased ingestion jobs, source-shaped raw and normalized records,
 stable `KnowledgeAsset` roots, immutable `KnowledgeAssetVersion` records,
