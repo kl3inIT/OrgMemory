@@ -72,9 +72,52 @@ into a document enumeration endpoint.
 - No title, source URI, snippet, or count is returned before the diagnostic
   privilege and tenant ownership are verified.
 
-## Architecture Challenge
+## Architecture Challenge Verdict
 
-See [challenge brief](challenge-brief.md) and the pending
-`challenge-verdict.md`. Implementation starts only after the independent
-verdict resolves the primary-verdict and metadata-boundary questions.
+The 2026-08-02 adversarial review ran two independent architecture positions
+for two rounds and then gave the verbatim record to a fresh judge that could
+not inspect the repository. Fable had no remaining tokens, while the available
+Grok, OMP, and Pi launchers were not installed, so both positions used separate
+Codex `gpt-5.6-sol` high-reasoning sessions. The debate transcript remains an
+untracked `tmp/` artifact; this section is its durable outcome.
 
+The judge selected typed, policy-constrained Knowledge Spaces:
+
+- every Space persists one versioned audience mode: `ORGANIZATION`,
+  `DEPARTMENT`, or `RESTRICTED/CUSTOM`;
+- only `ORGANIZATION` may admit `organization#member` as a Space audience;
+- `DEPARTMENT` requires one owning department, implicitly admits that
+  department, and rejects organization-wide viewer grants in the backend;
+- mixed collaboration uses `RESTRICTED/CUSTOM`, which starts closed and admits
+  only explicitly approved audiences;
+- Space eligibility remains necessary but never sufficient for document
+  access. Canonical visibility is the intersection of tenant, valid Space
+  policy, relationship eligibility, Source ACL, classification, lifecycle,
+  and other retrieval eligibility gates;
+- `can_manage_acl`, `can_publish`, `can_create_asset`, and `can_view` must be
+  independent. Operational administration never grants implicit content read;
+- a Space mode change is a versioned governed transition with an impact
+  preview, immutable preview hash, reason, independent approval, reversible
+  tuple diff, audit record, post-change verification, and bounded rollback;
+- widening fails closed until policy and tuple projection agree. Narrowing is
+  effective at the policy gate before asynchronous tuple cleanup completes;
+- changing a Space audience never rewrites sealed native-upload ACL evidence or
+  bypasses a live source's authoritative ACL. Broader native-document access
+  requires a separately authorized ACL generation;
+- emergency content access is explicit, narrowly scoped, time-bound,
+  independently approved, automatically expired, and unable to bypass tenant,
+  Source ACL, classification, lifecycle, legal, or evidence-integrity gates.
+
+The rejected alternative was to treat current OpenFGA tuples as the complete
+Space business definition. Tuple-only state cannot distinguish a legitimate
+audience from drift, preserve a durable department promise, or protect Space
+metadata and future content when a downstream gate is absent. Its useful
+mechanics are retained as implementation details: versioned mutation APIs,
+grant provenance, impact previews, reversible diffs, cache invalidation, and a
+layered inspector.
+
+This verdict expands the increment's design dependency but not its immediate
+implementation scope. The inspector repair may expose mode validity and the
+layered final decision, while persistence, model changes, tuple migration, and
+administrator-capability separation require a subsequent authorization
+increment and their own characterization tests.
