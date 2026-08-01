@@ -1084,3 +1084,8 @@ terminating repository-wide `clean test` passed in 1m06s across 99 tasks after
 an orphaned test worker from an earlier daemon crash released its JAR locks.
 Mechanical old-package, top-level implementation-import, zero-byte,
 migration-scope, diff-hygiene, and 41-path scope checks passed.
+
+After merging current `origin/main` at `142a11cc`, the complete focused suite
+passed again in 39s. The documentation check passed across 473 Markdown files
+and 8 mirrored domain pairs, and all 40 release-policy tests passed again under
+Node 24.15.
