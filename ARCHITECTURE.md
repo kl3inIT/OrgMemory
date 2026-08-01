@@ -152,14 +152,19 @@ required for publication and the projection namespace identity; callers
 translate Retrieval's richer profile at the boundary. Retrieval resolves Asset
 existence, active authorization scopes, and current catalog projections through
 the Asset-owned `KnowledgeAssetRetrievalQuery`; it does not import Asset
-repositories. Asset has no direct dependency on Retrieval and is a closed
+repositories. Organization-owned queries reload persisted active department and
+Executive facts and resolve organization/department existence without exposing
+Organization persistence or roles. Source Ledger resolves tenant-scoped ready
+revision plus validated blob state through `SourceCitationEvidenceQuery`, so
+citation opening consumes immutable evidence rather than revision/blob
+persistence. Asset has no direct dependency on Retrieval and is a closed
 nested module with an exact outgoing dependency allowlist. Parent Knowledge
 exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
 the exact `knowledge::search` named interface. Assistant and Asset Registry
 consume that parent interface without importing Retrieval implementation types.
-Retrieval remains explicitly open while its remaining sibling adapters and
-Asset persistence/orchestration seams are replaced by intentional APIs. The
+Retrieval remains explicitly open while its Graph verifier and remaining
+sibling adapters are replaced by intentional APIs. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

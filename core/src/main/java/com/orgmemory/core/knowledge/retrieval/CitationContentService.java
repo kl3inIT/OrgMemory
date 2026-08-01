@@ -1,14 +1,10 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidence;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidenceQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidenceResult;
 
 import com.orgmemory.core.knowledge.storage.ObjectContent;
-import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -27,20 +23,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class CitationContentService {
 
     private final CanonicalEvidenceAuthorizationService authorization;
-    private final SourceRevisionRepository revisions;
-    private final EvidenceBlobRepository blobs;
+    private final SourceCitationEvidenceQuery evidenceQuery;
     private final ObjectStoragePort objects;
     private final PermissionAuditService audit;
 
     CitationContentService(
             CanonicalEvidenceAuthorizationService authorization,
-            SourceRevisionRepository revisions,
-            EvidenceBlobRepository blobs,
+            SourceCitationEvidenceQuery evidenceQuery,
             ObjectStoragePort objects,
             PermissionAuditService audit) {
         this.authorization = authorization;
-        this.revisions = revisions;
-        this.blobs = blobs;
+        this.evidenceQuery = evidenceQuery;
         this.objects = objects;
         this.audit = audit;
     }
@@ -75,36 +68,30 @@ public class CitationContentService {
                 verified.candidates().getFirst();
         String authorizationModelId = verified.authorizationModelId();
 
-        SourceRevision revision = revisions
-                .findByIdAndOrganizationId(
-                        currentCandidate.sourceRevisionId(),
-                        actor.organizationId())
-                .filter(value -> value.getStatus()
-                        == SourceRevisionStatus.READY)
-                .filter(value -> value.getKnowledgeAssetId()
-                        .equals(currentCandidate.knowledgeAssetId()))
-                .orElseThrow(() -> notFound(
+        SourceCitationEvidenceResult result = evidenceQuery.findAvailable(
+                actor.organizationId(),
+                currentCandidate.sourceRevisionId(),
+                currentCandidate.knowledgeAssetId());
+        SourceCitationEvidence evidence = switch (result) {
+            case SourceCitationEvidenceResult.Available available ->
+                    available.evidence();
+            case SourceCitationEvidenceResult.Unavailable unavailable -> {
+                String reason = switch (unavailable.reason()) {
+                    case REVISION_NOT_CURRENT -> "CITATION_REVISION_NOT_CURRENT";
+                    case BLOB_NOT_AVAILABLE -> "CITATION_BLOB_NOT_AVAILABLE";
+                };
+                throw notFound(
                         actor,
                         chunkId,
                         normalizedRequestId,
                         authorizationModelId,
-                        "CITATION_REVISION_NOT_CURRENT"));
-        EvidenceBlob blob = blobs
-                .findByIdAndOrganizationId(
-                        revision.getEvidenceBlobId(),
-                        actor.organizationId())
-                .filter(value -> value.getScanStatus()
-                        == EvidenceScanStatus.BASIC_VALIDATED)
-                .orElseThrow(() -> notFound(
-                        actor,
-                        chunkId,
-                        normalizedRequestId,
-                        authorizationModelId,
-                        "CITATION_BLOB_NOT_AVAILABLE"));
+                        reason);
+            }
+        };
 
-        var content = objects.open(new ObjectKey(blob.getObjectKey()));
-        if (!blob.getContentSha256().equals(content.metadata().sha256())
-                || blob.getContentLength()
+        var content = objects.open(evidence.objectKey());
+        if (!evidence.storedContentSha256().equals(content.metadata().sha256())
+                || evidence.storedContentLength()
                         != content.metadata().contentLength()) {
             closeQuietly(content);
             throw new KnowledgeRetrievalUnavailableException(
@@ -130,10 +117,10 @@ public class CitationContentService {
                 currentCandidate.projectionGeneration()));
         return new CitationContent(
                 chunkId,
-                revision.getFileName(),
-                revision.getMediaType(),
-                revision.getContentLength(),
-                revision.getContentSha256(),
+                evidence.fileName(),
+                evidence.mediaType(),
+                evidence.contentLength(),
+                evidence.contentSha256(),
                 content);
     }
 

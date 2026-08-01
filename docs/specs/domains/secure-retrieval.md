@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (00aabe15)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (7cef296c)`.
 
 ## Current Behavior
 
@@ -46,6 +46,13 @@ integrity, and streams the original bytes through the authenticated API with
 `no-store` and `nosniff`. Missing and denied citation reads return the same
 generic `404`. A missing control-plane role or incomplete current actor is
 rejected at the request boundary with `403`.
+
+Source Ledger owns the tenant-scoped citation evidence query. It accepts the
+permission-verified revision and Asset identities, requires a ready matching
+revision plus a validated blob, and returns only immutable response and storage
+integrity metadata. Retrieval imports no Source Revision/Evidence Blob entity,
+repository, or lifecycle enum. Missing revision and unavailable blob outcomes
+remain distinct audit reasons even though both map to the same opaque `404`.
 
 Control-plane roles (`ADMIN`, `REVIEWER`, `CONTRIBUTOR`, `VIEWER`) are separate
 from knowledge roles (`EMPLOYEE`, `MANAGER`, `DIRECTOR`, `EXECUTIVE`). Admin does

@@ -6,6 +6,8 @@
  * is accessed only through ACL-owned facade contracts. The module is closed so external
  * consumers can depend only on its public API surface. Graph indexing resolves revision state
  * through a Source Ledger-owned immutable query instead of consuming revision persistence.
+ * Citation opening resolves ready revision and validated blob evidence through another immutable
+ * query, keeping both persistence models and their lifecycle enums inside this module.
  */
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {
