@@ -123,6 +123,9 @@ jobs, and the inventory query used by Connector read views. ACL owns source ACL
 snapshots and heads, external-principal mappings, and group-membership evidence.
 Connector source lookup, vanished-object diffing, and retirement cross Source
 Ledger-owned inventory and lifecycle APIs rather than its persistence model.
+Connector revision lookup, staging, completion, and atomic graph scheduling
+cross a Source Ledger-owned `REQUIRES_NEW` service and outbound graph port;
+Connector consumes neither Source Ledger persistence nor Graph queue types.
 Connector, Asset, and Retrieval remain explicitly open while their remaining
 cross-owned persistence and orchestration seams are replaced by intentional
 APIs.
