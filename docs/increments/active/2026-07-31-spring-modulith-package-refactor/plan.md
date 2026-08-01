@@ -968,7 +968,7 @@ PR #235 merged as `c29cc75e` after all required CI checks passed. CodeRabbit's
 single ownership-test finding was fixed and direct audit confirmed its only
 review thread resolved before merge.
 
-## Current Pull Request Gates
+## Thirty-fourth Pull Request Evidence
 
 - Asset owns the compact `KnowledgeEmbeddingProfileRef` needed to persist chunk
   projections; Connector and Worker translate Retrieval's richer profile at
@@ -999,3 +999,34 @@ the documentation check passed across 459 Markdown files; and all 37
 release-policy tests passed again under Node 24.15. The final PR diff contains
 18 paths because Git recognizes the projection-namespace package move as a
 rename.
+
+PR #239 merged as `c67effe2` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.asset` is closed with an exact six-entry outgoing dependency
+  allowlist.
+- Parent Knowledge exposes exactly `KnowledgeCatalogQuery` and
+  `KnowledgeCatalogEntry` through `knowledge::catalog`; Asset Registry catalog
+  consumers no longer import nested Asset or Retrieval catalog types.
+- Retrieval retains canonical authorization and maps the Asset-owned
+  persistence projection. Version-only lookup resolves scope first and queries
+  only current active versions within the authorized Asset set.
+- The API owns its response mapping and preserves the existing
+  `KnowledgeCatalogItem` OpenAPI component and eight-field wire shape.
+- The Fable 5 spend-limit failure, clean Codex fallback verdict, strongest
+  counterargument, counterattack, final choice, and rejected alternative are
+  recorded with the active increment.
+
+Local verification so far: the authorization-order characterization test
+failed first against the unchanged implementation; then all 50 focused catalog
+and Modulith tests passed in 41s. The runtime OpenAPI contract test passed with
+PostgreSQL/Testcontainers in 1m13s, and the combined full Core/API/Worker gate
+passed in 6m25s. Mechanical package, zero-byte, migration-name, diff-hygiene,
+zero Asset-Registry-to-Asset-import, and 16-path scope checks passed. The
+documentation operating-model check passed across 461 Markdown files and 8
+mirrored domain pairs; all 37 release-policy tests passed under Node 24.15; and
+the terminating repository-wide `clean test` passed in 3m08s across 99 tasks.
+Integration with current `origin/main` and PR CI/review remain before merge.

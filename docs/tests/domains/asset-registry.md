@@ -1,11 +1,14 @@
 # Asset Registry Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
+`core/src/test/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogServiceTests.java`,
+`core/src/test/java/com/orgmemory/core/ModulithVerificationTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assetregistry`,
+`apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-skill-consumer-compatibility (f193b30e)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (345ccde8)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -47,6 +50,9 @@ Reconciled: `2026-08-01-skill-consumer-compatibility (f193b30e)`.
 | Every Pack component is authorized independently | `CapabilityPackServiceTests` | covered |
 | Denied Pack component metadata and count remain opaque | `CapabilityPackServiceTests` | covered |
 | Knowledge catalog and Prompt grounding use canonical authorization | `KnowledgeCatalogServiceTests`, `PromptExecutionServiceTests` | covered |
+| Version-only catalog lookup resolves authorization before persistence, keeps denied/missing results opaque, propagates indeterminacy, and maps every public field | `KnowledgeCatalogServiceTests` | covered |
+| Asset Registry catalog consumers cross only the exact parent `knowledge::catalog` surface and never import Asset internals | `ModulithVerificationTests#catalogIsAnExactExplicitKnowledgeInterface`, `ModulithVerificationTests#assetRegistryCatalogConsumersUseOnlyTheParentCatalogInterface`, `ModulithVerificationTests#assetRegistryDoesNotDependOnKnowledgeAssetInternals` | covered |
+| Catalog refactoring retains the committed `KnowledgeCatalogItem` OpenAPI component and wire contract | `OpenApiContractTests` | covered |
 | Pack progress is actor-derived and idempotent | `AssetRegistryIntegrationTests` | covered |
 | Replacement releases do not mutate existing Pack pins | `AssetRegistryIntegrationTests` | covered |
 | Recommendations are actor-scoped and contain exact usable release refs | `AssetRegistryIntegrationTests#recommendationsAreActorScopedAndPinExactUsableReleases`, `AssistantAssetToolServiceTests#recommendationsContainOnlyExactUsableReleaseRefs` | covered |
