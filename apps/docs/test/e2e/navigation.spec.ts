@@ -38,6 +38,28 @@ test('site root enters the technical documentation directly', async ({ page }) =
   ).toBeVisible();
 });
 
+test('public routes hydrate without a React server/client mismatch', async ({ page }) => {
+  const hydrationErrors: string[] = [];
+  page.on('console', (message) => {
+    if (
+      message.type() === 'error' &&
+      /Minified React error #418|Hydration failed/i.test(message.text())
+    ) {
+      hydrationErrors.push(message.text());
+    }
+  });
+
+  for (const route of [
+    '/docs/getting-started',
+    '/docs/product-guides/work-with-governed-assets',
+  ]) {
+    await page.goto(route);
+    await expect(page.locator('body')).toBeVisible();
+  }
+
+  expect(hydrationErrors).toEqual([]);
+});
+
 test('public corpus exposes the section switcher and focused page tree', async ({
   page,
 }, testInfo) => {
