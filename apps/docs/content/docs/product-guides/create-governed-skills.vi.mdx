@@ -8,6 +8,7 @@ status: public
 sourceRefs:
   - docs/specs/domains/asset-registry.md
   - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetRegistryController.java
+  - apps/web/src/features/assets/agent-handoff/skill-agent-handoffs.ts
   - apps/web/src/features/assets/components/skill-creation-page.tsx
   - apps/web/src/features/assets/components/skill-github-import-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
@@ -33,6 +34,31 @@ nhiệm riêng biệt.
 
   OrgMemory kiểm tra cấu trúc package nhưng không thực thi Skill và không coi
   structural validation là bước review nội dung hoặc bảo mật.
+
+  </Step>
+  <Step>
+
+  ### Tiếp tục từ môi trường phát triển
+
+  Nếu Skill đã nằm trong workspace phát triển local, dùng **Use your agent** để
+  sao chép prompt có ranh giới vào coding agent, hoặc dùng **Use CLI** để sao
+  chép command template chính thức. Agent phải dùng OrgMemory CLI đã có sẵn,
+  validate và dry-run package, hỏi lại khi thiếu folder, namespace, Knowledge
+  Space UUID hoặc classification, rồi hiển thị command chính xác trước khi yêu
+  cầu bạn xác nhận.
+
+  Handoff dừng khi đã có Draft riêng tư và Governance link. Nó không cài CLI,
+  yêu cầu bạn dán token, submit review, publish release, chia sẻ Asset hoặc thay
+  đổi quyền truy cập.
+
+  <ArchitectureDiagram
+    alt="Trang tạo Skill của Organizational AI Memory với các lựa chọn authoring gọn và handoff OrgMemory CLI chỉ cho phép sao chép, dừng ở Draft riêng tư."
+    description="Chọn authoring trên trình duyệt hoặc sao chép instruction có ranh giới vào agent local. UI hiển thị ranh giới xác nhận và scope được yêu cầu; CLI và server vẫn xác thực và kiểm tra quyền cho operation. Screenshot dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+    height={910}
+    src="/images/product-guides/skill-agent-handoff.png"
+    title="Giao việc tạo Skill Draft local cho agent"
+    width={1598}
+  />
 
   </Step>
   <Step>
