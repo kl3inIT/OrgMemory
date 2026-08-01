@@ -571,3 +571,7 @@ Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
 under Node 24.15; and the terminating repository `clean test` gate completed
 successfully in 5m07s across 99 tasks. Diff hygiene, the zero ACL sibling-import
 scan, and the four-path PR scope check passed.
+
+CodeRabbit requested that the release note spell out `shared::error` instead
+of grouping it under vague shared-foundation wording. The note now mirrors the
+exact four-entry allowlist already enforced by production metadata and tests.
