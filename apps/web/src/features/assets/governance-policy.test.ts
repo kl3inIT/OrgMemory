@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  canDecideReview,
+  canOpenGovernance,
   canPublishSkillDirectly,
   initialGovernanceTab,
 } from "./governance-policy"
@@ -63,29 +63,9 @@ describe("Asset Governance policy", () => {
     ).toBe(false)
   })
 
-  it("does not offer self-approval even when the actor can review", () => {
-    const review = {
-      id: "review-1",
-      revisionId: "revision-1",
-      state: "IN_REVIEW" as const,
-    }
-    const actions = { canReview: true }
-
-    expect(
-      canDecideReview(
-        review,
-        [{ id: "revision-1", createdByUserId: "author-1" }],
-        actions,
-        "author-1",
-      ),
-    ).toBe(false)
-    expect(
-      canDecideReview(
-        review,
-        [{ id: "revision-1", createdByUserId: "author-1" }],
-        actions,
-        "reviewer-1",
-      ),
-    ).toBe(true)
+  it("treats an absent server governance verdict as denied", () => {
+    expect(canOpenGovernance(undefined)).toBe(false)
+    expect(canOpenGovernance({})).toBe(false)
+    expect(canOpenGovernance({ canOpenGovernance: true })).toBe(true)
   })
 })

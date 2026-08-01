@@ -585,16 +585,13 @@ class AssetRegistryCoordinator {
         AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
                         review.getRevisionId(), assetId, actor.organizationId())
                 .orElseThrow(AssetNotFoundException::new);
-        if (!review.getRevisionDigest().equals(revision.getDigest())) {
-            throw new AssetConflictException("Review digest no longer matches its revision");
-        }
-        if (decision == AssetReviewDecisionType.APPROVE
-                && revision.getCreatedByUserId().equals(actor.userId())) {
-            throw new AssetConflictException("A revision author cannot approve their own revision");
-        }
-        if (decision == AssetReviewDecisionType.CANCEL
-                && !review.getRequestedByUserId().equals(actor.userId())) {
-            throw new AssetConflictException("Only the review requester may cancel this review");
+        String conflict = decisionConflict(
+                actor,
+                review,
+                revision,
+                decision);
+        if (conflict != null) {
+            throw new AssetConflictException(conflict);
         }
         Instant now = Instant.now();
         review.decide(decision, now);
@@ -610,6 +607,92 @@ class AssetRegistryCoordinator {
                 review.getId(),
                 "{\"digest\":\"" + review.getRevisionDigest() + "\"}");
         return view(asset);
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    AssetReviewDecisionActions reviewDecisionActions(
+            CurrentActor actor,
+            UUID assetId) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(assetId, "assetId");
+        Optional<AssetReviewCase> openReview = reviews
+                .findByAssetIdAndOrganizationIdOrderByCreatedAtDesc(
+                        assetId,
+                        actor.organizationId())
+                .stream()
+                .filter(review -> review.getState()
+                        == AssetReviewState.IN_REVIEW)
+                .findFirst();
+        if (openReview.isEmpty()) {
+            return AssetReviewDecisionActions.none();
+        }
+        AssetRevision revision = revisions
+                .findByIdAndAssetIdAndOrganizationId(
+                        openReview.get().getRevisionId(),
+                        assetId,
+                        actor.organizationId())
+                .orElseThrow(AssetNotFoundException::new);
+        return reviewDecisionActions(
+                actor,
+                openReview.get(),
+                revision);
+    }
+
+    static AssetReviewDecisionActions reviewDecisionActions(
+            CurrentActor actor,
+            AssetReviewCase review,
+            AssetRevision revision) {
+        return new AssetReviewDecisionActions(
+                decisionConflict(
+                                actor,
+                                review,
+                                revision,
+                                AssetReviewDecisionType.APPROVE)
+                        == null,
+                decisionConflict(
+                                actor,
+                                review,
+                                revision,
+                                AssetReviewDecisionType.REQUEST_CHANGES)
+                        == null,
+                decisionConflict(
+                                actor,
+                                review,
+                                revision,
+                                AssetReviewDecisionType.REJECT)
+                        == null,
+                decisionConflict(
+                                actor,
+                                review,
+                                revision,
+                                AssetReviewDecisionType.CANCEL)
+                        == null);
+    }
+
+    private static String decisionConflict(
+            CurrentActor actor,
+            AssetReviewCase review,
+            AssetRevision revision,
+            AssetReviewDecisionType decision) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(review, "review");
+        Objects.requireNonNull(revision, "revision");
+        Objects.requireNonNull(decision, "decision");
+        if (!review.getRevisionDigest().equals(revision.getDigest())) {
+            return "Review digest no longer matches its revision";
+        }
+        if (decision == AssetReviewDecisionType.APPROVE
+                && revision.getCreatedByUserId().equals(actor.userId())) {
+            return "A revision author cannot approve their own revision";
+        }
+        if (decision == AssetReviewDecisionType.CANCEL
+                && !review.getRequestedByUserId().equals(actor.userId())) {
+            return "Only the review requester may cancel this review";
+        }
+        if (review.getState() != AssetReviewState.IN_REVIEW) {
+            return "This review case is already resolved";
+        }
+        return null;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

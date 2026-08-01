@@ -89,6 +89,7 @@ test("authenticated Skill detail reads its install contract through the browser 
 
   await expect(page.getByRole("heading", { name: "decision-record-writer" })).toBeVisible()
   await expect(page.getByText("Install this exact Skill")).toBeVisible()
+  await expect(page.getByRole("link", { name: "Open governance" })).toBeVisible()
   await expect(page.getByRole("tab", { name: "Use your agent" })).toBeVisible()
   await expect(
     page.getByRole("alert").filter({ hasText: "Install only this exact released version" }),
@@ -714,9 +715,14 @@ async function assetHarness(
         canEdit: true,
         canSubmitReview: true,
         canReview: false,
+        canApprove: false,
+        canRequestChanges: false,
+        canReject: false,
+        canCancel: false,
         canPublish: false,
         canPublishSkill: true,
         canWithdraw: false,
+        canOpenGovernance: true,
       })
       return
     }
@@ -729,8 +735,13 @@ async function assetHarness(
         canEdit: true,
         canSubmitReview: true,
         canReview: true,
+        canApprove: false,
+        canRequestChanges: true,
+        canReject: true,
+        canCancel: true,
         canPublish: true,
         canWithdraw: true,
+        canOpenGovernance: true,
       })
       return
     }
@@ -876,9 +887,14 @@ async function skillGovernanceHarness(page: Page) {
         canEdit: true,
         canSubmitReview: true,
         canReview: false,
+        canApprove: false,
+        canRequestChanges: false,
+        canReject: false,
+        canCancel: false,
         canPublish: false,
         canPublishSkill: true,
         canWithdraw: false,
+        canOpenGovernance: true,
       })
       return
     }
@@ -921,6 +937,10 @@ async function releasedSkillHarness(page: Page) {
     const { url, signature } = requestContext
     if (url.pathname === `/api/assets/${SKILL_ID}`) {
       await json(route, releasedSkillAsset())
+      return
+    }
+    if (url.pathname === `/api/assets/${SKILL_ID}/governance-actions`) {
+      await json(route, { canOpenGovernance: true })
       return
     }
     if (
