@@ -273,6 +273,20 @@ fail the build. The reverse Source Ledger-to-ACL dependency remains explicit
 for the next slice, where transaction orchestration can be moved behind an
 ACL-owned API without mixing that larger change into this entity boundary.
 
+## Eighth Cycle-Removal Slice
+
+Source Ledger no longer coordinates ACL repositories or accepts ACL JPA
+entities. An ACL-owned facade validates capture policy, computes canonical
+hashes, persists entries and seals, advances the compare-and-set head, and
+answers normalization/promotion readiness queries. Source Ledger retains the
+canonical raw-source transaction lock and translates raw entities into the
+compact ACL target introduced in the previous slice.
+
+The facade returns immutable snapshot/head facts rather than persistence
+objects. Source Ledger still consumes ACL-owned command/value contracts in the
+intentional one-way direction; an exact Modulith dependency assertion pins
+that surface so repositories or entities cannot leak back across the seam.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

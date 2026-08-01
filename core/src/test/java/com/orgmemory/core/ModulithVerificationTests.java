@@ -152,6 +152,32 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void sourceLedgerConsumesOnlyAclFacadeContracts() {
+        var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(acl))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.sourceledger"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.acl.AclAuthority",
+                        "com.orgmemory.core.knowledge.acl.AclCaptureStatus",
+                        "com.orgmemory.core.knowledge.acl.RotateSourceAclCommand",
+                        "com.orgmemory.core.knowledge.acl.SourceAclEntryCommand",
+                        "com.orgmemory.core.knowledge.acl.SourceAclFacade",
+                        "com.orgmemory.core.knowledge.acl.SourceAclHeadRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclRotationRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclTarget"),
+                consumedTypes);
+    }
+
+    @Test
     void knowledgeConnectorIsAnOpenNestedModuleDuringTheRefactor() {
         var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
 

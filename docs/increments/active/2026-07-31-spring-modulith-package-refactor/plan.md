@@ -419,7 +419,7 @@ PR #207 merged as `109d03a3a367f1e8d0f7008b2af04139fff24ddf` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Seventeenth Pull Request Evidence
 
 - ACL owns the compact source target value used to create and advance an ACL
   head; it no longer accepts a Source Ledger persistence entity.
@@ -448,3 +448,31 @@ also needed an explicit organization/raw-source identity match. The constructor
 and advance path now reject both mismatch classes before mutating the head;
 four focused mismatch cases passed, and the terminating repository `clean
 test` gate passed again in 5m28s across 99 tasks.
+
+PR #208 merged as `a47c6e278e2c370797d50855ffe310715531d5aa` after all
+required CI checks passed. Its actionable CodeRabbit finding was fixed in
+`fc8b3be5`, confirmed by the reviewer, and the only review thread was resolved
+before merge.
+
+## Current Pull Request Gates
+
+- ACL owns a transactional facade for validation, snapshot/entry/seal
+  persistence, head advancement, and normalization/promotion readiness.
+- Source Ledger retains the raw-source identity lock but has zero dependencies
+  on ACL repositories or JPA entities.
+- ACL exposes immutable snapshot/head facts rather than persistence objects.
+- An exact Modulith assertion pins the ACL contracts consumed by Source Ledger
+  so the boundary cannot widen silently.
+- Focused ACL facade/head, ingestion API, connector, worker, and Modulith tests
+  pass; `:core:test` and the terminating repository `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the remaining ACL value-type seam is assessed.
+
+Pre-PR verification completed: Core, API, and Worker production/test sources
+compiled; focused ACL facade/head, ingestion API, Connector, Worker, and
+Modulith tests passed; the full `:core:test` plus ingestion API/Worker suite
+passed in 1m37s; the docs operating-model check passed across 398 Markdown
+files and 8 mirrored domain pairs; all 37 release-policy tests passed; and the
+terminating repository `clean test` gate completed successfully in 5m46s
+across 108 tasks. Diff hygiene, the zero Source Ledger-to-ACL-persistence scan,
+and the 12-path PR limit check passed.
