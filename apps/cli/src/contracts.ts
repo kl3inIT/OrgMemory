@@ -120,21 +120,40 @@ export function parseSkillReference(reference: string): {
   if (separator <= 0 || separator === reference.length - 1) {
     throw new Error("Use an exact Skill reference: <namespace>/<slug>@<version>")
   }
-  const coordinate = reference.slice(0, separator)
-  const version = reference.slice(separator + 1)
-  const parts = coordinate.split("/")
-  if (parts.length !== 2) {
+  const coordinateText = reference.slice(0, separator)
+  if (coordinateText.split("/").length !== 2) {
     throw new Error("Use an exact Skill reference: <namespace>/<slug>@<version>")
+  }
+  const coordinate = parseSkillCoordinate(coordinateText)
+  const version = parseSkillVersion(reference.slice(separator + 1))
+  const { namespace, slug } = coordinate
+  return { namespace, slug, version }
+}
+
+export function parseSkillCoordinate(reference: string): {
+  namespace: string
+  slug: string
+  coordinate: string
+} {
+  const parts = reference.split("/")
+  if (parts.length !== 2) {
+    throw new Error("Use a Skill coordinate: <namespace>/<slug>")
   }
   const [namespace, slug] = parts
   if (
     !namespace ||
     !slug ||
     !namespaceSchema.safeParse(namespace).success ||
-    !slugSchema.safeParse(slug).success ||
-    !versionSchema.safeParse(version).success
+    !slugSchema.safeParse(slug).success
   ) {
-    throw new Error("The Skill coordinate or version is invalid")
+    throw new Error("The Skill coordinate is invalid")
   }
-  return { namespace, slug, version }
+  return { namespace, slug, coordinate: `${namespace}/${slug}` }
+}
+
+export function parseSkillVersion(version: string): string {
+  if (!versionSchema.safeParse(version).success) {
+    throw new Error("The Skill version is invalid")
+  }
+  return version
 }

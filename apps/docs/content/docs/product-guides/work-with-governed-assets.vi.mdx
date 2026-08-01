@@ -99,6 +99,20 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
   target đó sẽ diễn giải hoặc thực thi Skill như thế nào. Không cách nào tự cài
   CLI hoặc cấp quyền rộng hơn.
 
+  Sau khi cài, hãy quản lý bản local theo cách tường minh và có thể kiểm tra:
+
+  ```bash
+  orgmemory skill verify <namespace>/<slug> --agent codex
+  orgmemory skill update <namespace>/<slug> --to <exact-version> --agent codex
+  orgmemory skill remove <namespace>/<slug> --agent codex
+  ```
+
+  Bước verify chạy offline và kiểm tra toàn bộ cây file đã cài. Update xác thực
+  lại đúng một release của cùng Skill. Remove chỉ được phép với bản cài không
+  bị sửa và có thể xác minh; CLI không bao giờ force-delete chỉnh sửa local.
+  Lệnh `npx` công khai chỉ được hiển thị sau khi đúng phiên bản package CLI đã
+  được xác minh trên registry.
+
   <ArchitectureDiagram
     alt="Màn cài một Skill đã release của Organizational AI Memory cho Codex, hiển thị target project chính xác, agent prompt có ranh giới, trạng thái hỗ trợ cài đặt và giới hạn không chứng nhận hành vi runtime."
     description="Chọn một adapter được hỗ trợ cho đúng bản phát hành. Xác minh package và cài đặt xác định không có nghĩa OrgMemory chứng nhận hành vi runtime của consumer. Screenshot dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."

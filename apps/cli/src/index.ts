@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 
 import { Command, Option } from "commander"
+import packageJson from "../package.json" with { type: "json" }
 
 import {
   orgMemoryUuidSchema,
   namespaceSchema,
+  parseSkillCoordinate,
   parseSkillReference,
+  parseSkillVersion,
   resolvePackageUrl,
+  type SkillManifestLink,
   skillManifestLinkSchema,
   skillSearchSchema,
 } from "./contracts.js"
@@ -14,7 +18,10 @@ import {
   installSkill,
   listInstalled,
   readBoundedPackage,
+  removeInstalledSkill,
   type Agent,
+  updateInstalledSkill,
+  verifyInstalled,
 } from "./install.js"
 import { OrgMemoryMcpClient } from "./mcp.js"
 import {
@@ -32,7 +39,7 @@ const SKILL_PUBLISH_SCOPE = "assets:read assets:write"
 const program = new Command()
   .name("orgmemory")
   .description("Discover and install governed OrgMemory Skills")
-  .version("0.1.0")
+  .version(packageJson.version)
   .option(
     "--server <url>",
     "OrgMemory MCP server URL",
@@ -189,29 +196,11 @@ skill
     ) => {
       const parsed = parseSkillReference(reference)
       await withClient(program.opts(), async (client, serverUrl) => {
-        const link = await client.call(
-          "resolve_skill",
+        const { manifestLink: link, packageBytes } = await loadSkillRelease(
+          client,
+          serverUrl,
           parsed,
-          skillManifestLinkSchema,
         )
-        const token = await client.accessToken()
-        const packageUrl = resolvePackageUrl(serverUrl, link)
-        const controller = new AbortController()
-        const timeout = setTimeout(
-          () => controller.abort(),
-          PACKAGE_DOWNLOAD_TIMEOUT_MS,
-        )
-        let packageBytes: Uint8Array
-        try {
-          const response = await fetch(packageUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-            redirect: "error",
-            signal: controller.signal,
-          })
-          packageBytes = await readBoundedPackage(response)
-        } finally {
-          clearTimeout(timeout)
-        }
         const installed = await installSkill({
           manifestLink: link,
           packageBytes,
@@ -223,6 +212,120 @@ skill
           `Installed ${link.manifest.coordinate}@${link.manifest.version} for ${options.agent}\n${installed.target}\n`,
         )
       })
+    },
+  )
+
+skill
+  .command("verify")
+  .description("Verify installed Skill files against token-free local receipts")
+  .argument("[skill]", "optional <namespace>/<slug>")
+  .addOption(
+    new Option("--agent <agent>", "target AI coding agent").choices([
+      "claude-code",
+      "codex",
+    ]),
+  )
+  .option("--global", "verify current-user installations")
+  .option("--json", "print machine-readable JSON")
+  .action(
+    async (
+      reference: string | undefined,
+      options: { agent?: Agent; global?: boolean; json?: boolean },
+    ) => {
+      const coordinate = reference
+        ? parseSkillCoordinate(reference).coordinate
+        : undefined
+      const result = await verifyInstalled({
+        global: Boolean(options.global),
+        cwd: process.cwd(),
+        ...(coordinate ? { coordinate } : {}),
+        ...(options.agent ? { agent: options.agent } : {}),
+      })
+      const entries = Object.values(result)
+      const unverified = entries.some((entry) => entry.status !== "verified")
+      if (options.json) {
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        if (unverified) {
+          process.exitCode = 2
+        }
+        return
+      }
+      if (entries.length === 0) {
+        process.stdout.write("No matching OrgMemory Skill installations were found.\n")
+        return
+      }
+      for (const item of entries) {
+        process.stdout.write(
+          `${item.coordinate}@${item.version}\t${item.agent}\t${item.status}${item.reason ? `\t${item.reason}` : ""}\n`,
+        )
+      }
+      if (unverified) {
+        process.exitCode = 2
+      }
+    },
+  )
+
+skill
+  .command("update")
+  .description("Update one verified installation to an exact release")
+  .argument("<skill>", "<namespace>/<slug>")
+  .requiredOption("--to <version>", "exact destination version")
+  .addOption(
+    new Option("--agent <agent>", "target AI coding agent")
+      .choices(["claude-code", "codex"])
+      .makeOptionMandatory(),
+  )
+  .option("--global", "update the current-user installation")
+  .action(
+    async (
+      reference: string,
+      options: { to: string; agent: Agent; global?: boolean },
+    ) => {
+      const parsed = parseSkillCoordinate(reference)
+      const version = parseSkillVersion(options.to)
+      await withClient(program.opts(), async (client, serverUrl) => {
+        const updated = await updateInstalledSkill({
+          coordinate: parsed.coordinate,
+          agent: options.agent,
+          global: Boolean(options.global),
+          cwd: process.cwd(),
+          loadRelease: () =>
+            loadSkillRelease(client, serverUrl, {
+              namespace: parsed.namespace,
+              slug: parsed.slug,
+              version,
+            }),
+        })
+        process.stdout.write(
+          `Updated ${parsed.coordinate}@${updated.version} for ${options.agent}\n${updated.target}\n`,
+        )
+      })
+    },
+  )
+
+skill
+  .command("remove")
+  .description("Remove one verified OrgMemory-managed Skill installation")
+  .argument("<skill>", "<namespace>/<slug>")
+  .addOption(
+    new Option("--agent <agent>", "target AI coding agent")
+      .choices(["claude-code", "codex"])
+      .makeOptionMandatory(),
+  )
+  .option("--global", "remove the current-user installation")
+  .action(
+    async (
+      reference: string,
+      options: { agent: Agent; global?: boolean },
+    ) => {
+      const parsed = parseSkillCoordinate(reference)
+      await removeInstalledSkill({
+        coordinate: parsed.coordinate,
+        agent: options.agent,
+        global: Boolean(options.global),
+        cwd: process.cwd(),
+      })
+      process.stdout.write(`Removed ${parsed.coordinate} for ${options.agent}\n`)
     },
   )
 
@@ -319,4 +422,30 @@ function parsePort(value: string): number {
     throw new Error("OAuth callback port must be between 1024 and 65535")
   }
   return port
+}
+
+async function loadSkillRelease(
+  client: OrgMemoryMcpClient,
+  serverUrl: URL,
+  reference: { namespace: string; slug: string; version: string },
+): Promise<{ manifestLink: SkillManifestLink; packageBytes: Uint8Array }> {
+  const manifestLink = await client.call(
+    "resolve_skill",
+    reference,
+    skillManifestLinkSchema,
+  )
+  const token = await client.accessToken()
+  const packageUrl = resolvePackageUrl(serverUrl, manifestLink)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PACKAGE_DOWNLOAD_TIMEOUT_MS)
+  try {
+    const response = await fetch(packageUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: "error",
+      signal: controller.signal,
+    })
+    return { manifestLink, packageBytes: await readBoundedPackage(response) }
+  } finally {
+    clearTimeout(timeout)
+  }
 }

@@ -97,6 +97,20 @@ usable release. No repository access or deployment setup is required.
   that target interprets or executes the Skill. Neither path installs the CLI
   nor grants broader authorization.
 
+  After installation, keep the local copy explicit and inspectable:
+
+  ```bash
+  orgmemory skill verify <namespace>/<slug> --agent codex
+  orgmemory skill update <namespace>/<slug> --to <exact-version> --agent codex
+  orgmemory skill remove <namespace>/<slug> --agent codex
+  ```
+
+  Verification is offline and checks the entire installed file tree. Update
+  re-authorizes one exact release of the same Skill. Removal is allowed only
+  for an unchanged, verifiable installation; the CLI never force-deletes local
+  edits. A public `npx` command is shown only after the exact CLI package
+  version has been verified in the registry.
+
   <ArchitectureDiagram
     alt="Organizational AI Memory released Skill installer for Codex, showing the exact project target, bounded agent prompt, supported installation status, and runtime non-certification."
     description="Choose one supported adapter for the exact release. Package verification and deterministic installation do not imply that OrgMemory certifies the consumer's runtime behavior. This screenshot uses synthetic documentation data captured from the current product UI."
