@@ -295,6 +295,15 @@ public class KnowledgeIngestionService {
                         source.getId(),
                         revision.getId(),
                         normalized.getId(),
+                        normalized.getRawSourceObjectId(),
+                        normalized.getSourceAclSnapshotId(),
+                        normalized.getDepartmentId(),
+                        normalized.getTitle(),
+                        normalized.getNormalizedContent(),
+                        normalized.getLanguage(),
+                        normalized.getClassification(),
+                        normalized.getDeclaredAccess(),
+                        normalized.getContentSha256(),
                         command.orgMemoryGate()));
         normalized.markPromoted();
         normalizedRecords.save(normalized);

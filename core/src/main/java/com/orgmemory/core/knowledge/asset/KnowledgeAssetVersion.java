@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.sourceledger.NormalizedRecord;
-
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
@@ -88,28 +86,27 @@ public class KnowledgeAssetVersion extends BaseEntity {
             KnowledgeAsset asset,
             long versionNumber,
             UUID sourceRevisionId,
-            NormalizedRecord normalized,
-            AccessGate orgMemoryGate) {
+            KnowledgeAssetVersionDraft draft) {
         super(UUID.randomUUID());
         if (versionNumber <= 0) {
             throw new IllegalArgumentException("versionNumber must be positive");
         }
-        this.organizationId = normalized.getOrganizationId();
+        this.organizationId = draft.organizationId();
         this.knowledgeAssetId = Objects.requireNonNull(asset, "asset").getId();
         this.versionNumber = versionNumber;
         this.knowledgeSpaceId = asset.getKnowledgeSpaceId();
         this.sourceRevisionId = sourceRevisionId;
-        this.rawSourceObjectId = normalized.getRawSourceObjectId();
-        this.normalizedRecordId = normalized.getId();
-        this.sourceAclSnapshotId = normalized.getSourceAclSnapshotId();
-        this.departmentId = normalized.getDepartmentId();
-        this.title = normalized.getTitle();
-        this.content = normalized.getNormalizedContent();
-        this.language = normalized.getLanguage();
-        this.classification = normalized.getClassification();
-        this.declaredAccess = normalized.getDeclaredAccess();
-        this.contentSha256 = normalized.getContentSha256();
-        this.orgMemoryGate = Objects.requireNonNull(orgMemoryGate, "orgMemoryGate");
+        this.rawSourceObjectId = draft.rawSourceObjectId();
+        this.normalizedRecordId = draft.normalizedRecordId();
+        this.sourceAclSnapshotId = draft.sourceAclSnapshotId();
+        this.departmentId = draft.departmentId();
+        this.title = draft.title();
+        this.content = draft.content();
+        this.language = draft.language();
+        this.classification = draft.classification();
+        this.declaredAccess = draft.declaredAccess();
+        this.contentSha256 = draft.contentSha256();
+        this.orgMemoryGate = Objects.requireNonNull(draft.orgMemoryGate(), "orgMemoryGate");
         this.status = KnowledgeAssetVersionStatus.PENDING;
     }
 

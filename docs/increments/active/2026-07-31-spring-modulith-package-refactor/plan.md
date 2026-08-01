@@ -848,7 +848,7 @@ PR #229 merged as `378d0518` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Thirty-first Pull Request Evidence
 
 - `knowledge.connector` is a closed nested application module rather than an
   open migration module.
@@ -886,3 +886,37 @@ boundary decision.
 Review-fix verification passed: focused `ModulithVerificationTests` in 29s,
 `:core:test` in 1m30s, the 437-file docs check, all 37 release-policy tests
 under Node 24.15, and a terminating repository `clean test` across 99 tasks.
+
+PR #230 merged as `ddda1359` after all required CI checks passed. All three
+CodeRabbit findings were verified: the exact declared dependency assertion and
+temporary open-owner documentation were fixed, while the duplicate challenge
+record request was answered with the existing Fable 5 verdict. Direct audit
+confirmed all three review threads resolved before merge.
+
+## Current Pull Request Gates
+
+- The Source Ledger-owned promotion request carries every validated normalized
+  fact needed to create an immutable Asset version; the Asset adapter no longer
+  loads `NormalizedRecord` or `NormalizedRecordRepository`.
+- `SourcePublicationService` owns source revision advancement and joins the
+  existing Asset publication transaction with `Propagation.MANDATORY`, so the
+  previous atomic asset/version/source/outbox commit is retained without Asset
+  touching `SourceObject` or `SourceObjectRepository`.
+- Asset maps the source request into its own `KnowledgeAssetVersionDraft`; its
+  entity no longer accepts a Source Ledger persistence entity.
+- A failing-first ArchUnit regression now rejects all four Source Ledger
+  persistence types, an exact dependency test pins the nine remaining public
+  contracts, and focused service tests pin the mandatory transaction boundary.
+- API ingestion and Worker publication pipeline integration tests pass, and
+  the pull request remains a coherent code change below 100 files.
+
+Pre-PR verification completed: the new persistence-boundary test failed first
+against all four direct entity/repository dependencies, then focused Source
+Publication and exact Modulith tests passed in 34s. Vertical API ingestion and
+Worker publication pipeline tests passed in 1m22s and 1m19s; the combined full
+Core/API/Worker gate passed in 8m19s. Repository compilation passed in 12s; the
+documentation operating-model check passed across 445 Markdown files and 8
+mirrored domain pairs; all 37 release-policy tests passed under Node 24.15;
+and the terminating repository-wide `clean test` completed successfully in
+1m02s across 99 tasks. Mechanical package, zero-byte, migration-name, diff,
+zero Asset-to-Source-Ledger-persistence-import, and 14-path scope checks passed.

@@ -3,10 +3,7 @@ package com.orgmemory.core.knowledge.asset;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeAssetPromotionPort;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeAssetPromotionRequest;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
-import com.orgmemory.core.knowledge.sourceledger.NormalizedRecord;
-import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRepository;
 import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
-import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -18,17 +15,14 @@ class KnowledgeAssetPromotionAdapter implements KnowledgeAssetPromotionPort {
     private final KnowledgeAssetRepository assets;
     private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeAssetEvidenceLinkRepository evidence;
-    private final NormalizedRecordRepository normalizedRecords;
 
     KnowledgeAssetPromotionAdapter(
             KnowledgeAssetRepository assets,
             KnowledgeAssetVersionRepository versions,
-            KnowledgeAssetEvidenceLinkRepository evidence,
-            NormalizedRecordRepository normalizedRecords) {
+            KnowledgeAssetEvidenceLinkRepository evidence) {
         this.assets = assets;
         this.versions = versions;
         this.evidence = evidence;
-        this.normalizedRecords = normalizedRecords;
     }
 
     @Override
@@ -48,10 +42,6 @@ class KnowledgeAssetPromotionAdapter implements KnowledgeAssetPromotionPort {
 
     @Override
     public SourceKnowledgeAssetRef promote(KnowledgeAssetPromotionRequest request) {
-        NormalizedRecord normalized = normalizedRecords
-                .findByIdAndOrganizationId(
-                        request.normalizedRecordId(), request.organizationId())
-                .orElseThrow(KnowledgeResourceNotFoundException::new);
         KnowledgeAsset asset = assets
                 .findByOrganizationIdAndSourceObjectId(
                         request.organizationId(), request.sourceObjectId())
@@ -68,14 +58,30 @@ class KnowledgeAssetPromotionAdapter implements KnowledgeAssetPromotionPort {
                 asset,
                 versionNumber,
                 request.sourceRevisionId(),
-                normalized,
-                request.orgMemoryGate()));
+                draft(request)));
         evidence.save(KnowledgeAssetEvidenceLink.primary(
                 request.organizationId(),
                 version.getId(),
                 request.sourceRevisionId(),
-                normalized.getSourceAclSnapshotId()));
+                request.sourceAclSnapshotId()));
         return ref(asset, version);
+    }
+
+    private static KnowledgeAssetVersionDraft draft(
+            KnowledgeAssetPromotionRequest request) {
+        return new KnowledgeAssetVersionDraft(
+                request.organizationId(),
+                request.rawSourceObjectId(),
+                request.normalizedRecordId(),
+                request.sourceAclSnapshotId(),
+                request.departmentId(),
+                request.title(),
+                request.normalizedContent(),
+                request.language(),
+                request.classification(),
+                request.declaredAccess(),
+                request.contentSha256(),
+                request.orgMemoryGate());
     }
 
     private KnowledgeAsset requiredAsset(
