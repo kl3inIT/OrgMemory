@@ -114,15 +114,16 @@ build file, so taking the convention is taking the boundary. See
   Next.js bundler, not a repository task runner.
 
 `core` uses Spring Modulith package boundaries and a verification test.
-`core.knowledge.space` is the first responsibility-oriented nested module and
-remains explicitly open while sibling repository dependencies are replaced by
-intentional APIs. `core.knowledge.sourceledger` owns the canonical source and
-revision ledger, evidence blobs, raw/normalized processing records, upload and
-query services, and durable ingestion jobs under the same transitional rule.
-The `core.knowledge.acl` nested module owns source ACL snapshots and heads,
-external-principal mappings, and group-membership evidence; it is also
-temporarily open while connector and source-ledger callers are routed through
-intentional facades.
+The closed `core.knowledge.space`, `core.knowledge.sourceledger`,
+`core.knowledge.acl`, and `core.knowledge.graph` nested modules expose
+owner-defined root-package APIs with exact outgoing dependency allowlists.
+Source Ledger owns the canonical source and revision ledger, evidence blobs,
+raw/normalized processing records, upload and query services, durable ingestion
+jobs, and the inventory query used by Connector read views. ACL owns source ACL
+snapshots and heads, external-principal mappings, and group-membership evidence.
+Connector, Asset, and Retrieval remain explicitly open while their remaining
+cross-owned persistence and orchestration seams are replaced by intentional
+APIs.
 The provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

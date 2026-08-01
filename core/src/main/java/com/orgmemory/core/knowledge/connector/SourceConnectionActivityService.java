@@ -1,13 +1,10 @@
 package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatusCount;
+import com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceInventorySummary;
 
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +21,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SourceConnectionActivityService {
 
-    private final SourceObjectRepository objects;
+    private final SourceInventoryQuery inventory;
     private final ConnectorCrawlCheckpointService checkpoints;
     private final ConnectorCrawlAttemptService attempts;
 
     SourceConnectionActivityService(
-            SourceObjectRepository objects,
+            SourceInventoryQuery inventory,
             ConnectorCrawlCheckpointService checkpoints,
             ConnectorCrawlAttemptService attempts) {
-        this.objects = objects;
+        this.inventory = inventory;
         this.checkpoints = checkpoints;
         this.attempts = attempts;
     }
@@ -42,34 +39,21 @@ public class SourceConnectionActivityService {
             UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         String system = require(sourceSystem, "sourceSystem");
         String key = require(sourceConnectionKey, "sourceConnectionKey");
-        List<SourceObjectStatusCount> counts = objects.countByStatus(organizationId, system, key);
-        List<ConnectorComponentCheckpointView> componentCheckpoints =
+        SourceInventorySummary summary = inventory.summarize(organizationId, system, key);
+        var componentCheckpoints =
                 checkpoints.describe(organizationId, system, key);
         return new SourceConnectionActivityView(
                 system,
                 key,
-                countOf(counts, SourceObjectStatus.ACTIVE),
-                countOf(counts, SourceObjectStatus.ARCHIVED),
-                // Across statuses, because "when did anything last move here" does not care
-                // whether the movement was an arrival or a retirement.
-                counts.stream()
-                        .map(SourceObjectStatusCount::lastUpdatedAt)
-                        .filter(Objects::nonNull)
-                        .max(Comparator.naturalOrder())
-                        .orElse(null),
+                summary.activeObjects(),
+                summary.archivedObjects(),
+                summary.lastUpdatedAt(),
                 componentCheckpoints.stream()
                         .map(ConnectorComponentCheckpointView::observedAt)
                         .max(Comparator.naturalOrder())
                         .orElse(null),
                 componentCheckpoints,
                 attempts.recent(organizationId, system, key));
-    }
-
-    private static long countOf(List<SourceObjectStatusCount> counts, SourceObjectStatus status) {
-        return counts.stream()
-                .filter(count -> count.status() == status)
-                .mapToLong(SourceObjectStatusCount::objects)
-                .sum();
     }
 
     private static String require(String value, String field) {

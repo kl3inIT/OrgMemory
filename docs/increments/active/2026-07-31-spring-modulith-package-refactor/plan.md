@@ -729,7 +729,7 @@ PR #223 merged as `0cb8a187` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Seventh Pull Request Evidence
 
 - `knowledge.graph` is a closed nested application module rather than an open
   migration module.
@@ -746,3 +746,32 @@ reviews, or review threads before merge.
   and 8 mirrored domain pairs; the Node 24.15 release gate passed all 37 tests.
 - The terminating repository-wide `clean test` passed in 5m49s across 99
   tasks. Diff hygiene and the 4-path pull-request scope check passed.
+
+PR #226 merged as `1a1515b6` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns `SourceInventoryQuery` and an immutable inventory summary
+  for Connector read-side consumers.
+- `ConnectorObjectDirectory` and `SourceConnectionActivityService` no longer
+  inject `SourceObjectRepository` or consume Source Ledger status and aggregate
+  persistence projections.
+- An exact Modulith assertion pins the two Source Ledger contracts consumed by
+  those read views, so persistence types cannot leak back into them.
+- Existing active-object inventory, active/archived counts, and latest activity
+  behavior remain covered by a focused Source Ledger query test.
+- Focused Source Ledger query and Modulith tests, `:core:test`, docs/release
+  checks, and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector's write-side Source Ledger seam is assessed.
+
+Pre-PR verification completed: repository compilation passed in 33s; focused
+Source Inventory and exact Modulith boundary tests passed in 29s; `:core:test`
+passed in 1m27s; the documentation operating-model check passed across 434
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 6m05s across 99 tasks. Mechanical package, zero-byte, and
+migration-name checks, diff hygiene, the zero read-view persistence-leak scan,
+and the 10-path pull-request scope check passed.
