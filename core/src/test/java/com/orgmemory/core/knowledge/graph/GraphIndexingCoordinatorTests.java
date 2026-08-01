@@ -1,9 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphChunk;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
@@ -50,8 +49,8 @@ class GraphIndexingCoordinatorTests {
     private final KnowledgeAssetGraphQuery assets = mock(KnowledgeAssetGraphQuery.class);
     private final SourceGraphIndexQuery revisions = mock(SourceGraphIndexQuery.class);
     private final SourceAclQuery aclQuery = mock(SourceAclQuery.class);
-    private final EmbeddingProfileRepository embeddingProfiles =
-            mock(EmbeddingProfileRepository.class);
+    private final EmbeddingProfileRegistry embeddingProfiles =
+            mock(EmbeddingProfileRegistry.class);
     private final GraphProcessingProfileRegistry graphProcessingProfiles =
             mock(GraphProcessingProfileRegistry.class);
     private final GraphIndexingCoordinator coordinator = new GraphIndexingCoordinator(
@@ -100,7 +99,14 @@ class GraphIndexingCoordinatorTests {
                 null,
                 null,
                 null);
-        EmbeddingProfile embeddingProfile = mock(EmbeddingProfile.class);
+        EmbeddingProfileRef embeddingProfile = new EmbeddingProfileRef(
+                EMBEDDING_PROFILE_ID,
+                ORGANIZATION_ID,
+                "openai/text-embedding-3-large/1536/cosine",
+                "openai",
+                "text-embedding-3-large",
+                1536,
+                EmbeddingDistanceMetric.COSINE);
 
         when(jobs.lockNextAvailable(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(Optional.of(job));
@@ -115,17 +121,8 @@ class GraphIndexingCoordinatorTests {
                 .thenReturn(Optional.of(revision));
         when(aclQuery.findSnapshot(ORGANIZATION_ID, ACL_SNAPSHOT_ID))
                 .thenReturn(Optional.of(snapshot));
-        when(embeddingProfiles.findByIdAndOrganizationId(
-                        EMBEDDING_PROFILE_ID, ORGANIZATION_ID))
+        when(embeddingProfiles.findById(ORGANIZATION_ID, EMBEDDING_PROFILE_ID))
                 .thenReturn(Optional.of(embeddingProfile));
-        when(embeddingProfile.toRef()).thenReturn(new EmbeddingProfileRef(
-                EMBEDDING_PROFILE_ID,
-                ORGANIZATION_ID,
-                "openai/text-embedding-3-large/1536/cosine",
-                "openai",
-                "text-embedding-3-large",
-                1536,
-                EmbeddingDistanceMetric.COSINE));
         when(graphProcessingProfiles.get(GRAPH_PROCESSING_PROFILE.id()))
                 .thenReturn(GRAPH_PROCESSING_PROFILE);
         when(assets.loadActiveChunks(

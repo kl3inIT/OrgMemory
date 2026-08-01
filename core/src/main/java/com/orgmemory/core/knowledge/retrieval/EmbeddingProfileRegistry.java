@@ -64,9 +64,14 @@ public class EmbeddingProfileRegistry {
 
     @Transactional(readOnly = true)
     public EmbeddingProfileRef get(UUID organizationId, UUID profileId) {
+        return findById(organizationId, profileId)
+                .orElseThrow(() -> new IllegalStateException("embedding profile was not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<EmbeddingProfileRef> findById(UUID organizationId, UUID profileId) {
         return profiles.findByIdAndOrganizationId(profileId, organizationId)
-                .orElseThrow(() -> new IllegalStateException("embedding profile was not found"))
-                .toRef();
+                .map(EmbeddingProfile::toRef);
     }
 
     @Transactional(readOnly = true)

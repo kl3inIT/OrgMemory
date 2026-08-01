@@ -1,8 +1,9 @@
 /**
  * Knowledge graph indexing, processing profiles, exploration, curation, and export.
  *
- * <p>This nested module remains open while direct Knowledge Asset and source-ledger dependencies
- * are replaced with intentional APIs.
+ * <p>Asset, Source Ledger, ACL, Space, and embedding-profile state now crosses owned query or
+ * registry boundaries instead of persistence types. This nested module remains open only until
+ * its exact outgoing dependency allowlist is verified in the module-closing cycle.
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN)

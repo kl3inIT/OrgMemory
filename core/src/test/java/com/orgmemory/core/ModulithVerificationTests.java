@@ -380,6 +380,50 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void graphConsumesOnlyRetrievalGraphContracts() {
+        var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(retrieval))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.graph"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
+                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
+                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                consumedTypes);
+    }
+
+    @Test
+    void graphDoesNotDependOnRetrievalProfilePersistence() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.graph");
+
+        for (String persistenceType : Set.of(
+                "com.orgmemory.core.knowledge.retrieval.EmbeddingProfile",
+                "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository")) {
+            noClasses()
+                    .that()
+                    .resideInAPackage("com.orgmemory.core.knowledge.graph..")
+                    .should()
+                    .dependOnClassesThat()
+                    .haveFullyQualifiedName(persistenceType)
+                    .check(classes);
+        }
+    }
+
+    @Test
     void sourceLedgerConsumesOnlyAclFacadeContracts() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
         var consumedTypes = modules.stream()
@@ -474,9 +518,8 @@ class ModulithVerificationTests {
                 consumerTypes);
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfile",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
-                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
