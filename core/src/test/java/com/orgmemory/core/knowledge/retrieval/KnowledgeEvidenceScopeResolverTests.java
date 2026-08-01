@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +43,7 @@ class KnowledgeEvidenceScopeResolverTests {
         AppUserRepository users = mock(AppUserRepository.class);
         RelationshipAuthorizationSetPort authorization =
                 mock(RelationshipAuthorizationSetPort.class);
-        KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
+        KnowledgeAssetRetrievalQuery assets = mock(KnowledgeAssetRetrievalQuery.class);
         SourceAclQuery aclQuery = mock(SourceAclQuery.class);
         SecureKnowledgeRetrievalStore canonical =
                 mock(SecureKnowledgeRetrievalStore.class);

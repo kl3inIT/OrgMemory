@@ -1,6 +1,7 @@
 # Asset Registry Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
+`core/src/test/java/com/orgmemory/core/knowledge/asset/JpaKnowledgeAssetRetrievalQueryTests.java`,
 `core/src/test/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogServiceTests.java`,
 `core/src/test/java/com/orgmemory/core/ModulithVerificationTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assetregistry`,
@@ -8,7 +9,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -53,6 +54,7 @@ Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 | Denied Pack component metadata and count remain opaque | `CapabilityPackServiceTests` | covered |
 | Knowledge catalog and Prompt grounding use canonical authorization | `KnowledgeCatalogServiceTests`, `PromptExecutionServiceTests` | covered |
 | Prompt grounding crosses only the parent `knowledge::search` contract and never imports Retrieval implementation | `ModulithVerificationTests#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` | covered |
+| Asset owns retrieval existence, active authorization-scope, and current catalog reads; Retrieval imports neither Asset repository | `JpaKnowledgeAssetRetrievalQueryTests`, `ModulithVerificationTests#retrievalDoesNotDependOnAssetRepositories`, `#retrievalAssetReadsUseOnlyTheOwnerQuery` | covered |
 | Version-only catalog lookup resolves authorization before persistence, keeps denied/missing results opaque, propagates indeterminacy, and maps every public field | `KnowledgeCatalogServiceTests` | covered |
 | Asset Registry catalog consumers cross only the exact parent `knowledge::catalog` surface and never import Asset internals | `ModulithVerificationTests#catalogIsAnExactExplicitKnowledgeInterface`, `ModulithVerificationTests#assetRegistryCatalogConsumersUseOnlyTheParentCatalogInterface`, `ModulithVerificationTests#assetRegistryDoesNotDependOnKnowledgeAssetInternals` | covered |
 | Catalog refactoring retains the committed `KnowledgeCatalogItem` OpenAPI component and wire contract | `OpenApiContractTests` | covered |

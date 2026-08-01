@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
@@ -20,13 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class KnowledgeCatalogService implements KnowledgeCatalogQuery {
 
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
-    private final KnowledgeAssetVersionRepository versions;
+    private final KnowledgeAssetRetrievalQuery assets;
 
     KnowledgeCatalogService(
             KnowledgeEvidenceScopeResolver evidenceScopes,
-            KnowledgeAssetVersionRepository versions) {
+            KnowledgeAssetRetrievalQuery assets) {
         this.evidenceScopes = evidenceScopes;
-        this.versions = versions;
+        this.assets = assets;
     }
 
     @Transactional(readOnly = true)
@@ -37,7 +37,7 @@ public class KnowledgeCatalogService implements KnowledgeCatalogQuery {
         if (scope.allAssetIds().isEmpty()) {
             return List.of();
         }
-        return versions.findCurrentCatalogItems(
+        return assets.findCurrentCatalogItems(
                         actor.organizationId(), scope.allAssetIds())
                 .stream()
                 .map(KnowledgeCatalogService::toEntry)
@@ -57,7 +57,7 @@ public class KnowledgeCatalogService implements KnowledgeCatalogQuery {
         if (!scope.allAssetIds().contains(knowledgeAssetId)) {
             return Optional.empty();
         }
-        return versions.findCurrentCatalogItem(
+        return assets.findCurrentCatalogItem(
                         actor.organizationId(), knowledgeAssetId, knowledgeVersionId)
                 .map(KnowledgeCatalogService::toEntry);
     }
@@ -72,7 +72,7 @@ public class KnowledgeCatalogService implements KnowledgeCatalogQuery {
         if (scope.allAssetIds().isEmpty()) {
             return Optional.empty();
         }
-        return versions.findCurrentCatalogItemByVersion(
+        return assets.findCurrentCatalogItemByVersion(
                         actor.organizationId(),
                         knowledgeVersionId,
                         scope.allAssetIds())

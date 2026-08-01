@@ -8,7 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.organization.CurrentActor;
@@ -33,16 +33,16 @@ class KnowledgeCatalogServiceTests {
 
     private final KnowledgeEvidenceScopeResolver scopes =
             mock(KnowledgeEvidenceScopeResolver.class);
-    private final KnowledgeAssetVersionRepository versions =
-            mock(KnowledgeAssetVersionRepository.class);
+    private final KnowledgeAssetRetrievalQuery assets =
+            mock(KnowledgeAssetRetrievalQuery.class);
     private final KnowledgeCatalogService catalog =
-            new KnowledgeCatalogService(scopes, versions);
+            new KnowledgeCatalogService(scopes, assets);
 
     @Test
     void catalogUsesTheCanonicalPermissionResolvedAssetSet() {
         KnowledgeCatalogItem item = item();
         when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
-        when(versions.findCurrentCatalogItems(
+        when(assets.findCurrentCatalogItems(
                         ORGANIZATION_ID, Set.of(ASSET_ID)))
                 .thenReturn(List.of(item));
 
@@ -56,7 +56,7 @@ class KnowledgeCatalogServiceTests {
         assertTrue(catalog.findExactVisible(
                         ACTOR, ASSET_ID, VERSION_ID)
                 .isEmpty());
-        verifyNoInteractions(versions);
+        verifyNoInteractions(assets);
     }
 
     @Test
@@ -65,14 +65,14 @@ class KnowledgeCatalogServiceTests {
 
         assertTrue(catalog.findVersionVisible(ACTOR, VERSION_ID).isEmpty());
 
-        verifyNoInteractions(versions);
+        verifyNoInteractions(assets);
     }
 
     @Test
     void onlyTheExactCurrentVersionCanBeFederated() {
         KnowledgeCatalogItem item = item();
         when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
-        when(versions.findCurrentCatalogItem(
+        when(assets.findCurrentCatalogItem(
                         ORGANIZATION_ID, ASSET_ID, VERSION_ID))
                 .thenReturn(Optional.of(item));
 
@@ -86,7 +86,7 @@ class KnowledgeCatalogServiceTests {
     void versionOnlyLookupUsesTheAuthorizedAssetSetAndMapsEveryField() {
         KnowledgeCatalogItem item = item();
         when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
-        when(versions.findCurrentCatalogItemByVersion(
+        when(assets.findCurrentCatalogItemByVersion(
                         ORGANIZATION_ID, VERSION_ID, Set.of(ASSET_ID)))
                 .thenReturn(Optional.of(item));
 
@@ -98,7 +98,7 @@ class KnowledgeCatalogServiceTests {
     @Test
     void authorizedMissingVersionAndDeniedVersionBothReturnOpaqueAbsence() {
         when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
-        when(versions.findCurrentCatalogItemByVersion(
+        when(assets.findCurrentCatalogItemByVersion(
                         ORGANIZATION_ID, VERSION_ID, Set.of(ASSET_ID)))
                 .thenReturn(Optional.empty());
 
@@ -115,7 +115,7 @@ class KnowledgeCatalogServiceTests {
                 assertThrows(
                         IllegalStateException.class,
                         () -> catalog.findVersionVisible(ACTOR, VERSION_ID)));
-        verifyNoInteractions(versions);
+        verifyNoInteractions(assets);
     }
 
     private static ResolvedKnowledgeEvidenceScope scope(Set<UUID> assetIds) {

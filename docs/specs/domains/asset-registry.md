@@ -3,13 +3,14 @@
 Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `core/src/main/java/com/orgmemory/core/knowledge/catalog`,
 `core/src/main/java/com/orgmemory/core/knowledge/search`,
+`core/src/main/java/com/orgmemory/core/knowledge/asset/KnowledgeAssetRetrievalQuery.java`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
 
 ## Current Behavior
 
@@ -43,6 +44,11 @@ route. Optional grounding crosses the parent `knowledge::search` interface into
 the canonical permission-aware retrieval path, and the run stores only citation
 identifiers plus a sanitized output digest by default. Raw sensitive variables
 and raw output are not retained.
+
+Catalog federation and permission-scope resolution read Asset existence,
+active authorization scopes, and current active version projections through an
+Asset-owned query. Retrieval cannot import Asset repositories or bypass the
+query's tenant and lifecycle predicates.
 
 Evaluation executes only the bounded cases embedded in a release. Release
 comparison reports the two exact evaluation results; it does not change a

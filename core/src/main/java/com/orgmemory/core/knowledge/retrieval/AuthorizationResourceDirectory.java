@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
@@ -23,13 +23,13 @@ public class AuthorizationResourceDirectory {
     private final OrganizationRepository organizations;
     private final DepartmentRepository departments;
     private final KnowledgeSpaceQuery spaces;
-    private final KnowledgeAssetRepository assets;
+    private final KnowledgeAssetRetrievalQuery assets;
 
     AuthorizationResourceDirectory(
             OrganizationRepository organizations,
             DepartmentRepository departments,
             KnowledgeSpaceQuery spaces,
-            KnowledgeAssetRepository assets) {
+            KnowledgeAssetRetrievalQuery assets) {
         this.organizations = organizations;
         this.departments = departments;
         this.spaces = spaces;
@@ -53,7 +53,7 @@ public class AuthorizationResourceDirectory {
             case "knowledge_space" ->
                     spaces.exists(organizationId, resourceId);
             case "knowledge_asset" ->
-                    assets.existsByIdAndOrganizationId(resourceId, organizationId);
+                    assets.exists(organizationId, resourceId);
             default -> false;
         };
         if (!exists) {

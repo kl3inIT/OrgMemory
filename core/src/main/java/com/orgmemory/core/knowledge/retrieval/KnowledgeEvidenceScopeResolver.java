@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
@@ -39,7 +39,7 @@ public class KnowledgeEvidenceScopeResolver {
 
     private final AppUserRepository users;
     private final RelationshipAuthorizationSetPort authorization;
-    private final KnowledgeAssetRepository assets;
+    private final KnowledgeAssetRetrievalQuery assets;
     private final SourceAclQuery aclQuery;
     private final SecureKnowledgeRetrievalStore canonicalEvidence;
     private final KnowledgeRetrievalProperties properties;
@@ -48,7 +48,7 @@ public class KnowledgeEvidenceScopeResolver {
     KnowledgeEvidenceScopeResolver(
             AppUserRepository users,
             RelationshipAuthorizationSetPort authorization,
-            KnowledgeAssetRepository assets,
+            KnowledgeAssetRetrievalQuery assets,
             SourceAclQuery aclQuery,
             SecureKnowledgeRetrievalStore canonicalEvidence,
             KnowledgeRetrievalProperties properties,

@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
 
 ## Current Behavior
 
@@ -32,6 +32,9 @@ secure result, and verified grounding through the exact `knowledge::search`
 named interface. Assistant and Asset Registry cross that interface; the open
 Retrieval nested module retains the concrete engines, authorization sequence,
 ranking, and persistence while its remaining adapter seams are closed.
+Asset existence, active authorization-scope, and current catalog reads cross
+one Asset-owned query that keeps tenant and lifecycle predicates behind the
+closed Asset module; Retrieval imports neither Asset repository.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob
