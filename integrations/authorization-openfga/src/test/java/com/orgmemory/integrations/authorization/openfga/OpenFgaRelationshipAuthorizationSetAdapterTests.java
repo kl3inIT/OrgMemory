@@ -178,6 +178,54 @@ class OpenFgaRelationshipAuthorizationSetAdapterTests {
         assertEquals("OPENFGA_UNAVAILABLE", unavailable.reasonCode());
     }
 
+    @Test
+    void batchCheckTimeoutInterruptionAndProviderFailureFailClosed()
+            throws Exception {
+        OpenFgaClient client = mock(OpenFgaClient.class);
+        UUID organizationId = UUID.randomUUID();
+        BatchAuthorizationQuery query = new BatchAuthorizationQuery(
+                organizationId,
+                PrincipalRef.user(UUID.randomUUID()),
+                PermissionKey.of("can_view"),
+                List.of(ResourceRef.of(
+                        organizationId,
+                        "knowledge_asset",
+                        UUID.randomUUID())));
+        when(client.batchCheck(any(ClientBatchCheckRequest.class)))
+                .thenReturn(new CompletableFuture<>());
+        var timeoutAdapter = new OpenFgaRelationshipAuthorizationSetAdapter(
+                client,
+                "model-1",
+                Duration.ofMillis(1));
+
+        var timeout = timeoutAdapter.batchCheck(query);
+
+        assertFalse(timeout.resolved());
+        assertEquals("OPENFGA_TIMEOUT", timeout.reasonCode());
+
+        try {
+            Thread.currentThread().interrupt();
+            var interrupted = adapter(client).batchCheck(query);
+            assertFalse(interrupted.resolved());
+            assertEquals("OPENFGA_INTERRUPTED", interrupted.reasonCode());
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            assertTrue(Thread.interrupted());
+        }
+
+        CompletableFuture<ClientBatchCheckResponse> failed =
+                new CompletableFuture<>();
+        failed.completeExceptionally(
+                new IllegalStateException("provider unavailable"));
+        when(client.batchCheck(any(ClientBatchCheckRequest.class)))
+                .thenReturn(failed);
+
+        var unavailable = adapter(client).batchCheck(query);
+
+        assertFalse(unavailable.resolved());
+        assertEquals("OPENFGA_UNAVAILABLE", unavailable.reasonCode());
+    }
+
     private static OpenFgaRelationshipAuthorizationSetAdapter adapter(OpenFgaClient client) {
         return new OpenFgaRelationshipAuthorizationSetAdapter(client, "model-1", Duration.ofSeconds(1));
     }
