@@ -1,8 +1,9 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.util.UUID;
 
+/** Stable projection namespace for one organization's Knowledge Space. */
 public final class KnowledgeProjectionNamespaces {
 
     private KnowledgeProjectionNamespaces() {

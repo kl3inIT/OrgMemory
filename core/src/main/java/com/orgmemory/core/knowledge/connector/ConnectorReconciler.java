@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.connector;
 
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeEmbeddingProfileRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft;
@@ -456,7 +457,10 @@ class ConnectorReconciler {
                 draft.sourceRevisionId(),
                 normalized.normalizedRecordId(),
                 ctx.actorUserId(),
-                embedding.profile(),
+                new KnowledgeEmbeddingProfileRef(
+                        embedding.profile().id(),
+                        embedding.profile().organizationId(),
+                        embedding.profile().dimensions()),
                 PIPELINE_VERSION,
                 drafts));
         revisionCoordinator.complete(

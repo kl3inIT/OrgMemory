@@ -133,10 +133,12 @@ revision through a Source Ledger-owned `MANDATORY` service inside the existing
 publication transaction; Asset consumes no Source Ledger entity or repository.
 Asset also owns catalog projections, normalized chunk values, and the pgvector
 encoding used by its chunk store; Retrieval and Asset Registry consume those
-root-package Asset contracts rather than owning persistence-facing DTOs.
-Asset and Retrieval remain explicitly open while their remaining
-cross-owned persistence and orchestration seams are replaced by intentional
-APIs.
+root-package Asset contracts rather than owning persistence-facing DTOs. Asset
+also owns the compact embedding-profile reference required for publication and
+the projection namespace identity; callers translate Retrieval's richer profile
+at the boundary. Asset has no direct dependency on Retrieval. Asset and
+Retrieval remain explicitly open while their remaining incoming and Retrieval
+outgoing persistence and orchestration seams are replaced by intentional APIs.
 The provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

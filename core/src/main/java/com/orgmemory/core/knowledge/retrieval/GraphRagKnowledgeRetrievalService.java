@@ -10,7 +10,7 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
+import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;

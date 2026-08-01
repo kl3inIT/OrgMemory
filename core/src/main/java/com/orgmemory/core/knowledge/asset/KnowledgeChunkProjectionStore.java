@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
-
 import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -53,7 +51,7 @@ public class KnowledgeChunkProjectionStore {
             UUID sourceRevisionId,
             UUID knowledgeAssetId,
             UUID knowledgeAssetVersionId,
-            EmbeddingProfileRef embeddingProfile,
+            KnowledgeEmbeddingProfileRef embeddingProfile,
             String pipelineVersion,
             long projectionGeneration,
             List<KnowledgeChunkDraft> chunks) {
