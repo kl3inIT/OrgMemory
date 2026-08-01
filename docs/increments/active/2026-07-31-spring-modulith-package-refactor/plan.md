@@ -565,15 +565,6 @@ confirmed zero inline comments, reviews, or review threads before merge.
 - The pull request contains production module metadata and tests and remains
   below 100 changed files before the next Knowledge module is assessed.
 
-The initial closure probe surfaced the existing Space administration dependency
-on permission-audit contracts. `permission` was added to both the production
-allowlist and exact regression assertion; `modules.verify()` then passed in
-21s. Full `:core:test` passed in 1m11s; the docs operating-model check passed
-across 419 Markdown files and 8 mirrored domain pairs; all 37 release-policy
-tests passed under Node 24.15; and the terminating repository `clean test` gate
-completed successfully in 4m56s across 99 tasks. Diff hygiene and the four-path
-PR scope check passed.
-
 Pre-PR verification completed: focused ACL and Modulith tests passed in 25s;
 `:core:test` passed in 1m08s; the docs operating-model check passed across 417
 Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
@@ -631,3 +622,19 @@ confirmed zero inline comments, reviews, or review threads before merge.
   terminating repository `clean test` gate pass.
 - The pull request contains production module metadata and tests and remains
   below 100 changed files before the next Knowledge module is assessed.
+
+The initial closure probe surfaced the existing Space administration dependency
+on permission-audit contracts. `permission` was added to both the production
+allowlist and exact regression assertion; `modules.verify()` then passed in
+21s. Full `:core:test` passed in 1m11s; the docs operating-model check passed
+across 419 Markdown files and 8 mirrored domain pairs; all 37 release-policy
+tests passed under Node 24.15; and the terminating repository `clean test` gate
+completed successfully in 4m56s across 99 tasks. Diff hygiene and the four-path
+PR scope check passed.
+
+After merging current `origin/main` at `fa033f51`, the focused Modulith
+verification passed in 7s. The docs operating-model check passed across 426
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 4m33s across 99 tasks. The final pull-request scope remains 4
+changed paths.
