@@ -35,6 +35,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Observability platform: payload boundary, collector stack, and dashboards | shipped | [completed verification](increments/completed/2026-07-30-observability-platform/verification.md) |
 | Observability pipeline and payload boundary | shipped | [completed verification](increments/completed/2026-07-29-observability-pipeline/verification.md) |
 | Authorization consolidation: typed batch-recheck policy and served governance affordances | shipped | [completed plan](increments/completed/2026-08-01-authz-consolidation/plan.md), [decision 0023](decisions/0023-batch-recheck-policy-and-served-affordances.md) |
+| Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -42,7 +43,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Ingestion throughput](increments/active/2026-08-01-ingestion-throughput/plan.md) | active | bounded dependency-phased staging batches and bounded-burst schedulers behind adapter and worker tests |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |
