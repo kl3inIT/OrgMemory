@@ -83,6 +83,12 @@ usable release. No repository access or deployment setup is required.
   | Capability Pack | Open the Pack, work through accessible pinned items, and record actor-scoped progress. | The outcome, prerequisites, item versions, and access-gap state are understood. |
   | Skill | Inspect the package before installing it through the authenticated CLI. | Compatibility, manifest, file digests, and exact install command match your environment. |
 
+  On a released Skill, **Use your agent** copies bounded instructions that ask
+  you to choose Claude Code or Codex and confirm before installation. **Use
+  CLI** exposes the exact `namespace/slug@version` command for each target. Both
+  paths use the existing CLI and current OrgMemory access; neither installs the
+  CLI nor grants broader authorization.
+
   External model calls and state-changing actions require explicit
   confirmation. Merely opening an Asset does not run a model, install a Skill,
   or complete a Pack item.

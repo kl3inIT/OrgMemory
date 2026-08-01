@@ -107,6 +107,14 @@ From there the accountable author normally chooses a version and publishes the
 Skill directly; an actor who lacks direct-publication authority may use the
 reviewed workflow instead.
 
+The browser may prepare a copy-only handoff for that same CLI workflow. The
+handoff asks a local agent to validate and dry-run first, requires the actor to
+provide the namespace, Knowledge Space UUID, and classification rather than
+guessing them, and requires explicit confirmation before upload. It stops when
+the private Draft and Governance link exist. The browser does not execute the
+command, install the CLI, submit a review, publish a release, share the Asset,
+or grant authorization.
+
 The browser provides the same canonical ZIP-import path without introducing a
 second lifecycle. The Assets header first chooses the Asset profile; Skill then
 opens a creation-only surface. An author may write `SKILL.md` content from
@@ -126,6 +134,11 @@ complete structural validation before object storage and Draft creation.
 Success opens the ordinary Governance workspace. The browser never executes
 package content, grants an owner from a session role, publishes the Skill, or
 describes structural validation as content or malware review.
+
+A released Skill detail also provides copy-only instructions and exact
+`namespace/slug@version` commands for Claude Code and Codex. The CLI continues
+to authenticate, authorize, verify the immutable package and file digests,
+promote the staged installation atomically, and write the token-free receipt.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.

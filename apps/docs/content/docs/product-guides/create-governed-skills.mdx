@@ -8,6 +8,7 @@ status: public
 sourceRefs:
   - docs/specs/domains/asset-registry.md
   - apps/api/src/main/java/com/orgmemory/api/assetregistry/AssetRegistryController.java
+  - apps/web/src/features/assets/agent-handoff/skill-agent-handoffs.ts
   - apps/web/src/features/assets/components/skill-creation-page.tsx
   - apps/web/src/features/assets/components/skill-github-import-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
@@ -33,6 +34,31 @@ separate accountable action.
 
   OrgMemory validates package structure but does not execute the Skill or treat
   structural validation as a security or content review.
+
+  </Step>
+  <Step>
+
+  ### Continue from your development environment
+
+  If the Skill already lives in a local development workspace, use **Use your
+  agent** to copy a bounded prompt into your coding agent, or **Use CLI** to copy
+  the official command template. The agent must use an existing OrgMemory CLI,
+  validate and dry-run the package, ask for any missing folder, namespace,
+  Knowledge Space UUID, or classification, and show the exact command before it
+  asks for confirmation.
+
+  The handoff stops when the private Draft and Governance link exist. It does
+  not install the CLI, ask you to paste a token, submit a review, publish a
+  release, share the Asset, or change access.
+
+  <ArchitectureDiagram
+    alt="Organizational AI Memory Skill creation page with compact browser authoring choices and a copy-only OrgMemory CLI handoff that stops at a private Draft."
+    description="Choose browser authoring or copy bounded instructions into a local agent. The UI exposes the confirmation boundary and requested scopes; the CLI and server still authenticate and authorize the operation. This screenshot uses synthetic documentation data captured from the current product UI."
+    height={910}
+    src="/images/product-guides/skill-agent-handoff.png"
+    title="Hand a local Skill Draft to your agent"
+    width={1598}
+  />
 
   </Step>
   <Step>

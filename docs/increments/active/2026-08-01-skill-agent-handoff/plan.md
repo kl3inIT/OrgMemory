@@ -9,19 +9,19 @@
 
 ## 1. Product implementation
 
-- [ ] Add the feature-scoped `AgentHandoff` descriptor and Skill builders.
-- [ ] Add the shared copy-only agent/CLI panel with a required boundary.
-- [ ] Compact the three browser-authoring cards.
-- [ ] Add Draft upload handoff to `/assets/new/skill`.
-- [ ] Replace duplicated exact-install command UI on released Skill detail.
+- [x] Add the feature-scoped `AgentHandoff` descriptor and Skill builders.
+- [x] Add the shared copy-only agent/CLI panel with a required boundary.
+- [x] Compact the three browser-authoring cards.
+- [x] Add Draft upload handoff to `/assets/new/skill`.
+- [x] Replace duplicated exact-install command UI on released Skill detail.
 
 ## 2. Verification and reconciliation
 
-- [ ] Add focused builder and component tests.
-- [ ] Update the golden browser path for creation and exact installation.
-- [ ] Reconcile the Asset Registry spec and mirrored test matrix.
-- [ ] Pass web lint, typecheck, unit tests, and production build.
-- [ ] Verify light, dark, desktop, and narrow layouts in a real browser.
+- [x] Add focused builder and component tests.
+- [x] Update the golden browser path for creation and exact installation.
+- [x] Reconcile the Asset Registry spec and mirrored test matrix.
+- [x] Pass web lint, typecheck, unit tests, and production build.
+- [x] Verify light, dark, desktop, and narrow layouts in a real browser.
 
 ## 3. Delivery
 
