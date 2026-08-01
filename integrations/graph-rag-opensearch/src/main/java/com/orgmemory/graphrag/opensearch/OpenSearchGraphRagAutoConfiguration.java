@@ -103,12 +103,25 @@ public class OpenSearchGraphRagAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    OpenSearchCopyForwardCoordinator openSearchCopyForwardCoordinator(
+            OpenSearchOperations operations,
+            OpenSearchIndexNames indexes,
+            OpenSearchGraphRagProperties properties) {
+        return new OpenSearchCopyForwardCoordinator(
+                operations,
+                indexes.control(),
+                properties.getCopyMaximumBytes());
+    }
+
+    @Bean
     @ConditionalOnMissingBean(ContentStore.class)
     OpenSearchContentStore openSearchContentStore(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
-        return new OpenSearchContentStore(operations, publications, indexes);
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
+        return new OpenSearchContentStore(operations, publications, indexes, copyForward);
     }
 
     @Bean
@@ -116,8 +129,9 @@ public class OpenSearchGraphRagAutoConfiguration {
     OpenSearchLexicalIndex openSearchLexicalIndex(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
-        return new OpenSearchLexicalIndex(operations, publications, indexes);
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
+        return new OpenSearchLexicalIndex(operations, publications, indexes, copyForward);
     }
 
     @Bean
@@ -125,8 +139,9 @@ public class OpenSearchGraphRagAutoConfiguration {
     OpenSearchVectorIndex openSearchVectorIndex(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
-        return new OpenSearchVectorIndex(operations, publications, indexes);
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
+        return new OpenSearchVectorIndex(operations, publications, indexes, copyForward);
     }
 
     @Bean
@@ -136,6 +151,7 @@ public class OpenSearchGraphRagAutoConfiguration {
             OpenSearchProjectionPublicationStore publications,
             OpenSearchIndexNames indexes,
             OpenSearchGraphRagProperties properties,
+            OpenSearchCopyForwardCoordinator copyForward,
             ObjectMapper objectMapper) {
         OpenSearchPplGraphLookup ppl = new OpenSearchPplGraphLookup(
                 operations,
@@ -146,6 +162,7 @@ public class OpenSearchGraphRagAutoConfiguration {
                 operations,
                 publications,
                 indexes,
+                copyForward,
                 properties.getGraphMaximumFrontier(),
                 ppl);
     }

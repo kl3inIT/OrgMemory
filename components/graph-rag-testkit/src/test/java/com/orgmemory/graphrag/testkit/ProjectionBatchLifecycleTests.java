@@ -66,6 +66,7 @@ class ProjectionBatchLifecycleTests {
                 List.of(
                         "prepare-CONTENT",
                         "prepare-VECTOR",
+                        "discard-VECTOR",
                         "discard-CONTENT"),
                 events);
         assertTrue(store.current(NAMESPACE).isEmpty());

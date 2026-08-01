@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.SortOrder;
@@ -28,10 +29,25 @@ final class OpenSearchScanner {
             String index,
             Query query,
             int limit) {
+        List<StoredHit> result = new ArrayList<>();
+        scanPages(index, query, limit, PAGE_SIZE, result::addAll);
+        return List.copyOf(result);
+    }
+
+    void scanPages(
+            String index,
+            Query query,
+            int limit,
+            int pageSize,
+            Consumer<List<StoredHit>> pageConsumer) {
         Objects.requireNonNull(index, "index");
         Objects.requireNonNull(query, "query");
+        Objects.requireNonNull(pageConsumer, "pageConsumer");
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("pageSize must be positive");
+        }
         if (limit <= 0 || !operations.indexExists(index)) {
-            return List.of();
+            return;
         }
         String pitId = null;
         try {
@@ -41,10 +57,10 @@ final class OpenSearchScanner {
                             .keepAlive(Time.of(time -> time.time("1m"))))
                     .pitId();
             String activePitId = pitId;
-            List<StoredHit> result = new ArrayList<>();
             List<FieldValue> searchAfter = List.of();
-            while (result.size() < limit) {
-                int size = Math.min(PAGE_SIZE, limit - result.size());
+            int accepted = 0;
+            while (accepted < limit) {
+                int size = Math.min(pageSize, limit - accepted);
                 var request = new org.opensearch.client.opensearch.core.SearchRequest.Builder()
                         .size(size)
                         .query(query)
@@ -60,19 +76,23 @@ final class OpenSearchScanner {
                 if (hits.isEmpty()) {
                     break;
                 }
+                List<StoredHit> page = new ArrayList<>(hits.size());
                 for (Hit<Map> hit : hits) {
                     if (hit.source() != null) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> source = (Map<String, Object>) hit.source();
-                        result.add(new StoredHit(hit.index(), hit.id(), Map.copyOf(source)));
+                        page.add(new StoredHit(hit.index(), hit.id(), Map.copyOf(source)));
                     }
+                }
+                if (!page.isEmpty()) {
+                    pageConsumer.accept(List.copyOf(page));
+                    accepted += page.size();
                 }
                 searchAfter = hits.getLast().sort();
                 if (hits.size() < size) {
                     break;
                 }
             }
-            return List.copyOf(result);
         } catch (IOException | OpenSearchException exception) {
             throw new OpenSearchProjectionException(
                     "OpenSearch failed to scan index " + index,

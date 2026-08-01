@@ -6,7 +6,6 @@ import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -17,8 +16,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch.core.bulk.BulkOperation;
@@ -26,22 +23,22 @@ import org.opensearch.client.opensearch.core.search.Hit;
 
 public final class OpenSearchVectorIndex implements VectorIndex {
 
-    private static final ConcurrentHashMap<String, ReentrantLock> COPY_LOCKS =
-            new ConcurrentHashMap<>();
-
     private final OpenSearchOperations operations;
     private final OpenSearchProjectionPublicationStore publications;
     private final OpenSearchIndexNames indexes;
     private final OpenSearchScanner scanner;
+    private final OpenSearchCopyForwardCoordinator copyForward;
 
     OpenSearchVectorIndex(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
         this.operations = Objects.requireNonNull(operations, "operations");
         this.publications = Objects.requireNonNull(publications, "publications");
         this.indexes = Objects.requireNonNull(indexes, "indexes");
         this.scanner = new OpenSearchScanner(operations);
+        this.copyForward = Objects.requireNonNull(copyForward, "copyForward");
     }
 
     @Override
@@ -204,65 +201,29 @@ public final class OpenSearchVectorIndex implements VectorIndex {
     @Override
     public void discard(ProjectionBatch batch) {
         Objects.requireNonNull(batch, "batch");
+        discardDocuments(batch);
+        operations.deleteIfExists(
+                indexes.control(),
+                copyForward.markerId(batch, copyUnit()));
+    }
+
+    private void discardDocuments(ProjectionBatch batch) {
         Query query = Query.of(candidate -> candidate.bool(bool -> bool.filter(
                 OpenSearchStagedIndex.term(
                         OpenSearchProjectionCodec.BATCH_ID,
                         batch.id().toString()))));
-        delete(scanner.scan(indexes.vectorPattern(), query, Integer.MAX_VALUE));
-        operations.deleteIfExists(indexes.control(), copyMarkerId(batch));
+        copyForward.stream(
+                indexes.vectorPattern(),
+                query,
+                hit -> copyForward.deleteOperation(hit.index(), hit.id()));
     }
 
     private void ensureCopyForward(ProjectionBatch batch) {
-        String markerId = copyMarkerId(batch);
-        OpenSearchOperations.VersionedDocument marker =
-                operations.get(indexes.control(), markerId);
-        if (ready(marker)) {
-            return;
-        }
-        ReentrantLock lock =
-                COPY_LOCKS.computeIfAbsent(markerId, ignored -> new ReentrantLock());
-        lock.lock();
-        try {
-            marker = operations.get(indexes.control(), markerId);
-            if (ready(marker)) {
-                return;
-            }
-            String owner = UUID.randomUUID().toString();
-            Map<String, Object> copying = OpenSearchProjectionCodec.batch(batch, "PREPARING");
-            copying.put("document_kind", "COPY_FORWARD");
-            copying.put("projection_kind", ProjectionKind.VECTOR.name());
-            copying.put("copy_status", "COPYING");
-            copying.put("copy_owner", owner);
-            copying.put("copy_started_at", Instant.now().toString());
-            if (marker == null) {
-                if (!operations.create(indexes.control(), markerId, copying)) {
-                    throw new OpenSearchProjectionException(
-                            "another process is preparing " + markerId);
-                }
-            } else if (!operations.compareAndSet(
-                    indexes.control(), markerId, marker, copying)) {
-                throw new OpenSearchProjectionException(
-                        "another process is preparing " + markerId);
-            }
-            copyPrevious(batch);
-            OpenSearchOperations.VersionedDocument owned =
-                    operations.get(indexes.control(), markerId);
-            if (owned == null || !owner.equals(owned.source().get("copy_owner"))) {
-                throw new OpenSearchProjectionException(
-                        "copy-forward ownership changed for " + markerId);
-            }
-            Map<String, Object> completed = new LinkedHashMap<>(owned.source());
-            completed.put("copy_status", "READY");
-            completed.put("copy_completed_at", Instant.now().toString());
-            if (!operations.compareAndSet(
-                    indexes.control(), markerId, owned, completed)) {
-                throw new OpenSearchProjectionException(
-                        "could not complete copy-forward marker " + markerId);
-            }
-        } finally {
-            lock.unlock();
-            COPY_LOCKS.remove(markerId, lock);
-        }
+        copyForward.copyForward(
+                batch,
+                copyUnit(),
+                () -> copyPrevious(batch),
+                () -> discardDocuments(batch));
     }
 
     private void copyPrevious(ProjectionBatch batch) {
@@ -286,20 +247,19 @@ public final class OpenSearchVectorIndex implements VectorIndex {
                 OpenSearchStagedIndex.term(
                         OpenSearchProjectionCodec.GENERATION,
                         previous.generation())))));
-        Map<String, List<BulkOperation>> byIndex = new LinkedHashMap<>();
-        for (OpenSearchScanner.StoredHit hit :
-                scanner.scan(indexes.vectorPattern(), query, Integer.MAX_VALUE)) {
-            Map<String, Object> document = new LinkedHashMap<>(hit.source());
-            document.put(OpenSearchProjectionCodec.BATCH_ID, batch.id().toString());
-            document.put(OpenSearchProjectionCodec.GENERATION, batch.generation());
-            String recordId = document.get(OpenSearchProjectionCodec.RECORD_ID).toString();
-            byIndex.computeIfAbsent(hit.index(), ignored -> new ArrayList<>())
-                    .add(BulkOperation.of(operation -> operation.index(write -> write
-                            .index(hit.index())
-                            .id(OpenSearchStagedIndex.physicalId(batch.id(), recordId))
-                            .document(Map.copyOf(document)))));
-        }
-        byIndex.values().forEach(operations::bulk);
+        copyForward.stream(
+                indexes.vectorPattern(),
+                query,
+                hit -> {
+                    Map<String, Object> document = new LinkedHashMap<>(hit.source());
+                    document.put(OpenSearchProjectionCodec.BATCH_ID, batch.id().toString());
+                    document.put(OpenSearchProjectionCodec.GENERATION, batch.generation());
+                    String recordId = document.get(OpenSearchProjectionCodec.RECORD_ID).toString();
+                    return copyForward.indexOperation(
+                            hit.index(),
+                            OpenSearchStagedIndex.physicalId(batch.id(), recordId),
+                            Map.copyOf(document));
+                });
     }
 
     private void requireReadable(
@@ -365,12 +325,11 @@ public final class OpenSearchVectorIndex implements VectorIndex {
                 .toList();
     }
 
-    private String copyMarkerId(ProjectionBatch batch) {
-        return "copy:" + batch.id() + ":" + ProjectionKind.VECTOR.name();
-    }
-
-    private static boolean ready(OpenSearchOperations.VersionedDocument marker) {
-        return marker != null && "READY".equals(marker.source().get("copy_status"));
+    private OpenSearchCopyForwardCoordinator.CopyUnit copyUnit() {
+        return new OpenSearchCopyForwardCoordinator.CopyUnit(
+                ProjectionKind.VECTOR,
+                ProjectionKind.VECTOR.name(),
+                indexes.vectorPattern());
     }
 
     private static double similarityToScore(double similarity) {

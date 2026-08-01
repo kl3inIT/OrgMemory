@@ -36,6 +36,7 @@ public final class OpenSearchGraphStore implements GraphStore {
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
             OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward,
             int maximumFrontier,
             OpenSearchPplGraphLookup ppl) {
         if (maximumFrontier <= 0) {
@@ -50,14 +51,18 @@ public final class OpenSearchGraphStore implements GraphStore {
                 indexes.control(),
                 batch -> indexes.graphEntities(batch.id()),
                 snapshot -> indexes.graphEntities(snapshot.batchId()),
-                ProjectionKind.GRAPH);
+                ProjectionKind.GRAPH,
+                "GRAPH_ENTITY",
+                copyForward);
         this.relations = new OpenSearchStagedIndex(
                 operations,
                 publications,
                 indexes.control(),
                 batch -> indexes.graphRelations(batch.id()),
                 snapshot -> indexes.graphRelations(snapshot.batchId()),
-                ProjectionKind.GRAPH);
+                ProjectionKind.GRAPH,
+                "GRAPH_RELATION",
+                copyForward);
         this.maximumFrontier = maximumFrontier;
     }
 

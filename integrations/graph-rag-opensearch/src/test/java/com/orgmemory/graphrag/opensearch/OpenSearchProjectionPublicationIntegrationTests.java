@@ -1,6 +1,8 @@
 package com.orgmemory.graphrag.opensearch;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +33,7 @@ import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,6 +84,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
     private static OpenSearchTestClient testClient;
     private static OpenSearchProjectionPublicationStore publications;
     private static OpenSearchOperations operations;
+    private static OpenSearchCopyForwardCoordinator copyForward;
     private static OpenSearchIndexNames indexes;
     private static OpenSearchContentStore content;
     private static OpenSearchLexicalIndex lexical;
@@ -101,9 +105,13 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 testClient.client(),
                 properties.getBulkMaximumOperations());
         publications = new OpenSearchProjectionPublicationStore(operations, indexes);
-        content = new OpenSearchContentStore(operations, publications, indexes);
-        lexical = new OpenSearchLexicalIndex(operations, publications, indexes);
-        vectors = new OpenSearchVectorIndex(operations, publications, indexes);
+        copyForward = new OpenSearchCopyForwardCoordinator(
+                operations,
+                indexes.control(),
+                properties.getCopyMaximumBytes());
+        content = new OpenSearchContentStore(operations, publications, indexes, copyForward);
+        lexical = new OpenSearchLexicalIndex(operations, publications, indexes, copyForward);
+        vectors = new OpenSearchVectorIndex(operations, publications, indexes, copyForward);
         ppl = new OpenSearchPplGraphLookup(
                 operations,
                 indexes,
@@ -113,6 +121,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 operations,
                 publications,
                 indexes,
+                copyForward,
                 properties.getGraphMaximumFrontier(),
                 ppl);
         statuses = new OpenSearchProcessingStatusIndex(operations, indexes);
@@ -473,6 +482,172 @@ class OpenSearchProjectionPublicationIntegrationTests {
     }
 
     @Test
+    void copyForwardPreservesEverySourceByteExceptGenerationCoordinatesAndRequiredIds()
+            throws Exception {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "copy-source-identity",
+                "knowledge");
+        ProjectionBatch first = copyBatch(namespace, "first", 0);
+        ProjectionBatch second = copyBatch(namespace, "second", 1);
+        EvidenceReference evidence = new EvidenceReference(
+                ORGANIZATION_ID,
+                ASSET_ID,
+                id("copy-source-revision"),
+                id("copy-source-chunk"),
+                id("copy-source-acl"),
+                7);
+
+        ContentStore.ContentRecord contentRecord = new ContentStore.ContentRecord(
+                "content-copy-id",
+                evidence,
+                ContentStore.ContentKind.CHUNK,
+                "Expense policy identity payload",
+                17,
+                Map.of());
+        LexicalIndex.LexicalDocument lexicalDocument = new LexicalIndex.LexicalDocument(
+                "lexical-copy-id",
+                evidence,
+                "Expense policy identity payload",
+                Map.of("title", "Expense policy"));
+        VectorIndex.VectorRecord vectorRecord = new VectorIndex.VectorRecord(
+                "vector-copy-id",
+                "content-copy-id",
+                evidence,
+                VectorIndex.VectorKind.CHUNK,
+                PROFILE_ID,
+                "identity-model",
+                vector(0.125f, -0.5f, 0.875f),
+                Map.of());
+
+        content.stageUpsert(first, List.of(contentRecord));
+        lexical.stageUpsert(first, List.of(lexicalDocument));
+        vectors.stageUpsert(first, List.of(vectorRecord));
+
+        Map<String, Object> nestedPayload = new LinkedHashMap<>();
+        nestedPayload.put("flags", List.of(true, false));
+        nestedPayload.put("nested", Map.of("count", 9L, "ratio", 1.25d));
+        nestedPayload.put("labels", List.of("finance", "restricted"));
+        Map<String, Object> contentSource = new LinkedHashMap<>(
+                OpenSearchProjectionCodec.content(first, contentRecord));
+        contentSource.put("metadata", nestedPayload);
+        Map<String, Object> lexicalSource = new LinkedHashMap<>(
+                OpenSearchProjectionCodec.lexical(first, lexicalDocument));
+        lexicalSource.put("fields", nestedPayload);
+        Map<String, Object> vectorSource = new LinkedHashMap<>(
+                OpenSearchProjectionCodec.vector(first, vectorRecord));
+        vectorSource.put("metadata", nestedPayload);
+        operations.index(
+                indexes.content(),
+                OpenSearchStagedIndex.physicalId(first.id(), contentRecord.id()),
+                contentSource);
+        operations.index(indexes.lexical(first.id()), lexicalDocument.id(), lexicalSource);
+        String vectorIndex = indexes.vectors(PROFILE_ID, vectorRecord.vector().dimensions());
+        operations.index(
+                vectorIndex,
+                OpenSearchStagedIndex.physicalId(first.id(), vectorRecord.id()),
+                vectorSource);
+
+        first.requiredProjections()
+                .forEach(kind -> publications.markPrepared(first, kind, NOW));
+        publications.publish(first, NOW);
+
+        content.stageDelete(second, List.of());
+        lexical.stageDelete(second, List.of());
+        vectors.stageDelete(second, List.of());
+
+        assertCopiedSource(
+                indexes.content(),
+                OpenSearchStagedIndex.physicalId(first.id(), contentRecord.id()),
+                indexes.content(),
+                OpenSearchStagedIndex.physicalId(second.id(), contentRecord.id()),
+                second);
+        assertCopiedSource(
+                indexes.lexical(first.id()),
+                lexicalDocument.id(),
+                indexes.lexical(second.id()),
+                lexicalDocument.id(),
+                second);
+        assertCopiedSource(
+                vectorIndex,
+                OpenSearchStagedIndex.physicalId(first.id(), vectorRecord.id()),
+                vectorIndex,
+                OpenSearchStagedIndex.physicalId(second.id(), vectorRecord.id()),
+                second);
+    }
+
+    @Test
+    void coordinatorReadyMarkersShortCircuitAllThreeAdapters() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "copy-lock-characterization",
+                "knowledge");
+        ProjectionBatch contentBatch = singleKindBatch(
+                namespace, "content-lock", ProjectionKind.CONTENT);
+        ProjectionBatch lexicalBatch = singleKindBatch(
+                namespace, "lexical-lock", ProjectionKind.LEXICAL);
+        ProjectionBatch vectorBatch = singleKindBatch(
+                namespace, "vector-lock", ProjectionKind.VECTOR);
+
+        assertReadyShortCircuits(
+                contentBatch,
+                new OpenSearchCopyForwardCoordinator.CopyUnit(
+                        ProjectionKind.CONTENT,
+                        ProjectionKind.CONTENT.name(),
+                        indexes.content()),
+                () -> content.stageDelete(contentBatch, List.of()));
+        assertReadyShortCircuits(
+                lexicalBatch,
+                new OpenSearchCopyForwardCoordinator.CopyUnit(
+                        ProjectionKind.LEXICAL,
+                        ProjectionKind.LEXICAL.name(),
+                        indexes.lexical(lexicalBatch.id())),
+                () -> lexical.stageDelete(lexicalBatch, List.of()));
+        assertReadyShortCircuits(
+                vectorBatch,
+                new OpenSearchCopyForwardCoordinator.CopyUnit(
+                        ProjectionKind.VECTOR,
+                        ProjectionKind.VECTOR.name(),
+                        indexes.vectorPattern()),
+                () -> vectors.stageDelete(vectorBatch, List.of()));
+    }
+
+    @Test
+    void canonicalMarkerKeysDistinguishGraphEntityAndRelationCopyUnits() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "copy-key-characterization",
+                "knowledge");
+        ProjectionBatch batch = graphOnlyBatch(namespace, "key", 0);
+        String entityTarget = indexes.graphEntities(batch.id());
+        String relationTarget = indexes.graphRelations(batch.id());
+        String entityMarker = copyForward.markerId(
+                batch,
+                new OpenSearchCopyForwardCoordinator.CopyUnit(
+                        ProjectionKind.GRAPH,
+                        "GRAPH_ENTITY",
+                        entityTarget));
+        String relationMarker = copyForward.markerId(
+                batch,
+                new OpenSearchCopyForwardCoordinator.CopyUnit(
+                        ProjectionKind.GRAPH,
+                        "GRAPH_RELATION",
+                        relationTarget));
+
+        // challenge-verdict-codex.md requires exact canonical target identity
+        // and distinct graph entity/relation copy units instead of hashCode keys.
+        assertEquals(
+                "copy:" + batch.id() + ":GRAPH_ENTITY:"
+                        + entityTarget.length() + ":" + entityTarget,
+                entityMarker);
+        assertEquals(
+                "copy:" + batch.id() + ":GRAPH_RELATION:"
+                        + relationTarget.length() + ":" + relationTarget,
+                relationMarker);
+        assertFalse(entityMarker.equals(relationMarker));
+    }
+
+    @Test
     void losingPreparedBatchNeverLeaksAndCanBeDiscarded() {
         ProjectionNamespace namespace =
                 new ProjectionNamespace(ORGANIZATION_ID, "competing-store", "knowledge");
@@ -721,6 +896,90 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 "manifest-" + namespace.workspace() + "-graph-" + key,
                 Set.of(ProjectionKind.GRAPH),
                 NOW.plusSeconds(previousGeneration));
+    }
+
+    private static ProjectionBatch copyBatch(
+            ProjectionNamespace namespace,
+            String key,
+            long previousGeneration) {
+        return new ProjectionBatch(
+                id(namespace.workspace() + "-copy-" + key),
+                namespace,
+                previousGeneration,
+                previousGeneration + 1,
+                namespace.workspace() + "-copy-" + key,
+                "manifest-" + namespace.workspace() + "-copy-" + key,
+                Set.of(
+                        ProjectionKind.CONTENT,
+                        ProjectionKind.LEXICAL,
+                        ProjectionKind.VECTOR),
+                NOW.plusSeconds(previousGeneration));
+    }
+
+    private static ProjectionBatch singleKindBatch(
+            ProjectionNamespace namespace,
+            String key,
+            ProjectionKind kind) {
+        return new ProjectionBatch(
+                id(namespace.workspace() + "-" + key),
+                namespace,
+                0,
+                1,
+                namespace.workspace() + "-" + key,
+                "manifest-" + namespace.workspace() + "-" + key,
+                Set.of(kind),
+                NOW);
+    }
+
+    private static void assertCopiedSource(
+            String sourceIndex,
+            String sourceId,
+            String targetIndex,
+            String targetId,
+            ProjectionBatch targetBatch) throws Exception {
+        OpenSearchOperations.VersionedDocument source =
+                operations.get(sourceIndex, sourceId);
+        OpenSearchOperations.VersionedDocument target =
+                operations.get(targetIndex, targetId);
+        assertTrue(source != null, "source document should exist");
+        assertTrue(target != null, "copied document should exist");
+
+        Map<String, Object> expected = new LinkedHashMap<>(source.source());
+        expected.put(OpenSearchProjectionCodec.BATCH_ID, targetBatch.id().toString());
+        expected.put(OpenSearchProjectionCodec.GENERATION, targetBatch.generation());
+        ObjectMapper canonical = new ObjectMapper()
+                .configure(
+                        com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS,
+                        true);
+        assertArrayEquals(
+                canonical.writeValueAsBytes(expected),
+                canonical.writeValueAsBytes(target.source()));
+    }
+
+    private static void assertReadyShortCircuits(
+            ProjectionBatch batch,
+            OpenSearchCopyForwardCoordinator.CopyUnit unit,
+            Runnable copyAttempt) {
+        String markerId = copyForward.markerId(batch, unit);
+        try {
+            Map<String, Object> ready = OpenSearchProjectionCodec.batch(batch, "PREPARING");
+            ready.put("document_kind", "COPY_FORWARD");
+            ready.put("projection_kind", unit.projectionKind().name());
+            ready.put("copy_unit", unit.logicalUnit());
+            ready.put("target_index", unit.targetIdentity());
+            ready.put("copy_status", "READY");
+            ready.put("copy_owner", "characterization-owner");
+            ready.put("copy_attempt", 1);
+            ready.put("copy_started_at", NOW.toString());
+            ready.put("copy_completed_at", NOW.plusSeconds(1).toString());
+            assertTrue(operations.create(indexes.control(), markerId, ready));
+            copyAttempt.run();
+            OpenSearchOperations.VersionedDocument observed =
+                    operations.get(indexes.control(), markerId);
+            assertEquals("characterization-owner", observed.source().get("copy_owner"));
+        } finally {
+            operations.deleteIfExists(indexes.control(), markerId);
+        }
     }
 
     private static void markPrepared(ProjectionBatch batch) {
