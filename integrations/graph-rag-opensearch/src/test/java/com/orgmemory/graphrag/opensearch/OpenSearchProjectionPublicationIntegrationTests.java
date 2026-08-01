@@ -19,6 +19,7 @@ import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.query.AuthorizedGraphTraversal;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
@@ -30,6 +31,7 @@ import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConf
 import com.orgmemory.graphrag.storage.ProcessingStatusIndex;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
+import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -90,7 +92,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
     private static OpenSearchLexicalIndex lexical;
     private static OpenSearchVectorIndex vectors;
     private static OpenSearchGraphStore graph;
-    private static OpenSearchPplGraphLookup ppl;
+    private static AuthorizedGraphTraversal traversal;
     private static OpenSearchProcessingStatusIndex statuses;
 
     @BeforeAll
@@ -112,18 +114,12 @@ class OpenSearchProjectionPublicationIntegrationTests {
         content = new OpenSearchContentStore(operations, publications, indexes, copyForward);
         lexical = new OpenSearchLexicalIndex(operations, publications, indexes, copyForward);
         vectors = new OpenSearchVectorIndex(operations, publications, indexes, copyForward);
-        ppl = new OpenSearchPplGraphLookup(
-                operations,
-                indexes,
-                new ObjectMapper(),
-                properties.isPplGraphLookupEnabled());
         graph = new OpenSearchGraphStore(
                 operations,
                 publications,
                 indexes,
-                copyForward,
-                properties.getGraphMaximumFrontier(),
-                ppl);
+                copyForward);
+        traversal = new AuthorizedGraphTraversal(graph);
         statuses = new OpenSearchProcessingStatusIndex(operations, indexes);
     }
 
@@ -135,6 +131,11 @@ class OpenSearchProjectionPublicationIntegrationTests {
     @Test
     void publicationStorePassesSharedConformance() {
         ProjectionPublicationConformance.verify(() -> publications);
+    }
+
+    @Test
+    void graphStorePassesSharedSecurityLifecycleAndTraversalConformance() {
+        GraphStoreConformance.verify(graph, publications);
     }
 
     @Test
@@ -333,16 +334,12 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 0.000_000_1);
         assertEquals(
                 List.of(ENTITY_A_ID, ENTITY_B_ID),
-                graph.expandEntityIds(
+                traversal.expandEntityIds(
                         allowed,
                         firstSnapshot,
                         List.of(ENTITY_A_ID),
                         1,
                         10));
-        assertTrue(
-                ppl.successfulExecutions() > 0,
-                "the standard OpenSearch image should exercise PPL graphLookup");
-
         assertTrue(content.get(denied, firstSnapshot, CHUNK_ID.toString()).isEmpty());
         assertTrue(lexical.search(
                         denied,
@@ -409,7 +406,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
                         .content());
         assertEquals(
                 List.of(ENTITY_A_ID, ENTITY_B_ID),
-                graph.expandEntityIds(
+                traversal.expandEntityIds(
                         allowed,
                         firstSnapshot,
                         List.of(ENTITY_A_ID),
@@ -729,7 +726,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
     }
 
     @Test
-    void pplAppliesAuthorizedEvidenceFilterAtEveryTraversalHop() {
+    void referenceTraversalAppliesAuthorizedEvidenceFilterAtEveryHop() {
         UUID allowedAsset = id("ppl-allowed-asset");
         UUID deniedAsset = id("ppl-denied-asset");
         UUID allowedRevision = id("ppl-allowed-revision");
@@ -776,17 +773,14 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 "model-v1",
                 1,
                 NOW);
-        long executionsBefore = ppl.successfulExecutions();
-
         assertEquals(
                 List.of(ENTITY_A_ID),
-                graph.expandEntityIds(
+                traversal.expandEntityIds(
                         scope,
                         snapshot,
                         List.of(ENTITY_A_ID),
                         2,
                         10));
-        assertTrue(ppl.successfulExecutions() > executionsBefore);
     }
 
     /**

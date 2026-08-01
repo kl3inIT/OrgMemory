@@ -8,6 +8,8 @@ import com.orgmemory.graphrag.model.EvidenceProvenance;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
@@ -314,6 +316,13 @@ public final class PostgresGraphStore implements GraphStore {
     }
 
     @Override
+    public void validateSnapshot(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot) {
+        support.requireReadable(scope, snapshot, ProjectionKind.GRAPH);
+    }
+
+    @Override
     public List<CanonicalEntity> loadEntities(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
@@ -467,6 +476,62 @@ public final class PostgresGraphStore implements GraphStore {
     }
 
     @Override
+    public IncidentRelationPage loadIncidentRelationPage(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot,
+            Collection<UUID> entityIds,
+            UUID afterRelationId,
+            int pageSize) {
+        List<UUID> ids = ids(entityIds);
+        requirePageSize(pageSize);
+        validateSnapshot(scope, snapshot);
+        if (ids.isEmpty() || PostgresProjectionSupport.noAuthorizedAssets(scope)) {
+            return new IncidentRelationPage(List.of(), null);
+        }
+        String afterPredicate = afterRelationId == null
+                ? ""
+                : "AND relation.relation_id > :afterRelationId";
+        MapSqlParameterSource parameters = visibility(scope, snapshot)
+                .addValue("ids", ids)
+                .addValue("fetchLimit", pageSize + 1);
+        if (afterRelationId != null) {
+            parameters.addValue("afterRelationId", afterRelationId);
+        }
+        String pageSql = ("""
+                SELECT relation.*
+                FROM projection_graph_relations relation
+                WHERE relation.batch_id = :batchId
+                  AND (
+                      relation.source_entity_id IN (:ids)
+                      OR relation.target_entity_id IN (:ids)
+                  )
+                  %s
+                  AND EXISTS (
+                      SELECT 1
+                      FROM (
+                """
+                        + VISIBLE_RELATION_CONTRIBUTIONS
+                        + """
+                      ) visible
+                      WHERE visible.relation_id = relation.relation_id
+                  )
+                ORDER BY relation.relation_id
+                LIMIT :fetchLimit
+                """).formatted(afterPredicate);
+        List<CanonicalRelation> fetched = jdbc.query(
+                pageSql,
+                parameters,
+                (resultSet, rowNumber) -> relation(resultSet));
+        boolean hasMore = fetched.size() > pageSize;
+        List<CanonicalRelation> page = hasMore
+                ? List.copyOf(fetched.subList(0, pageSize))
+                : List.copyOf(fetched);
+        return new IncidentRelationPage(
+                page,
+                hasMore ? page.getLast().id() : null);
+    }
+
+    @Override
     public Map<UUID, Long> loadVisibleEntityDegrees(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
@@ -532,77 +597,6 @@ public final class PostgresGraphStore implements GraphStore {
                         resultSet.getObject("relation_id", UUID.class),
                         resultSet.getDouble("weight")));
         return Map.copyOf(weights);
-    }
-
-    @Override
-    public List<UUID> expandEntityIds(
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            Collection<UUID> seedEntityIds,
-            int maximumDepth,
-            int limit) {
-        List<UUID> seeds = ids(seedEntityIds);
-        requireNonNegative(maximumDepth, "maximumDepth");
-        requireNonNegative(limit, "limit");
-        if (limit == 0 || !readable(scope, snapshot, seeds)) {
-            return List.of();
-        }
-        return jdbc.query(
-                """
-                WITH RECURSIVE
-                visible_relations AS (
-                    SELECT DISTINCT relation.*
-                    FROM projection_graph_relations relation
-                    JOIN (
-                """
-                        + VISIBLE_RELATION_CONTRIBUTIONS
-                        + """
-                    ) visible
-                      ON visible.batch_id = relation.batch_id
-                     AND visible.relation_id = relation.relation_id
-                    WHERE relation.batch_id = :batchId
-                ),
-                walk(entity_id, depth, path) AS (
-                    SELECT seed.entity_id, 0, ARRAY[seed.entity_id]
-                    FROM unnest(ARRAY[:seedIds]::uuid[]) seed(entity_id)
-                    UNION ALL
-                    SELECT
-                        CASE
-                            WHEN relation.source_entity_id = walk.entity_id
-                            THEN relation.target_entity_id
-                            ELSE relation.source_entity_id
-                        END,
-                        walk.depth + 1,
-                        walk.path || CASE
-                            WHEN relation.source_entity_id = walk.entity_id
-                            THEN relation.target_entity_id
-                            ELSE relation.source_entity_id
-                        END
-                    FROM walk
-                    JOIN visible_relations relation
-                      ON relation.source_entity_id = walk.entity_id
-                      OR relation.target_entity_id = walk.entity_id
-                    WHERE walk.depth < :maximumDepth
-                      AND NOT (
-                          CASE
-                              WHEN relation.source_entity_id = walk.entity_id
-                              THEN relation.target_entity_id
-                              ELSE relation.source_entity_id
-                          END = ANY(walk.path)
-                      )
-                )
-                SELECT entity_id
-                FROM walk
-                GROUP BY entity_id
-                ORDER BY min(depth), entity_id
-                LIMIT :limit
-                """,
-                visibility(scope, snapshot)
-                        .addValue("seedIds", seeds)
-                        .addValue("maximumDepth", maximumDepth)
-                        .addValue("limit", limit),
-                (resultSet, rowNumber) ->
-                        resultSet.getObject("entity_id", UUID.class));
     }
 
     @Override
@@ -841,6 +835,16 @@ public final class PostgresGraphStore implements GraphStore {
     private static void requireNonNegative(int value, String field) {
         if (value < 0) {
             throw new IllegalArgumentException(field + " must be non-negative");
+        }
+    }
+
+    private static void requirePageSize(int pageSize) {
+        if (pageSize <= 0
+                || pageSize
+                        > AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE) {
+            throw new IllegalArgumentException(
+                    "pageSize must be between 1 and "
+                            + AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE);
         }
     }
 }

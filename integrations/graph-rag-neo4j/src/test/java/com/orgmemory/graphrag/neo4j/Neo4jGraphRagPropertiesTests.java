@@ -36,9 +36,6 @@ class Neo4jGraphRagPropertiesTests {
         Neo4jGraphRagProperties properties = validProperties();
         assertThrows(
                 IllegalArgumentException.class,
-                () -> properties.setMaximumFrontier(0));
-        assertThrows(
-                IllegalArgumentException.class,
                 () -> properties.setDatabase("neo4j; DROP DATABASE neo4j"));
 
         properties.setUri(URI.create("http://localhost:7474"));

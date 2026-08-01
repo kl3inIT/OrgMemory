@@ -6,17 +6,18 @@ import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.query.AuthorizedQueryProjection;
+import com.orgmemory.graphrag.query.AuthorizedGraphTraversal;
 import com.orgmemory.graphrag.query.DeterministicRanker;
 import com.orgmemory.graphrag.query.RankedItem;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
-import java.util.ArrayDeque;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +36,8 @@ public final class InMemoryAuthorizedQueryProjection
     private final Map<UUID, Double> entityScores = new HashMap<>();
     private final Map<UUID, Double> relationScores = new HashMap<>();
     private final Map<UUID, Double> chunkScores = new HashMap<>();
+    private final AuthorizedGraphTraversal traversal =
+            new AuthorizedGraphTraversal(new TraversalSource());
     private int reads;
 
     public synchronized InMemoryAuthorizedQueryProjection add(
@@ -137,33 +140,12 @@ public final class InMemoryAuthorizedQueryProjection
             Collection<UUID> seedEntityIds,
             int maximumDepth,
             int limit) {
-        begin(scope, snapshot);
-        if (maximumDepth < 0 || limit < 0) {
-            throw new IllegalArgumentException("depth and limit must be non-negative");
-        }
-        Set<CanonicalRelation> visible = visibleRelations(scope, snapshot).stream()
-                .map(RelationContribution::relation)
-                .collect(Collectors.toSet());
-        LinkedHashSet<UUID> visited =
-                new LinkedHashSet<>(Objects.requireNonNull(seedEntityIds, "seedEntityIds"));
-        ArrayDeque<NodeDepth> queue = new ArrayDeque<>();
-        visited.forEach(id -> queue.addLast(new NodeDepth(id, 0)));
-        while (!queue.isEmpty() && visited.size() < limit) {
-            NodeDepth current = queue.removeFirst();
-            if (current.depth() >= maximumDepth) {
-                continue;
-            }
-            visible.stream()
-                    .filter(relation -> relation.isIncidentTo(current.id()))
-                    .sorted(Comparator.comparing(CanonicalRelation::id))
-                    .map(relation -> relation.sourceEntityId().equals(current.id())
-                            ? relation.targetEntityId()
-                            : relation.sourceEntityId())
-                    .filter(visited::add)
-                    .limit(Math.max(0, limit - visited.size()))
-                    .forEach(id -> queue.addLast(new NodeDepth(id, current.depth() + 1)));
-        }
-        return visited.stream().limit(limit).toList();
+        return traversal.expandEntityIds(
+                scope,
+                snapshot,
+                seedEntityIds,
+                maximumDepth,
+                limit);
     }
 
     @Override
@@ -209,7 +191,9 @@ public final class InMemoryAuthorizedQueryProjection
                         (left, right) -> left,
                         LinkedHashMap::new))
                 .values().stream()
-                .sorted(Comparator.comparing(CanonicalRelation::id))
+                .sorted(Comparator.comparing(
+                        CanonicalRelation::id,
+                        AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER))
                 .limit(limit)
                 .toList();
     }
@@ -343,6 +327,73 @@ public final class InMemoryAuthorizedQueryProjection
         reads++;
     }
 
-    private record NodeDepth(UUID id, int depth) {
+    private final class TraversalSource implements AuthorizedGraphTraversalSource {
+
+        @Override
+        public void validateSnapshot(
+                AuthorizedEvidenceScope scope,
+                ProjectionSnapshot snapshot) {
+            begin(scope, snapshot);
+        }
+
+        @Override
+        public List<CanonicalEntity> loadEntities(
+                AuthorizedEvidenceScope scope,
+                ProjectionSnapshot snapshot,
+                Collection<UUID> entityIds) {
+            Set<UUID> requested = Set.copyOf(entityIds);
+            return visibleEntities(scope, snapshot).stream()
+                    .map(EntityContribution::entity)
+                    .filter(entity -> requested.contains(entity.id()))
+                    .collect(Collectors.toMap(
+                            CanonicalEntity::id,
+                            Function.identity(),
+                            (left, right) -> left,
+                            LinkedHashMap::new))
+                    .values()
+                    .stream()
+                    .sorted(Comparator.comparing(
+                            CanonicalEntity::id,
+                            AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER))
+                    .toList();
+        }
+
+        @Override
+        public IncidentRelationPage loadIncidentRelationPage(
+                AuthorizedEvidenceScope scope,
+                ProjectionSnapshot snapshot,
+                Collection<UUID> entityIds,
+                UUID afterRelationId,
+                int pageSize) {
+            if (pageSize <= 0 || pageSize > MAXIMUM_PAGE_SIZE) {
+                throw new IllegalArgumentException("invalid pageSize");
+            }
+            Set<UUID> requested = Set.copyOf(entityIds);
+            List<CanonicalRelation> fetched = visibleRelations(scope, snapshot).stream()
+                    .map(RelationContribution::relation)
+                    .filter(relation -> requested.stream().anyMatch(relation::isIncidentTo))
+                    .filter(relation -> afterRelationId == null
+                            || AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER.compare(
+                                    relation.id(), afterRelationId) > 0)
+                    .collect(Collectors.toMap(
+                            CanonicalRelation::id,
+                            Function.identity(),
+                            (left, right) -> left,
+                            LinkedHashMap::new))
+                    .values()
+                    .stream()
+                    .sorted(Comparator.comparing(
+                            CanonicalRelation::id,
+                            AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER))
+                    .limit((long) pageSize + 1)
+                    .toList();
+            boolean hasMore = fetched.size() > pageSize;
+            List<CanonicalRelation> page = hasMore
+                    ? List.copyOf(fetched.subList(0, pageSize))
+                    : fetched;
+            return new IncidentRelationPage(
+                    page,
+                    hasMore ? page.getLast().id() : null);
+        }
     }
 }

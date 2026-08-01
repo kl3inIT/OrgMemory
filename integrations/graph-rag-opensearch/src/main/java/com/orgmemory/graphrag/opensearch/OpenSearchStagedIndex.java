@@ -4,6 +4,7 @@ import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -14,6 +15,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.opensearch.client.opensearch._types.FieldValue;
+import org.opensearch.client.opensearch._types.OpenSearchException;
+import org.opensearch.client.opensearch._types.SortOrder;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch.core.bulk.BulkOperation;
 
@@ -155,6 +158,48 @@ final class OpenSearchStagedIndex {
                 snapshotIndex.apply(snapshot),
                 authorizedQuery(scope, snapshot, additionalFilters),
                 limit);
+    }
+
+    List<Map<String, Object>> searchSortedAfter(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot,
+            Collection<Query> additionalFilters,
+            String sortField,
+            String afterExclusive,
+            int limit) {
+        publications.requireReadable(snapshot, kind);
+        if (scope.authorizedAssetIds().isEmpty()) {
+            return List.of();
+        }
+        try {
+            var request = new org.opensearch.client.opensearch.core.SearchRequest.Builder()
+                    .index(snapshotIndex.apply(snapshot))
+                    .size(limit)
+                    .query(authorizedQuery(scope, snapshot, additionalFilters))
+                    .collapse(collapse -> collapse.field(sortField))
+                    .sort(sort -> sort.field(field -> field
+                            .field(sortField)
+                            .order(SortOrder.Asc)));
+            if (afterExclusive != null) {
+                request.searchAfter(List.of(FieldValue.of(afterExclusive)));
+            }
+            return operations.client().search(request.build(), Map.class)
+                    .hits()
+                    .hits()
+                    .stream()
+                    .filter(hit -> hit.source() != null)
+                    .map(hit -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> source =
+                                (Map<String, Object>) hit.source();
+                        return Map.copyOf(source);
+                    })
+                    .toList();
+        } catch (IOException | OpenSearchException exception) {
+            throw new OpenSearchProjectionException(
+                    "OpenSearch failed to read a stable authorized page",
+                    exception);
+        }
     }
 
     void discard(ProjectionBatch batch) {

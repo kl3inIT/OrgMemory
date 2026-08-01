@@ -151,20 +151,12 @@ public class OpenSearchGraphRagAutoConfiguration {
             OpenSearchProjectionPublicationStore publications,
             OpenSearchIndexNames indexes,
             OpenSearchGraphRagProperties properties,
-            OpenSearchCopyForwardCoordinator copyForward,
-            ObjectMapper objectMapper) {
-        OpenSearchPplGraphLookup ppl = new OpenSearchPplGraphLookup(
-                operations,
-                indexes,
-                objectMapper,
-                properties.isPplGraphLookupEnabled());
+            OpenSearchCopyForwardCoordinator copyForward) {
         return new OpenSearchGraphStore(
                 operations,
                 publications,
                 indexes,
-                copyForward,
-                properties.getGraphMaximumFrontier(),
-                ppl);
+                copyForward);
     }
 
     @Bean
