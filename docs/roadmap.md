@@ -25,6 +25,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Governed Skill packaging, distribution, authoring, publication, and handoff | shipped | [package foundation](increments/completed/2026-07-27-skill-registry-package-foundation/plan.md), [distribution](increments/completed/2026-07-27-skill-registry-distribution/plan.md), [publication](increments/completed/2026-07-27-skill-authoring-publication/plan.md), [handoff](increments/completed/2026-07-27-skill-governance-handoff/plan.md) |
 | Direct Skill sharing | shipped | [completed verification](increments/completed/2026-07-31-skill-direct-sharing/verification.md) |
 | Browser Skill authoring | shipped | [completed verification](increments/completed/2026-08-01-browser-skill-authoring/verification.md) |
+| Agent-assisted Skill handoff | shipped | [completed verification](increments/completed/2026-08-01-skill-agent-handoff/verification.md) |
 | Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
 | Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
 | AI model gateway provider boundary | shipped | [completed verification](increments/completed/2026-07-29-ai-model-gateway-boundary/verification.md) |

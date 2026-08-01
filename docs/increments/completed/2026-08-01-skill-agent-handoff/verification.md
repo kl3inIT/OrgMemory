@@ -43,7 +43,35 @@ configuration, persistence, or migration file changed.
 - Product Guides use a real browser-harness screenshot with synthetic
   documentation data and retain English/Vietnamese parity.
 
-## Remaining delivery gates
+## Delivery evidence
 
-PR CI, CodeRabbit, merge, automatic deployment, and live verification remain
-pending.
+PR #211 merged with full commit history as merge commit
+`8f644113903be24998fd18010041e8847a0fb83b`. CodeRabbit reached its review
+limit and emitted no inline finding; the required check passed. The product
+design had already completed the independent two-round Fable 5 challenge and
+record-only verdict before implementation.
+
+Main CI run `30677950953` passed on the exact merge commit. The automatic
+delivery chain completed for the same SHA:
+
+| Workflow | Run | Result |
+| --- | --- | --- |
+| Release OrgMemory | `30678048176` | passed |
+| Build production images | `30678048146` | passed |
+| Build docs image | `30678048148` | passed |
+| Deploy docs | `30678141640` | passed on retry after a transient SSH connection timeout |
+| Deploy production | `30678252528` | passed |
+
+Production deployment logs recorded the exact web image tag and confirmed API,
+web, worker, MCP, Keycloak, OpenFGA, and MinIO health before reporting the merge
+commit deployed. The following public checks returned HTTP 200 afterward:
+
+- `https://om.kl3in.tech`;
+- `https://om.kl3in.tech/healthz`;
+- `https://auth.kl3in.tech/realms/orgmemory/.well-known/openid-configuration`;
+- `https://docs.kl3in.tech/docs/product-guides/create-governed-skills`;
+- `https://docs.kl3in.tech/vi/docs/product-guides/create-governed-skills`;
+- `https://docs.kl3in.tech/images/product-guides/skill-agent-handoff.png`.
+
+The English and Vietnamese pages contained their new development-environment
+handoff sections, and the documentation image was served as `image/png`.
