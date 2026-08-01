@@ -1,8 +1,7 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
@@ -28,7 +27,7 @@ public class GraphIndexingCoordinator {
     private final KnowledgeAssetGraphQuery assets;
     private final SourceGraphIndexQuery revisions;
     private final SourceAclQuery aclQuery;
-    private final EmbeddingProfileRepository embeddingProfiles;
+    private final EmbeddingProfileRegistry embeddingProfiles;
     private final GraphProcessingProfileRegistry graphProcessingProfiles;
 
     GraphIndexingCoordinator(
@@ -36,7 +35,7 @@ public class GraphIndexingCoordinator {
             KnowledgeAssetGraphQuery assets,
             SourceGraphIndexQuery revisions,
             SourceAclQuery aclQuery,
-            EmbeddingProfileRepository embeddingProfiles,
+            EmbeddingProfileRegistry embeddingProfiles,
             GraphProcessingProfileRegistry graphProcessingProfiles) {
         this.jobs = jobs;
         this.assets = assets;
@@ -162,9 +161,7 @@ public class GraphIndexingCoordinator {
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index ACL snapshot is missing"));
         EmbeddingProfileRef embeddingProfile = embeddingProfiles
-                .findByIdAndOrganizationId(
-                        revision.embeddingProfileId(), job.getOrganizationId())
-                .map(EmbeddingProfile::toRef)
+                .findById(job.getOrganizationId(), revision.embeddingProfileId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index embedding profile is missing"));
         GraphProcessingProfileRef graphProcessingProfile =

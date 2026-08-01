@@ -672,7 +672,7 @@ required CI checks passed. CodeRabbit completed with no actionable comments,
 and direct inspection confirmed zero inline comments, reviews, or review
 threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Fifth Pull Request Evidence
 
 - Source Ledger owns `SourceGraphIndexQuery` and an immutable revision fact for
   Graph indexing.
@@ -694,3 +694,33 @@ domain pairs; all 37 release-policy tests passed under Node 24.15; and the
 terminating repository-wide `clean test` completed successfully in 4m51s
 across 99 tasks. Diff hygiene, the zero Graph-to-Source-persistence import scan,
 and the 9-path PR scope check passed.
+
+PR #222 merged as `e2a67bb3` after all required CI checks passed. A full merge
+SHA in the increment triggered a Gitleaks false positive, so the branch was
+rewritten to use the documented short SHA; the replacement CI run passed.
+CodeRabbit was rate limited, and direct inspection confirmed zero inline
+comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Retrieval's `EmbeddingProfileRegistry` exposes a tenant-scoped optional
+  profile lookup for Graph indexing.
+- `GraphIndexingCoordinator` no longer injects `EmbeddingProfileRepository` or
+  consumes the embedding-profile JPA entity.
+- Exact Modulith assertions pin the nine intentional Retrieval contracts used
+  by Graph, and an ArchUnit rule rejects profile persistence leakage.
+- Existing missing-profile retry behavior and tenant-scoped registry mapping
+  remain covered by focused tests.
+- Focused profile registry, Graph coordinator, and Modulith tests, `:core:test`,
+  docs/release checks, and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before the Graph module-closing cycle begins.
+
+Pre-PR verification completed: focused embedding-profile registry, Graph
+coordinator, and exact Modulith boundary tests passed in 20s; `:core:test`
+passed in 1m12s; the docs operating-model check passed across 429 Markdown
+files and 8 mirrored domain pairs; all 37 release-policy tests passed under
+Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 4m52s across 99 tasks. Diff hygiene, the zero
+Graph-to-Retrieval-profile-persistence import scan, and the 9-path PR scope
+check passed.
