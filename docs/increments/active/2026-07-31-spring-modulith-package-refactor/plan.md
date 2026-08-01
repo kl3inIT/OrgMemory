@@ -993,3 +993,9 @@ repository-wide `clean test` completed successfully in 1m04s across 99 tasks.
 Mechanical package, zero-byte, migration-name, diff-hygiene, zero
 Asset-to-Retrieval-import, zero Asset-to-Asset-Registry-import, and 19-path
 scope checks passed.
+
+After merging current `origin/main`, all 40 Modulith tests passed again in 8s;
+the documentation check passed across 459 Markdown files; and all 37
+release-policy tests passed again under Node 24.15. The final PR diff contains
+18 paths because Git recognizes the projection-namespace package move as a
+rename.
