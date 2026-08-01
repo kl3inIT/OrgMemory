@@ -15,10 +15,9 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.KnowledgeAccessSubject;
+import com.orgmemory.core.organization.KnowledgeAccessSubjectQuery;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -337,7 +336,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     private static KnowledgeEvidenceScopeResolver resolverFor(UUID userId) {
-        AppUserRepository users = mock(AppUserRepository.class);
+        KnowledgeAccessSubjectQuery subjects = mock(KnowledgeAccessSubjectQuery.class);
         RelationshipAuthorizationSetPort authorization =
                 mock(RelationshipAuthorizationSetPort.class);
         KnowledgeAssetRetrievalQuery assets = mock(KnowledgeAssetRetrievalQuery.class);
@@ -345,13 +344,12 @@ class ExternalPrincipalRetrievalIntegrationTests {
         @SuppressWarnings("unchecked")
         ObjectProvider<Clock> clocks = mock(ObjectProvider.class);
 
-        AppUser user = new AppUser(
-                ORG,
-                DEPT,
-                userId.toString(),
-                userId + "@example.test",
-                UserRole.EMPLOYEE);
-        when(users.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(subjects.findActive(ORG, userId))
+                .thenReturn(java.util.Optional.of(new KnowledgeAccessSubject(
+                        userId,
+                        ORG,
+                        DEPT,
+                        false)));
         when(authorization.listAuthorizedResources(any()))
                 .thenReturn(AuthorizedResourceSetResult.resolved(
                         List.of(
@@ -382,7 +380,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 EVALUATED_AT,
                 ZoneOffset.UTC));
         return new KnowledgeEvidenceScopeResolver(
-                users,
+                subjects,
                 authorization,
                 assets,
                 aclQuery,

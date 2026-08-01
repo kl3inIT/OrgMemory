@@ -8,7 +8,7 @@ Source: `core/src/main/java/com/orgmemory/core/organization`,
 `apps/api/src/main/java/com/orgmemory/api/admin`, and
 `core/src/main/resources/db/migration`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (00aabe15)`.
 
 ## Current Behavior
 
@@ -40,6 +40,11 @@ backslash, and malformed return targets fall back to `/`.
 Stateless bearer requests remain available for MCP, CLI, and integration clients.
 The server derives user, organization, and department from the canonical actor;
 client payloads cannot choose them. There is no offline/permit-all profile.
+Knowledge reads then reload the active persisted subject through the
+Organization-owned `KnowledgeAccessSubjectQuery`; its department and Executive
+flag come from current Organization state rather than actor claims. Canonical
+organization and department existence checks cross `OrganizationResourceQuery`.
+Knowledge Retrieval imports no Organization entity, role, or repository.
 External source-system users and groups are resolved into knowledge ACL
 principals through the verified mapping ledger described in the
 [knowledge ingestion spec](knowledge-ingestion.md).
@@ -98,6 +103,8 @@ abort API startup before traffic is accepted.
 - Email and Keycloak roles are display/authentication claims, not authorization
   grants.
 - `app_users.role` is local business/classification state, not an OpenFGA grant.
+- Knowledge access reloads current active department and Executive state from
+  Organization persistence; `CurrentActor` claims cannot widen it.
 - Browser and bearer paths must resolve the same `CurrentActor`.
 - Unknown, inactive, stale, or ambiguous identity state denies access.
 - Administration is authorized by OpenFGA, never by the app role a browser reads.
