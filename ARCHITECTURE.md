@@ -44,8 +44,10 @@ CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 15.2.0. Tegami 1.2.7 manages one synthetic whole-product release unit backed
 by `release/product.json`; that product release does not publish Gradle or pnpm
 workspaces. `@orgmemory/cli` has a separate package-owned SemVer and a dedicated
-manual npm Trusted Publishing workflow. A CLI version is consumer-visible only
-after its exact registry release and provenance have been verified.
+manual npm Trusted Publishing workflow. Public consumer version `0.1.0` has
+verified registry integrity and SLSA provenance. A later CLI version is
+consumer-visible only after its exact registry release and provenance have been
+verified.
 
 Green `main` commits remain the executable delivery identity. Production and
 docs workflows publish immutable SHA-addressed images and manifests. Tegami
@@ -347,8 +349,10 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral `integrations/ai-model-gateways` runtime. The shared dispatcher
 selects protocol factories for Spring AI OpenAI-compatible or native Anthropic
 Messages models and fails closed when a protocol implementation is absent.
-Assistant chat, graph extraction, and document
-embedding have independent configured routes; immutable Knowledge Asset embedding
+Assistant chat, graph extraction, and document embedding have independent
+configured routes. Graph extraction defaults to `gpt-5.4-mini`; the
+`ORGMEMORY_GRAPH_EXTRACTION_MODEL` deployment override is independent from the
+Assistant model. Immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit
 local retrieval fallback. A persistent agent conversation model does not exist
