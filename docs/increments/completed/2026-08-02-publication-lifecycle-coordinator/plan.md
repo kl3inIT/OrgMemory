@@ -40,16 +40,18 @@
 - [x] Add shared conformance recovery tests plus adapter restart/crash-window
   tests and worker fencing/identity tests.
 - [x] Run the narrowest useful Gradle module tests after each logical step.
-- [ ] Run IDE/static inspection for edited backend Java when available.
-- [ ] Run a terminating `gradlew clean test` from a clean integrated head.
-- [ ] Confirm `git diff --check`, no secret/customer data, and a clean worktree.
+- [x] Run the available backend static gate: IDE semantic inspection was not
+  available in this terminal, so compilation plus the full clean test supplied
+  the terminating static/runtime verification.
+- [x] Run a terminating `gradlew clean test` from a clean integrated head.
+- [x] Confirm `git diff --check`, no secret/customer data, and a clean worktree.
 
 ## 4. Consolidation and delivery
 
-- [ ] Record the durable lifecycle decision and rejected alternatives.
-- [ ] Reconcile `ARCHITECTURE.md`, Secure GraphRAG spec and mirrored test
+- [x] Record the durable lifecycle decision and rejected alternatives.
+- [x] Reconcile `ARCHITECTURE.md`, Secure GraphRAG spec and mirrored test
   matrix, including refreshed `Source:` and `Reconciled:` lines.
-- [ ] Move this increment to `completed/`, mark the roadmap entry shipped, and
+- [x] Move this increment to `completed/`, mark the roadmap entry shipped, and
   retain active-plan history only as immutable evidence.
 - [ ] Commit logical steps without squashing, merge current `origin/main`, and
   open a conventional PR below the repository reviewability ceiling.

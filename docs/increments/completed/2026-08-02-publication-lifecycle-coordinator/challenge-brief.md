@@ -13,7 +13,7 @@ Read first:
 - `docs/specs/domains/secure-graphrag.md`
 - `docs/tests/domains/secure-graphrag.md`
 - decisions `0008`, `0011`, `0014`, `0024`, and `0025`
-- `docs/increments/active/2026-08-02-publication-lifecycle-coordinator/design.md`
+- `docs/increments/completed/2026-08-02-publication-lifecycle-coordinator/design.md`
 - current core lifecycle, worker committer, PostgreSQL publication store,
   OpenSearch publication store, in-memory store, and conformance tests
 
