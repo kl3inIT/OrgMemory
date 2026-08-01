@@ -25,7 +25,7 @@
 
 ## 3. Delivery
 
-- [ ] Merge current `origin/main` into the branch before PR creation.
+- [x] Merge current `origin/main` into the branch before PR creation.
 - [ ] Open one conventional PR below 100 changed files.
 - [ ] Resolve CI and CodeRabbit findings with reply-linked fixes.
 - [ ] Merge with a merge commit; do not squash commits.
