@@ -213,12 +213,13 @@ class SlackConnectorBatchSourceTests {
         server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.members"))
                 .andRespond(withSuccess("{\"ok\":false,\"error\":\"internal_error\"}", MediaType.APPLICATION_JSON));
 
-        SlackApiException abandoned = org.junit.jupiter.api.Assertions.assertThrows(
-                SlackApiException.class, () -> crawl(List.of()));
+        ConnectorPoll abandoned = source(List.of(), Clock.systemUTC()).pendingBatches();
 
+        assertTrue(abandoned.batches().isEmpty());
+        assertEquals("mostly_failed", abandoned.unavailable().getFirst().errorCode());
         assertTrue(
-                abandoned.getMessage().contains("3 of 3"),
-                () -> "unexpected message: " + abandoned.getMessage());
+                abandoned.unavailable().getFirst().message().contains("3 of 3"),
+                () -> "unexpected message: " + abandoned.unavailable().getFirst().message());
     }
 
     @Test
@@ -284,6 +285,48 @@ class SlackConnectorBatchSourceTests {
                 .andRespond(withSuccess(REPLIES_JSON.replace("Thursday", "Friday"), MediaType.APPLICATION_JSON));
 
         assertNotEquals(first, crawl(List.of()).crawlCursor(), "an edit is new work");
+    }
+
+    @Test
+    void pinsGoldenCursorBytesAcrossContentAndPermissionPasses() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        when(directory.activeObjectIds(ORG, "slack", CONNECTION))
+                .thenReturn(List.of("C-eng__1700000001.000100"));
+
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        ConnectorCrawlBatch content = source.pendingBatches().batches().getFirst();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                List.of(
+                        "slack-a91eb56a1b9ad2821e66bcb04ac2c2043e6e775efcb42d186a329c520a413545",
+                        "slack-content-fc31f4bd0720a58863b26fb19c837e24815f4f855b2dec164c8133022290e69f",
+                        "slack-permission-f5c76da94b8ddd79def99ec9c22ecf98cbede32a3dee0892c44fb4df79aaed6b",
+                        "slack-membership-98b0cf25dff24f69567f4a3969af7607f014dee57ab5a103067bd20076785249",
+                        "slack-7b380a7481decc8ed602c5e5cd94b87b2254d5fcb600ae56af5e067c0dd8ef5b",
+                        "slack-permission-f5c76da94b8ddd79def99ec9c22ecf98cbede32a3dee0892c44fb4df79aaed6b",
+                        "slack-membership-98b0cf25dff24f69567f4a3969af7607f014dee57ab5a103067bd20076785249"),
+                List.of(
+                        content.crawlCursor(),
+                        content.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                        content.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        content.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor(),
+                        permissions.crawlCursor(),
+                        permissions.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        permissions.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor()));
+        server.verify();
     }
 
     @Test
@@ -649,7 +692,7 @@ class SlackConnectorBatchSourceTests {
 
     /** Re-arms the mock server between polls without discarding the source under test. */
     private void setUpServerOnly() {
-        server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+        server.reset();
     }
 
     /** A clock the test moves, so a cadence can be proved without waiting for one. */
