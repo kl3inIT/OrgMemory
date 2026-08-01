@@ -701,7 +701,7 @@ rewritten to use the documented short SHA; the replacement CI run passed.
 CodeRabbit was rate limited, and direct inspection confirmed zero inline
 comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Sixth Pull Request Evidence
 
 - Retrieval's `EmbeddingProfileRegistry` exposes a tenant-scoped optional
   profile lookup for Graph indexing.
@@ -724,3 +724,25 @@ Node 24.15; and the terminating repository-wide `clean test` completed
 successfully in 4m52s across 99 tasks. Diff hygiene, the zero
 Graph-to-Retrieval-profile-persistence import scan, and the 9-path PR scope
 check passed.
+
+PR #223 merged as `0cb8a187` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.graph` is a closed nested application module rather than an open
+  migration module.
+- Its outgoing allowlist is limited to AI routing, authorization, ACL, Asset,
+  Retrieval, Source Ledger, Space, organization, permission, shared, and
+  `shared::error`.
+- `modules.verify()` passes, proving current consumers use only Graph's public
+  root-package contracts and no undeclared outgoing edge exists.
+- The closure regression test pins both the closed state and the exact
+  eleven-entry dependency allowlist.
+- Focused `ModulithVerificationTests` passed in 28s. A clean Core test rerun
+  passed in 1m23s after removing a stale concurrent test-result artifact.
+- The documentation operating-model check passed across 430 Markdown files
+  and 8 mirrored domain pairs; the Node 24.15 release gate passed all 37 tests.
+- The terminating repository-wide `clean test` passed in 5m49s across 99
+  tasks. Diff hygiene and the 4-path pull-request scope check passed.
