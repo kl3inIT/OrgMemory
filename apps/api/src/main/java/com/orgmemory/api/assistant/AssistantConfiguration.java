@@ -15,7 +15,7 @@ import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
-import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;

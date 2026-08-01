@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-01-authz-consolidation (acd2b48f)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 
 ## Current Behavior
 
@@ -26,6 +26,12 @@ Only evidence that fits the model-context budget is exposed as a citation, and
 answer tokens stream without a post-generation authorization replay. A
 revocation applies to every new turn; an already-started turn may finish under
 its request snapshot and is bounded by the configured two-minute turn timeout.
+
+Parent Knowledge exposes the permission-aware query, immutable evidence,
+secure result, and verified grounding through the exact `knowledge::search`
+named interface. Assistant and Asset Registry cross that interface; the open
+Retrieval nested module retains the concrete engines, authorization sequence,
+ranking, and persistence while its remaining adapter seams are closed.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob

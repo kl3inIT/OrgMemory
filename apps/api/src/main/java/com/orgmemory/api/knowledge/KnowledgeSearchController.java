@@ -1,7 +1,7 @@
 package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
-import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.UUID;

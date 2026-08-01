@@ -1,6 +1,6 @@
 package com.orgmemory.api.knowledge;
 
-import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeSearchResult;
+import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import java.util.List;
 
 record KnowledgeSearchResponse(String requestId, List<KnowledgeEvidenceResponse> evidence) {

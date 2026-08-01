@@ -149,9 +149,13 @@ current active version. Asset also owns the compact embedding-profile reference
 required for publication and the projection namespace identity; callers
 translate Retrieval's richer profile at the boundary. Asset has no direct
 dependency on Retrieval and is a closed nested module with an exact outgoing
-dependency allowlist. Retrieval remains explicitly open while its remaining
-incoming and Asset persistence/orchestration seams are replaced by intentional
-APIs. The provider-neutral object-storage port is exposed as the
+dependency allowlist. Parent Knowledge exposes the stable permission-aware
+search contract, immutable evidence, secure result, and verified grounding as
+the exact `knowledge::search` named interface. Assistant and Asset Registry
+consume that parent interface without importing Retrieval implementation types.
+Retrieval remains explicitly open while its remaining sibling adapters and
+Asset persistence/orchestration seams are replaced by intentional APIs. The
+provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset
 publication outbox records direct-upload authorization projection attempts and

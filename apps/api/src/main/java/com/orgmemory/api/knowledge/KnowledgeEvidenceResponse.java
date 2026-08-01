@@ -1,6 +1,6 @@
 package com.orgmemory.api.knowledge;
 
-import com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import java.util.UUID;
 
 record KnowledgeEvidenceResponse(

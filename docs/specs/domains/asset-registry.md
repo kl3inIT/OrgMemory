@@ -2,13 +2,14 @@
 
 Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `core/src/main/java/com/orgmemory/core/knowledge/catalog`,
+`core/src/main/java/com/orgmemory/core/knowledge/search`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (a86e892e)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 
 ## Current Behavior
 
@@ -38,9 +39,10 @@ evaluation cases.
 Rendering is deterministic and rejects unknown, missing, or invalid variables
 before a provider call. Inserted variables and retrieved Knowledge are marked
 as untrusted data. Execution pins the exact release digest and resolved AI
-route. Optional grounding uses the canonical permission-aware retrieval path,
-and the run stores only citation identifiers plus a sanitized output digest by
-default. Raw sensitive variables and raw output are not retained.
+route. Optional grounding crosses the parent `knowledge::search` interface into
+the canonical permission-aware retrieval path, and the run stores only citation
+identifiers plus a sanitized output digest by default. Raw sensitive variables
+and raw output are not retained.
 
 Evaluation executes only the bounded cases embedded in a release. Release
 comparison reports the two exact evaluation results; it does not change a

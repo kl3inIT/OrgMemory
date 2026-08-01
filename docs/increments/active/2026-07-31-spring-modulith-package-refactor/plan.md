@@ -1004,7 +1004,7 @@ PR #239 merged as `c67effe2` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Thirty-fifth Pull Request Evidence
 
 - `knowledge.asset` is closed with an exact six-entry outgoing dependency
   allowlist.
@@ -1044,3 +1044,48 @@ Markdown files and 8 mirrored domain pairs, and the expanded release gate from
 main passed all 40 tests under Node 24.15. The spec/test reconciliation markers
 now point at the merge commit containing both the catalog boundary and the
 concurrent Skill CLI lifecycle changes.
+
+PR #241 merged as `13697ff9` after Backend Java 25, Web Node 24,
+documentation, evaluation, secret, impact, and corrected release-policy checks
+passed. CodeRabbit remained rate limited; direct inspection confirmed zero
+inline comments, reviews, or review threads before merge, and both the PR head
+and merge commit are ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Parent Knowledge exposes exactly `PermissionAwareKnowledgeSearch`,
+  `RetrievedKnowledgeEvidence`, `SecureKnowledgeSearchResult`, and
+  `VerifiedKnowledgeGrounding` through `knowledge::search`.
+- Assistant and Asset Registry top-level search consumers cross only that
+  parent interface and cannot import the open Retrieval implementation package.
+- Retrieval keeps both concrete engines, authorization, ranking, persistence,
+  and the final verified-grounding construction; this PR changes package
+  ownership without changing query behavior or the API wire contract.
+- The Fable 5 monthly spend-limit failure and clean Codex ultra fallback
+  architecture verdict are recorded. The accepted-with-changes verdict keeps
+  `VerifiedKnowledgeGrounding` in the four-type interface so the final
+  permission-verified model input is not duplicated or weakened.
+- This is a code PR under 100 changed paths. Retrieval remains explicitly open;
+  Asset, Organization, Source Ledger citation, and Graph verifier seams follow
+  as separate code PRs.
+
+Local verification so far: the exact-interface characterization test failed
+first with `NoSuchElementException` before `knowledge::search` existed. Core
+and API main/test compilation now passes. The first 92-test focused run passed
+all search, GraphRAG, Prompt, and Assistant behavior tests and exposed two new
+structural assertion defects; after correcting the expected transitive result
+types and excluding test bytecode from the production ArchUnit rule, the full
+Modulith verification class passed in 21s and the complete focused suite passed
+in 33s. The runtime OpenAPI contract passed in 1m20s with a single-use Gradle
+process. The documentation operating-model check passed across 469 Markdown
+files and 8 mirrored domain pairs; all 40 release-policy tests passed under
+Node 24.15. The combined full Core/API/Worker gate passed in 8m04s, and the
+terminating repository-wide `clean test` passed in 1m06s across 99 tasks after
+an orphaned test worker from an earlier daemon crash released its JAR locks.
+Mechanical old-package, top-level implementation-import, zero-byte,
+migration-scope, diff-hygiene, and 41-path scope checks passed.
+
+After merging current `origin/main` at `142a11cc`, the complete focused suite
+passed again in 39s. The documentation check passed across 473 Markdown files
+and 8 mirrored domain pairs, and all 40 release-policy tests passed again under
+Node 24.15.

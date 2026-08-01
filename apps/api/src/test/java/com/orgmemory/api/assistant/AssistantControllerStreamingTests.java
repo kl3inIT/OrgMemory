@@ -11,7 +11,7 @@ import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
-import com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;
 import java.util.UUID;
