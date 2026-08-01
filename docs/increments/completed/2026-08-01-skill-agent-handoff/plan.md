@@ -26,7 +26,9 @@
 ## 3. Delivery
 
 - [x] Merge current `origin/main` into the branch before PR creation.
-- [ ] Open one conventional PR below 100 changed files.
-- [ ] Resolve CI and CodeRabbit findings with reply-linked fixes.
-- [ ] Merge with a merge commit; do not squash commits.
-- [ ] Verify main CI, deployment, and live behavior; then archive the increment.
+- [x] Open one conventional PR below 100 changed files.
+- [x] Pass CI and inspect CodeRabbit; no inline findings were emitted because
+  the final review was rate-limited.
+- [x] Merge with a merge commit; do not squash commits.
+- [x] Verify main CI, automatic deployment, and public live behavior; then
+  archive the increment.
