@@ -1,8 +1,7 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
 
@@ -22,7 +21,7 @@ import org.springframework.stereotype.Service;
 public class GraphIndexJobQueue {
 
     private final GraphIndexJobRepository jobs;
-    private final KnowledgeAssetVersionRepository versions;
+    private final KnowledgeAssetGraphQuery assets;
     private final SourceIngestionProperties ingestionProperties;
     private final GraphProcessingProfileResolver processingProfiles;
     private final GraphProcessingProfileRegistry profileRegistry;
@@ -30,13 +29,13 @@ public class GraphIndexJobQueue {
 
     GraphIndexJobQueue(
             GraphIndexJobRepository jobs,
-            KnowledgeAssetVersionRepository versions,
+            KnowledgeAssetGraphQuery assets,
             SourceIngestionProperties ingestionProperties,
             GraphProcessingProfileResolver processingProfiles,
             GraphProcessingProfileRegistry profileRegistry,
             JdbcClient jdbc) {
         this.jobs = jobs;
-        this.versions = versions;
+        this.assets = assets;
         this.ingestionProperties = ingestionProperties;
         this.processingProfiles = processingProfiles;
         this.profileRegistry = profileRegistry;
@@ -49,15 +48,14 @@ public class GraphIndexJobQueue {
             UUID knowledgeAssetId,
             UUID knowledgeAssetVersionId,
             Instant availableAt) {
-        KnowledgeAssetVersion version = versions
-                .findByIdAndOrganizationId(
-                        knowledgeAssetVersionId, organizationId)
-                .filter(candidate -> candidate.getKnowledgeAssetId()
+        KnowledgeAssetVersionGraphRef version = assets
+                .findVersion(organizationId, knowledgeAssetVersionId)
+                .filter(candidate -> candidate.knowledgeAssetId()
                         .equals(knowledgeAssetId))
-                .filter(candidate -> sourceRevisionId.equals(candidate.getSourceRevisionId()))
+                .filter(candidate -> sourceRevisionId.equals(candidate.sourceRevisionId()))
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph indexing target does not match the active Knowledge Asset version"));
-        if (version.getStatus() != KnowledgeAssetVersionStatus.ACTIVE) {
+        if (!version.active()) {
             throw new IllegalStateException(
                     "Graph indexing requires an active Knowledge Asset version");
         }
@@ -66,7 +64,7 @@ public class GraphIndexJobQueue {
         String idempotencyKey = GraphIndexJob.idempotencyKey(
                 organizationId,
                 sourceRevisionId,
-                version.getVersionNumber(),
+                version.versionNumber(),
                 profile.canonicalSha256());
         UUID jobId = UUID.nameUUIDFromBytes(
                 idempotencyKey.getBytes(StandardCharsets.UTF_8));
@@ -94,11 +92,11 @@ public class GraphIndexJobQueue {
                         """)
                 .param("id", jobId)
                 .param("organizationId", organizationId)
-                .param("knowledgeAssetId", version.getKnowledgeAssetId())
-                .param("knowledgeAssetVersionId", version.getId())
+                .param("knowledgeAssetId", version.knowledgeAssetId())
+                .param("knowledgeAssetVersionId", version.id())
                 .param("sourceRevisionId", sourceRevisionId)
                 .param("graphProcessingProfileId", profile.id())
-                .param("projectionGeneration", version.getVersionNumber())
+                .param("projectionGeneration", version.versionNumber())
                 .param("jobType", GraphIndexJob.TYPE)
                 .param(
                         "availableAt",
@@ -108,7 +106,7 @@ public class GraphIndexJobQueue {
                 .param("createdAt", createdAt)
                 .update();
         return jobs.findByKnowledgeAssetVersionIdAndGraphProcessingProfileId(
-                        version.getId(), profile.id())
+                        version.id(), profile.id())
                 .orElseThrow(() -> new IllegalStateException(
                         "graph index job enqueue did not produce a durable job"))
                 .getId();

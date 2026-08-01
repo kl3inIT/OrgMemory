@@ -1,10 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
@@ -35,20 +33,17 @@ public class GraphIndexLifecycleService {
 
     private final GraphIndexingCoordinator coordinator;
     private final GraphIndexJobQueue queue;
-    private final KnowledgeAssetRepository assets;
-    private final KnowledgeAssetVersionRepository versions;
+    private final KnowledgeAssetGraphQuery assets;
     private final RelationshipAuthorizationPort authorization;
 
     GraphIndexLifecycleService(
             GraphIndexingCoordinator coordinator,
             GraphIndexJobQueue queue,
-            KnowledgeAssetRepository assets,
-            KnowledgeAssetVersionRepository versions,
+            KnowledgeAssetGraphQuery assets,
             RelationshipAuthorizationPort authorization) {
         this.coordinator = coordinator;
         this.queue = queue;
         this.assets = assets;
-        this.versions = versions;
         this.authorization = authorization;
     }
 
@@ -87,26 +82,25 @@ public class GraphIndexLifecycleService {
         UUID assetId = Objects.requireNonNull(
                 knowledgeAssetId, "knowledgeAssetId");
         require(actor, CAN_REBUILD, assetId);
-        KnowledgeAsset asset = assets
-                .findByIdAndOrganizationId(assetId, actor.organizationId())
-                .filter(candidate -> candidate.getArchivedAt() == null)
+        KnowledgeAssetGraphRef asset = assets
+                .findAsset(actor.organizationId(), assetId)
+                .filter(candidate -> !candidate.archived())
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph indexing requires an active, non-archived Knowledge Asset"));
-        KnowledgeAssetVersion version = versions
-                .findByIdAndOrganizationId(
+        KnowledgeAssetVersionGraphRef version = assets
+                .findVersion(
+                        actor.organizationId(),
                         Objects.requireNonNull(
-                                asset.getCurrentVersionId(), "currentVersionId"),
-                        actor.organizationId())
-                .filter(candidate ->
-                        candidate.getStatus() == KnowledgeAssetVersionStatus.ACTIVE)
+                                asset.currentVersionId(), "currentVersionId"))
+                .filter(KnowledgeAssetVersionGraphRef::active)
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph indexing requires an active Knowledge Asset version"));
         UUID jobId = queue.enqueue(
                 actor.organizationId(),
                 Objects.requireNonNull(
-                        version.getSourceRevisionId(), "sourceRevisionId"),
+                        version.sourceRevisionId(), "sourceRevisionId"),
                 assetId,
-                version.getId(),
+                version.id(),
                 java.time.Instant.now());
         return coordinator.status(actor.organizationId(), jobId);
     }

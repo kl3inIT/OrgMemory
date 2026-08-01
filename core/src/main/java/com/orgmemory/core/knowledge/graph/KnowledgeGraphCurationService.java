@@ -7,9 +7,7 @@ import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
 import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
@@ -45,7 +43,7 @@ public class KnowledgeGraphCurationService {
     private static final String RESOURCE_TYPE = "knowledge_space";
 
     private final KnowledgeSpaceQuery spaces;
-    private final KnowledgeAssetRepository assets;
+    private final KnowledgeAssetGraphQuery assets;
     private final RelationshipAuthorizationPort authorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
     private final SecureKnowledgeRetrievalStore canonicalEvidence;
@@ -56,7 +54,7 @@ public class KnowledgeGraphCurationService {
 
     KnowledgeGraphCurationService(
             KnowledgeSpaceQuery spaces,
-            KnowledgeAssetRepository assets,
+            KnowledgeAssetGraphQuery assets,
             RelationshipAuthorizationPort authorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
             SecureKnowledgeRetrievalStore canonicalEvidence,
@@ -235,13 +233,8 @@ public class KnowledgeGraphCurationService {
         if (!actor.organizationId().equals(evidence.organizationId())) {
             throw new KnowledgeResourceNotFoundException();
         }
-        KnowledgeAsset asset = assets
-                .findByIdAndOrganizationId(
-                        evidence.knowledgeAssetId(), actor.organizationId())
-                .orElseThrow(KnowledgeAssetNotFoundException::new);
-        if (!knowledgeSpaceId.equals(asset.getKnowledgeSpaceId())) {
-            throw new KnowledgeResourceNotFoundException();
-        }
+        assets.requireInSpace(
+                actor.organizationId(), evidence.knowledgeAssetId(), knowledgeSpaceId);
         var spaceScope = resolved.forKnowledgeSpace(knowledgeSpaceId);
         if (!spaceScope.includes(
                 evidence.organizationId(), evidence.knowledgeAssetId())) {

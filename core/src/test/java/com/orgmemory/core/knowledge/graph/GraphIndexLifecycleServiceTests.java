@@ -1,10 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,33 +33,35 @@ class GraphIndexLifecycleServiceTests {
     private final GraphIndexingCoordinator coordinator =
             mock(GraphIndexingCoordinator.class);
     private final GraphIndexJobQueue queue = mock(GraphIndexJobQueue.class);
-    private final KnowledgeAssetRepository assets =
-            mock(KnowledgeAssetRepository.class);
-    private final KnowledgeAssetVersionRepository versions =
-            mock(KnowledgeAssetVersionRepository.class);
+    private final KnowledgeAssetGraphQuery assets =
+            mock(KnowledgeAssetGraphQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
     private final CurrentActor actor =
             new CurrentActor(USER_ID, ORGANIZATION_ID, null, "User", "user@example.com");
     private final GraphIndexLifecycleService service =
             new GraphIndexLifecycleService(
-                    coordinator, queue, assets, versions, authorization);
+                    coordinator, queue, assets, authorization);
 
     @Test
     void ensureCurrentProfileAuthorizesAndEnqueuesTheActiveRevision() {
-        KnowledgeAsset asset = mock(KnowledgeAsset.class);
-        KnowledgeAssetVersion version = mock(KnowledgeAssetVersion.class);
+        KnowledgeAssetGraphRef asset = new KnowledgeAssetGraphRef(
+                ASSET_ID, UUID.randomUUID(), VERSION_ID, false);
+        KnowledgeAssetVersionGraphRef version = new KnowledgeAssetVersionGraphRef(
+                VERSION_ID,
+                ASSET_ID,
+                REVISION_ID,
+                UUID.randomUUID(),
+                1,
+                "vi",
+                true);
         GraphIndexJobView expected = mock(GraphIndexJobView.class);
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
-        when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
+        when(assets.findAsset(ORGANIZATION_ID, ASSET_ID))
                 .thenReturn(Optional.of(asset));
-        when(asset.getCurrentVersionId()).thenReturn(VERSION_ID);
-        when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
+        when(assets.findVersion(ORGANIZATION_ID, VERSION_ID))
                 .thenReturn(Optional.of(version));
-        when(version.getStatus()).thenReturn(KnowledgeAssetVersionStatus.ACTIVE);
-        when(version.getSourceRevisionId()).thenReturn(REVISION_ID);
-        when(version.getId()).thenReturn(VERSION_ID);
         when(queue.enqueue(
                         any(),
                         any(),
@@ -91,7 +91,7 @@ class GraphIndexLifecycleServiceTests {
                 OrgMemoryAccessDeniedException.class,
                 () -> service.ensureCurrentProfile(actor, ASSET_ID));
 
-        verify(assets, never()).findByIdAndOrganizationId(any(), any());
+        verify(assets, never()).findAsset(any(), any());
         verify(queue, never()).enqueue(any(), any(), any(), any(), any());
         verify(coordinator, never()).status(any(), any());
     }

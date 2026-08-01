@@ -295,6 +295,50 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void graphConsumesOnlyAssetGraphQueryContracts() {
+        var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(asset))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.graph"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphChunk",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef"),
+                consumedTypes);
+    }
+
+    @Test
+    void graphDoesNotDependOnAssetPersistence() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.graph");
+
+        for (String persistenceType : Set.of(
+                "com.orgmemory.core.knowledge.asset.KnowledgeAsset",
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository",
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion",
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus",
+                "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection",
+                "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore")) {
+            noClasses()
+                    .that()
+                    .resideInAPackage("com.orgmemory.core.knowledge.graph..")
+                    .should()
+                    .dependOnClassesThat()
+                    .haveFullyQualifiedName(persistenceType)
+                    .check(classes);
+        }
+    }
+
+    @Test
     void sourceLedgerConsumesOnlyAclFacadeContracts() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
         var consumedTypes = modules.stream()
@@ -461,18 +505,17 @@ class ModulithVerificationTests {
                 consumerTypes);
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAsset",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetNotFoundException",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphChunk",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
                 consumedInternalTypes);
     }

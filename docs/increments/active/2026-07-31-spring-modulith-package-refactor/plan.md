@@ -608,7 +608,7 @@ PR #217 merged as `309f451a383920c18403ae362dd7d460bcd6e2ff` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Third Pull Request Evidence
 
 - `knowledge.space` is a closed nested application module rather than an open
   migration module.
@@ -638,3 +638,31 @@ Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
 under Node 24.15; and the terminating repository-wide `clean test` completed
 successfully in 4m33s across 99 tasks. The final pull-request scope remains 4
 changed paths.
+
+PR #220 merged as `285261b951b25838c08cea91fb8960e010dffc61` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Asset owns `KnowledgeAssetGraphQuery` and immutable asset, version, and chunk
+  facts for Knowledge Graph consumers.
+- Graph indexing, queueing, lifecycle, and curation no longer inject Asset
+  repositories, consume Asset JPA entities/status, or read the chunk projection
+  store directly.
+- Exact Modulith assertions pin the four Asset contracts consumed by Graph, and
+  an ArchUnit rule prevents Asset persistence types from leaking back.
+- Existing graph target validation, current-version checks, chunk loading, and
+  opaque not-found behavior remain covered by focused tests.
+- Focused Asset query, Graph, and Modulith tests, `:core:test`, docs/release
+  checks, and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before the remaining Graph dependency seams are assessed.
+
+Pre-PR verification completed: focused Asset query, Graph, and exact Modulith
+boundary tests passed in 21s; `:core:test` passed in 1m12s; the docs
+operating-model check passed across 427 Markdown files and 8 mirrored domain
+pairs; all 37 release-policy tests passed under Node 24.15; and the terminating
+repository-wide `clean test` completed successfully in 4m57s across 99 tasks.
+Diff hygiene, the zero Graph-to-Asset-persistence import scan, and the 16-path
+PR scope check passed.
