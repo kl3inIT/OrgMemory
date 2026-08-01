@@ -10,6 +10,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
+import org.springframework.modulith.core.ApplicationModuleInformation;
 import org.springframework.modulith.core.ApplicationModules;
 
 class ModulithVerificationTests {
@@ -450,10 +451,28 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeConnectorIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeConnectorIsAClosedNestedModule() {
         var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var declaredDependencies = ApplicationModuleInformation.of(connector.getBasePackage())
+                .getDeclaredDependencies()
+                .stream()
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(connector.isOpen());
+        assertFalse(connector.isOpen());
+        assertEquals(
+                Set.of(
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge.retrieval",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error",
+                        "shared::secret"),
+                declaredDependencies);
     }
 
     @Test
