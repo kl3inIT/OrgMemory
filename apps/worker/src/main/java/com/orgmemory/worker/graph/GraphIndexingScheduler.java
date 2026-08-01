@@ -3,6 +3,7 @@ package com.orgmemory.worker.graph;
 import com.orgmemory.worker.WorkProcessingResult;
 import java.util.Objects;
 import java.util.function.LongSupplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
@@ -22,6 +23,7 @@ class GraphIndexingScheduler implements ApplicationListener<ContextClosedEvent> 
     private final LongSupplier nanoTime;
     private volatile boolean acceptingWork = true;
 
+    @Autowired
     GraphIndexingScheduler(
             GraphIndexingProcessor processor,
             GraphIndexingProperties properties) {
