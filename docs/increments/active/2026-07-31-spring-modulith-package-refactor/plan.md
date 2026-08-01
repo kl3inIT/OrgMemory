@@ -392,7 +392,7 @@ PR #206 merged as `0f0ebd4438c83257c2810d5ad2c3f1356a3b4f06` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Sixteenth Pull Request Evidence
 
 - Source Ledger owns the graph-index scheduling port used after source
   publication reaches READY.
@@ -414,3 +414,37 @@ pairs; all 37 release-policy tests passed; and the terminating repository
 `clean test` gate completed successfully in 4m55s across 108 tasks. Diff
 hygiene and the zero Source Ledger-to-Graph import check passed. The pre-stage
 worktree contains 7 changed paths.
+
+PR #207 merged as `109d03a3a367f1e8d0f7008b2af04139fff24ddf` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- ACL owns the compact source target value used to create and advance an ACL
+  head; it no longer accepts a Source Ledger persistence entity.
+- ACL generation conflicts preserve the existing conflict category and stable
+  `knowledge-ingestion.conflict` code without importing the Source Ledger
+  exception type.
+- Production and test code under `knowledge.acl` have zero imports from
+  `knowledge.sourceledger`; an ArchUnit rule prevents that edge returning.
+- Focused ACL head, Source Ledger query, and Modulith tests pass.
+- `:core:test` and the repository terminating `clean test` gate pass.
+- The pull request changes fewer than 100 files and completes the normal
+  CI/review/merge loop before the reverse Source Ledger-to-ACL boundary is
+  addressed.
+
+Pre-PR verification completed: production and test sources across Core, API,
+and Worker compiled; focused ACL head, Source Ledger query, and Modulith tests
+passed in 42s; `:core:test` passed in 1m17s; the docs operating-model check
+passed across 397 Markdown files and 8 mirrored domain pairs; all 37
+release-policy tests passed; and the terminating repository `clean test` gate
+completed successfully in 4m55s across 108 tasks. Diff hygiene and the zero
+ACL-to-Source Ledger import check passed. The pre-stage worktree contains 12
+changed paths.
+
+CodeRabbit identified that independently supplied ACL targets and snapshots
+also needed an explicit organization/raw-source identity match. The constructor
+and advance path now reject both mismatch classes before mutating the head;
+four focused mismatch cases passed, and the terminating repository `clean
+test` gate passed again in 5m28s across 99 tasks.

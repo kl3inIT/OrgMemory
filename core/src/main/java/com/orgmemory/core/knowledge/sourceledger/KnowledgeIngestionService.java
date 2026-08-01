@@ -12,6 +12,7 @@ import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSeal;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotSealRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclTarget;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
 
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
@@ -178,9 +179,9 @@ public class KnowledgeIngestionService {
         aclEntries.saveAllAndFlush(entries);
         sealSnapshot(snapshot, command.aclEntries(), capturedAt);
         if (head == null) {
-            aclHeads.save(new SourceAclHead(raw, snapshot));
+            aclHeads.save(new SourceAclHead(sourceAclTarget(raw), snapshot));
         } else {
-            head.advance(raw, snapshot);
+            head.advance(sourceAclTarget(raw), snapshot);
             aclHeads.save(head);
         }
         return rawRef(raw, snapshot);
@@ -275,7 +276,7 @@ public class KnowledgeIngestionService {
                         command.organizationId(), snapshot.getId(), entry, capturedAt))
                 .toList());
         sealSnapshot(snapshot, command.aclEntries(), capturedAt);
-        head.advance(raw, snapshot);
+        head.advance(sourceAclTarget(raw), snapshot);
         aclHeads.save(head);
         return rotationRef(snapshot);
     }
@@ -699,6 +700,15 @@ public class KnowledgeIngestionService {
 
     private static RawSourceRef rawRef(RawSourceObject raw, SourceAclSnapshot snapshot) {
         return new RawSourceRef(raw.getId(), snapshot.getId(), raw.getStatus());
+    }
+
+    private static SourceAclTarget sourceAclTarget(RawSourceObject raw) {
+        return new SourceAclTarget(
+                raw.getId(),
+                raw.getOrganizationId(),
+                raw.getSourceSystem(),
+                raw.getSourceConnectionKey(),
+                raw.getExternalObjectId());
     }
 
     private static SourceAclRotationRef rotationRef(SourceAclSnapshot snapshot) {

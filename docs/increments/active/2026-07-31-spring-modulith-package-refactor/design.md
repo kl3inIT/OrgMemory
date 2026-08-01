@@ -259,6 +259,20 @@ The port returns no Graph job type because Source Ledger does not consume the
 job identity. An ArchUnit rule now makes any new Source Ledger-to-Graph
 dependency fail the build.
 
+## Seventh Cycle-Removal Slice
+
+ACL no longer imports the Source Ledger entity or ingestion exception merely
+to advance its own heads. ACL owns a compact source target value carrying only
+the stable identity fields required by the head, while Source Ledger translates
+its raw-source entity at the call boundary.
+
+Generation conflicts retain the existing transport-neutral conflict category
+and stable `knowledge-ingestion.conflict` code through the shared business
+exception. An ArchUnit rule now makes any new ACL-to-Source Ledger dependency
+fail the build. The reverse Source Ledger-to-ACL dependency remains explicit
+for the next slice, where transaction orchestration can be moved behind an
+ACL-owned API without mixing that larger change into this entity boundary.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

@@ -1,8 +1,7 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
-
 import com.orgmemory.core.shared.BaseEntity;
+import com.orgmemory.core.shared.error.BusinessConflictException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -51,7 +50,8 @@ public class SourceGroupMembershipHead extends BaseEntity {
         }
         if (currentSnapshotId != null
                 && snapshot.getMembershipGeneration() <= membershipGeneration) {
-            throw new KnowledgeIngestionConflictException(
+            throw new BusinessConflictException(
+                    "knowledge-ingestion.conflict",
                     "membership generation must advance monotonically");
         }
         this.currentSnapshotId = snapshot.getId();

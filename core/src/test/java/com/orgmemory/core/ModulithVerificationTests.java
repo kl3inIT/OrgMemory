@@ -138,6 +138,20 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAclDoesNotDependOnSourceLedgerImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.acl");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.acl..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.sourceledger..")
+                .check(classes);
+    }
+
+    @Test
     void knowledgeConnectorIsAnOpenNestedModuleDuringTheRefactor() {
         var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
 

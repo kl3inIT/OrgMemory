@@ -1,9 +1,7 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
-import com.orgmemory.core.knowledge.sourceledger.RawSourceObject;
-
 import com.orgmemory.core.shared.BaseEntity;
+import com.orgmemory.core.shared.error.BusinessConflictException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -37,30 +35,44 @@ public class SourceAclHead extends BaseEntity {
     protected SourceAclHead() {
     }
 
-    public SourceAclHead(RawSourceObject raw, SourceAclSnapshot snapshot) {
+    public SourceAclHead(SourceAclTarget target, SourceAclSnapshot snapshot) {
         super(UUID.randomUUID());
-        this.organizationId = raw.getOrganizationId();
-        this.sourceSystem = raw.getSourceSystem();
-        this.sourceConnectionKey = raw.getSourceConnectionKey();
-        this.externalObjectId = raw.getExternalObjectId();
-        this.currentRawSourceObjectId = raw.getId();
+        requireMatchingSnapshot(target, snapshot);
+        this.organizationId = target.organizationId();
+        this.sourceSystem = target.sourceSystem();
+        this.sourceConnectionKey = target.sourceConnectionKey();
+        this.externalObjectId = target.externalObjectId();
+        this.currentRawSourceObjectId = target.rawSourceObjectId();
         this.currentSnapshotId = snapshot.getId();
         this.aclGeneration = snapshot.getAclGeneration();
     }
 
-    public void advance(RawSourceObject raw, SourceAclSnapshot snapshot) {
-        if (!organizationId.equals(raw.getOrganizationId())
-                || !sourceSystem.equals(raw.getSourceSystem())
-                || !sourceConnectionKey.equals(raw.getSourceConnectionKey())
-                || !externalObjectId.equals(raw.getExternalObjectId())) {
+    public void advance(SourceAclTarget target, SourceAclSnapshot snapshot) {
+        requireMatchingSnapshot(target, snapshot);
+        if (!organizationId.equals(target.organizationId())
+                || !sourceSystem.equals(target.sourceSystem())
+                || !sourceConnectionKey.equals(target.sourceConnectionKey())
+                || !externalObjectId.equals(target.externalObjectId())) {
             throw new IllegalArgumentException("ACL head identity does not match the raw source object");
         }
         if (snapshot.getAclGeneration() <= aclGeneration) {
-            throw new KnowledgeIngestionConflictException("ACL generation must advance monotonically");
+            throw new BusinessConflictException(
+                    "knowledge-ingestion.conflict",
+                    "ACL generation must advance monotonically");
         }
-        currentRawSourceObjectId = raw.getId();
+        currentRawSourceObjectId = target.rawSourceObjectId();
         currentSnapshotId = snapshot.getId();
         aclGeneration = snapshot.getAclGeneration();
+    }
+
+    private static void requireMatchingSnapshot(
+            SourceAclTarget target,
+            SourceAclSnapshot snapshot) {
+        if (!target.organizationId().equals(snapshot.getOrganizationId())
+                || !target.rawSourceObjectId().equals(snapshot.getRawSourceObjectId())) {
+            throw new IllegalArgumentException(
+                    "ACL target and snapshot must identify the same source");
+        }
     }
 
     public UUID getCurrentRawSourceObjectId() {
