@@ -35,6 +35,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Observability platform: payload boundary, collector stack, and dashboards | shipped | [completed verification](increments/completed/2026-07-30-observability-platform/verification.md) |
 | Observability pipeline and payload boundary | shipped | [completed verification](increments/completed/2026-07-29-observability-pipeline/verification.md) |
 | Authorization consolidation: typed batch-recheck policy and served governance affordances | shipped | [completed plan](increments/completed/2026-08-01-authz-consolidation/plan.md), [decision 0023](decisions/0023-batch-recheck-policy-and-served-affordances.md) |
+| Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
 
 The table is a delivery index, not a second description of current behavior.
 

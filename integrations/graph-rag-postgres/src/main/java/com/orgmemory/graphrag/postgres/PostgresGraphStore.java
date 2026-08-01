@@ -116,17 +116,117 @@ public final class PostgresGraphStore implements GraphStore {
                     )
               )
             """;
+    private static final String UPSERT_ENTITY = """
+            INSERT INTO projection_graph_entities (
+                batch_id, entity_id, normalized_name)
+            VALUES (:batchId, :entityId, :normalizedName)
+            ON CONFLICT (batch_id, entity_id)
+            DO UPDATE SET normalized_name = EXCLUDED.normalized_name
+            """;
+    private static final String UPSERT_ENTITY_CONTRIBUTION = """
+            INSERT INTO projection_graph_entity_contributions (
+                batch_id, contribution_id, entity_id, entity_type, description,
+                organization_id, knowledge_asset_id, source_revision_id, chunk_id,
+                acl_snapshot_id, acl_generation, projection_generation,
+                extractor_provider, extractor_model, prompt_version,
+                extraction_profile_fingerprint, confidence, extracted_at)
+            VALUES (
+                :batchId, :contributionId, :entityId, :entityType, :description,
+                :organizationId, :knowledgeAssetId, :sourceRevisionId, :chunkId,
+                :aclSnapshotId, :aclGeneration, :projectionGeneration,
+                :extractorProvider, :extractorModel, :promptVersion,
+                :extractionProfileFingerprint, :confidence, :extractedAt)
+            ON CONFLICT (batch_id, contribution_id)
+            DO UPDATE SET
+                entity_id = EXCLUDED.entity_id,
+                entity_type = EXCLUDED.entity_type,
+                description = EXCLUDED.description,
+                organization_id = EXCLUDED.organization_id,
+                knowledge_asset_id = EXCLUDED.knowledge_asset_id,
+                source_revision_id = EXCLUDED.source_revision_id,
+                chunk_id = EXCLUDED.chunk_id,
+                acl_snapshot_id = EXCLUDED.acl_snapshot_id,
+                acl_generation = EXCLUDED.acl_generation,
+                projection_generation = EXCLUDED.projection_generation,
+                extractor_provider = EXCLUDED.extractor_provider,
+                extractor_model = EXCLUDED.extractor_model,
+                prompt_version = EXCLUDED.prompt_version,
+                extraction_profile_fingerprint =
+                    EXCLUDED.extraction_profile_fingerprint,
+                confidence = EXCLUDED.confidence,
+                extracted_at = EXCLUDED.extracted_at
+            """;
+    private static final String UPSERT_RELATION = """
+            INSERT INTO projection_graph_relations (
+                batch_id, relation_id, source_entity_id, target_entity_id, orientation)
+            VALUES (
+                :batchId, :relationId, :sourceEntityId, :targetEntityId, :orientation)
+            ON CONFLICT (batch_id, relation_id)
+            DO UPDATE SET
+                source_entity_id = EXCLUDED.source_entity_id,
+                target_entity_id = EXCLUDED.target_entity_id,
+                orientation = EXCLUDED.orientation
+            """;
+    private static final String UPSERT_RELATION_CONTRIBUTION = """
+            INSERT INTO projection_graph_relation_contributions (
+                batch_id, contribution_id, relation_id, relation_type, keywords,
+                description, weight, organization_id, knowledge_asset_id,
+                source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
+                projection_generation, extractor_provider, extractor_model,
+                prompt_version, extraction_profile_fingerprint, confidence, extracted_at)
+            VALUES (
+                :batchId, :contributionId, :relationId, :relationType, :keywords,
+                :description, :weight, :organizationId, :knowledgeAssetId,
+                :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
+                :projectionGeneration, :extractorProvider, :extractorModel,
+                :promptVersion, :extractionProfileFingerprint, :confidence, :extractedAt)
+            ON CONFLICT (batch_id, contribution_id)
+            DO UPDATE SET
+                relation_id = EXCLUDED.relation_id,
+                relation_type = EXCLUDED.relation_type,
+                keywords = EXCLUDED.keywords,
+                description = EXCLUDED.description,
+                weight = EXCLUDED.weight,
+                organization_id = EXCLUDED.organization_id,
+                knowledge_asset_id = EXCLUDED.knowledge_asset_id,
+                source_revision_id = EXCLUDED.source_revision_id,
+                chunk_id = EXCLUDED.chunk_id,
+                acl_snapshot_id = EXCLUDED.acl_snapshot_id,
+                acl_generation = EXCLUDED.acl_generation,
+                projection_generation = EXCLUDED.projection_generation,
+                extractor_provider = EXCLUDED.extractor_provider,
+                extractor_model = EXCLUDED.extractor_model,
+                prompt_version = EXCLUDED.prompt_version,
+                extraction_profile_fingerprint =
+                    EXCLUDED.extraction_profile_fingerprint,
+                confidence = EXCLUDED.confidence,
+                extracted_at = EXCLUDED.extracted_at
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final PostgresProjectionSupport support;
+    private final int batchSize;
 
     public PostgresGraphStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             PostgresProjectionPublicationStore publications) {
+        this(
+                jdbc,
+                transactionManager,
+                publications,
+                PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    public PostgresGraphStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications,
+            int batchSize) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.support =
                 new PostgresProjectionSupport(jdbc, transactionManager, publications);
+        this.batchSize = PostgresBatchOperations.requireBatchSize(batchSize);
     }
 
     @Override
@@ -142,8 +242,30 @@ public final class PostgresGraphStore implements GraphStore {
         }
         support.stage(batch, ProjectionKind.GRAPH, COPY_PREDECESSOR, () -> {
             deleteRevision(batch.id(), contributions.sourceRevisionId());
-            contributions.entities().forEach(entity -> upsertEntity(batch, entity));
-            contributions.relations().forEach(relation -> upsertRelation(batch, relation));
+            PostgresBatchOperations.batchUpdate(
+                    jdbc,
+                    UPSERT_ENTITY,
+                    contributions.entities(),
+                    batchSize,
+                    (index, contribution) -> entityParameters(batch, contribution));
+            PostgresBatchOperations.batchUpdate(
+                    jdbc,
+                    UPSERT_ENTITY_CONTRIBUTION,
+                    contributions.entities(),
+                    batchSize,
+                    (index, contribution) -> contributionParameters(batch, contribution));
+            PostgresBatchOperations.batchUpdate(
+                    jdbc,
+                    UPSERT_RELATION,
+                    contributions.relations(),
+                    batchSize,
+                    (index, contribution) -> relationParameters(batch, contribution));
+            PostgresBatchOperations.batchUpdate(
+                    jdbc,
+                    UPSERT_RELATION_CONTRIBUTION,
+                    contributions.relations(),
+                    batchSize,
+                    (index, contribution) -> contributionParameters(batch, contribution));
             removeOrphans(batch.id());
         });
     }
@@ -507,111 +629,13 @@ public final class PostgresGraphStore implements GraphStore {
                         """));
     }
 
-    private void upsertEntity(
+    private static MapSqlParameterSource entityParameters(
             ProjectionBatch batch,
             EntityContribution contribution) {
-        jdbc.update(
-                """
-                INSERT INTO projection_graph_entities (
-                    batch_id, entity_id, normalized_name)
-                VALUES (:batchId, :entityId, :normalizedName)
-                ON CONFLICT (batch_id, entity_id)
-                DO UPDATE SET normalized_name = EXCLUDED.normalized_name
-                """,
-                Map.of(
-                        "batchId", batch.id(),
-                        "entityId", contribution.entity().id(),
-                        "normalizedName", contribution.entity().normalizedName()));
-        jdbc.update(
-                """
-                INSERT INTO projection_graph_entity_contributions (
-                    batch_id, contribution_id, entity_id, entity_type, description,
-                    organization_id, knowledge_asset_id, source_revision_id, chunk_id,
-                    acl_snapshot_id, acl_generation, projection_generation,
-                    extractor_provider, extractor_model, prompt_version,
-                    extraction_profile_fingerprint, confidence, extracted_at)
-                VALUES (
-                    :batchId, :contributionId, :entityId, :entityType, :description,
-                    :organizationId, :knowledgeAssetId, :sourceRevisionId, :chunkId,
-                    :aclSnapshotId, :aclGeneration, :projectionGeneration,
-                    :extractorProvider, :extractorModel, :promptVersion,
-                    :extractionProfileFingerprint, :confidence, :extractedAt)
-                ON CONFLICT (batch_id, contribution_id)
-                DO UPDATE SET
-                    entity_id = EXCLUDED.entity_id,
-                    entity_type = EXCLUDED.entity_type,
-                    description = EXCLUDED.description,
-                    organization_id = EXCLUDED.organization_id,
-                    knowledge_asset_id = EXCLUDED.knowledge_asset_id,
-                    source_revision_id = EXCLUDED.source_revision_id,
-                    chunk_id = EXCLUDED.chunk_id,
-                    acl_snapshot_id = EXCLUDED.acl_snapshot_id,
-                    acl_generation = EXCLUDED.acl_generation,
-                    projection_generation = EXCLUDED.projection_generation,
-                    extractor_provider = EXCLUDED.extractor_provider,
-                    extractor_model = EXCLUDED.extractor_model,
-                    prompt_version = EXCLUDED.prompt_version,
-                    extraction_profile_fingerprint =
-                        EXCLUDED.extraction_profile_fingerprint,
-                    confidence = EXCLUDED.confidence,
-                    extracted_at = EXCLUDED.extracted_at
-                """,
-                contributionParameters(batch, contribution));
-    }
-
-    private void upsertRelation(
-            ProjectionBatch batch,
-            RelationContribution contribution) {
-        jdbc.update(
-                """
-                INSERT INTO projection_graph_relations (
-                    batch_id, relation_id, source_entity_id, target_entity_id, orientation)
-                VALUES (
-                    :batchId, :relationId, :sourceEntityId, :targetEntityId, :orientation)
-                ON CONFLICT (batch_id, relation_id)
-                DO UPDATE SET
-                    source_entity_id = EXCLUDED.source_entity_id,
-                    target_entity_id = EXCLUDED.target_entity_id,
-                    orientation = EXCLUDED.orientation
-                """,
-                relationParameters(batch, contribution));
-        jdbc.update(
-                """
-                INSERT INTO projection_graph_relation_contributions (
-                    batch_id, contribution_id, relation_id, relation_type, keywords,
-                    description, weight, organization_id, knowledge_asset_id,
-                    source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
-                    projection_generation, extractor_provider, extractor_model,
-                    prompt_version, extraction_profile_fingerprint, confidence, extracted_at)
-                VALUES (
-                    :batchId, :contributionId, :relationId, :relationType, :keywords,
-                    :description, :weight, :organizationId, :knowledgeAssetId,
-                    :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
-                    :projectionGeneration, :extractorProvider, :extractorModel,
-                    :promptVersion, :extractionProfileFingerprint, :confidence, :extractedAt)
-                ON CONFLICT (batch_id, contribution_id)
-                DO UPDATE SET
-                    relation_id = EXCLUDED.relation_id,
-                    relation_type = EXCLUDED.relation_type,
-                    keywords = EXCLUDED.keywords,
-                    description = EXCLUDED.description,
-                    weight = EXCLUDED.weight,
-                    organization_id = EXCLUDED.organization_id,
-                    knowledge_asset_id = EXCLUDED.knowledge_asset_id,
-                    source_revision_id = EXCLUDED.source_revision_id,
-                    chunk_id = EXCLUDED.chunk_id,
-                    acl_snapshot_id = EXCLUDED.acl_snapshot_id,
-                    acl_generation = EXCLUDED.acl_generation,
-                    projection_generation = EXCLUDED.projection_generation,
-                    extractor_provider = EXCLUDED.extractor_provider,
-                    extractor_model = EXCLUDED.extractor_model,
-                    prompt_version = EXCLUDED.prompt_version,
-                    extraction_profile_fingerprint =
-                        EXCLUDED.extraction_profile_fingerprint,
-                    confidence = EXCLUDED.confidence,
-                    extracted_at = EXCLUDED.extracted_at
-                """,
-                contributionParameters(batch, contribution));
+        return new MapSqlParameterSource()
+                .addValue("batchId", batch.id())
+                .addValue("entityId", contribution.entity().id())
+                .addValue("normalizedName", contribution.entity().normalizedName());
     }
 
     private void deleteRevision(UUID batchId, UUID sourceRevisionId) {

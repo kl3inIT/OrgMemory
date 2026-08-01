@@ -16,6 +16,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.worker.WorkProcessingResult;
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
@@ -66,6 +67,24 @@ class GraphIndexingProcessorTests {
     private static final UUID EMBEDDING_PROFILE_ID = UUID.randomUUID();
     private static final UUID CHUNK_ID = UUID.randomUUID();
     private static final UUID SECOND_CHUNK_ID = UUID.randomUUID();
+
+    @Test
+    void reportsEmptyWhenNoJobCanBeClaimed() {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        GraphIndexingProperties properties = properties();
+        when(coordinator.claimNext(properties.workerId(), properties.leaseDuration()))
+                .thenReturn(Optional.empty());
+        GraphIndexingProcessor processor = processor(
+                coordinator,
+                mock(GraphPublicationCommitter.class),
+                mock(GraphExtractorFactory.class),
+                provider(mock(EmbeddingModel.class)),
+                mock(AiRouteResolver.class),
+                properties,
+                mock(GraphRagEventSink.class));
+
+        assertEquals(WorkProcessingResult.EMPTY_OR_DEFERRED, processor.processNext());
+    }
 
     @Test
     void publishesOneAtomicProjectionAndCompletesTheDurableJob() {
@@ -645,7 +664,9 @@ class GraphIndexingProcessorTests {
                 "graph-worker-test",
                 leaseDuration,
                 extractionTimeout,
-                2);
+                2,
+                null,
+                null);
     }
 
     private static ObjectProvider<EmbeddingModel> provider(EmbeddingModel embeddingModel) {

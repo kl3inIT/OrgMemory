@@ -20,7 +20,9 @@ public record SourceProcessingProperties(
         Integer chunkSize,
         Integer chunkOverlap,
         Integer semanticEmbeddingBatchSize,
-        Integer maximumChunks) {
+        Integer maximumChunks,
+        Integer maxJobsPerInvocation,
+        Duration maxWallClock) {
 
     public SourceProcessingProperties {
         workerId = workerId == null || workerId.isBlank()
@@ -40,6 +42,8 @@ public record SourceProcessingProperties(
         semanticEmbeddingBatchSize =
                 semanticEmbeddingBatchSize == null ? 64 : semanticEmbeddingBatchSize;
         maximumChunks = maximumChunks == null ? 500 : maximumChunks;
+        maxJobsPerInvocation = maxJobsPerInvocation == null ? 10 : maxJobsPerInvocation;
+        maxWallClock = maxWallClock == null ? Duration.ofSeconds(30) : maxWallClock;
         Assert.isTrue(!leaseDuration.isNegative() && !leaseDuration.isZero(), "lease duration must be positive");
         Assert.isTrue(
                 embeddingDimensions > 0 && embeddingDimensions <= 16000,
@@ -54,6 +58,14 @@ public record SourceProcessingProperties(
         Assert.isTrue(
                 maximumChunks < Integer.MAX_VALUE,
                 "maximumChunks must allow a sentinel chunk");
+        Assert.isTrue(
+                maxJobsPerInvocation > 0 && maxJobsPerInvocation <= 100,
+                "maxJobsPerInvocation must be between 1 and 100");
+        Assert.isTrue(
+                !maxWallClock.isNegative()
+                        && !maxWallClock.isZero()
+                        && maxWallClock.compareTo(Duration.ofMinutes(10)) <= 0,
+                "maxWallClock must be between zero and ten minutes");
     }
 
     private static String defaultText(String value, String fallback) {
