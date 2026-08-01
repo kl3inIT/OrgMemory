@@ -6,7 +6,12 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bin": {
-    "orgmemory": "./dist/index.js"
+    "orgmemory": "dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kl3inIT/OrgMemory.git",
+    "directory": "apps/cli"
   },
   "files": [
     "dist",

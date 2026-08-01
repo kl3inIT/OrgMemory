@@ -30,6 +30,9 @@
 - [x] Add a dedicated Node 24 npm Trusted Publishing workflow with OIDC,
   provenance, no cache, exact-main validation, and an approval environment.
 - [x] Add workflow-policy tests and a first-publication bootstrap runbook.
+- [x] Correct the bootstrap for npm 11 pre-publication `npm trust github`, bind
+  provenance to the monorepo package directory, and execute the packed CLI
+  before publication.
 - [ ] Publish and verify the first package version when npm organization access
   is available.
 
