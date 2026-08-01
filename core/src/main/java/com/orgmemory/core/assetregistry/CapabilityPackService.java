@@ -1,7 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -18,14 +18,14 @@ public class CapabilityPackService {
 
     private final AssetRegistryService assets;
     private final CapabilityPackProfile profile;
-    private final KnowledgeCatalogService knowledge;
+    private final KnowledgeCatalogQuery knowledge;
     private final PackAssignmentRepository assignments;
     private final PackProgressRepository progress;
 
     CapabilityPackService(
             AssetRegistryService assets,
             CapabilityPackProfile profile,
-            KnowledgeCatalogService knowledge,
+            KnowledgeCatalogQuery knowledge,
             PackAssignmentRepository assignments,
             PackProgressRepository progress) {
         this.assets = assets;
@@ -252,7 +252,7 @@ public class CapabilityPackService {
                         false,
                         null));
             }
-            Optional<KnowledgeCatalogItem> component = knowledge.findExactVisible(
+            Optional<KnowledgeCatalogEntry> component = knowledge.findExactVisible(
                     actor, item.knowledgeAssetId(), item.knowledgeVersionId());
             return component.map(value -> new PackJourney.Item(
                     item.key(),
@@ -290,7 +290,7 @@ public class CapabilityPackService {
                         component.versionLabel(),
                         component.availability()));
             }
-            Optional<KnowledgeCatalogItem> component = knowledge.findExactVisible(
+            Optional<KnowledgeCatalogEntry> component = knowledge.findExactVisible(
                     actor, item.knowledgeAssetId(), item.knowledgeVersionId());
             return component.map(value -> new CapabilityPackDefinition.Item(
                     item.key(),

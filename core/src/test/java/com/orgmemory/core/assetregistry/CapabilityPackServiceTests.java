@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +29,7 @@ class CapabilityPackServiceTests {
     @Test
     void deniedComponentsCollapseIntoOneOpaqueAccessGap() {
         AssetRegistryService assets = mock(AssetRegistryService.class);
-        KnowledgeCatalogService knowledge = mock(KnowledgeCatalogService.class);
+        KnowledgeCatalogQuery knowledge = mock(KnowledgeCatalogQuery.class);
         PackAssignmentRepository assignments = mock(PackAssignmentRepository.class);
         PackProgressRepository progress = mock(PackProgressRepository.class);
         CapabilityPackService service = new CapabilityPackService(
