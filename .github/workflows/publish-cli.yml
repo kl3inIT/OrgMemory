@@ -86,9 +86,11 @@ jobs:
       - name: Inspect publish tarball
         working-directory: apps/cli
         shell: bash
+        env:
+          PACKAGE_VERSION: ${{ inputs.package_version }}
         run: |
           set -euo pipefail
-          npm pack --dry-run --json > "$RUNNER_TEMP/orgmemory-cli-pack.json"
+          npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/orgmemory-cli-pack.json"
           node - <<'NODE'
           const fs = require('node:fs')
           const [pack] = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/orgmemory-cli-pack.json', 'utf8'))
@@ -102,6 +104,9 @@ jobs:
             throw new Error(`Source or environment file leaked into tarball: ${paths.join(', ')}`)
           }
           NODE
+          filename="$(node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/orgmemory-cli-pack.json', 'utf8'))[0].filename")"
+          tarball="$RUNNER_TEMP/$filename"
+          npm exec --yes --package="$tarball" -- orgmemory --version | grep -Fx "$PACKAGE_VERSION"
 
       - name: Publish with npm Trusted Publishing
         working-directory: apps/cli
