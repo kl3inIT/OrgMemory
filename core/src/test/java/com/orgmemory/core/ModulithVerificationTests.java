@@ -131,10 +131,21 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeAclIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeAclIsAClosedNestedModule() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+        var allowedDependencies = acl.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(acl.isOpen());
+        assertFalse(acl.isOpen());
+        assertEquals(
+                Set.of(
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
