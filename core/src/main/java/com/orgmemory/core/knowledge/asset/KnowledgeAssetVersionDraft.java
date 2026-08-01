@@ -1,22 +1,19 @@
-package com.orgmemory.core.knowledge.sourceledger;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.util.UUID;
 
-/** Validated source-ledger facts needed by the asset module to create one version. */
-public record KnowledgeAssetPromotionRequest(
+/** Asset-owned immutable facts used to create one pending version. */
+record KnowledgeAssetVersionDraft(
         UUID organizationId,
-        UUID knowledgeSpaceId,
-        UUID sourceObjectId,
-        UUID sourceRevisionId,
-        UUID normalizedRecordId,
         UUID rawSourceObjectId,
+        UUID normalizedRecordId,
         UUID sourceAclSnapshotId,
         UUID departmentId,
         String title,
-        String normalizedContent,
+        String content,
         String language,
         KnowledgeClassification classification,
         DeclaredAccessScope declaredAccess,

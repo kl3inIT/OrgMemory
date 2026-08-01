@@ -3,9 +3,9 @@ package com.orgmemory.core.knowledge.asset;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService;
 import com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand;
+import com.orgmemory.core.knowledge.sourceledger.PublishSourceRevisionCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef;
-import com.orgmemory.core.knowledge.sourceledger.SourceObject;
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourcePublicationService;
 
 import com.orgmemory.core.permission.AccessGate;
 import java.time.Instant;
@@ -26,7 +26,7 @@ class KnowledgeAssetPublicationCoordinator {
     private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeAssetPublicationOutboxRepository publications;
     private final KnowledgeChunkProjectionStore chunks;
-    private final SourceObjectRepository sources;
+    private final SourcePublicationService sourcePublications;
 
     KnowledgeAssetPublicationCoordinator(
             KnowledgeIngestionService ingestion,
@@ -34,13 +34,13 @@ class KnowledgeAssetPublicationCoordinator {
             KnowledgeAssetVersionRepository versions,
             KnowledgeAssetPublicationOutboxRepository publications,
             KnowledgeChunkProjectionStore chunks,
-            SourceObjectRepository sources) {
+            SourcePublicationService sourcePublications) {
         this.ingestion = ingestion;
         this.assets = assets;
         this.versions = versions;
         this.publications = publications;
         this.chunks = chunks;
-        this.sources = sources;
+        this.sourcePublications = sourcePublications;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -163,13 +163,13 @@ class KnowledgeAssetPublicationCoordinator {
         }
         version.activate(appliedAt);
         asset.useVersion(version.getId());
-        SourceObject source = sources.findById(publication.getSourceObjectId())
-                .orElseThrow(() -> new IllegalStateException("Publication source object is missing"));
-        source.publishRevision(publication.getSourceRevisionId());
+        sourcePublications.publishRevision(new PublishSourceRevisionCommand(
+                organizationId,
+                publication.getSourceObjectId(),
+                publication.getSourceRevisionId()));
         publication.markApplied(authorizationModelId, appliedAt);
         assets.save(asset);
         versions.save(version);
-        sources.save(source);
         publications.save(publication);
         return assetRef(asset, version);
     }
