@@ -257,6 +257,42 @@ class GoogleDriveConnectorBatchSourceTests {
     }
 
     @Test
+    void pinsGoldenCursorBytesAcrossContentAndPermissionPasses() {
+        MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
+        GoogleDriveConnectorBatchSource source = source(clock);
+
+        expectToken();
+        expectList(FILES);
+        expectExport("1-handbook", "Anything.");
+        ConnectorCrawlBatch content = source.pendingBatches().batches().getFirst();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectToken();
+        expectList(FILES);
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                List.of(
+                        "google-drive-236368f4219ffc64e1492fefbfe0d90808d29bbb7e808b5ac3ef4873eaf6013e",
+                        "google-drive-content-33a3e6261b89dce729fa079d7643a6abea91f777d62b5d5ce0603ee5c4cec053",
+                        "google-drive-permission-502fa9722312e0a782ac900c2de6ca45c859cec588ddf067e80ec16a9d9e7765",
+                        "google-drive-membership-bb49c7de6d77c90bed6999b4b9a1f52830ac9bd03e14f4590b64f9dbbb7904e9",
+                        "google-drive-a83dee02815f60cdb28c5943d54ab4cd3a224572a0603e24cfc3209b395b2849",
+                        "google-drive-permission-502fa9722312e0a782ac900c2de6ca45c859cec588ddf067e80ec16a9d9e7765",
+                        "google-drive-membership-bb49c7de6d77c90bed6999b4b9a1f52830ac9bd03e14f4590b64f9dbbb7904e9"),
+                List.of(
+                        content.crawlCursor(),
+                        content.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                        content.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        content.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor(),
+                        permissions.crawlCursor(),
+                        permissions.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        permissions.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor()));
+        server.verify();
+    }
+
+    @Test
     void reissuesAContentCrawlOnceTheIntervalElapses() {
         MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
         GoogleDriveConnectorBatchSource source = source(clock);

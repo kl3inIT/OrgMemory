@@ -140,6 +140,43 @@ class GitHubConnectorBatchSourceTests {
     }
 
     @Test
+    void pinsGoldenCursorBytesAcrossContentAndPermissionPasses() {
+        when(objects.activeObjectIds(ORG, "github", CONNECTION)).thenReturn(List.of(OBJECT_ID));
+        GitHubConnectorBatchSource source = source();
+
+        expectInstallation(2);
+        expectToken();
+        expectRepositories(PRIVATE_REPOSITORY);
+        expectCollaborators(TWO_READERS);
+        expectIssues(ONE_ISSUE);
+        expectRepositories(PRIVATE_REPOSITORY);
+        expectCollaborators(TWO_READERS);
+
+        ConnectorCrawlBatch content = source.pendingBatches().batches().getFirst();
+        clock.advance(Duration.ofMinutes(5));
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                List.of(
+                        "github-c1ddee3f9aafb66f049a60b4dcdeb8a464a38f3fc464e62ddbd9166a8d1ffe05",
+                        "github-content-b0c9d9fd98a8321a4eda318a6573d54b4f5c7cc0e7fc898528dbfc957f2c1142",
+                        "github-permission-de66ba4e0bb9c88f8904b31b0cde39adf897e44aa93fef71041dc19adcdf617c",
+                        "github-membership-cc2b05c36f215b81cb4ad117ecf7e059998f65919d3676137c776224c31eb3ca",
+                        "github-4b82f01a4c6c5a4bf06e58d6d1ca9c474390a7fbab23a6699a863c0fa757bdb2",
+                        "github-permission-de66ba4e0bb9c88f8904b31b0cde39adf897e44aa93fef71041dc19adcdf617c",
+                        "github-membership-cc2b05c36f215b81cb4ad117ecf7e059998f65919d3676137c776224c31eb3ca"),
+                List.of(
+                        content.crawlCursor(),
+                        content.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                        content.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        content.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor(),
+                        permissions.crawlCursor(),
+                        permissions.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        permissions.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor()));
+        server.verify();
+    }
+
+    @Test
     void unreadableCollaboratorsAreIncompleteAndNeverBecomeAnEmptyAcl() {
         expectInstallation(1);
         expectToken();

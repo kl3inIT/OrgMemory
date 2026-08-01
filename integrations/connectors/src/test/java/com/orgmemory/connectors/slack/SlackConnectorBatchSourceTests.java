@@ -287,6 +287,48 @@ class SlackConnectorBatchSourceTests {
     }
 
     @Test
+    void pinsGoldenCursorBytesAcrossContentAndPermissionPasses() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-07-23T09:00:00Z"));
+        SlackConnectorBatchSource source = source(List.of(), clock);
+        when(directory.activeObjectIds(ORG, "slack", CONNECTION))
+                .thenReturn(List.of("C-eng__1700000001.000100"));
+
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        expectHistory();
+        ConnectorCrawlBatch content = source.pendingBatches().batches().getFirst();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectAuth();
+        expectUsers();
+        expectChannels();
+        expectMembers();
+        ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
+
+        assertEquals(
+                List.of(
+                        "slack-a91eb56a1b9ad2821e66bcb04ac2c2043e6e775efcb42d186a329c520a413545",
+                        "slack-content-fc31f4bd0720a58863b26fb19c837e24815f4f855b2dec164c8133022290e69f",
+                        "slack-permission-f5c76da94b8ddd79def99ec9c22ecf98cbede32a3dee0892c44fb4df79aaed6b",
+                        "slack-membership-98b0cf25dff24f69567f4a3969af7607f014dee57ab5a103067bd20076785249",
+                        "slack-7b380a7481decc8ed602c5e5cd94b87b2254d5fcb600ae56af5e067c0dd8ef5b",
+                        "slack-permission-f5c76da94b8ddd79def99ec9c22ecf98cbede32a3dee0892c44fb4df79aaed6b",
+                        "slack-membership-98b0cf25dff24f69567f4a3969af7607f014dee57ab5a103067bd20076785249"),
+                List.of(
+                        content.crawlCursor(),
+                        content.componentState(ConnectorSyncComponent.CONTENT).cursor(),
+                        content.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        content.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor(),
+                        permissions.crawlCursor(),
+                        permissions.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
+                        permissions.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor()));
+        server.verify();
+    }
+
+    @Test
     void indexesAThreadOnceWhenAReplyWasBroadcastBackToTheChannel() {
         expectAuth();
         expectUsers();
