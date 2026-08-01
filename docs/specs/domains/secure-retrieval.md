@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-07-29-repository-operating-model-refresh (7cf1c8a)`.
+Reconciled: `2026-08-01-authz-consolidation (acd2b48f)`.
 
 ## Current Behavior
 
@@ -15,7 +15,12 @@ current ACL head, applied publication/model/profile generation, OrgMemory
 policy, and classification. OpenFGA `ListObjects` supplies candidate stable
 asset IDs. SQL applies every canonical predicate before PostgreSQL FTS,
 pgvector, or graph ranking and before model context assembly. OpenFGA
-`BatchCheck` and canonical SQL rechecks guard selected evidence. The resulting
+`BatchCheck` and canonical SQL rechecks guard selected evidence. Every serving
+surface performs that batch recheck through one shared collaborator with a
+mandatory typed result policy: hybrid search filters denied evidence and may
+return a partial result, while citation opens and the GraphRAG final closure
+require every decision allowed and fail the whole request otherwise. Each
+surface keeps its own deny-reason and exception mapping. The resulting
 evidence set is the immutable authorization snapshot for one Assistant turn.
 Only evidence that fits the model-context budget is exposed as a citation, and
 answer tokens stream without a post-generation authorization replay. A
