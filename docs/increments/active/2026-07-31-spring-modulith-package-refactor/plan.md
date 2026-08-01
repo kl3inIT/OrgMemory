@@ -481,7 +481,7 @@ PR #209 merged as `daeeb75adf3a6396522778ef9f5e7a7c83854935` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Nineteenth Pull Request Evidence
 
 - `knowledge.sourceledger` is a closed nested application module rather than
   an open migration module.
@@ -509,3 +509,39 @@ challenge. Both review findings are addressed without rerunning the settled
 challenge or changing the closure outcome. The focused Modulith, docs, and
 release gates passed, and the terminating repository `clean test` gate passed
 again in 1m23s across 99 tasks using the shared build cache.
+
+PR #210 merged as `4feaf5ca3a89b254c57932d2441747ced5c56b04` after all
+required CI checks passed. CodeRabbit confirmed both fixes and resolved both
+review threads before merge.
+
+## Current Pull Request Gates
+
+- ACL owns a read-only `SourceAclQuery` and immutable snapshot/Space-generation
+  facts for sibling consumers.
+- Retrieval and Graph no longer inject `SourceAclSnapshotRepository`; Graph no
+  longer consumes the `SourceAclSnapshot` JPA entity.
+- ACL has zero imports from Space, and the cross-owned
+  `KnowledgeSpaceAclGeneration` projection is removed.
+- Exact Modulith assertions pin the ACL contracts consumed by Retrieval and
+  Graph so persistence types cannot leak back across the boundary.
+- Focused ACL query, Retrieval, Graph, and Modulith tests pass; `:core:test` and
+  the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed
+  files before the ACL module-closing cycle begins.
+
+Pre-PR verification completed: focused ACL query, Retrieval, Graph, and
+Modulith tests passed; `:core:test` passed in 1m15s; the docs operating-model
+check passed across 400 Markdown files and 8 mirrored domain pairs; all 37
+release-policy tests passed under Node 24.15; and the terminating repository
+`clean test` gate completed successfully in 5m10s across 108 tasks.
+
+After merging current `origin/main` at `8f644113`, the docs check passed across
+404 Markdown files, all 37 release-policy tests passed again, the PR diff
+remained 16 paths, and a second terminating `clean test` completed successfully
+in 6m08s across 99 tasks.
+
+After merging current `origin/main` again at `acd2b48f`, including the
+authorization-consolidation changes, focused boundary tests passed in 46s, the
+docs check passed across 415 Markdown files, all 37 release-policy tests passed,
+and the terminating `clean test` completed successfully in 5m53s across 99
+tasks. The PR diff remains 16 paths.

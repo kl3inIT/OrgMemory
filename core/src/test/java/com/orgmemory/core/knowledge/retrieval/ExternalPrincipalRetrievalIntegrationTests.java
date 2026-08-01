@@ -2,10 +2,8 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
-
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
+import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
+import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -343,8 +341,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
         RelationshipAuthorizationSetPort authorization =
                 mock(RelationshipAuthorizationSetPort.class);
         KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
-        SourceAclSnapshotRepository snapshots =
-                mock(SourceAclSnapshotRepository.class);
+        SourceAclQuery aclQuery = mock(SourceAclQuery.class);
         @SuppressWarnings("unchecked")
         ObjectProvider<Clock> clocks = mock(ObjectProvider.class);
 
@@ -377,11 +374,9 @@ class ExternalPrincipalRetrievalIntegrationTests {
                         new KnowledgeAssetAuthorizationScope(
                                 ASSET2,
                                 SPACE)));
-        KnowledgeSpaceAclGeneration generation =
-                mock(KnowledgeSpaceAclGeneration.class);
-        when(generation.getKnowledgeSpaceId()).thenReturn(SPACE);
-        when(generation.getAclGeneration()).thenReturn(2L);
-        when(snapshots.maximumCurrentAclGenerations(any(), any()))
+        KnowledgeSpaceAclGenerationRef generation =
+                new KnowledgeSpaceAclGenerationRef(SPACE, 2L);
+        when(aclQuery.maximumCurrentAclGenerations(any(), any()))
                 .thenReturn(List.of(generation));
         when(clocks.getIfAvailable(any())).thenReturn(Clock.fixed(
                 EVALUATED_AT,
@@ -390,7 +385,7 @@ class ExternalPrincipalRetrievalIntegrationTests {
                 users,
                 authorization,
                 assets,
-                snapshots,
+                aclQuery,
                 store,
                 new KnowledgeRetrievalProperties(null, null, null, null),
                 clocks);

@@ -1,6 +1,5 @@
 package com.orgmemory.core.knowledge.acl;
 
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -32,7 +31,14 @@ public interface SourceAclSnapshotRepository extends JpaRepository<SourceAclSnap
               AND asset.id IN (:assetIds)
             GROUP BY asset.knowledge_space_id
             """, nativeQuery = true)
-    List<KnowledgeSpaceAclGeneration> maximumCurrentAclGenerations(
+    List<KnowledgeSpaceAclGenerationProjection> maximumCurrentAclGenerations(
             @Param("organizationId") UUID organizationId,
             @Param("assetIds") Collection<UUID> assetIds);
+}
+
+interface KnowledgeSpaceAclGenerationProjection {
+
+    UUID getKnowledgeSpaceId();
+
+    long getAclGeneration();
 }

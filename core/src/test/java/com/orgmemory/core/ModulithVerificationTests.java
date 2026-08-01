@@ -166,6 +166,58 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAclDoesNotDependOnSpaceImplementation() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.acl");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.acl..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.space..")
+                .check(classes);
+    }
+
+    @Test
+    void retrievalConsumesOnlyAclQueryContracts() {
+        var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(acl))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef",
+                        "com.orgmemory.core.knowledge.acl.SourceAclQuery"),
+                consumedTypes);
+    }
+
+    @Test
+    void graphConsumesOnlyAclQueryContracts() {
+        var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(acl))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.graph"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.acl.SourceAclQuery",
+                        "com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef"),
+                consumedTypes);
+    }
+
+    @Test
     void sourceLedgerConsumesOnlyAclFacadeContracts() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
         var consumedTypes = modules.stream()
