@@ -32,17 +32,51 @@ public final class PostgresLexicalIndex implements LexicalIndex {
             FROM projection_lexical_documents
             WHERE batch_id = :predecessorBatchId
             """;
+    private static final String UPSERT = """
+            INSERT INTO projection_lexical_documents (
+                batch_id, document_id, organization_id, knowledge_asset_id,
+                source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
+                content, fields)
+            VALUES (
+                :batchId, :documentId, :organizationId, :knowledgeAssetId,
+                :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
+                :content, :fields)
+            ON CONFLICT (batch_id, document_id)
+            DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
+                knowledge_asset_id = EXCLUDED.knowledge_asset_id,
+                source_revision_id = EXCLUDED.source_revision_id,
+                chunk_id = EXCLUDED.chunk_id,
+                acl_snapshot_id = EXCLUDED.acl_snapshot_id,
+                acl_generation = EXCLUDED.acl_generation,
+                content = EXCLUDED.content,
+                fields = EXCLUDED.fields
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final PostgresProjectionSupport support;
+    private final int batchSize;
 
     public PostgresLexicalIndex(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             PostgresProjectionPublicationStore publications) {
+        this(
+                jdbc,
+                transactionManager,
+                publications,
+                PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    public PostgresLexicalIndex(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications,
+            int batchSize) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.support =
                 new PostgresProjectionSupport(jdbc, transactionManager, publications);
+        this.batchSize = PostgresBatchOperations.requireBatchSize(batchSize);
     }
 
     @Override
@@ -54,32 +88,13 @@ public final class PostgresLexicalIndex implements LexicalIndex {
         immutableDocuments.forEach(document ->
                 PostgresProjectionSupport.requireSameOrganization(
                         batch, document.evidence()));
-        support.stage(batch, ProjectionKind.LEXICAL, COPY_PREDECESSOR, () -> {
-            for (LexicalDocument document : immutableDocuments) {
-                jdbc.update(
-                        """
-                        INSERT INTO projection_lexical_documents (
-                            batch_id, document_id, organization_id, knowledge_asset_id,
-                            source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
-                            content, fields)
-                        VALUES (
-                            :batchId, :documentId, :organizationId, :knowledgeAssetId,
-                            :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
-                            :content, :fields)
-                        ON CONFLICT (batch_id, document_id)
-                        DO UPDATE SET
-                            organization_id = EXCLUDED.organization_id,
-                            knowledge_asset_id = EXCLUDED.knowledge_asset_id,
-                            source_revision_id = EXCLUDED.source_revision_id,
-                            chunk_id = EXCLUDED.chunk_id,
-                            acl_snapshot_id = EXCLUDED.acl_snapshot_id,
-                            acl_generation = EXCLUDED.acl_generation,
-                            content = EXCLUDED.content,
-                            fields = EXCLUDED.fields
-                        """,
-                        parameters(batch, document));
-            }
-        });
+        support.stage(batch, ProjectionKind.LEXICAL, COPY_PREDECESSOR, () ->
+                PostgresBatchOperations.batchUpdate(
+                        jdbc,
+                        UPSERT,
+                        immutableDocuments,
+                        batchSize,
+                        (index, document) -> parameters(batch, document)));
     }
 
     @Override

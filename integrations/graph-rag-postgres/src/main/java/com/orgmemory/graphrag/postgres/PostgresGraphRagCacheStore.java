@@ -26,15 +26,47 @@ import org.springframework.transaction.support.TransactionTemplate;
 public final class PostgresGraphRagCacheStore
         implements ModelInvocationCache, RetrievalResultCache {
 
+    private static final String INSERT_EVIDENCE = """
+            INSERT INTO graph_retrieval_cache_evidence (
+                cache_entry_id,
+                ordinal,
+                organization_id,
+                knowledge_asset_id,
+                source_revision_id,
+                chunk_id,
+                acl_snapshot_id,
+                acl_generation
+            )
+            VALUES (
+                :cacheEntryId,
+                :ordinal,
+                :organizationId,
+                :knowledgeAssetId,
+                :sourceRevisionId,
+                :chunkId,
+                :aclSnapshotId,
+                :aclGeneration
+            )
+            """;
+
     private final NamedParameterJdbcTemplate jdbc;
     private final TransactionTemplate transactions;
+    private final int batchSize;
 
     public PostgresGraphRagCacheStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager) {
+        this(jdbc, transactionManager, PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    public PostgresGraphRagCacheStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            int batchSize) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.transactions = new TransactionTemplate(
                 Objects.requireNonNull(transactionManager, "transactionManager"));
+        this.batchSize = PostgresBatchOperations.requireBatchSize(batchSize);
     }
 
     @Override
@@ -200,50 +232,20 @@ public final class PostgresGraphRagCacheStore
                     "DELETE FROM graph_retrieval_cache_evidence "
                             + "WHERE cache_entry_id = :cacheEntryId",
                     delete);
-            int ordinal = 0;
-            for (EvidenceReference evidence : entry.evidence()) {
-                jdbc.update("""
-                        INSERT INTO graph_retrieval_cache_evidence (
-                            cache_entry_id,
-                            ordinal,
-                            organization_id,
-                            knowledge_asset_id,
-                            source_revision_id,
-                            chunk_id,
-                            acl_snapshot_id,
-                            acl_generation
-                        )
-                        VALUES (
-                            :cacheEntryId,
-                            :ordinal,
-                            :organizationId,
-                            :knowledgeAssetId,
-                            :sourceRevisionId,
-                            :chunkId,
-                            :aclSnapshotId,
-                            :aclGeneration
-                        )
-                        """,
-                        new MapSqlParameterSource()
-                                .addValue("cacheEntryId", entryId)
-                                .addValue("ordinal", ordinal++)
-                                .addValue(
-                                        "organizationId",
-                                        evidence.organizationId())
-                                .addValue(
-                                        "knowledgeAssetId",
-                                        evidence.knowledgeAssetId())
-                                .addValue(
-                                        "sourceRevisionId",
-                                        evidence.sourceRevisionId())
-                                .addValue("chunkId", evidence.chunkId())
-                                .addValue(
-                                        "aclSnapshotId",
-                                        evidence.aclSnapshotId())
-                                .addValue(
-                                        "aclGeneration",
-                                        evidence.aclGeneration()));
-            }
+            PostgresBatchOperations.batchUpdate(
+                    jdbc,
+                    INSERT_EVIDENCE,
+                    entry.evidence(),
+                    batchSize,
+                    (ordinal, evidence) -> new MapSqlParameterSource()
+                            .addValue("cacheEntryId", entryId)
+                            .addValue("ordinal", ordinal)
+                            .addValue("organizationId", evidence.organizationId())
+                            .addValue("knowledgeAssetId", evidence.knowledgeAssetId())
+                            .addValue("sourceRevisionId", evidence.sourceRevisionId())
+                            .addValue("chunkId", evidence.chunkId())
+                            .addValue("aclSnapshotId", evidence.aclSnapshotId())
+                            .addValue("aclGeneration", evidence.aclGeneration()));
         });
     }
 

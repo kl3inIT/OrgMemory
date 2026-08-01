@@ -31,17 +31,53 @@ public final class PostgresContentStore implements ContentStore {
             FROM projection_content_records
             WHERE batch_id = :predecessorBatchId
             """;
+    private static final String UPSERT = """
+            INSERT INTO projection_content_records (
+                batch_id, record_id, organization_id, knowledge_asset_id,
+                source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
+                content_kind, content, token_count, metadata)
+            VALUES (
+                :batchId, :recordId, :organizationId, :knowledgeAssetId,
+                :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
+                :contentKind, :content, :tokenCount, :metadata)
+            ON CONFLICT (batch_id, record_id)
+            DO UPDATE SET
+                organization_id = EXCLUDED.organization_id,
+                knowledge_asset_id = EXCLUDED.knowledge_asset_id,
+                source_revision_id = EXCLUDED.source_revision_id,
+                chunk_id = EXCLUDED.chunk_id,
+                acl_snapshot_id = EXCLUDED.acl_snapshot_id,
+                acl_generation = EXCLUDED.acl_generation,
+                content_kind = EXCLUDED.content_kind,
+                content = EXCLUDED.content,
+                token_count = EXCLUDED.token_count,
+                metadata = EXCLUDED.metadata
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final PostgresProjectionSupport support;
+    private final int batchSize;
 
     public PostgresContentStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             PostgresProjectionPublicationStore publications) {
+        this(
+                jdbc,
+                transactionManager,
+                publications,
+                PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    public PostgresContentStore(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications,
+            int batchSize) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.support =
                 new PostgresProjectionSupport(jdbc, transactionManager, publications);
+        this.batchSize = PostgresBatchOperations.requireBatchSize(batchSize);
     }
 
     @Override
@@ -53,34 +89,13 @@ public final class PostgresContentStore implements ContentStore {
         immutableRecords.forEach(record ->
                 PostgresProjectionSupport.requireSameOrganization(
                         batch, record.evidence()));
-        support.stage(batch, ProjectionKind.CONTENT, COPY_PREDECESSOR, () -> {
-            for (ContentRecord record : immutableRecords) {
-                jdbc.update(
-                        """
-                        INSERT INTO projection_content_records (
-                            batch_id, record_id, organization_id, knowledge_asset_id,
-                            source_revision_id, chunk_id, acl_snapshot_id, acl_generation,
-                            content_kind, content, token_count, metadata)
-                        VALUES (
-                            :batchId, :recordId, :organizationId, :knowledgeAssetId,
-                            :sourceRevisionId, :chunkId, :aclSnapshotId, :aclGeneration,
-                            :contentKind, :content, :tokenCount, :metadata)
-                        ON CONFLICT (batch_id, record_id)
-                        DO UPDATE SET
-                            organization_id = EXCLUDED.organization_id,
-                            knowledge_asset_id = EXCLUDED.knowledge_asset_id,
-                            source_revision_id = EXCLUDED.source_revision_id,
-                            chunk_id = EXCLUDED.chunk_id,
-                            acl_snapshot_id = EXCLUDED.acl_snapshot_id,
-                            acl_generation = EXCLUDED.acl_generation,
-                            content_kind = EXCLUDED.content_kind,
-                            content = EXCLUDED.content,
-                            token_count = EXCLUDED.token_count,
-                            metadata = EXCLUDED.metadata
-                        """,
-                        parameters(batch, record));
-            }
-        });
+        support.stage(batch, ProjectionKind.CONTENT, COPY_PREDECESSOR, () ->
+                PostgresBatchOperations.batchUpdate(
+                        jdbc,
+                        UPSERT,
+                        immutableRecords,
+                        batchSize,
+                        (index, record) -> parameters(batch, record)));
     }
 
     @Override

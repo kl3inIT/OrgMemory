@@ -51,8 +51,10 @@ public class PostgresGraphRagAutoConfiguration {
     PostgresContentStore postgresContentStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
-            PostgresProjectionPublicationStore publications) {
-        return new PostgresContentStore(jdbc, transactionManager, publications);
+            PostgresProjectionPublicationStore publications,
+            PostgresGraphRagProperties properties) {
+        return new PostgresContentStore(
+                jdbc, transactionManager, publications, properties.getWriteBatchSize());
     }
 
     @Bean
@@ -61,8 +63,10 @@ public class PostgresGraphRagAutoConfiguration {
     PostgresLexicalIndex postgresLexicalIndex(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
-            PostgresProjectionPublicationStore publications) {
-        return new PostgresLexicalIndex(jdbc, transactionManager, publications);
+            PostgresProjectionPublicationStore publications,
+            PostgresGraphRagProperties properties) {
+        return new PostgresLexicalIndex(
+                jdbc, transactionManager, publications, properties.getWriteBatchSize());
     }
 
     @Bean
@@ -71,8 +75,10 @@ public class PostgresGraphRagAutoConfiguration {
     PostgresVectorIndex postgresVectorIndex(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
-            PostgresProjectionPublicationStore publications) {
-        return new PostgresVectorIndex(jdbc, transactionManager, publications);
+            PostgresProjectionPublicationStore publications,
+            PostgresGraphRagProperties properties) {
+        return new PostgresVectorIndex(
+                jdbc, transactionManager, publications, properties.getWriteBatchSize());
     }
 
     @Bean
@@ -81,8 +87,10 @@ public class PostgresGraphRagAutoConfiguration {
     PostgresGraphStore postgresSharedSnapshotGraphStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
-            PostgresProjectionPublicationStore publications) {
-        return new PostgresGraphStore(jdbc, transactionManager, publications);
+            PostgresProjectionPublicationStore publications,
+            PostgresGraphRagProperties properties) {
+        return new PostgresGraphStore(
+                jdbc, transactionManager, publications, properties.getWriteBatchSize());
     }
 
     @Bean
@@ -90,8 +98,10 @@ public class PostgresGraphRagAutoConfiguration {
     @ConditionalOnMissingBean(ModelInvocationCache.class)
     ModelInvocationCache postgresModelInvocationCache(
             NamedParameterJdbcTemplate jdbc,
-            PlatformTransactionManager transactionManager) {
-        return new PostgresModelInvocationCache(jdbc, transactionManager);
+            PlatformTransactionManager transactionManager,
+            PostgresGraphRagProperties properties) {
+        return new PostgresModelInvocationCache(
+                jdbc, transactionManager, properties.getWriteBatchSize());
     }
 
     @Bean
@@ -99,8 +109,10 @@ public class PostgresGraphRagAutoConfiguration {
     @DependsOnDatabaseInitialization
     RetrievalResultCache postgresRetrievalResultCache(
             NamedParameterJdbcTemplate jdbc,
-            PlatformTransactionManager transactionManager) {
-        return new PostgresRetrievalResultCache(jdbc, transactionManager);
+            PlatformTransactionManager transactionManager,
+            PostgresGraphRagProperties properties) {
+        return new PostgresRetrievalResultCache(
+                jdbc, transactionManager, properties.getWriteBatchSize());
     }
 
     @Bean

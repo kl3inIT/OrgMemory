@@ -1,6 +1,7 @@
 package com.orgmemory.graphrag.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -97,6 +98,15 @@ class PostgresGraphRagAutoConfigurationTests {
                 .run(mock(ApplicationArguments.class));
 
         verifyNoInteractions(manager);
+    }
+
+    @Test
+    void bindsTheBoundedWriteBatchSize() {
+        runner.withPropertyValues("orgmemory.graph-rag.postgres.write-batch-size=37")
+                .run(context -> assertEquals(
+                        37,
+                        context.getBean(PostgresGraphRagProperties.class)
+                                .getWriteBatchSize()));
     }
 
     private static List<String> registeredAutoConfigurations() {
