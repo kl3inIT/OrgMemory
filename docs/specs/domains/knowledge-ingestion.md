@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-01-ingestion-throughput (0d7a1f0e)`.
+Reconciled: `2026-08-01-connector-polling-driver (fc6995cf)`.
 
 ## Current Behavior
 
@@ -113,6 +113,36 @@ an unknown payload version fails closed. The driver consumes every
 feed it and a source that is rate limited or unreachable this poll does not stop
 the others.
 
+The three live adapters delegate their connection lifecycle to
+`PollingConnectorBatchSource`. Its final poll loop enumerates enabled connections,
+keys per-connection state by the typed organization/source/connection identity,
+resolves the credential on every poll, decides whether content is due, isolates
+known provider failures, and retires state for missing or disabled connections.
+It caches only the derived provider client under credential and client-setting
+revisions; those clients necessarily retain credential-derived material for their
+cache lifetime. Rotation replaces the client on the next poll, while retirement
+clears both the client and the cadence's due and served-crawl-now state. Cadence
+advances only after an admitted content batch. Unexpected runtime failures still
+escape instead of being disguised as connection activity.
+
+Provider calls, eligible-unit counting, mappings, completeness evidence, and
+component cursor material remain adapter-owned. The shared driver rejects a pass
+when at least half of its eligible units failed provider requests, returns no
+batch, and reports `mostly_failed`; the worker records that as recurring
+`UNAVAILABLE` activity, so no checkpoint advances. Slack counts attempted
+channels, Drive counts attempted indexable files, and GitHub counts a repository
+at most once when its collaborator or content request throws. Configured
+truncation, content skipped after the same repository's collaborator failure, and
+incomplete source fields do not inflate GitHub's numerator. Whole-connection
+rejection deliberately means healthy-unit membership revocations also wait when
+the threshold is met; the recurring failure activity makes that fail-closed
+operational tradeoff visible.
+
+Outer crawl cursors preserve their historical bytes: component cursor pairs use
+the existing natural ordering and digest material, while every adapter supplies
+its literal prefix. In particular, Drive retains `google-drive-` even though its
+source-system id is `google_drive`.
+
 `integrations:connectors` holds the live adapters, one package per source, so a
 source SDK or wire shape never reaches `core` or an app. Its Slack adapter crawls
 `conversations.list`/`history`/`replies`/`members` and `users.list` through Spring
@@ -206,12 +236,13 @@ inferred from the first: Slack follows `auth.test` with a one-channel
 listing. A Slack app installed without `channels:read`, or a service account
 nobody has shared anything with, authenticates perfectly and then indexes nothing
 — hours later, as a failure nobody connects to the day it was configured. The
-adapters read connections and credentials on
-every poll through `ConnectorConnectionDirectory`, so enabling a workspace,
-repointing it, or replacing its token takes effect on the next poll; the adapter
-bean is present wherever the module is and produces nothing until a connection
-says otherwise, and a connection that cannot produce is skipped — but reported,
-not swallowed — rather than allowed to end the poll for the others.
+shared polling driver reads connections and credentials on every poll through
+`ConnectorConnectionDirectory`, so enabling a workspace, repointing it, or
+replacing its token takes effect on the next poll even when the derived client is
+reused between unchanged polls. The adapter bean is present wherever the module
+is and produces nothing until a connection says otherwise, and a connection that
+cannot produce is skipped — but reported, not swallowed — rather than allowed to
+end the poll for the others.
 
 The browser side is generic in the same way. A catalogue lists what OrgMemory
 governs, grouped by whether the access rule comes from the source or from
@@ -306,7 +337,7 @@ exhausted becomes the connection's recorded failure instead of the worker's
 stall.
 
 The current path does not yet implement incremental webhooks or the Events API,
-credential rotation, a run of either adapter against a real workspace, Airbyte
+a run of either adapter against a real workspace, Airbyte
 staging, OCR, or malware and DLP integrations. Entity/relation extraction,
 profile-versioned graph publication and secure hybrid GraphRAG retrieval are
 implemented as rebuildable projections over this canonical ledger.
