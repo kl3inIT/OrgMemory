@@ -950,3 +950,8 @@ release-policy tests passed under Node 24.15; and the terminating repository
 `clean test` completed successfully in 58s across 99 tasks. Mechanical package,
 zero-byte, migration-name, diff, zero old-Retrieval-value-import, and 25-path
 scope checks passed.
+
+After merging current `origin/main`, the focused moved-value and Modulith tests
+passed again in 7s; the documentation check passed across 451 Markdown files;
+all 37 release-policy tests passed again under Node 24.15; and the final PR diff
+contains 21 paths because Git recognizes the four package moves as renames.
