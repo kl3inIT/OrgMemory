@@ -13,23 +13,23 @@
 
 ## 1. Tests first and CLI lifecycle
 
-- [ ] Characterize schema-v1 receipts and current atomic installation.
-- [ ] Add failing tests for schema-v2 verification outcomes and path safety.
-- [ ] Add failing tests for exact same-coordinate update and verified-only
+- [x] Characterize schema-v1 receipts and current atomic installation.
+- [x] Add failing tests for schema-v2 verification outcomes and path safety.
+- [x] Add failing tests for exact same-coordinate update and verified-only
   removal.
-- [ ] Implement receipt-v2 read/write compatibility, `skill verify`,
+- [x] Implement receipt-v2 read/write compatibility, `skill verify`,
   `skill update`, and `skill remove`.
-- [ ] Add one-owner target collision checks, a per-scope mutation lock, and
+- [x] Add one-owner target collision checks, a per-scope mutation lock, and
   durable journal recovery.
-- [ ] Preserve exact-version, authorization, package-integrity, rollback, and
+- [x] Preserve exact-version, authorization, package-integrity, rollback, and
   token-free receipt guarantees.
 
 ## 2. npm distribution
 
-- [ ] Make `@orgmemory/cli` a minimal public package and verify `npm pack`.
-- [ ] Add a dedicated Node 24 npm Trusted Publishing workflow with OIDC,
+- [x] Make `@orgmemory/cli` a minimal public package and verify `npm pack`.
+- [x] Add a dedicated Node 24 npm Trusted Publishing workflow with OIDC,
   provenance, no cache, exact-main validation, and an approval environment.
-- [ ] Add workflow-policy tests and a first-publication bootstrap runbook.
+- [x] Add workflow-policy tests and a first-publication bootstrap runbook.
 - [ ] Publish and verify the first package version when npm organization access
   is available.
 
@@ -38,20 +38,20 @@
 - [ ] After registry proof, replace bare CLI handoffs with an exact pinned
   `npx --yes @orgmemory/cli@<version>` command.
 - [ ] Update focused web unit/component/browser tests.
-- [ ] Reconcile `ARCHITECTURE.md`, the Asset Registry spec and mirrored test
+- [x] Reconcile `ARCHITECTURE.md`, the Asset Registry spec and mirrored test
   matrix, CLI README, and bilingual public Product Guide.
-- [ ] Add one product release entry.
+- [x] Add one product release entry.
 
 ## 4. Verification
 
-- [ ] Run Node 24 CLI typecheck, focused tests, full tests, build, and packed
+- [x] Run Node 24 CLI typecheck, focused tests, full tests, build, and packed
   tarball smoke test in a clean temporary directory.
-- [ ] Run Node 24 web lint, typecheck, focused tests, full tests, production
+- [x] Run Node 24 web lint, typecheck, focused tests, full tests, production
   build, and browser verification for the changed handoff.
-- [ ] Run docs lint/typecheck/build and link/content gates.
-- [ ] Run release/workflow-policy checks and confirm no Java or Gradle source
+- [x] Run docs lint/typecheck/build and link/content gates.
+- [x] Run release/workflow-policy checks and confirm no Java or Gradle source
   changed.
-- [ ] Confirm `git diff --check` and review the final changed-file count.
+- [x] Confirm `git diff --check` and review the final changed-file count.
 
 ## 5. Delivery
 
