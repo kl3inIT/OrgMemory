@@ -339,6 +339,47 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void graphConsumesOnlySourceLedgerGraphContracts() {
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.graph"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexPort",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexQuery",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexRevisionRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties"),
+                consumedTypes);
+    }
+
+    @Test
+    void graphDoesNotDependOnSourceLedgerPersistence() {
+        var classes = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.graph");
+
+        for (String persistenceType : Set.of(
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevision",
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository",
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus")) {
+            noClasses()
+                    .that()
+                    .resideInAPackage("com.orgmemory.core.knowledge.graph..")
+                    .should()
+                    .dependOnClassesThat()
+                    .haveFullyQualifiedName(persistenceType)
+                    .check(classes);
+        }
+    }
+
+    @Test
     void sourceLedgerConsumesOnlyAclFacadeContracts() {
         var acl = modules.getModuleByName("knowledge.acl").orElseThrow();
         var consumedTypes = modules.stream()

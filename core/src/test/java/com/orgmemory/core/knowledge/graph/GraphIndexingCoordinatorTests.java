@@ -12,9 +12,8 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexRevisionRef;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -49,7 +48,7 @@ class GraphIndexingCoordinatorTests {
 
     private final GraphIndexJobRepository jobs = mock(GraphIndexJobRepository.class);
     private final KnowledgeAssetGraphQuery assets = mock(KnowledgeAssetGraphQuery.class);
-    private final SourceRevisionRepository revisions = mock(SourceRevisionRepository.class);
+    private final SourceGraphIndexQuery revisions = mock(SourceGraphIndexQuery.class);
     private final SourceAclQuery aclQuery = mock(SourceAclQuery.class);
     private final EmbeddingProfileRepository embeddingProfiles =
             mock(EmbeddingProfileRepository.class);
@@ -86,7 +85,12 @@ class GraphIndexingCoordinatorTests {
                 1,
                 "vi",
                 true);
-        SourceRevision revision = mock(SourceRevision.class);
+        SourceGraphIndexRevisionRef revision = new SourceGraphIndexRevisionRef(
+                REVISION_ID,
+                EMBEDDING_PROFILE_ID,
+                ASSET_ID,
+                VERSION_ID,
+                true);
         SourceAclSnapshotRef snapshot = new SourceAclSnapshotRef(
                 ACL_SNAPSHOT_ID,
                 null,
@@ -107,12 +111,8 @@ class GraphIndexingCoordinatorTests {
                 .thenReturn(Optional.of(asset));
         when(assets.findVersion(ORGANIZATION_ID, VERSION_ID))
                 .thenReturn(Optional.of(version));
-        when(revisions.findByIdAndOrganizationId(REVISION_ID, ORGANIZATION_ID))
+        when(revisions.findRevision(ORGANIZATION_ID, REVISION_ID))
                 .thenReturn(Optional.of(revision));
-        when(revision.getStatus()).thenReturn(SourceRevisionStatus.READY);
-        when(revision.getKnowledgeAssetId()).thenReturn(ASSET_ID);
-        when(revision.getKnowledgeAssetVersionId()).thenReturn(VERSION_ID);
-        when(revision.getEmbeddingProfileId()).thenReturn(EMBEDDING_PROFILE_ID);
         when(aclQuery.findSnapshot(ORGANIZATION_ID, ACL_SNAPSHOT_ID))
                 .thenReturn(Optional.of(snapshot));
         when(embeddingProfiles.findByIdAndOrganizationId(
