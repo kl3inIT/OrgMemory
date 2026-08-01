@@ -4,6 +4,11 @@
 operations. Public package visibility does not make the OrgMemory product,
 Skill registry, or governed Skill content open source.
 
+The published package carries the package-local proprietary `LICENSE`. It
+permits authorized customers and evaluators to execute an unmodified CLI
+against services they may access; it does not grant redistribution,
+modification, sublicensing, or derivative-work rights.
+
 ## Release boundary
 
 The CLI has an independent SemVer version in `apps/cli/package.json`. It is not

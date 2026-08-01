@@ -1,17 +1,21 @@
 import { createHash } from "node:crypto"
+import { spawn } from "node:child_process"
+import { once } from "node:events"
 import {
   access,
+  mkdir,
   mkdtemp,
   readdir,
   rename,
   rm,
+  symlink,
   writeFile,
   readFile,
 } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { zipSync } from "fflate"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { SkillManifestLink } from "./contracts.js"
 import {
@@ -106,8 +110,39 @@ describe("installSkill", () => {
       cwd,
     })
 
+    const link = join(installed.target, "link")
+    await symlink(".", link, "junction")
+
+    expect(
+      await verifyInstalled({
+        global: false,
+        cwd,
+        coordinate: "support/support-triage",
+        agent: "codex",
+      }),
+    ).toMatchObject({
+      "codex:support/support-triage": {
+        status: "modified",
+        reason: expect.stringContaining("contains a link"),
+      },
+    })
+
+    await rm(link, { recursive: true, force: true })
     await writeFile(join(installed.target, "extra.sh"), "echo unexpected")
 
+    expect(
+      await verifyInstalled({
+        global: false,
+        cwd,
+        coordinate: "support/support-triage",
+        agent: "codex",
+      }),
+    ).toMatchObject({
+      "codex:support/support-triage": { status: "modified" },
+    })
+
+    await rm(join(installed.target, "extra.sh"))
+    await writeFile(join(installed.target, "SKILL.md"), "changed")
     expect(
       await verifyInstalled({
         global: false,
@@ -175,6 +210,78 @@ describe("installSkill", () => {
       "codex:support/incident-response",
       "codex:support/support-triage",
     ])
+  })
+
+  it("reclaims a lifecycle lock owned by an exited process", async () => {
+    const cwd = await temporaryDirectory()
+    const exited = spawn(process.execPath, ["-e", "process.exit(0)"], {
+      stdio: "ignore",
+    })
+    const exitedPid = exited.pid
+    if (exitedPid === undefined) throw new Error("The exited lock owner did not start")
+    await once(exited, "exit")
+    const mutex = join(cwd, ".orgmemory", "skills.lifecycle.lock")
+    await mkdir(mutex, { recursive: true })
+    await writeFile(
+      join(mutex, "owner.json"),
+      JSON.stringify({ pid: exitedPid, createdAt: new Date().toISOString() }),
+    )
+    const content = new TextEncoder().encode("recovered lock")
+    const bytes = zipSync({ "support-triage/SKILL.md": content })
+
+    await expect(
+      installSkill({
+        manifestLink: manifest(bytes, content),
+        packageBytes: bytes,
+        agent: "codex",
+        global: false,
+        cwd,
+      }),
+    ).resolves.toMatchObject({
+      target: join(cwd, ".agents", "skills", "support-triage"),
+    })
+  })
+
+  it("does not reclaim a lifecycle lock owned by a live foreign process", async () => {
+    const cwd = await temporaryDirectory()
+    const owner = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      stdio: "ignore",
+    })
+    await once(owner, "spawn")
+    const ownerPid = owner.pid
+    if (ownerPid === undefined) throw new Error("The live lock owner did not start")
+    const mutex = join(cwd, ".orgmemory", "skills.lifecycle.lock")
+    await mkdir(mutex, { recursive: true })
+    await writeFile(
+      join(mutex, "owner.json"),
+      JSON.stringify({ pid: ownerPid, createdAt: new Date().toISOString() }),
+    )
+    const content = new TextEncoder().encode("active lock")
+    const bytes = zipSync({ "support-triage/SKILL.md": content })
+    let now = 0
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => {
+      now += 20_000
+      return now
+    })
+
+    try {
+      await expect(
+        installSkill({
+          manifestLink: manifest(bytes, content),
+          packageBytes: bytes,
+          agent: "codex",
+          global: false,
+          cwd,
+        }),
+      ).rejects.toThrow("Another OrgMemory Skill lifecycle operation is active")
+      expect(
+        JSON.parse(await readFile(join(mutex, "owner.json"), "utf8")),
+      ).toMatchObject({ pid: ownerPid })
+    } finally {
+      clock.mockRestore()
+      owner.kill()
+      await once(owner, "exit")
+    }
   })
 
   it("updates only the same coordinate to an explicit exact version", async () => {

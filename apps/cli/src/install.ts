@@ -732,30 +732,34 @@ async function withScopeLock<T>(
 ): Promise<T> {
   const mutex = mutexPath(input)
   await mkdir(dirname(mutex), { recursive: true })
-  await acquireMutex(mutex)
+  const ownerId = await acquireMutex(mutex)
   try {
     await recoverOperation(input)
     return await action()
   } finally {
-    await rm(mutex, { recursive: true, force: true })
+    if (await mutexIsOwnedBy(mutex, ownerId)) {
+      await rm(mutex, { recursive: true, force: true })
+    }
   }
 }
 
-async function acquireMutex(path: string): Promise<void> {
+async function acquireMutex(path: string): Promise<string> {
   const deadline = Date.now() + 15_000
   while (true) {
     try {
       await mkdir(path)
+      const ownerId = randomBytes(16).toString("hex")
       try {
         await atomicWriteJson(join(path, "owner.json"), {
           pid: process.pid,
+          ownerId,
           createdAt: new Date().toISOString(),
         })
       } catch (error) {
         await rm(path, { recursive: true, force: true })
         throw error
       }
-      return
+      return ownerId
     } catch (error) {
       if (!hasErrorCode(error, "EEXIST")) throw error
       if (await mutexIsAbandoned(path)) {
@@ -773,13 +777,17 @@ async function acquireMutex(path: string): Promise<void> {
 async function mutexIsAbandoned(path: string): Promise<boolean> {
   try {
     const owner = z
-      .object({ pid: z.number().int().positive(), createdAt: z.iso.datetime() })
+      .object({
+        pid: z.number().int().positive(),
+        ownerId: z.string().min(1).optional(),
+        createdAt: z.iso.datetime(),
+      })
       .parse(JSON.parse(await readFile(join(path, "owner.json"), "utf8")))
     try {
       process.kill(owner.pid, 0)
       return false
-    } catch {
-      return true
+    } catch (error) {
+      return hasErrorCode(error, "ESRCH")
     }
   } catch {
     try {
@@ -787,6 +795,17 @@ async function mutexIsAbandoned(path: string): Promise<boolean> {
     } catch (error) {
       return isENOENT(error)
     }
+  }
+}
+
+async function mutexIsOwnedBy(path: string, ownerId: string): Promise<boolean> {
+  try {
+    const owner = z
+      .object({ pid: z.number().int().positive(), ownerId: z.string().min(1) })
+      .parse(JSON.parse(await readFile(join(path, "owner.json"), "utf8")))
+    return owner.pid === process.pid && owner.ownerId === ownerId
+  } catch {
+    return false
   }
 }
 

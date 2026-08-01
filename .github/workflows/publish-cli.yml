@@ -30,8 +30,11 @@ jobs:
     timeout-minutes: 20
     environment: npm-production
     permissions:
+      # Required to query the candidate commit's successful CI run.
       actions: read
+      # Required to check out and inspect the release source tree.
       contents: read
+      # Required by npm Trusted Publishing to mint the OIDC identity token.
       id-token: write
     steps:
       - name: Check out main history
@@ -91,7 +94,8 @@ jobs:
           const [pack] = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/orgmemory-cli-pack.json', 'utf8'))
           const paths = pack.files.map((file) => file.path).sort()
           if (pack.name !== '@orgmemory/cli') throw new Error('Unexpected package name')
-          if (!paths.includes('dist/index.js') || !paths.includes('package.json') || !paths.includes('README.md')) {
+          const requiredPaths = ['dist/index.js', 'package.json', 'README.md', 'LICENSE']
+          if (requiredPaths.some((path) => !paths.includes(path))) {
             throw new Error(`Required package files are missing: ${paths.join(', ')}`)
           }
           if (paths.some((path) => path.startsWith('src/') || path.includes('.env'))) {
@@ -109,11 +113,15 @@ jobs:
           PACKAGE_VERSION: ${{ inputs.package_version }}
         run: |
           set -euo pipefail
-          for _ in {1..12}; do
+          for _ in {1..24}; do
             published="$(npm view "@orgmemory/cli@$PACKAGE_VERSION" --json 2>/dev/null || true)"
             if [[ -n "$published" ]]; then break; fi
             sleep 5
           done
+          if [[ -z "$published" ]]; then
+            echo "::error::@orgmemory/cli@$PACKAGE_VERSION did not appear on npm within 120 seconds." >&2
+            exit 1
+          fi
           PUBLISHED_JSON="$published" node - <<'NODE'
           const value = JSON.parse(process.env.PUBLISHED_JSON)
           const expected = process.env.PACKAGE_VERSION

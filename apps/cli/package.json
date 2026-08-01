@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": false,
   "description": "Authenticated OrgMemory Skill authoring and distribution CLI",
-  "license": "UNLICENSED",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bin": {
     "orgmemory": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=24"

@@ -29,8 +29,10 @@ test("CLI publication verifies Node 24, the tarball, provenance, and npx executi
   assert.match(workflow, /node-version: 24/);
   assert.match(workflow, /pnpm install --frozen-lockfile/);
   assert.match(workflow, /npm pack --dry-run --json/);
+  assert.match(workflow, /'dist\/index\.js', 'package\.json', 'README\.md', 'LICENSE'/);
   assert.match(workflow, /npm publish --access public --provenance/);
   assert.match(workflow, /attestations/);
+  assert.match(workflow, /did not appear on npm within 120 seconds/);
   assert.match(workflow, /npm exec --yes --package=/);
   assert.doesNotMatch(workflow, /cache:/);
 });

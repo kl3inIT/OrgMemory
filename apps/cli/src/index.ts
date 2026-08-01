@@ -241,11 +241,15 @@ skill
         ...(coordinate ? { coordinate } : {}),
         ...(options.agent ? { agent: options.agent } : {}),
       })
+      const entries = Object.values(result)
+      const unverified = entries.some((entry) => entry.status !== "verified")
       if (options.json) {
         process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+        if (unverified) {
+          process.exitCode = 2
+        }
         return
       }
-      const entries = Object.values(result)
       if (entries.length === 0) {
         process.stdout.write("No matching OrgMemory Skill installations were found.\n")
         return
@@ -255,7 +259,7 @@ skill
           `${item.coordinate}@${item.version}\t${item.agent}\t${item.status}${item.reason ? `\t${item.reason}` : ""}\n`,
         )
       }
-      if (entries.some((entry) => entry.status !== "verified")) {
+      if (unverified) {
         process.exitCode = 2
       }
     },

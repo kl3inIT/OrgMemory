@@ -1,5 +1,8 @@
 # OrgMemory CLI
 
+This publicly downloadable transport CLI remains proprietary. See `LICENSE`
+for the limited authorized-use terms included in the npm package.
+
 Authenticated Skill authoring, Draft publication, and exact-version
 installation for Claude Code and Codex.
 
