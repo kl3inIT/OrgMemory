@@ -534,3 +534,8 @@ Modulith tests passed; `:core:test` passed in 1m15s; the docs operating-model
 check passed across 400 Markdown files and 8 mirrored domain pairs; all 37
 release-policy tests passed under Node 24.15; and the terminating repository
 `clean test` gate completed successfully in 5m10s across 108 tasks.
+
+After merging current `origin/main` at `8f644113`, the docs check passed across
+404 Markdown files, all 37 release-policy tests passed again, the PR diff
+remained 16 paths, and a second terminating `clean test` completed successfully
+in 6m08s across 99 tasks.
