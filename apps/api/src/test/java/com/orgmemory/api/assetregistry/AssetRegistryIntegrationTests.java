@@ -55,7 +55,7 @@ import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.shared.error.BusinessValidationException;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem;
+import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;

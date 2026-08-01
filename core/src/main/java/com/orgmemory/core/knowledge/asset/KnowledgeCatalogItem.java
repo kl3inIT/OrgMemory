@@ -1,8 +1,9 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.util.UUID;
 
+/** Asset-owned catalog projection for one current or historical version. */
 public record KnowledgeCatalogItem(
         UUID knowledgeAssetId,
         UUID knowledgeVersionId,

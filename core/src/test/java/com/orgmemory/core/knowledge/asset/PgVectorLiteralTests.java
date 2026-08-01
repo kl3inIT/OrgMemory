@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.asset;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

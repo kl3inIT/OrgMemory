@@ -1,8 +1,9 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.asset;
 
-import java.util.Objects;
 import java.util.List;
+import java.util.Objects;
 
+/** Asset-owned normalized text and source-location facts for one chunk. */
 public record KnowledgeTextChunk(
         String content,
         Integer startPage,

@@ -131,6 +131,9 @@ replaced. Asset promotion receives validated normalized facts through a Source
 Ledger-owned request, and Asset publication advances the current source
 revision through a Source Ledger-owned `MANDATORY` service inside the existing
 publication transaction; Asset consumes no Source Ledger entity or repository.
+Asset also owns catalog projections, normalized chunk values, and the pgvector
+encoding used by its chunk store; Retrieval and Asset Registry consume those
+root-package Asset contracts rather than owning persistence-facing DTOs.
 Asset and Retrieval remain explicitly open while their remaining
 cross-owned persistence and orchestration seams are replaced by intentional
 APIs.

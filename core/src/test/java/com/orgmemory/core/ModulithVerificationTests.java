@@ -604,6 +604,40 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAssetOwnsItsCatalogAndChunkValues() {
+        var assetClasses = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.asset");
+        var expectedOwnedTypes = Set.of(
+                "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
+                "com.orgmemory.core.knowledge.asset.KnowledgeTextChunk",
+                "com.orgmemory.core.knowledge.asset.PgVectorLiteral");
+
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.asset..")
+                .should()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem")
+                .orShould()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk")
+                .orShould()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.retrieval.PgVectorLiteral")
+                .check(assetClasses);
+
+        var ownedTypes = assetClasses.stream()
+                .map(type -> type.getName())
+                .filter(expectedOwnedTypes::contains)
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(expectedOwnedTypes, ownedTypes);
+    }
+
+    @Test
     void knowledgeGraphIsAClosedNestedModule() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var allowedDependencies = graph.getAllowedDependencies(modules).stream()
@@ -660,8 +694,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.assistant.AssistantService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationOutbox",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraftAssembler",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand",
                         "com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult",
@@ -678,14 +710,11 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk",
                         "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",
-                        "com.orgmemory.core.knowledge.retrieval.PgVectorLiteral",
                         "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
                         "com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
@@ -730,12 +759,15 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
+                        "com.orgmemory.core.assetregistry.AssetDeliveryService",
+                        "com.orgmemory.core.assetregistry.CapabilityPackService",
                         "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator"),
@@ -752,7 +784,9 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
+                        "com.orgmemory.core.knowledge.asset.PgVectorLiteral",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
                 consumedInternalTypes);
     }
