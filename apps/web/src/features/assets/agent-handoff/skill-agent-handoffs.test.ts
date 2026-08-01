@@ -6,6 +6,7 @@ import {
   SKILL_DRAFT_SCOPES,
   SKILL_INSTALL_SCOPES,
 } from "@/features/assets/agent-handoff/skill-agent-handoffs"
+import { getSkillConsumer } from "@/features/assets/agent-handoff/skill-consumers"
 
 describe("Skill agent handoffs", () => {
   it("keeps Draft publication bounded and asks instead of guessing destinations", () => {
@@ -27,24 +28,17 @@ describe("Skill agent handoffs", () => {
     }
   })
 
-  it("pins exact install commands for each supported coding agent", () => {
+  it("pins the selected consumer, exact release, command, and project-local target", () => {
     const reference = "productivity/decision-record-writer@1.0.0"
-    const handoff = buildSkillInstallHandoff(reference)
+    const handoff = buildSkillInstallHandoff(reference, getSkillConsumer("codex"))
 
-    expect(handoff.agentTargets).toEqual([
-      {
-        id: "claude-code",
-        label: "Claude Code",
-        command: `orgmemory skill add ${reference} --agent claude-code`,
-      },
-      {
-        id: "codex",
-        label: "Codex",
-        command: `orgmemory skill add ${reference} --agent codex`,
-      },
-    ])
+    expect(handoff.cliCommand).toBe(`orgmemory skill add ${reference} --agent codex`)
     expect(handoff.promptTemplate).toContain(reference)
+    expect(handoff.promptTemplate).toContain("Codex")
+    expect(handoff.promptTemplate).toContain(".agents/skills/decision-record-writer")
     expect(handoff.promptTemplate).toContain("explicit confirmation")
+    expect(handoff.promptTemplate).not.toContain("Ask whether the target")
+    expect(handoff.promptTemplate).not.toContain("--agent claude-code")
     expect(handoff.promptTemplate).not.toContain("http://")
     expect(handoff.promptTemplate).not.toContain("https://")
   })

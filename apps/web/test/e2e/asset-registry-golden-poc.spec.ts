@@ -84,20 +84,38 @@ test("authenticated Skill detail reads its install contract through the browser 
   page,
 }) => {
   const harness = await releasedSkillHarness(page)
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.emulateMedia({ colorScheme: "dark" })
+  }
 
   await page.goto(`/assets/${SKILL_ID}?release=${SKILL_RELEASE_ID}`)
 
   await expect(page.getByRole("heading", { name: "decision-record-writer" })).toBeVisible()
-  await expect(page.getByText("Install this exact Skill")).toBeVisible()
+  await expect(page.getByText("Verified package")).toBeVisible()
   await expect(page.getByRole("link", { name: "Open governance" })).toBeVisible()
+  await expect(page.getByText("Runtime behavior not certified")).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1536, height: 1024 })
+    await page.screenshot({
+      path: "../output/design-qa/skill-consumer-install.png",
+      fullPage: false,
+    })
+  }
+
+  await page.getByRole("button", { name: "Install with" }).click()
+  await page.getByRole("menuitem", { name: /Codex/ }).click()
+  await expect(page.getByRole("heading", { name: "Install with Codex" })).toBeVisible()
+  await expect(page.getByText("Install supported")).toBeVisible()
+  await expect(
+    page.getByText(".agents/skills/decision-record-writer", { exact: true }),
+  ).toBeVisible()
   await expect(page.getByRole("tab", { name: "Use your agent" })).toBeVisible()
   await expect(
     page.getByRole("alert").filter({ hasText: "Install only this exact released version" }),
   ).toBeVisible()
   if (process.env.DESIGN_QA_CAPTURE) {
-    await page.setViewportSize({ width: 1536, height: 1024 })
     await page.screenshot({
-      path: "../output/design-qa/skill-agent-install.png",
+      path: "../output/design-qa/skill-consumer-install-dialog.png",
       fullPage: false,
     })
   }
@@ -113,7 +131,7 @@ test("authenticated Skill detail reads its install contract through the browser 
   ).toBe(true)
   if (process.env.DESIGN_QA_CAPTURE) {
     await page.screenshot({
-      path: "../output/design-qa/skill-agent-install-mobile.png",
+      path: "../output/design-qa/skill-consumer-install-mobile.png",
       fullPage: false,
     })
   }
