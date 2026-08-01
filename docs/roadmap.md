@@ -26,6 +26,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Direct Skill sharing | shipped | [completed verification](increments/completed/2026-07-31-skill-direct-sharing/verification.md) |
 | Browser Skill authoring | shipped | [completed verification](increments/completed/2026-08-01-browser-skill-authoring/verification.md) |
 | Agent-assisted Skill handoff | shipped | [completed verification](increments/completed/2026-08-01-skill-agent-handoff/verification.md) |
+| Skill consumer compatibility | shipped | [completed verification](increments/completed/2026-08-01-skill-consumer-compatibility/verification.md) |
 | Identity tenant hardening | shipped | [completed plan](increments/completed/2026-07-27-identity-tenant-hardening/plan.md) |
 | Multi-provider model control plane | shipped | [completed verification](increments/completed/2026-07-29-multi-provider-model-control-plane/verification.md) |
 | AI model gateway provider boundary | shipped | [completed verification](increments/completed/2026-07-29-ai-model-gateway-boundary/verification.md) |
@@ -45,7 +46,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Skill consumer compatibility](increments/active/2026-08-01-skill-consumer-compatibility/plan.md) | active | target-specific `Install with...` UX, exact guarantee coverage, PR, and post-merge verification |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |

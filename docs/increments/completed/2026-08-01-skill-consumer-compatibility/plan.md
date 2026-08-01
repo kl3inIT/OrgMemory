@@ -25,7 +25,7 @@
 ## 3. Delivery
 
 - [x] Merge current `origin/main` before PR creation.
-- [ ] Open one conventional PR below 100 changed files.
-- [ ] Pass CI and resolve all actionable CodeRabbit findings.
-- [ ] Merge with a merge commit; do not squash commits.
-- [ ] Verify post-merge CI and automatic deployment, then archive the increment.
+- [x] Open one conventional PR below 100 changed files.
+- [x] Pass CI and resolve all actionable CodeRabbit findings.
+- [x] Merge with a merge commit; do not squash commits.
+- [x] Verify post-merge CI and automatic deployment, then archive the increment.
