@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge.retrieval;
 
+import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.List;

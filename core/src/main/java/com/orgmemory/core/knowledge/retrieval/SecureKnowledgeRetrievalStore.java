@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
+import com.orgmemory.core.knowledge.asset.PgVectorLiteral;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;

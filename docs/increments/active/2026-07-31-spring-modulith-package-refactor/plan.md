@@ -893,7 +893,7 @@ temporary open-owner documentation were fixed, while the duplicate challenge
 record request was answered with the existing Fable 5 verdict. Direct audit
 confirmed all three review threads resolved before merge.
 
-## Current Pull Request Gates
+## Thirty-second Pull Request Evidence
 
 - The Source Ledger-owned promotion request carries every validated normalized
   fact needed to create an immutable Asset version; the Asset adapter no longer
@@ -920,3 +920,33 @@ mirrored domain pairs; all 37 release-policy tests passed under Node 24.15;
 and the terminating repository-wide `clean test` completed successfully in
 1m02s across 99 tasks. Mechanical package, zero-byte, migration-name, diff,
 zero Asset-to-Source-Ledger-persistence-import, and 14-path scope checks passed.
+
+PR #233 merged as `9e2e7248` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `KnowledgeCatalogItem`, `KnowledgeTextChunk`, and `PgVectorLiteral` move from
+  Retrieval to their Asset owner without changing their data shape or behavior.
+- Asset persistence and assembly no longer depend on those Retrieval types;
+  Retrieval, Asset Registry, API, and Worker consumers now import Asset-owned
+  root contracts, making the dependency direction one way for these values.
+- JPQL constructor projections target the new Asset FQN, vector parsing tests
+  move with the utility, and catalog/chunk tests retain their previous coverage.
+- A failing-first ArchUnit regression proves the three old Asset-to-Retrieval
+  edges existed, then prevents them from returning; exact temporary-boundary
+  assertions pin the reduced Retrieval consumer/type surface and expanded
+  Asset-owned surface.
+- Full Core/API/Worker tests pass and the code PR remains below 100 files before
+  the remaining embedding-profile and projection-namespace seams are handled.
+
+Pre-PR verification completed: the new ownership test failed first against the
+three Retrieval-owned values, then repository compilation passed in 14s and
+focused moved-value/catalog/chunk/Modulith tests passed in 29s. The combined
+full Core/API/Worker gate passed in 5m48s; the documentation operating-model
+check passed across 446 Markdown files and 8 mirrored domain pairs; all 37
+release-policy tests passed under Node 24.15; and the terminating repository
+`clean test` completed successfully in 58s across 99 tasks. Mechanical package,
+zero-byte, migration-name, diff, zero old-Retrieval-value-import, and 25-path
+scope checks passed.

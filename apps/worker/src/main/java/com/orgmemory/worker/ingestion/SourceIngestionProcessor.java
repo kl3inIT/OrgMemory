@@ -25,7 +25,7 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraftAssembler;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeTextChunk;
+import com.orgmemory.core.knowledge.asset.KnowledgeTextChunk;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
 import com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand;
 import com.orgmemory.core.knowledge.storage.ObjectKey;

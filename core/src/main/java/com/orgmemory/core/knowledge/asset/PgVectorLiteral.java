@@ -1,7 +1,8 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.graphrag.model.FloatVector;
 
+/** PostgreSQL vector encoding used by Asset chunk persistence and Retrieval queries. */
 public final class PgVectorLiteral {
 
     private PgVectorLiteral() {}
@@ -31,7 +32,8 @@ public final class PgVectorLiteral {
         float[] values = new float[parts.length];
         for (int index = 0; index < parts.length; index++) {
             if (parts[index].isBlank()) {
-                throw new IllegalArgumentException("pgvector literal components must not be empty");
+                throw new IllegalArgumentException(
+                        "pgvector literal components must not be empty");
             }
             values[index] = Float.parseFloat(parts[index]);
         }
