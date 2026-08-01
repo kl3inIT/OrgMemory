@@ -148,3 +148,22 @@ accepted OIDC-only boundary is now stronger: the owner establishes trust with
 GitHub-hosted workflow. The packed package also carries the exact repository
 identity required for provenance, and the workflow executes the local tarball's
 `orgmemory` binary before any registry mutation.
+
+## 2026-08-02 live-publication correction
+
+Live registry behavior superseded the pre-publication assumption above. npm
+12 accepted the intended preconfiguration shape with `--allow-publish` in dry
+run but returned `404 Package not found` when applying it before the package
+record existed. The controlled bootstrap therefore published an inspected,
+executable `0.0.0` tarball under the `bootstrap` tag with interactive 2FA, then
+created the GitHub trusted-publisher relationship. The protected workflow
+published consumer version `0.1.0`; the registry now exposes its integrity,
+SLSA provenance URL, repository binding, executable, and `latest=0.1.0`.
+
+The first workflow run exposed a separate propagation race: the package
+manifest became visible before its attestation. Publication had succeeded, but
+the gate stopped at the first non-empty manifest and failed verification. The
+workflow now treats an existing immutable version as recoverable only when its
+integrity matches the reviewed tarball, and polls the complete
+version/integrity/attestation predicate for 180 seconds. This keeps retries
+idempotent without permitting overwrite or weakening provenance.
