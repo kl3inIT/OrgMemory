@@ -33,8 +33,8 @@
 - [x] Correct the bootstrap for npm 11 pre-publication `npm trust github`, bind
   provenance to the monorepo package directory, and execute the packed CLI
   before publication.
-- [ ] Publish and verify the first package version when npm organization access
-  is available.
+- [x] Publish and verify `@orgmemory/cli@0.1.0` with registry integrity, SLSA
+  provenance, exact-version execution, and a retry-safe post-publish gate.
 
 ## 3. Product handoff and documentation
 
