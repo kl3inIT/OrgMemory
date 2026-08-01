@@ -1202,3 +1202,8 @@ passed all 41 tests on Node 24.15.0. The mechanical audit found 15 changed paths
 no migration, no forbidden Retrieval import, and a clean whitespace diff. The
 final terminating sequential `clean test`, rerun after the exhaustive sealed-result
 switch refinement, passed in 9m05s with 99 actionable tasks.
+
+After merging current `origin/main` at `39281c33`, the Citation plus full
+Modulith slice passed again in 55s. The documentation check passed across the
+new base's 485 Markdown files and 8 mirrored domain pairs, and all 41
+release-policy tests passed again on Node 24.15.0.
