@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-browser-skill-authoring (250e1705)`.
+Reconciled: `2026-08-01-authz-consolidation (acd2b48f)`.
 
 ## Current Behavior
 
@@ -239,9 +239,14 @@ current actor's live `can_edit`, `can_submit_review`, `can_review`, `can_publish
 direct permission is owner-class and still requires `can_create_asset` on the
 parent Space. Core first requires `can_view` and does not return denial reasons
 or relationship data. These decisions are display affordances only: every
-mutation repeats authorization and remains authoritative. The browser never
-infers authority from role labels, and a revision author is not offered a
-self-review decision.
+mutation repeats authorization and remains authoritative. For an open review,
+Core also publishes per-decision affordances — `canApprove`,
+`canRequestChanges`, `canReject`, `canCancel` — computed by the same predicate
+the decision command enforces, plus `canOpenGovernance` derived from the
+action bundle. The browser renders exactly these served flags and never
+infers authority from role labels or assignments: a revision author is
+withheld only from approval, and cancellation is offered only to the review
+requester.
 
 Server state is fetched through generated clients and TanStack Query. URL state
 belongs to TanStack Router; no global client store is used for authorization or
