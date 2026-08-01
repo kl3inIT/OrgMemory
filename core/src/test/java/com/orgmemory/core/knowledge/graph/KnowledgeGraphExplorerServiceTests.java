@@ -3,7 +3,7 @@ package com.orgmemory.core.knowledge.graph;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -65,8 +65,7 @@ class KnowledgeGraphExplorerServiceTests {
     private static final UUID SECOND_CHUNK_ID =
             UUID.fromString("40000000-0000-0000-0000-000000000002");
 
-    private final KnowledgeSpaceRepository spaces =
-            mock(KnowledgeSpaceRepository.class);
+    private final KnowledgeSpaceQuery spaces = mock(KnowledgeSpaceQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
     private final KnowledgeEvidenceScopeResolver evidenceScopes =
@@ -94,8 +93,7 @@ class KnowledgeGraphExplorerServiceTests {
 
     @BeforeEach
     void setUpEntryPermission() {
-        when(spaces.existsByIdAndOrganizationIdAndActiveTrue(
-                        SPACE_ID, ORGANIZATION_ID))
+        when(spaces.isActive(ORGANIZATION_ID, SPACE_ID))
                 .thenReturn(true);
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));

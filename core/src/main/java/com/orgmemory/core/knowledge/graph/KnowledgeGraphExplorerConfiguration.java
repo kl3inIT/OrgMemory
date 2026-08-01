@@ -2,7 +2,7 @@ package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -15,7 +15,7 @@ public class KnowledgeGraphExplorerConfiguration {
 
     @Bean
     KnowledgeGraphExplorerService knowledgeGraphExplorerService(
-            KnowledgeSpaceRepository spaces,
+            KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
             GraphExportReader graphs,

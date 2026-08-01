@@ -41,6 +41,59 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void graphConsumesOnlySpaceQueryContract() {
+        var space = modules.getModuleByName("knowledge.space").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(space))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.graph"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of("com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery"),
+                consumedTypes);
+    }
+
+    @Test
+    void retrievalConsumesOnlySpaceQueryContract() {
+        var space = modules.getModuleByName("knowledge.space").orElseThrow();
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetModule().equals(space))
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of("com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery"),
+                consumedTypes);
+    }
+
+    @Test
+    void graphAndRetrievalDoNotDependOnSpacePersistence() {
+        var classes = new ClassFileImporter()
+                .importPackages(
+                        "com.orgmemory.core.knowledge.graph",
+                        "com.orgmemory.core.knowledge.retrieval");
+
+        noClasses()
+                .that()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.knowledge.graph..",
+                        "com.orgmemory.core.knowledge.retrieval..")
+                .should()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository")
+                .check(classes);
+    }
+
+    @Test
     void sourceLedgerIsAClosedNestedModule() {
         var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
         var allowedDependencies = sourceLedger.getAllowedDependencies(modules).stream()

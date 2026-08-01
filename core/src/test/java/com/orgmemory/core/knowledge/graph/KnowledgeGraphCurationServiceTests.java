@@ -8,7 +8,7 @@ import com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate;
 import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,8 +47,7 @@ class KnowledgeGraphCurationServiceTests {
     private static final UUID CHUNK_ID = UUID.randomUUID();
     private static final UUID ENTITY_ID = UUID.randomUUID();
 
-    private final KnowledgeSpaceRepository spaces =
-            mock(KnowledgeSpaceRepository.class);
+    private final KnowledgeSpaceQuery spaces = mock(KnowledgeSpaceQuery.class);
     private final KnowledgeAssetRepository assets =
             mock(KnowledgeAssetRepository.class);
     private final RelationshipAuthorizationPort authorization =
@@ -79,8 +78,7 @@ class KnowledgeGraphCurationServiceTests {
 
     @BeforeEach
     void setUpSpaceAndEvidence() {
-        when(spaces.existsByIdAndOrganizationIdAndActiveTrue(
-                        SPACE_ID, ORGANIZATION_ID))
+        when(spaces.isActive(ORGANIZATION_ID, SPACE_ID))
                 .thenReturn(true);
         KnowledgeAsset asset = mock(KnowledgeAsset.class);
         when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
