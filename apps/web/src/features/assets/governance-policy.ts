@@ -1,8 +1,6 @@
 import type {
   AssetGovernanceActions,
   AssetView,
-  Review,
-  Revision,
 } from "@/lib/hey-api"
 
 export type GovernanceTab = "draft" | "changes" | "review" | "releases"
@@ -28,15 +26,8 @@ export function canPublishSkillDirectly(
   )
 }
 
-export function canDecideReview(
-  review: Review,
-  revisions: Revision[],
+export function canOpenGovernance(
   actions: AssetGovernanceActions | undefined,
-  currentUserId: string | undefined,
 ): boolean {
-  if (!actions?.canReview || !currentUserId || review.state !== "IN_REVIEW") {
-    return false
-  }
-  const revision = revisions.find((candidate) => candidate.id === review.revisionId)
-  return Boolean(revision?.createdByUserId && revision.createdByUserId !== currentUserId)
+  return Boolean(actions?.canOpenGovernance)
 }

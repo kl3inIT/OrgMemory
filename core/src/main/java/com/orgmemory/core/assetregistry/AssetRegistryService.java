@@ -211,14 +211,45 @@ public class AssetRegistryService {
         AssetAuthorizationTarget target = require(actor, assetId, CAN_VIEW);
         ResourceRef resource =
                 ResourceRef.of(actor.organizationId(), ASSET_RESOURCE, assetId);
+        boolean canEdit = allowed(actor, resource, CAN_EDIT);
+        boolean canSubmitReview = allowed(
+                actor,
+                resource,
+                CAN_SUBMIT_REVIEW);
+        boolean canReview = allowed(actor, resource, CAN_REVIEW);
+        boolean canPublish = allowed(actor, resource, CAN_PUBLISH);
+        boolean canPublishSkill = target.type() == AssetType.SKILL
+                && allowed(actor, resource, CAN_PUBLISH_SKILL);
+        boolean canWithdraw = allowed(actor, resource, CAN_WITHDRAW);
+        AssetReviewDecisionActions review =
+                coordinator.reviewDecisionActions(actor, assetId);
+        boolean canApprove = canReview && review.canApprove();
+        boolean canRequestChanges =
+                canReview && review.canRequestChanges();
+        boolean canReject = canReview && review.canReject();
+        boolean canCancel = canSubmitReview && review.canCancel();
+        boolean canOpenGovernance = canEdit
+                || canSubmitReview
+                || canReview
+                || canApprove
+                || canRequestChanges
+                || canReject
+                || canCancel
+                || canPublish
+                || canPublishSkill
+                || canWithdraw;
         return new AssetGovernanceActions(
-                allowed(actor, resource, CAN_EDIT),
-                allowed(actor, resource, CAN_SUBMIT_REVIEW),
-                allowed(actor, resource, CAN_REVIEW),
-                allowed(actor, resource, CAN_PUBLISH),
-                target.type() == AssetType.SKILL
-                        && allowed(actor, resource, CAN_PUBLISH_SKILL),
-                allowed(actor, resource, CAN_WITHDRAW));
+                canEdit,
+                canSubmitReview,
+                canReview,
+                canApprove,
+                canRequestChanges,
+                canReject,
+                canCancel,
+                canPublish,
+                canPublishSkill,
+                canWithdraw,
+                canOpenGovernance);
     }
 
     public AssetConsumptionRelease releaseForUse(
