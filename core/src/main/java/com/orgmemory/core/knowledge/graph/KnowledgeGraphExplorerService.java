@@ -10,7 +10,7 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -39,7 +39,7 @@ public class KnowledgeGraphExplorerService {
     private static final PermissionKey CAN_CURATE_GRAPH =
             PermissionKey.of("can_curate_graph");
 
-    private final KnowledgeSpaceRepository spaces;
+    private final KnowledgeSpaceQuery spaces;
     private final RelationshipAuthorizationPort authorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
     private final GraphExportReader graphs;
@@ -47,7 +47,7 @@ public class KnowledgeGraphExplorerService {
     private final PermissionAuditService audit;
 
     public KnowledgeGraphExplorerService(
-            KnowledgeSpaceRepository spaces,
+            KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
             GraphExportReader graphs,
@@ -174,9 +174,7 @@ public class KnowledgeGraphExplorerService {
     private String requireSpaceAccess(
             CurrentActor actor,
             UUID knowledgeSpaceId) {
-        if (!spaces.existsByIdAndOrganizationIdAndActiveTrue(
-                knowledgeSpaceId,
-                actor.organizationId())) {
+        if (!spaces.isActive(actor.organizationId(), knowledgeSpaceId)) {
             throw accessDenied();
         }
         var decision = authorization.check(

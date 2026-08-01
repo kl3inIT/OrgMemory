@@ -550,7 +550,7 @@ PR #213 merged as `6e8e5fe2d357f217d9c0bf16716576046a2bba8e` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-First Pull Request Evidence
 
 - `knowledge.acl` is a closed nested application module rather than an open
   migration module.
@@ -575,3 +575,31 @@ scan, and the four-path PR scope check passed.
 CodeRabbit requested that the release note spell out `shared::error` instead
 of grouping it under vague shared-foundation wording. The note now mirrors the
 exact four-entry allowlist already enforced by production metadata and tests.
+
+PR #216 merged as `b6a821c2eee5b8bb2b7a626a3758e975c372fa90` after all
+required CI checks passed. CodeRabbit confirmed the release-note correction
+and resolved its only review thread before merge.
+
+## Current Pull Request Gates
+
+- Space owns a read-only `KnowledgeSpaceQuery` for tenant-scoped existence and
+  active-availability checks.
+- Graph and Retrieval no longer inject `KnowledgeSpaceRepository` or consume
+  Space persistence directly.
+- Exact Modulith assertions pin `KnowledgeSpaceQuery` as the only Space type
+  consumed by Graph and Retrieval, and an ArchUnit rule rejects repository
+  dependencies from either module.
+- Existing Graph curation, exploration, export, and authorization-resource
+  behavior remains covered by focused and full Core tests.
+- Focused Space, Graph, and Modulith tests, `:core:test`, docs/release checks,
+  and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed
+  files before the Space module-closing cycle begins.
+
+Pre-PR verification completed: focused Space and Graph tests passed in 29s;
+the exact Modulith boundary suite passed in 19s; `:core:test` passed in 1m27s;
+the docs operating-model check passed across 418 Markdown files and 8 mirrored
+domain pairs; all 37 release-policy tests passed under Node 24.15; and the
+terminating repository `clean test` gate completed successfully in 5m36s
+across 99 tasks. Diff hygiene, zero sibling Space-repository imports, and the
+14-path PR scope check passed.

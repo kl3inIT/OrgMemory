@@ -16,7 +16,7 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
@@ -44,7 +44,7 @@ public class KnowledgeGraphCurationService {
             PermissionKey.of("can_curate_graph");
     private static final String RESOURCE_TYPE = "knowledge_space";
 
-    private final KnowledgeSpaceRepository spaces;
+    private final KnowledgeSpaceQuery spaces;
     private final KnowledgeAssetRepository assets;
     private final RelationshipAuthorizationPort authorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
@@ -55,7 +55,7 @@ public class KnowledgeGraphCurationService {
     private final RetrievalResultCache retrievalCache;
 
     KnowledgeGraphCurationService(
-            KnowledgeSpaceRepository spaces,
+            KnowledgeSpaceQuery spaces,
             KnowledgeAssetRepository assets,
             RelationshipAuthorizationPort authorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
@@ -349,8 +349,7 @@ public class KnowledgeGraphCurationService {
     }
 
     private void requireSpace(CurrentActor actor, UUID knowledgeSpaceId) {
-        if (!spaces.existsByIdAndOrganizationIdAndActiveTrue(
-                knowledgeSpaceId, actor.organizationId())) {
+        if (!spaces.isActive(actor.organizationId(), knowledgeSpaceId)) {
             throw new OrgMemoryAccessDeniedException(
                     "Knowledge Space is unavailable");
         }

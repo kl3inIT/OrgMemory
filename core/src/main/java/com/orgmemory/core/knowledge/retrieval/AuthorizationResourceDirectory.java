@@ -5,7 +5,7 @@ import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.DepartmentRepository;
 import com.orgmemory.core.organization.OrganizationRepository;
 import java.util.Objects;
@@ -22,13 +22,13 @@ public class AuthorizationResourceDirectory {
 
     private final OrganizationRepository organizations;
     private final DepartmentRepository departments;
-    private final KnowledgeSpaceRepository spaces;
+    private final KnowledgeSpaceQuery spaces;
     private final KnowledgeAssetRepository assets;
 
     AuthorizationResourceDirectory(
             OrganizationRepository organizations,
             DepartmentRepository departments,
-            KnowledgeSpaceRepository spaces,
+            KnowledgeSpaceQuery spaces,
             KnowledgeAssetRepository assets) {
         this.organizations = organizations;
         this.departments = departments;
@@ -51,7 +51,7 @@ public class AuthorizationResourceDirectory {
             case "organizational_unit" ->
                     departments.existsByIdAndOrganizationId(resourceId, organizationId);
             case "knowledge_space" ->
-                    spaces.existsByIdAndOrganizationId(resourceId, organizationId);
+                    spaces.exists(organizationId, resourceId);
             case "knowledge_asset" ->
                     assets.existsByIdAndOrganizationId(resourceId, organizationId);
             default -> false;

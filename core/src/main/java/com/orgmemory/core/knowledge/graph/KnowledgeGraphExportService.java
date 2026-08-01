@@ -9,7 +9,7 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceRepository;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -33,7 +33,7 @@ public class KnowledgeGraphExportService {
     private static final PermissionKey CAN_EXPORT_GRAPH =
             PermissionKey.of("can_export_graph");
 
-    private final KnowledgeSpaceRepository spaces;
+    private final KnowledgeSpaceQuery spaces;
     private final RelationshipAuthorizationPort authorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
     private final GraphExportReader reader;
@@ -41,7 +41,7 @@ public class KnowledgeGraphExportService {
     private final PermissionAuditService audit;
 
     KnowledgeGraphExportService(
-            KnowledgeSpaceRepository spaces,
+            KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
             GraphExportReader reader,
@@ -62,8 +62,7 @@ public class KnowledgeGraphExportService {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         Objects.requireNonNull(format, "format");
-        if (!spaces.existsByIdAndOrganizationIdAndActiveTrue(
-                knowledgeSpaceId, actor.organizationId())) {
+        if (!spaces.isActive(actor.organizationId(), knowledgeSpaceId)) {
             throw accessDenied();
         }
         var entry = authorization.check(new RelationshipAuthorizationQuery(
