@@ -21,6 +21,8 @@ current `origin/main`:
   and the production Vite build.
 - `pnpm check:docs` — passed OpenAPI, Oxlint, type generation, MDX, content,
   manifest, publication, route, and link checks.
+- `pnpm release:check` — passed the Tegami product and workflow contracts with
+  the Skill handoff release entry.
 - `pnpm --filter @orgmemory/web exec playwright test
   test/e2e/asset-registry-golden-poc.spec.ts` — all eight Asset browser flows
   passed.
