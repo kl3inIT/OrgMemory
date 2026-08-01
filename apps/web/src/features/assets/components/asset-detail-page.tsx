@@ -61,9 +61,11 @@ import {
 import { scopeAssetQueryKey } from "@/features/assets/actor-key"
 import { AssetBreadcrumb } from "@/features/assets/components/asset-breadcrumb"
 import { AssetPageError, AssetPageLoading } from "@/features/assets/components/asset-state"
+import { canOpenGovernance } from "@/features/assets/governance-policy"
 import { AssistantActionReceipt } from "@/features/assistant/components/assistant-action-receipt"
 import {
   acknowledgeWorkInstructionMutation,
+  getAssetGovernanceActionsOptions,
   getCapabilityPackDefinitionOptions,
   getAssetOptions,
   getAssetQueryKey,
@@ -115,21 +117,22 @@ export function AssetDetailPage({
   assetId,
   actorKey,
   releaseId,
-  currentUserId,
-  isAdmin,
   onReleaseChange,
 }: {
   assetId: string
   actorKey: string
   releaseId?: string
-  currentUserId?: string
-  isAdmin: boolean
   onReleaseChange: (releaseId?: string) => void
 }) {
   const assetOptions = getAssetOptions({ path: { assetId } })
   const asset = useQuery({
     ...assetOptions,
     queryKey: scopeAssetQueryKey(assetOptions.queryKey, actorKey),
+  })
+  const actionOptions = getAssetGovernanceActionsOptions({ path: { assetId } })
+  const actions = useQuery({
+    ...actionOptions,
+    queryKey: scopeAssetQueryKey(actionOptions.queryKey, actorKey),
   })
 
   if (asset.isPending) return <AssetPageLoading />
@@ -140,21 +143,12 @@ export function AssetDetailPage({
   const selected =
     asset.data.releases?.find((release) => release.id === releaseId) ??
     latestUsableRelease(asset.data)
-  const canManage =
-    isAdmin ||
-    (asset.data.roleAssignments ?? []).some(
-      (assignment) =>
-        assignment.principalType === "user" &&
-        assignment.principalId === currentUserId &&
-        assignment.role !== "VIEWER",
-    )
-
   return (
     <PageLayout.Root variant="wide">
       <AssetIdentityHeader
         asset={asset.data}
         release={selected}
-        canManage={canManage}
+        canOpenGovernance={canOpenGovernance(actions.data)}
         onReleaseChange={onReleaseChange}
       />
       <PageLayout.Body>
@@ -183,12 +177,12 @@ export function AssetDetailPage({
 function AssetIdentityHeader({
   asset,
   release,
-  canManage,
+  canOpenGovernance,
   onReleaseChange,
 }: {
   asset: AssetView
   release?: Release
-  canManage: boolean
+  canOpenGovernance: boolean
   onReleaseChange: (releaseId?: string) => void
 }) {
   const meta = ASSET_TYPE_META[asset.type!]
@@ -244,11 +238,11 @@ function AssetIdentityHeader({
               ))}
             </SelectContent>
           </Select>
-          {canManage ? (
+          {canOpenGovernance ? (
             <Button asChild variant="outline">
               <Link to="/assets/$assetId/governance" params={{ assetId: asset.id! }}>
                 <History aria-hidden="true" />
-                Manage asset
+                Open governance
               </Link>
             </Button>
           ) : null}

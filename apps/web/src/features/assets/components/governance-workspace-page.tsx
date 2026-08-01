@@ -25,7 +25,6 @@ import { AssetPageError, AssetPageLoading } from "@/features/assets/components/a
 import { GovernanceDecisionDialog } from "@/features/assets/components/governance-decision-dialog"
 import { GovernanceDraftWorkspace } from "@/features/assets/components/governance-draft-workspace"
 import {
-  canDecideReview,
   initialGovernanceTab,
   type GovernanceTab,
 } from "@/features/assets/governance-policy"
@@ -52,11 +51,9 @@ import { formatDate } from "@/lib/format"
 export function GovernanceWorkspacePage({
   assetId,
   actorKey,
-  currentUserId,
 }: {
   assetId: string
   actorKey: string
-  currentUserId?: string
 }) {
   const assetOptions = getAssetOptions({ path: { assetId } })
   const asset = useQuery({
@@ -149,7 +146,6 @@ export function GovernanceWorkspacePage({
             <ReviewWorkspace
               asset={asset.data}
               actions={actions.data}
-              currentUserId={currentUserId}
               onChanged={refresh}
             />
           </TabsContent>
@@ -270,12 +266,10 @@ function RevisionSelect({
 function ReviewWorkspace({
   asset,
   actions,
-  currentUserId,
   onChanged,
 }: {
   asset: AssetView
   actions?: AssetGovernanceActions
-  currentUserId?: string
   onChanged: () => Promise<unknown>
 }) {
   const reviews = asset.reviews ?? []
@@ -301,12 +295,12 @@ function ReviewWorkspace({
   return (
     <div className="space-y-5">
       {reviews.map((review) => {
-        const decidable = canDecideReview(
-          review,
-          asset.revisions ?? [],
-          actions,
-          currentUserId,
-        )
+        const open = review.state === "IN_REVIEW"
+        const canApprove = Boolean(open && actions?.canApprove)
+        const canRequestChanges = Boolean(open && actions?.canRequestChanges)
+        const canReject = Boolean(open && actions?.canReject)
+        const canCancel = Boolean(open && actions?.canCancel)
+        const decidable = canApprove || canRequestChanges || canReject || canCancel
         const publishable = Boolean(
           review.state === "APPROVED" &&
             review.revisionId &&
@@ -349,8 +343,7 @@ function ReviewWorkspace({
                 ) : null}
               </div>
               <div className="grid min-w-64 gap-3">
-                {decidable ? (
-                  <>
+                {canApprove ? (
                     <GovernanceDecisionDialog
                       label="Approve exact digest"
                       description="This records approval only for the immutable digest shown on this review case."
@@ -364,6 +357,8 @@ function ReviewWorkspace({
                         })
                       }
                     />
+                ) : null}
+                {canRequestChanges ? (
                     <GovernanceDecisionDialog
                       label="Request changes"
                       description="The submitted revision remains immutable. The author must create a new draft change."
@@ -378,7 +373,38 @@ function ReviewWorkspace({
                         })
                       }
                     />
-                  </>
+                ) : null}
+                {canReject ? (
+                  <GovernanceDecisionDialog
+                    label="Reject revision"
+                    description="This rejects the submitted immutable revision and closes the review case."
+                    variant="destructive"
+                    onConfirm={() =>
+                      decide.mutate({
+                        path: { assetId: asset.id!, reviewCaseId: review.id! },
+                        body: {
+                          decision: "REJECT",
+                          comment: "Rejected from governance workspace",
+                        },
+                      })
+                    }
+                  />
+                ) : null}
+                {canCancel ? (
+                  <GovernanceDecisionDialog
+                    label="Cancel review"
+                    description="This closes the review request without changing the immutable revision."
+                    variant="outline"
+                    onConfirm={() =>
+                      decide.mutate({
+                        path: { assetId: asset.id!, reviewCaseId: review.id! },
+                        body: {
+                          decision: "CANCEL",
+                          comment: "Cancelled from governance workspace",
+                        },
+                      })
+                    }
+                  />
                 ) : null}
                 {publishable ? (
                   <div className="space-y-3">

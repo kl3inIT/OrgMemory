@@ -61,11 +61,24 @@ public class GraphRagKnowledgeRetrievalService
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
+    private static final OpenFgaBatchRecheck.ReasonRule RESULT_REASON =
+            OpenFgaBatchRecheck.ReasonRule.resultReason();
+    private static final OpenFgaBatchRecheck.ReasonRule FINAL_RECHECK_DENIED =
+            OpenFgaBatchRecheck.ReasonRule.fixed(
+                    "FINAL_OPENFGA_RECHECK_DENIED");
+    private static final OpenFgaBatchRecheck.ReasonMapping RECHECK_REASONS =
+            new OpenFgaBatchRecheck.ReasonMapping(
+                    RESULT_REASON,
+                    RESULT_REASON,
+                    RESULT_REASON,
+                    FINAL_RECHECK_DENIED,
+                    FINAL_RECHECK_DENIED,
+                    FINAL_RECHECK_DENIED);
     private static final int MAX_REQUEST_ID_LENGTH = 128;
 
     private final KnowledgeSearchAuthorizationService searchAuthorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
-    private final RelationshipAuthorizationSetPort authorization;
+    private final OpenFgaBatchRecheck batchRecheck;
     private final SecureKnowledgeRetrievalStore canonicalEvidence;
     private final EmbeddingProfileRegistry embeddingProfiles;
     private final KnowledgeEmbeddingProperties embedding;
@@ -122,7 +135,7 @@ public class GraphRagKnowledgeRetrievalService
             GraphRagTaskDecorator tasks) {
         this.searchAuthorization = searchAuthorization;
         this.evidenceScopes = evidenceScopes;
-        this.authorization = authorization;
+        this.batchRecheck = new OpenFgaBatchRecheck(authorization);
         this.canonicalEvidence = canonicalEvidence;
         this.embeddingProfiles = embeddingProfiles;
         this.embedding = embedding;
@@ -765,35 +778,31 @@ public class GraphRagKnowledgeRetrievalService
                                 .knowledgeAssetId()))
                 .distinct()
                 .toList();
-        var checked = authorization.batchCheck(
+        var rechecked = batchRecheck.recheck(
                 new BatchAuthorizationQuery(
                         actor.organizationId(),
                         actor.principal(),
                         CAN_VIEW,
-                        resources));
-        if (!checked.resolved()
-                || !authorizationModelId.equals(checked.policyVersion())
-                || checked.decisions().size() != resources.size()) {
+                        resources),
+                authorizationModelId,
+                OpenFgaBatchRecheck.ResultPolicy.REQUIRE_ALL_ALLOWED,
+                RECHECK_REASONS);
+        if (!rechecked.succeeded()) {
+            var failure = rechecked.failure();
+            String failurePolicyVersion = switch (failure.kind()) {
+                case MISSING_DECISION,
+                        DECISION_POLICY_MISMATCH,
+                        DENIED -> authorizationModelId;
+                case UNRESOLVED,
+                        DECISION_COUNT_MISMATCH,
+                        OUTER_POLICY_MISMATCH -> failure.policyVersion();
+            };
             throw searchAuthorization.unavailable(
                     actor,
                     requestId,
                     query,
-                    checked.reasonCode(),
-                    checked.policyVersion());
-        }
-        for (ResourceRef resource : resources) {
-            var decision = checked.decisions().get(resource);
-            if (decision == null
-                    || !decision.allowed()
-                    || !authorizationModelId.equals(
-                            decision.policyVersion())) {
-                throw searchAuthorization.unavailable(
-                        actor,
-                        requestId,
-                        query,
-                        "FINAL_OPENFGA_RECHECK_DENIED",
-                        checked.policyVersion());
-            }
+                    failure.reasonCode(),
+                    failurePolicyVersion);
         }
     }
 

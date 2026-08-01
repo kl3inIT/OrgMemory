@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
@@ -17,6 +19,7 @@ import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.permission.PermissionAuditCommand;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -26,6 +29,9 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 
 class CanonicalHybridKnowledgeSearchTests {
 
@@ -101,6 +107,23 @@ class CanonicalHybridKnowledgeSearchTests {
     }
 
     @Test
+    void emptyAuthorizedScopeReturnsAllowedEmptyWithoutBatchCheck() {
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenReturn(scope(Set.of()));
+
+        SecureKnowledgeSearchResult result =
+                service.search(actor, "leave policy", 10, "request-empty");
+
+        assertEquals(List.of(), result.evidence());
+        verify(authorization, never()).batchCheck(any());
+        ArgumentCaptor<PermissionAuditCommand> recorded =
+                ArgumentCaptor.forClass(PermissionAuditCommand.class);
+        verify(audit).record(recorded.capture());
+        assertEquals(
+                "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
+                recorded.getValue().reasonCode());
+    }
+
+    @Test
     void candidateOutsideListObjectsBoundaryFailsClosed() {
         store.lexical = List.of(candidate(UUID.randomUUID(), UUID.randomUUID()));
 
@@ -124,6 +147,130 @@ class CanonicalHybridKnowledgeSearchTests {
 
         assertThrows(KnowledgeRetrievalUnavailableException.class,
                 () -> service.search(actor, "leave policy", 10, "request-4"));
+    }
+
+    @Test
+    void duplicateAssetResourcesAreCheckedOnlyOnce() {
+        SecureRetrievalCandidate first = candidate(UUID.randomUUID(), assetId);
+        SecureRetrievalCandidate second = candidate(UUID.randomUUID(), assetId);
+        store.lexical = List.of(first, second);
+        store.rechecked = List.of(first, second);
+        ResourceRef resource = resource(assetId);
+        when(authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource, AuthorizationDecision.allow(MODEL_ID)),
+                        MODEL_ID));
+
+        SecureKnowledgeSearchResult result =
+                service.search(actor, "leave policy", 10, "request-duplicates");
+
+        assertEquals(1, result.evidence().size());
+        ArgumentCaptor<BatchAuthorizationQuery> query =
+                ArgumentCaptor.forClass(BatchAuthorizationQuery.class);
+        verify(authorization).batchCheck(query.capture());
+        assertEquals(List.of(resource), query.getValue().resources());
+    }
+
+    @Test
+    void mixedAllowAndDenyKeepsOnlyAllowedEvidence() {
+        UUID deniedAssetId = UUID.randomUUID();
+        SecureRetrievalCandidate allowedCandidate =
+                candidate(UUID.randomUUID(), assetId);
+        SecureRetrievalCandidate deniedCandidate =
+                candidate(UUID.randomUUID(), deniedAssetId);
+        when(evidenceScopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(assetId, deniedAssetId)));
+        store.lexical = List.of(allowedCandidate, deniedCandidate);
+        store.rechecked = List.of(allowedCandidate);
+        when(authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(
+                                resource(assetId),
+                                AuthorizationDecision.allow(MODEL_ID),
+                                resource(deniedAssetId),
+                                AuthorizationDecision.deny(
+                                        "RELATIONSHIP_DENIED",
+                                        MODEL_ID)),
+                        MODEL_ID));
+
+        SecureKnowledgeSearchResult result =
+                service.search(actor, "leave policy", 10, "request-mixed");
+
+        assertEquals(1, result.evidence().size());
+        assertEquals(
+                allowedCandidate.chunkId(),
+                result.evidence().getFirst().chunkId());
+    }
+
+    @Test
+    void missingDecisionWithCompleteSizedBatchUsesIncompleteReason() {
+        store.lexical = List.of(candidate(UUID.randomUUID(), assetId));
+        when(authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(
+                                resource(UUID.randomUUID()),
+                                AuthorizationDecision.allow(MODEL_ID)),
+                        MODEL_ID));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.search(
+                        actor,
+                        "leave policy",
+                        10,
+                        "request-missing-decision"));
+
+        assertAuditReason("OPENFGA_BATCH_INCOMPLETE");
+    }
+
+    @Test
+    void outerAndPerDecisionModelMismatchUseStableReason() {
+        for (BatchAuthorizationResult result : List.of(
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource(assetId),
+                                AuthorizationDecision.allow("model-v2")),
+                        "model-v2"),
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource(assetId),
+                                AuthorizationDecision.allow("model-v2")),
+                        MODEL_ID))) {
+            CanonicalHybridKnowledgeSearch fixtureService = freshService();
+            store.lexical = List.of(candidate(UUID.randomUUID(), assetId));
+            when(authorization.batchCheck(any())).thenReturn(result);
+
+            assertThrows(
+                    KnowledgeRetrievalUnavailableException.class,
+                    () -> fixtureService.search(
+                            actor,
+                            "leave policy",
+                            10,
+                            "request-model-drift"));
+
+            assertAuditReason("AUTHORIZATION_MODEL_MISMATCH");
+            org.mockito.Mockito.clearInvocations(audit);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "OPENFGA_TIMEOUT",
+            "OPENFGA_UNAVAILABLE",
+            "OPENFGA_INTERRUPTED"
+    })
+    void batchProviderFailureReasonIsPreserved(String reasonCode) {
+        store.lexical = List.of(candidate(UUID.randomUUID(), assetId));
+        when(authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.indeterminate(reasonCode, MODEL_ID));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.search(
+                        actor,
+                        "leave policy",
+                        10,
+                        "request-provider-failure"));
+
+        assertAuditReason(reasonCode);
     }
 
     @Test
@@ -155,6 +302,56 @@ class CanonicalHybridKnowledgeSearchTests {
 
     private static SecureRetrievalCandidate candidate(UUID chunkId, UUID knowledgeAssetId) {
         return candidate(chunkId, knowledgeAssetId, ORGANIZATION_ID);
+    }
+
+    private ResolvedKnowledgeEvidenceScope scope(Set<UUID> assetIds) {
+        if (assetIds.isEmpty()) {
+            return new ResolvedKnowledgeEvidenceScope(
+                    ORGANIZATION_ID,
+                    actor.userId(),
+                    DEPARTMENT_ID,
+                    false,
+                    MODEL_ID,
+                    Instant.parse("2026-07-24T00:00:00Z"),
+                    Map.of(),
+                    Map.of());
+        }
+        return new ResolvedKnowledgeEvidenceScope(
+                ORGANIZATION_ID,
+                actor.userId(),
+                DEPARTMENT_ID,
+                false,
+                MODEL_ID,
+                Instant.parse("2026-07-24T00:00:00Z"),
+                Map.of(SPACE_ID, assetIds),
+                Map.of(SPACE_ID, 1L));
+    }
+
+    private ResourceRef resource(UUID knowledgeAssetId) {
+        return ResourceRef.of(
+                ORGANIZATION_ID,
+                "knowledge_asset",
+                knowledgeAssetId);
+    }
+
+    private CanonicalHybridKnowledgeSearch freshService() {
+        return new CanonicalHybridKnowledgeSearch(
+                store,
+                evidenceScopes,
+                new KnowledgeSearchAuthorizationService(
+                        entryAuthorization,
+                        audit),
+                authorization,
+                embeddings,
+                audit,
+                new KnowledgeRetrievalProperties(20, 5, 5_000, 1_000));
+    }
+
+    private void assertAuditReason(String reasonCode) {
+        ArgumentCaptor<PermissionAuditCommand> recorded =
+                ArgumentCaptor.forClass(PermissionAuditCommand.class);
+        verify(audit).record(recorded.capture());
+        assertEquals(reasonCode, recorded.getValue().reasonCode());
     }
 
     private static SecureRetrievalCandidate candidate(

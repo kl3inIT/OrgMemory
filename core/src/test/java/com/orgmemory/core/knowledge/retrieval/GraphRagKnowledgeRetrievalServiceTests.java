@@ -23,6 +23,7 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
@@ -47,6 +48,8 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 class GraphRagKnowledgeRetrievalServiceTests {
@@ -162,6 +165,36 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals(2, snapshotStages.size());
         assertTrue(snapshotStages.stream()
                 .allMatch(event -> event.scopeFingerprint() != null));
+    }
+
+    @Test
+    void emptyAuthorizedScopeReturnsAllowedEmptyWithoutFinalBatchCheck() {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(), 0L));
+        RelationshipAuthorizationSetPort finalAuthorization =
+                mock(RelationshipAuthorizationSetPort.class);
+
+        SecureKnowledgeSearchResult result = service(
+                        scopes,
+                        finalAuthorization,
+                        mock(SecureKnowledgeRetrievalStore.class),
+                        mock(LightRagQueryEngine.class),
+                        GraphRagRetrievalPolicy.defaults(),
+                        audit,
+                        mock(GraphRagEventSink.class))
+                .search(
+                        actor,
+                        "What is the leave policy?",
+                        10,
+                        "request-empty");
+
+        assertEquals(List.of(), result.evidence());
+        verify(finalAuthorization, never()).batchCheck(any());
+        assertAuditReason(audit, "NO_AUTHORIZED_KNOWLEDGE_ASSETS");
     }
 
     @Test
@@ -579,6 +612,100 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals(0, canonical.recheckCount);
     }
 
+    @Test
+    void mixedAllowAndDenyRejectsTheEntireGraphClosure() {
+        AuthorizationFixture fixture = authorizationFixture(
+                scope(Set.of(ASSET_ID, SECOND_ASSET_ID), 1L),
+                groundingAcrossAssets());
+        when(fixture.authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(
+                                resource(ASSET_ID),
+                                AuthorizationDecision.allow(MODEL_ID),
+                                resource(SECOND_ASSET_ID),
+                                AuthorizationDecision.deny(
+                                        "RELATIONSHIP_DENIED",
+                                        MODEL_ID)),
+                        MODEL_ID));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                fixture::search);
+
+        assertAuditReason(
+                fixture.audit,
+                "FINAL_OPENFGA_RECHECK_DENIED");
+        verify(fixture.engine, never()).renderGrounding(any(), any(), any());
+    }
+
+    @Test
+    void missingAndPerDecisionModelMismatchUseFinalRecheckReason() {
+        for (BatchAuthorizationResult result : List.of(
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource(SECOND_ASSET_ID),
+                                AuthorizationDecision.allow(MODEL_ID)),
+                        MODEL_ID),
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource(ASSET_ID),
+                                AuthorizationDecision.allow("model-v2")),
+                        MODEL_ID))) {
+            AuthorizationFixture fixture = authorizationFixture(
+                    scope(Set.of(ASSET_ID), 1L),
+                    grounding());
+            when(fixture.authorization.batchCheck(any())).thenReturn(result);
+
+            assertThrows(
+                    KnowledgeRetrievalUnavailableException.class,
+                    fixture::search);
+
+            assertAuditReason(
+                    fixture.audit,
+                    "FINAL_OPENFGA_RECHECK_DENIED");
+            verify(fixture.engine, never())
+                    .renderGrounding(any(), any(), any());
+        }
+    }
+
+    @Test
+    void outerBatchModelMismatchKeepsBatchResolvedAuditReason() {
+        AuthorizationFixture fixture = authorizationFixture(
+                scope(Set.of(ASSET_ID), 1L),
+                grounding());
+        when(fixture.authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(resource(ASSET_ID),
+                                AuthorizationDecision.allow("model-v2")),
+                        "model-v2"));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                fixture::search);
+
+        assertAuditReason(
+                fixture.audit,
+                "BATCH_AUTHORIZATION_RESOLVED");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "OPENFGA_TIMEOUT",
+            "OPENFGA_UNAVAILABLE",
+            "OPENFGA_INTERRUPTED"
+    })
+    void finalBatchProviderFailureReasonIsPreserved(String reasonCode) {
+        AuthorizationFixture fixture = authorizationFixture(
+                scope(Set.of(ASSET_ID), 1L),
+                grounding());
+        when(fixture.authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.indeterminate(reasonCode, MODEL_ID));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                fixture::search);
+
+        assertAuditReason(fixture.audit, reasonCode);
+    }
+
     private static ResolvedKnowledgeEvidenceScope scope(
             Set<UUID> assets,
             long aclGeneration) {
@@ -597,6 +724,68 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 NOW,
                 bySpace,
                 generations);
+    }
+
+    private static CurrentActor actor() {
+        return new CurrentActor(
+                USER_ID,
+                ORGANIZATION_ID,
+                null,
+                "User",
+                "user@example.test");
+    }
+
+    private static ResourceRef resource(UUID assetId) {
+        return ResourceRef.of(
+                ORGANIZATION_ID,
+                "knowledge_asset",
+                assetId);
+    }
+
+    private static void assertAuditReason(
+            PermissionAuditService audit,
+            String reasonCode) {
+        ArgumentCaptor<PermissionAuditCommand> recorded =
+                ArgumentCaptor.forClass(PermissionAuditCommand.class);
+        verify(audit).record(recorded.capture());
+        assertEquals(reasonCode, recorded.getValue().reasonCode());
+    }
+
+    private static AuthorizationFixture authorizationFixture(
+            ResolvedKnowledgeEvidenceScope allowed,
+            LightRagGrounding grounding) {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID)).thenReturn(allowed, allowed);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery queryPlan = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(queryPlan);
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+                allowed.forKnowledgeSpace(SPACE_ID)
+                        .authorizationFingerprint(),
+                grounding,
+                false,
+                false));
+        when(engine.consolidateGrounding(any(), any(), any()))
+                .thenReturn(prepared(grounding));
+        RelationshipAuthorizationSetPort authorization =
+                mock(RelationshipAuthorizationSetPort.class);
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                authorization,
+                new NeverRecheckedStore(),
+                engine,
+                GraphRagRetrievalPolicy.defaults(),
+                audit,
+                mock(GraphRagEventSink.class));
+        return new AuthorizationFixture(
+                actor,
+                audit,
+                authorization,
+                engine,
+                service);
     }
 
     private static ProjectionSnapshot snapshot() {
@@ -826,6 +1015,34 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 10);
     }
 
+    private static LightRagGrounding groundingAcrossAssets() {
+        LightRagGrounding original = grounding();
+        return new LightRagGrounding(
+                original.entities(),
+                List.of(new LightRagGrounding.SelectedRelation(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "employee",
+                        "probation policy",
+                        List.of(new LightRagGrounding.RelationContribution(
+                                "SUBJECT_TO",
+                                List.of("probation"),
+                                "Employees are subject to probation.",
+                                1.0,
+                                evidence(
+                                        RELATION_CHUNK_ID,
+                                        SECOND_ASSET_ID),
+                                1L,
+                                0.9)),
+                        0.8,
+                        1)),
+                original.chunks(),
+                original.scopes(),
+                original.tokenUsage(),
+                original.chunkTokens());
+    }
+
     private static LightRagGroundingAssembler.PreparedGrounding prepared(
             LightRagGrounding grounding) {
         return prepared(grounding, 0);
@@ -854,13 +1071,35 @@ class GraphRagKnowledgeRetrievalServiceTests {
     }
 
     private static EvidenceReference evidence(UUID chunkId) {
+        return evidence(chunkId, ASSET_ID);
+    }
+
+    private static EvidenceReference evidence(
+            UUID chunkId,
+            UUID assetId) {
         return new EvidenceReference(
                 ORGANIZATION_ID,
-                ASSET_ID,
+                assetId,
                 REVISION_ID,
                 chunkId,
                 ACL_ID,
                 1L);
+    }
+
+    private record AuthorizationFixture(
+            CurrentActor actor,
+            PermissionAuditService audit,
+            RelationshipAuthorizationSetPort authorization,
+            LightRagQueryEngine engine,
+            GraphRagKnowledgeRetrievalService service) {
+
+        private SecureKnowledgeSearchResult search() {
+            return service.search(
+                    actor,
+                    "What is the leave policy?",
+                    10,
+                    "request-authorization");
+        }
     }
 
     private static SecureRetrievalCandidate candidate(UUID chunkId) {

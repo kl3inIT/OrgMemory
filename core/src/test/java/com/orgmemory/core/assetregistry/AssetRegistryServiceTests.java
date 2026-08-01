@@ -89,13 +89,19 @@ class AssetRegistryServiceTests {
                         UUID.randomUUID(),
                         AssetType.SKILL,
                         true)));
+        when(coordinator.reviewDecisionActions(actor, assetId)).thenReturn(
+                new AssetReviewDecisionActions(
+                        false,
+                        true,
+                        true,
+                        true));
         RelationshipAuthorizationPort authorization =
                 mock(RelationshipAuthorizationPort.class);
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             return switch (query.permission().value()) {
-                case "can_view", "can_edit", "can_submit_review", "can_publish",
-                        "can_publish_skill" ->
+                case "can_view", "can_edit", "can_submit_review", "can_review",
+                        "can_publish", "can_publish_skill" ->
                     AuthorizationDecision.allow("model-v1");
                 default -> AuthorizationDecision.deny(
                         "RELATIONSHIP_DENIED", "model-v1");
@@ -112,10 +118,15 @@ class AssetRegistryServiceTests {
 
         assertEquals(true, actions.canEdit());
         assertEquals(true, actions.canSubmitReview());
-        assertEquals(false, actions.canReview());
+        assertEquals(true, actions.canReview());
+        assertEquals(false, actions.canApprove());
+        assertEquals(true, actions.canRequestChanges());
+        assertEquals(true, actions.canReject());
+        assertEquals(true, actions.canCancel());
         assertEquals(true, actions.canPublish());
         assertEquals(true, actions.canPublishSkill());
         assertEquals(false, actions.canWithdraw());
+        assertEquals(true, actions.canOpenGovernance());
     }
 
     @Test
