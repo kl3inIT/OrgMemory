@@ -475,9 +475,15 @@ enforcement stays with the check ports. A verdict is `ALLOWED`, `DENIED`, or
 carries the authority, generation, and capture time it was decided from. The
 explanation path reads the relationship port directly so an unanswered check stays
 distinguishable from a refusal; `EffectiveAuthorizationService` continues to
-collapse the two for enforcement. Administrative tuple writes are confined to
-`organization` and `role` objects: Slack, Drive, and GitHub own the ACL for connected
-content, and a second writer would let the two diverge.
+collapse the two for enforcement. For `knowledge_asset#can_view`, the admin
+inspector additionally runs the one requested asset through the same canonical
+retrieval eligibility SQL and reports the OpenFGA relationship, canonical content
+policy, and final intersection separately. The endpoint requires `can_view_audit`
+before resolving the tenant-owned asset title or Space name; other resource and
+permission combinations are explicitly relationship-only. Administrative tuple
+writes are confined to `organization` and `role` objects: Slack, Drive, and
+GitHub own the ACL for connected content, and a second writer would let the two
+diverge.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API
 is the interactive delivery and migration owner; worker/MCP share and validate

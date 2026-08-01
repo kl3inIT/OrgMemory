@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
@@ -23,6 +23,7 @@ Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeR
 | OpenFGA model mismatch cannot reach the renderer | `GraphRagKnowledgeRetrievalServiceTests#authorizationModelMismatchCannotReachTheVerifiedRenderer` |
 | Authorization scope changing during retrieval retries without egress | `GraphRagKnowledgeRetrievalServiceTests#revocationBetweenRetrievalAndCitationCausesAFullRetryWithoutEgress` |
 | Parent Knowledge exposes only the exact four-type `knowledge::search` contract, and Assistant plus Asset Registry do not import Retrieval implementation | `ModulithVerificationTests#searchIsAnExactExplicitKnowledgeInterface`, `#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` |
+| One-asset admin inspection uses canonical retrieval eligibility after relationship allowance | `PermissionsAdminIntegrationTests#effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial` |
 
 Request-boundary missing control role/incomplete actor returns `403`; generic
 resource `404` does not claim otherwise. Provider-backed evaluation,

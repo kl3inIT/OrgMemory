@@ -5,15 +5,18 @@
 - [x] Audit the existing UI against the supplied screenshots and repository
   design system.
 - [x] Complete the independent architecture challenge and record the decision.
-- [ ] Add focused backend characterization tests for relationship-allowed but
+- [x] Add focused backend characterization tests for relationship-allowed but
   canonical-content-denied behavior and metadata authorization.
-- [ ] Implement the selected layered diagnostic contract without changing
+- [x] Implement the selected layered diagnostic contract without changing
   enforcement.
-- [ ] Replace identifier-first result rendering with resolved, grouped labels
-  and secondary copyable identifiers within the approved metadata boundary.
-- [ ] Regenerate the public OpenAPI contract and web client.
-- [ ] Add focused frontend tests for final-versus-relationship verdicts,
-  accessible labels, grouped path steps, and error/unknown states.
-- [ ] Reconcile the permission spec/test pair, architecture, roadmap, and this
+- [x] Replace identifier-first result rendering with resolved, grouped labels
+  and secondary collapsed identifiers within the approved metadata boundary.
+- [x] Regenerate the public OpenAPI contract and web client.
+- [x] Add focused frontend tests for final-versus-relationship verdicts,
+  label-first rendering, relationship-only identifier suppression, and unknown states.
+- [x] Reconcile the permission and secure-retrieval spec/test pairs,
+  architecture, roadmap, and this
   increment.
-- [ ] Run backend, frontend, contract, browser, and terminating context gates.
+- [x] Run backend, frontend, contract, static-analysis, and terminating context gates.
+- [ ] Complete browser interaction and reference-image comparison. Blocked on
+  2026-08-02 because the Browser runtime reported no available browser instance.

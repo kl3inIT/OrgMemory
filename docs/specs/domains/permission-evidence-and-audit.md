@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/permission`,
 `apps/api/src/main/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-07-29-multi-provider-model-control-plane (d7ca979)`.
+Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
 
 ## Current Behavior
 
@@ -31,6 +31,15 @@ AI gateway create/update/disable, credential rotation, route selection, and
 connection probes append sanitized audit events. Events identify the profile,
 preset, or workload and a bounded machine outcome; API keys, ciphertext,
 provider response bodies, prompts, and completions are never audit fields.
+
+Effective-access inspection is an audit capability rather than an implication
+of member administration. `can_view_audit` is checked before the target user,
+tenant-owned resource, document title, Space name, or classification is
+resolved. A Knowledge Asset `can_view` response distinguishes the OpenFGA
+relationship result from the canonical content-policy result and exposes their
+intersection as the final verdict. Other resource and permission combinations
+are labeled relationship-only. The UI uses resolved names as primary labels and
+keeps identifiers and policy reason codes in collapsed technical details.
 
 ## Source Modules
 
