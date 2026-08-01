@@ -6,6 +6,8 @@ subject: Make live connector polling consistent and rotation-aware
 
 # Make live connector polling consistent and rotation-aware
 
+## Improvements
+
 Slack, Google Drive, and GitHub now run through one connector polling driver
 for connection isolation, content cadence, failure activity, and
 credential-derived client lifecycle. Clients retain safe token and rate-limit
