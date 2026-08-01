@@ -37,6 +37,7 @@ public class SourceAclHead extends BaseEntity {
 
     public SourceAclHead(SourceAclTarget target, SourceAclSnapshot snapshot) {
         super(UUID.randomUUID());
+        requireMatchingSnapshot(target, snapshot);
         this.organizationId = target.organizationId();
         this.sourceSystem = target.sourceSystem();
         this.sourceConnectionKey = target.sourceConnectionKey();
@@ -47,6 +48,7 @@ public class SourceAclHead extends BaseEntity {
     }
 
     public void advance(SourceAclTarget target, SourceAclSnapshot snapshot) {
+        requireMatchingSnapshot(target, snapshot);
         if (!organizationId.equals(target.organizationId())
                 || !sourceSystem.equals(target.sourceSystem())
                 || !sourceConnectionKey.equals(target.sourceConnectionKey())
@@ -61,6 +63,16 @@ public class SourceAclHead extends BaseEntity {
         currentRawSourceObjectId = target.rawSourceObjectId();
         currentSnapshotId = snapshot.getId();
         aclGeneration = snapshot.getAclGeneration();
+    }
+
+    private static void requireMatchingSnapshot(
+            SourceAclTarget target,
+            SourceAclSnapshot snapshot) {
+        if (!target.organizationId().equals(snapshot.getOrganizationId())
+                || !target.rawSourceObjectId().equals(snapshot.getRawSourceObjectId())) {
+            throw new IllegalArgumentException(
+                    "ACL target and snapshot must identify the same source");
+        }
     }
 
     public UUID getCurrentRawSourceObjectId() {

@@ -42,6 +42,39 @@ class SourceAclHeadTests {
                         snapshot(organizationId, differentIdentity.rawSourceObjectId(), 3)));
     }
 
+    @Test
+    void rejectsTargetSnapshotIdentityMismatchesDuringCreationAndAdvance() {
+        UUID organizationId = UUID.randomUUID();
+        SourceAclTarget firstTarget = target(organizationId, UUID.randomUUID(), "document-1");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SourceAclHead(
+                        firstTarget,
+                        snapshot(UUID.randomUUID(), firstTarget.rawSourceObjectId(), 1)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SourceAclHead(
+                        firstTarget,
+                        snapshot(organizationId, UUID.randomUUID(), 1)));
+
+        SourceAclHead head = new SourceAclHead(
+                firstTarget,
+                snapshot(organizationId, firstTarget.rawSourceObjectId(), 1));
+        SourceAclTarget nextTarget = target(organizationId, UUID.randomUUID(), "document-1");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> head.advance(
+                        nextTarget,
+                        snapshot(UUID.randomUUID(), nextTarget.rawSourceObjectId(), 2)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> head.advance(
+                        nextTarget,
+                        snapshot(organizationId, UUID.randomUUID(), 2)));
+    }
+
     private static SourceAclTarget target(
             UUID organizationId,
             UUID rawSourceObjectId,

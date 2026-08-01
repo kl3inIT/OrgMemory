@@ -442,3 +442,9 @@ release-policy tests passed; and the terminating repository `clean test` gate
 completed successfully in 4m55s across 108 tasks. Diff hygiene and the zero
 ACL-to-Source Ledger import check passed. The pre-stage worktree contains 12
 changed paths.
+
+CodeRabbit identified that independently supplied ACL targets and snapshots
+also needed an explicit organization/raw-source identity match. The constructor
+and advance path now reject both mismatch classes before mutating the head;
+four focused mismatch cases passed, and the terminating repository `clean
+test` gate passed again in 5m28s across 99 tasks.
