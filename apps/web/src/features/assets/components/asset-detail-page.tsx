@@ -17,9 +17,8 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
-import { buildSkillInstallHandoff } from "@/features/assets/agent-handoff/skill-agent-handoffs"
-import { AgentHandoffPanel } from "@/features/assets/components/agent-handoff-panel"
 import { MetadataTile } from "@/features/assets/components/metadata-tile"
+import { SkillConsumerInstaller } from "@/features/assets/components/skill-consumer-installer"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   AlertDialog,
@@ -777,21 +776,19 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
 
   const skill = manifest.data
   const reference = `${skill.coordinate}@${skill.version}`
-  const installHandoff = buildSkillInstallHandoff(reference)
   return (
     <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <div className="min-w-0 space-y-6">
-        <AgentHandoffPanel handoff={installHandoff} />
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+              <div className="min-w-0">
                 <CardTitle>Verified package</CardTitle>
                 <p className="mt-1 text-supporting text-content-secondary">
-                  Inspect the immutable package contract before installing this release.
+                  Inspect the immutable release, then choose a supported project-local installer.
                 </p>
               </div>
-              <PackageCheck className="size-5 text-content-muted" aria-hidden="true" />
+              <SkillConsumerInstaller reference={reference} />
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -802,12 +799,12 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
             </div>
 
             <Alert>
-              <ShieldCheck aria-hidden="true" />
-              <AlertTitle>Authenticated and reproducible</AlertTitle>
+              <PackageCheck aria-hidden="true" />
+              <AlertTitle>Integrity verified during installation</AlertTitle>
               <AlertDescription>
-                Installation uses your current OrgMemory access, pins this version and package
-                digest, verifies every released file, then promotes the staged directory
-                atomically.
+                The CLI authenticates the download, verifies the archive and every released file,
+                promotes the staged directory atomically, and writes a token-free receipt only
+                after installation succeeds. Receipt failure rolls the installation back.
               </AlertDescription>
             </Alert>
 
@@ -855,7 +852,10 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
                   : "Reviewed"
               }
             />
-            <Definition label="Compatibility" value={skill.compatibility || "Not specified"} />
+            <Definition
+              label="Declared compatibility"
+              value={skill.compatibility || "Not specified"}
+            />
             <Definition label="Allowed tools" value={skill.allowedTools || "Not restricted"} />
             <Definition label="License" value={skill.license || "Not specified"} />
           </CardContent>

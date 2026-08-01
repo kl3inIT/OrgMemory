@@ -1,4 +1,8 @@
 import type { AgentHandoff } from "@/features/assets/agent-handoff/agent-handoff"
+import {
+  skillConsumerTarget,
+  type SkillConsumer,
+} from "@/features/assets/agent-handoff/skill-consumers"
 
 export const SKILL_DRAFT_SCOPES = ["assets:read", "assets:write"] as const
 export const SKILL_INSTALL_SCOPES = ["assets:read"] as const
@@ -42,19 +46,21 @@ export function buildSkillDraftHandoff(skillFolder = "<skill-folder>"): AgentHan
   }
 }
 
-export function buildSkillInstallHandoff(reference: string): AgentHandoff {
-  const claudeCommand = `orgmemory skill add ${reference} --agent claude-code`
-  const codexCommand = `orgmemory skill add ${reference} --agent codex`
-  const cliCommand = `orgmemory skill add ${reference} --agent <claude-code|codex>`
+export function buildSkillInstallHandoff(
+  reference: string,
+  consumer: SkillConsumer,
+): AgentHandoff {
+  const cliCommand = `orgmemory skill add ${reference} --agent ${consumer.id}`
+  const projectTarget = skillConsumerTarget(consumer, reference)
 
   return {
-    title: "Install this exact Skill",
+    title: `Install with ${consumer.label}`,
     promptTemplate: [
-      `Help me install the exact released OrgMemory Skill \`${reference}\` into my local coding agent.`,
+      `Help me install the exact released OrgMemory Skill \`${reference}\` into ${consumer.label}.`,
       "",
       "1. Use the existing official OrgMemory CLI. If it is unavailable, stop and tell me; do not install or upgrade it.",
-      "2. Ask whether the target is Claude Code or Codex if I have not said which one. Do not choose for me.",
-      `3. Show me the matching exact command — \`${claudeCommand}\` or \`${codexCommand}\` — and ask for explicit confirmation.`,
+      `2. Confirm that this project-local installation targets \`${projectTarget}\`. Do not add \`--global\` or choose another destination.`,
+      `3. Show me the exact command \`${cliCommand}\` and ask for explicit confirmation.`,
       "4. After confirmation, run only that command. Authenticate through the CLI browser sign-in flow; never ask me to paste a token or secret.",
       `5. ${INSTALL_BOUNDARY}`,
       "6. Report the verified package digest and local installation path returned by the CLI.",
@@ -63,15 +69,11 @@ export function buildSkillInstallHandoff(reference: string): AgentHandoff {
     prerequisites: [
       "An existing local OrgMemory CLI installation",
       "Access to this exact released Skill",
-      "Claude Code or Codex installed as the destination",
+      `${consumer.label} installed as the destination`,
     ],
     requiredScopes: SKILL_INSTALL_SCOPES,
     confirmationBoundary: INSTALL_BOUNDARY,
     completionNote:
-      "The CLI verifies the release digest and files, promotes the staged folder atomically, and writes a token-free receipt.",
-    agentTargets: [
-      { id: "claude-code", label: "Claude Code", command: claudeCommand },
-      { id: "codex", label: "Codex", command: codexCommand },
-    ],
+      `The CLI verifies the release digest and files, promotes the staged folder to ${projectTarget} atomically, and writes a token-free receipt.`,
   }
 }

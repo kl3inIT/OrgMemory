@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-browser-skill-authoring (250e1705)`.
+Reconciled: `2026-08-01-skill-consumer-compatibility (f193b30e)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -57,7 +57,8 @@ Reconciled: `2026-08-01-browser-skill-authoring (250e1705)`.
 | Shared collection pagination hides a one-page collection and emits server page changes with an accessible current page | `collection-pagination.test.tsx` | covered |
 | The Asset catalog exposes one category-aware Add asset menu, keeps unsupported profiles non-interactive, and routes Skill into a creation-only surface rather than a second catalog | `asset-registry-golden-poc.spec.ts#asset catalog defaults to a grid and keeps list state in the URL` | covered |
 | Browser Skill Scratch and Upload require fresh server inspection, invalidate stale scratch previews, preflight package/namespace input, load live authorized Space targets, retain same-origin multipart CSRF protection, create a private Draft through the canonical endpoint, report public server rejection details without leaving the form, and navigate success to Governance | `api-error.test.ts`, `skill-upload-validation.test.ts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
-| Skill agent handoff is copy-only, asks instead of guessing Draft destinations, validates and dry-runs before confirmation, stops at Draft, forbids CLI auto-install and governance escalation, pins displayed scopes to the CLI contract, and installs only an exact released version into an explicit agent target | `skill-agent-handoffs.test.ts`, `agent-handoff-panel.test.tsx`, `asset-registry-golden-poc.spec.ts` | covered |
+| Skill Draft agent handoff is copy-only, asks instead of guessing destinations, validates and dry-runs before confirmation, stops at Draft, forbids CLI auto-install and governance escalation, and pins displayed scopes to the CLI contract | `skill-agent-handoffs.test.ts`, `agent-handoff-panel.test.tsx`, `asset-registry-golden-poc.spec.ts` | covered |
+| Released Skill installation projects exactly the Claude Code and Codex CLI adapters, atomically binds each label, path, command, and exact version, opens one target-specific handoff, and distinguishes verified package integrity and supported installation from uncertified runtime behavior | `skill-consumers.test.ts`, `skill-agent-handoffs.test.ts`, `skill-consumer-installer.test.tsx`, `agent-handoff-panel.test.tsx`, `asset-registry-golden-poc.spec.ts#authenticated Skill detail reads its install contract through the browser endpoint` | covered |
 | The Governance Draft surface exposes package replacement only with live `can_edit`; successful replacement returns to the same Asset workspace while optimistic conflicts remain explicit | `asset-registry-golden-poc.spec.ts#Skill publication hands the author to capability-aware Governance` | covered |
 | Prompt provider execution requires explicit confirmation | `AssistantAssetToolServiceTests#promptRunRequiresExplicitProviderConfirmation` | covered |
 | Assistant traces retain shapes/digests but not raw secrets or output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
