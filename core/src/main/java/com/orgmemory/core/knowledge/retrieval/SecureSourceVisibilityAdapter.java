@@ -5,11 +5,10 @@ import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceVisibilityPort;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.KnowledgeAccessSubject;
+import com.orgmemory.core.organization.KnowledgeAccessSubjectQuery;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
-import com.orgmemory.core.organization.UserRole;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -22,17 +21,17 @@ class SecureSourceVisibilityAdapter implements SourceVisibilityPort {
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
 
-    private final AppUserRepository users;
+    private final KnowledgeAccessSubjectQuery subjects;
     private final RelationshipAuthorizationSetPort authorization;
     private final SecureKnowledgeRetrievalStore visibility;
     private final KnowledgeRetrievalProperties properties;
 
     SecureSourceVisibilityAdapter(
-            AppUserRepository users,
+            KnowledgeAccessSubjectQuery subjects,
             RelationshipAuthorizationSetPort authorization,
             SecureKnowledgeRetrievalStore visibility,
             KnowledgeRetrievalProperties properties) {
-        this.users = users;
+        this.subjects = subjects;
         this.authorization = authorization;
         this.visibility = visibility;
         this.properties = properties;
@@ -40,9 +39,8 @@ class SecureSourceVisibilityAdapter implements SourceVisibilityPort {
 
     @Override
     public List<UUID> visibleSourceObjectIds(CurrentActor actor) {
-        AppUser subject = users.findById(actor.userId())
-                .filter(user -> user.getOrganizationId().equals(actor.organizationId())
-                        && user.isActive())
+        KnowledgeAccessSubject subject = subjects.findActive(
+                        actor.organizationId(), actor.userId())
                 .orElseThrow(() -> new OrgMemoryAccessDeniedException(
                         "Knowledge access profile is incomplete"));
         var listed = authorization.listAuthorizedResources(new AuthorizedResourceQuery(
@@ -76,8 +74,8 @@ class SecureSourceVisibilityAdapter implements SourceVisibilityPort {
         return visibility.visibleSourceObjectIds(new SecureKnowledgeRetrievalStore.RetrievalScope(
                 actor.organizationId(),
                 actor.userId(),
-                subject.getDepartmentId(),
-                subject.getRole() == UserRole.EXECUTIVE,
+                subject.departmentId(),
+                subject.executive(),
                 assetIds,
                 listed.policyVersion(),
                 Instant.now()));

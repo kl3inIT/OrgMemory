@@ -42,6 +42,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                 "com.orgmemory.core.knowledge",
                 "com.orgmemory.core.assetregistry",
                 "com.orgmemory.core.ai",
+                "com.orgmemory.core.organization",
                 "com.orgmemory.core.permission",
                 "com.orgmemory.core.shared",
                 "com.orgmemory.integrations.ai.gateway",

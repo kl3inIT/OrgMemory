@@ -1096,7 +1096,7 @@ and aggregate CI checks passed. CodeRabbit was rate limited; direct audit found
 zero reviews, inline comments, or review threads, and both the PR head and merge
 commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-seventh Pull Request Evidence
 
 - Asset owns `KnowledgeAssetRetrievalQuery` for tenant-scoped existence, active
   authorization scopes, and current active catalog projections.
@@ -1124,3 +1124,43 @@ pairs; all 40 release-policy tests passed under Node 24.15; and the terminating
 repository-wide `clean test` passed in 1m03s across 99 tasks. Mechanical
 repository-import, zero-byte, migration-scope, diff-hygiene, and 18-path scope
 checks passed.
+
+PR #252 merged as `00aabe15` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit approved the code and
+raised one request for a duplicate ADR. Repository evidence showed the active
+design plus challenge brief/verdict already contain the required alternatives,
+decision, counterargument, and condition; the response cited those sources and
+the resolved thread records why no duplicate decision was added. Both the PR
+head and merge commit are ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Organization owns `KnowledgeAccessSubjectQuery` and the immutable
+  `KnowledgeAccessSubject` value for current active department and Executive
+  facts; `OrganizationResourceQuery` owns organization/department existence.
+- Both JPA implementations remain package-private. Retrieval imports no
+  `AppUser`, Organization repository, Department repository, AppUser repository,
+  or `UserRole` type.
+- Evidence scope and source visibility reload the persisted subject instead of
+  trusting `CurrentActor` department or role claims. ADMIN remains non-Executive;
+  inactive and foreign-tenant subjects fail closed.
+- `AuthorizationResourceDirectory`, `KnowledgeEvidenceScopeResolver`, and
+  `SecureSourceVisibilityAdapter` are the exact Retrieval consumers of the
+  Organization owner queries.
+- This code PR remains below 100 changed paths. Retrieval stays open for Source
+  Ledger citation, Graph verifier, and adapter seams.
+
+Local verification so far: the Organization isolation test failed first against
+the unchanged repository/entity/role consumers. Core/test/API/Worker compilation
+passed in 41s. The new owner-query, evidence-scope, source-visibility, and full
+Modulith slice passed in 36s. PostgreSQL external-principal, API admin-resource,
+and canonical Knowledge retrieval integration proofs passed together in 1m31s.
+The first full Worker run exposed that its deliberately narrow component scan
+did not include the new Organization owner adapters; adding the Organization
+package to Worker wiring made all 40 Worker tasks pass in 3m42s, and the combined
+Core/API/Worker gate then passed. The documentation operating-model check passed
+for 478 Markdown files and 8 mirrored domain pairs. Release policy passed all 40
+tests on Node 24.15.0. The mechanical audit found 23 changed paths, no migration,
+no empty changed file, no forbidden Retrieval import, and a clean whitespace
+diff. The terminating `clean test` passed in 1m26s with 99 actionable tasks.

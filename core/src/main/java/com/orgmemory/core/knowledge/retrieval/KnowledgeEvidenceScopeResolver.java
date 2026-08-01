@@ -8,10 +8,9 @@ import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.KnowledgeAccessSubject;
+import com.orgmemory.core.organization.KnowledgeAccessSubjectQuery;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,7 +36,7 @@ public class KnowledgeEvidenceScopeResolver {
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
 
-    private final AppUserRepository users;
+    private final KnowledgeAccessSubjectQuery subjects;
     private final RelationshipAuthorizationSetPort authorization;
     private final KnowledgeAssetRetrievalQuery assets;
     private final SourceAclQuery aclQuery;
@@ -46,14 +45,14 @@ public class KnowledgeEvidenceScopeResolver {
     private final Clock clock;
 
     KnowledgeEvidenceScopeResolver(
-            AppUserRepository users,
+            KnowledgeAccessSubjectQuery subjects,
             RelationshipAuthorizationSetPort authorization,
             KnowledgeAssetRetrievalQuery assets,
             SourceAclQuery aclQuery,
             SecureKnowledgeRetrievalStore canonicalEvidence,
             KnowledgeRetrievalProperties properties,
             ObjectProvider<Clock> clockProvider) {
-        this.users = users;
+        this.subjects = subjects;
         this.authorization = authorization;
         this.assets = assets;
         this.aclQuery = aclQuery;
@@ -67,10 +66,8 @@ public class KnowledgeEvidenceScopeResolver {
             CurrentActor actor,
             String expectedAuthorizationModelId) {
         Objects.requireNonNull(actor, "actor");
-        AppUser subject = users.findById(actor.userId())
-                .filter(candidate -> candidate.getOrganizationId()
-                        .equals(actor.organizationId()))
-                .filter(AppUser::isActive)
+        KnowledgeAccessSubject subject = subjects.findActive(
+                        actor.organizationId(), actor.userId())
                 .orElseThrow(() -> unavailable(
                         "INACTIVE_OR_UNSUPPORTED_SUBJECT",
                         expectedAuthorizationModelId));
@@ -172,7 +169,7 @@ public class KnowledgeEvidenceScopeResolver {
 
     private ResolvedKnowledgeEvidenceScope resolvedScope(
             CurrentActor actor,
-            AppUser subject,
+            KnowledgeAccessSubject subject,
             String authorizationModelId,
             Instant evaluatedAt,
             Map<UUID, Set<UUID>> bySpace) {
@@ -202,8 +199,8 @@ public class KnowledgeEvidenceScopeResolver {
         return new ResolvedKnowledgeEvidenceScope(
                 actor.organizationId(),
                 actor.userId(),
-                subject.getDepartmentId(),
-                subject.getRole() == UserRole.EXECUTIVE,
+                subject.departmentId(),
+                subject.executive(),
                 authorizationModelId,
                 evaluatedAt,
                 bySpace,
