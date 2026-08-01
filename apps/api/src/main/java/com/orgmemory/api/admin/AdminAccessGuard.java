@@ -25,6 +25,7 @@ class AdminAccessGuard {
     private static final PermissionKey CAN_MANAGE_MEMBERS = PermissionKey.of("can_manage_members");
     private static final PermissionKey CAN_MANAGE_SOURCES = PermissionKey.of("can_manage_sources");
     private static final PermissionKey CAN_MANAGE_AI = PermissionKey.of("can_manage_ai");
+    private static final PermissionKey CAN_VIEW_AUDIT = PermissionKey.of("can_view_audit");
 
     private final CurrentActorProvider actors;
     private final EffectiveAuthorizationService authorization;
@@ -58,6 +59,13 @@ class AdminAccessGuard {
                 authentication,
                 CAN_MANAGE_AI,
                 "The current user cannot administer organization AI models");
+    }
+
+    CurrentActor requireAuditViewer(Authentication authentication) {
+        return require(
+                authentication,
+                CAN_VIEW_AUDIT,
+                "The current user cannot inspect effective access");
     }
 
     AppUser requireUserInOrganization(UUID userId, CurrentActor actor) {

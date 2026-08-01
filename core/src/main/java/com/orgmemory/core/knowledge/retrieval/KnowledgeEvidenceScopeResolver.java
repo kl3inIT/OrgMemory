@@ -5,6 +5,7 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
 import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
+import com.orgmemory.core.authorization.AccessState;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -170,6 +171,47 @@ public class KnowledgeEvidenceScopeResolver {
                 visibleBySpace);
     }
 
+    /**
+     * Reuses the canonical retrieval eligibility query for one bounded, already
+     * relationship-authorized asset inspected by an audit viewer.
+     */
+    @Transactional(readOnly = true)
+    public AssetInspection inspectAsset(
+            CurrentActor subject,
+            UUID assetId,
+            String authorizationModelId,
+            Instant evaluatedAt) {
+        Objects.requireNonNull(subject, "subject");
+        Objects.requireNonNull(assetId, "assetId");
+        Objects.requireNonNull(evaluatedAt, "evaluatedAt");
+        AppUser user = users.findById(subject.userId())
+                .filter(candidate -> candidate.getOrganizationId().equals(subject.organizationId()))
+                .orElse(null);
+        if (user == null || !user.isActive()) {
+            return new AssetInspection(AccessState.DENIED, "SUBJECT_INACTIVE");
+        }
+        var scope = new SecureKnowledgeRetrievalStore.RetrievalScope(
+                subject.organizationId(),
+                subject.userId(),
+                user.getDepartmentId(),
+                user.getRole() == UserRole.EXECUTIVE,
+                List.of(assetId),
+                authorizationModelId,
+                evaluatedAt);
+        try {
+            boolean visible = canonicalEvidence.visibleKnowledgeAssetIds(scope).contains(assetId);
+            return new AssetInspection(
+                    visible ? AccessState.ALLOWED : AccessState.DENIED,
+                    visible
+                            ? "CANONICAL_RETRIEVAL_POLICY_ALLOWED"
+                            : "CANONICAL_RETRIEVAL_POLICY_DENIED");
+        } catch (DataAccessException unavailable) {
+            return new AssetInspection(
+                    AccessState.UNKNOWN,
+                    "CANONICAL_AUTHORIZATION_UNAVAILABLE");
+        }
+    }
+
     private ResolvedKnowledgeEvidenceScope resolvedScope(
             CurrentActor actor,
             AppUser subject,
@@ -223,5 +265,8 @@ public class KnowledgeEvidenceScopeResolver {
                         ? "AUTHORIZATION_UNAVAILABLE"
                         : reasonCode,
                 policyVersion);
+    }
+
+    public record AssetInspection(AccessState state, String reasonCode) {
     }
 }

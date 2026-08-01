@@ -10,6 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,6 +69,7 @@ class PermissionsAdminIntegrationTests {
     private static final UUID DEPT = UUID.fromString("c1000000-0000-4000-8000-000000000002");
     private static final UUID ADMIN_USER = UUID.fromString("c1000000-0000-4000-8000-000000000003");
     private static final UUID AN_USER = UUID.fromString("c1000000-0000-4000-8000-000000000004");
+    private static final UUID MEMBER_ADMIN = UUID.fromString("c1000000-0000-4000-8000-000000000005");
 
     private static final UUID PROFILE = UUID.fromString("c1000000-0000-4000-8000-00000000000a");
     private static final UUID BLOB = UUID.fromString("c1000000-0000-4000-8000-00000000000b");
@@ -223,6 +225,51 @@ class PermissionsAdminIntegrationTests {
     }
 
     @Test
+    void effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial() throws Exception {
+        mvc.perform(post("/api/admin/access/explain")
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": "%s",
+                                  "permission": "can_view",
+                                  "resourceType": "knowledge_asset",
+                                  "resourceId": "%s"
+                                }
+                                """.formatted(AN_USER, ASSET)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.evaluationKind").value("CANONICAL_CONTENT"))
+                .andExpect(jsonPath("$.state").value("DENIED"))
+                .andExpect(jsonPath("$.reasonCode").value("CONTENT_POLICY_DENIED"))
+                .andExpect(jsonPath("$.relationshipState").value("ALLOWED"))
+                .andExpect(jsonPath("$.contentPolicyState").value("DENIED"))
+                .andExpect(jsonPath("$.contentPolicyReasonCode")
+                        .value("CANONICAL_RETRIEVAL_POLICY_DENIED"))
+                .andExpect(jsonPath("$.resource.label").value("General channel digest"))
+                .andExpect(jsonPath("$.resource.contextLabel").value("Admin Test Space"))
+                .andExpect(jsonPath("$.resource.classification").value("INTERNAL"));
+    }
+
+    @Test
+    void memberAdministrationDoesNotRevealAccessInspectionMetadata() throws Exception {
+        mvc.perform(get("/api/admin/users").with(jwtFor(MEMBER_ADMIN)))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/admin/access/explain")
+                        .with(jwtFor(MEMBER_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": "%s",
+                                  "permission": "can_view",
+                                  "resourceType": "knowledge_asset",
+                                  "resourceId": "%s"
+                                }
+                                """.formatted(AN_USER, ASSET)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void anAdministratorOfAnotherOrganizationReachesNothingHere() throws Exception {
         var foreign = jwtFor(OTHER_ADMIN);
 
@@ -366,13 +413,16 @@ class PermissionsAdminIntegrationTests {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
             // The foreign administrator passes the gate too, so cross-tenant refusal has to
             // come from the ledger scoping rather than from the permission check.
-            boolean administrativePermission =
-                    "can_manage_members".equals(query.permission().value())
-                            || "can_manage_sources".equals(query.permission().value())
-                            || "can_manage_ai".equals(query.permission().value());
-            boolean allowed = !administrativePermission
-                    || ADMIN_USER.toString().equals(query.principal().id())
+            String permission = query.permission().value();
+            boolean memberManagement = "can_manage_members".equals(permission);
+            boolean protectedAdministration = "can_manage_sources".equals(permission)
+                    || "can_manage_ai".equals(permission)
+                    || "can_view_audit".equals(permission);
+            boolean fullAdministrator = ADMIN_USER.toString().equals(query.principal().id())
                     || OTHER_ADMIN.toString().equals(query.principal().id());
+            boolean allowed = (!memberManagement && !protectedAdministration)
+                    || fullAdministrator
+                    || (memberManagement && MEMBER_ADMIN.toString().equals(query.principal().id()));
             return allowed
                     ? AuthorizationDecision.allow(MODEL_ID)
                     : AuthorizationDecision.deny("RELATIONSHIP_DENIED", MODEL_ID);
@@ -407,8 +457,10 @@ class PermissionsAdminIntegrationTests {
                 + "VALUES (?, ?, 'Operations', now(), now(), 0)", DEPT, ORG);
         insertUser(ADMIN_USER, ORG, DEPT, "admin@admintest.example", "ADMIN");
         insertUser(AN_USER, ORG, DEPT, "an@admintest.example", "EMPLOYEE");
+        insertUser(MEMBER_ADMIN, ORG, DEPT, "member-admin@admintest.example", "ADMIN");
         linkIdentity(ADMIN_USER);
         linkIdentity(AN_USER);
+        linkIdentity(MEMBER_ADMIN);
 
         jdbc.update("INSERT INTO organizations (id, name, created_at, updated_at, version) "
                 + "VALUES (?, 'Other Tenant', now(), now(), 0)", OTHER_ORG);
