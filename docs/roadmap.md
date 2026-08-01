@@ -44,6 +44,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Skill consumer compatibility](increments/active/2026-08-01-skill-consumer-compatibility/plan.md) | active | independent verdict, target-specific `Use with...` UX, and exact guarantee coverage |
 | [Copy-forward coordinator](increments/active/2026-08-01-copyforward-coordinator/plan.md) | active | one corrected durable copy-forward protocol behind cross-process and streaming tests |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
