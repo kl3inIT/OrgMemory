@@ -10,8 +10,8 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
 
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclQuery;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 
 import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
@@ -32,7 +32,7 @@ public class GraphIndexingCoordinator {
     private final KnowledgeAssetRepository assets;
     private final KnowledgeAssetVersionRepository versions;
     private final SourceRevisionRepository revisions;
-    private final SourceAclSnapshotRepository aclSnapshots;
+    private final SourceAclQuery aclQuery;
     private final EmbeddingProfileRepository embeddingProfiles;
     private final GraphProcessingProfileRegistry graphProcessingProfiles;
     private final KnowledgeChunkProjectionStore chunks;
@@ -42,7 +42,7 @@ public class GraphIndexingCoordinator {
             KnowledgeAssetRepository assets,
             KnowledgeAssetVersionRepository versions,
             SourceRevisionRepository revisions,
-            SourceAclSnapshotRepository aclSnapshots,
+            SourceAclQuery aclQuery,
             EmbeddingProfileRepository embeddingProfiles,
             GraphProcessingProfileRegistry graphProcessingProfiles,
             KnowledgeChunkProjectionStore chunks) {
@@ -50,7 +50,7 @@ public class GraphIndexingCoordinator {
         this.assets = assets;
         this.versions = versions;
         this.revisions = revisions;
-        this.aclSnapshots = aclSnapshots;
+        this.aclQuery = aclQuery;
         this.embeddingProfiles = embeddingProfiles;
         this.graphProcessingProfiles = graphProcessingProfiles;
         this.chunks = chunks;
@@ -168,9 +168,8 @@ public class GraphIndexingCoordinator {
         if (!isCurrent(job, asset, version, revision)) {
             return Optional.empty();
         }
-        SourceAclSnapshot snapshot = aclSnapshots
-                .findByIdAndOrganizationId(
-                        version.getSourceAclSnapshotId(), job.getOrganizationId())
+        SourceAclSnapshotRef snapshot = aclQuery
+                .findSnapshot(job.getOrganizationId(), version.getSourceAclSnapshotId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index ACL snapshot is missing"));
         EmbeddingProfileRef embeddingProfile = embeddingProfiles
@@ -207,8 +206,8 @@ public class GraphIndexingCoordinator {
                 asset.getKnowledgeSpaceId(),
                 job.getKnowledgeAssetVersionId(),
                 job.getSourceRevisionId(),
-                snapshot.getId(),
-                snapshot.getAclGeneration(),
+                snapshot.id(),
+                snapshot.aclGeneration(),
                 job.getProjectionGeneration(),
                 graphProcessingProfile,
                 job.getIdempotencyKey(),

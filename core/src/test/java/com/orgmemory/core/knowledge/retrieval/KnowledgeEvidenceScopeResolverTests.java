@@ -2,10 +2,8 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
-
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
+import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
+import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -46,8 +44,7 @@ class KnowledgeEvidenceScopeResolverTests {
         RelationshipAuthorizationSetPort authorization =
                 mock(RelationshipAuthorizationSetPort.class);
         KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
-        SourceAclSnapshotRepository snapshots =
-                mock(SourceAclSnapshotRepository.class);
+        SourceAclQuery aclQuery = mock(SourceAclQuery.class);
         SecureKnowledgeRetrievalStore canonical =
                 mock(SecureKnowledgeRetrievalStore.class);
         @SuppressWarnings("unchecked")
@@ -73,11 +70,9 @@ class KnowledgeEvidenceScopeResolverTests {
                 .thenReturn(List.of(new KnowledgeAssetAuthorizationScope(
                         ASSET_ID,
                         SPACE_ID)));
-        KnowledgeSpaceAclGeneration generation =
-                mock(KnowledgeSpaceAclGeneration.class);
-        when(generation.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
-        when(generation.getAclGeneration()).thenReturn(7L);
-        when(snapshots.maximumCurrentAclGenerations(
+        KnowledgeSpaceAclGenerationRef generation =
+                new KnowledgeSpaceAclGenerationRef(SPACE_ID, 7L);
+        when(aclQuery.maximumCurrentAclGenerations(
                         ORGANIZATION_ID,
                         List.of(ASSET_ID)))
                 .thenReturn(List.of(generation));
@@ -91,7 +86,7 @@ class KnowledgeEvidenceScopeResolverTests {
                 users,
                 authorization,
                 assets,
-                snapshots,
+                aclQuery,
                 canonical,
                 new KnowledgeRetrievalProperties(null, null, null, null),
                 clocks);

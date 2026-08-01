@@ -15,6 +15,18 @@ public record SourceAclSnapshotRef(
         Instant capturedAt,
         Instant validUntil) {
 
+    static SourceAclSnapshotRef from(SourceAclSnapshot snapshot) {
+        return new SourceAclSnapshotRef(
+                snapshot.getId(),
+                snapshot.getRawSourceObjectId(),
+                snapshot.getAclGeneration(),
+                snapshot.getCaptureStatus(),
+                snapshot.getDefaultGate(),
+                snapshot.getAclSha256(),
+                snapshot.getCapturedAt(),
+                snapshot.getValidUntil());
+    }
+
     public boolean isUsableAt(Instant instant) {
         return captureStatus == AclCaptureStatus.COMPLETE
                 && validUntil != null

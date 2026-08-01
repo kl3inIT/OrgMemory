@@ -4,7 +4,9 @@
  * <p>Connector and Source Ledger now consume ACL-owned inputs, so this module no longer
  * depends on either implementation. Its source-ingestion facade owns ACL validation,
  * snapshot/head persistence, sealing, and readiness queries without exposing JPA types. The
- * module remains open while its remaining retrieval seam is replaced with an explicit API.
+ * Retrieval and Graph consume immutable facts through ACL-owned facades rather than repositories
+ * or persistence entities. The module remains open only until its public contracts and outgoing
+ * dependency allowlist are mechanically verified for closure.
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN)

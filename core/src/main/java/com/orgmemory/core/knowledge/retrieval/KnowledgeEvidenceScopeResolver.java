@@ -2,10 +2,8 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
-
-import com.orgmemory.core.knowledge.space.KnowledgeSpaceAclGeneration;
+import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
+import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
@@ -42,7 +40,7 @@ public class KnowledgeEvidenceScopeResolver {
     private final AppUserRepository users;
     private final RelationshipAuthorizationSetPort authorization;
     private final KnowledgeAssetRepository assets;
-    private final SourceAclSnapshotRepository aclSnapshots;
+    private final SourceAclQuery aclQuery;
     private final SecureKnowledgeRetrievalStore canonicalEvidence;
     private final KnowledgeRetrievalProperties properties;
     private final Clock clock;
@@ -51,14 +49,14 @@ public class KnowledgeEvidenceScopeResolver {
             AppUserRepository users,
             RelationshipAuthorizationSetPort authorization,
             KnowledgeAssetRepository assets,
-            SourceAclSnapshotRepository aclSnapshots,
+            SourceAclQuery aclQuery,
             SecureKnowledgeRetrievalStore canonicalEvidence,
             KnowledgeRetrievalProperties properties,
             ObjectProvider<Clock> clockProvider) {
         this.users = users;
         this.authorization = authorization;
         this.assets = assets;
-        this.aclSnapshots = aclSnapshots;
+        this.aclQuery = aclQuery;
         this.canonicalEvidence = canonicalEvidence;
         this.properties = properties;
         this.clock = clockProvider.getIfAvailable(Clock::systemUTC);
@@ -186,19 +184,19 @@ public class KnowledgeEvidenceScopeResolver {
                 .distinct()
                 .toList();
         if (!assetIds.isEmpty()) {
-            for (KnowledgeSpaceAclGeneration generation :
-                    aclSnapshots.maximumCurrentAclGenerations(
+            for (KnowledgeSpaceAclGenerationRef generation :
+                    aclQuery.maximumCurrentAclGenerations(
                             actor.organizationId(),
                             assetIds)) {
                 if (!aclGenerations.containsKey(
-                        generation.getKnowledgeSpaceId())) {
+                        generation.knowledgeSpaceId())) {
                     throw unavailable(
                             "CANONICAL_AUTHORIZATION_SCOPE_INVALID",
                             authorizationModelId);
                 }
                 aclGenerations.put(
-                        generation.getKnowledgeSpaceId(),
-                        generation.getAclGeneration());
+                        generation.knowledgeSpaceId(),
+                        generation.aclGeneration());
             }
         }
         return new ResolvedKnowledgeEvidenceScope(
