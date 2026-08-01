@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-authz-consolidation (acd2b48f)`.
+Reconciled: `2026-08-01-skill-consumer-compatibility (f193b30e)`.
 
 ## Current Behavior
 
@@ -222,7 +222,15 @@ The authenticated web application provides four generic surfaces:
 - **Asset detail / use** shares identity, provenance, and release selection,
   then renders Prompt, Work Instruction, Capability Pack, or Skill profile
   actions. Consumption is primary; provenance is disclosed on demand and
-  governance is shown only to accountable actors.
+  governance is shown only to accountable actors. A released Skill keeps
+  package integrity separate from consumer behavior. **Install with...** lists
+  only the Claude Code and Codex adapters implemented by the official CLI and
+  opens one target-specific, exact-version handoff. **Verified package** means
+  archive and file integrity; **Install supported** means a deterministic CLI
+  adapter exists; **Runtime behavior not certified** means OrgMemory does not
+  claim how either consumer interprets or executes the Skill. The web
+  descriptors are a feature-local projection of CLI values, not persisted
+  compatibility metadata or authorization.
 - **Pack journey** preserves ordered exact pins, required/optional progress,
   opaque access gaps, and replacement-release impact.
 - **Governance workspace** exposes revision comparison, optional review,

@@ -11,9 +11,11 @@ sourceRefs:
   - apps/api/src/test/java/com/orgmemory/api/assetregistry/AssetRegistryIntegrationTests.java
   - apps/web/src/features/assets/components/asset-catalog-page.tsx
   - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/skill-consumer-installer.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-07-30
+lastReviewed: 2026-08-01
 ---
 
 Dùng hướng dẫn này khi bạn đã biết kết quả mình cần và muốn tìm, kiểm tra rồi sử
@@ -83,13 +85,28 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
   | Prompt Template | Cung cấp biến đã được kiểm chứng, chuẩn bị prompt và xác nhận rõ ràng mọi lần chạy model bên ngoài. | Grounding chỉ dùng Knowledge được cấp quyền, receipt xác định release digest và model route. |
   | Work Instruction | Thực hiện hướng dẫn theo thứ tự và acknowledge đúng bản phát hành. | Đã hoàn thành các kiểm tra bắt buộc, kết quả mong đợi và hướng dẫn escalation. |
   | Capability Pack | Mở Pack, thực hiện các mục được ghim mà bạn có quyền truy cập và ghi tiến độ theo chủ thể. | Đã hiểu kết quả, điều kiện tiên quyết, phiên bản từng mục và trạng thái access gap. |
-  | Skill | Kiểm tra package trước khi cài qua CLI đã xác thực. | Compatibility, manifest, file digest và lệnh cài đặt chính xác phù hợp với môi trường. |
+  | Skill | Kiểm tra package trước khi cài qua CLI đã xác thực. | Tính toàn vẹn package, manifest, file digest, adapter đã chọn và lệnh cài chính xác phù hợp với project. |
 
-  Trên Skill đã release, **Use your agent** sao chép instruction có ranh giới,
-  yêu cầu bạn chọn Claude Code hoặc Codex và xác nhận trước khi cài. **Use CLI**
-  hiển thị command `namespace/slug@version` chính xác cho từng target. Cả hai
-  cách đều dùng CLI đã có và quyền OrgMemory hiện tại; không cách nào tự cài CLI
-  hoặc cấp quyền rộng hơn.
+  Trên Skill đã release, chọn **Install with...**, sau đó chọn Claude Code hoặc
+  Codex. OrgMemory chỉ liệt kê các adapter đã được official CLI triển khai.
+  Dialog của target đã chọn hiển thị đường dẫn project-local và ghim đúng một
+  command `namespace/slug@version`. **Use your agent** sao chép instruction có
+  ranh giới dành riêng cho target; **Use CLI** hiển thị trực tiếp command đó.
+
+  **Verified package** nghĩa là CLI xác minh tính toàn vẹn của archive và từng
+  file. **Install supported** nghĩa là có adapter cài đặt xác định cho target đã
+  chọn. **Runtime behavior not certified** nghĩa là OrgMemory không tuyên bố
+  target đó sẽ diễn giải hoặc thực thi Skill như thế nào. Không cách nào tự cài
+  CLI hoặc cấp quyền rộng hơn.
+
+  <ArchitectureDiagram
+    alt="Màn cài một Skill đã release của Organizational AI Memory cho Codex, hiển thị target project chính xác, agent prompt có ranh giới, trạng thái hỗ trợ cài đặt và giới hạn không chứng nhận hành vi runtime."
+    description="Chọn một adapter được hỗ trợ cho đúng bản phát hành. Xác minh package và cài đặt xác định không có nghĩa OrgMemory chứng nhận hành vi runtime của consumer. Screenshot dùng dữ liệu tài liệu giả lập được chụp từ giao diện sản phẩm hiện tại."
+    height={1536}
+    src="/images/product-guides/skill-consumer-install.png"
+    title="Cài đúng một bản phát hành mà không claim compatibility quá mức"
+    width={2304}
+  />
 
   Lần gọi model bên ngoài và hành động thay đổi trạng thái cần được xác nhận rõ
   ràng. Chỉ mở một Asset sẽ không chạy model, cài Skill hoặc hoàn thành mục trong

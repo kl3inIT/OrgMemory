@@ -9,18 +9,18 @@
 
 ## 1. Product implementation
 
-- [ ] Add feature-scoped Claude Code and Codex consumer descriptors.
-- [ ] Build target-specific exact-version handoffs without duplicating CLI semantics.
-- [ ] Replace the expanded released-Skill panel with a compact `Use with...` selector and dialog.
-- [ ] State package verification, adapter support, and runtime-certification limits precisely.
+- [x] Add feature-scoped Claude Code and Codex consumer descriptors.
+- [x] Build target-specific exact-version handoffs without duplicating CLI semantics.
+- [x] Replace the expanded released-Skill panel with a compact `Install with...` selector and dialog.
+- [x] State package verification, adapter support, and runtime-certification limits precisely.
 
 ## 2. Verification and reconciliation
 
-- [ ] Add focused descriptor, builder, and component tests.
-- [ ] Update the golden browser path for released-Skill use.
-- [ ] Reconcile the Asset Registry spec and mirrored test matrix.
-- [ ] Update the bilingual public Product Guide where the released-Skill workflow is documented.
-- [ ] Pass Node 24 web/docs checks, production builds, and browser QA in light, dark, desktop, and narrow layouts.
+- [x] Add focused descriptor, builder, and component tests.
+- [x] Update the golden browser path for released-Skill use.
+- [x] Reconcile the Asset Registry spec and mirrored test matrix.
+- [x] Update the bilingual public Product Guide where the released-Skill workflow is documented.
+- [x] Pass Node 24 web/docs checks, production builds, and browser QA in light, dark, desktop, and narrow layouts.
 
 ## 3. Delivery
 

@@ -113,6 +113,12 @@ test("authenticated Skill detail reads its install contract through the browser 
   await expect(
     page.getByRole("alert").filter({ hasText: "Install only this exact released version" }),
   ).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/skill-consumer-install-dialog.png",
+      fullPage: false,
+    })
+  }
   await page.getByRole("tab", { name: "Use CLI" }).click()
   await expect(
     page.getByText(
