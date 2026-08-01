@@ -10,7 +10,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (d254460f)`.
 
 ## Current Behavior
 
@@ -179,9 +179,11 @@ through a protected environment with OIDC Trusted Publishing and provenance,
 and verifies the registry package and executable. It has no long-lived npm
 token or dependency cache. The public package includes a proprietary license
 that permits only authorized, unmodified execution against accessible
-OrgMemory services. The initial registry bootstrap remains an explicit owner
-operation; product UI and public docs must not render a pinned `npx` command
-until that exact version has been verified live.
+OrgMemory services. The initial registry bootstrap requires an authenticated
+owner to preconfigure the GitHub trusted publisher, but the first package is
+still emitted only by the protected OIDC workflow. Product UI and public docs
+must not render a pinned `npx` command until that exact version has been
+verified live.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
