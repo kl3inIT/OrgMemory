@@ -4,7 +4,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 `integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-07-29-ai-provider-setup-ui (2bcf082)`.
+Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
 
 ## Current Behavior
 
@@ -52,6 +52,9 @@ Assistant and Prompt execution routes are editable. Deployment routes remain
 visible defaults only when no organization override exists. An explicit
 override fails closed and is never silently replaced by a deployment default.
 Keyword planning and graph extraction stay deployment-managed.
+Graph Extraction defaults independently to `gpt-5.4-mini`; setting the
+Assistant model does not change it. Operators can still select a different
+extraction model explicitly with `ORGMEMORY_GRAPH_EXTRACTION_MODEL`.
 
 Index Settings is a separate read-only surface. The embedding provider, model,
 dimensions, and cosine metric cannot be mutated through the chat control plane;

@@ -2,12 +2,13 @@
 
 Source: `core/src/test/java/com/orgmemory/core/ai`,
 `integrations/ai-model-gateways/src/test`,
-`apps/api/src/test/java/com/orgmemory/api/admin`,
+`apps/api/src/test/java/com/orgmemory/api`,
+`apps/worker/src/test/java/com/orgmemory/worker`,
 `integrations/authorization-openfga/src/test/openfga`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `2026-07-29-ai-provider-setup-ui (2bcf082)`.
+Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -23,7 +24,9 @@ Reconciled: `2026-07-29-ai-provider-setup-ui (2bcf082)`.
 | Custom endpoints require exact operator allowlisting | `ConfiguredAiGatewayEndpointPolicyTests` | covered |
 | Explicit organization routes fail closed | `AiGatewayPropertiesTests#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | A colliding organization gateway key cannot replace a deployment default | `AiGatewayPropertiesTests#aCollidingOrganizationGatewayKeyDoesNotReplaceTheDeploymentDefault` | covered |
+| Graph Extraction defaults independently to `gpt-5.4-mini` in API, worker, and shared Java configuration; its explicit override still wins | API/worker `AiRouteDefaultsTests`, `AiGatewayPropertiesTests#defaultChatRoutesKeepGraphExtractionIndependent`, production Compose validation | covered |
 | OpenAPI and generated TypeScript client match the controller | `OpenApiContractTests`, web generated API drift gate | covered |
 | Language Models renders verified provider marks, opens the structured setup flow, discovers live models, and can restore a deployment route | `provider-logo.test.tsx`, `admin-language-models.spec.ts` | covered |
 | Read-only Index Settings compiles as a production route | web lint, typecheck, and build | covered |
+| Graph Extraction stays absent from the generic route editor and the backend rejects a mutation attempt | `admin-language-models.spec.ts`, `AiGatewayAdministrationServiceTests` | covered |
 | Live provider credentials/model responses | no deterministic CI credential | operator verification required |
