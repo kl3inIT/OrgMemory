@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (a8dc2e66)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (4100c772)`.
 
 ## Current Behavior
 
@@ -147,7 +147,9 @@ filesystem lock covers target ownership checks, staging, a durable operation
 journal, tree promotion or quarantine, receipt commit, and cleanup. A later
 command recovers an interrupted operation before proceeding. One canonical
 consumer target has at most one coordinate owner, so different namespaces with
-the same slug cannot silently replace each other.
+the same slug cannot silently replace each other. Only a confirmed exited PID
+is considered abandoned, and lock cleanup is bound to the acquiring operation's
+unique owner token.
 
 `skill verify` works offline and reports `verified`, `modified`, `missing`, or
 `unverifiable` after comparing the canonical target and complete regular-file
@@ -164,9 +166,11 @@ workflow accepts only the exact current green `main` SHA and matching package
 version, runs Node 24 frozen-package gates, inspects the tarball, publishes
 through a protected environment with OIDC Trusted Publishing and provenance,
 and verifies the registry package and executable. It has no long-lived npm
-token or dependency cache. The initial registry bootstrap remains an explicit
-owner operation; product UI and public docs must not render a pinned `npx`
-command until that exact version has been verified live.
+token or dependency cache. The public package includes a proprietary license
+that permits only authorized, unmodified execution against accessible
+OrgMemory services. The initial registry bootstrap remains an explicit owner
+operation; product UI and public docs must not render a pinned `npx` command
+until that exact version has been verified live.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
