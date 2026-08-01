@@ -177,26 +177,145 @@ class GitHubConnectorBatchSourceTests {
     }
 
     @Test
-    void unreadableCollaboratorsAreIncompleteAndNeverBecomeAnEmptyAcl() {
+    void oneRepositoryCollaboratorFailureIsMostlyFailedAndProducesNoBatch() {
         expectInstallation(1);
         expectToken();
         expectRepositories(PRIVATE_REPOSITORY);
         server.expect(requestTo(Matchers.containsString("/collaborators")))
                 .andRespond(withStatus(HttpStatus.FORBIDDEN));
 
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("mostly_failed", poll.unavailable().getFirst().errorCode());
+        assertTrue(poll.unavailable().getFirst().message().contains("1 of 1 repositories"));
+        server.verify();
+    }
+
+    @Test
+    void oneOfThreeCollaboratorFailuresKeepsFailClosedHealthyProgress() {
+        expectInstallation(1);
+        expectToken();
+        expectRepositories(THREE_PRIVATE_REPOSITORIES);
+        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/collaborators")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+        expectCollaborators("docs", ONE_READER);
+        expectCollaborators("api", ONE_READER);
+        expectIssues("docs", ONE_ISSUE);
+        expectIssues("api", ONE_ISSUE);
+
         ConnectorCrawlBatch batch = source().pendingBatches().batches().getFirst();
 
         assertEquals(
                 ConnectorCaptureStatus.INCOMPLETE,
                 batch.componentState(ConnectorSyncComponent.PERMISSION).captureStatus());
+        assertEquals(2, batch.permissions().size(), "healthy repositories still advance below half");
+        assertTrue(batch.memberships().stream().anyMatch(
+                membership -> membership.captureStatus() == ConnectorCaptureStatus.INCOMPLETE));
+        server.verify();
+    }
+
+    @Test
+    void oneOfTwoCollaboratorFailuresCountsOnceAndRejectsAtHalf() {
+        expectInstallation(1);
+        expectToken();
+        expectRepositories(TWO_PRIVATE_REPOSITORIES);
+        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/collaborators")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+        expectCollaborators("docs", ONE_READER);
+        expectIssues("docs", ONE_ISSUE);
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("mostly_failed", poll.unavailable().getFirst().errorCode());
+        assertTrue(poll.unavailable().getFirst().message().contains("1 of 2 repositories"),
+                "the content skip after the audience failure was not counted twice");
+        server.verify();
+    }
+
+    @Test
+    void oneOfTwoContentRequestFailuresRejectsAtHalf() {
+        expectInstallation(1);
+        expectToken();
+        expectRepositories(TWO_PRIVATE_REPOSITORIES);
+        expectCollaborators(TWO_READERS);
+        expectCollaborators("docs", ONE_READER);
+        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/issues")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+        expectIssues("docs", ONE_ISSUE);
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("mostly_failed", poll.unavailable().getFirst().errorCode());
+        assertTrue(poll.unavailable().getFirst().message().contains("1 of 2 repositories"));
+        server.verify();
+    }
+
+    @Test
+    void permissionPassCountsOnlyCollaboratorRequestFailures() {
+        GitHubConnectorBatchSource source = source();
+        expectInstallation(2);
+        expectToken();
+
+        expectRepositories(TWO_PRIVATE_REPOSITORIES);
+        expectCollaborators(TWO_READERS);
+        expectCollaborators("docs", ONE_READER);
+        expectIssues(ONE_ISSUE);
+        expectIssues("docs", ONE_ISSUE);
+
+        expectRepositories(TWO_PRIVATE_REPOSITORIES);
+        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/collaborators")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN));
+        expectCollaborators("docs", ONE_READER);
+
+        source.pendingBatches();
+        clock.advance(Duration.ofMinutes(5));
+        ConnectorPoll permissionPoll = source.pendingBatches();
+
+        assertTrue(permissionPoll.batches().isEmpty());
+        assertEquals("mostly_failed", permissionPoll.unavailable().getFirst().errorCode());
+        assertTrue(permissionPoll.unavailable().getFirst().message().contains("1 of 2 repositories"));
+        server.verify();
+    }
+
+    @Test
+    void incompleteIssueFieldsDoNotCountAsAnUnreachableRepository() {
+        expectInstallation(1);
+        expectToken();
+        expectRepositories(PRIVATE_REPOSITORY);
+        expectCollaborators(ONE_READER);
+        expectIssues("platform", "[{\"id\":201,\"number\":9,\"title\":\"\"}]");
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertEquals(1, poll.batches().size());
+        assertTrue(poll.unavailable().isEmpty());
         assertEquals(
                 ConnectorCaptureStatus.INCOMPLETE,
-                batch.componentState(ConnectorSyncComponent.MEMBERSHIP).captureStatus());
-        assertTrue(batch.permissions().isEmpty());
-        assertTrue(batch.contents().isEmpty());
+                poll.batches().getFirst()
+                        .componentState(ConnectorSyncComponent.CONTENT)
+                        .captureStatus());
+        server.verify();
+    }
+
+    @Test
+    void unrepresentableCollaboratorDataIsIncompleteButNotARequestFailure() {
+        expectInstallation(1);
+        expectToken();
+        expectRepositories(PRIVATE_REPOSITORY);
+        expectCollaborators("[{\"id\":999,\"login\":\"build-bot\",\"type\":\"Bot\"}]");
+
+        ConnectorPoll poll = source().pendingBatches();
+
+        assertEquals(1, poll.batches().size());
+        assertTrue(poll.unavailable().isEmpty());
         assertEquals(
                 ConnectorCaptureStatus.INCOMPLETE,
-                batch.memberships().getFirst().captureStatus());
+                poll.batches().getFirst()
+                        .componentState(ConnectorSyncComponent.PERMISSION)
+                        .captureStatus());
         server.verify();
     }
 
@@ -352,12 +471,21 @@ class GitHubConnectorBatchSourceTests {
     }
 
     private void expectCollaborators(String body) {
-        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/collaborators")))
+        expectCollaborators("platform", body);
+    }
+
+    private void expectCollaborators(String repository, String body) {
+        server.expect(requestTo(Matchers.containsString(
+                        "/repos/acme/" + repository + "/collaborators")))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 
     private void expectIssues(String body) {
-        server.expect(requestTo(Matchers.containsString("/repos/acme/platform/issues")))
+        expectIssues("platform", body);
+    }
+
+    private void expectIssues(String repository, String body) {
+        server.expect(requestTo(Matchers.containsString("/repos/acme/" + repository + "/issues")))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 
@@ -376,6 +504,31 @@ class GitHubConnectorBatchSourceTests {
     private static final String PUBLIC_REPOSITORY = PRIVATE_REPOSITORY
             .replace("\"private\":true", "\"private\":false")
             .replace("\"visibility\":\"private\"", "\"visibility\":\"public\"");
+
+    private static final String TWO_PRIVATE_REPOSITORIES = """
+            {"repositories":[
+              {"id":77,"name":"platform","full_name":"acme/platform","private":true,
+               "visibility":"private","has_issues":true,
+               "owner":{"id":42,"login":"acme","type":"Organization"}},
+              {"id":78,"name":"docs","full_name":"acme/docs","private":true,
+               "visibility":"private","has_issues":true,
+               "owner":{"id":42,"login":"acme","type":"Organization"}}
+            ]}
+            """;
+
+    private static final String THREE_PRIVATE_REPOSITORIES = """
+            {"repositories":[
+              {"id":77,"name":"platform","full_name":"acme/platform","private":true,
+               "visibility":"private","has_issues":true,
+               "owner":{"id":42,"login":"acme","type":"Organization"}},
+              {"id":78,"name":"docs","full_name":"acme/docs","private":true,
+               "visibility":"private","has_issues":true,
+               "owner":{"id":42,"login":"acme","type":"Organization"}},
+              {"id":79,"name":"api","full_name":"acme/api","private":true,
+               "visibility":"private","has_issues":true,
+               "owner":{"id":42,"login":"acme","type":"Organization"}}
+            ]}
+            """;
 
     private static final String TWO_READERS = """
             [

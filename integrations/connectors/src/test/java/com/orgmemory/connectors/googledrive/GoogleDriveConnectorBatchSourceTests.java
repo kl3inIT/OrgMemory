@@ -70,18 +70,20 @@ class GoogleDriveConnectorBatchSourceTests {
     @BeforeEach
     void setUp() {
         builder = RestClient.builder();
+        server = null;
         setUpServerOnly();
         connections = mock(ConnectorConnectionDirectory.class);
         when(connections.resolveCredential(any(), any(), any()))
                 .thenReturn(Optional.of(SecretValue.of(GoogleDriveTestKeys.serviceAccountKeyJson())));
     }
 
-    /**
-     * A second pass needs a second server: MockRestServiceServer refuses expectations added
-     * after a request has been made, so rebinding is how a test spans two polls.
-     */
+    /** Re-arms the same request manager retained by a cached Drive client between polls. */
     private void setUpServerOnly() {
-        server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+        if (server == null) {
+            server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+        } else {
+            server.reset();
+        }
     }
 
     private static ConnectorMembershipItem completeMembership(
@@ -226,6 +228,26 @@ class GoogleDriveConnectorBatchSourceTests {
         assertEquals(2, batch.contents().size(), "the files that could be read still were");
     }
 
+    @Test
+    void halfUnreadableFilesProduceMostlyFailedActivityInsteadOfABatch() {
+        expectToken();
+        expectList(AT_THRESHOLD_FILES);
+        expectExport("1-handbook", "Anything.");
+        server.expect(requestTo(Matchers.containsString("/files/2-runbook/export")))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":{\"errors\":[{\"reason\":\"insufficientPermissions\"}]}}"));
+        when(connections.enabledCrawls("google_drive"))
+                .thenReturn(List.of(configuration(List.of())));
+
+        ConnectorPoll poll = source(null).pendingBatches();
+
+        assertTrue(poll.batches().isEmpty());
+        assertEquals("mostly_failed", poll.unavailable().getFirst().errorCode());
+        assertTrue(poll.unavailable().getFirst().message().contains("1 of 2 files"));
+        server.verify();
+    }
+
     /**
      * Between content crawls no document body is fetched at all. Drive makes this cheaper than
      * Slack does: one listing already carries every file's sharing.
@@ -243,7 +265,6 @@ class GoogleDriveConnectorBatchSourceTests {
         // No export or download is expected for the second pass; MockRestServiceServer fails the
         // request if one is made, which is the assertion.
         setUpServerOnly();
-        expectToken();
         expectList(FILES);
         clock.advance(Duration.ofMinutes(5));
         ConnectorCrawlBatch permissionsOnly = source.pendingBatches().batches().getFirst();
@@ -268,7 +289,6 @@ class GoogleDriveConnectorBatchSourceTests {
 
         setUpServerOnly();
         clock.advance(Duration.ofMinutes(5));
-        expectToken();
         expectList(FILES);
         ConnectorCrawlBatch permissions = source.pendingBatches().batches().getFirst();
 
@@ -289,6 +309,47 @@ class GoogleDriveConnectorBatchSourceTests {
                         permissions.crawlCursor(),
                         permissions.componentState(ConnectorSyncComponent.PERMISSION).cursor(),
                         permissions.componentState(ConnectorSyncComponent.MEMBERSHIP).cursor()));
+        server.verify();
+    }
+
+    @Test
+    void changingTheImpersonatedUserRebuildsTheCachedClient() {
+        MutableClock clock = new MutableClock(java.time.Instant.parse("2026-07-23T09:00:00Z"));
+        ConnectorCrawlConfiguration asAlice = new ConnectorCrawlConfiguration(
+                ORG,
+                "google_drive",
+                CONNECTION,
+                SPACE,
+                ACTOR,
+                "{\"folderIds\":[],\"maxFiles\":500,\"impersonatedUser\":\"alice@example.com\"}",
+                Duration.ofMinutes(60),
+                null);
+        ConnectorCrawlConfiguration asBob = new ConnectorCrawlConfiguration(
+                ORG,
+                "google_drive",
+                CONNECTION,
+                SPACE,
+                ACTOR,
+                "{\"folderIds\":[],\"maxFiles\":500,\"impersonatedUser\":\"bob@example.com\"}",
+                Duration.ofMinutes(60),
+                null);
+        when(connections.enabledCrawls("google_drive"))
+                .thenReturn(List.of(asAlice))
+                .thenReturn(List.of(asBob));
+        GoogleDriveConnectorBatchSource source = new GoogleDriveConnectorBatchSource(
+                connections, builder, new tools.jackson.databind.ObjectMapper(), clock);
+
+        expectToken();
+        expectList(FILES);
+        expectExport("1-handbook", "Anything.");
+        source.pendingBatches();
+
+        setUpServerOnly();
+        clock.advance(Duration.ofMinutes(5));
+        expectToken();
+        expectList(FILES);
+        source.pendingBatches();
+
         server.verify();
     }
 
@@ -520,7 +581,6 @@ class GoogleDriveConnectorBatchSourceTests {
         assertTrue(source.pendingBatches().batches().isEmpty(), "the crawl failed");
 
         setUpServerOnly();
-        expectToken();
         expectFileList(FILES);
         expectExport("1-handbook", "Anything.");
         clock.advance(Duration.ofMinutes(5));
@@ -693,6 +753,19 @@ class GoogleDriveConnectorBatchSourceTests {
               {"id":"4-image","name":"Diagram","mimeType":"image/png","trashed":false,
                "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com","displayName":"Owner"}],
                "permissions":[]}
+            ]}
+            """;
+
+    private static final String AT_THRESHOLD_FILES = """
+            {"files":[
+              {"id":"1-handbook","name":"Engineering handbook",
+               "mimeType":"application/vnd.google-apps.document","trashed":false,
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com"}],
+               "permissions":[{"id":"p1","type":"user","emailAddress":"mai@example.com","role":"reader"}]},
+              {"id":"2-runbook","name":"Runbook",
+               "mimeType":"application/vnd.google-apps.document","trashed":false,
+               "owners":[{"permissionId":"owner-p","emailAddress":"owner@example.com"}],
+               "permissions":[{"id":"p2","type":"user","emailAddress":"mai@example.com","role":"reader"}]}
             ]}
             """;
 

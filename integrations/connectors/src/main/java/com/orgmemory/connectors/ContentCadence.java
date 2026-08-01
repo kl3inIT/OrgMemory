@@ -3,6 +3,7 @@ package com.orgmemory.connectors;
 import com.orgmemory.core.knowledge.connector.ConnectorCrawlConfiguration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -10,8 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Reading who may see a document is cheap; reading the document is not. So an adapter re-reads
  * access every poll and content far less often, and this is where "far less often" is decided.
- * Both the Slack and the Drive adapter make that same split, so the rule for it lives here once
- * rather than being written twice and drifting.
+ * Every polling adapter makes that same split, so the shared driver owns this rule rather than
+ * letting source implementations drift.
  *
  * <p>The schedule is held in memory on purpose. Losing it to a restart costs one extra content
  * crawl — the map is empty, so everything reads as due — and buys back not having a second
@@ -25,15 +26,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ContentCadence {
 
-    private final Map<String, Instant> dueAt = new ConcurrentHashMap<>();
-    private final Map<String, Instant> servedRequest = new ConcurrentHashMap<>();
+    private final Map<ConnectorPollingIdentity, Instant> dueAt = new ConcurrentHashMap<>();
+    private final Map<ConnectorPollingIdentity, Instant> servedRequest = new ConcurrentHashMap<>();
 
     /**
      * Whether this poll should read content. True when an unserved request is outstanding, or
      * when the interval since the last content crawl has elapsed.
      */
     public boolean contentDue(ConnectorCrawlConfiguration configuration, Instant now) {
-        String key = key(configuration);
+        ConnectorPollingIdentity key = key(configuration);
         return hasUnservedRequest(configuration, key)
                 || !now.isBefore(dueAt.getOrDefault(key, Instant.EPOCH));
     }
@@ -45,20 +46,27 @@ public final class ContentCadence {
      * work is retried on the next poll rather than skipped until the interval comes round.
      */
     public void contentCrawled(ConnectorCrawlConfiguration configuration, Instant now) {
-        String key = key(configuration);
+        ConnectorPollingIdentity key = key(configuration);
         dueAt.put(key, now.plus(configuration.contentCrawlInterval()));
         if (configuration.contentCrawlRequestedAt() != null) {
             servedRequest.put(key, configuration.contentCrawlRequestedAt());
         }
     }
 
-    private boolean hasUnservedRequest(ConnectorCrawlConfiguration configuration, String key) {
+    /** Retires both schedule and served-request state for connections no longer enabled. */
+    void retainOnly(Set<ConnectorPollingIdentity> active) {
+        dueAt.keySet().removeIf(identity -> !active.contains(identity));
+        servedRequest.keySet().removeIf(identity -> !active.contains(identity));
+    }
+
+    private boolean hasUnservedRequest(
+            ConnectorCrawlConfiguration configuration, ConnectorPollingIdentity key) {
         Instant requested = configuration.contentCrawlRequestedAt();
         return requested != null && !requested.equals(servedRequest.get(key));
     }
 
     /** Two tenants may key a connection the same way, so the cadence is remembered per tenant. */
-    private static String key(ConnectorCrawlConfiguration configuration) {
-        return configuration.organizationId() + "/" + configuration.sourceConnectionKey();
+    private static ConnectorPollingIdentity key(ConnectorCrawlConfiguration configuration) {
+        return ConnectorPollingIdentity.of(configuration, configuration.sourceSystem());
     }
 }

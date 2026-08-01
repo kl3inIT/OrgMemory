@@ -213,12 +213,13 @@ class SlackConnectorBatchSourceTests {
         server.expect(ExpectedCount.manyTimes(), requestTo("https://slack.com/api/conversations.members"))
                 .andRespond(withSuccess("{\"ok\":false,\"error\":\"internal_error\"}", MediaType.APPLICATION_JSON));
 
-        SlackApiException abandoned = org.junit.jupiter.api.Assertions.assertThrows(
-                SlackApiException.class, () -> crawl(List.of()));
+        ConnectorPoll abandoned = source(List.of(), Clock.systemUTC()).pendingBatches();
 
+        assertTrue(abandoned.batches().isEmpty());
+        assertEquals("mostly_failed", abandoned.unavailable().getFirst().errorCode());
         assertTrue(
-                abandoned.getMessage().contains("3 of 3"),
-                () -> "unexpected message: " + abandoned.getMessage());
+                abandoned.unavailable().getFirst().message().contains("3 of 3"),
+                () -> "unexpected message: " + abandoned.unavailable().getFirst().message());
     }
 
     @Test
@@ -691,7 +692,7 @@ class SlackConnectorBatchSourceTests {
 
     /** Re-arms the mock server between polls without discarding the source under test. */
     private void setUpServerOnly() {
-        server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+        server.reset();
     }
 
     /** A clock the test moves, so a cadence can be proved without waiting for one. */
