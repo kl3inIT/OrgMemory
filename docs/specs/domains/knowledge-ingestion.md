@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-07-31-spring-modulith-package-refactor (d4555b3)`.
+Reconciled: `2026-08-01-ingestion-throughput (0d7a1f0e)`.
 
 ## Current Behavior
 
@@ -18,7 +18,14 @@ behind the provider-neutral object-storage contract. PostgreSQL persists canonic
 `SourceObject`, `SourceRevision`, `EvidenceBlob`, and leased durable ingestion
 jobs with the target Knowledge Space identity.
 
-The worker validates content integrity, parses and normalizes text through the
+The ingestion and graph-indexing schedulers process a bounded burst of queued
+jobs per fixed-delay tick — up to a configured per-queue job cap within a
+wall-clock budget, stopping early on an empty queue, interrupt, or shutdown —
+so one queue's backlog cannot monopolize the shared scheduling thread.
+Postgres projection staging writes execute as bounded JDBC batches
+(configurable batch size) with unchanged SQL, transactions, and whole-stage
+failure behavior; graph replacement batches per dependency phase. The worker
+validates content integrity, parses and normalizes text through the
 Spring AI ETL readers, chunks it, and requests embeddings. Publication first
 commits a `PENDING` Knowledge Asset, inactive pgvector chunks, and a publication
 outbox row in one database transaction. It writes the target
