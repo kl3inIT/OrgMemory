@@ -457,6 +457,27 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void connectorReadViewsUseOnlySourceLedgerInventoryContracts() {
+        var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var readViewTypes = Set.of(
+                "com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory",
+                "com.orgmemory.core.knowledge.connector.SourceConnectionActivityService");
+        var consumedTypes = connector.getDirectDependencies(modules).stream()
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .filter(dependency -> readViewTypes.contains(
+                        dependency.getSourceType().getName()))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventorySummary"),
+                consumedTypes);
+    }
+
+    @Test
     void knowledgeAssetIsAnOpenNestedModuleDuringTheRefactor() {
         var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
 

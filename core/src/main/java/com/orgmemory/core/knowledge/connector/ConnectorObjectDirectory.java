@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.connector;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,11 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ConnectorObjectDirectory {
 
-    private final SourceObjectRepository sources;
+    private final SourceInventoryQuery inventory;
     private final ConnectorSourceRegistry registry;
 
-    ConnectorObjectDirectory(SourceObjectRepository sources, ConnectorSourceRegistry registry) {
-        this.sources = sources;
+    ConnectorObjectDirectory(SourceInventoryQuery inventory, ConnectorSourceRegistry registry) {
+        this.inventory = inventory;
         this.registry = registry;
     }
 
@@ -39,7 +39,7 @@ public class ConnectorObjectDirectory {
     @Transactional(readOnly = true)
     public List<String> activeObjectIds(UUID organizationId, String sourceSystem, String sourceConnectionKey) {
         ConnectorSourceProfile profile = registry.require(sourceSystem);
-        return sources.findActiveExternalObjectIds(
+        return inventory.activeExternalObjectIds(
                 organizationId, profile.sourceSystem(), sourceConnectionKey.trim());
     }
 }
