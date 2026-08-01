@@ -84,7 +84,6 @@ services:
     # panel and app plugins than the figure was chosen against, and a limit that
     # close to the working set makes the OOM killer a matter of which dashboard
     # someone opens.
-    mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
     logging: *default-logging
 
   prometheus:
@@ -111,7 +110,6 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     networks:
       - observability-internal
-    mem_limit: ${PROMETHEUS_MEM_LIMIT:-1024m}
     logging: *default-logging
 
   loki:
@@ -124,7 +122,6 @@ services:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
     networks:
       - observability-internal
-    mem_limit: ${LOKI_MEM_LIMIT:-512m}
     logging: *default-logging
 
   tempo:
@@ -143,7 +140,6 @@ services:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
     networks:
       - observability-internal
-    mem_limit: ${TEMPO_MEM_LIMIT:-768m}
     logging: *default-logging
 
   alloy:
@@ -170,7 +166,6 @@ services:
       # that Tempo or Prometheus exist, so a backend can be replaced without
       # redeploying the product.
       - shared-infra
-    mem_limit: ${ALLOY_MEM_LIMIT:-384m}
     logging: *default-logging
 
   node-exporter:
@@ -185,7 +180,6 @@ services:
       - /:/host:ro,rslave
     networks:
       - observability-internal
-    mem_limit: ${NODE_EXPORTER_MEM_LIMIT:-128m}
     logging: *default-logging
 
   cadvisor:
@@ -205,7 +199,6 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     networks:
       - observability-internal
-    mem_limit: ${CADVISOR_MEM_LIMIT:-256m}
     logging: *default-logging
 
   postgres-exporter:
@@ -223,7 +216,6 @@ services:
       # The shared PostgreSQL is OrgMemory's canonical database despite its
       # container being named for a product that no longer runs.
       - shared-infra
-    mem_limit: ${POSTGRES_EXPORTER_MEM_LIMIT:-128m}
     logging: *default-logging
 
 volumes:
