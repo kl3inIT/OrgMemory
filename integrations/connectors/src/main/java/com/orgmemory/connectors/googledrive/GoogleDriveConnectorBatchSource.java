@@ -2,11 +2,9 @@ package com.orgmemory.connectors.googledrive;
 
 import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
 
-import com.orgmemory.connectors.ContentCadence;
+import com.orgmemory.connectors.PollingConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorAclGrant;
-import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
-import com.orgmemory.core.knowledge.connector.ConnectorConnectionFailure;
 import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
 import com.orgmemory.core.knowledge.connector.ConnectorContentItem;
 import com.orgmemory.core.knowledge.connector.ConnectorContractVersions;
@@ -15,12 +13,10 @@ import com.orgmemory.core.knowledge.connector.ConnectorCrawlConfiguration;
 import com.orgmemory.core.knowledge.connector.ConnectorIdentityItem;
 import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.connector.ConnectorPermissionItem;
-import com.orgmemory.core.knowledge.connector.ConnectorPoll;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -50,24 +46,20 @@ import tools.jackson.databind.ObjectMapper;
  * claimed only when this really did enumerate the connection: no folder filter, nothing skipped,
  * nothing truncated, and nothing Google itself called an incomplete search.
  */
-class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
+class GoogleDriveConnectorBatchSource extends PollingConnectorBatchSource<GoogleDriveApiClient> {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleDriveConnectorBatchSource.class);
     private static final String SOURCE_SYSTEM = GoogleDriveSourceProfile.SOURCE_SYSTEM;
     private static final String DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
     private static final String FOLDER_TYPE = "application/vnd.google-apps.folder";
-    /** Above this share of unreadable files the run is a failure, not a crawl. */
-    private static final double FAILED_FILE_ABORT_SHARE = 0.5;
     /** How many parent ids go into one query, so a folder scope cannot outgrow Drive's limit. */
     private static final int PARENTS_PER_QUERY = 25;
     /** A bound on folder expansion, so a pathological tree cannot spin here forever. */
     private static final int MAX_FOLDERS = 500;
 
-    private final ConnectorConnectionDirectory connections;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final ContentCadence contentCadence = new ContentCadence();
 
     GoogleDriveConnectorBatchSource(
             ConnectorConnectionDirectory connections, RestClient.Builder restClientBuilder) {
@@ -79,34 +71,14 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
             Clock clock) {
-        this.connections = connections;
+        super(connections, clock);
         this.restClientBuilder = restClientBuilder;
         this.objectMapper = objectMapper;
         this.clock = clock;
     }
 
     @Override
-    public ConnectorPoll pendingBatches() {
-        List<ConnectorCrawlBatch> batches = new ArrayList<>();
-        List<ConnectorConnectionFailure> unavailable = new ArrayList<>();
-        for (ConnectorCrawlConfiguration configuration : connections.enabledCrawls(SOURCE_SYSTEM)) {
-            try {
-                batches.add(batchFor(configuration));
-            } catch (GoogleDriveCredentialException | GoogleDriveApiException failure) {
-                log.warn("Google Drive connection {} produced no batch this poll: {}",
-                        configuration.sourceConnectionKey(), failure.getMessage());
-                unavailable.add(new ConnectorConnectionFailure(
-                        configuration.organizationId(),
-                        SOURCE_SYSTEM,
-                        configuration.sourceConnectionKey(),
-                        errorCodeOf(failure),
-                        failure.getMessage()));
-            }
-        }
-        return new ConnectorPoll(batches, unavailable);
-    }
-
-    private static String errorCodeOf(RuntimeException failure) {
+    protected String errorCodeOf(RuntimeException failure) {
         if (failure instanceof GoogleDriveCredentialException refused) {
             return refused.errorCode();
         }
@@ -128,27 +100,28 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
      * the interval came round again, quietly degrading every poll in between to permissions.
      */
     ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
-        GoogleDriveCrawlSettings settings = GoogleDriveCrawlSettings.from(configuration.sourceConfig());
-        GoogleDriveApiClient client = clientFor(configuration, settings);
-
-        Instant now = clock.instant();
-        boolean contentDue = contentCadence.contentDue(configuration, now);
-        ConnectorCrawlBatch batch = crawl(client, configuration, settings, contentDue);
-        if (contentDue) {
-            contentCadence.contentCrawled(configuration, now);
-        }
-        return batch;
+        return pollConnection(configuration);
     }
 
-    private GoogleDriveApiClient clientFor(
-            ConnectorCrawlConfiguration configuration, GoogleDriveCrawlSettings settings) {
-        SecretValue credential = connections
-                .resolveCredential(
-                        configuration.organizationId(), SOURCE_SYSTEM, configuration.sourceConnectionKey())
-                .orElseThrow(() -> new GoogleDriveCredentialException(
-                        "No Google Drive credential is stored for connection "
-                                + configuration.sourceConnectionKey(),
-                        "no_credential"));
+    @Override
+    protected String sourceSystem() {
+        return SOURCE_SYSTEM;
+    }
+
+    @Override
+    protected String displayName() {
+        return "Google Drive";
+    }
+
+    @Override
+    protected String crawlCursorPrefix() {
+        return "google-drive-";
+    }
+
+    @Override
+    protected GoogleDriveApiClient createClient(
+            ConnectorCrawlConfiguration configuration, SecretValue credential) {
+        GoogleDriveCrawlSettings settings = GoogleDriveCrawlSettings.from(configuration.sourceConfig());
         GoogleAccessTokenSource tokens = new GoogleAccessTokenSource(
                 restClientBuilder,
                 GoogleServiceAccountKey.parse(credential.expose()),
@@ -158,11 +131,31 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         return new GoogleDriveApiClient(restClientBuilder, tokens, objectMapper);
     }
 
-    private ConnectorCrawlBatch crawl(
+    @Override
+    protected String clientConfigurationMaterial(ConnectorCrawlConfiguration configuration) {
+        return GoogleDriveCrawlSettings.from(configuration.sourceConfig()).impersonatedUser();
+    }
+
+    @Override
+    protected RuntimeException missingCredential(ConnectorCrawlConfiguration configuration) {
+        return new GoogleDriveCredentialException(
+                "No Google Drive credential is stored for connection "
+                        + configuration.sourceConnectionKey(),
+                "no_credential");
+    }
+
+    @Override
+    protected boolean isExpectedConnectorFailure(RuntimeException failure) {
+        return failure instanceof GoogleDriveCredentialException
+                || failure instanceof GoogleDriveApiException;
+    }
+
+    @Override
+    protected CrawlResult crawl(
             GoogleDriveApiClient client,
             ConnectorCrawlConfiguration configuration,
-            GoogleDriveCrawlSettings settings,
-            boolean readContent) {
+            boolean contentDue) {
+        GoogleDriveCrawlSettings settings = GoogleDriveCrawlSettings.from(configuration.sourceConfig());
         Crawl crawl = new Crawl();
         if (!settings.enumeratesEverything()) {
             // A folder filter means this crawl looked at part of the connection, so it cannot
@@ -186,7 +179,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
             }
             considered++;
             try {
-                observe(client, file, crawl, readContent, settings);
+                observe(client, file, crawl, contentDue, settings);
             } catch (GoogleDriveApiException failure) {
                 // A file the account cannot read is not a file that vanished. Losing one costs
                 // this crawl its completeness claim rather than costing the Drive its index.
@@ -196,8 +189,6 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 failed++;
             }
         }
-        abortIfMostlyFailed(failed, considered);
-
         // A permissions-only pass says nothing about whether content still exists — it never
         // opened a document — so it must not authorize retiring anything.
         //
@@ -207,7 +198,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
         // out of the payload, which keeps whatever was last sealed for it — an empty grant list
         // would instead assert that nobody may read it.
         List<ConnectorComponentState> componentStates = new ArrayList<>();
-        if (readContent) {
+        if (contentDue) {
             componentStates.add(ConnectorComponentState.complete(
                     ConnectorSyncComponent.CONTENT, contentCursor(crawl)));
         }
@@ -223,7 +214,7 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 membershipCursor(crawl),
                 "GOOGLE_DIRECTORY_MEMBERSHIP_NOT_CAPTURED"));
 
-        return new ConnectorCrawlBatch(
+        ConnectorCrawlBatch batch = new ConnectorCrawlBatch(
                 configuration.organizationId(),
                 SOURCE_SYSTEM,
                 configuration.sourceConnectionKey(),
@@ -237,7 +228,8 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 crawl.permissions,
                 List.of(),
                 componentStates,
-                readContent && crawl.complete);
+                contentDue && crawl.complete);
+        return result(batch, failed, considered, "files");
     }
 
     /**
@@ -450,21 +442,6 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
     }
 
     /**
-     * Stops a run in which most files failed rather than reporting it as a crawl.
-     *
-     * <p>Nothing is destroyed by carrying on — the completeness claim is already withdrawn — but
-     * a batch would be checkpointed and the connection would look healthy while its index quietly
-     * went stale. Failing leaves this connection without a batch, so the work is retried.
-     */
-    private static void abortIfMostlyFailed(int failed, int considered) {
-        if (failed > 0 && failed >= considered * FAILED_FILE_ABORT_SHARE) {
-            throw new GoogleDriveApiException(
-                    "Google Drive crawl abandoned: " + failed + " of " + considered
-                            + " files could not be read");
-        }
-    }
-
-    /**
      * A fingerprint of everything this batch asserts, which is what lets the driver recognise a
      * batch it has already ingested.
      *
@@ -515,15 +492,6 @@ class GoogleDriveConnectorBatchSource implements ConnectorBatchSource {
                 identity.email() == null ? "" : identity.email()));
         identities.forEach((key, alias) -> material.append(key).append('#').append(alias).append(';'));
         return "google-drive-membership-" + sha256(material.toString());
-    }
-
-    private static String crawlCursor(List<ConnectorComponentState> states) {
-        String material = states.stream()
-                .map(state -> state.component() + "=" + state.cursor())
-                .sorted()
-                .reduce((left, right) -> left + ";" + right)
-                .orElse("");
-        return "google-drive-" + sha256(material);
     }
 
     static String membershipCursorMaterial(List<ConnectorMembershipItem> capturedMemberships) {

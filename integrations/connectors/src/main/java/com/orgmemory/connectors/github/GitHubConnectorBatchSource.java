@@ -2,13 +2,11 @@ package com.orgmemory.connectors.github;
 
 import com.orgmemory.core.knowledge.acl.SourcePrincipalKind;
 
-import com.orgmemory.connectors.ContentCadence;
+import com.orgmemory.connectors.PollingConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorAclGrant;
-import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.connector.ConnectorComponentState;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
-import com.orgmemory.core.knowledge.connector.ConnectorConnectionFailure;
 import com.orgmemory.core.knowledge.connector.ConnectorContentItem;
 import com.orgmemory.core.knowledge.connector.ConnectorContractVersions;
 import com.orgmemory.core.knowledge.connector.ConnectorCrawlBatch;
@@ -18,12 +16,10 @@ import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.connector.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorPermissionItem;
-import com.orgmemory.core.knowledge.connector.ConnectorPoll;
 import com.orgmemory.core.knowledge.connector.ConnectorSyncComponent;
 import com.orgmemory.core.permission.AccessGate;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -31,7 +27,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
@@ -48,20 +43,17 @@ import tools.jackson.databind.ObjectMapper;
  * so each work item grants one stable {@code repository:{id}:readers} group whose independently
  * captured membership is that authoritative effective set.
  */
-final class GitHubConnectorBatchSource implements ConnectorBatchSource {
+final class GitHubConnectorBatchSource extends PollingConnectorBatchSource<GitHubApiClient> {
 
     private static final Logger log = LoggerFactory.getLogger(GitHubConnectorBatchSource.class);
     private static final String SOURCE_SYSTEM = GitHubSourceProfile.SOURCE_SYSTEM;
     private static final String READER_PREFIX = "repository:";
     private static final String READER_SUFFIX = ":readers";
 
-    private final ConnectorConnectionDirectory connections;
     private final ConnectorObjectDirectory objects;
     private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
     private final Clock clock;
-    private final ContentCadence contentCadence = new ContentCadence();
-    private final Map<String, ClientContext> clients = new ConcurrentHashMap<>();
 
     GitHubConnectorBatchSource(
             ConnectorConnectionDirectory connections,
@@ -76,52 +68,73 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
             Clock clock) {
-        this.connections = connections;
+        super(connections, clock);
         this.objects = objects;
         this.restClientBuilder = restClientBuilder;
         this.objectMapper = objectMapper;
         this.clock = clock;
     }
 
-    @Override
-    public ConnectorPoll pendingBatches() {
-        List<ConnectorCrawlBatch> batches = new ArrayList<>();
-        List<ConnectorConnectionFailure> unavailable = new ArrayList<>();
-        for (ConnectorCrawlConfiguration configuration : connections.enabledCrawls(SOURCE_SYSTEM)) {
-            try {
-                batches.add(batchFor(configuration));
-            } catch (GitHubCredentialException | GitHubApiException failure) {
-                log.warn(
-                        "GitHub connection {} produced no batch this poll: {}",
-                        configuration.sourceConnectionKey(),
-                        failure.getMessage());
-                unavailable.add(new ConnectorConnectionFailure(
-                        configuration.organizationId(),
-                        SOURCE_SYSTEM,
-                        configuration.sourceConnectionKey(),
-                        GitHubErrorCodes.of(failure),
-                        failure.getMessage()));
-            }
-        }
-        return new ConnectorPoll(batches, unavailable);
+    ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
+        return pollConnection(configuration);
     }
 
-    ConnectorCrawlBatch batchFor(ConnectorCrawlConfiguration configuration) {
-        GitHubApiClient client = clientFor(configuration);
+    @Override
+    protected String sourceSystem() {
+        return SOURCE_SYSTEM;
+    }
+
+    @Override
+    protected String displayName() {
+        return "GitHub";
+    }
+
+    @Override
+    protected String crawlCursorPrefix() {
+        return "github-";
+    }
+
+    @Override
+    protected GitHubApiClient createClient(
+            ConnectorCrawlConfiguration configuration, SecretValue credential) {
+        GitHubAppKey appKey = GitHubAppKey.parse(credential.expose());
+        GitHubInstallationTokenSource tokens =
+                new GitHubInstallationTokenSource(restClientBuilder, appKey, objectMapper, clock);
+        return new GitHubApiClient(restClientBuilder, tokens, objectMapper);
+    }
+
+    @Override
+    protected RuntimeException missingCredential(ConnectorCrawlConfiguration configuration) {
+        return new GitHubCredentialException(
+                "No GitHub App credential is stored for connection "
+                        + configuration.sourceConnectionKey(),
+                "no_credential");
+    }
+
+    @Override
+    protected boolean isExpectedConnectorFailure(RuntimeException failure) {
+        return failure instanceof GitHubCredentialException || failure instanceof GitHubApiException;
+    }
+
+    @Override
+    protected String errorCodeOf(RuntimeException failure) {
+        return GitHubErrorCodes.of(failure);
+    }
+
+    @Override
+    protected CrawlResult crawl(
+            GitHubApiClient client,
+            ConnectorCrawlConfiguration configuration,
+            boolean contentDue) {
         requireInstallation(client, configuration);
         GitHubCrawlSettings settings = GitHubCrawlSettings.from(configuration.sourceConfig());
         List<JsonNode> repositories = repositoriesInScope(client, settings);
-
-        Instant now = clock.instant();
-        if (!contentCadence.contentDue(configuration, now)) {
-            return permissionsCrawl(client, configuration, repositories);
-        }
-        ConnectorCrawlBatch batch = contentCrawl(client, configuration, repositories, settings);
-        contentCadence.contentCrawled(configuration, now);
-        return batch;
+        return contentDue
+                ? contentCrawl(client, configuration, repositories, settings)
+                : permissionsCrawl(client, configuration, repositories);
     }
 
-    private ConnectorCrawlBatch permissionsCrawl(
+    private CrawlResult permissionsCrawl(
             GitHubApiClient client,
             ConnectorCrawlConfiguration configuration,
             List<JsonNode> repositories) {
@@ -130,10 +143,14 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                 configuration.organizationId(),
                 SOURCE_SYSTEM,
                 configuration.sourceConnectionKey()));
-        return batch(configuration, crawl, List.of(), false, false);
+        return result(
+                batch(configuration, crawl, List.of(), false, false),
+                crawl.failedRepositoryCount(),
+                repositories.size(),
+                "repositories");
     }
 
-    private ConnectorCrawlBatch contentCrawl(
+    private CrawlResult contentCrawl(
             GitHubApiClient client,
             ConnectorCrawlConfiguration configuration,
             List<JsonNode> repositories,
@@ -157,11 +174,16 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                 log.warn("GitHub repository {}/{} content was skipped: {}",
                         owner, name, unreadable.getMessage());
                 crawl.contentIncomplete();
+                crawl.repositoryFailed(repositoryId);
             }
         }
         boolean enumeratedScope = settings.selectsEverything();
         boolean complete = enumeratedScope && crawl.contentComplete && crawl.accessComplete;
-        return batch(configuration, crawl, crawl.contents, true, complete);
+        return result(
+                batch(configuration, crawl, crawl.contents, true, complete),
+                crawl.failedRepositoryCount(),
+                repositories.size(),
+                "repositories");
     }
 
     private Crawl captureReaders(GitHubApiClient client, List<JsonNode> repositories) {
@@ -181,36 +203,10 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                         repositoryId,
                         fullName,
                         "GITHUB_COLLABORATORS_NOT_FULLY_READ");
+                crawl.repositoryFailed(repositoryId);
             }
         }
         return crawl;
-    }
-
-    private GitHubApiClient clientFor(ConnectorCrawlConfiguration configuration) {
-        SecretValue credential = connections
-                .resolveCredential(
-                        configuration.organizationId(),
-                        SOURCE_SYSTEM,
-                        configuration.sourceConnectionKey())
-                .orElseThrow(() -> new GitHubCredentialException(
-                        "No GitHub App credential is stored for connection "
-                                + configuration.sourceConnectionKey(),
-                        "no_credential"));
-        String exposed = credential.expose();
-        String fingerprint = sha256(exposed);
-        String key = configuration.organizationId() + "/" + configuration.sourceConnectionKey();
-        ClientContext context = clients.compute(key, (ignored, current) -> {
-            if (current != null && current.credentialFingerprint().equals(fingerprint)) {
-                return current;
-            }
-            GitHubAppKey appKey = GitHubAppKey.parse(exposed);
-            GitHubInstallationTokenSource tokens =
-                    new GitHubInstallationTokenSource(restClientBuilder, appKey, objectMapper, clock);
-            return new ClientContext(
-                    fingerprint,
-                    new GitHubApiClient(restClientBuilder, tokens, objectMapper));
-        });
-        return context.client();
     }
 
     private static void requireInstallation(
@@ -281,7 +277,7 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
         return List.copyOf(selected);
     }
 
-    private static ConnectorCrawlBatch batch(
+    private ConnectorCrawlBatch batch(
             ConnectorCrawlConfiguration configuration,
             Crawl crawl,
             List<ConnectorContentItem> contents,
@@ -331,15 +327,6 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
                 complete);
     }
 
-    private static String crawlCursor(List<ConnectorComponentState> states) {
-        String material = states.stream()
-                .map(state -> state.component() + "=" + state.cursor())
-                .sorted()
-                .reduce((left, right) -> left + ";" + right)
-                .orElse("");
-        return "github-" + sha256(material);
-    }
-
     private static String contentCursor(Crawl crawl) {
         StringBuilder material = new StringBuilder();
         crawl.contents.stream()
@@ -387,9 +374,6 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
         return com.orgmemory.core.shared.Digests.sha256(value);
     }
 
-    private record ClientContext(String credentialFingerprint, GitHubApiClient client) {
-    }
-
     private record GitHubUser(String id, String login) {
     }
 
@@ -408,8 +392,17 @@ final class GitHubConnectorBatchSource implements ConnectorBatchSource {
         private final Map<String, RepositoryAudience> audiences = new LinkedHashMap<>();
         private final List<ConnectorContentItem> contents = new ArrayList<>();
         private final List<ConnectorPermissionItem> permissions = new ArrayList<>();
+        private final Set<String> failedRepositoryIds = new LinkedHashSet<>();
         private boolean contentComplete = true;
         private boolean accessComplete = true;
+
+        private void repositoryFailed(String repositoryId) {
+            failedRepositoryIds.add(repositoryId);
+        }
+
+        private int failedRepositoryCount() {
+            return failedRepositoryIds.size();
+        }
 
         private void contentIncomplete() {
             contentComplete = false;

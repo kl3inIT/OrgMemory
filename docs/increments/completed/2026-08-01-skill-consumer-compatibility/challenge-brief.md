@@ -11,7 +11,7 @@ Read first:
 - `docs/guidelines/agent-safety.md`
 - `docs/specs/domains/asset-registry.md`
 - decision filenames under `docs/decisions`
-- `docs/increments/active/2026-08-01-skill-consumer-compatibility/design.md`
+- `docs/increments/completed/2026-08-01-skill-consumer-compatibility/design.md`
 
 ## Product promise at stake
 
@@ -73,4 +73,3 @@ Return plain Markdown with:
 
 Challenge your own verdict with at least three concrete failure scenarios
 before finalizing it.
-
