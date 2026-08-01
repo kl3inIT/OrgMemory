@@ -14,7 +14,13 @@ import { zipSync } from "fflate"
 import { afterEach, describe, expect, it } from "vitest"
 
 import type { SkillManifestLink } from "./contracts.js"
-import { installSkill, listInstalled } from "./install.js"
+import {
+  installSkill,
+  listInstalled,
+  removeInstalledSkill,
+  updateInstalledSkill,
+  verifyInstalled,
+} from "./install.js"
 
 const temporaryDirectories: string[] = []
 
@@ -51,7 +57,15 @@ describe("installSkill", () => {
     const lock = JSON.parse(
       await readFile(join(cwd, ".orgmemory", "skills.lock.json"), "utf8"),
     ) as {
-      skills: Record<string, { version: string; packageDigest: string }>
+      schemaVersion: number
+      skills: Record<
+        string,
+        {
+          version: string
+          packageDigest: string
+          files?: Array<{ path: string; size: number; sha256: string }>
+        }
+      >
     }
     expect(lock.skills["codex:support/support-triage"]).toMatchObject({
       version: "1.0.0",
@@ -60,6 +74,250 @@ describe("installSkill", () => {
     expect(await listInstalled({ global: false, cwd })).toHaveProperty(
       "codex:support/support-triage",
     )
+    expect(
+      await verifyInstalled({
+        global: false,
+        cwd,
+        coordinate: "support/support-triage",
+        agent: "codex",
+      }),
+    ).toMatchObject({
+      "codex:support/support-triage": { status: "verified" },
+    })
+    expect(lock.schemaVersion).toBe(2)
+    expect(lock.skills["codex:support/support-triage"]?.files).toEqual([
+      {
+        path: "SKILL.md",
+        size: skillMarkdown.byteLength,
+        sha256: sha256(skillMarkdown),
+      },
+    ])
+  })
+
+  it("marks additions, links, and changed bytes as modified", async () => {
+    const cwd = await temporaryDirectory()
+    const skillMarkdown = new TextEncoder().encode("original")
+    const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
+    const installed = await installSkill({
+      manifestLink: manifest(packageBytes, skillMarkdown),
+      packageBytes,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
+
+    await writeFile(join(installed.target, "extra.sh"), "echo unexpected")
+
+    expect(
+      await verifyInstalled({
+        global: false,
+        cwd,
+        coordinate: "support/support-triage",
+        agent: "codex",
+      }),
+    ).toMatchObject({
+      "codex:support/support-triage": { status: "modified" },
+    })
+  })
+
+  it("refuses a different coordinate that maps to an owned consumer target", async () => {
+    const cwd = await temporaryDirectory()
+    const firstContent = new TextEncoder().encode("first namespace")
+    const firstPackage = zipSync({ "support-triage/SKILL.md": firstContent })
+    await installSkill({
+      manifestLink: manifest(firstPackage, firstContent),
+      packageBytes: firstPackage,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
+    const secondContent = new TextEncoder().encode("second namespace")
+    const secondPackage = zipSync({ "support-triage/SKILL.md": secondContent })
+
+    await expect(
+      installSkill({
+        manifestLink: manifest(secondPackage, secondContent, {
+          namespace: "operations",
+        }),
+        packageBytes: secondPackage,
+        agent: "codex",
+        global: false,
+        cwd,
+      }),
+    ).rejects.toThrow("already owned")
+
+    expect(
+      await readFile(
+        join(cwd, ".agents", "skills", "support-triage", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("first namespace")
+  })
+
+  it("serializes concurrent installs without losing receipt entries", async () => {
+    const cwd = await temporaryDirectory()
+    const install = async (slug: string) => {
+      const content = new TextEncoder().encode(slug)
+      const bytes = zipSync({ [`${slug}/SKILL.md`]: content })
+      await installSkill({
+        manifestLink: manifest(bytes, content, { slug }),
+        packageBytes: bytes,
+        agent: "codex",
+        global: false,
+        cwd,
+      })
+    }
+
+    await Promise.all([install("support-triage"), install("incident-response")])
+
+    const installed = await listInstalled({ global: false, cwd })
+    expect(Object.keys(installed).sort()).toEqual([
+      "codex:support/incident-response",
+      "codex:support/support-triage",
+    ])
+  })
+
+  it("updates only the same coordinate to an explicit exact version", async () => {
+    const cwd = await temporaryDirectory()
+    const original = new TextEncoder().encode("version one")
+    const originalPackage = zipSync({ "support-triage/SKILL.md": original })
+    await installSkill({
+      manifestLink: manifest(originalPackage, original),
+      packageBytes: originalPackage,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
+    const replacement = new TextEncoder().encode("version two")
+    const replacementPackage = zipSync({ "support-triage/SKILL.md": replacement })
+
+    await updateInstalledSkill({
+      coordinate: "support/support-triage",
+      agent: "codex",
+      global: false,
+      cwd,
+      loadRelease: async () => ({
+        manifestLink: manifest(replacementPackage, replacement, { version: "2.0.0" }),
+        packageBytes: replacementPackage,
+      }),
+    })
+
+    expect(
+      await readFile(
+        join(cwd, ".agents", "skills", "support-triage", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("version two")
+    expect(
+      (await listInstalled({ global: false, cwd }))[
+        "codex:support/support-triage"
+      ]?.version,
+    ).toBe("2.0.0")
+  })
+
+  it("refuses update and removal after local modification", async () => {
+    const cwd = await temporaryDirectory()
+    const content = new TextEncoder().encode("original")
+    const bytes = zipSync({ "support-triage/SKILL.md": content })
+    const installed = await installSkill({
+      manifestLink: manifest(bytes, content),
+      packageBytes: bytes,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
+    await writeFile(join(installed.target, "SKILL.md"), "locally edited")
+
+    await expect(
+      updateInstalledSkill({
+        coordinate: "support/support-triage",
+        agent: "codex",
+        global: false,
+        cwd,
+        loadRelease: async () => ({ manifestLink: manifest(bytes, content), packageBytes: bytes }),
+      }),
+    ).rejects.toThrow("modified")
+    await expect(
+      removeInstalledSkill({
+        coordinate: "support/support-triage",
+        agent: "codex",
+        global: false,
+        cwd,
+      }),
+    ).rejects.toThrow("modified")
+    expect(await readFile(join(installed.target, "SKILL.md"), "utf8")).toBe(
+      "locally edited",
+    )
+  })
+
+  it("removes only a verified v2 install and its receipt", async () => {
+    const cwd = await temporaryDirectory()
+    const content = new TextEncoder().encode("verified")
+    const bytes = zipSync({ "support-triage/SKILL.md": content })
+    const installed = await installSkill({
+      manifestLink: manifest(bytes, content),
+      packageBytes: bytes,
+      agent: "claude-code",
+      global: false,
+      cwd,
+    })
+
+    await removeInstalledSkill({
+      coordinate: "support/support-triage",
+      agent: "claude-code",
+      global: false,
+      cwd,
+    })
+
+    await expect(access(installed.target)).rejects.toThrow()
+    expect(await listInstalled({ global: false, cwd })).toEqual({})
+  })
+
+  it("keeps schema-v1 receipts readable but unverifiable and non-removable", async () => {
+    const cwd = await temporaryDirectory()
+    const target = join(cwd, ".agents", "skills", "support-triage")
+    const { mkdir } = await import("node:fs/promises")
+    await mkdir(target, { recursive: true })
+    await writeFile(join(target, "SKILL.md"), "legacy")
+    await mkdir(join(cwd, ".orgmemory"), { recursive: true })
+    await writeFile(
+      join(cwd, ".orgmemory", "skills.lock.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        skills: {
+          "codex:support/support-triage": {
+            coordinate: "support/support-triage",
+            version: "1.0.0",
+            assetId: "85000000-0000-0000-0000-000000000003",
+            releaseId: "85000000-0000-0000-0000-000000000004",
+            releaseDigest: "c".repeat(64),
+            packageDigest: "d".repeat(64),
+            agent: "codex",
+            target: ".agents/skills/support-triage",
+            installedAt: new Date().toISOString(),
+          },
+        },
+      }),
+    )
+
+    expect(
+      await verifyInstalled({
+        global: false,
+        cwd,
+        coordinate: "support/support-triage",
+        agent: "codex",
+      }),
+    ).toMatchObject({
+      "codex:support/support-triage": { status: "unverifiable" },
+    })
+    await expect(
+      removeInstalledSkill({
+        coordinate: "support/support-triage",
+        agent: "codex",
+        global: false,
+        cwd,
+      }),
+    ).rejects.toThrow("unverifiable")
   })
 
   it("leaves an active install untouched when package integrity fails", async () => {
@@ -140,20 +398,29 @@ describe("installSkill", () => {
   it("restores the active install when promotion fails after backup", async () => {
     const cwd = await temporaryDirectory()
     const target = join(cwd, ".agents", "skills", "support-triage")
-    const { mkdir } = await import("node:fs/promises")
-    await mkdir(target, { recursive: true })
-    await writeFile(join(target, "SKILL.md"), "existing")
+    const original = new TextEncoder().encode("existing")
+    const originalPackage = zipSync({ "support-triage/SKILL.md": original })
+    await installSkill({
+      manifestLink: manifest(originalPackage, original),
+      packageBytes: originalPackage,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
     const skillMarkdown = new TextEncoder().encode("replacement")
     const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
     let renameCount = 0
 
     await expect(
-      installSkill({
-        manifestLink: manifest(packageBytes, skillMarkdown),
-        packageBytes,
+      updateInstalledSkill({
+        coordinate: "support/support-triage",
         agent: "codex",
         global: false,
         cwd,
+        loadRelease: async () => ({
+          manifestLink: manifest(packageBytes, skillMarkdown, { version: "2.0.0" }),
+          packageBytes,
+        }),
         promotionOperations: {
           rename: async (source, destination) => {
             renameCount += 1
@@ -173,24 +440,33 @@ describe("installSkill", () => {
     ).toEqual([])
   })
 
-  it("preserves the recovery backup when promotion rollback fails", async () => {
+  it("uses the durable journal when immediate promotion rollback fails", async () => {
     const cwd = await temporaryDirectory()
     const skillsDirectory = join(cwd, ".agents", "skills")
     const target = join(skillsDirectory, "support-triage")
-    const { mkdir } = await import("node:fs/promises")
-    await mkdir(target, { recursive: true })
-    await writeFile(join(target, "SKILL.md"), "existing")
+    const original = new TextEncoder().encode("existing")
+    const originalPackage = zipSync({ "support-triage/SKILL.md": original })
+    await installSkill({
+      manifestLink: manifest(originalPackage, original),
+      packageBytes: originalPackage,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
     const skillMarkdown = new TextEncoder().encode("replacement")
     const packageBytes = zipSync({ "support-triage/SKILL.md": skillMarkdown })
     let renameCount = 0
 
     await expect(
-      installSkill({
-        manifestLink: manifest(packageBytes, skillMarkdown),
-        packageBytes,
+      updateInstalledSkill({
+        coordinate: "support/support-triage",
         agent: "codex",
         global: false,
         cwd,
+        loadRelease: async () => ({
+          manifestLink: manifest(packageBytes, skillMarkdown, { version: "2.0.0" }),
+          packageBytes,
+        }),
         promotionOperations: {
           rename: async (source, destination) => {
             renameCount += 1
@@ -206,10 +482,58 @@ describe("installSkill", () => {
     const backups = (await readdir(skillsDirectory)).filter((name) =>
       name.includes("orgmemory-backup"),
     )
-    expect(backups).toHaveLength(1)
-    expect(
-      await readFile(join(skillsDirectory, backups[0]!, "SKILL.md"), "utf8"),
-    ).toBe("existing")
+    expect(backups).toHaveLength(0)
+    expect(await readFile(join(target, "SKILL.md"), "utf8")).toBe("existing")
+    await expect(
+      access(join(cwd, ".orgmemory", "skills.operation.json")),
+    ).rejects.toThrow()
+  })
+
+  it("recovers an interrupted promoted tree before the next lifecycle command", async () => {
+    const cwd = await temporaryDirectory()
+    const original = new TextEncoder().encode("original")
+    const originalPackage = zipSync({ "support-triage/SKILL.md": original })
+    const installed = await installSkill({
+      manifestLink: manifest(originalPackage, original),
+      packageBytes: originalPackage,
+      agent: "codex",
+      global: false,
+      cwd,
+    })
+    const receiptPath = join(cwd, ".orgmemory", "skills.lock.json")
+    const lock = JSON.parse(await readFile(receiptPath, "utf8")) as {
+      skills: Record<string, Record<string, unknown>>
+    }
+    const previousEntry = lock.skills["codex:support/support-triage"]
+    const backup = `${installed.target}.orgmemory-backup-crash-fixture`
+    await rename(installed.target, backup)
+    const { mkdir } = await import("node:fs/promises")
+    await mkdir(installed.target, { recursive: true })
+    await writeFile(join(installed.target, "SKILL.md"), "uncommitted replacement")
+    await writeFile(
+      join(cwd, ".orgmemory", "skills.operation.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        operation: "update",
+        phase: "tree-promoted",
+        key: "codex:support/support-triage",
+        target: ".agents/skills/support-triage",
+        recovery: ".agents/skills/support-triage.orgmemory-backup-crash-fixture",
+        previousEntry,
+        nextEntry: { ...previousEntry, version: "2.0.0" },
+        startedAt: new Date().toISOString(),
+      }),
+    )
+
+    const recovered = await listInstalled({ global: false, cwd })
+
+    expect(await readFile(join(installed.target, "SKILL.md"), "utf8")).toBe(
+      "original",
+    )
+    expect(recovered["codex:support/support-triage"]?.version).toBe("1.0.0")
+    await expect(
+      access(join(cwd, ".orgmemory", "skills.operation.json")),
+    ).rejects.toThrow()
   })
 })
 
@@ -222,15 +546,18 @@ async function temporaryDirectory(): Promise<string> {
 function manifest(
   packageBytes: Uint8Array,
   skillMarkdown: Uint8Array,
+  overrides: { namespace?: string; slug?: string; version?: string } = {},
 ): SkillManifestLink {
+  const namespace = overrides.namespace ?? "support"
+  const slug = overrides.slug ?? "support-triage"
   return {
     manifest: {
       assetId: "85000000-0000-0000-0000-000000000003",
       releaseId: "85000000-0000-0000-0000-000000000004",
-      namespace: "support",
-      slug: "support-triage",
-      coordinate: "support/support-triage",
-      version: "1.0.0",
+      namespace,
+      slug,
+      coordinate: `${namespace}/${slug}`,
+      version: overrides.version ?? "1.0.0",
       title: "Support triage",
       description: "Triage support",
       releaseDigest: "c".repeat(64),
