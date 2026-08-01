@@ -106,7 +106,10 @@ export function SkillPackageReplacePage({
       />
 
       <PageLayout.Body>
-        <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]">
+        <form
+          onSubmit={submit}
+          className={inspection ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem]" : "grid gap-6"}
+        >
           <Card className="gap-0 bg-surface-raised py-0 shadow-none">
             <CardHeader className="border-b border-border-subtle px-6 py-5">
               <CardTitle>Replacement package</CardTitle>
@@ -136,15 +139,7 @@ export function SkillPackageReplacePage({
             </CardContent>
           </Card>
 
-          {inspection ? (
-            <SkillPackageInspectionCard inspection={inspection} />
-          ) : (
-            <Card className="h-fit border-dashed bg-surface-subtle shadow-none">
-              <CardContent className="p-6 text-sm leading-6 text-content-secondary">
-                The replacement is staged under a fresh object key. OrgMemory swaps only the Draft pointer and cleans the old object only when no immutable record references it.
-              </CardContent>
-            </Card>
-          )}
+          {inspection ? <SkillPackageInspectionCard inspection={inspection} /> : null}
         </form>
       </PageLayout.Body>
     </PageLayout.Root>

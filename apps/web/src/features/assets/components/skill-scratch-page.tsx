@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { CheckCircle2, ChevronLeft, LoaderCircle, PackageCheck, Plus } from "lucide-react"
+import { ChevronLeft, LoaderCircle, PackageCheck, Plus } from "lucide-react"
 import { useState, type FormEvent, type ReactNode } from "react"
 
 import { PageLayout } from "@/components/layouts/page-layout"
@@ -137,7 +137,10 @@ export function SkillScratchPage() {
       />
 
       <PageLayout.Body>
-        <form onSubmit={submit} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <form
+          onSubmit={submit}
+          className={inspection ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]" : "grid gap-6"}
+        >
           <div className="space-y-6">
             <Card className="gap-0 bg-surface-raised py-0 shadow-none">
               <CardHeader className="border-b border-border-subtle px-6 py-5"><CardTitle>Skill content</CardTitle></CardHeader>
@@ -205,17 +208,7 @@ export function SkillScratchPage() {
             </div>
           </div>
 
-          {inspection ? (
-            <SkillPackageInspectionCard inspection={inspection} />
-          ) : (
-            <Card className="h-fit border-dashed bg-surface-subtle shadow-none">
-              <CardContent className="p-6">
-                <CheckCircle2 className="size-5 text-content-muted" aria-hidden="true" />
-                <p className="mt-4 text-label">Validate before creating</p>
-                <p className="mt-2 text-sm leading-6 text-content-secondary">The server rechecks frontmatter, paths, bounds, manifest, and digest. Editing any Skill content invalidates this preview.</p>
-              </CardContent>
-            </Card>
-          )}
+          {inspection ? <SkillPackageInspectionCard inspection={inspection} /> : null}
         </form>
       </PageLayout.Body>
     </PageLayout.Root>
