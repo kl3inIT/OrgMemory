@@ -121,6 +121,8 @@ Source Ledger owns the canonical source and revision ledger, evidence blobs,
 raw/normalized processing records, upload and query services, durable ingestion
 jobs, and the inventory query used by Connector read views. ACL owns source ACL
 snapshots and heads, external-principal mappings, and group-membership evidence.
+Connector source lookup, vanished-object diffing, and retirement cross Source
+Ledger-owned inventory and lifecycle APIs rather than its persistence model.
 Connector, Asset, and Retrieval remain explicitly open while their remaining
 cross-owned persistence and orchestration seams are replaced by intentional
 APIs.

@@ -32,9 +32,9 @@ import com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef;
 import com.orgmemory.core.knowledge.sourceledger.RawSourceRef;
 import com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceHeadView;
-import com.orgmemory.core.knowledge.sourceledger.SourceObject;
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceObjectStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceInventoryRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceLifecycleService;
 
 import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.PrincipalKey;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.ResolvedPrincipal;
@@ -100,7 +100,8 @@ class ConnectorReconciler {
     private final KnowledgeAssetPublicationService publications;
     private final ObjectProvider<ConnectorTextEmbedder> embedder;
     private final ObjectStoragePort objects;
-    private final SourceObjectRepository sources;
+    private final SourceInventoryQuery sourceInventory;
+    private final SourceLifecycleService sourceLifecycle;
     private final ConnectorSourceRevisionCoordinator revisionCoordinator;
     private final PermissionAuditService audit;
 
@@ -114,7 +115,8 @@ class ConnectorReconciler {
             KnowledgeAssetPublicationService publications,
             ObjectProvider<ConnectorTextEmbedder> embedder,
             ObjectStoragePort objects,
-            SourceObjectRepository sources,
+            SourceInventoryQuery sourceInventory,
+            SourceLifecycleService sourceLifecycle,
             ConnectorSourceRevisionCoordinator revisionCoordinator,
             PermissionAuditService audit) {
         this.ingestion = ingestion;
@@ -126,7 +128,8 @@ class ConnectorReconciler {
         this.publications = publications;
         this.embedder = embedder;
         this.objects = objects;
-        this.sources = sources;
+        this.sourceInventory = sourceInventory;
+        this.sourceLifecycle = sourceLifecycle;
         this.revisionCoordinator = revisionCoordinator;
         this.audit = audit;
     }
@@ -260,15 +263,16 @@ class ConnectorReconciler {
             SourceHeadView current,
             ConnectorContentItem content,
             AclPlan plan) {
-        SourceObject source = sources
-                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+        UUID sourceId = sourceInventory
+                .find(
                         ctx.organizationId(),
                         ctx.profile().sourceSystem(),
                         ctx.sourceConnectionKey(),
                         content.externalObjectId())
+                .map(SourceInventoryRef::sourceObjectId)
                 .orElseThrow(() -> new IllegalStateException(
                         "an ACL head exists without its source object: " + content.externalObjectId()));
-        materializeRevision(ctx, content, source.getId(), plan, current.currentSnapshotId());
+        materializeRevision(ctx, content, sourceId, plan, current.currentSnapshotId());
         audit(ctx, "CONNECTOR_REMATERIALIZE", content.externalObjectId(), "CONTENT_REVISION_MATERIALIZED");
         return ObjectOutcome.REMATERIALIZED;
     }
@@ -348,8 +352,8 @@ class ConnectorReconciler {
      * and only its caller knows whether the crawl was complete enough to be trusted with it.
      */
     List<String> vanishedSince(ConnectorIngestionContext ctx, Set<String> crawledObjectIds) {
-        return sources
-                .findActiveExternalObjectIds(
+        return sourceInventory
+                .activeExternalObjectIds(
                         ctx.organizationId(), ctx.profile().sourceSystem(), ctx.sourceConnectionKey())
                 .stream()
                 .filter(externalObjectId -> !crawledObjectIds.contains(externalObjectId))
@@ -358,17 +362,14 @@ class ConnectorReconciler {
 
     /** Retires a tombstoned object from retrieval. Returns whether an active object was retired. */
     boolean retire(ConnectorIngestionContext ctx, ConnectorTombstone tombstone) {
-        var existing = sources.findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+        boolean retired = sourceLifecycle.retire(
                 ctx.organizationId(),
                 ctx.profile().sourceSystem(),
                 ctx.sourceConnectionKey(),
                 tombstone.externalObjectId());
-        if (existing.isEmpty() || existing.get().getStatus() != SourceObjectStatus.ACTIVE) {
+        if (!retired) {
             return false;
         }
-        SourceObject source = existing.get();
-        source.archive();
-        sources.saveAndFlush(source);
         audit(ctx, "CONNECTOR_RETIRE", tombstone.externalObjectId(), "OBJECT_RETIRED");
         return true;
     }
