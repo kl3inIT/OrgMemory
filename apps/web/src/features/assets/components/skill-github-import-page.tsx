@@ -9,7 +9,6 @@ import {
   GitFork,
   LoaderCircle,
   LockKeyhole,
-  RefreshCw,
 } from "lucide-react"
 import { useMemo, useState, type FormEvent } from "react"
 
@@ -178,8 +177,7 @@ export function SkillGitHubImportPage() {
       />
 
       <PageLayout.Body>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-6">
+        <div className="space-y-6">
             <Card className="gap-0 bg-surface-raised py-0 shadow-none">
               <CardHeader className="border-b border-border-subtle px-6 py-5">
                 <CardTitle>1. Choose repository</CardTitle>
@@ -267,6 +265,9 @@ export function SkillGitHubImportPage() {
                           ] : [])}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs leading-5 text-content-muted">
+                        Private repository credentials stay server-side.
+                      </p>
                     </div>
                   </div>
                   {connections.isError ? (
@@ -382,15 +383,6 @@ export function SkillGitHubImportPage() {
             ) : error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
 
             {result ? <ImportResults result={result} /> : null}
-          </div>
-
-          <Card className="h-fit gap-0 border-dashed bg-surface-subtle py-0 shadow-none xl:sticky xl:top-24">
-            <CardContent className="space-y-5 p-6 text-sm leading-6 text-content-secondary">
-              <div className="flex gap-3"><GitBranch className="mt-0.5 size-4 shrink-0 text-content-primary" aria-hidden="true" /><p>Preview resolves a branch or tag to a full commit SHA. Import fetches that exact SHA again.</p></div>
-              <div className="flex gap-3"><LockKeyhole className="mt-0.5 size-4 shrink-0 text-content-primary" aria-hidden="true" /><p>Private repositories use only GitHub App connections enabled by an administrator. Credentials never enter the browser.</p></div>
-              <div className="flex gap-3"><RefreshCw className="mt-0.5 size-4 shrink-0 text-content-primary" aria-hidden="true" /><p>Each selected Skill creates its own Draft. One conflict does not roll back the successful imports.</p></div>
-            </CardContent>
-          </Card>
         </div>
       </PageLayout.Body>
     </PageLayout.Root>

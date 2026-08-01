@@ -346,6 +346,9 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await page.getByRole("link", { name: /Upload a skill/ }).click()
   await expect(page).toHaveURL(/\/assets\/new\/skill\/upload$/)
   await expect(page.getByRole("heading", { level: 1, name: "Upload a Skill" })).toBeVisible()
+  await expect(page.getByText(
+    "Package identity, instructions, file manifest, digest, and bounds appear here after server inspection.",
+  )).toHaveCount(0)
   await page.getByLabel("SKILL.md or ZIP").setInputFiles({
     name: "incident-response.zip",
     mimeType: "application/zip",
@@ -407,6 +410,15 @@ test("Skill scratch authoring invalidates stale inspection and creates one gover
   const harness = await assetHarness(page, "owner")
 
   await page.goto("/assets/new/skill/scratch")
+  await expect(page.getByRole("heading", { level: 1, name: "Start a Skill from scratch" })).toBeVisible()
+  await expect(page.getByText("Validate before creating", { exact: true })).toHaveCount(0)
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1536, height: 1024 })
+    await page.screenshot({
+      path: "../output/design-qa/skill-scratch-empty.png",
+      fullPage: false,
+    })
+  }
   await page.getByLabel("Skill name").fill("incident-response")
   await page.getByLabel("Description").fill("Guide an approved incident response.")
   await page.getByLabel("Instructions").fill("# Workflow\n\nUse approved evidence and escalate.")
@@ -489,6 +501,10 @@ test("GitHub Skill import pins preview, supports private access, and reports par
   }
 
   await page.goto("/assets/new/skill/github")
+  await expect(page.getByText("Private repository credentials stay server-side.")).toBeVisible()
+  await expect(page.getByText(
+    "Each selected Skill creates its own Draft. One conflict does not roll back the successful imports.",
+  )).toHaveCount(0)
   await page.getByRole("combobox", { name: "Knowledge Space" }).click()
   await page.getByRole("option", { name: "Engineering knowledge" }).click()
   await page.getByRole("textbox", { name: "Repository", exact: true }).fill("acme/skills")
