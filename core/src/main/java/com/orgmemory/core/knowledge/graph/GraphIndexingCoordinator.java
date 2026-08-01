@@ -10,9 +10,8 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 
-import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexRevisionRef;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -27,7 +26,7 @@ public class GraphIndexingCoordinator {
 
     private final GraphIndexJobRepository jobs;
     private final KnowledgeAssetGraphQuery assets;
-    private final SourceRevisionRepository revisions;
+    private final SourceGraphIndexQuery revisions;
     private final SourceAclQuery aclQuery;
     private final EmbeddingProfileRepository embeddingProfiles;
     private final GraphProcessingProfileRegistry graphProcessingProfiles;
@@ -35,7 +34,7 @@ public class GraphIndexingCoordinator {
     GraphIndexingCoordinator(
             GraphIndexJobRepository jobs,
             KnowledgeAssetGraphQuery assets,
-            SourceRevisionRepository revisions,
+            SourceGraphIndexQuery revisions,
             SourceAclQuery aclQuery,
             EmbeddingProfileRepository embeddingProfiles,
             GraphProcessingProfileRegistry graphProcessingProfiles) {
@@ -152,8 +151,8 @@ public class GraphIndexingCoordinator {
         KnowledgeAssetVersionGraphRef version = assets
                 .findVersion(job.getOrganizationId(), job.getKnowledgeAssetVersionId())
                 .orElse(null);
-        SourceRevision revision = revisions
-                .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
+        SourceGraphIndexRevisionRef revision = revisions
+                .findRevision(job.getOrganizationId(), job.getSourceRevisionId())
                 .orElse(null);
         if (!isCurrent(job, asset, version, revision)) {
             return Optional.empty();
@@ -164,7 +163,7 @@ public class GraphIndexingCoordinator {
                         "Graph index ACL snapshot is missing"));
         EmbeddingProfileRef embeddingProfile = embeddingProfiles
                 .findByIdAndOrganizationId(
-                        revision.getEmbeddingProfileId(), job.getOrganizationId())
+                        revision.embeddingProfileId(), job.getOrganizationId())
                 .map(EmbeddingProfile::toRef)
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index embedding profile is missing"));
@@ -214,8 +213,8 @@ public class GraphIndexingCoordinator {
         KnowledgeAssetVersionGraphRef version = assets
                 .findVersion(job.getOrganizationId(), job.getKnowledgeAssetVersionId())
                 .orElse(null);
-        SourceRevision revision = revisions
-                .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
+        SourceGraphIndexRevisionRef revision = revisions
+                .findRevision(job.getOrganizationId(), job.getSourceRevisionId())
                 .orElse(null);
         return isCurrent(job, asset, version, revision);
     }
@@ -239,7 +238,7 @@ public class GraphIndexingCoordinator {
             GraphIndexJob job,
             KnowledgeAssetGraphRef asset,
             KnowledgeAssetVersionGraphRef version,
-            SourceRevision revision) {
+            SourceGraphIndexRevisionRef revision) {
         return asset != null
                 && !asset.archived()
                 && job.getKnowledgeAssetVersionId().equals(asset.currentVersionId())
@@ -248,9 +247,9 @@ public class GraphIndexingCoordinator {
                 && job.getKnowledgeAssetId().equals(version.knowledgeAssetId())
                 && job.getSourceRevisionId().equals(version.sourceRevisionId())
                 && revision != null
-                && revision.getStatus() == SourceRevisionStatus.READY
-                && job.getKnowledgeAssetId().equals(revision.getKnowledgeAssetId())
-                && job.getKnowledgeAssetVersionId().equals(revision.getKnowledgeAssetVersionId());
+                && revision.ready()
+                && job.getKnowledgeAssetId().equals(revision.knowledgeAssetId())
+                && job.getKnowledgeAssetVersionId().equals(revision.knowledgeAssetVersionId());
     }
 
     private GraphIndexJob claimedJob(UUID jobId, String workerId, Instant now) {

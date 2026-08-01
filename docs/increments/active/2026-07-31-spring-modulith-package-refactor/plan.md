@@ -643,7 +643,7 @@ PR #220 merged as `285261b951b25838c08cea91fb8960e010dffc61` after all
 required CI checks passed. CodeRabbit was rate limited, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Fourth Pull Request Evidence
 
 - Asset owns `KnowledgeAssetGraphQuery` and immutable asset, version, and chunk
   facts for Knowledge Graph consumers.
@@ -666,3 +666,31 @@ pairs; all 37 release-policy tests passed under Node 24.15; and the terminating
 repository-wide `clean test` completed successfully in 4m57s across 99 tasks.
 Diff hygiene, the zero Graph-to-Asset-persistence import scan, and the 16-path
 PR scope check passed.
+
+PR #221 merged as `5849afb2` after all
+required CI checks passed. CodeRabbit completed with no actionable comments,
+and direct inspection confirmed zero inline comments, reviews, or review
+threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns `SourceGraphIndexQuery` and an immutable revision fact for
+  Graph indexing.
+- `GraphIndexingCoordinator` no longer injects `SourceRevisionRepository` or
+  consumes the Source revision JPA entity/status enum.
+- Exact Modulith assertions pin the five intentional Source Ledger contracts
+  consumed by Graph, and an ArchUnit rule rejects revision persistence leakage.
+- Current/superseded graph-input behavior and tenant-scoped revision mapping
+  remain covered by focused tests.
+- Focused Source query, Graph coordinator, and Modulith tests, `:core:test`,
+  docs/release checks, and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before the remaining Graph-to-Retrieval seam is assessed.
+
+Pre-PR verification completed: focused Source graph query, Graph coordinator,
+and exact Modulith boundary tests passed in 31s; `:core:test` passed in 1m07s;
+the docs operating-model check passed across 428 Markdown files and 8 mirrored
+domain pairs; all 37 release-policy tests passed under Node 24.15; and the
+terminating repository-wide `clean test` completed successfully in 4m51s
+across 99 tasks. Diff hygiene, the zero Graph-to-Source-persistence import scan,
+and the 9-path PR scope check passed.
