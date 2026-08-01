@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,20 @@ public class SourceInventoryQuery {
 
     SourceInventoryQuery(SourceObjectRepository sources) {
         this.sources = sources;
+    }
+
+    public Optional<SourceInventoryRef> find(
+            UUID organizationId,
+            String sourceSystem,
+            String sourceConnectionKey,
+            String externalObjectId) {
+        return sources
+                .findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+                        Objects.requireNonNull(organizationId, "organizationId"),
+                        Objects.requireNonNull(sourceSystem, "sourceSystem"),
+                        Objects.requireNonNull(sourceConnectionKey, "sourceConnectionKey"),
+                        Objects.requireNonNull(externalObjectId, "externalObjectId"))
+                .map(source -> new SourceInventoryRef(source.getId()));
     }
 
     public List<String> activeExternalObjectIds(

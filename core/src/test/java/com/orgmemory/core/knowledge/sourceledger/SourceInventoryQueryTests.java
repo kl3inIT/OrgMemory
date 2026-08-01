@@ -20,8 +20,14 @@ class SourceInventoryQueryTests {
 
     @Test
     void exposesActiveObjectIdsAndAggregatedInventory() {
+        SourceObject source = mock(SourceObject.class);
         Instant activeUpdatedAt = Instant.parse("2026-08-01T01:00:00Z");
         Instant archivedUpdatedAt = Instant.parse("2026-08-01T02:00:00Z");
+        UUID sourceObjectId = UUID.randomUUID();
+        when(sources.findByOrganizationIdAndSourceSystemAndSourceConnectionKeyAndExternalObjectId(
+                        ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY, "channel-1"))
+                .thenReturn(java.util.Optional.of(source));
+        when(source.getId()).thenReturn(sourceObjectId);
         when(sources.findActiveExternalObjectIds(
                         ORGANIZATION_ID, SOURCE_SYSTEM, CONNECTION_KEY))
                 .thenReturn(List.of("channel-1", "channel-2"));
@@ -32,6 +38,14 @@ class SourceInventoryQueryTests {
                         new SourceObjectStatusCount(
                                 SourceObjectStatus.ARCHIVED, 3L, archivedUpdatedAt)));
 
+        assertEquals(
+                new SourceInventoryRef(sourceObjectId),
+                query.find(
+                                ORGANIZATION_ID,
+                                SOURCE_SYSTEM,
+                                CONNECTION_KEY,
+                                "channel-1")
+                        .orElseThrow());
         assertEquals(
                 List.of("channel-1", "channel-2"),
                 query.activeExternalObjectIds(

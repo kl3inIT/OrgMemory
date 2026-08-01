@@ -751,7 +751,7 @@ PR #226 merged as `1a1515b6` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Eighth Pull Request Evidence
 
 - Source Ledger owns `SourceInventoryQuery` and an immutable inventory summary
   for Connector read-side consumers.
@@ -775,3 +775,36 @@ under Node 24.15; and the terminating repository-wide `clean test` completed
 successfully in 6m05s across 99 tasks. Mechanical package, zero-byte, and
 migration-name checks, diff hygiene, the zero read-view persistence-leak scan,
 and the 10-path pull-request scope check passed.
+
+PR #227 merged as `ffa45f37` after all required CI checks passed. CodeRabbit
+completed a full review with no actionable comments, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger exposes a stable `SourceInventoryRef` and owns
+  `SourceLifecycleService` for canonical source retirement.
+- `ConnectorReconciler` uses Source Ledger inventory/lifecycle APIs for source
+  lookup, complete-crawl diffing, explicit tombstones, and retirement instead
+  of its repository, entity, or status enum.
+- The lifecycle command retains tenant/source/connection scoping and refuses to
+  mutate missing or already archived sources; the returned inventory ref does
+  not expose a stale lifecycle decision.
+- An exact Modulith assertion pins the ten intentional Source Ledger contracts
+  consumed by `ConnectorReconciler` so persistence types cannot leak back.
+- Focused Source Inventory/Lifecycle, Connector edit/pruning integration, and
+  Modulith tests, `:core:test`, docs/release checks, and the terminating
+  repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector revision staging/completion is moved behind Source Ledger's
+  public API.
+
+Pre-PR verification completed: repository compilation passed in 14s; focused
+Source Inventory/Lifecycle and exact Modulith boundary tests passed in 28s;
+Connector content-edit and pruning integration tests passed in 1m33s;
+`:core:test` passed in 1m23s; the documentation operating-model check passed
+across 435 Markdown files and 8 mirrored domain pairs; all 37 release-policy
+tests passed under Node 24.15; and the terminating repository-wide `clean test`
+completed successfully in 6m01s across 99 tasks. Mechanical package,
+zero-byte, and migration-name checks, diff hygiene, the zero Reconciler
+persistence-leak scan, and the 11-path pull-request scope check passed.
