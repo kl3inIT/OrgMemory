@@ -1,6 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,13 +21,13 @@ public class AssetDeliveryService {
     private final AssetRegistryService assets;
     private final CapabilityPackService packs;
     private final WorkInstructionProfile workInstructions;
-    private final KnowledgeCatalogService knowledge;
+    private final KnowledgeCatalogQuery knowledge;
 
     AssetDeliveryService(
             AssetRegistryService assets,
             CapabilityPackService packs,
             WorkInstructionProfile workInstructions,
-            KnowledgeCatalogService knowledge) {
+            KnowledgeCatalogQuery knowledge) {
         this.assets = assets;
         this.packs = packs;
         this.workInstructions = workInstructions;

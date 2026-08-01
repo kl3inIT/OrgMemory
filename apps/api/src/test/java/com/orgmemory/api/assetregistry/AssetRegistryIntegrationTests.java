@@ -55,8 +55,8 @@ import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.shared.error.BusinessValidationException;
-import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence;
@@ -188,7 +188,7 @@ class AssetRegistryIntegrationTests {
     PermissionAwareKnowledgeSearch knowledgeSearch;
 
     @MockitoBean
-    KnowledgeCatalogService knowledgeCatalog;
+    KnowledgeCatalogQuery knowledgeCatalog;
 
     @MockitoBean
     ChatModelPort chat;
@@ -1284,7 +1284,7 @@ class AssetRegistryIntegrationTests {
                         any(),
                         eq(GOLDEN_KNOWLEDGE_ASSET_ID),
                         eq(GOLDEN_KNOWLEDGE_VERSION_ID)))
-                .thenReturn(Optional.of(new KnowledgeCatalogItem(
+                .thenReturn(Optional.of(new KnowledgeCatalogEntry(
                         GOLDEN_KNOWLEDGE_ASSET_ID,
                         GOLDEN_KNOWLEDGE_VERSION_ID,
                         1,

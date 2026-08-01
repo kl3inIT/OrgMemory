@@ -181,6 +181,37 @@ Retrieval depends one way on Asset; finally route Graph lifecycle through the
 resulting module APIs. Only after the graph is acyclic are `OPEN` annotations
 removed and exact `allowedDependencies` declared.
 
+## Asset Catalog Boundary Challenge
+
+Closing Asset exposed a Spring Modulith boundary that the earlier ownership
+move could not solve: top-level Asset Registry cannot consume a closed nested
+Asset or Retrieval module. The independently challenged decision is to expose
+a parent-owned `knowledge::catalog` named interface containing only
+`KnowledgeCatalogQuery` and `KnowledgeCatalogEntry`. Retrieval implements that
+query, retains canonical permission-scope resolution, and maps the Asset-owned
+catalog persistence projection at the implementation boundary.
+
+The strongest counterargument is that this could launder one capability across
+three packages. The seam remains intentional only while the named interface is
+exact, Asset Registry is structurally forbidden from bypassing it, and the
+concrete Retrieval service and Asset projection remain outside it. The review
+also found that version-only lookup read Asset persistence before resolving
+authorization; Asset closure therefore requires an authorization-first query
+over the current active version and authorized Asset-ID set.
+
+The HTTP controller maps the public entry to an API-owned response retaining
+the existing `KnowledgeCatalogItem` schema identity and eight-field wire shape.
+Moving the concrete service or JPQL projection to the parent interface was
+rejected because it would expose orchestration and persistence as a cross-domain
+contract. This decision removes only catalog consumers from Retrieval; it does
+not imply Retrieval closure while its search consumers and Asset persistence
+edges remain.
+
+See
+[asset-catalog-boundary-challenge-verdict.md](asset-catalog-boundary-challenge-verdict.md)
+for the reviewer failure, fallback verdict, counterattack, must-fix conditions,
+and scope limit.
+
 ## First Cycle-Removal Slice
 
 The ACL/Connector cycle is cut at the ownership boundary instead of hidden by

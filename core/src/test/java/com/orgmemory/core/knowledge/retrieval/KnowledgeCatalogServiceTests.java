@@ -1,13 +1,16 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.time.Instant;
@@ -43,7 +46,7 @@ class KnowledgeCatalogServiceTests {
                         ORGANIZATION_ID, Set.of(ASSET_ID)))
                 .thenReturn(List.of(item));
 
-        assertEquals(List.of(item), catalog.list(ACTOR));
+        assertEquals(List.of(entry()), catalog.list(ACTOR));
     }
 
     @Test
@@ -57,6 +60,15 @@ class KnowledgeCatalogServiceTests {
     }
 
     @Test
+    void deniedVersionOnlyLookupsResolveAuthorizationBeforeTouchingPersistence() {
+        when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of()));
+
+        assertTrue(catalog.findVersionVisible(ACTOR, VERSION_ID).isEmpty());
+
+        verifyNoInteractions(versions);
+    }
+
+    @Test
     void onlyTheExactCurrentVersionCanBeFederated() {
         KnowledgeCatalogItem item = item();
         when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
@@ -65,9 +77,45 @@ class KnowledgeCatalogServiceTests {
                 .thenReturn(Optional.of(item));
 
         assertEquals(
-                Optional.of(item),
+                Optional.of(entry()),
                 catalog.findExactVisible(
                         ACTOR, ASSET_ID, VERSION_ID));
+    }
+
+    @Test
+    void versionOnlyLookupUsesTheAuthorizedAssetSetAndMapsEveryField() {
+        KnowledgeCatalogItem item = item();
+        when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
+        when(versions.findCurrentCatalogItemByVersion(
+                        ORGANIZATION_ID, VERSION_ID, Set.of(ASSET_ID)))
+                .thenReturn(Optional.of(item));
+
+        assertEquals(
+                Optional.of(entry()),
+                catalog.findVersionVisible(ACTOR, VERSION_ID));
+    }
+
+    @Test
+    void authorizedMissingVersionAndDeniedVersionBothReturnOpaqueAbsence() {
+        when(scopes.resolve(ACTOR, null)).thenReturn(scope(Set.of(ASSET_ID)));
+        when(versions.findCurrentCatalogItemByVersion(
+                        ORGANIZATION_ID, VERSION_ID, Set.of(ASSET_ID)))
+                .thenReturn(Optional.empty());
+
+        assertEquals(Optional.empty(), catalog.findVersionVisible(ACTOR, VERSION_ID));
+    }
+
+    @Test
+    void authorizationIndeterminacyPropagatesWithoutTouchingPersistence() {
+        IllegalStateException failure = new IllegalStateException("indeterminate");
+        when(scopes.resolve(ACTOR, null)).thenThrow(failure);
+
+        assertSame(
+                failure,
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> catalog.findVersionVisible(ACTOR, VERSION_ID)));
+        verifyNoInteractions(versions);
     }
 
     private static ResolvedKnowledgeEvidenceScope scope(Set<UUID> assetIds) {
@@ -90,6 +138,18 @@ class KnowledgeCatalogServiceTests {
 
     private static KnowledgeCatalogItem item() {
         return new KnowledgeCatalogItem(
+                ASSET_ID,
+                VERSION_ID,
+                3,
+                SPACE_ID,
+                "Support policy",
+                "en",
+                KnowledgeClassification.INTERNAL,
+                "a".repeat(64));
+    }
+
+    private static KnowledgeCatalogEntry entry() {
+        return new KnowledgeCatalogEntry(
                 ASSET_ID,
                 VERSION_ID,
                 3,
