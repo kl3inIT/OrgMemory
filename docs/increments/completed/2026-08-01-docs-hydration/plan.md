@@ -10,7 +10,7 @@
   browser console errors.
 - [x] Run focused and full Node 24 docs gates plus release policy checks.
 - [x] Reconcile the docs application architecture and test evidence.
-- [ ] Open a conventional PR, address review, pass CI, and merge without
+- [x] Open a conventional PR, address review, pass CI, and merge without
   squashing commits.
-- [ ] Verify automatic docs image/deployment and zero hydration errors live.
-- [ ] Archive this increment, update the roadmap, and checkpoint Northstar.
+- [x] Verify automatic docs image/deployment and zero hydration errors live.
+- [x] Archive this increment, update the roadmap, and checkpoint Northstar.
