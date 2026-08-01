@@ -454,7 +454,7 @@ required CI checks passed. Its actionable CodeRabbit finding was fixed in
 `fc8b3be5`, confirmed by the reviewer, and the only review thread was resolved
 before merge.
 
-## Current Pull Request Gates
+## Eighteenth Pull Request Evidence
 
 - ACL owns a transactional facade for validation, snapshot/entry/seal
   persistence, head advancement, and normalization/promotion readiness.
@@ -476,3 +476,29 @@ files and 8 mirrored domain pairs; all 37 release-policy tests passed; and the
 terminating repository `clean test` gate completed successfully in 5m46s
 across 108 tasks. Diff hygiene, the zero Source Ledger-to-ACL-persistence scan,
 and the 12-path PR limit check passed.
+
+PR #209 merged as `daeeb75adf3a6396522778ef9f5e7a7c83854935` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.sourceledger` is a closed nested application module rather than
+  an open migration module.
+- Its outgoing allowlist is limited to `knowledge.acl`, `knowledge::storage`,
+  organization, permission, shared, and `shared::error`.
+- `modules.verify()` passes, proving current consumers use only Source Ledger's
+  public module surface and no undeclared outgoing edge exists.
+- Focused Modulith and Source Ledger consumer tests pass; `:core:test` and the
+  terminating repository `clean test` gate pass.
+- The pull request contains production module metadata and tests, remains below
+  100 files, and completes CI/review/merge before the next Knowledge module is
+  assessed for closure.
+
+Pre-PR verification completed: the initial closed-module probe passed; the
+explicit outgoing allowlist passed `modules.verify()`; focused Source Ledger,
+Connector, API, Worker, and Modulith tests passed in 1m47s; `:core:test` passed
+in 1m24s; the docs operating-model check passed across 399 Markdown files and
+8 mirrored domain pairs; all 37 release-policy tests passed; and the
+terminating repository `clean test` gate completed successfully in 6m30s
+across 108 tasks. Diff hygiene and the under-100-file scope check passed.

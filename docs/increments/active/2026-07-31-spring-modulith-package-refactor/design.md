@@ -287,6 +287,19 @@ objects. Source Ledger still consumes ACL-owned command/value contracts in the
 intentional one-way direction; an exact Modulith dependency assertion pins
 that surface so repositories or entities cannot leak back across the seam.
 
+## First Module Closure
+
+Source Ledger is the first extracted Knowledge slice to move from migration
+state to a closed Spring Modulith module. Its outgoing dependency policy names
+only ACL's public API, the parent Knowledge storage named interface,
+organization, permission, and the shared base/error contracts.
+
+The closed-module verification succeeds without publishing a new named
+interface because Source Ledger's intentional consumer contracts already live
+in its module base package, while no consumer reaches an internal subpackage.
+The closure test and `modules.verify()` make both that API visibility and the
+outgoing allowlist executable constraints.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and
