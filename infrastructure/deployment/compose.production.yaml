@@ -158,7 +158,6 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: 384m
         reservations:
           memory: 96m
 
@@ -294,7 +293,6 @@ services:
       resources:
         limits:
           cpus: "1.00"
-          memory: 1g
         reservations:
           memory: 256m
 
@@ -348,7 +346,6 @@ services:
       resources:
         limits:
           cpus: "1.00"
-          memory: 768m
         reservations:
           memory: 384m
 
@@ -395,7 +392,6 @@ services:
       resources:
         limits:
           cpus: "2.00"
-          memory: 2g
         reservations:
           memory: 512m
 
@@ -429,7 +425,6 @@ services:
       resources:
         limits:
           cpus: "1.50"
-          memory: 3g
         reservations:
           memory: 768m
 
@@ -489,7 +484,6 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: 512m
         reservations:
           memory: 128m
 
@@ -513,7 +507,6 @@ services:
       resources:
         limits:
           cpus: "0.50"
-          memory: 192m
         reservations:
           memory: 48m
 

@@ -200,12 +200,15 @@ off-host copy; do not delete the only known-good pre-cutover backup.
 
 The current profile prioritizes interactive traffic:
 
-- API: 2 CPU limit, 2 GiB memory, 12 database connections, 200 accepted live
-  connections, virtual threads.
-- Worker: 1.5 CPU limit, 3 GiB memory, 8 database connections, two concurrent
-  graph-extraction jobs, and a 60% maximum JVM heap.
-- Keycloak: 1 CPU, 768 MiB, 10 database connections.
-- OpenFGA: 0.5 CPU, 384 MiB, 12 maximum database connections.
+- API: 2 CPU limit, no Docker memory cap, 12 database connections, 200
+  accepted live connections, virtual threads.
+- Worker: 1.5 CPU limit, no Docker memory cap, 8 database connections, two
+  concurrent graph-extraction jobs, and a 60% maximum JVM heap.
+- Keycloak: 1 CPU, no Docker memory cap, 10 database connections.
+- OpenFGA: 0.5 CPU, no Docker memory cap, 12 maximum database connections.
+- MCP, web, and the observability services also run without Docker memory
+  caps. Host-level monitoring remains mandatory because the ZM POC host has no
+  swap.
 - Nginx streaming proxy buffering is disabled for Assistant responses.
 
 This is intended for approximately 20-30 concurrent POC users, not a load-test
