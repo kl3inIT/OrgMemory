@@ -42,7 +42,8 @@ class ProjectionBatchLifecycleTests {
             }
 
             @Override
-            public void discard(ProjectionBatch ignored) {
+            public void discard(
+                    ProjectionBatch ignored, ProjectionDiscardPermit permit) {
                 events.add("discard-current");
             }
         };
@@ -50,7 +51,16 @@ class ProjectionBatchLifecycleTests {
         assertThrows(
                 IllegalStateException.class,
                 () -> new ProjectionBatchLifecycle(publications)
-                        .publish(batch, List.of(failing), NOW));
+                        .publish(
+                                batch,
+                                List.of(failing),
+                                candidate -> new ProjectionCommitPermit(
+                                        id("permit"),
+                                        candidate.id(),
+                                        candidate.manifestFingerprint(),
+                                        1,
+                                        NOW),
+                                NOW));
 
         assertEquals(
                 List.of("partial-write", "abort", "discard-current"),
@@ -63,6 +73,16 @@ class ProjectionBatchLifecycleTests {
 
     private record RecordingPublications(List<String> events)
             implements ProjectionPublicationStore {
+
+        @Override
+        public ProjectionBatch begin(ProjectionBatch candidate) {
+            return candidate;
+        }
+
+        @Override
+        public boolean hasBoundCommitPermit(ProjectionBatch batch) {
+            return false;
+        }
 
         @Override
         public Optional<ProjectionSnapshot> current(ProjectionNamespace namespace) {
@@ -94,6 +114,7 @@ class ProjectionBatchLifecycleTests {
         @Override
         public ProjectionSnapshot publish(
                 ProjectionBatch batch,
+                ProjectionCommitPermit permit,
                 Instant publishedAt) {
             throw new AssertionError("failed preparation must not publish");
         }
@@ -104,6 +125,17 @@ class ProjectionBatchLifecycleTests {
                 String reason,
                 Instant abortedAt) {
             events.add("abort");
+        }
+
+        @Override
+        public ProjectionAbortOutcome abortIfUnreachable(
+                ProjectionBatch batch,
+                String reason,
+                Instant abortedAt) {
+            events.add("abort");
+            return ProjectionAbortOutcome.discardAllowed(
+                    new ProjectionDiscardPermit(
+                            id("discard"), batch.id(), abortedAt));
         }
     }
 }
