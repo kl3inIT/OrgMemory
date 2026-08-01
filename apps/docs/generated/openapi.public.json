@@ -8661,6 +8661,18 @@
           "canReview": {
             "type": "boolean"
           },
+          "canApprove": {
+            "type": "boolean"
+          },
+          "canRequestChanges": {
+            "type": "boolean"
+          },
+          "canReject": {
+            "type": "boolean"
+          },
+          "canCancel": {
+            "type": "boolean"
+          },
           "canPublish": {
             "type": "boolean"
           },
@@ -8668,6 +8680,9 @@
             "type": "boolean"
           },
           "canWithdraw": {
+            "type": "boolean"
+          },
+          "canOpenGovernance": {
             "type": "boolean"
           }
         }
