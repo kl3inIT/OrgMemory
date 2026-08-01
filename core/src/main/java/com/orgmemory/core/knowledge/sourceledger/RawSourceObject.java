@@ -33,7 +33,7 @@ public class RawSourceObject extends BaseEntity {
     @Column(name = "source_version", nullable = false, updatable = false)
     private String sourceVersion;
 
-    @Column(name = "object_type", nullable = false, length = 64, updatable = false)
+    @Column(name = "object_type", nullable = false, length = 255, updatable = false)
     private String objectType;
 
     @Column(nullable = false, updatable = false)
