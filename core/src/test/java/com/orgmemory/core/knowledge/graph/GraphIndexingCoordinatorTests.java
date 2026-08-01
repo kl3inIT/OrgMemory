@@ -12,8 +12,8 @@ import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
 
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRepository;
+import com.orgmemory.core.knowledge.acl.SourceAclQuery;
+import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 
 import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
 import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
@@ -55,8 +55,7 @@ class GraphIndexingCoordinatorTests {
     private final KnowledgeAssetVersionRepository versions =
             mock(KnowledgeAssetVersionRepository.class);
     private final SourceRevisionRepository revisions = mock(SourceRevisionRepository.class);
-    private final SourceAclSnapshotRepository aclSnapshots =
-            mock(SourceAclSnapshotRepository.class);
+    private final SourceAclQuery aclQuery = mock(SourceAclQuery.class);
     private final EmbeddingProfileRepository embeddingProfiles =
             mock(EmbeddingProfileRepository.class);
     private final GraphProcessingProfileRegistry graphProcessingProfiles =
@@ -68,7 +67,7 @@ class GraphIndexingCoordinatorTests {
             assets,
             versions,
             revisions,
-            aclSnapshots,
+            aclQuery,
             embeddingProfiles,
             graphProcessingProfiles,
             chunks);
@@ -90,7 +89,15 @@ class GraphIndexingCoordinatorTests {
         asset = mock(KnowledgeAsset.class);
         KnowledgeAssetVersion version = mock(KnowledgeAssetVersion.class);
         SourceRevision revision = mock(SourceRevision.class);
-        SourceAclSnapshot snapshot = mock(SourceAclSnapshot.class);
+        SourceAclSnapshotRef snapshot = new SourceAclSnapshotRef(
+                ACL_SNAPSHOT_ID,
+                null,
+                9L,
+                null,
+                null,
+                null,
+                null,
+                null);
         EmbeddingProfile embeddingProfile = mock(EmbeddingProfile.class);
 
         when(jobs.lockNextAvailable(org.mockito.ArgumentMatchers.any()))
@@ -115,10 +122,8 @@ class GraphIndexingCoordinatorTests {
         when(revision.getKnowledgeAssetId()).thenReturn(ASSET_ID);
         when(revision.getKnowledgeAssetVersionId()).thenReturn(VERSION_ID);
         when(revision.getEmbeddingProfileId()).thenReturn(EMBEDDING_PROFILE_ID);
-        when(aclSnapshots.findByIdAndOrganizationId(ACL_SNAPSHOT_ID, ORGANIZATION_ID))
+        when(aclQuery.findSnapshot(ORGANIZATION_ID, ACL_SNAPSHOT_ID))
                 .thenReturn(Optional.of(snapshot));
-        when(snapshot.getId()).thenReturn(ACL_SNAPSHOT_ID);
-        when(snapshot.getAclGeneration()).thenReturn(9L);
         when(embeddingProfiles.findByIdAndOrganizationId(
                         EMBEDDING_PROFILE_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(embeddingProfile));

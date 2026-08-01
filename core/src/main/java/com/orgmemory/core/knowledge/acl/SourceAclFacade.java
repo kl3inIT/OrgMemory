@@ -351,15 +351,7 @@ public class SourceAclFacade {
     }
 
     private static SourceAclSnapshotRef snapshotRef(SourceAclSnapshot snapshot) {
-        return new SourceAclSnapshotRef(
-                snapshot.getId(),
-                snapshot.getRawSourceObjectId(),
-                snapshot.getAclGeneration(),
-                snapshot.getCaptureStatus(),
-                snapshot.getDefaultGate(),
-                snapshot.getAclSha256(),
-                snapshot.getCapturedAt(),
-                snapshot.getValidUntil());
+        return SourceAclSnapshotRef.from(snapshot);
     }
 
     private static SourceAclRotationRef rotationRef(SourceAclSnapshot snapshot) {
