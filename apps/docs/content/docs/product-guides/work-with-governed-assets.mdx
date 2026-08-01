@@ -11,9 +11,11 @@ sourceRefs:
   - apps/api/src/test/java/com/orgmemory/api/assetregistry/AssetRegistryIntegrationTests.java
   - apps/web/src/features/assets/components/asset-catalog-page.tsx
   - apps/web/src/features/assets/components/asset-detail-page.tsx
+  - apps/web/src/features/assets/components/skill-consumer-installer.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
+  - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-07-30
+lastReviewed: 2026-08-01
 ---
 
 Use this guide when you know the outcome you need and want to find, inspect, and
@@ -81,13 +83,28 @@ usable release. No repository access or deployment setup is required.
   | Prompt Template | Supply validated variables, prepare the prompt, and explicitly confirm any external model run. | Grounding uses only authorized Knowledge, and the receipt identifies the release digest and model route. |
   | Work Instruction | Follow the ordered guidance and acknowledge the exact release. | Required checks, expected results, and escalation guidance are complete. |
   | Capability Pack | Open the Pack, work through accessible pinned items, and record actor-scoped progress. | The outcome, prerequisites, item versions, and access-gap state are understood. |
-  | Skill | Inspect the package before installing it through the authenticated CLI. | Compatibility, manifest, file digests, and exact install command match your environment. |
+  | Skill | Inspect the package before installing it through the authenticated CLI. | Package integrity, manifest, file digests, selected adapter, and exact install command match your project. |
 
-  On a released Skill, **Use your agent** copies bounded instructions that ask
-  you to choose Claude Code or Codex and confirm before installation. **Use
-  CLI** exposes the exact `namespace/slug@version` command for each target. Both
-  paths use the existing CLI and current OrgMemory access; neither installs the
-  CLI nor grants broader authorization.
+  On a released Skill, select **Install with...**, then choose Claude Code or
+  Codex. OrgMemory lists only the adapters implemented by the official CLI. The
+  selected dialog shows the project-local target and pins one exact
+  `namespace/slug@version` command. **Use your agent** copies bounded
+  target-specific instructions; **Use CLI** exposes that command directly.
+
+  **Verified package** means the CLI verifies archive and file integrity.
+  **Install supported** means a deterministic adapter exists for the selected
+  target. **Runtime behavior not certified** means OrgMemory does not claim how
+  that target interprets or executes the Skill. Neither path installs the CLI
+  nor grants broader authorization.
+
+  <ArchitectureDiagram
+    alt="Organizational AI Memory released Skill installer for Codex, showing the exact project target, bounded agent prompt, supported installation status, and runtime non-certification."
+    description="Choose one supported adapter for the exact release. Package verification and deterministic installation do not imply that OrgMemory certifies the consumer's runtime behavior. This screenshot uses synthetic documentation data captured from the current product UI."
+    height={1536}
+    src="/images/product-guides/skill-consumer-install.png"
+    title="Install one exact release without overstating compatibility"
+    width={2304}
+  />
 
   External model calls and state-changing actions require explicit
   confirmation. Merely opening an Asset does not run a model, install a Skill,

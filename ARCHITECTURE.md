@@ -127,7 +127,11 @@ Connector revision lookup, staging, completion, and atomic graph scheduling
 cross a Source Ledger-owned `REQUIRES_NEW` service and outbound graph port;
 Connector consumes neither Source Ledger persistence nor Graph queue types.
 Connector is closed with an exact dependency allowlist after those seams were
-replaced. Asset and Retrieval remain explicitly open while their remaining
+replaced. Asset promotion receives validated normalized facts through a Source
+Ledger-owned request, and Asset publication advances the current source
+revision through a Source Ledger-owned `MANDATORY` service inside the existing
+publication transaction; Asset consumes no Source Ledger entity or repository.
+Asset and Retrieval remain explicitly open while their remaining
 cross-owned persistence and orchestration seams are replaced by intentional
 APIs.
 The provider-neutral object-storage port is exposed as the

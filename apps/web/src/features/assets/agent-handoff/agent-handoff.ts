@@ -1,9 +1,3 @@
-export type AgentHandoffTarget = {
-  id: string
-  label: string
-  command: string
-}
-
 /**
  * Display-only instructions for handing a bounded task to a local agent.
  *
@@ -18,5 +12,4 @@ export type AgentHandoff = {
   requiredScopes: readonly string[]
   confirmationBoundary: string
   completionNote: string
-  agentTargets?: readonly AgentHandoffTarget[]
 }

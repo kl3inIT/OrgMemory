@@ -556,6 +556,54 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAssetDoesNotDependOnSourceLedgerPersistence() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.asset..")
+                .should()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.sourceledger.NormalizedRecord")
+                .orShould()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRepository")
+                .orShould()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.sourceledger.SourceObject")
+                .orShould()
+                .dependOnClassesThat()
+                .haveFullyQualifiedName(
+                        "com.orgmemory.core.knowledge.sourceledger.SourceObjectRepository")
+                .check(new ClassFileImporter()
+                        .importPackages("com.orgmemory.core.knowledge.asset"));
+    }
+
+    @Test
+    void knowledgeAssetConsumesOnlySourceLedgerPublicContracts() {
+        var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var consumedTypes = asset.getDirectDependencies(modules).stream()
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeAssetPromotionPort",
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeAssetPromotionRequest",
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionConflictException",
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
+                        "com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.PublishSourceRevisionCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourcePublicationService"),
+                consumedTypes);
+    }
+
+    @Test
     void knowledgeGraphIsAClosedNestedModule() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var allowedDependencies = graph.getAllowedDependencies(modules).stream()
