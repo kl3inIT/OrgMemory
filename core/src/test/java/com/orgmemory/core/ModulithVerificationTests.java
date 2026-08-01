@@ -464,10 +464,28 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeGraphIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeGraphIsAClosedNestedModule() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
+        var allowedDependencies = graph.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(graph.isOpen());
+        assertFalse(graph.isOpen());
+        assertEquals(
+                Set.of(
+                        "ai",
+                        "authorization",
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge.retrieval",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
