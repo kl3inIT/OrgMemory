@@ -457,6 +457,79 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void connectorReadViewsUseOnlySourceLedgerInventoryContracts() {
+        var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var readViewTypes = Set.of(
+                "com.orgmemory.core.knowledge.connector.ConnectorObjectDirectory",
+                "com.orgmemory.core.knowledge.connector.SourceConnectionActivityService");
+        var consumedTypes = connector.getDirectDependencies(modules).stream()
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .filter(dependency -> readViewTypes.contains(
+                        dependency.getSourceType().getName()))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventorySummary"),
+                consumedTypes);
+    }
+
+    @Test
+    void connectorReconcilerUsesOnlySourceLedgerPublicLifecycleContracts() {
+        var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var consumedTypes = connector.getDirectDependencies(modules).stream()
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .filter(dependency -> dependency.getSourceType().getName().equals(
+                        "com.orgmemory.core.knowledge.connector.ConnectorReconciler"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot",
+                        "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
+                        "com.orgmemory.core.knowledge.sourceledger.NormalizeRawSourceCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef",
+                        "com.orgmemory.core.knowledge.sourceledger.RawSourceRef",
+                        "com.orgmemory.core.knowledge.sourceledger.RegisterRawSourceCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceHeadView",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceInventoryRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceLifecycleService",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRevisionDraftRef"),
+                consumedTypes);
+    }
+
+    @Test
+    void connectorRevisionAdapterUsesOnlySourceLedgerRevisionContracts() {
+        var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
+        var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var consumedTypes = connector.getDirectDependencies(modules).stream()
+                .filter(dependency -> dependency.getTargetModule().equals(sourceLedger))
+                .filter(dependency -> dependency.getSourceType().getName().equals(
+                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator"))
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.sourceledger.CompleteSourceRevisionCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.DocumentProcessingProfileSnapshot",
+                        "com.orgmemory.core.knowledge.sourceledger.NormalizedRecordRef",
+                        "com.orgmemory.core.knowledge.sourceledger.RawSourceRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceEmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRevisionDraftRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRevisionService",
+                        "com.orgmemory.core.knowledge.sourceledger.StageSourceRevisionCommand"),
+                consumedTypes);
+    }
+
+    @Test
     void knowledgeAssetIsAnOpenNestedModuleDuringTheRefactor() {
         var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
 
@@ -464,10 +537,28 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeGraphIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeGraphIsAClosedNestedModule() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
+        var allowedDependencies = graph.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(graph.isOpen());
+        assertFalse(graph.isOpen());
+        assertEquals(
+                Set.of(
+                        "ai",
+                        "authorization",
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge.retrieval",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
@@ -539,7 +630,7 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeGraphTemporaryOpenBoundaryDoesNotGainNewConsumers() {
+    void knowledgeGraphHasNoDirectKnowledgeSiblingConsumers() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var dependencies = modules.stream()
                 .flatMap(module -> module.getDirectDependencies(modules).stream())
@@ -552,13 +643,8 @@ class ModulithVerificationTests {
                 .map(dependency -> dependency.getTargetType().getName())
                 .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertEquals(
-                Set.of(
-                        "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator"),
-                consumerTypes);
-        assertEquals(
-                Set.of("com.orgmemory.core.knowledge.graph.GraphIndexJobQueue"),
-                consumedInternalTypes);
+        assertEquals(Set.of(), consumerTypes);
+        assertEquals(Set.of(), consumedInternalTypes);
     }
 
     @Test

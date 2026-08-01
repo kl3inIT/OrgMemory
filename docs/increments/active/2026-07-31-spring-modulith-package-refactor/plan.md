@@ -701,7 +701,7 @@ rewritten to use the documented short SHA; the replacement CI run passed.
 CodeRabbit was rate limited, and direct inspection confirmed zero inline
 comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Sixth Pull Request Evidence
 
 - Retrieval's `EmbeddingProfileRegistry` exposes a tenant-scoped optional
   profile lookup for Graph indexing.
@@ -723,4 +723,123 @@ files and 8 mirrored domain pairs; all 37 release-policy tests passed under
 Node 24.15; and the terminating repository-wide `clean test` completed
 successfully in 4m52s across 99 tasks. Diff hygiene, the zero
 Graph-to-Retrieval-profile-persistence import scan, and the 9-path PR scope
+check passed.
+
+PR #223 merged as `0cb8a187` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Twenty-Seventh Pull Request Evidence
+
+- `knowledge.graph` is a closed nested application module rather than an open
+  migration module.
+- Its outgoing allowlist is limited to AI routing, authorization, ACL, Asset,
+  Retrieval, Source Ledger, Space, organization, permission, shared, and
+  `shared::error`.
+- `modules.verify()` passes, proving current consumers use only Graph's public
+  root-package contracts and no undeclared outgoing edge exists.
+- The closure regression test pins both the closed state and the exact
+  eleven-entry dependency allowlist.
+- Focused `ModulithVerificationTests` passed in 28s. A clean Core test rerun
+  passed in 1m23s after removing a stale concurrent test-result artifact.
+- The documentation operating-model check passed across 430 Markdown files
+  and 8 mirrored domain pairs; the Node 24.15 release gate passed all 37 tests.
+- The terminating repository-wide `clean test` passed in 5m49s across 99
+  tasks. Diff hygiene and the 4-path pull-request scope check passed.
+
+PR #226 merged as `1a1515b6` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Twenty-Eighth Pull Request Evidence
+
+- Source Ledger owns `SourceInventoryQuery` and an immutable inventory summary
+  for Connector read-side consumers.
+- `ConnectorObjectDirectory` and `SourceConnectionActivityService` no longer
+  inject `SourceObjectRepository` or consume Source Ledger status and aggregate
+  persistence projections.
+- An exact Modulith assertion pins the two Source Ledger contracts consumed by
+  those read views, so persistence types cannot leak back into them.
+- Existing active-object inventory, active/archived counts, and latest activity
+  behavior remain covered by a focused Source Ledger query test.
+- Focused Source Ledger query and Modulith tests, `:core:test`, docs/release
+  checks, and the terminating repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector's write-side Source Ledger seam is assessed.
+
+Pre-PR verification completed: repository compilation passed in 33s; focused
+Source Inventory and exact Modulith boundary tests passed in 29s; `:core:test`
+passed in 1m27s; the documentation operating-model check passed across 434
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 6m05s across 99 tasks. Mechanical package, zero-byte, and
+migration-name checks, diff hygiene, the zero read-view persistence-leak scan,
+and the 10-path pull-request scope check passed.
+
+PR #227 merged as `ffa45f37` after all required CI checks passed. CodeRabbit
+completed a full review with no actionable comments, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Twenty-Ninth Pull Request Evidence
+
+- Source Ledger exposes a stable `SourceInventoryRef` and owns
+  `SourceLifecycleService` for canonical source retirement.
+- `ConnectorReconciler` uses Source Ledger inventory/lifecycle APIs for source
+  lookup, complete-crawl diffing, explicit tombstones, and retirement instead
+  of its repository, entity, or status enum.
+- The lifecycle command retains tenant/source/connection scoping and refuses to
+  mutate missing or already archived sources; the returned inventory ref does
+  not expose a stale lifecycle decision.
+- An exact Modulith assertion pins the ten intentional Source Ledger contracts
+  consumed by `ConnectorReconciler` so persistence types cannot leak back.
+- Focused Source Inventory/Lifecycle, Connector edit/pruning integration, and
+  Modulith tests, `:core:test`, docs/release checks, and the terminating
+  repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector revision staging/completion is moved behind Source Ledger's
+  public API.
+
+Pre-PR verification completed: repository compilation passed in 14s; focused
+Source Inventory/Lifecycle and exact Modulith boundary tests passed in 28s;
+Connector content-edit and pruning integration tests passed in 1m33s;
+`:core:test` passed in 1m23s; the documentation operating-model check passed
+across 435 Markdown files and 8 mirrored domain pairs; all 37 release-policy
+tests passed under Node 24.15; and the terminating repository-wide `clean test`
+completed successfully in 6m01s across 99 tasks. Mechanical package,
+zero-byte, and migration-name checks, diff hygiene, the zero Reconciler
+persistence-leak scan, and the 11-path pull-request scope check passed.
+
+PR #228 merged as `703ddb20` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns revision lookup, evidence/revision staging, completion,
+  and graph scheduling through `SourceRevisionService` plus owner-defined
+  commands and immutable draft facts.
+- All three revision phases retain `REQUIRES_NEW`; completion advances the
+  source current revision and calls the existing Source Ledger-owned graph port
+  inside the same transaction.
+- `ConnectorSourceRevisionCoordinator` is now only a translation adapter from
+  Connector, Asset, and embedding facts; it no longer injects Source Ledger
+  repositories/entities or `GraphIndexJobQueue`.
+- The duplicate Connector-owned revision draft is removed, exact Modulith
+  assertions pin the nine revision contracts, and Graph has no direct Knowledge
+  sibling consumers.
+- Focused Source Revision/Modulith and vertical Connector staging/content-edit
+  integration tests, `:core:test`, docs/release checks, and the terminating
+  repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector's direct Asset and Retrieval translation seams are assessed.
+
+Pre-PR verification completed: repository compilation passed in 10s; focused
+Source Revision and exact Modulith boundary tests passed in 28s; vertical
+Connector staging/content-edit integration tests passed in 1m29s; `:core:test`
+passed in 1m29s; the documentation operating-model check passed across 436
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 6m27s across 99 tasks. Mechanical package, zero-byte, and
+migration-name checks, diff hygiene, the zero Coordinator persistence/Graph
+import scan, duplicate-draft removal scan, and the 13-path pull-request scope
 check passed.

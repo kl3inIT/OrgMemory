@@ -1,5 +1,12 @@
 # MCP search reliability plan
 
+## Status
+
+Completed in pull requests
+[#98](https://github.com/kl3inIT/OrgMemory/pull/98) and
+[#99](https://github.com/kl3inIT/OrgMemory/pull/99). Production verification
+is recorded in [verification.md](verification.md).
+
 ## 1. Diagnose the live path — complete
 
 - Verify MCP discovery, OAuth metadata, health, deployment SHA, and client
@@ -14,8 +21,8 @@
 - [x] Pass both settings through production Compose.
 - [x] Add regression tests for safe defaults, zero, and negative values.
 
-## 3. Verify and release — repository release complete; live proof pending
+## 3. Verify and release — complete
 
 - [x] Run focused tests, the repository static floor, and terminating suite.
 - [x] Merge PR #98 and its reviewed reliability follow-ups to `main`.
-- [ ] Deploy the immutable image and verify the production MCP call.
+- [x] Deploy the immutable image and verify the production MCP call.
