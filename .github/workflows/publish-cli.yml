@@ -1,0 +1,124 @@
+name: Publish OrgMemory CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: Exact current green main commit to publish
+        required: true
+        type: string
+      package_version:
+        description: Exact @orgmemory/cli version from apps/cli/package.json
+        required: true
+        type: string
+      confirm_publish:
+        description: Type PUBLISH to approve this public npm release
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orgmemory-cli-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish @orgmemory/cli
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm-production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out main history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate exact green main commit
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.commit_sha }}
+          CONFIRM_PUBLISH: ${{ inputs.confirm_publish }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+        run: |
+          set -euo pipefail
+          [[ "$CONFIRM_PUBLISH" == "PUBLISH" ]]
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch --no-tags origin main
+          [[ "$CANDIDATE_SHA" == "$(git rev-parse origin/main)" ]]
+          green_runs="$(
+            gh run list --workflow CI --commit "$CANDIDATE_SHA" --limit 20 \
+              --json conclusion,event,headBranch \
+              --jq '[.[] | select(.conclusion == "success" and .event == "push" and .headBranch == "main")] | length'
+          )"
+          [[ "$green_runs" -gt 0 ]]
+          git checkout --detach "$CANDIDATE_SHA"
+          actual_version="$(node -p "require('./apps/cli/package.json').version")"
+          [[ "$PACKAGE_VERSION" == "$actual_version" ]]
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6.0.9
+        with:
+          version: 11.9.0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify CLI
+        run: pnpm check:cli
+
+      - name: Inspect publish tarball
+        working-directory: apps/cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json > "$RUNNER_TEMP/orgmemory-cli-pack.json"
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const [pack] = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/orgmemory-cli-pack.json', 'utf8'))
+          const paths = pack.files.map((file) => file.path).sort()
+          if (pack.name !== '@orgmemory/cli') throw new Error('Unexpected package name')
+          if (!paths.includes('dist/index.js') || !paths.includes('package.json') || !paths.includes('README.md')) {
+            throw new Error(`Required package files are missing: ${paths.join(', ')}`)
+          }
+          if (paths.some((path) => path.startsWith('src/') || path.includes('.env'))) {
+            throw new Error(`Source or environment file leaked into tarball: ${paths.join(', ')}`)
+          }
+          NODE
+
+      - name: Publish with npm Trusted Publishing
+        working-directory: apps/cli
+        run: npm publish --access public --provenance
+
+      - name: Verify registry release and provenance
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            published="$(npm view "@orgmemory/cli@$PACKAGE_VERSION" --json 2>/dev/null || true)"
+            if [[ -n "$published" ]]; then break; fi
+            sleep 5
+          done
+          PUBLISHED_JSON="$published" node - <<'NODE'
+          const value = JSON.parse(process.env.PUBLISHED_JSON)
+          const expected = process.env.PACKAGE_VERSION
+          if (value.version !== expected) throw new Error(`Registry returned ${value.version}, expected ${expected}`)
+          if (!value.dist?.integrity) throw new Error('Published package has no registry integrity')
+          if (!value.dist?.attestations?.url) throw new Error('Published package has no provenance attestation')
+          NODE
+          npm exec --yes --package="@orgmemory/cli@$PACKAGE_VERSION" -- orgmemory --version | grep -Fx "$PACKAGE_VERSION"

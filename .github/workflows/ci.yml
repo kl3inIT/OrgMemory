@@ -171,6 +171,7 @@ jobs:
               - "scripts/release-policy.test.mjs"
               - "scripts/release-workflow-policy.mjs"
               - "scripts/release-workflow-policy.test.mjs"
+              - "scripts/npm-publish-workflow-policy.test.mjs"
               - "scripts/tegami-config.mts"
               - "scripts/tegami.mts"
               - "scripts/tegami-product.mts"

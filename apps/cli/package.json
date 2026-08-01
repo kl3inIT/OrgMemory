@@ -1,8 +1,9 @@
 {
   "name": "@orgmemory/cli",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Authenticated OrgMemory Skill authoring and distribution CLI",
+  "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "orgmemory": "./dist/index.js"
@@ -12,6 +13,10 @@
   ],
   "engines": {
     "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
