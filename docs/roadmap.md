@@ -58,6 +58,7 @@ The table is a delivery index, not a second description of current behavior.
 | [LightRAG multi-space query latency](increments/active/2026-07-28-lightrag-query-latency/plan.md) | active | deploy merged repair and capture production before/after timings |
 | [SCIM provisioning foundation](increments/active/2026-07-27-scim-provisioning-foundation/plan.md) | active | previous-binary/restore rehearsals and two-organization negative evidence |
 | [Public docs co-authoring and information architecture](increments/active/2026-07-29-public-docs-coauthoring/plan.md) | active | co-author What is OrgMemory? with the owner through context, outline, English review, teach-back, and Vietnamese review |
+| [Public docs hydration repair](increments/active/2026-08-01-docs-hydration/plan.md) | active | merge the aligned Fumadocs upgrade, deploy automatically, and prove clean live hydration |
 
 The other SCIM directories under `increments/active/` are dependency-ordered
 future designs inside the active native identity program. They do not become
