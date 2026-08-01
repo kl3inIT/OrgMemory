@@ -122,7 +122,7 @@ test("authenticated Skill detail reads its install contract through the browser 
   await page.getByRole("tab", { name: "Use CLI" }).click()
   await expect(
     page.getByText(
-      "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent codex",
+      "npx --yes @orgmemory/cli@0.1.1 skill add productivity/decision-record-writer@1.0.0 --agent codex",
     ),
   ).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
@@ -334,7 +334,11 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("tab", { name: "Use your agent" })).toBeVisible()
   await expect(page.getByRole("alert")).toContainText("Stop after the private Draft is created")
   await page.getByRole("tab", { name: "Use CLI" }).click()
-  await expect(page.getByText(/orgmemory skill publish <skill-folder>/)).toBeVisible()
+  await expect(
+    page.getByText(
+      /npx --yes @orgmemory\/cli@0\.1\.1 skill publish <skill-folder>/,
+    ),
+  ).toBeVisible()
   await expect(page.getByRole("link", { name: /Import from GitHub/i })).toHaveAttribute(
     "href",
     "/assets/new/skill/github",

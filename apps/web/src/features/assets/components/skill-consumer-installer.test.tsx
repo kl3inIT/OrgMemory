@@ -27,7 +27,7 @@ describe("SkillConsumerInstaller", () => {
     await user.click(screen.getByRole("tab", { name: "Use CLI" }))
     expect(
       screen.getByText(
-        "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent claude-code",
+        "npx --yes @orgmemory/cli@0.1.1 skill add productivity/decision-record-writer@1.0.0 --agent claude-code",
       ),
     ).toBeVisible()
     expect(screen.queryByText(/--agent codex/)).not.toBeInTheDocument()
