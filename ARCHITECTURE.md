@@ -141,15 +141,17 @@ replaced. Asset promotion receives validated normalized facts through a Source
 Ledger-owned request, and Asset publication advances the current source
 revision through a Source Ledger-owned `MANDATORY` service inside the existing
 publication transaction; Asset consumes no Source Ledger entity or repository.
-Asset also owns catalog projections, normalized chunk values, and the pgvector
-encoding used by its chunk store; Retrieval and Asset Registry consume those
-root-package Asset contracts rather than owning persistence-facing DTOs. Asset
-also owns the compact embedding-profile reference required for publication and
-the projection namespace identity; callers translate Retrieval's richer profile
-at the boundary. Asset has no direct dependency on Retrieval. Asset and
-Retrieval remain explicitly open while their remaining incoming and Retrieval
-outgoing persistence and orchestration seams are replaced by intentional APIs.
-The provider-neutral object-storage port is exposed as the
+Asset owns its catalog persistence projection, normalized chunk values, and the
+pgvector encoding used by its chunk store. Retrieval maps that projection to
+the parent-owned `knowledge::catalog` interface consumed by Asset Registry and
+the API; version-only reads resolve the canonical actor scope before querying a
+current active version. Asset also owns the compact embedding-profile reference
+required for publication and the projection namespace identity; callers
+translate Retrieval's richer profile at the boundary. Asset has no direct
+dependency on Retrieval and is a closed nested module with an exact outgoing
+dependency allowlist. Retrieval remains explicitly open while its remaining
+incoming and Asset persistence/orchestration seams are replaced by intentional
+APIs. The provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset
 publication outbox records direct-upload authorization projection attempts and

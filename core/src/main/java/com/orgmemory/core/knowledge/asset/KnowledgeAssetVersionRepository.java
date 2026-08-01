@@ -1,8 +1,8 @@
 package com.orgmemory.core.knowledge.asset;
 
-import java.util.Optional;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -69,6 +69,33 @@ public interface KnowledgeAssetVersionRepository extends JpaRepository<Knowledge
             @Param("organizationId") UUID organizationId,
             @Param("assetId") UUID assetId,
             @Param("versionId") UUID versionId);
+
+    @Query("""
+            select new com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem(
+                asset.id,
+                version.id,
+                version.versionNumber,
+                version.knowledgeSpaceId,
+                version.title,
+                version.language,
+                version.classification,
+                version.contentSha256
+            )
+            from KnowledgeAssetVersion version
+            join KnowledgeAsset asset
+              on asset.id = version.knowledgeAssetId
+             and asset.organizationId = version.organizationId
+             and asset.currentVersionId = version.id
+             and asset.archivedAt is null
+            where version.organizationId = :organizationId
+              and version.id = :versionId
+              and version.status = com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus.ACTIVE
+              and asset.id in :assetIds
+            """)
+    Optional<KnowledgeCatalogItem> findCurrentCatalogItemByVersion(
+            @Param("organizationId") UUID organizationId,
+            @Param("versionId") UUID versionId,
+            @Param("assetIds") Collection<UUID> assetIds);
 
     @Query("""
             select coalesce(max(version.versionNumber), 0)

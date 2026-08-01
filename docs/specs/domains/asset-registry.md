@@ -1,11 +1,14 @@
 # Asset Registry Spec
 
 Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
+`core/src/main/java/com/orgmemory/core/knowledge/catalog`,
+`core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
+`apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (4100c772)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (a86e892e)`.
 
 ## Current Behavior
 
@@ -215,6 +218,12 @@ Knowledge remains owned by the canonical Knowledge ledger. The read-only
 catalog lists only current active versions visible through the canonical
 OpenFGA and ACL scope. Capability Packs reference exact Knowledge version IDs;
 the registry does not create duplicate Asset rows or copy Knowledge tuples.
+Asset Registry crosses the parent `knowledge::catalog` interface and does not
+import the nested Asset or Retrieval catalog implementation. Version-only
+resolution computes the actor's canonical scope before any version read, and
+missing or denied versions both appear as absence. The API maps the parent
+entry to its own response while retaining the public `KnowledgeCatalogItem`
+schema and eight-field wire shape.
 
 ### Assistant And Web Consumption
 
@@ -364,7 +373,8 @@ separate owner and support-agent sessions.
 
 - `core.assetregistry`
 - `core.assistant.AssistantAssetToolService`
-- `core.knowledge.KnowledgeCatalogService`
+- `core.knowledge.catalog`
+- `core.knowledge.retrieval.KnowledgeCatalogService`
 - `apps.api.assetregistry`
 - `apps.api.assistant.AssistantAssetToolController`
 - `apps.api.knowledge.KnowledgeCatalogController`

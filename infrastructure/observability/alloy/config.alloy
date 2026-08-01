@@ -15,30 +15,12 @@ otelcol.receiver.otlp "apps" {
   }
 
   output {
-    traces  = [otelcol.processor.memory_limiter.telemetry.input]
-    metrics = [otelcol.processor.memory_limiter.telemetry.input]
+    traces  = [otelcol.processor.batch.telemetry.input]
+    metrics = [otelcol.processor.batch.telemetry.input]
     // Logs are deliberately absent. They are read from disk below instead: the
     // json-file driver already holds every line, so OTLP log export would be a
     // second copy of each one, and a log written to a file survives the process
     // that wrote it while an in-flight OTLP batch does not.
-  }
-}
-
-// First processor, before batching, on purpose. The container has a `mem_limit`
-// but nothing inside the process knows about it: a burst of spans, or an
-// exporter that stops draining, grows the batcher's queue until the kernel kills
-// Alloy — losing every signal from every service at the moment something is
-// going wrong. This applies backpressure to the receiver instead, so a sender
-// gets a retryable error and the collector stays up. `limit` sits below
-// ALLOY_MEM_LIMIT because it governs the Go heap, not the whole process.
-otelcol.processor.memory_limiter "telemetry" {
-  check_interval = "1s"
-  limit          = "256MiB"
-  spike_limit    = "64MiB"
-
-  output {
-    traces  = [otelcol.processor.batch.telemetry.input]
-    metrics = [otelcol.processor.batch.telemetry.input]
   }
 }
 

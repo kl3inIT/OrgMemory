@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
+import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.util.Set;
@@ -549,10 +551,23 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeAssetIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeAssetIsAClosedNestedModule() {
         var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
+        var declaredDependencies = ApplicationModuleInformation.of(asset.getBasePackage())
+                .getDeclaredDependencies()
+                .stream()
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(asset.isOpen());
+        assertFalse(asset.isOpen());
+        assertEquals(
+                Set.of(
+                        "authorization",
+                        "knowledge.sourceledger",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                declaredDependencies);
     }
 
     @Test
@@ -697,8 +712,6 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.AssetDeliveryService",
-                        "com.orgmemory.core.assetregistry.CapabilityPackService",
                         "com.orgmemory.core.assetregistry.PromptExecutionService",
                         "com.orgmemory.core.assistant.AssistantAssetToolService",
                         "com.orgmemory.core.assistant.AssistantCitation",
@@ -718,7 +731,6 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
                         "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",
@@ -751,7 +763,7 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeAssetTemporaryOpenBoundaryDoesNotGainNewConsumers() {
+    void knowledgeAssetConsumerSurfaceDoesNotGainNewTypes() {
         var asset = modules.getModuleByName("knowledge.asset").orElseThrow();
         var dependencies = modules.stream()
                 .flatMap(module -> module.getDirectDependencies(modules).stream())
@@ -766,8 +778,6 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.AssetDeliveryService",
-                        "com.orgmemory.core.assetregistry.CapabilityPackService",
                         "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
@@ -791,7 +801,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
@@ -809,5 +818,53 @@ class ModulithVerificationTests {
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();
 
         assertTrue(storage.contains(ObjectStoragePort.class));
+    }
+
+    @Test
+    void catalogIsAnExactExplicitKnowledgeInterface() {
+        var knowledge = modules.getModuleByName("knowledge").orElseThrow();
+        var catalog = knowledge.getNamedInterfaces().getByName("catalog").orElseThrow();
+        var exposedTypes = catalog.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        KnowledgeCatalogEntry.class.getName(),
+                        KnowledgeCatalogQuery.class.getName()),
+                exposedTypes);
+    }
+
+    @Test
+    void assetRegistryCatalogConsumersUseOnlyTheParentCatalogInterface() {
+        var catalogConsumerTypes = Set.of(
+                "com.orgmemory.core.assetregistry.AssetDeliveryService",
+                "com.orgmemory.core.assetregistry.CapabilityPackService");
+        var consumedTypes = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> catalogConsumerTypes.contains(
+                        dependency.getSourceType().getName()))
+                .map(dependency -> dependency.getTargetType().getName())
+                .filter(name -> name.startsWith(
+                        "com.orgmemory.core.knowledge.catalog."))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        KnowledgeCatalogEntry.class.getName(),
+                        KnowledgeCatalogQuery.class.getName()),
+                consumedTypes);
+    }
+
+    @Test
+    void assetRegistryDoesNotDependOnKnowledgeAssetInternals() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.asset..")
+                .check(new ClassFileImporter()
+                        .importPackages("com.orgmemory.core.assetregistry"));
     }
 }
