@@ -26,6 +26,15 @@ import org.springframework.ai.chat.model.ChatModel;
 class AiGatewayPropertiesTests {
 
     @Test
+    void defaultChatRoutesKeepGraphExtractionIndependent() {
+        var properties = new AiGatewayProperties(null, null, null);
+
+        assertEquals("gpt-5.6-sol", properties.route(AiWorkload.ASSISTANT_CHAT).modelId());
+        assertEquals("gpt-5.6-sol", properties.route(AiWorkload.KEYWORD_PLANNING).modelId());
+        assertEquals("gpt-5.4-mini", properties.route(AiWorkload.GRAPH_EXTRACTION).modelId());
+    }
+
+    @Test
     void queryAndDocumentEmbeddingShareOneRoute() {
         var properties = properties(Set.of(AiGatewayCapability.CHAT, AiGatewayCapability.EMBEDDING));
 
