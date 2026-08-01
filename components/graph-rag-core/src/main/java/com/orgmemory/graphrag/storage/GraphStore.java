@@ -1,7 +1,6 @@
 package com.orgmemory.graphrag.storage;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
-import com.orgmemory.graphrag.model.CanonicalEntity;
 import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.RelationContribution;
@@ -18,7 +17,7 @@ import java.util.UUID;
  * Entity and relation embeddings remain in {@link VectorIndex}; this keeps graph
  * storage replaceable without changing query semantics.
  */
-public interface GraphStore extends StagedProjectionWriter {
+public interface GraphStore extends StagedProjectionWriter, AuthorizedGraphTraversalSource {
 
     @Override
     default ProjectionKind projectionKind() {
@@ -33,11 +32,6 @@ public interface GraphStore extends StagedProjectionWriter {
 
     /** Removes all copied-forward contributions owned by one stable asset. */
     void stageDeleteAsset(ProjectionBatch batch, UUID knowledgeAssetId);
-
-    List<CanonicalEntity> loadEntities(
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            Collection<UUID> entityIds);
 
     List<CanonicalRelation> loadRelations(
             AuthorizedEvidenceScope scope,
@@ -70,10 +64,4 @@ public interface GraphStore extends StagedProjectionWriter {
             ProjectionSnapshot snapshot,
             Collection<UUID> relationIds);
 
-    List<UUID> expandEntityIds(
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            Collection<UUID> seedEntityIds,
-            int maximumDepth,
-            int limit);
 }

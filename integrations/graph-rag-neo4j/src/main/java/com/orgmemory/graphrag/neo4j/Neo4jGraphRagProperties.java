@@ -24,7 +24,6 @@ public class Neo4jGraphRagProperties {
     private long fetchSize = 1_000;
     private int writeBatchSize = 500;
     private int copyPageSize = 1_000;
-    private int maximumFrontier = 1_000;
     private Duration copyWaitTimeout = Duration.ofMinutes(2);
     private Duration copyLease = Duration.ofMinutes(1);
 
@@ -136,14 +135,6 @@ public class Neo4jGraphRagProperties {
 
     public void setCopyPageSize(int copyPageSize) {
         this.copyPageSize = requirePositive(copyPageSize, "copyPageSize");
-    }
-
-    public int getMaximumFrontier() {
-        return maximumFrontier;
-    }
-
-    public void setMaximumFrontier(int maximumFrontier) {
-        this.maximumFrontier = requirePositive(maximumFrontier, "maximumFrontier");
     }
 
     public Duration getCopyWaitTimeout() {

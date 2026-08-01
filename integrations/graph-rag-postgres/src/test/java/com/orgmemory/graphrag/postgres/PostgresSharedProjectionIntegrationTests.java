@@ -15,6 +15,7 @@ import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.query.AuthorizedGraphTraversal;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
@@ -73,6 +74,7 @@ class PostgresSharedProjectionIntegrationTests {
     private static PostgresLexicalIndex lexical;
     private static PostgresVectorIndex vectors;
     private static PostgresGraphStore graph;
+    private static AuthorizedGraphTraversal traversal;
     private static GraphExportReader graphExport;
 
     @BeforeAll
@@ -106,6 +108,7 @@ class PostgresSharedProjectionIntegrationTests {
         lexical = new PostgresLexicalIndex(jdbc, transactions, publications);
         vectors = new PostgresVectorIndex(jdbc, transactions, publications);
         graph = new PostgresGraphStore(jdbc, transactions, publications);
+        traversal = new AuthorizedGraphTraversal(graph);
         graphExport = new PostgresGraphExportReader(
                 jdbc,
                 graph,
@@ -120,10 +123,7 @@ class PostgresSharedProjectionIntegrationTests {
 
     @Test
     void graphStorePassesSharedSecurityAndLifecycleConformance() {
-        GraphStoreConformance.verify(
-                graph,
-                publications,
-                new GraphStoreConformance.TraversalCharacterization(true, true));
+        GraphStoreConformance.verify(graph, publications);
     }
 
     @Test
@@ -194,7 +194,7 @@ class PostgresSharedProjectionIntegrationTests {
                         .subjectId());
         assertEquals(
                 List.of(ENTITY_A_ID, ENTITY_B_ID),
-                graph.expandEntityIds(
+                traversal.expandEntityIds(
                         allowed,
                         firstSnapshot,
                         List.of(ENTITY_A_ID),
@@ -250,7 +250,7 @@ class PostgresSharedProjectionIntegrationTests {
                         .content());
         assertEquals(
                 List.of(ENTITY_A_ID, ENTITY_B_ID),
-                graph.expandEntityIds(
+                traversal.expandEntityIds(
                         allowed,
                         firstSnapshot,
                         List.of(ENTITY_A_ID),

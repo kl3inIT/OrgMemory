@@ -9,6 +9,8 @@ import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -16,9 +18,7 @@ import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -84,7 +84,6 @@ public final class Neo4jGraphStore implements GraphStore {
     private final Neo4jOperations operations;
     private final Neo4jProjectionSupport support;
     private final int writeBatchSize;
-    private final int maximumFrontier;
 
     public Neo4jGraphStore(
             Neo4jOperations operations,
@@ -99,7 +98,6 @@ public final class Neo4jGraphStore implements GraphStore {
                 properties.getCopyWaitTimeout(),
                 properties.getCopyLease());
         this.writeBatchSize = properties.getWriteBatchSize();
-        this.maximumFrontier = properties.getMaximumFrontier();
     }
 
     @Override
@@ -139,6 +137,13 @@ public final class Neo4jGraphStore implements GraphStore {
             deleteAsset(batch, knowledgeAssetId);
             removeOrphans(batch);
         });
+    }
+
+    @Override
+    public void validateSnapshot(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot) {
+        support.requireReadable(scope, snapshot);
     }
 
     @Override
@@ -292,6 +297,55 @@ public final class Neo4jGraphStore implements GraphStore {
     }
 
     @Override
+    public IncidentRelationPage loadIncidentRelationPage(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot,
+            Collection<UUID> entityIds,
+            UUID afterRelationId,
+            int pageSize) {
+        List<UUID> ids = requireIds(entityIds);
+        requirePageSize(pageSize);
+        validateSnapshot(scope, snapshot);
+        if (ids.isEmpty() || scope.authorizedAssetIds().isEmpty()) {
+            return new IncidentRelationPage(List.of(), null);
+        }
+        Map<String, Object> parameters = new LinkedHashMap<>(
+                visibility(scope, snapshot, ids));
+        parameters.put("fetchLimit", pageSize + 1);
+        if (afterRelationId != null) {
+            parameters.put("afterRelationId", afterRelationId.toString());
+        }
+        String afterPredicate = afterRelationId == null
+                ? ""
+                : "AND relation.relationId > $afterRelationId";
+        List<CanonicalRelation> fetched = operations.read(transaction -> transaction.run(
+                        """
+                        MATCH (source:OrgMemoryGraphEntity)
+                              -[relation:ORGMEMORY_RELATES]->
+                              (target:OrgMemoryGraphEntity)
+                        WHERE (source.entityId IN $ids OR target.entityId IN $ids)
+                          %s
+                          AND %s
+                        RETURN relation.relationId AS relationId,
+                               relation.sourceEntityId AS sourceEntityId,
+                               relation.targetEntityId AS targetEntityId,
+                               relation.orientation AS orientation
+                        ORDER BY relation.relationId
+                        LIMIT $fetchLimit
+                        """
+                                .formatted(afterPredicate, VISIBLE_RELATION),
+                        parameters)
+                .list(Neo4jGraphStore::relation));
+        boolean hasMore = fetched.size() > pageSize;
+        List<CanonicalRelation> page = hasMore
+                ? List.copyOf(fetched.subList(0, pageSize))
+                : List.copyOf(fetched);
+        return new IncidentRelationPage(
+                page,
+                hasMore ? page.getLast().id() : null);
+    }
+
+    @Override
     public Map<UUID, Long> loadVisibleEntityDegrees(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
@@ -358,59 +412,6 @@ public final class Neo4jGraphStore implements GraphStore {
                 UUID.fromString(record.get("relationId").asString()),
                 record.get("weight").asDouble()));
         return Map.copyOf(result);
-    }
-
-    @Override
-    public List<UUID> expandEntityIds(
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            Collection<UUID> seedEntityIds,
-            int maximumDepth,
-            int limit) {
-        List<UUID> seeds = requireIds(seedEntityIds);
-        requireNonNegative(maximumDepth, "maximumDepth");
-        if (limit <= 0) {
-            throw new IllegalArgumentException("limit must be positive");
-        }
-        if (seeds.isEmpty()) {
-            support.requireReadable(scope, snapshot);
-            return List.of();
-        }
-        LinkedHashSet<UUID> visible = loadEntities(scope, snapshot, seeds).stream()
-                .map(CanonicalEntity::id)
-                .collect(
-                        LinkedHashSet::new,
-                        LinkedHashSet::add,
-                        LinkedHashSet::addAll);
-        LinkedHashSet<UUID> frontier = new LinkedHashSet<>(visible);
-        int depth = 0;
-        while (!frontier.isEmpty() && depth < maximumDepth && visible.size() < limit) {
-            List<CanonicalRelation> incident = loadIncidentRelations(
-                    scope,
-                    snapshot,
-                    frontier,
-                    maximumFrontier);
-            LinkedHashSet<UUID> candidates = new LinkedHashSet<>();
-            incident.stream()
-                    .sorted(Comparator.comparing(CanonicalRelation::id))
-                    .forEach(relation -> {
-                        candidates.add(relation.sourceEntityId());
-                        candidates.add(relation.targetEntityId());
-                    });
-            candidates.removeAll(visible);
-            LinkedHashSet<UUID> next = loadEntities(scope, snapshot, candidates).stream()
-                    .map(CanonicalEntity::id)
-                    .sorted()
-                    .limit(Math.max(0, limit - visible.size()))
-                    .collect(
-                            LinkedHashSet::new,
-                            LinkedHashSet::add,
-                            LinkedHashSet::addAll);
-            visible.addAll(next);
-            frontier = next;
-            depth++;
-        }
-        return visible.stream().limit(limit).toList();
     }
 
     @Override
@@ -777,6 +778,16 @@ public final class Neo4jGraphStore implements GraphStore {
     private static void requireNonNegative(int value, String field) {
         if (value < 0) {
             throw new IllegalArgumentException(field + " must be non-negative");
+        }
+    }
+
+    private static void requirePageSize(int pageSize) {
+        if (pageSize <= 0
+                || pageSize
+                        > AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE) {
+            throw new IllegalArgumentException(
+                    "pageSize must be between 1 and "
+                            + AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE);
         }
     }
 }

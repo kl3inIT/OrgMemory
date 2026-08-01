@@ -9,6 +9,8 @@ import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.model.RelationOrientation;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.query.AuthorizedGraphTraversal;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
@@ -57,19 +59,9 @@ public final class GraphStoreConformance {
     public static void verify(
             GraphStore store,
             ProjectionPublicationStore publications) {
-        verify(store, publications, null);
-    }
-
-    /**
-     * Runs the shared contract and, when supplied, records the pre-coordinator
-     * traversal guard behavior of the selected backend.
-     */
-    public static void verify(
-            GraphStore store,
-            ProjectionPublicationStore publications,
-            TraversalCharacterization traversalCharacterization) {
         java.util.Objects.requireNonNull(store, "store");
         java.util.Objects.requireNonNull(publications, "publications");
+        AuthorizedGraphTraversal traversal = new AuthorizedGraphTraversal(store);
 
         ProjectionBatch first = batch("first", 0, 1);
         store.stageReplaceRevision(first, publicRevision(1, false));
@@ -82,14 +74,15 @@ public final class GraphStoreConformance {
                 ORGANIZATION_ID, Set.of(PUBLIC_ASSET_ID, SECRET_ASSET_ID));
         AuthorizedEvidenceScope emptyScope = scope(ORGANIZATION_ID, Set.of());
 
-        if (traversalCharacterization != null) {
-            characterizeTraversalGuards(
-                    store,
-                    publicScope,
-                    firstSnapshot,
-                    SHARED_ENTITY_ID,
-                    traversalCharacterization);
-        }
+        require(
+                traversal.expandEntityIds(
+                                publicScope,
+                                firstSnapshot,
+                                List.of(SHARED_ENTITY_ID),
+                                1,
+                                0)
+                        .isEmpty(),
+                "zero traversal limit must return no entities");
 
         requireIds(
                 store.loadEntities(
@@ -153,7 +146,7 @@ public final class GraphStoreConformance {
                         == 0,
                 "hidden relation weight must not leak");
         require(
-                store.expandEntityIds(
+                traversal.expandEntityIds(
                                 publicScope,
                                 firstSnapshot,
                                 List.of(SHARED_ENTITY_ID),
@@ -161,6 +154,43 @@ public final class GraphStoreConformance {
                                 10)
                         .equals(List.of(SHARED_ENTITY_ID, PUBLIC_NEIGHBOR_ID)),
                 "bounded traversal must not cross into hidden evidence");
+
+        List<UUID> expectedPagedRelations = List.of(
+                        PUBLIC_RELATION_ID,
+                        SECRET_RELATION_ID)
+                .stream()
+                .sorted(AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER)
+                .toList();
+        var firstRelationPage = store.loadIncidentRelationPage(
+                allScope,
+                firstSnapshot,
+                List.of(SHARED_ENTITY_ID),
+                null,
+                1);
+        require(
+                firstRelationPage.relations().stream()
+                        .map(CanonicalRelation::id)
+                        .toList()
+                        .equals(List.of(expectedPagedRelations.getFirst())),
+                "the first incident page must use canonical relation order");
+        require(
+                expectedPagedRelations.getFirst().equals(firstRelationPage.nextCursor()),
+                "a truncated incident page must carry its final relation as the cursor");
+        var secondRelationPage = store.loadIncidentRelationPage(
+                allScope,
+                firstSnapshot,
+                List.of(SHARED_ENTITY_ID),
+                firstRelationPage.nextCursor(),
+                1);
+        require(
+                secondRelationPage.relations().stream()
+                        .map(CanonicalRelation::id)
+                        .toList()
+                        .equals(List.of(expectedPagedRelations.getLast())),
+                "the next incident page must resume exclusively after the cursor");
+        require(
+                secondRelationPage.nextCursor() == null,
+                "the final incident page must prove completion with no next cursor");
 
         require(
                 store.loadEntities(
@@ -188,6 +218,22 @@ public final class GraphStoreConformance {
                         publicScope,
                         fabricated,
                         List.of(SHARED_ENTITY_ID)));
+        expect(
+                ProjectionPublicationStore.PublicationConflictException.class,
+                () -> traversal.expandEntityIds(
+                        publicScope,
+                        fabricated,
+                        List.of(),
+                        1,
+                        1));
+        expect(
+                ProjectionPublicationStore.PublicationConflictException.class,
+                () -> traversal.expandEntityIds(
+                        publicScope,
+                        fabricated,
+                        List.of(SHARED_ENTITY_ID),
+                        1,
+                        0));
 
         ProjectionBatch second = batch("second", 1, 2);
         store.stageReplaceRevision(second, publicRevision(2, true));
@@ -285,73 +331,6 @@ public final class GraphStoreConformance {
             ProjectionPublicationStore publications) {
         publications.markPrepared(batch, ProjectionKind.GRAPH, NOW);
         return publications.publish(batch, NOW);
-    }
-
-    public static void characterizeTraversalGuards(
-            GraphStore store,
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            UUID visibleSeedEntityId,
-            TraversalCharacterization characterization) {
-        java.util.Objects.requireNonNull(store, "store");
-        java.util.Objects.requireNonNull(scope, "scope");
-        java.util.Objects.requireNonNull(snapshot, "snapshot");
-        java.util.Objects.requireNonNull(visibleSeedEntityId, "visibleSeedEntityId");
-        java.util.Objects.requireNonNull(characterization, "characterization");
-        if (characterization.acceptsZeroLimit()) {
-            require(
-                    store.expandEntityIds(
-                                    scope,
-                                    snapshot,
-                                    List.of(visibleSeedEntityId),
-                                    1,
-                                    0)
-                            .isEmpty(),
-                    "the current backend must accept a zero traversal limit");
-        } else {
-            expect(
-                    IllegalArgumentException.class,
-                    () -> store.expandEntityIds(
-                            scope,
-                            snapshot,
-                            List.of(visibleSeedEntityId),
-                            1,
-                            0));
-        }
-
-        ProjectionSnapshot fabricated = new ProjectionSnapshot(
-                id("fabricated-traversal-batch"),
-                snapshot.namespace(),
-                snapshot.generation(),
-                snapshot.manifestFingerprint(),
-                snapshot.projections(),
-                snapshot.publishedAt());
-        if (characterization.validatesEmptySeedSnapshot()) {
-            expect(
-                    ProjectionPublicationStore.PublicationConflictException.class,
-                    () -> store.expandEntityIds(
-                            scope,
-                            fabricated,
-                            List.of(),
-                            1,
-                            1));
-        } else {
-            require(
-                    store.expandEntityIds(
-                                    scope,
-                                    fabricated,
-                                    List.of(),
-                                    1,
-                                    1)
-                            .isEmpty(),
-                    "the current backend must return before validating an empty-seed snapshot");
-        }
-    }
-
-    /** Temporary unchanged-code evidence removed after the shared target contract lands. */
-    public record TraversalCharacterization(
-            boolean acceptsZeroLimit,
-            boolean validatesEmptySeedSnapshot) {
     }
 
     private static GraphRevisionContributions publicRevision(

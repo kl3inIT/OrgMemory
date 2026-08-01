@@ -43,10 +43,7 @@ class Neo4jGraphStoreIntegrationTests {
             var store = configuration.neo4jGraphStore(
                     operations, publications, properties);
 
-            GraphStoreConformance.verify(
-                    store,
-                    publications,
-                    new GraphStoreConformance.TraversalCharacterization(false, true));
+            GraphStoreConformance.verify(store, publications);
         }
     }
 
@@ -185,7 +182,6 @@ class Neo4jGraphStoreIntegrationTests {
         properties.setPassword(PASSWORD);
         properties.setWriteBatchSize(2);
         properties.setCopyPageSize(2);
-        properties.setMaximumFrontier(100);
         properties.setCopyWaitTimeout(Duration.ofMinutes(2));
         properties.setCopyLease(Duration.ofMinutes(1));
         return properties;

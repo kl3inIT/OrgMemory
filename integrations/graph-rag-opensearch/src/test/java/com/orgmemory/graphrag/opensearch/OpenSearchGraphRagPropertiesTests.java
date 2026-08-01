@@ -18,7 +18,6 @@ class OpenSearchGraphRagPropertiesTests {
         properties.setSocketTimeout(Duration.ofSeconds(20));
         properties.setBulkMaximumOperations(250);
         properties.setCopyMaximumBytes(1_048_576);
-        properties.setGraphMaximumFrontier(500);
         properties.validate();
 
         assertEquals("orgmemory-test", properties.getIndexPrefix());

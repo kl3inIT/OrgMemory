@@ -19,8 +19,6 @@ public class OpenSearchGraphRagProperties {
     private Duration socketTimeout = Duration.ofSeconds(30);
     private int bulkMaximumOperations = 500;
     private long copyMaximumBytes = 5 * 1024 * 1024;
-    private int graphMaximumFrontier = 1_000;
-    private boolean pplGraphLookupEnabled = true;
 
     public boolean isEnabled() {
         return enabled;
@@ -98,25 +96,6 @@ public class OpenSearchGraphRagProperties {
             throw new IllegalArgumentException("copyMaximumBytes must be positive");
         }
         this.copyMaximumBytes = copyMaximumBytes;
-    }
-
-    public int getGraphMaximumFrontier() {
-        return graphMaximumFrontier;
-    }
-
-    public void setGraphMaximumFrontier(int graphMaximumFrontier) {
-        if (graphMaximumFrontier <= 0) {
-            throw new IllegalArgumentException("graphMaximumFrontier must be positive");
-        }
-        this.graphMaximumFrontier = graphMaximumFrontier;
-    }
-
-    public boolean isPplGraphLookupEnabled() {
-        return pplGraphLookupEnabled;
-    }
-
-    public void setPplGraphLookupEnabled(boolean pplGraphLookupEnabled) {
-        this.pplGraphLookupEnabled = pplGraphLookupEnabled;
     }
 
     void validate() {

@@ -6,6 +6,8 @@ import com.orgmemory.graphrag.model.CanonicalRelation;
 import com.orgmemory.graphrag.model.EntityContribution;
 import com.orgmemory.graphrag.model.RelationContribution;
 import com.orgmemory.graphrag.port.GraphRevisionContributions;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
+import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
@@ -14,11 +16,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
@@ -29,22 +29,16 @@ public final class OpenSearchGraphStore implements GraphStore {
     private final OpenSearchStagedIndex relations;
     private final OpenSearchOperations operations;
     private final OpenSearchIndexNames indexes;
-    private final OpenSearchPplGraphLookup ppl;
-    private final int maximumFrontier;
+    private final OpenSearchProjectionPublicationStore publications;
 
     OpenSearchGraphStore(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
             OpenSearchIndexNames indexes,
-            OpenSearchCopyForwardCoordinator copyForward,
-            int maximumFrontier,
-            OpenSearchPplGraphLookup ppl) {
-        if (maximumFrontier <= 0) {
-            throw new IllegalArgumentException("maximumFrontier must be positive");
-        }
+            OpenSearchCopyForwardCoordinator copyForward) {
         this.operations = Objects.requireNonNull(operations, "operations");
         this.indexes = Objects.requireNonNull(indexes, "indexes");
-        this.ppl = Objects.requireNonNull(ppl, "ppl");
+        this.publications = Objects.requireNonNull(publications, "publications");
         this.entities = new OpenSearchStagedIndex(
                 operations,
                 publications,
@@ -63,7 +57,6 @@ public final class OpenSearchGraphStore implements GraphStore {
                 ProjectionKind.GRAPH,
                 "GRAPH_RELATION",
                 copyForward);
-        this.maximumFrontier = maximumFrontier;
     }
 
     @Override
@@ -117,10 +110,24 @@ public final class OpenSearchGraphStore implements GraphStore {
     }
 
     @Override
+    public void validateSnapshot(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot) {
+        Objects.requireNonNull(scope, "scope");
+        Objects.requireNonNull(snapshot, "snapshot");
+        if (!scope.organizationId().equals(snapshot.namespace().organizationId())) {
+            throw new IllegalArgumentException(
+                    "authorization scope and snapshot must share an organization");
+        }
+        publications.requireReadable(snapshot, ProjectionKind.GRAPH);
+    }
+
+    @Override
     public List<CanonicalEntity> loadEntities(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
             Collection<UUID> entityIds) {
+        validateSnapshot(scope, snapshot);
         return distinctEntities(loadEntityContributions(scope, snapshot, entityIds));
     }
 
@@ -129,6 +136,7 @@ public final class OpenSearchGraphStore implements GraphStore {
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
             Collection<UUID> relationIds) {
+        validateSnapshot(scope, snapshot);
         return distinctRelations(loadRelationContributions(scope, snapshot, relationIds));
     }
 
@@ -206,6 +214,47 @@ public final class OpenSearchGraphStore implements GraphStore {
     }
 
     @Override
+    public IncidentRelationPage loadIncidentRelationPage(
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot,
+            Collection<UUID> entityIds,
+            UUID afterRelationId,
+            int pageSize) {
+        List<UUID> ids = requireUuidIds(entityIds);
+        requirePageSize(pageSize);
+        validateSnapshot(scope, snapshot);
+        if (ids.isEmpty() || scope.authorizedAssetIds().isEmpty()) {
+            return new IncidentRelationPage(List.of(), null);
+        }
+        List<String> encoded = ids.stream().map(UUID::toString).toList();
+        Query incident = Query.of(query -> query.bool(bool -> bool
+                .should(OpenSearchStoreSupport.anyTerms("source_entity_id", encoded))
+                .should(OpenSearchStoreSupport.anyTerms("target_entity_id", encoded))
+                .minimumShouldMatch("1")));
+        List<CanonicalRelation> fetched = relations.searchSortedAfter(
+                        scope,
+                        snapshot,
+                        List.of(incident),
+                        "relation_id",
+                        afterRelationId == null ? null : afterRelationId.toString(),
+                        pageSize + 1)
+                .stream()
+                .map(OpenSearchProjectionCodec::relation)
+                .map(RelationContribution::relation)
+                .sorted(Comparator.comparing(
+                        CanonicalRelation::id,
+                        AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER))
+                .toList();
+        boolean hasMore = fetched.size() > pageSize;
+        List<CanonicalRelation> page = hasMore
+                ? List.copyOf(fetched.subList(0, pageSize))
+                : List.copyOf(fetched);
+        return new IncidentRelationPage(
+                page,
+                hasMore ? page.getLast().id() : null);
+    }
+
+    @Override
     public Map<UUID, Long> loadVisibleEntityDegrees(
             AuthorizedEvidenceScope scope,
             ProjectionSnapshot snapshot,
@@ -248,77 +297,6 @@ public final class OpenSearchGraphStore implements GraphStore {
                     Double::sum);
         }
         return Map.copyOf(result);
-    }
-
-    @Override
-    public List<UUID> expandEntityIds(
-            AuthorizedEvidenceScope scope,
-            ProjectionSnapshot snapshot,
-            Collection<UUID> seedEntityIds,
-            int maximumDepth,
-            int limit) {
-        List<UUID> seeds = requireUuidIds(seedEntityIds);
-        if (maximumDepth < 0) {
-            throw new IllegalArgumentException("maximumDepth must be non-negative");
-        }
-        if (limit <= 0) {
-            throw new IllegalArgumentException("limit must be positive");
-        }
-        if (seeds.isEmpty()) {
-            return List.of();
-        }
-        LinkedHashSet<UUID> visible = loadEntities(scope, snapshot, seeds).stream()
-                .map(CanonicalEntity::id)
-                .collect(
-                        LinkedHashSet::new,
-                        LinkedHashSet::add,
-                        LinkedHashSet::addAll);
-        LinkedHashSet<UUID> frontier = new LinkedHashSet<>(visible);
-        Optional<List<UUID>> accelerated = ppl.expand(
-                scope,
-                snapshot,
-                Set.copyOf(visible),
-                maximumDepth,
-                limit);
-        if (accelerated.isPresent()) {
-            Set<UUID> verified = loadEntities(
-                            scope,
-                            snapshot,
-                            accelerated.orElseThrow())
-                    .stream()
-                    .map(CanonicalEntity::id)
-                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            return accelerated.orElseThrow().stream()
-                    .filter(verified::contains)
-                    .limit(limit)
-                    .toList();
-        }
-        int depth = 0;
-        while (!frontier.isEmpty() && depth < maximumDepth && visible.size() < limit) {
-            List<CanonicalRelation> incident = loadIncidentRelations(
-                    scope,
-                    snapshot,
-                    frontier,
-                    maximumFrontier);
-            LinkedHashSet<UUID> candidates = new LinkedHashSet<>();
-            for (CanonicalRelation relation : incident) {
-                candidates.add(relation.sourceEntityId());
-                candidates.add(relation.targetEntityId());
-            }
-            candidates.removeAll(visible);
-            LinkedHashSet<UUID> next = loadEntities(scope, snapshot, candidates).stream()
-                    .map(CanonicalEntity::id)
-                    .sorted()
-                    .limit(Math.max(0, limit - visible.size()))
-                    .collect(
-                            LinkedHashSet::new,
-                            LinkedHashSet::add,
-                            LinkedHashSet::addAll);
-            visible.addAll(next);
-            frontier = next;
-            depth++;
-        }
-        return visible.stream().limit(limit).toList();
     }
 
     @Override
@@ -369,5 +347,15 @@ public final class OpenSearchGraphStore implements GraphStore {
             throw new IllegalArgumentException("ids must not contain null values");
         }
         return immutable;
+    }
+
+    private static void requirePageSize(int pageSize) {
+        if (pageSize <= 0
+                || pageSize
+                        > AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE) {
+            throw new IllegalArgumentException(
+                    "pageSize must be between 1 and "
+                            + AuthorizedGraphTraversalSource.MAXIMUM_PAGE_SIZE);
+        }
     }
 }

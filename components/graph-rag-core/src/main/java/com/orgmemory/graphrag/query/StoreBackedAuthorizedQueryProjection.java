@@ -27,6 +27,7 @@ public final class StoreBackedAuthorizedQueryProjection
     private final ContentStore content;
     private final VectorIndex vectors;
     private final GraphStore graph;
+    private final AuthorizedGraphTraversal traversal;
 
     public StoreBackedAuthorizedQueryProjection(
             ContentStore content,
@@ -35,6 +36,7 @@ public final class StoreBackedAuthorizedQueryProjection
         this.content = Objects.requireNonNull(content, "content");
         this.vectors = Objects.requireNonNull(vectors, "vectors");
         this.graph = Objects.requireNonNull(graph, "graph");
+        this.traversal = new AuthorizedGraphTraversal(graph);
     }
 
     @Override
@@ -113,7 +115,7 @@ public final class StoreBackedAuthorizedQueryProjection
             Collection<UUID> seedEntityIds,
             int maximumDepth,
             int limit) {
-        return graph.expandEntityIds(
+        return traversal.expandEntityIds(
                 scope, snapshot, seedEntityIds, maximumDepth, limit);
     }
 
