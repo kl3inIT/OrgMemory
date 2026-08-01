@@ -2,6 +2,9 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
+import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.knowledge.sourceledger.SourceCitationUri;
 
 import com.orgmemory.core.authorization.BatchAuthorizationQuery;

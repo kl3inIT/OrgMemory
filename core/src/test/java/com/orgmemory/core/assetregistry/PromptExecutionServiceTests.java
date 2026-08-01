@@ -14,7 +14,7 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
-import com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch;
+import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.Map;

@@ -5,15 +5,16 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-07-30-observability-platform (ddb4891)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 
 ## Current Behavior
 
 The in-app Assistant routes chat through the provider-neutral AI gateway and
-grounds every answer in `PermissionAwareKnowledgeSearch`. GraphRAG is the
-default retrieval engine; the canonical hybrid engine is an explicit
-configuration choice rather than an implicit fallback. Answers stream with
-permission-verified citations. GraphRAG supplies one structured, token-bounded
+grounds every answer in the parent `knowledge::search` interface without
+importing its Retrieval implementation. GraphRAG is the default retrieval
+engine; the canonical hybrid engine is an explicit configuration choice rather
+than an implicit fallback. Answers stream with permission-verified citations.
+GraphRAG supplies one structured, token-bounded
 grounding set containing entity, relation, and chunk contributions. The
 application rechecks its complete evidence closure through OpenFGA and the
 canonical ledger before the pure-Java renderer creates the final model prompt.

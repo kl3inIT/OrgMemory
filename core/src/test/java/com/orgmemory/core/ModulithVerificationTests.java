@@ -9,6 +9,7 @@ import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
@@ -712,11 +713,6 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.PromptExecutionService",
-                        "com.orgmemory.core.assistant.AssistantAssetToolService",
-                        "com.orgmemory.core.assistant.AssistantCitation",
-                        "com.orgmemory.core.assistant.AssistantPromptFactory",
-                        "com.orgmemory.core.assistant.AssistantService",
                         "com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
@@ -733,14 +729,10 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",
                         "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeSearchResult",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate",
-                        "com.orgmemory.core.knowledge.retrieval.VerifiedKnowledgeGrounding"),
+                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
                 consumedInternalTypes);
     }
 
@@ -833,6 +825,73 @@ class ModulithVerificationTests {
                         KnowledgeCatalogEntry.class.getName(),
                         KnowledgeCatalogQuery.class.getName()),
                 exposedTypes);
+    }
+
+    @Test
+    void searchIsAnExactExplicitKnowledgeInterface() {
+        var knowledge = modules.getModuleByName("knowledge").orElseThrow();
+        var search = knowledge.getNamedInterfaces().getByName("search").orElseThrow();
+        var exposedTypes = search.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence",
+                        "com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult",
+                        "com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding"),
+                exposedTypes);
+    }
+
+    @Test
+    void topLevelSearchConsumersUseOnlyTheParentSearchInterface() {
+        var searchConsumerTypes = Set.of(
+                "com.orgmemory.core.assetregistry.PromptExecutionService",
+                "com.orgmemory.core.assistant.AssistantAssetToolService",
+                "com.orgmemory.core.assistant.AssistantCitation",
+                "com.orgmemory.core.assistant.AssistantPromptFactory",
+                "com.orgmemory.core.assistant.AssistantService");
+        var dependencies = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> searchConsumerTypes.contains(
+                        dependency.getSourceType().getName()))
+                .filter(dependency -> dependency.getTargetType()
+                        .getPackageName()
+                        .equals("com.orgmemory.core.knowledge.search"))
+                .toList();
+        var actualConsumers = dependencies.stream()
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+        var consumedTypes = dependencies.stream()
+                .map(dependency -> dependency.getTargetType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(searchConsumerTypes, actualConsumers);
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence",
+                        "com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult",
+                        "com.orgmemory.core.knowledge.search.VerifiedKnowledgeGrounding"),
+                consumedTypes);
+    }
+
+    @Test
+    void assistantAndAssetRegistryDoNotDependOnRetrievalImplementation() {
+        noClasses()
+                .that()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assistant..",
+                        "com.orgmemory.core.assetregistry..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.retrieval..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages(
+                                "com.orgmemory.core.assistant",
+                                "com.orgmemory.core.assetregistry"));
     }
 
     @Test

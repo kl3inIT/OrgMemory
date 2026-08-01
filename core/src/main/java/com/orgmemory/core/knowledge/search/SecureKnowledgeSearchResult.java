@@ -1,4 +1,4 @@
-package com.orgmemory.core.knowledge.retrieval;
+package com.orgmemory.core.knowledge.search;
 
 import java.util.List;
 import java.util.Objects;

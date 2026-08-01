@@ -1,7 +1,7 @@
 package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.ai.ChatGenerationRequest;
-import com.orgmemory.core.knowledge.retrieval.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import java.util.ArrayList;
 import java.util.List;

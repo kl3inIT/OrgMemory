@@ -212,6 +212,29 @@ See
 for the reviewer failure, fallback verdict, counterattack, must-fix conditions,
 and scope limit.
 
+## Retrieval Closure Boundary Challenge
+
+The independently challenged Retrieval sequence exposes a parent-owned
+`knowledge::search` interface containing exactly the permission-aware search
+contract, result, evidence, and verified-grounding values. Grounding remains in
+that surface because it is part of the result invariant and carries the final
+permission-verified model input; the concrete hybrid and GraphRAG services stay
+inside Retrieval.
+
+Moving those four values is only the first code slice. Retrieval cannot close
+honestly while it imports Asset, Source Ledger, or Organization persistence,
+while Graph consumes its JDBC store and candidate types, or while API and Worker
+depend on concrete implementations. Those edges are removed through owner
+queries and intentional adapter interfaces in separate code PRs below the
+100-file ceiling. The multi-table canonical retrieval SQL remains an explicitly
+documented security read model; this increment claims Java/domain/API closure,
+not datastore autonomy.
+
+See
+[retrieval-closure-challenge-verdict.md](retrieval-closure-challenge-verdict.md)
+for reviewer availability, exact ownership, the counterattack, blocking
+conditions, PR sequence, and verification requirements.
+
 ## First Cycle-Removal Slice
 
 The ACL/Connector cycle is cut at the ownership boundary instead of hidden by
