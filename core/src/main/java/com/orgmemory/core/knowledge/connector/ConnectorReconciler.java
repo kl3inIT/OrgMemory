@@ -35,6 +35,7 @@ import com.orgmemory.core.knowledge.sourceledger.SourceHeadView;
 import com.orgmemory.core.knowledge.sourceledger.SourceInventoryQuery;
 import com.orgmemory.core.knowledge.sourceledger.SourceInventoryRef;
 import com.orgmemory.core.knowledge.sourceledger.SourceLifecycleService;
+import com.orgmemory.core.knowledge.sourceledger.SourceRevisionDraftRef;
 
 import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.PrincipalKey;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalResolution.ResolvedPrincipal;
@@ -237,7 +238,7 @@ class ConnectorReconciler {
         if (content.contentRevision().equals(current.currentContentRevision())) {
             boolean published = revisionCoordinator
                     .findExisting(ctx, content, sha256(content.body()))
-                    .map(ConnectorRevisionDraft::published)
+                    .map(SourceRevisionDraftRef::published)
                     .orElse(false);
             if (!published) {
                 return rematerialize(ctx, current, content, plan);
@@ -409,7 +410,7 @@ class ConnectorReconciler {
 
         // A retry that already stored this exact text reuses the revision it made rather than
         // storing a second copy of it under a new ordinal.
-        ConnectorRevisionDraft draft = revisionCoordinator
+        SourceRevisionDraftRef draft = revisionCoordinator
                 .findExisting(ctx, content, contentSha256)
                 .orElse(null);
         if (draft == null) {

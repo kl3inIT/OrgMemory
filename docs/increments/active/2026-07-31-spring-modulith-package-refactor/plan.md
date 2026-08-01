@@ -780,7 +780,7 @@ PR #227 merged as `ffa45f37` after all required CI checks passed. CodeRabbit
 completed a full review with no actionable comments, and direct inspection
 confirmed zero inline comments, reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Twenty-Ninth Pull Request Evidence
 
 - Source Ledger exposes a stable `SourceInventoryRef` and owns
   `SourceLifecycleService` for canonical source retirement.
@@ -808,3 +808,38 @@ tests passed under Node 24.15; and the terminating repository-wide `clean test`
 completed successfully in 6m01s across 99 tasks. Mechanical package,
 zero-byte, and migration-name checks, diff hygiene, the zero Reconciler
 persistence-leak scan, and the 11-path pull-request scope check passed.
+
+PR #228 merged as `703ddb20` after all required CI checks passed. CodeRabbit
+was rate limited, and direct inspection confirmed zero inline comments,
+reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- Source Ledger owns revision lookup, evidence/revision staging, completion,
+  and graph scheduling through `SourceRevisionService` plus owner-defined
+  commands and immutable draft facts.
+- All three revision phases retain `REQUIRES_NEW`; completion advances the
+  source current revision and calls the existing Source Ledger-owned graph port
+  inside the same transaction.
+- `ConnectorSourceRevisionCoordinator` is now only a translation adapter from
+  Connector, Asset, and embedding facts; it no longer injects Source Ledger
+  repositories/entities or `GraphIndexJobQueue`.
+- The duplicate Connector-owned revision draft is removed, exact Modulith
+  assertions pin the nine revision contracts, and Graph has no direct Knowledge
+  sibling consumers.
+- Focused Source Revision/Modulith and vertical Connector staging/content-edit
+  integration tests, `:core:test`, docs/release checks, and the terminating
+  repository `clean test` gate pass.
+- The pull request contains production code and remains below 100 changed files
+  before Connector's direct Asset and Retrieval translation seams are assessed.
+
+Pre-PR verification completed: repository compilation passed in 10s; focused
+Source Revision and exact Modulith boundary tests passed in 28s; vertical
+Connector staging/content-edit integration tests passed in 1m29s; `:core:test`
+passed in 1m29s; the documentation operating-model check passed across 436
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository-wide `clean test` completed
+successfully in 6m27s across 99 tasks. Mechanical package, zero-byte, and
+migration-name checks, diff hygiene, the zero Coordinator persistence/Graph
+import scan, duplicate-draft removal scan, and the 13-path pull-request scope
+check passed.
