@@ -62,6 +62,10 @@ static-asset layout used by the container. Response-header and
 representation-routing checks therefore cover the deployed Linux runtime
 rather than the development server. Windows uses `next start` because traced
 pnpm symlinks in the Linux-oriented standalone output are not executable there.
+The production-browser suite treats React hydration diagnostics as failures on
+representative category routes. Fumadocs Core and Base UI stay on the same
+release so static layout-tab selection and the browser's first render produce
+the same sidebar structure.
 
 Published document URLs have one representation: `/docs/...` and
 `/vi/docs/...` always return HTML, while their explicit `.md` siblings return
