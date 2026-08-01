@@ -21,25 +21,25 @@
 
 ## 2. Durable lifecycle and recovery
 
-- [ ] Add the challenged command/outcome lifecycle, logical operation identity,
+- [x] Add the challenged command/outcome lifecycle, logical operation identity,
   predecessor-bound attempts, claim epoch, exact commit permit, publication
   proof, and store-issued discard permit.
-- [ ] Make the in-memory and PostgreSQL stores resume exact partial batches
+- [x] Make the in-memory and PostgreSQL stores resume exact partial batches
   without weakening identity conflicts or atomic publication.
-- [ ] Make OpenSearch reconcile every safe `COMMITTING` observation and fail
+- [x] Make OpenSearch reconcile every safe `COMMITTING` observation and fail
   closed on contradictory or foreign heads.
-- [ ] Preserve remove-before-unlock style safety: never discard staging that a
+- [x] Preserve remove-before-unlock style safety: never discard staging that a
   visible, historical, or not-yet-classified head may reference.
-- [ ] Fence copy-forward staging runs by claim epoch so live runs are never
+- [x] Fence copy-forward staging runs by claim epoch so live runs are never
   stolen and abandoned lower-epoch writes cannot affect the selected run.
-- [ ] Keep graph-job ownership/manifest checks, cache invalidation, and durable
+- [x] Keep graph-job ownership/manifest checks, cache invalidation, and durable
   completion in the challenged order.
 
 ## 3. Verification
 
-- [ ] Add shared conformance recovery tests plus adapter restart/crash-window
+- [x] Add shared conformance recovery tests plus adapter restart/crash-window
   tests and worker fencing/identity tests.
-- [ ] Run the narrowest useful Gradle module tests after each logical step.
+- [x] Run the narrowest useful Gradle module tests after each logical step.
 - [ ] Run IDE/static inspection for edited backend Java when available.
 - [ ] Run a terminating `gradlew clean test` from a clean integrated head.
 - [ ] Confirm `git diff --check`, no secret/customer data, and a clean worktree.

@@ -388,10 +388,17 @@ The integration also implements the framework-neutral content, lexical,
 vector, graph, and publication contracts over one namespace snapshot. Staged
 records are keyed by publication batch, all required adapters leave durable
 preparation receipts, and a namespace-scoped publication lock exposes exactly
-one winning batch. Content, FTS, pgvector, and graph readers validate that batch
-and prefilter organization plus authorized Knowledge Asset IDs before scoring
-or traversal. Published predecessor batches remain addressable; losing or
-aborted staged records are never selected by a generation-only query.
+one winning batch. Each physical attempt pins the exact predecessor batch and a
+never-reused graph-job claim epoch. PostgreSQL issues one irrevocable exact
+commit permit after the current lease, target, cancellation state, and manifest
+are rechecked; the selected PostgreSQL or OpenSearch publication adapter binds
+that permit before its local head CAS. Ambiguous outcomes retain staging, while
+cleanup requires a store-issued discard permit and retires the durable commit
+permit before deleting staged records. Content, FTS, pgvector, and graph readers
+validate the winning batch and prefilter organization plus authorized Knowledge
+Asset IDs before scoring or traversal. Published predecessor batches remain
+addressable; losing or aborted staged records are never selected by a
+generation-only query.
 
 Vector indexes are rebuildable and operator-selectable: exact, HNSW,
 half-vector HNSW, IVFFlat, or VChordRQ. VChordRQ requires the separately
@@ -418,9 +425,13 @@ revision, active chunk generation, ACL snapshot/generation, embedding profile,
 and extraction route. Multi-replica workers claim jobs through leased
 `FOR UPDATE SKIP LOCKED` work, extract chunks with bounded concurrency, assemble
 deterministic evidence contributions, embed them with the immutable document
-embedding profile, and publish the complete graph generation together with the
-durable job outcome in one PostgreSQL transaction. A stale version is
-superseded and a failed publish leaves the previous generation intact.
+embedding profile, and prepare every retrieval projection before obtaining the
+exact commit permit. Projection publication and graph-job completion are
+separate durable convergence steps, not one cross-store transaction: replay
+repairs an exact `COMMITTING` marker, invalidates both graph caches, and then
+completes the job from the persisted publication proof even after the original
+lease expires. A stale version is superseded before permit issuance and a
+failed or concurrently lost publish leaves the previous generation intact.
 
 Assistant graph retrieval is the default runtime. The application verifies the
 complete entity/relation/chunk evidence closure before asking the core renderer
