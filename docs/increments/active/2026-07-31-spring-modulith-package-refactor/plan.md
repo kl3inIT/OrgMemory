@@ -565,6 +565,15 @@ confirmed zero inline comments, reviews, or review threads before merge.
 - The pull request contains production module metadata and tests and remains
   below 100 changed files before the next Knowledge module is assessed.
 
+The initial closure probe surfaced the existing Space administration dependency
+on permission-audit contracts. `permission` was added to both the production
+allowlist and exact regression assertion; `modules.verify()` then passed in
+21s. Full `:core:test` passed in 1m11s; the docs operating-model check passed
+across 419 Markdown files and 8 mirrored domain pairs; all 37 release-policy
+tests passed under Node 24.15; and the terminating repository `clean test` gate
+completed successfully in 4m56s across 99 tasks. Diff hygiene and the four-path
+PR scope check passed.
+
 Pre-PR verification completed: focused ACL and Modulith tests passed in 25s;
 `:core:test` passed in 1m08s; the docs operating-model check passed across 417
 Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
@@ -580,7 +589,7 @@ PR #216 merged as `b6a821c2eee5b8bb2b7a626a3758e975c372fa90` after all
 required CI checks passed. CodeRabbit confirmed the release-note correction
 and resolved its only review thread before merge.
 
-## Current Pull Request Gates
+## Twenty-Second Pull Request Evidence
 
 - Space owns a read-only `KnowledgeSpaceQuery` for tenant-scoped existence and
   active-availability checks.
@@ -603,3 +612,22 @@ domain pairs; all 37 release-policy tests passed under Node 24.15; and the
 terminating repository `clean test` gate completed successfully in 5m36s
 across 99 tasks. Diff hygiene, zero sibling Space-repository imports, and the
 14-path PR scope check passed.
+
+PR #217 merged as `309f451a383920c18403ae362dd7d460bcd6e2ff` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.space` is a closed nested application module rather than an open
+  migration module.
+- Its outgoing allowlist is limited to authorization, Source Ledger,
+  organization, permission, shared, and `shared::error`.
+- `modules.verify()` passes, proving current consumers use only Space's public
+  root-package contracts and no undeclared outgoing edge exists.
+- The closure regression test pins both the closed state and the exact
+  six-entry dependency allowlist.
+- Focused Space and Modulith tests, `:core:test`, docs/release checks, and the
+  terminating repository `clean test` gate pass.
+- The pull request contains production module metadata and tests and remains
+  below 100 changed files before the next Knowledge module is assessed.

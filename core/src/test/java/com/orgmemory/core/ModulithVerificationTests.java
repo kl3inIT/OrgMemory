@@ -34,10 +34,23 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeSpaceIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeSpaceIsAClosedNestedModule() {
         var space = modules.getModuleByName("knowledge.space").orElseThrow();
+        var allowedDependencies = space.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(space.isOpen());
+        assertFalse(space.isOpen());
+        assertEquals(
+                Set.of(
+                        "authorization",
+                        "knowledge.sourceledger",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
