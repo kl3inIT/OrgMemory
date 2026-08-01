@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (345ccde8)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (a86e892e)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

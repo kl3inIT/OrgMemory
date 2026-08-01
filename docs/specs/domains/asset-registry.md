@@ -8,7 +8,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (345ccde8)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (a86e892e)`.
 
 ## Current Behavior
 

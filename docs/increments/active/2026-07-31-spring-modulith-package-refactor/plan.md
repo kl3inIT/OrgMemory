@@ -1037,3 +1037,10 @@ because the PR body omitted its required release disposition. The body now
 records that this internal package-boundary refactor has no user-facing release
 impact. A fresh synchronize run is required because rerunning the original
 workflow preserves its original pull-request event payload.
+
+After merging current `origin/main` at `a86e892e`, all 50 focused catalog and
+Modulith tests passed again in 26s. The documentation check passed across 467
+Markdown files and 8 mirrored domain pairs, and the expanded release gate from
+main passed all 40 tests under Node 24.15. The spec/test reconciliation markers
+now point at the merge commit containing both the catalog boundary and the
+concurrent Skill CLI lifecycle changes.
