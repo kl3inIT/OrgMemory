@@ -3,12 +3,9 @@ package com.orgmemory.core.knowledge.graph;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
-import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
@@ -29,31 +26,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class GraphIndexingCoordinator {
 
     private final GraphIndexJobRepository jobs;
-    private final KnowledgeAssetRepository assets;
-    private final KnowledgeAssetVersionRepository versions;
+    private final KnowledgeAssetGraphQuery assets;
     private final SourceRevisionRepository revisions;
     private final SourceAclQuery aclQuery;
     private final EmbeddingProfileRepository embeddingProfiles;
     private final GraphProcessingProfileRegistry graphProcessingProfiles;
-    private final KnowledgeChunkProjectionStore chunks;
 
     GraphIndexingCoordinator(
             GraphIndexJobRepository jobs,
-            KnowledgeAssetRepository assets,
-            KnowledgeAssetVersionRepository versions,
+            KnowledgeAssetGraphQuery assets,
             SourceRevisionRepository revisions,
             SourceAclQuery aclQuery,
             EmbeddingProfileRepository embeddingProfiles,
-            GraphProcessingProfileRegistry graphProcessingProfiles,
-            KnowledgeChunkProjectionStore chunks) {
+            GraphProcessingProfileRegistry graphProcessingProfiles) {
         this.jobs = jobs;
         this.assets = assets;
-        this.versions = versions;
         this.revisions = revisions;
         this.aclQuery = aclQuery;
         this.embeddingProfiles = embeddingProfiles;
         this.graphProcessingProfiles = graphProcessingProfiles;
-        this.chunks = chunks;
     }
 
     @Transactional
@@ -155,12 +146,11 @@ public class GraphIndexingCoordinator {
     }
 
     private Optional<ClaimedGraphIndex> currentClaim(GraphIndexJob job) {
-        KnowledgeAsset asset = assets
-                .findByIdAndOrganizationId(job.getKnowledgeAssetId(), job.getOrganizationId())
+        KnowledgeAssetGraphRef asset = assets
+                .findAsset(job.getOrganizationId(), job.getKnowledgeAssetId())
                 .orElse(null);
-        KnowledgeAssetVersion version = versions
-                .findByIdAndOrganizationId(
-                        job.getKnowledgeAssetVersionId(), job.getOrganizationId())
+        KnowledgeAssetVersionGraphRef version = assets
+                .findVersion(job.getOrganizationId(), job.getKnowledgeAssetVersionId())
                 .orElse(null);
         SourceRevision revision = revisions
                 .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
@@ -169,7 +159,7 @@ public class GraphIndexingCoordinator {
             return Optional.empty();
         }
         SourceAclSnapshotRef snapshot = aclQuery
-                .findSnapshot(job.getOrganizationId(), version.getSourceAclSnapshotId())
+                .findSnapshot(job.getOrganizationId(), version.sourceAclSnapshotId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Graph index ACL snapshot is missing"));
         EmbeddingProfileRef embeddingProfile = embeddingProfiles
@@ -180,7 +170,7 @@ public class GraphIndexingCoordinator {
                         "Graph index embedding profile is missing"));
         GraphProcessingProfileRef graphProcessingProfile =
                 graphProcessingProfiles.get(job.getGraphProcessingProfileId());
-        var activeChunks = chunks.loadActive(
+        var activeChunks = assets.loadActiveChunks(
                         job.getOrganizationId(),
                         job.getSourceRevisionId(),
                         job.getKnowledgeAssetId(),
@@ -203,7 +193,7 @@ public class GraphIndexingCoordinator {
                 job.getId(),
                 job.getOrganizationId(),
                 job.getKnowledgeAssetId(),
-                asset.getKnowledgeSpaceId(),
+                asset.knowledgeSpaceId(),
                 job.getKnowledgeAssetVersionId(),
                 job.getSourceRevisionId(),
                 snapshot.id(),
@@ -212,18 +202,17 @@ public class GraphIndexingCoordinator {
                 graphProcessingProfile,
                 job.getIdempotencyKey(),
                 embeddingProfile,
-                version.getLanguage(),
+                version.language(),
                 job.getAttemptCount(),
                 activeChunks));
     }
 
     private boolean isCurrent(GraphIndexJob job) {
-        KnowledgeAsset asset = assets
-                .findByIdAndOrganizationId(job.getKnowledgeAssetId(), job.getOrganizationId())
+        KnowledgeAssetGraphRef asset = assets
+                .findAsset(job.getOrganizationId(), job.getKnowledgeAssetId())
                 .orElse(null);
-        KnowledgeAssetVersion version = versions
-                .findByIdAndOrganizationId(
-                        job.getKnowledgeAssetVersionId(), job.getOrganizationId())
+        KnowledgeAssetVersionGraphRef version = assets
+                .findVersion(job.getOrganizationId(), job.getKnowledgeAssetVersionId())
                 .orElse(null);
         SourceRevision revision = revisions
                 .findByIdAndOrganizationId(job.getSourceRevisionId(), job.getOrganizationId())
@@ -248,16 +237,16 @@ public class GraphIndexingCoordinator {
 
     private static boolean isCurrent(
             GraphIndexJob job,
-            KnowledgeAsset asset,
-            KnowledgeAssetVersion version,
+            KnowledgeAssetGraphRef asset,
+            KnowledgeAssetVersionGraphRef version,
             SourceRevision revision) {
         return asset != null
-                && asset.getArchivedAt() == null
-                && job.getKnowledgeAssetVersionId().equals(asset.getCurrentVersionId())
+                && !asset.archived()
+                && job.getKnowledgeAssetVersionId().equals(asset.currentVersionId())
                 && version != null
-                && version.getStatus() == KnowledgeAssetVersionStatus.ACTIVE
-                && job.getKnowledgeAssetId().equals(version.getKnowledgeAssetId())
-                && job.getSourceRevisionId().equals(version.getSourceRevisionId())
+                && version.active()
+                && job.getKnowledgeAssetId().equals(version.knowledgeAssetId())
+                && job.getSourceRevisionId().equals(version.sourceRevisionId())
                 && revision != null
                 && revision.getStatus() == SourceRevisionStatus.READY
                 && job.getKnowledgeAssetId().equals(revision.getKnowledgeAssetId())

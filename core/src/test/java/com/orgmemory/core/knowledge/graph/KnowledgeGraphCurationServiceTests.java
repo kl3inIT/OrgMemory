@@ -5,8 +5,7 @@ import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
 import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
 import com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate;
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,7 +30,6 @@ import com.orgmemory.graphrag.model.EvidenceReference;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +47,8 @@ class KnowledgeGraphCurationServiceTests {
     private static final UUID ENTITY_ID = UUID.randomUUID();
 
     private final KnowledgeSpaceQuery spaces = mock(KnowledgeSpaceQuery.class);
-    private final KnowledgeAssetRepository assets =
-            mock(KnowledgeAssetRepository.class);
+    private final KnowledgeAssetGraphQuery assets =
+            mock(KnowledgeAssetGraphQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
     private final KnowledgeEvidenceScopeResolver evidenceScopes =
@@ -80,10 +79,6 @@ class KnowledgeGraphCurationServiceTests {
     void setUpSpaceAndEvidence() {
         when(spaces.isActive(ORGANIZATION_ID, SPACE_ID))
                 .thenReturn(true);
-        KnowledgeAsset asset = mock(KnowledgeAsset.class);
-        when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
-                .thenReturn(Optional.of(asset));
-        when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
         when(store.append(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
         when(evidenceScopes.resolve(actor, "model-v1"))
                 .thenReturn(new ResolvedKnowledgeEvidenceScope(
@@ -168,8 +163,9 @@ class KnowledgeGraphCurationServiceTests {
     void governingEvidenceCannotCrossKnowledgeSpaces() {
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
-        when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
-                .thenReturn(Optional.of(mock(KnowledgeAsset.class)));
+        doThrow(new KnowledgeResourceNotFoundException())
+                .when(assets)
+                .requireInSpace(ORGANIZATION_ID, ASSET_ID, SPACE_ID);
 
         assertThrows(
                 KnowledgeResourceNotFoundException.class,

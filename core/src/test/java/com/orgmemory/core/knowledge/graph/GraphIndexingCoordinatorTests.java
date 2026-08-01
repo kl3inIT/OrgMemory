@@ -4,13 +4,10 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfile;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAsset;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersion;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionStatus;
-import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjection;
-import com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphChunk;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef;
 
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
@@ -51,29 +48,23 @@ class GraphIndexingCoordinatorTests {
             graphProcessingProfile();
 
     private final GraphIndexJobRepository jobs = mock(GraphIndexJobRepository.class);
-    private final KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
-    private final KnowledgeAssetVersionRepository versions =
-            mock(KnowledgeAssetVersionRepository.class);
+    private final KnowledgeAssetGraphQuery assets = mock(KnowledgeAssetGraphQuery.class);
     private final SourceRevisionRepository revisions = mock(SourceRevisionRepository.class);
     private final SourceAclQuery aclQuery = mock(SourceAclQuery.class);
     private final EmbeddingProfileRepository embeddingProfiles =
             mock(EmbeddingProfileRepository.class);
     private final GraphProcessingProfileRegistry graphProcessingProfiles =
             mock(GraphProcessingProfileRegistry.class);
-    private final KnowledgeChunkProjectionStore chunks =
-            mock(KnowledgeChunkProjectionStore.class);
     private final GraphIndexingCoordinator coordinator = new GraphIndexingCoordinator(
             jobs,
             assets,
-            versions,
             revisions,
             aclQuery,
             embeddingProfiles,
-            graphProcessingProfiles,
-            chunks);
+            graphProcessingProfiles);
 
     private GraphIndexJob job;
-    private KnowledgeAsset asset;
+    private KnowledgeAssetGraphRef asset;
 
     @BeforeEach
     void setUpCurrentTarget() {
@@ -86,8 +77,15 @@ class GraphIndexingCoordinatorTests {
                 GRAPH_PROCESSING_PROFILE,
                 5,
                 Instant.parse("2026-07-23T00:00:00Z"));
-        asset = mock(KnowledgeAsset.class);
-        KnowledgeAssetVersion version = mock(KnowledgeAssetVersion.class);
+        asset = new KnowledgeAssetGraphRef(ASSET_ID, SPACE_ID, VERSION_ID, false);
+        KnowledgeAssetVersionGraphRef version = new KnowledgeAssetVersionGraphRef(
+                VERSION_ID,
+                ASSET_ID,
+                REVISION_ID,
+                ACL_SNAPSHOT_ID,
+                1,
+                "vi",
+                true);
         SourceRevision revision = mock(SourceRevision.class);
         SourceAclSnapshotRef snapshot = new SourceAclSnapshotRef(
                 ACL_SNAPSHOT_ID,
@@ -105,17 +103,10 @@ class GraphIndexingCoordinatorTests {
         when(jobs.findById(job.getId())).thenReturn(Optional.of(job));
         when(jobs.findByIdAndOrganizationId(job.getId(), ORGANIZATION_ID))
                 .thenReturn(Optional.of(job));
-        when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
+        when(assets.findAsset(ORGANIZATION_ID, ASSET_ID))
                 .thenReturn(Optional.of(asset));
-        when(asset.getCurrentVersionId()).thenReturn(VERSION_ID);
-        when(asset.getKnowledgeSpaceId()).thenReturn(SPACE_ID);
-        when(versions.findByIdAndOrganizationId(VERSION_ID, ORGANIZATION_ID))
+        when(assets.findVersion(ORGANIZATION_ID, VERSION_ID))
                 .thenReturn(Optional.of(version));
-        when(version.getStatus()).thenReturn(KnowledgeAssetVersionStatus.ACTIVE);
-        when(version.getKnowledgeAssetId()).thenReturn(ASSET_ID);
-        when(version.getSourceRevisionId()).thenReturn(REVISION_ID);
-        when(version.getSourceAclSnapshotId()).thenReturn(ACL_SNAPSHOT_ID);
-        when(version.getLanguage()).thenReturn("vi");
         when(revisions.findByIdAndOrganizationId(REVISION_ID, ORGANIZATION_ID))
                 .thenReturn(Optional.of(revision));
         when(revision.getStatus()).thenReturn(SourceRevisionStatus.READY);
@@ -137,13 +128,13 @@ class GraphIndexingCoordinatorTests {
                 EmbeddingDistanceMetric.COSINE));
         when(graphProcessingProfiles.get(GRAPH_PROCESSING_PROFILE.id()))
                 .thenReturn(GRAPH_PROCESSING_PROFILE);
-        when(chunks.loadActive(
+        when(assets.loadActiveChunks(
                         ORGANIZATION_ID,
                         REVISION_ID,
                         ASSET_ID,
                         VERSION_ID,
                         1))
-                .thenReturn(List.of(new KnowledgeChunkProjection(
+                .thenReturn(List.of(new KnowledgeAssetGraphChunk(
                         CHUNK_ID,
                         0,
                         "Current chunk",
@@ -197,7 +188,9 @@ class GraphIndexingCoordinatorTests {
     @Test
     void supersedesAClaimWhenTheStableAssetMovesToAnotherVersion() {
         coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
-        when(asset.getCurrentVersionId()).thenReturn(UUID.randomUUID());
+        when(assets.findAsset(ORGANIZATION_ID, ASSET_ID))
+                .thenReturn(Optional.of(new KnowledgeAssetGraphRef(
+                        ASSET_ID, SPACE_ID, UUID.randomUUID(), false)));
 
         GraphIndexingStoppedException stopped = assertThrows(
                 GraphIndexingStoppedException.class,
@@ -212,7 +205,9 @@ class GraphIndexingCoordinatorTests {
     @Test
     void heartbeatStopsAndSupersedesBeforeStalePublication() {
         coordinator.claimNext("worker-a", Duration.ofMinutes(5)).orElseThrow();
-        when(asset.getCurrentVersionId()).thenReturn(UUID.randomUUID());
+        when(assets.findAsset(ORGANIZATION_ID, ASSET_ID))
+                .thenReturn(Optional.of(new KnowledgeAssetGraphRef(
+                        ASSET_ID, SPACE_ID, UUID.randomUUID(), false)));
 
         GraphIndexingStoppedException stopped = assertThrows(
                 GraphIndexingStoppedException.class,
@@ -318,7 +313,7 @@ class GraphIndexingCoordinatorTests {
 
     @Test
     void supersedesUnavailableWorkBeforeReturningItToAWorker() {
-        when(assets.findByIdAndOrganizationId(ASSET_ID, ORGANIZATION_ID))
+        when(assets.findAsset(ORGANIZATION_ID, ASSET_ID))
                 .thenReturn(Optional.empty());
 
         assertTrue(coordinator
@@ -350,7 +345,7 @@ class GraphIndexingCoordinatorTests {
 
     @Test
     void retriesWhenPinnedProjectionInputsAreTemporarilyUnavailable() {
-        when(chunks.loadActive(
+        when(assets.loadActiveChunks(
                         ORGANIZATION_ID,
                         REVISION_ID,
                         ASSET_ID,
