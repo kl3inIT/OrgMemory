@@ -24,6 +24,7 @@ import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
+import com.orgmemory.core.knowledge.asset.KnowledgeEmbeddingProfileRef;
 import com.orgmemory.core.knowledge.asset.KnowledgeChunkDraftAssembler;
 import com.orgmemory.core.knowledge.asset.KnowledgeTextChunk;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService;
@@ -268,7 +269,10 @@ class SourceIngestionProcessor {
                     claim.sourceRevisionId(),
                     normalized.normalizedRecordId(),
                     claim.createdByUserId(),
-                    embeddingProfile,
+                    new KnowledgeEmbeddingProfileRef(
+                            embeddingProfile.id(),
+                            embeddingProfile.organizationId(),
+                            embeddingProfile.dimensions()),
                     properties.pipelineVersion(),
                     drafts));
             coordinator.complete(

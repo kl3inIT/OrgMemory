@@ -925,7 +925,7 @@ PR #233 merged as `9e2e7248` after all required CI checks passed. CodeRabbit
 was rate limited, and direct inspection confirmed zero inline comments,
 reviews, or review threads before merge.
 
-## Current Pull Request Gates
+## Thirty-third Pull Request Evidence
 
 - `KnowledgeCatalogItem`, `KnowledgeTextChunk`, and `PgVectorLiteral` move from
   Retrieval to their Asset owner without changing their data shape or behavior.
@@ -963,3 +963,39 @@ any reintroduced legacy dependency.
 
 Review-fix verification passed: the focused positive/negative ownership test in
 25s, full `:core:test` in 1m43s, and the 451-file documentation check.
+
+PR #235 merged as `c29cc75e` after all required CI checks passed. CodeRabbit's
+single ownership-test finding was fixed and direct audit confirmed its only
+review thread resolved before merge.
+
+## Current Pull Request Gates
+
+- Asset owns the compact `KnowledgeEmbeddingProfileRef` needed to persist chunk
+  projections; Connector and Worker translate Retrieval's richer profile at
+  their orchestration boundary.
+- `KnowledgeProjectionNamespaces` moves to Asset because the identifiers name
+  Asset-owned catalog, chunk, authorization, and graph projections. Graph and
+  Retrieval consume that owner-defined value one way.
+- A failing-first ArchUnit regression proves the previous Asset-to-Retrieval
+  dependency and now rejects any direct edge from Asset back to Retrieval.
+- Exact temporary-boundary assertions remove four Asset consumers from
+  Retrieval's incoming surface and pin the new Asset-owned contracts.
+- Repository compilation and full Core/API/Worker tests pass, and this code PR
+  remains below 100 files before Asset itself is closed in the next PR.
+
+Pre-PR verification completed: the new Asset isolation test failed first on
+the unchanged direct Retrieval edge, then all 40 focused Modulith tests passed
+in 27s. Repository compilation passed in 17s, and the combined full
+Core/API/Worker gate completed successfully in 7m07s. The documentation,
+operating-model check passed across 452 Markdown files and 8 mirrored domain
+pairs; all 37 release-policy tests passed under Node 24.15; and the terminating
+repository-wide `clean test` completed successfully in 1m04s across 99 tasks.
+Mechanical package, zero-byte, migration-name, diff-hygiene, zero
+Asset-to-Retrieval-import, zero Asset-to-Asset-Registry-import, and 19-path
+scope checks passed.
+
+After merging current `origin/main`, all 40 Modulith tests passed again in 8s;
+the documentation check passed across 459 Markdown files; and all 37
+release-policy tests passed again under Node 24.15. The final PR diff contains
+18 paths because Git recognizes the projection-namespace package move as a
+rename.

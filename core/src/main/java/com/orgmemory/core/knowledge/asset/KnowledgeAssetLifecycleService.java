@@ -1,7 +1,6 @@
 package com.orgmemory.core.knowledge.asset;
 
 import com.orgmemory.core.authorization.PermissionKey;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
 import com.orgmemory.core.authorization.ResourceRef;

@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.asset;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,7 +11,7 @@ public record PublishKnowledgeAssetCommand(
         UUID sourceRevisionId,
         UUID normalizedRecordId,
         UUID ownerUserId,
-        EmbeddingProfileRef embeddingProfile,
+        KnowledgeEmbeddingProfileRef embeddingProfile,
         String pipelineVersion,
         List<KnowledgeChunkDraft> chunks) {
 

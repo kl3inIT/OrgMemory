@@ -312,7 +312,8 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphChunk",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef"),
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces"),
                 consumedTypes);
     }
 
@@ -397,7 +398,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
                         "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
@@ -638,6 +638,18 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void knowledgeAssetDoesNotDependOnRetrieval() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.knowledge.asset..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.knowledge.retrieval..")
+                .check(new ClassFileImporter()
+                        .importPackages("com.orgmemory.core.knowledge.asset"));
+    }
+
+    @Test
     void knowledgeGraphIsAClosedNestedModule() {
         var graph = modules.getModuleByName("knowledge.graph").orElseThrow();
         var allowedDependencies = graph.getAllowedDependencies(modules).stream()
@@ -692,10 +704,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.assistant.AssistantCitation",
                         "com.orgmemory.core.assistant.AssistantPromptFactory",
                         "com.orgmemory.core.assistant.AssistantService",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationOutbox",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeChunkProjectionStore",
-                        "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand",
                         "com.orgmemory.core.knowledge.connector.ConnectorEmbeddingResult",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
@@ -712,7 +720,6 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeProjectionNamespaces",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
                         "com.orgmemory.core.knowledge.retrieval.PermissionAwareKnowledgeSearch",
                         "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
@@ -765,8 +772,11 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerService",
+                        "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
@@ -786,6 +796,8 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeEmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces",
                         "com.orgmemory.core.knowledge.asset.PgVectorLiteral",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
                 consumedInternalTypes);
