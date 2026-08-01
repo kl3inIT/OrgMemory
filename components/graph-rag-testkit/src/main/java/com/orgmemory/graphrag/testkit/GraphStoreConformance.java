@@ -57,6 +57,17 @@ public final class GraphStoreConformance {
     public static void verify(
             GraphStore store,
             ProjectionPublicationStore publications) {
+        verify(store, publications, null);
+    }
+
+    /**
+     * Runs the shared contract and, when supplied, records the pre-coordinator
+     * traversal guard behavior of the selected backend.
+     */
+    public static void verify(
+            GraphStore store,
+            ProjectionPublicationStore publications,
+            TraversalCharacterization traversalCharacterization) {
         java.util.Objects.requireNonNull(store, "store");
         java.util.Objects.requireNonNull(publications, "publications");
 
@@ -70,6 +81,15 @@ public final class GraphStoreConformance {
         AuthorizedEvidenceScope allScope = scope(
                 ORGANIZATION_ID, Set.of(PUBLIC_ASSET_ID, SECRET_ASSET_ID));
         AuthorizedEvidenceScope emptyScope = scope(ORGANIZATION_ID, Set.of());
+
+        if (traversalCharacterization != null) {
+            characterizeTraversalGuards(
+                    store,
+                    publicScope,
+                    firstSnapshot,
+                    SHARED_ENTITY_ID,
+                    traversalCharacterization);
+        }
 
         requireIds(
                 store.loadEntities(
@@ -265,6 +285,73 @@ public final class GraphStoreConformance {
             ProjectionPublicationStore publications) {
         publications.markPrepared(batch, ProjectionKind.GRAPH, NOW);
         return publications.publish(batch, NOW);
+    }
+
+    public static void characterizeTraversalGuards(
+            GraphStore store,
+            AuthorizedEvidenceScope scope,
+            ProjectionSnapshot snapshot,
+            UUID visibleSeedEntityId,
+            TraversalCharacterization characterization) {
+        java.util.Objects.requireNonNull(store, "store");
+        java.util.Objects.requireNonNull(scope, "scope");
+        java.util.Objects.requireNonNull(snapshot, "snapshot");
+        java.util.Objects.requireNonNull(visibleSeedEntityId, "visibleSeedEntityId");
+        java.util.Objects.requireNonNull(characterization, "characterization");
+        if (characterization.acceptsZeroLimit()) {
+            require(
+                    store.expandEntityIds(
+                                    scope,
+                                    snapshot,
+                                    List.of(visibleSeedEntityId),
+                                    1,
+                                    0)
+                            .isEmpty(),
+                    "the current backend must accept a zero traversal limit");
+        } else {
+            expect(
+                    IllegalArgumentException.class,
+                    () -> store.expandEntityIds(
+                            scope,
+                            snapshot,
+                            List.of(visibleSeedEntityId),
+                            1,
+                            0));
+        }
+
+        ProjectionSnapshot fabricated = new ProjectionSnapshot(
+                id("fabricated-traversal-batch"),
+                snapshot.namespace(),
+                snapshot.generation(),
+                snapshot.manifestFingerprint(),
+                snapshot.projections(),
+                snapshot.publishedAt());
+        if (characterization.validatesEmptySeedSnapshot()) {
+            expect(
+                    ProjectionPublicationStore.PublicationConflictException.class,
+                    () -> store.expandEntityIds(
+                            scope,
+                            fabricated,
+                            List.of(),
+                            1,
+                            1));
+        } else {
+            require(
+                    store.expandEntityIds(
+                                    scope,
+                                    fabricated,
+                                    List.of(),
+                                    1,
+                                    1)
+                            .isEmpty(),
+                    "the current backend must return before validating an empty-seed snapshot");
+        }
+    }
+
+    /** Temporary unchanged-code evidence removed after the shared target contract lands. */
+    public record TraversalCharacterization(
+            boolean acceptsZeroLimit,
+            boolean validatesEmptySeedSnapshot) {
     }
 
     private static GraphRevisionContributions publicRevision(

@@ -120,7 +120,10 @@ class PostgresSharedProjectionIntegrationTests {
 
     @Test
     void graphStorePassesSharedSecurityAndLifecycleConformance() {
-        GraphStoreConformance.verify(graph, publications);
+        GraphStoreConformance.verify(
+                graph,
+                publications,
+                new GraphStoreConformance.TraversalCharacterization(true, true));
     }
 
     @Test

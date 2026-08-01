@@ -43,7 +43,10 @@ class Neo4jGraphStoreIntegrationTests {
             var store = configuration.neo4jGraphStore(
                     operations, publications, properties);
 
-            GraphStoreConformance.verify(store, publications);
+            GraphStoreConformance.verify(
+                    store,
+                    publications,
+                    new GraphStoreConformance.TraversalCharacterization(false, true));
         }
     }
 

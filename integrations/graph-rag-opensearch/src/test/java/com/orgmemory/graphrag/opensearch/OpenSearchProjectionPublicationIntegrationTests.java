@@ -30,6 +30,7 @@ import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConf
 import com.orgmemory.graphrag.storage.ProcessingStatusIndex;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
+import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -135,6 +136,25 @@ class OpenSearchProjectionPublicationIntegrationTests {
     @Test
     void publicationStorePassesSharedConformance() {
         ProjectionPublicationConformance.verify(() -> publications);
+    }
+
+    @Test
+    void graphStoreCharacterizesTraversalGuardsBeforeTheCoordinatorMigration() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID,
+                "traversal-characterization",
+                "knowledge");
+        ProjectionBatch batch = graphOnlyBatch(namespace, "guards", 0);
+        graph.stageReplaceRevision(batch, graphRevision(batch.generation()));
+        publications.markPrepared(batch, ProjectionKind.GRAPH, NOW);
+        ProjectionSnapshot snapshot = publications.publish(batch, NOW);
+
+        GraphStoreConformance.characterizeTraversalGuards(
+                graph,
+                scope(Set.of(ASSET_ID)),
+                snapshot,
+                ENTITY_A_ID,
+                new GraphStoreConformance.TraversalCharacterization(false, false));
     }
 
     @Test
