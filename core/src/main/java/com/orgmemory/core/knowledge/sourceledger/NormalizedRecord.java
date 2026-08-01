@@ -1,8 +1,5 @@
 package com.orgmemory.core.knowledge.sourceledger;
 
-import com.orgmemory.core.knowledge.acl.SourceAclSnapshot;
-
-
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.shared.BaseEntity;
@@ -65,7 +62,7 @@ public class NormalizedRecord extends BaseEntity {
 
     NormalizedRecord(
             RawSourceObject raw,
-            SourceAclSnapshot snapshot,
+            UUID sourceAclSnapshotId,
             NormalizeRawSourceCommand command,
             String contentSha256,
             NormalizedRecordStatus status,
@@ -73,7 +70,7 @@ public class NormalizedRecord extends BaseEntity {
         super(UUID.randomUUID());
         this.organizationId = raw.getOrganizationId();
         this.rawSourceObjectId = raw.getId();
-        this.sourceAclSnapshotId = snapshot.getId();
+        this.sourceAclSnapshotId = sourceAclSnapshotId;
         this.normalizerVersion = command.normalizerVersion().trim();
         this.title = blankToNull(command.title());
         this.normalizedContent = blankToNull(command.normalizedContent());
