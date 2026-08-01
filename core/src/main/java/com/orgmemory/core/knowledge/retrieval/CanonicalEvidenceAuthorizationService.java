@@ -21,10 +21,23 @@ class CanonicalEvidenceAuthorizationService {
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
+    private static final OpenFgaBatchRecheck.ReasonRule RESULT_REASON =
+            OpenFgaBatchRecheck.ReasonRule.resultReason();
+    private static final OpenFgaBatchRecheck.ReasonRule CITATION_DENIED =
+            OpenFgaBatchRecheck.ReasonRule.fixed(
+                    "CITATION_OPENFGA_RECHECK_DENIED");
+    private static final OpenFgaBatchRecheck.ReasonMapping RECHECK_REASONS =
+            new OpenFgaBatchRecheck.ReasonMapping(
+                    RESULT_REASON,
+                    RESULT_REASON,
+                    RESULT_REASON,
+                    CITATION_DENIED,
+                    CITATION_DENIED,
+                    CITATION_DENIED);
 
     private final KnowledgeSearchAuthorizationService searchAuthorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
-    private final RelationshipAuthorizationSetPort authorization;
+    private final OpenFgaBatchRecheck batchRecheck;
     private final SecureKnowledgeRetrievalStore canonicalEvidence;
 
     CanonicalEvidenceAuthorizationService(
@@ -34,7 +47,7 @@ class CanonicalEvidenceAuthorizationService {
             SecureKnowledgeRetrievalStore canonicalEvidence) {
         this.searchAuthorization = searchAuthorization;
         this.evidenceScopes = evidenceScopes;
-        this.authorization = authorization;
+        this.batchRecheck = new OpenFgaBatchRecheck(authorization);
         this.canonicalEvidence = canonicalEvidence;
     }
 
@@ -155,32 +168,33 @@ class CanonicalEvidenceAuthorizationService {
                         candidate.knowledgeAssetId()))
                 .distinct()
                 .toList();
-        var checked = authorization.batchCheck(
+        var rechecked = batchRecheck.recheck(
                 new BatchAuthorizationQuery(
                         actor.organizationId(),
                         actor.principal(),
                         CAN_VIEW,
-                        resources));
-        if (!checked.resolved()
-                || !authorizationModelId.equals(checked.policyVersion())
-                || checked.decisions().size() != resources.size()) {
+                        resources),
+                authorizationModelId,
+                OpenFgaBatchRecheck.ResultPolicy.REQUIRE_ALL_ALLOWED,
+                RECHECK_REASONS);
+        if (!rechecked.succeeded()) {
+            var failure = rechecked.failure();
+            if (failure.kind()
+                    == OpenFgaBatchRecheck.FailureKind.MISSING_DECISION
+                    || failure.kind()
+                            == OpenFgaBatchRecheck.FailureKind.DECISION_POLICY_MISMATCH
+                    || failure.kind()
+                            == OpenFgaBatchRecheck.FailureKind.DENIED) {
+                throw notVisible(
+                        failure.reasonCode(),
+                        authorizationModelId);
+            }
             throw searchAuthorization.unavailable(
                     actor,
                     requestId,
                     auditQuery,
-                    checked.reasonCode(),
-                    checked.policyVersion());
-        }
-        for (ResourceRef resource : resources) {
-            var decision = checked.decisions().get(resource);
-            if (decision == null
-                    || !decision.allowed()
-                    || !authorizationModelId.equals(
-                            decision.policyVersion())) {
-                throw notVisible(
-                        "CITATION_OPENFGA_RECHECK_DENIED",
-                        authorizationModelId);
-            }
+                    failure.reasonCode(),
+                    failure.policyVersion());
         }
     }
 

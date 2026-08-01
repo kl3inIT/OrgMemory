@@ -33,13 +33,28 @@ public class CanonicalHybridKnowledgeSearch
             KnowledgeSearchAuthorizationService.POLICY_VERSION;
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
+    private static final OpenFgaBatchRecheck.ReasonRule RESULT_REASON =
+            OpenFgaBatchRecheck.ReasonRule.resultReason();
+    private static final OpenFgaBatchRecheck.ReasonRule MODEL_MISMATCH =
+            OpenFgaBatchRecheck.ReasonRule.fixed(
+                    "AUTHORIZATION_MODEL_MISMATCH");
+    private static final OpenFgaBatchRecheck.ReasonMapping RECHECK_REASONS =
+            new OpenFgaBatchRecheck.ReasonMapping(
+                    RESULT_REASON,
+                    RESULT_REASON,
+                    MODEL_MISMATCH,
+                    OpenFgaBatchRecheck.ReasonRule.fixed(
+                            "OPENFGA_BATCH_INCOMPLETE"),
+                    MODEL_MISMATCH,
+                    OpenFgaBatchRecheck.ReasonRule.fixed(
+                            "RELATIONSHIP_DENIED"));
     private static final int RRF_RANK_CONSTANT = 60;
     private static final int MAX_REQUEST_ID_LENGTH = 128;
 
     private final SecureKnowledgeRetrievalStore store;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
     private final KnowledgeSearchAuthorizationService searchAuthorization;
-    private final RelationshipAuthorizationSetPort authorization;
+    private final OpenFgaBatchRecheck batchRecheck;
     private final QueryEmbeddingPort embeddings;
     private final PermissionAuditService audit;
     private final KnowledgeRetrievalProperties properties;
@@ -55,7 +70,7 @@ public class CanonicalHybridKnowledgeSearch
         this.store = store;
         this.evidenceScopes = evidenceScopes;
         this.searchAuthorization = searchAuthorization;
-        this.authorization = authorization;
+        this.batchRecheck = new OpenFgaBatchRecheck(authorization);
         this.embeddings = embeddings;
         this.audit = audit;
         this.properties = properties;
@@ -147,47 +162,28 @@ public class CanonicalHybridKnowledgeSearch
                         actor.organizationId(), RESOURCE_TYPE, candidate.candidate().knowledgeAssetId()))
                 .distinct()
                 .toList();
-        var checked = authorization.batchCheck(new BatchAuthorizationQuery(
-                actor.organizationId(), actor.principal(), CAN_VIEW, rankedResources));
-        if (!checked.resolved() || checked.decisions().size() != rankedResources.size()) {
+        var authorizationRecheck = batchRecheck.recheck(
+                new BatchAuthorizationQuery(
+                        actor.organizationId(),
+                        actor.principal(),
+                        CAN_VIEW,
+                        rankedResources),
+                evidenceScope.authorizationModelId(),
+                OpenFgaBatchRecheck.ResultPolicy.FILTER_DENIED,
+                RECHECK_REASONS);
+        if (!authorizationRecheck.succeeded()) {
+            var failure = authorizationRecheck.failure();
             throw searchAuthorization.unavailable(
                     actor,
                     requestId,
                     normalizedQuery,
-                    checked.reasonCode(),
-                    checked.policyVersion());
+                    failure.reasonCode(),
+                    failure.policyVersion());
         }
-        if (!evidenceScope.authorizationModelId().equals(checked.policyVersion())) {
-            throw searchAuthorization.unavailable(
-                    actor,
-                    requestId,
-                    normalizedQuery,
-                    "AUTHORIZATION_MODEL_MISMATCH",
-                    checked.policyVersion());
-        }
-        Set<UUID> allowedAssetIds = new LinkedHashSet<>();
-        for (ResourceRef resource : rankedResources) {
-            var decision = checked.decisions().get(resource);
-            if (decision == null) {
-                throw searchAuthorization.unavailable(
-                        actor,
-                        requestId,
-                        normalizedQuery,
-                        "OPENFGA_BATCH_INCOMPLETE",
-                        checked.policyVersion());
-            }
-            if (!evidenceScope.authorizationModelId().equals(decision.policyVersion())) {
-                throw searchAuthorization.unavailable(
-                        actor,
-                        requestId,
-                        normalizedQuery,
-                        "AUTHORIZATION_MODEL_MISMATCH",
-                        decision.policyVersion());
-            }
-            if (decision.allowed()) {
-                allowedAssetIds.add(UUID.fromString(resource.id()));
-            }
-        }
+        Set<UUID> allowedAssetIds = authorizationRecheck.allowedResources().stream()
+                .map(resource -> UUID.fromString(resource.id()))
+                .collect(java.util.stream.Collectors.toCollection(
+                        LinkedHashSet::new));
 
         List<ScoredCandidate> allowed = ranked.stream()
                 .filter(candidate -> allowedAssetIds.contains(candidate.candidate().knowledgeAssetId()))
