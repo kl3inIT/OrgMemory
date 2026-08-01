@@ -539,3 +539,9 @@ After merging current `origin/main` at `8f644113`, the docs check passed across
 404 Markdown files, all 37 release-policy tests passed again, the PR diff
 remained 16 paths, and a second terminating `clean test` completed successfully
 in 6m08s across 99 tasks.
+
+After merging current `origin/main` again at `acd2b48f`, including the
+authorization-consolidation changes, focused boundary tests passed in 46s, the
+docs check passed across 415 Markdown files, all 37 release-policy tests passed,
+and the terminating `clean test` completed successfully in 5m53s across 99
+tasks. The PR diff remains 16 paths.
