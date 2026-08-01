@@ -85,6 +85,12 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
   | Capability Pack | Mở Pack, thực hiện các mục được ghim mà bạn có quyền truy cập và ghi tiến độ theo chủ thể. | Đã hiểu kết quả, điều kiện tiên quyết, phiên bản từng mục và trạng thái access gap. |
   | Skill | Kiểm tra package trước khi cài qua CLI đã xác thực. | Compatibility, manifest, file digest và lệnh cài đặt chính xác phù hợp với môi trường. |
 
+  Trên Skill đã release, **Use your agent** sao chép instruction có ranh giới,
+  yêu cầu bạn chọn Claude Code hoặc Codex và xác nhận trước khi cài. **Use CLI**
+  hiển thị command `namespace/slug@version` chính xác cho từng target. Cả hai
+  cách đều dùng CLI đã có và quyền OrgMemory hiện tại; không cách nào tự cài CLI
+  hoặc cấp quyền rộng hơn.
+
   Lần gọi model bên ngoài và hành động thay đổi trạng thái cần được xác nhận rõ
   ràng. Chỉ mở một Asset sẽ không chạy model, cài Skill hoặc hoàn thành mục trong
   Pack.

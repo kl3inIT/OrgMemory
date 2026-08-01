@@ -12,13 +12,13 @@ import {
   Play,
   Send,
   ShieldCheck,
-  Terminal,
 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
 import { PageLayout } from "@/components/layouts/page-layout"
-import { CopyButton } from "@/components/patterns/copy-button"
+import { buildSkillInstallHandoff } from "@/features/assets/agent-handoff/skill-agent-handoffs"
+import { AgentHandoffPanel } from "@/features/assets/components/agent-handoff-panel"
 import { MetadataTile } from "@/features/assets/components/metadata-tile"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -783,73 +783,69 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
 
   const skill = manifest.data
   const reference = `${skill.coordinate}@${skill.version}`
+  const installHandoff = buildSkillInstallHandoff(reference)
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle>Install this exact Skill</CardTitle>
-              <p className="mt-1 text-supporting text-content-secondary">
-                Use the OrgMemory CLI to authenticate, verify the released package, and write an
-                installation receipt.
-              </p>
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="min-w-0 space-y-6">
+        <AgentHandoffPanel handoff={installHandoff} />
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Verified package</CardTitle>
+                <p className="mt-1 text-supporting text-content-secondary">
+                  Inspect the immutable package contract before installing this release.
+                </p>
+              </div>
+              <PackageCheck className="size-5 text-content-muted" aria-hidden="true" />
             </div>
-            <PackageCheck className="size-5 text-content-muted" aria-hidden="true" />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3">
-            <MetadataTile label="Package" value={formatBytes(skill.packageLength, "—")} />
-            <MetadataTile label="Files" value={String(skill.files?.length ?? 0)} />
-            <MetadataTile label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
-          </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-px overflow-hidden rounded-lg border border-border-subtle bg-border-subtle sm:grid-cols-3">
+              <MetadataTile label="Package" value={formatBytes(skill.packageLength, "—")} />
+              <MetadataTile label="Files" value={String(skill.files?.length ?? 0)} />
+              <MetadataTile label="SHA-256" value={skill.packageDigest?.slice(0, 16)} mono />
+            </div>
 
-          <div className="space-y-3">
-            <InstallCommand
-              agent="Claude Code"
-              command={`orgmemory skill add ${reference} --agent claude-code`}
-            />
-            <InstallCommand
-              agent="Codex"
-              command={`orgmemory skill add ${reference} --agent codex`}
-            />
-          </div>
+            <Alert>
+              <ShieldCheck aria-hidden="true" />
+              <AlertTitle>Authenticated and reproducible</AlertTitle>
+              <AlertDescription>
+                Installation uses your current OrgMemory access, pins this version and package
+                digest, verifies every released file, then promotes the staged directory
+                atomically.
+              </AlertDescription>
+            </Alert>
 
-          <Alert>
-            <ShieldCheck aria-hidden="true" />
-            <AlertTitle>Authenticated and reproducible</AlertTitle>
-            <AlertDescription>
-              Installation uses your current OrgMemory access, pins this version and package
-              digest, verifies every released file, then promotes the staged directory atomically.
-            </AlertDescription>
-          </Alert>
-
-          <Collapsible className="rounded-lg border border-border-subtle">
-            <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-supporting font-medium outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus-ring">
-              Package files
-              <ChevronDown
-                className="size-4 text-content-muted transition-transform group-data-[state=open]:rotate-180"
-                aria-hidden="true"
-              />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="border-t border-border-subtle">
-              <ul className="divide-y divide-border-subtle">
-                {skill.files?.map((file) => (
-                  <li key={file.path} className="flex items-center justify-between gap-4 px-4 py-3">
-                    <code className="min-w-0 truncate text-supporting text-content-primary">
-                      {file.path}
-                    </code>
-                    <span className="shrink-0 font-mono text-metadata text-content-muted">
-                      {formatBytes(file.size, "—")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
+            <Collapsible className="rounded-lg border border-border-subtle">
+              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-supporting font-medium outline-none hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-focus-ring">
+                Package files
+                <ChevronDown
+                  className="size-4 text-content-muted transition-transform group-data-[state=open]:rotate-180"
+                  aria-hidden="true"
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="border-t border-border-subtle">
+                <ul className="divide-y divide-border-subtle">
+                  {skill.files?.map((file) => (
+                    <li
+                      key={file.path}
+                      className="flex items-center justify-between gap-4 px-4 py-3"
+                    >
+                      <code className="min-w-0 truncate text-supporting text-content-primary">
+                        {file.path}
+                      </code>
+                      <span className="shrink-0 font-mono text-metadata text-content-muted">
+                        {formatBytes(file.size, "—")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="space-y-6">
         <Card>
@@ -871,27 +867,6 @@ function SkillPanel({ assetId, release }: { assetId: string; release: Release })
           </CardContent>
         </Card>
         <FeedbackCard assetId={assetId} release={release} />
-      </div>
-    </div>
-  )
-}
-
-function InstallCommand({ agent, command }: { agent: string; command: string }) {
-  return (
-    <div className="rounded-lg border border-border-default bg-surface-subtle p-4">
-      <div className="mb-2 flex items-center gap-2 text-label text-content-primary">
-        <Terminal className="size-4" aria-hidden="true" />
-        {agent}
-      </div>
-      <div className="flex min-w-0 items-center gap-2">
-        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-supporting text-content-secondary">
-          {command}
-        </code>
-        <CopyButton
-          value={command}
-          label={`Copy ${agent} install command`}
-          toastLabel="Install command"
-        />
       </div>
     </div>
   )

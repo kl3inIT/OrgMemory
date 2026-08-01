@@ -89,11 +89,33 @@ test("authenticated Skill detail reads its install contract through the browser 
 
   await expect(page.getByRole("heading", { name: "decision-record-writer" })).toBeVisible()
   await expect(page.getByText("Install this exact Skill")).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Use your agent" })).toBeVisible()
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Install only this exact released version" }),
+  ).toBeVisible()
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.setViewportSize({ width: 1536, height: 1024 })
+    await page.screenshot({
+      path: "../output/design-qa/skill-agent-install.png",
+      fullPage: false,
+    })
+  }
+  await page.getByRole("tab", { name: "Use CLI" }).click()
   await expect(
     page.getByText(
       "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent codex",
     ),
   ).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/skill-agent-install-mobile.png",
+      fullPage: false,
+    })
+  }
   expect(harness.requests).toContain(
     `GET /api/assets/${SKILL_ID}/releases/${SKILL_RELEASE_ID}/skill-manifest`,
   )
@@ -290,6 +312,10 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   await expect(page.getByRole("link", { name: /Upload a skill/ })).toBeVisible()
   await expect(page.getByText("Start from scratch", { exact: true })).toBeVisible()
   await expect(page.getByText("Import from GitHub", { exact: true })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Use your agent" })).toBeVisible()
+  await expect(page.getByRole("alert")).toContainText("Stop after the private Draft is created")
+  await page.getByRole("tab", { name: "Use CLI" }).click()
+  await expect(page.getByText(/orgmemory skill publish <skill-folder>/)).toBeVisible()
   await expect(page.getByRole("link", { name: /Import from GitHub/i })).toHaveAttribute(
     "href",
     "/assets/new/skill/github",
@@ -308,6 +334,12 @@ test("asset catalog defaults to a grid and keeps list state in the URL", async (
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true)
+  if (process.env.DESIGN_QA_CAPTURE) {
+    await page.screenshot({
+      path: "../output/design-qa/skill-create-mobile.png",
+      fullPage: false,
+    })
+  }
 
   await page.setViewportSize({ width: 1536, height: 1024 })
   await page.getByRole("link", { name: /Upload a skill/ }).click()
