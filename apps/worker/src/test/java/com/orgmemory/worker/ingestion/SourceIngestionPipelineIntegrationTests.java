@@ -39,6 +39,7 @@ import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.worker.WorkProcessingResult;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
@@ -195,7 +196,7 @@ class SourceIngestionPipelineIntegrationTests {
                         SALES_SPACE_ID),
                 new ByteArrayInputStream(content));
 
-        processor.processNext();
+        assertEquals(WorkProcessingResult.PROCESSED, processor.processNext());
 
         var revision = jdbc.queryForMap(
                 """

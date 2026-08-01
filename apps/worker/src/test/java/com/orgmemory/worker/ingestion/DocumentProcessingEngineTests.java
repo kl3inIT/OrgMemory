@@ -33,7 +33,9 @@ class DocumentProcessingEngineTests {
                 2,
                 0,
                 2,
-                1);
+                1,
+                null,
+                null);
         var engine = new DocumentProcessingEngine(properties, new SpringAiDocumentParser());
         var request = new DocumentParseRequest(
                 "large.txt",
@@ -99,7 +101,9 @@ class DocumentProcessingEngineTests {
                 8,
                 0,
                 64,
-                1);
+                1,
+                null,
+                null);
     }
 
     private static final class FailingEmbeddingModel implements EmbeddingModel {
