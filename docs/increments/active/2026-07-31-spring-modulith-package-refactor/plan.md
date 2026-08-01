@@ -955,3 +955,11 @@ After merging current `origin/main`, the focused moved-value and Modulith tests
 passed again in 7s; the documentation check passed across 451 Markdown files;
 all 37 release-policy tests passed again under Node 24.15; and the final PR diff
 contains 21 paths because Git recognizes the four package moves as renames.
+
+CodeRabbit review found that the ownership regression proved only absence of
+the three legacy Retrieval names. The test now also asserts the exact three
+Asset-owned class names, so deletion or relocation outside Asset fails alongside
+any reintroduced legacy dependency.
+
+Review-fix verification passed: the focused positive/negative ownership test in
+25s, full `:core:test` in 1m43s, and the 451-file documentation check.

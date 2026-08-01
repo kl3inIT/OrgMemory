@@ -605,6 +605,13 @@ class ModulithVerificationTests {
 
     @Test
     void knowledgeAssetOwnsItsCatalogAndChunkValues() {
+        var assetClasses = new ClassFileImporter()
+                .importPackages("com.orgmemory.core.knowledge.asset");
+        var expectedOwnedTypes = Set.of(
+                "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
+                "com.orgmemory.core.knowledge.asset.KnowledgeTextChunk",
+                "com.orgmemory.core.knowledge.asset.PgVectorLiteral");
+
         noClasses()
                 .that()
                 .resideInAPackage("com.orgmemory.core.knowledge.asset..")
@@ -620,8 +627,14 @@ class ModulithVerificationTests {
                 .dependOnClassesThat()
                 .haveFullyQualifiedName(
                         "com.orgmemory.core.knowledge.retrieval.PgVectorLiteral")
-                .check(new ClassFileImporter()
-                        .importPackages("com.orgmemory.core.knowledge.asset"));
+                .check(assetClasses);
+
+        var ownedTypes = assetClasses.stream()
+                .map(type -> type.getName())
+                .filter(expectedOwnedTypes::contains)
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(expectedOwnedTypes, ownedTypes);
     }
 
     @Test
