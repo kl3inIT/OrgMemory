@@ -81,8 +81,10 @@ build file, so taking the convention is taking the boundary. See
   permission-workbook validation, and a connector driver that ingests a versioned
   crawl-batch contract into the governed ledger, checkpointing progress per
   connection so a restart resumes rather than replays. Which connections it crawls
-  and what it authenticates with come from the ledger on every poll, so an
-  administrator's change takes effect on the next one without a restart.
+  and what it authenticates with come from the ledger on every poll. The live
+  connector adapters share a polling lifecycle that retains only derived provider
+  clients between polls, replaces them when credentials or client-bound settings
+  change, and retires client and cadence state when a connection disappears.
 - `apps/mcp`: a stateless, bearer-authenticated Spring AI MCP server. Its
   read-only Knowledge and Asset tools, Asset resources, and released Prompt
   adapter exchange the inbound resource token for a short-lived actor token
@@ -205,10 +207,14 @@ object records `source_system` (which system it came from, governed by the
 connector registry rather than a check constraint) separately from `acl_authority`
 (`SOURCE` or `ORGMEMORY`, which of the two [ADR 0009](docs/decisions/0009-dynamic-source-acl-ceiling.md)
 rules applies), so adding a connector needs no migration — Slack, Google Drive,
-and GitHub are adapters contributing a profile, a batch source and a credential probe,
-with no source named in `core` or in the API. An adapter that cannot establish an
-object's source ACL leaves that object out of its payload rather than sending an
-empty grant list, because the ledger seals an empty list as the source stating
+and GitHub are adapters contributing a profile, a batch source and a credential
+probe, with no source named in `core` or in the API. Their batch sources delegate
+connection enumeration, content cadence, derived-client rotation, mostly-failed
+admission, and failure isolation to one integrations-owned polling driver while
+retaining provider API, mapping, completeness, and cursor semantics. An adapter
+that cannot establish an object's source ACL leaves that object out of its payload
+rather than sending an empty grant list, because the ledger seals an empty list as
+the source stating
 that nobody may read it. Source connection rows
 carry the configuration every source shares as columns and whatever only one
 source understands as an opaque `source_config` document, plus an encrypted

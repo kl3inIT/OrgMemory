@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-07-31-spring-modulith-package-refactor (d4555b3)`.
+Reconciled: `2026-08-01-connector-polling-driver (fc6995cf)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -51,6 +51,19 @@ Evidence classes: `core/src/test/java/com/orgmemory/core/knowledge/ConnectorInge
 | A complete crawl retires what it stopped mentioning | `aCompleteCrawlRetiresWhatTheSourceNoLongerHas` |
 | An incomplete crawl, and a complete crawl that enumerated nothing, retire nothing | `anIncompleteCrawlRetiresNothingItSimplyDidNotMention`, `aCompleteCrawlThatEnumeratedNothingIsRefused` |
 
+## Shared Polling Driver Coverage
+
+Evidence class:
+`integrations/connectors/src/test/java/com/orgmemory/connectors/PollingConnectorBatchSourceTests.java`.
+
+| Behavior | Automated evidence |
+| --- | --- |
+| A derived client is reused while credentials/settings are unchanged and replaced after either revision changes | `reusesAClientUntilTheCredentialOrClientConfigurationChanges`, `changingTheImpersonatedUserRebuildsTheCachedClient` |
+| Missing credentials and disabled/deleted connections evict clients; recreation starts with clean due and served-crawl-now cadence state | `missingCredentialEvictsTheCachedClientBeforeARecovery`, `disablingThenRecreatingAConnectionRetiresClientAndBothCadenceMaps` |
+| Below half failed is admitted, while exactly half and above half return no batch with `mostly_failed` activity | `appliesTheMostlyFailedBoundaryOnce` |
+| Unknown runtime failures propagate rather than becoming activity, and the retained cache context has no credential field | `unknownRuntimeExceptionsEscapeInsteadOfLookingLikeConnectionActivity`, `cachedContextDoesNotHaveASecretValueField` |
+| Full and permissions-only crawl/component cursor bytes remain exact across all three adapters, including Drive's historical prefix | each adapter's `pinsGoldenCursorBytesAcrossContentAndPermissionPasses` |
+
 ## Slack Adapter Coverage
 
 Evidence classes under `integrations/connectors/src/test/java/com/orgmemory/connectors/slack/`:
@@ -67,7 +80,7 @@ All run against recorded Slack responses; none touches the network.
 | Completeness is claimed only by an unfiltered, uninterrupted, in-scope crawl | `claimsCompletenessOnlyForAnUnfilteredUninterruptedCrawl`, `withdrawsTheCompletenessClaimWhenOnlySomeChannelsWereAskedFor`, `withdrawsTheCompletenessClaimWhenAChannelCouldNotBeRead`, `withdrawsTheCompletenessClaimWhenPrivateChannelsAreOutOfScope` |
 | Slack markup leaves no identifiers or raw tags in the indexed body | `leavesNoSlackMarkupBehindInARealisticMessage`, `resolvesMentionsAndLinksOutOfTheIndexedBody`, and the rest of `SlackTextCleanerTests` |
 | A thread broadcast back to its channel is indexed once, whole | `indexesAThreadOnceWhenAReplyWasBroadcastBackToTheChannel` |
-| A rejected credential and a mostly-unreadable workspace fail rather than report a crawl | `refusesToCrawlWithACredentialSlackRejects`, `abandonsARunInWhichMostChannelsCouldNotBeRead` |
+| A rejected credential and a mostly-unreadable workspace fail rather than report a crawl; the threshold failure uses `mostly_failed` | `refusesToCrawlWithACredentialSlackRejects`, `abandonsARunInWhichMostChannelsCouldNotBeRead` |
 | Between content crawls no message body is read, and the cheap batch never claims completeness | `readsNoMessageBodiesBetweenContentCrawls`, `aPermissionsCrawlNeverClaimsCompleteness`, `reissuesAContentCrawlOnceTheIntervalElapses` |
 | A permissions crawl omits objects whose channel it could not see rather than asserting nobody may read them | `aPermissionsCrawlLeavesOutObjectsWhoseChannelItCouldNotSee` |
 | The adapter is present wherever the module is and crawls nothing until a connection says so | `contributesTheAdapterWhereverTheModuleIsPresent`, `contributesNothingToCrawlUntilAConnectionIsEnabled`, `producesNothingUntilAConnectionIsEnabled` |
@@ -100,6 +113,8 @@ real exists in the repository. Nothing touches the network.
 | A rate limit is waited out rather than failing the connection | `waitsOutARateLimitAndCompletesTheCrawl` |
 | A failed content crawl does not consume the content interval | `aFailedContentCrawlDoesNotConsumeTheContentInterval` |
 | Every type the adapter indexes is a type it asks Drive for, so none is silently dropped | `GoogleDriveDocumentTypesTests.everyTypeThisIndexesIsAlsoATypeItAsksDriveFor` |
+| Exactly half of attempted files unreadable produces no batch and reports `mostly_failed` | `halfUnreadableFilesProduceMostlyFailedActivityInsteadOfABatch` |
+| Changing the impersonated user rebuilds the cached client; after the token lifetime the reused client obtains a fresh access token | `changingTheImpersonatedUserRebuildsTheCachedClient`, `reissuesAContentCrawlOnceTheIntervalElapses` |
 
 ## GitHub Adapter Coverage
 
@@ -121,9 +136,11 @@ touches the network.
 | A private repository becomes an issue/PR object, effective user identities, one repository-reader group, and a stable group ACL | `mapsARepositoryAudienceAndWorkItemToStableNativeIds` |
 | No GitHub email is trusted implicitly | same mapping test; all source users have null email and `ssoVerified=false` |
 | A collaborator removal changes the membership cursor without recrawling content | `teamDerivedReaderRemovalChangesOnlyMembershipOnTheNextPoll` |
-| Unreadable collaborators mark permission and membership incomplete and never become an empty ACL | `unreadableCollaboratorsAreIncompleteAndNeverBecomeAnEmptyAcl` |
+| A below-threshold collaborator refusal marks permission and membership incomplete and never becomes an empty ACL | `oneOfThreeCollaboratorFailuresKeepsFailClosedHealthyProgress` |
 | Public/inadmissible repositories are rejected rather than interpreted with a narrower ACL | `configuredPublicRepositoryIsRejectedRatherThanGivenANarrowAcl` |
 | A content bound marks only content incomplete; complete authorization evidence remains usable | `issueBoundMarksOnlyContentIncomplete` |
+| A repository request failure is counted at most once; below half keeps fail-closed healthy progress, while one-of-one or one-of-two returns no batch with `mostly_failed` and therefore stalls all checkpoint/revocation progress for that connection | `oneRepositoryCollaboratorFailureIsMostlyFailedAndProducesNoBatch`, `oneOfThreeCollaboratorFailuresKeepsFailClosedHealthyProgress`, `oneOfTwoCollaboratorFailuresCountsOnceAndRejectsAtHalf`, `oneOfTwoContentRequestFailuresRejectsAtHalf` |
+| Permissions-only passes count collaborator request failures only; truncation and incomplete/unrepresentable fields do not become request failures | `permissionPassCountsOnlyCollaboratorRequestFailures`, `issueBoundMarksOnlyContentIncomplete`, `incompleteIssueFieldsDoNotCountAsAnUnreachableRepository`, `unrepresentableCollaboratorDataIsIncompleteButNotARequestFailure` |
 | The generic connector surface is contributed but classpath presence alone performs no crawl | `contributesProfileProbeScopesAndBatchSource`, `classpathPresenceDoesNotAuthorizeACrawl` |
 | Removing an explicitly mapped GitHub collaborator revokes retrieval while revision, chunks, and resource ACL generation remain unchanged | GitHub phase of `slackChannelBecomesGovernedAndConvergesOnMembership` |
 
