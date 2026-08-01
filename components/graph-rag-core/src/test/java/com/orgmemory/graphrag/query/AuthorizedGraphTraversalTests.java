@@ -130,6 +130,49 @@ class AuthorizedGraphTraversalTests {
     }
 
     @Test
+    void normalizesCyclesDisconnectedNodesAndSeedPermutationsWhileSelfLoopsFailAtTheModel() {
+        UUID seedA = id("seed-a");
+        UUID seedB = id("seed-b");
+        UUID neighbor = id("neighbor");
+        UUID disconnected = id("disconnected");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> relation("self-loop", seedA, seedA));
+        FakeSource source = new FakeSource(
+                SNAPSHOT,
+                List.of(
+                        entity(seedA),
+                        entity(seedB),
+                        entity(neighbor),
+                        entity(disconnected)),
+                List.of(
+                        relation("neighbor-edge", seedA, neighbor),
+                        relation("cycle-a", neighbor, seedB),
+                        relation("cycle-b", seedB, seedA)));
+        AuthorizedGraphTraversal traversal = new AuthorizedGraphTraversal(source, 2);
+        List<UUID> orderedSeeds = List.of(seedA, seedB).stream()
+                .sorted(AuthorizedGraphTraversalSource.CANONICAL_UUID_ORDER)
+                .toList();
+        List<UUID> expected = List.of(
+                orderedSeeds.getFirst(),
+                orderedSeeds.getLast(),
+                neighbor);
+
+        assertEquals(
+                expected,
+                traversal.expandEntityIds(
+                        SCOPE, SNAPSHOT, List.of(seedA, seedB), 3, 10));
+        assertEquals(
+                expected,
+                traversal.expandEntityIds(
+                        SCOPE, SNAPSHOT, List.of(seedB, seedA), 3, 10));
+        assertEquals(
+                orderedSeeds,
+                traversal.expandEntityIds(
+                        SCOPE, SNAPSHOT, List.of(seedB, seedA), 3, 2));
+    }
+
+    @Test
     void rejectsStructuralInputsBeforeTouchingTheSource() {
         FakeSource source = new FakeSource(SNAPSHOT, List.of(), List.of());
         AuthorizedGraphTraversal traversal = new AuthorizedGraphTraversal(source, 1);
