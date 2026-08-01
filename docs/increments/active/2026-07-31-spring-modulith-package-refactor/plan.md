@@ -1030,3 +1030,10 @@ documentation operating-model check passed across 461 Markdown files and 8
 mirrored domain pairs; all 37 release-policy tests passed under Node 24.15; and
 the terminating repository-wide `clean test` passed in 3m08s across 99 tasks.
 Integration with current `origin/main` and PR CI/review remain before merge.
+
+The first PR CI run passed Backend Java 25, Web Node 24, documentation,
+evaluation, secret, and impact checks but failed the product-release policy
+because the PR body omitted its required release disposition. The body now
+records that this internal package-boundary refactor has no user-facing release
+impact. A fresh synchronize run is required because rerunning the original
+workflow preserves its original pull-request event payload.
