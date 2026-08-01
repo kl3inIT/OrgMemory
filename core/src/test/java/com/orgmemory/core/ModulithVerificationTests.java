@@ -1,6 +1,7 @@
 package com.orgmemory.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -40,10 +41,23 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void sourceLedgerIsAnOpenNestedModuleDuringTheRefactor() {
+    void sourceLedgerIsAClosedNestedModule() {
         var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var allowedDependencies = sourceLedger.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(sourceLedger.isOpen());
+        assertFalse(sourceLedger.isOpen());
+        assertEquals(
+                Set.of(
+                        "knowledge.acl",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test
