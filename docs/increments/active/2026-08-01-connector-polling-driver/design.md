@@ -88,8 +88,11 @@ The final `pendingBatches()` method will:
 9. retire cache and cadence entries for connections no longer enabled.
 
 The driver does not catch unknown runtime exceptions. Each adapter identifies
-its expected credential/API exception types and maps their source error code;
-the shared mostly-failed rejection uses `mostly_failed`.
+its expected credential/API exception types and maps their source error code.
+The shared mostly-failed rejection intentionally standardizes the previously
+generic Slack `slack_error` and Drive `drive_error` abort codes, plus GitHub's
+new rejection, as `mostly_failed`. This administrator-visible activity code is
+part of the behavior change and must be reconciled in the spec/test pair.
 
 ### Derived-client cache
 
@@ -100,10 +103,16 @@ Slack and GitHub have no such settings today. Drive includes the impersonated
 user because that value is bound into its access-token source.
 
 The exposed credential exists only while hashing and constructing a client;
-it is not retained by the driver. Rotation or a client-affecting
-configuration edit replaces the cached context atomically on the next poll.
-Missing credentials evict the entry immediately. Entries for disabled or
-deleted connections are pruned after every enumeration.
+neither it nor its fingerprint is retained in logs, failures, or exceptions.
+The cached client necessarily retains credential-derived material (Slack's
+bearer token, or parsed/token-source key material for Drive and GitHub) for
+its cache lifetime. This extends in-memory secret residency and is accepted
+to retain safe rate-limit/token-refresh state; retirement therefore matters.
+Rotation or a client-affecting configuration edit replaces the cached context
+atomically on the next poll. Missing credentials evict the entry immediately.
+Entries for disabled or deleted connections are pruned after every
+enumeration. The cadence retirement removes both its due time and served
+crawl-now request so a recreated connection cannot inherit prior state.
 
 ### Mostly-failed admission
 
@@ -113,27 +122,39 @@ connection attempt and therefore writes no checkpoint.
 - Slack counts channels it attempted to read, retaining the existing
   `not_in_channel` scope exception.
 - Drive counts indexable files it attempted to observe.
-- GitHub counts repositories and records a repository once if either its
-  authoritative collaborators or its content could not be read. A
-  permissions-only pass counts collaborator failures only.
+- GitHub counts repositories and records a repository at most once if either
+  its authoritative collaborators or its content request throws. A
+  permissions-only pass counts collaborator failures only. Configured
+  truncation, content skipped after the same repository's collaborator
+  failure, and incomplete source data do not add failures.
 
 Applying this to GitHub is an intentional behavior correction. A one-repository
 installation whose collaborators endpoint is forbidden now produces no batch
 and a `mostly_failed` failure, instead of checkpointing an incomplete empty
 ACL-shaped result. Below the threshold the existing incomplete component
-states remain fail-closed and useful.
+states remain fail-closed and useful. The security cost is explicit: a
+persistent failure at or above 50% also prevents membership-head advancement,
+so revocations from healthy units in the same connection stall until the
+failure is resolved. That is accepted over silently checkpointing a broadly
+degraded connection and is surfaced on every poll as `UNAVAILABLE` activity
+with `mostly_failed`.
 
 ### Cursor compatibility
 
-The driver owns only the common outer-cursor scaffolding: sort
-`component=cursor`, join with `;`, SHA-256 the material, and prefix it with the
-source-system token. Each adapter continues to build its content, permission,
-and membership cursor material byte-for-byte as before.
+The driver owns only the common outer-cursor scaffolding: render the component
+enum exactly as today, sort `component=cursor` with Java's natural string
+ordering, join with `;` (or the empty string), SHA-256 the material, and prefix
+it with an **adapter-supplied historical literal**. The prefix must not be
+derived from the source id: Drive's source id is `google_drive`, while its
+persisted cursor prefix is `google-drive-`. Each adapter continues to build
+its content, permission, and membership cursor material byte-for-byte as
+before.
 
 Before production code changes, golden tests will pin all four cursor strings
-for one deterministic full crawl of each connector. Those vectors remain
-green after delegation to the driver. No migration, compatibility fallback,
-or cursor rewrite is permitted.
+for one deterministic full crawl and the present three cursor strings for one
+permissions-only crawl of each connector. Those vectors remain green after
+delegation to the driver. No migration, compatibility fallback, or cursor
+rewrite is permitted.
 
 ## Rejected Alternatives
 
@@ -149,6 +170,17 @@ An expansive strategy SPI would expose source-specific intermediate models
 and completeness rules solely to make the abstraction look uniform. It would
 increase compatibility surface and make fail-closed evidence harder to audit.
 The chosen callback returns the existing final batch plus unit-failure counts.
+
+### Prefer composition over the abstract template
+
+Composition would preserve each adapter's direct implementation of
+`ConnectorBatchSource` and avoid protected hooks. It is marginally narrower,
+but adds one more object and delegation seam per adapter without changing the
+policy surface. The abstract template is accepted inside this single Gradle
+module only with a final `pendingBatches()`, narrowly typed hooks, propagation
+of unknown runtime exceptions, unchanged package-private adapter beans, and
+the golden-vector gate. Composition remains the fallback if implementation
+would require broad protected source semantics.
 
 ### Cache clients without resolving credentials every poll
 
@@ -167,11 +199,18 @@ checkpoint while looking successful.
 - **Cursor drift:** golden byte vectors before refactoring and again after it.
 - **Cache leakage or stale identity:** tests for reuse, credential rotation,
   Drive impersonation change, missing credential eviction, and disabled
-  connection retirement.
+  connection retirement; Drive's cached token source must refresh an expired
+  access token, and no diagnostic may expose credential fingerprints.
 - **Policy miscount:** boundary tests below, at, and above 50%, including
-  GitHub collaborator and content failures.
+  GitHub collaborator and content failures, plus every non-failure exclusion.
 - **Cadence regression:** existing per-adapter cadence/request/failure tests
-  plus direct driver tests for advance-after-admission only.
+  plus direct driver tests for advance-after-admission and full retirement.
+- **Revocation stall:** test and document that an at-threshold GitHub run
+  produces no batch and recurring `mostly_failed` activity; below threshold
+  keeps incomplete, non-empty authoritative progress.
+- **Exception masking:** a runtime exception outside the adapter's declared
+  credential/API types must propagate rather than becoming connection
+  activity.
 - **SPI/fixture breakage:** no core or contract edits; existing
   auto-configuration and contract fixture suites stay green.
 
