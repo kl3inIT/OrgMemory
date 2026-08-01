@@ -42,8 +42,10 @@ and Apache AGE commit `e43dc1a12b78fba4acef9835b2b10379b8d243b4`,
 React 19.2.7, TypeScript 7.0.2, Vite 8.1.5, Tailwind CSS 4.3.3, Node 24 in
 CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 15.2.0. Tegami 1.2.7 manages one synthetic whole-product release unit backed
-by `release/product.json`; it does not publish the Gradle or pnpm workspaces to
-a package registry.
+by `release/product.json`; that product release does not publish Gradle or pnpm
+workspaces. `@orgmemory/cli` has a separate package-owned SemVer and a dedicated
+manual npm Trusted Publishing workflow. A CLI version is consumer-visible only
+after its exact registry release and provenance have been verified.
 
 Green `main` commits remain the executable delivery identity. Production and
 docs workflows publish immutable SHA-addressed images and manifests. Tegami
@@ -100,7 +102,13 @@ build file, so taking the convention is taking the boundary. See
   implementation.
 - `apps/cli`: an OAuth PKCE command-line client for MCP connection, exact Skill
   package installation, and bounded Skill Draft publication through the HTTP
-  companion. It consumes public contracts and owns no domain persistence.
+  companion. Project-local or current-user Skill receipts remain token-free.
+  Schema v2 records the exact regular-file set for offline verification;
+  schema-v1 receipts remain readable but unverifiable. Exact same-coordinate
+  updates and verified-only removal serialize through a per-scope filesystem
+  lock and durable recovery journal. The CLI refuses target ownership
+  collisions, local drift, mutable `latest`, and destructive force removal. It
+  consumes public contracts and owns no domain persistence.
 - `apps/web`: a Vite SPA with TanStack Router file routes, an authenticated shadcn
   sidebar shell, generated Hey API clients for ordinary REST contracts, an AI
   Elements assistant workspace, and generic Asset catalog, detail/use, Pack

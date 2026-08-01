@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-skill-consumer-compatibility (f193b30e)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (a8dc2e66)`.
 
 ## Current Behavior
 
@@ -138,7 +138,35 @@ describes structural validation as content or malware review.
 A released Skill detail also provides copy-only instructions and exact
 `namespace/slug@version` commands for Claude Code and Codex. The CLI continues
 to authenticate, authorize, verify the immutable package and file digests,
-promote the staged installation atomically, and write the token-free receipt.
+promote the staged installation atomically, and write a token-free schema-v2
+receipt containing the exact regular-file manifest. Schema-v1 receipts remain
+readable but are explicitly unverifiable.
+
+Local lifecycle operations are serialized per project/global scope. The
+filesystem lock covers target ownership checks, staging, a durable operation
+journal, tree promotion or quarantine, receipt commit, and cleanup. A later
+command recovers an interrupted operation before proceeding. One canonical
+consumer target has at most one coordinate owner, so different namespaces with
+the same slug cannot silently replace each other.
+
+`skill verify` works offline and reports `verified`, `modified`, `missing`, or
+`unverifiable` after comparing the canonical target and complete regular-file
+tree. Extra entries, links, non-regular files, missing files, or changed bytes
+do not verify. `skill update <coordinate> --to <exact-version>` keeps the same
+coordinate, re-authenticates and authorizes the exact destination release, and
+refuses a locally changed or legacy source. `skill remove` renames a verified
+tree to quarantine, commits receipt removal, then deletes the quarantine. It
+has no destructive `--force`; modified and legacy trees require manual cleanup
+or a verified reinstall first.
+
+`@orgmemory/cli` owns an independent package SemVer. The dedicated manual npm
+workflow accepts only the exact current green `main` SHA and matching package
+version, runs Node 24 frozen-package gates, inspects the tarball, publishes
+through a protected environment with OIDC Trusted Publishing and provenance,
+and verifies the registry package and executable. It has no long-lived npm
+token or dependency cache. The initial registry bootstrap remains an explicit
+owner operation; product UI and public docs must not render a pinned `npx`
+command until that exact version has been verified live.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
@@ -314,8 +342,8 @@ authorization, while bearer clients must use the delivery endpoint with
 The Node CLI resolves and searches through MCP, downloads the exact package
 through that companion route, verifies the archive and every file against the
 manifest, then installs through an adjacent staging directory. Project-local
-Claude Code and Codex targets come from a fixed mapping. The atomic lock receipt
-is written only after promotion and never contains OAuth credentials. OAuth
+Claude Code and Codex targets come from a fixed mapping. The receipt is written
+only after promotion and never contains OAuth credentials. OAuth
 state is isolated by server and requested scope set, so read-only installation
 does not silently gain the Draft-publication grant.
 
@@ -345,6 +373,6 @@ separate owner and support-agent sessions.
 ## Explicitly Deferred
 
 - controlled SOP effectivity
-- Skill update/remove commands and compatibility policy enforcement
-- public npm publication and signed CLI release automation
+- runtime compatibility policy enforcement beyond deterministic installation
+- first public npm publication and registry activation of the prepared CLI
 - cross-company public marketplace, ratings, and social publishing
