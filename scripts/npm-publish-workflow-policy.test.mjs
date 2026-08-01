@@ -54,6 +54,11 @@ test("CLI publication verifies Node 24, the tarball, provenance, and npx executi
       workflow.lastIndexOf("npm exec --yes --package="),
     "registry signatures must be audited before the published CLI executes",
   );
+  assert.doesNotMatch(
+    workflow,
+    /^\s{12,}NODE$/m,
+    "nested heredoc terminators are indented after YAML block stripping",
+  );
   assert.doesNotMatch(workflow, /cache:/);
 });
 
