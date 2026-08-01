@@ -199,6 +199,53 @@ class OpenSearchProjectionPublicationIntegrationTests {
     }
 
     @Test
+    void durableReceiptCanBePublishedAfterStoreRecreation() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                id("receipt-restart-organization"),
+                "default",
+                "knowledge");
+        ProjectionBatch batch = batch(namespace, "receipt-restart", 0);
+        publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
+
+        OpenSearchProjectionPublicationStore restarted =
+                new OpenSearchProjectionPublicationStore(operations, indexes);
+        ProjectionSnapshot snapshot = restarted.publish(batch, NOW.plusSeconds(1));
+
+        assertEquals(batch.id(), snapshot.batchId());
+        assertEquals(snapshot, restarted.current(namespace).orElseThrow());
+    }
+
+    @Test
+    void visibleHeadRemainsAuthoritativeWhenBatchMarkerLooksCommitting() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                id("committing-replay-organization"),
+                "default",
+                "knowledge");
+        ProjectionBatch batch = batch(namespace, "committing-replay", 0);
+        publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
+        ProjectionSnapshot published = publications.publish(batch, NOW);
+        OpenSearchOperations.VersionedDocument registered =
+                operations.get(indexes.control(), "batch:" + batch.id());
+        Map<String, Object> committing = new LinkedHashMap<>(registered.source());
+        committing.put("status", "COMMITTING");
+        assertTrue(operations.compareAndSet(
+                indexes.control(),
+                "batch:" + batch.id(),
+                registered,
+                committing));
+
+        OpenSearchProjectionPublicationStore restarted =
+                new OpenSearchProjectionPublicationStore(operations, indexes);
+        ProjectionSnapshot replay = restarted.publish(batch, NOW.plusSeconds(1));
+
+        assertEquals(published, replay);
+        assertEquals(published, restarted.current(namespace).orElseThrow());
+        assertThrows(
+                PublicationConflictException.class,
+                () -> restarted.abort(batch, "must not discard visible data", NOW));
+    }
+
+    @Test
     void adaptersUseOneAuthorizedSnapshotAndRetainHistoricalReads() {
         ProjectionBatch first = sharedBatch("first", 0);
         EvidenceReference evidence = evidence();

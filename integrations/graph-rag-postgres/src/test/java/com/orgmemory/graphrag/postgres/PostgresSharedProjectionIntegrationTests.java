@@ -69,6 +69,7 @@ class PostgresSharedProjectionIntegrationTests {
             new PostgreSQLContainer("pgvector/pgvector:pg18");
 
     private static PostgresProjectionPublicationStore publications;
+    private static DataSource dataSource;
     private static JdbcTemplate plainJdbc;
     private static PostgresContentStore content;
     private static PostgresLexicalIndex lexical;
@@ -79,7 +80,7 @@ class PostgresSharedProjectionIntegrationTests {
 
     @BeforeAll
     static void migrate() {
-        DataSource dataSource = new DriverManagerDataSource(
+        dataSource = new DriverManagerDataSource(
                 postgres.getJdbcUrl(),
                 postgres.getUsername(),
                 postgres.getPassword());
@@ -124,6 +125,68 @@ class PostgresSharedProjectionIntegrationTests {
     @Test
     void graphStorePassesSharedSecurityAndLifecycleConformance() {
         GraphStoreConformance.verify(graph, publications);
+    }
+
+    @Test
+    void durableReceiptCanBePublishedAfterStoreRecreation() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                id("postgres-receipt-restart-organization"),
+                "restart",
+                "knowledge");
+        plainJdbc.update(
+                """
+                INSERT INTO organizations (id, name, created_at, updated_at, version)
+                VALUES (?, 'Projection receipt restart', now(), now(), 0)
+                """,
+                namespace.organizationId());
+        ProjectionBatch batch = contentOnlyBatch(namespace, "receipt-restart");
+        publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
+
+        PostgresProjectionPublicationStore restarted =
+                new PostgresProjectionPublicationStore(
+                        new NamedParameterJdbcTemplate(dataSource),
+                        new DataSourceTransactionManager(dataSource));
+        ProjectionSnapshot snapshot = restarted.publish(batch, NOW.plusSeconds(1));
+
+        assertEquals(batch.id(), snapshot.batchId());
+        assertEquals(snapshot, restarted.current(namespace).orElseThrow());
+    }
+
+    @Test
+    void activeIdempotencyKeyRejectsASecondRandomBatchAfterRestart() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                id("postgres-orphan-restart-organization"),
+                "restart",
+                "knowledge");
+        plainJdbc.update(
+                """
+                INSERT INTO organizations (id, name, created_at, updated_at, version)
+                VALUES (?, 'Projection orphan restart', now(), now(), 0)
+                """,
+                namespace.organizationId());
+        ProjectionBatch original = contentOnlyBatch(namespace, "orphan-restart");
+        publications.markPrepared(original, ProjectionKind.CONTENT, NOW);
+        ProjectionBatch replacement = new ProjectionBatch(
+                UUID.randomUUID(),
+                original.namespace(),
+                original.expectedPreviousGeneration(),
+                original.generation(),
+                original.idempotencyKey(),
+                original.manifestFingerprint(),
+                original.requiredProjections(),
+                NOW.plusSeconds(1));
+
+        PostgresProjectionPublicationStore restarted =
+                new PostgresProjectionPublicationStore(
+                        new NamedParameterJdbcTemplate(dataSource),
+                        new DataSourceTransactionManager(dataSource));
+
+        assertThrows(
+                PublicationConflictException.class,
+                () -> restarted.markPrepared(
+                        replacement,
+                        ProjectionKind.CONTENT,
+                        NOW.plusSeconds(1)));
     }
 
     @Test
