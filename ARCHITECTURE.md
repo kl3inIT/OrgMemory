@@ -340,8 +340,17 @@ yet.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,
-authorization-scoped graph read ports, atomic revision replacement, one internal
-retrieval-plan contract with chunk-only, entity-only, relation-only,
+authorization-scoped graph read ports, atomic revision replacement, and one
+non-overridable authorized graph traversal coordinator. The coordinator validates
+the exact publication snapshot before every early return, authorizes seeds and
+candidate endpoints, drains stable relation-UUID pages for each complete
+breadth-first level, normalizes by minimum depth and canonical UUID, and only
+then applies one global node limit. PostgreSQL, Neo4j, OpenSearch, and the
+in-memory testkit supply the same snapshot-bound entity and incident-relation
+page contract; no storage adapter returns final expanded entity identifiers.
+
+The core also defines one internal retrieval-plan contract with chunk-only,
+entity-only, relation-only,
 secure-hybrid, and secure-mix strategies, deterministic ranking and round-robin
 merge, structured grounding, deterministic contribution-level citation
 numbering, and LightRAG-compatible context-budget invariants. `SECURE_MIX` is
@@ -364,8 +373,9 @@ canonical identities, immutable evidence contributions, published revision
 heads, and entity/relation vectors. Apache AGE mirrors tenant-separated topology
 identity for bounded candidate traversal; it never owns descriptions, ACL, or
 provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
-relationally rechecked. A globally bounded breadth-first relational traversal
-supplies the same candidate port when AGE is disabled.
+relationally rechecked. A relational implementation supplies the same separate
+topology-candidate port when AGE is disabled; neither path is the public
+authorized traversal result producer.
 
 The integration also implements the framework-neutral content, lexical,
 vector, graph, and publication contracts over one namespace snapshot. Staged

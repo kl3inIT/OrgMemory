@@ -39,6 +39,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Ingestion throughput: batched staging writes and bounded-burst schedulers | shipped | [completed plan](increments/completed/2026-08-01-ingestion-throughput/plan.md), [decision 0024](decisions/0024-bounded-burst-scheduling-over-drain.md) |
 | Copy-forward coordination: durable ownership and bounded streaming | shipped | [completed plan](increments/completed/2026-08-01-copyforward-coordinator/plan.md), [decision 0025](decisions/0025-copyforward-durable-ownership.md) |
 | Connector polling coordination: shared lifecycle, client rotation, and failure admission | shipped | [completed plan](increments/completed/2026-08-01-connector-polling-driver/plan.md), [decision 0026](decisions/0026-connector-polling-lifecycle.md) |
+| Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
@@ -48,7 +49,6 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
-| [Authorized graph traversal coordinator](increments/active/2026-08-01-authorized-graph-traversal/plan.md) | active | characterize adapter drift, move final-result semantics into core, and prove paged traversal conformance across every graph store |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
 | [OpenFGA model rollout repair](increments/active/2026-07-29-openfga-model-rollout/plan.md) | active | version and pin the repository model during deployment, then verify the affected admin screens |

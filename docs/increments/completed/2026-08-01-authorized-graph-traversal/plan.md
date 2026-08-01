@@ -1,5 +1,7 @@
 # Authorized graph traversal coordinator plan
 
+Status: completed (2026-08-01)
+
 ## 1. Characterize the unchanged adapters
 
 - Add backend-local tests for zero limit, empty seeds with a fabricated
@@ -54,4 +56,3 @@
 - Move the increment to completed, update the roadmap, and record verification.
 - Commit logical steps, open one PR, address review/CI, merge, and verify
   `origin/main`.
-

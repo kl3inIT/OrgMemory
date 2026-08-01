@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
+Reconciled: `2026-08-01-authorized-graph-traversal (e990852c)`.
 
 ## Current Contract
 
@@ -77,11 +77,20 @@ Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
 - Apache AGE stores topology identity and evidence identifiers only. Bounded
   traversal filters every edge by authorized Knowledge Asset; all returned IDs
   remain candidates requiring relational evidence recheck.
-- A globally bounded breadth-first relational traversal implements the same
-  topology port when AGE is disabled. The Neo4j and OpenSearch adapters
-  implement replaceable graph/search storage ports under the shared
-  contribution-level authorization conformance suite; neither changes core
-  retrieval contracts or becomes an authorization authority.
+- The pure-Java core is the only result-producing graph traversal authority.
+  It validates the exact published graph snapshot before zero/empty returns,
+  authorizes seeds and candidate endpoints, drains the complete authorized
+  relation-page sequence for each breadth-first level, orders nodes by minimum
+  depth and canonical UUID, and applies one global limit after normalization.
+- PostgreSQL, Neo4j, OpenSearch, and the in-memory testkit expose the same
+  snapshot-bound entity and incident-relation page source. Relation UUID
+  cursors are exclusive and pages are bounded and strictly ordered; malformed,
+  repeated, oversized, or non-advancing pages fail the traversal. Adapters no
+  longer expose final expanded entity identifiers or native final-result
+  overrides.
+- A relational traversal still implements the separate topology-candidate port
+  when AGE is disabled. Those candidates require relational evidence recheck
+  and do not bypass the core authorized traversal contract.
 
 ## Worker Publication
 

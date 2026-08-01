@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
+Reconciled: `2026-08-01-authorized-graph-traversal (e990852c)`.
 
 ## Automated
 
@@ -17,6 +17,16 @@ Reconciled: `2026-07-30-observability-platform (2b8a9d6)`.
   plans, deterministic ranking/interleaving, and context budgets.
 - Graph-testkit security tests prove permission-scoped contribution,
   adjacency, degree, weight, seed, replacement, and removal behavior.
+- Core traversal tests prove exact-snapshot validation before zero/empty
+  returns, authorized seed normalization, multi-page completion, canonical UUID
+  ordering, one global limit, cycles, disconnected nodes, seed permutations,
+  model-level self-loop rejection, and fail-closed page/cursor/source contract
+  violations.
+- The reusable `GraphStoreConformance` suite runs against PostgreSQL, Neo4j,
+  and OpenSearch and proves the same authorized traversal result plus exclusive
+  relation-UUID paging across all production stores. The in-memory query double
+  executes the same core coordinator rather than maintaining a second queue
+  policy.
 - `SpringAiEntityRelationExtractorTests` exercises Spring AI's actual structured
   response conversion with a deterministic fake `ChatModel`.
 - Adapter tests cover valid mapping, prompt placement and limits, model options,
