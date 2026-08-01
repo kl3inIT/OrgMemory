@@ -15,7 +15,14 @@ public final class PostgresModelInvocationCache implements ModelInvocationCache 
     public PostgresModelInvocationCache(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager) {
-        delegate = new PostgresGraphRagCacheStore(jdbc, transactionManager);
+        this(jdbc, transactionManager, PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    PostgresModelInvocationCache(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            int batchSize) {
+        delegate = new PostgresGraphRagCacheStore(jdbc, transactionManager, batchSize);
     }
 
     @Override

@@ -91,6 +91,8 @@ orgmemory:
     maximum-attempts: ${ORGMEMORY_INGESTION_MAX_ATTEMPTS:5}
     processing:
       poll-interval: ${ORGMEMORY_INGESTION_POLL_INTERVAL:2s}
+      max-jobs-per-invocation: ${ORGMEMORY_INGESTION_MAX_JOBS_PER_INVOCATION:10}
+      max-wall-clock: ${ORGMEMORY_INGESTION_MAX_WALL_CLOCK:30s}
       lease-duration: ${ORGMEMORY_INGESTION_LEASE_DURATION:5m}
       pipeline-version: ${ORGMEMORY_INGESTION_PIPELINE_VERSION:source-pipeline-v1}
       parser-id: ${ORGMEMORY_INGESTION_PARSER:spring-ai-document-reader}
@@ -115,6 +117,8 @@ orgmemory:
     indexing:
       scheduling-enabled: ${ORGMEMORY_GRAPH_INDEXING_ENABLED:true}
       poll-interval: ${ORGMEMORY_GRAPH_INDEXING_POLL_INTERVAL:3s}
+      max-jobs-per-invocation: ${ORGMEMORY_GRAPH_INDEXING_MAX_JOBS_PER_INVOCATION:5}
+      max-wall-clock: ${ORGMEMORY_GRAPH_INDEXING_MAX_WALL_CLOCK:30s}
       lease-duration: ${ORGMEMORY_GRAPH_INDEXING_LEASE_DURATION:10m}
       extraction-timeout: ${ORGMEMORY_GRAPH_EXTRACTION_TIMEOUT:2m}
       maximum-concurrency: ${ORGMEMORY_GRAPH_EXTRACTION_CONCURRENCY:4}

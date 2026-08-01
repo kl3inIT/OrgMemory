@@ -32,17 +32,59 @@ public final class PostgresVectorIndex implements VectorIndex {
             FROM projection_vector_records
             WHERE batch_id = :predecessorBatchId
             """;
+    private static final String UPSERT = """
+            INSERT INTO projection_vector_records (
+                batch_id, record_id, subject_id, organization_id,
+                knowledge_asset_id, source_revision_id, chunk_id,
+                acl_snapshot_id, acl_generation, vector_kind,
+                embedding_profile_id, model, dimensions, embedding, metadata)
+            VALUES (
+                :batchId, :recordId, :subjectId, :organizationId,
+                :knowledgeAssetId, :sourceRevisionId, :chunkId,
+                :aclSnapshotId, :aclGeneration, :vectorKind,
+                :embeddingProfileId, :model, :dimensions,
+                CAST(:embedding AS vector), :metadata)
+            ON CONFLICT (batch_id, record_id)
+            DO UPDATE SET
+                subject_id = EXCLUDED.subject_id,
+                organization_id = EXCLUDED.organization_id,
+                knowledge_asset_id = EXCLUDED.knowledge_asset_id,
+                source_revision_id = EXCLUDED.source_revision_id,
+                chunk_id = EXCLUDED.chunk_id,
+                acl_snapshot_id = EXCLUDED.acl_snapshot_id,
+                acl_generation = EXCLUDED.acl_generation,
+                vector_kind = EXCLUDED.vector_kind,
+                embedding_profile_id = EXCLUDED.embedding_profile_id,
+                model = EXCLUDED.model,
+                dimensions = EXCLUDED.dimensions,
+                embedding = EXCLUDED.embedding,
+                metadata = EXCLUDED.metadata
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final PostgresProjectionSupport support;
+    private final int batchSize;
 
     public PostgresVectorIndex(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             PostgresProjectionPublicationStore publications) {
+        this(
+                jdbc,
+                transactionManager,
+                publications,
+                PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    public PostgresVectorIndex(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications,
+            int batchSize) {
         this.jdbc = Objects.requireNonNull(jdbc, "jdbc");
         this.support =
                 new PostgresProjectionSupport(jdbc, transactionManager, publications);
+        this.batchSize = PostgresBatchOperations.requireBatchSize(batchSize);
     }
 
     @Override
@@ -54,40 +96,13 @@ public final class PostgresVectorIndex implements VectorIndex {
         immutableRecords.forEach(record ->
                 PostgresProjectionSupport.requireSameOrganization(
                         batch, record.evidence()));
-        support.stage(batch, ProjectionKind.VECTOR, COPY_PREDECESSOR, () -> {
-            for (VectorRecord record : immutableRecords) {
-                jdbc.update(
-                        """
-                        INSERT INTO projection_vector_records (
-                            batch_id, record_id, subject_id, organization_id,
-                            knowledge_asset_id, source_revision_id, chunk_id,
-                            acl_snapshot_id, acl_generation, vector_kind,
-                            embedding_profile_id, model, dimensions, embedding, metadata)
-                        VALUES (
-                            :batchId, :recordId, :subjectId, :organizationId,
-                            :knowledgeAssetId, :sourceRevisionId, :chunkId,
-                            :aclSnapshotId, :aclGeneration, :vectorKind,
-                            :embeddingProfileId, :model, :dimensions,
-                            CAST(:embedding AS vector), :metadata)
-                        ON CONFLICT (batch_id, record_id)
-                        DO UPDATE SET
-                            subject_id = EXCLUDED.subject_id,
-                            organization_id = EXCLUDED.organization_id,
-                            knowledge_asset_id = EXCLUDED.knowledge_asset_id,
-                            source_revision_id = EXCLUDED.source_revision_id,
-                            chunk_id = EXCLUDED.chunk_id,
-                            acl_snapshot_id = EXCLUDED.acl_snapshot_id,
-                            acl_generation = EXCLUDED.acl_generation,
-                            vector_kind = EXCLUDED.vector_kind,
-                            embedding_profile_id = EXCLUDED.embedding_profile_id,
-                            model = EXCLUDED.model,
-                            dimensions = EXCLUDED.dimensions,
-                            embedding = EXCLUDED.embedding,
-                            metadata = EXCLUDED.metadata
-                        """,
-                        parameters(batch, record));
-            }
-        });
+        support.stage(batch, ProjectionKind.VECTOR, COPY_PREDECESSOR, () ->
+                PostgresBatchOperations.batchUpdate(
+                        jdbc,
+                        UPSERT,
+                        immutableRecords,
+                        batchSize,
+                        (index, record) -> parameters(batch, record)));
     }
 
     @Override

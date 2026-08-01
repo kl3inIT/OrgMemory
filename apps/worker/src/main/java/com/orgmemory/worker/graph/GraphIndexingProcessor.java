@@ -1,5 +1,6 @@
 package com.orgmemory.worker.graph;
 
+import com.orgmemory.worker.WorkProcessingResult;
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
@@ -116,9 +117,13 @@ class GraphIndexingProcessor {
         this.tracers = tracers;
     }
 
-    void processNext() {
-        coordinator.claimNext(properties.workerId(), properties.leaseDuration())
-                .ifPresent(this::processInSpan);
+    WorkProcessingResult processNext() {
+        return coordinator.claimNext(properties.workerId(), properties.leaseDuration())
+                .map(claim -> {
+                    processInSpan(claim);
+                    return WorkProcessingResult.PROCESSED;
+                })
+                .orElse(WorkProcessingResult.EMPTY_OR_DEFERRED);
     }
 
     /**

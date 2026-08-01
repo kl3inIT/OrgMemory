@@ -1,5 +1,6 @@
 package com.orgmemory.worker.ingestion;
 
+import com.orgmemory.worker.WorkProcessingResult;
 import com.orgmemory.core.knowledge.acl.AclCaptureStatus;
 import com.orgmemory.core.knowledge.acl.SourceAclEntryCommand;
 import com.orgmemory.core.knowledge.acl.SourcePrincipalType;
@@ -123,9 +124,13 @@ class SourceIngestionProcessor {
         this.events = Objects.requireNonNull(events, "events");
     }
 
-    void processNext() {
-        coordinator.claimNext(properties.workerId(), properties.leaseDuration())
-                .ifPresent(this::process);
+    WorkProcessingResult processNext() {
+        return coordinator.claimNext(properties.workerId(), properties.leaseDuration())
+                .map(claim -> {
+                    process(claim);
+                    return WorkProcessingResult.PROCESSED;
+                })
+                .orElse(WorkProcessingResult.EMPTY_OR_DEFERRED);
     }
 
     /**

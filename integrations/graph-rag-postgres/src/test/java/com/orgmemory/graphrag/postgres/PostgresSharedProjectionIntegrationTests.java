@@ -35,6 +35,7 @@ import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -255,6 +256,140 @@ class PostgresSharedProjectionIntegrationTests {
     }
 
     @Test
+    void boundedAdaptersWriteMultipleRowsAndGraphDependenciesInPhases() {
+        NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(plainJdbc);
+        DataSourceTransactionManager transactions =
+                new DataSourceTransactionManager(plainJdbc.getDataSource());
+        PostgresContentStore boundedContent =
+                new PostgresContentStore(jdbc, transactions, publications, 2);
+        PostgresLexicalIndex boundedLexical =
+                new PostgresLexicalIndex(jdbc, transactions, publications, 2);
+        PostgresVectorIndex boundedVectors =
+                new PostgresVectorIndex(jdbc, transactions, publications, 2);
+        PostgresGraphStore boundedGraph =
+                new PostgresGraphStore(jdbc, transactions, publications, 1);
+        ProjectionNamespace namespace =
+                new ProjectionNamespace(ORGANIZATION_ID, "bounded", "knowledge");
+        ProjectionBatch batch = allProjectionBatch(namespace, "bounded-multi-row");
+        List<String> ids = List.of("bounded-1", "bounded-2", "bounded-3");
+
+        boundedContent.stageUpsert(
+                batch,
+                ids.stream()
+                        .map(id -> new ContentStore.ContentRecord(
+                                id,
+                                evidence(),
+                                ContentStore.ContentKind.CHUNK,
+                                "Bounded policy " + id,
+                                3,
+                                Map.of("title", id)))
+                        .toList());
+        boundedLexical.stageUpsert(
+                batch,
+                ids.stream()
+                        .map(id -> new LexicalIndex.LexicalDocument(
+                                id,
+                                evidence(),
+                                "Bounded policy " + id,
+                                Map.of("title", id)))
+                        .toList());
+        boundedVectors.stageUpsert(
+                batch,
+                ids.stream()
+                        .map(id -> new VectorIndex.VectorRecord(
+                                id,
+                                id,
+                                evidence(),
+                                VectorIndex.VectorKind.CHUNK,
+                                PROFILE_ID,
+                                "test-embedding",
+                                vector(1, 0, 0),
+                                Map.of()))
+                        .toList());
+        boundedGraph.stageReplaceRevision(batch, graphRevision(batch.generation()));
+        markPrepared(batch);
+        ProjectionSnapshot snapshot = publications.publish(batch, NOW.plusSeconds(2));
+
+        assertEquals(
+                ids,
+                boundedContent.get(scope(Set.of(ASSET_ID)), snapshot, ids).stream()
+                        .map(ContentStore.ContentRecord::id)
+                        .toList());
+        assertEquals(
+                3,
+                plainJdbc.queryForObject(
+                        "SELECT count(*) FROM projection_lexical_documents WHERE batch_id = ?",
+                        Integer.class,
+                        batch.id()));
+        assertEquals(
+                3,
+                plainJdbc.queryForObject(
+                        "SELECT count(*) FROM projection_vector_records WHERE batch_id = ?",
+                        Integer.class,
+                        batch.id()));
+        assertEquals(
+                0,
+                plainJdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM projection_graph_entity_contributions contribution
+                        LEFT JOIN projection_graph_entities entity
+                          ON entity.batch_id = contribution.batch_id
+                         AND entity.entity_id = contribution.entity_id
+                        WHERE contribution.batch_id = ? AND entity.entity_id IS NULL
+                        """,
+                        Integer.class,
+                        batch.id()));
+        assertEquals(
+                0,
+                plainJdbc.queryForObject(
+                        """
+                        SELECT count(*)
+                        FROM projection_graph_relation_contributions contribution
+                        LEFT JOIN projection_graph_relations relation
+                          ON relation.batch_id = contribution.batch_id
+                         AND relation.relation_id = contribution.relation_id
+                        WHERE contribution.batch_id = ? AND relation.relation_id IS NULL
+                        """,
+                        Integer.class,
+                        batch.id()));
+    }
+
+    @Test
+    void laterSubBatchFailureRollsBackTheWholeStage() {
+        NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(plainJdbc);
+        DataSourceTransactionManager transactions =
+                new DataSourceTransactionManager(plainJdbc.getDataSource());
+        PostgresContentStore boundedContent =
+                new PostgresContentStore(jdbc, transactions, publications, 2);
+        ProjectionNamespace namespace =
+                new ProjectionNamespace(ORGANIZATION_ID, "batch-failure", "knowledge");
+        ProjectionBatch batch = contentOnlyBatch(namespace, "later-sub-batch-failure");
+        List<ContentStore.ContentRecord> records = List.of(
+                contentRecord("valid-1", ASSET_ID),
+                contentRecord("valid-2", ASSET_ID),
+                contentRecord("x".repeat(256), ASSET_ID),
+                contentRecord("valid-4", ASSET_ID));
+
+        assertThrows(
+                DataAccessException.class,
+                () -> boundedContent.stageUpsert(batch, records));
+
+        assertEquals(
+                0,
+                plainJdbc.queryForObject(
+                        "SELECT count(*) FROM projection_content_records WHERE batch_id = ?",
+                        Integer.class,
+                        batch.id()));
+        assertEquals(
+                0,
+                plainJdbc.queryForObject(
+                        "SELECT count(*) FROM projection_batches WHERE batch_id = ?",
+                        Integer.class,
+                        batch.id()));
+    }
+
+    @Test
     void losingPreparedBatchNeverLeaksAndCanBeDiscarded() {
         ProjectionNamespace namespace =
                 new ProjectionNamespace(ORGANIZATION_ID, "competing", "knowledge");
@@ -319,6 +454,24 @@ class PostgresSharedProjectionIntegrationTests {
                 "competing-" + key,
                 "manifest-competing-" + key,
                 Set.of(ProjectionKind.CONTENT),
+                NOW);
+    }
+
+    private static ProjectionBatch allProjectionBatch(
+            ProjectionNamespace namespace,
+            String key) {
+        return new ProjectionBatch(
+                id(key),
+                namespace,
+                0,
+                1,
+                key,
+                "manifest-" + key,
+                Set.of(
+                        ProjectionKind.CONTENT,
+                        ProjectionKind.LEXICAL,
+                        ProjectionKind.VECTOR,
+                        ProjectionKind.GRAPH),
                 NOW);
     }
 

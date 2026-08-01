@@ -15,7 +15,14 @@ public final class PostgresRetrievalResultCache implements RetrievalResultCache 
     public PostgresRetrievalResultCache(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager) {
-        delegate = new PostgresGraphRagCacheStore(jdbc, transactionManager);
+        this(jdbc, transactionManager, PostgresBatchOperations.DEFAULT_BATCH_SIZE);
+    }
+
+    PostgresRetrievalResultCache(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            int batchSize) {
+        delegate = new PostgresGraphRagCacheStore(jdbc, transactionManager, batchSize);
     }
 
     @Override

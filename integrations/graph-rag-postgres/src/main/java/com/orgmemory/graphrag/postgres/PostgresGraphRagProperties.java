@@ -16,6 +16,7 @@ public class PostgresGraphRagProperties {
     private int hnswM = 16;
     private int hnswEfConstruction = 64;
     private int ivfFlatLists = 100;
+    private int writeBatchSize = PostgresBatchOperations.DEFAULT_BATCH_SIZE;
     private String vchordBuildOptions = "";
 
     public PostgresGraphStoreOptions toStoreOptions() {
@@ -91,6 +92,17 @@ public class PostgresGraphRagProperties {
 
     public void setIvfFlatLists(int ivfFlatLists) {
         this.ivfFlatLists = ivfFlatLists;
+    }
+
+    public int getWriteBatchSize() {
+        return writeBatchSize;
+    }
+
+    public void setWriteBatchSize(int writeBatchSize) {
+        if (writeBatchSize < 1 || writeBatchSize > PostgresBatchOperations.DEFAULT_BATCH_SIZE) {
+            throw new IllegalArgumentException("writeBatchSize must be between 1 and 500");
+        }
+        this.writeBatchSize = writeBatchSize;
     }
 
     public String getVchordBuildOptions() {
