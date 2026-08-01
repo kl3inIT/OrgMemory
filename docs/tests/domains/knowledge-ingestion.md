@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-01-connector-polling-driver (fc6995cf)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (7cef296c)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -21,6 +21,7 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 | Stale expected heads reject | `sourceRevisionAndAclRotationRejectStaleExpectedHeads` |
 | Refresh-window validity | `completeAclRejectsValidityBeyondRefreshWindow` |
 | Concurrent retries converge | `concurrentRetriesConvergeOnOneRawNormalizationAndAsset` |
+| Citation evidence read maps only a tenant-scoped ready matching revision plus validated blob into immutable metadata | `SourceCitationEvidenceQueryTests` |
 
 ## Connector Staging Coverage
 

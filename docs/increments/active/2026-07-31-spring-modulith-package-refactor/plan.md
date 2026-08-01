@@ -1134,7 +1134,7 @@ decision, counterargument, and condition; the response cited those sources and
 the resolved thread records why no duplicate decision was added. Both the PR
 head and merge commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-eighth Pull Request Evidence
 
 - Organization owns `KnowledgeAccessSubjectQuery` and the immutable
   `KnowledgeAccessSubject` value for current active department and Executive
@@ -1164,3 +1164,41 @@ for 478 Markdown files and 8 mirrored domain pairs. Release policy passed all 40
 tests on Node 24.15.0. The mechanical audit found 23 changed paths, no migration,
 no empty changed file, no forbidden Retrieval import, and a clean whitespace
 diff. The terminating `clean test` passed in 1m26s with 99 actionable tasks.
+
+PR #254 merged as `7cef296c` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
+direct audit found no defect, review, inline comment, or review thread. Both the
+PR head `b5428d33` and merge commit are ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Source Ledger owns one typed citation-evidence query that resolves a
+  tenant-scoped ready revision, matching Knowledge Asset, and validated evidence
+  blob into immutable metadata for Retrieval.
+- The query keeps revision and blob repositories, entities, and status enums
+  inside Source Ledger. Retrieval consumes only the evidence query/result/value
+  and the existing storage contract.
+- Missing/non-ready/mismatched revisions retain
+  `CITATION_REVISION_NOT_CURRENT`; missing/unvalidated blobs retain
+  `CITATION_BLOB_NOT_AVAILABLE`. Both remain opaque citation `404` responses and
+  retain their distinct permission-audit reason.
+- Object bytes are still opened only after current authorization succeeds, and
+  blob length/hash are still checked against object-storage metadata before any
+  `ALLOW` audit or response.
+- This code PR remains below 100 changed paths. Retrieval stays open for the
+  Graph verifier and remaining adapter seams.
+
+Local verification started with both structural tests failing against the
+current Source Revision/Evidence Blob entity, repository, and status imports in
+48s. The owner query, typed unavailable results, Citation service, and structural
+slice then passed in 41s; the complete citation plus Modulith slice passed with
+API citation tests in 2m21s. A parallel full run lost its Gradle daemon with no
+test failure while the machine had about 1.7 GB free RAM; after removing only
+that worktree's orphan test worker, full Core, API, and Worker reruns passed
+sequentially in 2m03s, 5m15s, and 4m07s. The documentation operating-model
+check passed for 479 Markdown files and 8 mirrored domain pairs. Release policy
+passed all 41 tests on Node 24.15.0. The mechanical audit found 15 changed paths,
+no migration, no forbidden Retrieval import, and a clean whitespace diff. The
+final terminating sequential `clean test`, rerun after the exhaustive sealed-result
+switch refinement, passed in 9m05s with 99 actionable tasks.

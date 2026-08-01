@@ -1,13 +1,11 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidence;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidenceQuery;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidenceResult;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -25,6 +23,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class CitationContentServiceTests {
 
@@ -38,8 +37,6 @@ class CitationContentServiceTests {
             UUID.fromString("41000000-0000-0000-0000-000000000005");
     private static final UUID CHUNK_ID =
             UUID.fromString("41000000-0000-0000-0000-000000000006");
-    private static final UUID BLOB_ID =
-            UUID.fromString("41000000-0000-0000-0000-000000000007");
     private static final UUID ACL_ID =
             UUID.fromString("41000000-0000-0000-0000-000000000008");
     private static final UUID PROFILE_ID =
@@ -58,7 +55,7 @@ class CitationContentServiceTests {
     void streamsOnlyCurrentPermissionVerifiedEvidence() throws Exception {
         Fixture fixture = new Fixture();
         fixture.authorizeCitation();
-        fixture.revisionAndBlob();
+        fixture.citationEvidence();
         fixture.objectContent();
 
         try (CitationContent citation =
@@ -88,6 +85,66 @@ class CitationContentServiceTests {
         verify(fixture.objects, never()).open(any());
     }
 
+    @Test
+    void missingRevisionRetainsItsOpaqueAuditReason() {
+        unavailableEvidenceRetainsItsOpaqueAuditReason(
+                SourceCitationEvidenceResult.Reason.REVISION_NOT_CURRENT,
+                "CITATION_REVISION_NOT_CURRENT");
+    }
+
+    @Test
+    void unavailableBlobRetainsItsOpaqueAuditReason() {
+        unavailableEvidenceRetainsItsOpaqueAuditReason(
+                SourceCitationEvidenceResult.Reason.BLOB_NOT_AVAILABLE,
+                "CITATION_BLOB_NOT_AVAILABLE");
+    }
+
+    @Test
+    void storageIntegrityMismatchClosesContentBeforeAllowAudit() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.authorizeCitation();
+        fixture.citationEvidence();
+        InputStream stream = mock(InputStream.class);
+        StoredObject metadata = new StoredObject(
+                new com.orgmemory.core.knowledge.storage.ObjectKey(
+                        "org/policy.txt"),
+                CONTENT.length,
+                "text/plain",
+                "different-sha",
+                null,
+                null);
+        when(fixture.objects.open(any()))
+                .thenReturn(new ObjectContent(stream, metadata));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> fixture.service.open(ACTOR, CHUNK_ID, "request-1"));
+
+        verify(stream).close();
+        verify(fixture.audit, never()).record(any());
+    }
+
+    private static void unavailableEvidenceRetainsItsOpaqueAuditReason(
+            SourceCitationEvidenceResult.Reason reason,
+            String expectedAuditReason) {
+        Fixture fixture = new Fixture();
+        fixture.authorizeCitation();
+        when(fixture.evidenceQuery.findAvailable(
+                        ORGANIZATION_ID, REVISION_ID, ASSET_ID))
+                .thenReturn(new SourceCitationEvidenceResult.Unavailable(reason));
+
+        assertThrows(
+                CitationNotFoundException.class,
+                () -> fixture.service.open(ACTOR, CHUNK_ID, "request-1"));
+
+        ArgumentCaptor<com.orgmemory.core.permission.PermissionAuditCommand> audit =
+                ArgumentCaptor.forClass(
+                        com.orgmemory.core.permission.PermissionAuditCommand.class);
+        verify(fixture.audit).record(audit.capture());
+        assertEquals(expectedAuditReason, audit.getValue().reasonCode());
+        verify(fixture.objects, never()).open(any());
+    }
+
     private static SecureRetrievalCandidate candidate() {
         return new SecureRetrievalCandidate(
                 ORGANIZATION_ID,
@@ -113,10 +170,8 @@ class CitationContentServiceTests {
 
         private final CanonicalEvidenceAuthorizationService authorization =
                 mock(CanonicalEvidenceAuthorizationService.class);
-        private final SourceRevisionRepository revisions =
-                mock(SourceRevisionRepository.class);
-        private final EvidenceBlobRepository blobs =
-                mock(EvidenceBlobRepository.class);
+        private final SourceCitationEvidenceQuery evidenceQuery =
+                mock(SourceCitationEvidenceQuery.class);
         private final ObjectStoragePort objects =
                 mock(ObjectStoragePort.class);
         private final PermissionAuditService audit =
@@ -124,8 +179,7 @@ class CitationContentServiceTests {
         private final CitationContentService service =
                 new CitationContentService(
                         authorization,
-                        revisions,
-                        blobs,
+                        evidenceQuery,
                         objects,
                         audit);
 
@@ -137,34 +191,19 @@ class CitationContentServiceTests {
                             List.of(candidate())));
         }
 
-        private void revisionAndBlob() {
-            SourceRevision revision = mock(SourceRevision.class);
-            when(revision.getStatus())
-                    .thenReturn(SourceRevisionStatus.READY);
-            when(revision.getKnowledgeAssetId())
-                    .thenReturn(ASSET_ID);
-            when(revision.getEvidenceBlobId())
-                    .thenReturn(BLOB_ID);
-            when(revision.getFileName())
-                    .thenReturn("policy.txt");
-            when(revision.getMediaType()).thenReturn("text/plain");
-            when(revision.getContentLength())
-                    .thenReturn((long) CONTENT.length);
-            when(revision.getContentSha256()).thenReturn("sha256");
-            when(revisions.findByIdAndOrganizationId(
-                            REVISION_ID, ORGANIZATION_ID))
-                    .thenReturn(java.util.Optional.of(revision));
-
-            EvidenceBlob blob = mock(EvidenceBlob.class);
-            when(blob.getScanStatus())
-                    .thenReturn(EvidenceScanStatus.BASIC_VALIDATED);
-            when(blob.getObjectKey()).thenReturn("org/policy.txt");
-            when(blob.getContentLength())
-                    .thenReturn((long) CONTENT.length);
-            when(blob.getContentSha256()).thenReturn("sha256");
-            when(blobs.findByIdAndOrganizationId(
-                            BLOB_ID, ORGANIZATION_ID))
-                    .thenReturn(java.util.Optional.of(blob));
+        private void citationEvidence() {
+            when(evidenceQuery.findAvailable(
+                            ORGANIZATION_ID, REVISION_ID, ASSET_ID))
+                    .thenReturn(new SourceCitationEvidenceResult.Available(
+                            new SourceCitationEvidence(
+                                    "policy.txt",
+                                    "text/plain",
+                                    CONTENT.length,
+                                    "sha256",
+                                    new com.orgmemory.core.knowledge.storage.ObjectKey(
+                                            "org/policy.txt"),
+                                    CONTENT.length,
+                                    "sha256")));
         }
 
         private void objectContent() {
