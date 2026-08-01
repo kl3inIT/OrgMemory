@@ -4,7 +4,6 @@ import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -13,8 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
@@ -22,30 +19,33 @@ import org.opensearch.client.opensearch.core.bulk.BulkOperation;
 
 final class OpenSearchStagedIndex {
 
-    private static final ConcurrentHashMap<String, ReentrantLock> COPY_LOCKS =
-            new ConcurrentHashMap<>();
-
     private final OpenSearchOperations operations;
     private final OpenSearchProjectionPublicationStore publications;
     private final String controlIndex;
     private final Function<ProjectionBatch, String> batchIndex;
     private final Function<ProjectionSnapshot, String> snapshotIndex;
     private final ProjectionKind kind;
+    private final String logicalCopyUnit;
     private final OpenSearchScanner scanner;
+    private final OpenSearchCopyForwardCoordinator copyForward;
 
     OpenSearchStagedIndex(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
             String controlIndex,
             String index,
-            ProjectionKind kind) {
+            ProjectionKind kind,
+            String logicalCopyUnit,
+            OpenSearchCopyForwardCoordinator copyForward) {
         this(
                 operations,
                 publications,
                 controlIndex,
                 ignored -> index,
                 ignored -> index,
-                kind);
+                kind,
+                logicalCopyUnit,
+                copyForward);
     }
 
     OpenSearchStagedIndex(
@@ -54,14 +54,18 @@ final class OpenSearchStagedIndex {
             String controlIndex,
             Function<ProjectionBatch, String> batchIndex,
             Function<ProjectionSnapshot, String> snapshotIndex,
-            ProjectionKind kind) {
+            ProjectionKind kind,
+            String logicalCopyUnit,
+            OpenSearchCopyForwardCoordinator copyForward) {
         this.operations = Objects.requireNonNull(operations, "operations");
         this.publications = Objects.requireNonNull(publications, "publications");
         this.controlIndex = Objects.requireNonNull(controlIndex, "controlIndex");
         this.batchIndex = Objects.requireNonNull(batchIndex, "batchIndex");
         this.snapshotIndex = Objects.requireNonNull(snapshotIndex, "snapshotIndex");
         this.kind = Objects.requireNonNull(kind, "kind");
+        this.logicalCopyUnit = Objects.requireNonNull(logicalCopyUnit, "logicalCopyUnit");
         this.scanner = new OpenSearchScanner(operations);
+        this.copyForward = Objects.requireNonNull(copyForward, "copyForward");
     }
 
     void stageUpsert(
@@ -154,104 +158,32 @@ final class OpenSearchStagedIndex {
     }
 
     void discard(ProjectionBatch batch) {
+        discardDocuments(batch);
+        discardMarker(batch);
+    }
+
+    private void discardDocuments(ProjectionBatch batch) {
         Query query = batchQuery(batch);
         String index = batchIndex.apply(batch);
-        List<Map<String, Object>> documents = scan(index, query, Integer.MAX_VALUE);
-        List<BulkOperation> deletes = documents.stream()
-                .map(document -> BulkOperation.of(operation -> operation.delete(deleting -> deleting
-                        .index(index)
-                        .id(physicalId(
-                                batch.id(),
-                                document.get(OpenSearchProjectionCodec.RECORD_ID)
-                                        .toString())))))
-                .toList();
-        operations.bulk(deletes);
-        discardMarker(batch);
+        copyForward.stream(
+                index,
+                query,
+                hit -> copyForward.deleteOperation(index, hit.id()));
     }
 
     void discardMarker(ProjectionBatch batch) {
         Objects.requireNonNull(batch, "batch");
-        operations.deleteIfExists(controlIndex, copyMarkerId(batch));
+        operations.deleteIfExists(
+                controlIndex,
+                copyForward.markerId(batch, copyUnit(batch)));
     }
 
     private void ensureCopyForward(ProjectionBatch batch) {
-        String markerId = copyMarkerId(batch);
-        while (true) {
-            ReentrantLock lock =
-                    COPY_LOCKS.computeIfAbsent(markerId, ignored -> new ReentrantLock());
-            lock.lock();
-            try {
-                // A prior owner can remove its map entry before releasing the
-                // lock. A waiter holding that retired lock must retry against
-                // the current map entry before touching the marker.
-                if (COPY_LOCKS.get(markerId) != lock) {
-                    continue;
-                }
-                OpenSearchOperations.VersionedDocument marker =
-                        operations.get(controlIndex, markerId);
-                if (ready(marker)) {
-                    COPY_LOCKS.remove(markerId, lock);
-                    return;
-                }
-                String owner = UUID.randomUUID().toString();
-                Map<String, Object> copying =
-                        OpenSearchProjectionCodec.batch(batch, "PREPARING");
-                copying.put("document_kind", "COPY_FORWARD");
-                copying.put("projection_kind", kind.name());
-                copying.put("target_index", batchIndex.apply(batch));
-                copying.put("copy_status", "COPYING");
-                copying.put("copy_owner", owner);
-                copying.put("copy_started_at", Instant.now().toString());
-                if (marker == null) {
-                    if (!operations.create(controlIndex, markerId, copying)) {
-                        marker = operations.get(controlIndex, markerId);
-                        if (ready(marker)) {
-                            COPY_LOCKS.remove(markerId, lock);
-                            return;
-                        }
-                        throw new OpenSearchProjectionException(
-                                "another process is preparing " + markerId);
-                    }
-                } else if (!operations.compareAndSet(
-                        controlIndex,
-                        markerId,
-                        marker,
-                        copying)) {
-                    throw new OpenSearchProjectionException(
-                            "another process is preparing " + markerId);
-                }
-
-                copyPreviousGeneration(batch);
-                OpenSearchOperations.VersionedDocument owned =
-                        operations.get(controlIndex, markerId);
-                if (owned == null
-                        || !owner.equals(owned.source().get("copy_owner"))) {
-                    throw new OpenSearchProjectionException(
-                            "copy-forward ownership changed for " + markerId);
-                }
-                Map<String, Object> ready = new LinkedHashMap<>(owned.source());
-                ready.put("copy_status", "READY");
-                ready.put("copy_completed_at", Instant.now().toString());
-                if (!operations.compareAndSet(
-                        controlIndex,
-                        markerId,
-                        owned,
-                        ready)) {
-                    throw new OpenSearchProjectionException(
-                            "could not complete copy-forward marker " + markerId);
-                }
-                OpenSearchOperations.VersionedDocument completed =
-                        operations.get(controlIndex, markerId);
-                if (!ready(completed)) {
-                    throw new OpenSearchProjectionException(
-                            "copy-forward marker is not visible as ready " + markerId);
-                }
-                COPY_LOCKS.remove(markerId, lock);
-                return;
-            } finally {
-                lock.unlock();
-            }
-        }
+        copyForward.copyForward(
+                batch,
+                copyUnit(batch),
+                () -> copyPreviousGeneration(batch),
+                () -> discardDocuments(batch));
     }
 
     private void copyPreviousGeneration(ProjectionBatch batch) {
@@ -266,34 +198,20 @@ final class OpenSearchStagedIndex {
         if (!previousSnapshot.projections().contains(kind)) {
             return;
         }
-        List<Map<String, Object>> previous = scan(
+        String target = batchIndex.apply(batch);
+        copyForward.stream(
                 snapshotIndex.apply(previousSnapshot),
                 snapshotQuery(previousSnapshot),
-                Integer.MAX_VALUE);
-        List<Map<String, Object>> copies = previous.stream()
-                .map(source -> {
-                    Map<String, Object> copy = new LinkedHashMap<>(source);
-                    copy.put(OpenSearchProjectionCodec.BATCH_ID, batch.id().toString());
-                    copy.put(OpenSearchProjectionCodec.GENERATION, batch.generation());
-                    return Map.copyOf(copy);
-                })
-                .toList();
-        stageCopiedDocuments(batch, copies);
-    }
-
-    private void stageCopiedDocuments(
-            ProjectionBatch batch,
-            List<Map<String, Object>> documents) {
-        List<BulkOperation> writes = documents.stream()
-                .map(document -> BulkOperation.of(operation -> operation.index(indexing -> indexing
-                        .index(batchIndex.apply(batch))
-                        .id(physicalId(
-                                batch.id(),
-                                document.get(OpenSearchProjectionCodec.RECORD_ID)
-                                        .toString()))
-                        .document(document))))
-                .toList();
-        operations.bulk(writes);
+                hit -> {
+                    Map<String, Object> document = new LinkedHashMap<>(hit.source());
+                    document.put(OpenSearchProjectionCodec.BATCH_ID, batch.id().toString());
+                    document.put(OpenSearchProjectionCodec.GENERATION, batch.generation());
+                    String recordId = document.get(OpenSearchProjectionCodec.RECORD_ID).toString();
+                    return copyForward.indexOperation(
+                            target,
+                            physicalId(batch.id(), recordId),
+                            Map.copyOf(document));
+                });
     }
 
     private List<Map<String, Object>> scan(
@@ -373,16 +291,10 @@ final class OpenSearchStagedIndex {
         return batchId + ":" + recordId;
     }
 
-    private String copyMarkerId(ProjectionBatch batch) {
-        return "copy:"
-                + batch.id()
-                + ":"
-                + kind.name()
-                + ":"
-                + Integer.toUnsignedString(batchIndex.apply(batch).hashCode(), 36);
-    }
-
-    private static boolean ready(OpenSearchOperations.VersionedDocument marker) {
-        return marker != null && "READY".equals(marker.source().get("copy_status"));
+    private OpenSearchCopyForwardCoordinator.CopyUnit copyUnit(ProjectionBatch batch) {
+        return new OpenSearchCopyForwardCoordinator.CopyUnit(
+                kind,
+                logicalCopyUnit,
+                batchIndex.apply(batch));
     }
 }

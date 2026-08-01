@@ -7,7 +7,6 @@ import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -16,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
 import org.opensearch.client.opensearch._types.FieldValue;
 import org.opensearch.client.opensearch._types.OpenSearchException;
 import org.opensearch.client.opensearch._types.SortOrder;
@@ -38,22 +35,22 @@ import org.opensearch.client.opensearch.core.search.Pit;
 public final class OpenSearchLexicalIndex implements LexicalIndex {
 
     private static final int SEARCH_PAGE_SIZE = 500;
-    private static final ConcurrentHashMap<String, ReentrantLock> COPY_LOCKS =
-            new ConcurrentHashMap<>();
-
     private final OpenSearchOperations operations;
     private final OpenSearchProjectionPublicationStore publications;
     private final OpenSearchIndexNames indexes;
     private final OpenSearchScanner scanner;
+    private final OpenSearchCopyForwardCoordinator copyForward;
 
     OpenSearchLexicalIndex(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
         this.operations = Objects.requireNonNull(operations, "operations");
         this.publications = Objects.requireNonNull(publications, "publications");
         this.indexes = Objects.requireNonNull(indexes, "indexes");
         this.scanner = new OpenSearchScanner(operations);
+        this.copyForward = Objects.requireNonNull(copyForward, "copyForward");
     }
 
     @Override
@@ -241,65 +238,23 @@ public final class OpenSearchLexicalIndex implements LexicalIndex {
     @Override
     public void discard(ProjectionBatch batch) {
         Objects.requireNonNull(batch, "batch");
-        operations.deleteIndex(indexes.lexical(batch.id()));
-        operations.deleteIfExists(indexes.control(), copyMarkerId(batch));
+        discardDocuments(batch);
+        operations.deleteIfExists(
+                indexes.control(),
+                copyForward.markerId(batch, copyUnit(batch)));
     }
 
     private void ensureCopyForward(ProjectionBatch batch) {
         Objects.requireNonNull(batch, "batch");
-        String target = indexes.lexical(batch.id());
-        operations.ensureIndex(target, OpenSearchSchemas.lexical());
-        String markerId = copyMarkerId(batch);
-        OpenSearchOperations.VersionedDocument marker =
-                operations.get(indexes.control(), markerId);
-        if (ready(marker)) {
-            return;
-        }
-        ReentrantLock lock =
-                COPY_LOCKS.computeIfAbsent(markerId, ignored -> new ReentrantLock());
-        lock.lock();
-        try {
-            marker = operations.get(indexes.control(), markerId);
-            if (ready(marker)) {
-                return;
-            }
-            String owner = UUID.randomUUID().toString();
-            Map<String, Object> copying = OpenSearchProjectionCodec.batch(batch, "PREPARING");
-            copying.put("document_kind", "COPY_FORWARD");
-            copying.put("projection_kind", ProjectionKind.LEXICAL.name());
-            copying.put("target_index", target);
-            copying.put("copy_status", "COPYING");
-            copying.put("copy_owner", owner);
-            copying.put("copy_started_at", Instant.now().toString());
-            if (marker == null) {
-                if (!operations.create(indexes.control(), markerId, copying)) {
-                    throw new OpenSearchProjectionException(
-                            "another process is preparing " + markerId);
-                }
-            } else if (!operations.compareAndSet(
-                    indexes.control(), markerId, marker, copying)) {
-                throw new OpenSearchProjectionException(
-                        "another process is preparing " + markerId);
-            }
-            copyPrevious(batch, target);
-            OpenSearchOperations.VersionedDocument owned =
-                    operations.get(indexes.control(), markerId);
-            if (owned == null || !owner.equals(owned.source().get("copy_owner"))) {
-                throw new OpenSearchProjectionException(
-                        "copy-forward ownership changed for " + markerId);
-            }
-            Map<String, Object> completed = new LinkedHashMap<>(owned.source());
-            completed.put("copy_status", "READY");
-            completed.put("copy_completed_at", Instant.now().toString());
-            if (!operations.compareAndSet(
-                    indexes.control(), markerId, owned, completed)) {
-                throw new OpenSearchProjectionException(
-                        "could not complete copy-forward marker " + markerId);
-            }
-        } finally {
-            lock.unlock();
-            COPY_LOCKS.remove(markerId, lock);
-        }
+        copyForward.copyForward(
+                batch,
+                copyUnit(batch),
+                () -> {
+                    String target = indexes.lexical(batch.id());
+                    operations.ensureIndex(target, OpenSearchSchemas.lexical());
+                    copyPrevious(batch, target);
+                },
+                () -> discardDocuments(batch));
     }
 
     private void copyPrevious(
@@ -317,26 +272,29 @@ public final class OpenSearchLexicalIndex implements LexicalIndex {
         }
         String source = indexes.lexical(previous.batchId());
         Query query = Query.of(candidate -> candidate.matchAll(matchAll -> matchAll));
-        List<BulkOperation> copies = scanner.scan(source, query, Integer.MAX_VALUE).stream()
-                .map(hit -> {
+        copyForward.stream(
+                source,
+                query,
+                hit -> {
                     Map<String, Object> document = new LinkedHashMap<>(hit.source());
                     document.put(OpenSearchProjectionCodec.BATCH_ID, batch.id().toString());
                     document.put(OpenSearchProjectionCodec.GENERATION, batch.generation());
-                    return BulkOperation.of(operation -> operation.index(write -> write
-                            .index(target)
-                            .id(hit.id())
-                            .document(Map.copyOf(document))));
-                })
-                .toList();
-        operations.bulk(copies);
+                    return copyForward.indexOperation(
+                            target,
+                            hit.id(),
+                            Map.copyOf(document));
+                });
     }
 
-    private String copyMarkerId(ProjectionBatch batch) {
-        return "copy:" + batch.id() + ":" + ProjectionKind.LEXICAL.name();
+    private void discardDocuments(ProjectionBatch batch) {
+        operations.deleteIndex(indexes.lexical(batch.id()));
     }
 
-    private static boolean ready(OpenSearchOperations.VersionedDocument marker) {
-        return marker != null && "READY".equals(marker.source().get("copy_status"));
+    private OpenSearchCopyForwardCoordinator.CopyUnit copyUnit(ProjectionBatch batch) {
+        return new OpenSearchCopyForwardCoordinator.CopyUnit(
+                ProjectionKind.LEXICAL,
+                ProjectionKind.LEXICAL.name(),
+                indexes.lexical(batch.id()));
     }
 
     private static String encodeCursor(double score, String id) {

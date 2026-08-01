@@ -17,11 +17,13 @@ class OpenSearchGraphRagPropertiesTests {
         properties.setConnectTimeout(Duration.ofSeconds(5));
         properties.setSocketTimeout(Duration.ofSeconds(20));
         properties.setBulkMaximumOperations(250);
+        properties.setCopyMaximumBytes(1_048_576);
         properties.setGraphMaximumFrontier(500);
         properties.validate();
 
         assertEquals("orgmemory-test", properties.getIndexPrefix());
         assertEquals(250, properties.getBulkMaximumOperations());
+        assertEquals(1_048_576, properties.getCopyMaximumBytes());
         assertThrows(
                 IllegalArgumentException.class,
                 () -> properties.setIndexPrefix("Upper Case"));
@@ -31,6 +33,9 @@ class OpenSearchGraphRagPropertiesTests {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> properties.setBulkMaximumOperations(0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> properties.setCopyMaximumBytes(0));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> properties.setSocketTimeout(Duration.ZERO));

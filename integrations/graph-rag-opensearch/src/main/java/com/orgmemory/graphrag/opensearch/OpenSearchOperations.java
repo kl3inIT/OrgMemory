@@ -32,6 +32,10 @@ final class OpenSearchOperations {
         return client;
     }
 
+    int bulkMaximumOperations() {
+        return bulkMaximumOperations;
+    }
+
     boolean indexExists(String index) {
         try {
             return client.indices()

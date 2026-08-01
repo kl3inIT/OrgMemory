@@ -18,6 +18,7 @@ public class OpenSearchGraphRagProperties {
     private Duration connectTimeout = Duration.ofSeconds(10);
     private Duration socketTimeout = Duration.ofSeconds(30);
     private int bulkMaximumOperations = 500;
+    private long copyMaximumBytes = 5 * 1024 * 1024;
     private int graphMaximumFrontier = 1_000;
     private boolean pplGraphLookupEnabled = true;
 
@@ -86,6 +87,17 @@ public class OpenSearchGraphRagProperties {
             throw new IllegalArgumentException("bulkMaximumOperations must be positive");
         }
         this.bulkMaximumOperations = bulkMaximumOperations;
+    }
+
+    public long getCopyMaximumBytes() {
+        return copyMaximumBytes;
+    }
+
+    public void setCopyMaximumBytes(long copyMaximumBytes) {
+        if (copyMaximumBytes <= 0) {
+            throw new IllegalArgumentException("copyMaximumBytes must be positive");
+        }
+        this.copyMaximumBytes = copyMaximumBytes;
     }
 
     public int getGraphMaximumFrontier() {

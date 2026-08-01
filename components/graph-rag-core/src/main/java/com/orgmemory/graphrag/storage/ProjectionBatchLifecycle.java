@@ -39,8 +39,10 @@ public final class ProjectionBatchLifecycle {
                     .sorted(Comparator.comparingInt(Enum::ordinal))
                     .toList()) {
                 Preparation preparation = byKind.get(kind);
-                preparation.prepare(batch);
+                // Register before prepare so a preparation that fails after a
+                // partial write is itself discarded during saga cleanup.
                 prepared.add(preparation);
+                preparation.prepare(batch);
                 publications.markPrepared(batch, kind, now);
             }
             return publications.publish(batch, now);

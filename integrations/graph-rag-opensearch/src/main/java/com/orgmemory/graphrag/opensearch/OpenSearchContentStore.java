@@ -19,7 +19,8 @@ public final class OpenSearchContentStore implements ContentStore {
     OpenSearchContentStore(
             OpenSearchOperations operations,
             OpenSearchProjectionPublicationStore publications,
-            OpenSearchIndexNames indexes) {
+            OpenSearchIndexNames indexes,
+            OpenSearchCopyForwardCoordinator copyForward) {
         Objects.requireNonNull(operations, "operations")
                 .ensureIndex(indexes.content(), OpenSearchSchemas.content());
         this.staged = new OpenSearchStagedIndex(
@@ -27,7 +28,9 @@ public final class OpenSearchContentStore implements ContentStore {
                 publications,
                 indexes.control(),
                 indexes.content(),
-                ProjectionKind.CONTENT);
+                ProjectionKind.CONTENT,
+                ProjectionKind.CONTENT.name(),
+                copyForward);
     }
 
     @Override
