@@ -1096,7 +1096,7 @@ and aggregate CI checks passed. CodeRabbit was rate limited; direct audit found
 zero reviews, inline comments, or review threads, and both the PR head and merge
 commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-seventh Pull Request Evidence
 
 - Asset owns `KnowledgeAssetRetrievalQuery` for tenant-scoped existence, active
   authorization scopes, and current active catalog projections.
@@ -1124,3 +1124,86 @@ pairs; all 40 release-policy tests passed under Node 24.15; and the terminating
 repository-wide `clean test` passed in 1m03s across 99 tasks. Mechanical
 repository-import, zero-byte, migration-scope, diff-hygiene, and 18-path scope
 checks passed.
+
+PR #252 merged as `00aabe15` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit approved the code and
+raised one request for a duplicate ADR. Repository evidence showed the active
+design plus challenge brief/verdict already contain the required alternatives,
+decision, counterargument, and condition; the response cited those sources and
+the resolved thread records why no duplicate decision was added. Both the PR
+head and merge commit are ancestors of current `origin/main`.
+
+## Thirty-eighth Pull Request Evidence
+
+- Organization owns `KnowledgeAccessSubjectQuery` and the immutable
+  `KnowledgeAccessSubject` value for current active department and Executive
+  facts; `OrganizationResourceQuery` owns organization/department existence.
+- Both JPA implementations remain package-private. Retrieval imports no
+  `AppUser`, Organization repository, Department repository, AppUser repository,
+  or `UserRole` type.
+- Evidence scope and source visibility reload the persisted subject instead of
+  trusting `CurrentActor` department or role claims. ADMIN remains non-Executive;
+  inactive and foreign-tenant subjects fail closed.
+- `AuthorizationResourceDirectory`, `KnowledgeEvidenceScopeResolver`, and
+  `SecureSourceVisibilityAdapter` are the exact Retrieval consumers of the
+  Organization owner queries.
+- This code PR remains below 100 changed paths. Retrieval stays open for Source
+  Ledger citation, Graph verifier, and adapter seams.
+
+Local verification so far: the Organization isolation test failed first against
+the unchanged repository/entity/role consumers. Core/test/API/Worker compilation
+passed in 41s. The new owner-query, evidence-scope, source-visibility, and full
+Modulith slice passed in 36s. PostgreSQL external-principal, API admin-resource,
+and canonical Knowledge retrieval integration proofs passed together in 1m31s.
+The first full Worker run exposed that its deliberately narrow component scan
+did not include the new Organization owner adapters; adding the Organization
+package to Worker wiring made all 40 Worker tasks pass in 3m42s, and the combined
+Core/API/Worker gate then passed. The documentation operating-model check passed
+for 478 Markdown files and 8 mirrored domain pairs. Release policy passed all 40
+tests on Node 24.15.0. The mechanical audit found 23 changed paths, no migration,
+no empty changed file, no forbidden Retrieval import, and a clean whitespace
+diff. The terminating `clean test` passed in 1m26s with 99 actionable tasks.
+
+PR #254 merged as `7cef296c` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
+direct audit found no defect, review, inline comment, or review thread. Both the
+PR head `b5428d33` and merge commit are ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Source Ledger owns one typed citation-evidence query that resolves a
+  tenant-scoped ready revision, matching Knowledge Asset, and validated evidence
+  blob into immutable metadata for Retrieval.
+- The query keeps revision and blob repositories, entities, and status enums
+  inside Source Ledger. Retrieval consumes only the evidence query/result/value
+  and the existing storage contract.
+- Missing/non-ready/mismatched revisions retain
+  `CITATION_REVISION_NOT_CURRENT`; missing/unvalidated blobs retain
+  `CITATION_BLOB_NOT_AVAILABLE`. Both remain opaque citation `404` responses and
+  retain their distinct permission-audit reason.
+- Object bytes are still opened only after current authorization succeeds, and
+  blob length/hash are still checked against object-storage metadata before any
+  `ALLOW` audit or response.
+- This code PR remains below 100 changed paths. Retrieval stays open for the
+  Graph verifier and remaining adapter seams.
+
+Local verification started with both structural tests failing against the
+current Source Revision/Evidence Blob entity, repository, and status imports in
+48s. The owner query, typed unavailable results, Citation service, and structural
+slice then passed in 41s; the complete citation plus Modulith slice passed with
+API citation tests in 2m21s. A parallel full run lost its Gradle daemon with no
+test failure while the machine had about 1.7 GB free RAM; after removing only
+that worktree's orphan test worker, full Core, API, and Worker reruns passed
+sequentially in 2m03s, 5m15s, and 4m07s. The documentation operating-model
+check passed for 479 Markdown files and 8 mirrored domain pairs. Release policy
+passed all 41 tests on Node 24.15.0. The mechanical audit found 15 changed paths,
+no migration, no forbidden Retrieval import, and a clean whitespace diff. The
+final terminating sequential `clean test`, rerun after the exhaustive sealed-result
+switch refinement, passed in 9m05s with 99 actionable tasks.
+
+After merging current `origin/main` at `39281c33`, the Citation plus full
+Modulith slice passed again in 55s. The documentation check passed across the
+new base's 485 Markdown files and 8 mirrored domain pairs, and all 41
+release-policy tests passed again on Node 24.15.0.

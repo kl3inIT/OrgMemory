@@ -103,7 +103,7 @@ public record AiGatewayProperties(
             keywordPlanning = keywordPlanning == null
                     ? assistantChat : keywordPlanning;
             graphExtraction = graphExtraction == null
-                    ? new Route("openai", "gpt-5.6-sol") : graphExtraction;
+                    ? new Route("openai", "gpt-5.4-mini") : graphExtraction;
             embedding = embedding == null
                     ? new Route("openai", "text-embedding-3-large") : embedding;
         }

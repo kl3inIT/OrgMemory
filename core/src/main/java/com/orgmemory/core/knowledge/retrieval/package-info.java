@@ -7,9 +7,9 @@
  * Catalog, text-chunk, vector-literal, and projection-namespace values belong to Asset and are
  * consumed here one way. Top-level search consumers cross the parent-owned
  * {@code knowledge::search} interface instead of this implementation package. The module remains
- * open while its remaining sibling-module adapters and foreign Organization and Source Ledger
- * persistence access are replaced by intentional interfaces during the Knowledge module-closing
- * phase. Asset repository access already crosses an owner-defined query.
+ * open while its Graph verifier and remaining sibling-module adapters are replaced by intentional
+ * interfaces during the Knowledge module-closing phase. Asset, Organization, and Source Ledger
+ * citation reads already cross owner-defined queries.
  */
 @org.springframework.modulith.ApplicationModule(
         type = org.springframework.modulith.ApplicationModule.Type.OPEN)

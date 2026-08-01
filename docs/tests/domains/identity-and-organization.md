@@ -7,7 +7,7 @@ Source: `core/src/test/java/com/orgmemory/core/organization`,
 `apps/api/src/test/java/com/orgmemory/api/scim`,
 `apps/api/src/test/java/com/orgmemory/api/admin`, and `apps/web/test/e2e`.
 
-Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (00aabe15)`.
 
 | Behavior | Evidence |
 | --- | --- |
@@ -18,6 +18,8 @@ Reconciled: `2026-07-29-polyglot-apps-workspace (7acda3a)`.
 | Fifty concurrent first logins leave one binding and one accepted invitation | `IdentityBindingConcurrencyIntegrationTests#concurrentFirstLoginLeavesOneBindingAndOneAcceptedInvitation` |
 | Tenant foreign keys and organization-scoped email uniqueness survive populated upgrades | `IdentityTenantIntegrityMigrationTests`, `IdentityOrganizationEmailCutoverMigrationTests` |
 | Inactive linked users are denied | `OidcCurrentActorProviderTests#rejectsAnInactiveLinkedUser` |
+| Knowledge reads reload the active persisted department and Executive state; ADMIN, inactive, and foreign-tenant subjects cannot widen access | `JpaKnowledgeAccessSubjectQueryTests`, `ModulithVerificationTests#retrievalDoesNotDependOnOrganizationPersistenceOrRoleTypes`, `#retrievalOrganizationReadsUseOnlyOwnerQueries`, `KnowledgeRetrievalIntegrationTests` |
+| Authorization resource resolution uses Organization-owned canonical organization and department existence queries | `JpaOrganizationResourceQueryTests`, `PermissionsAdminIntegrationTests` |
 | Session carries the app role for browser rendering | `BrowserSessionControllerTests#exposesOnlyTheCanonicalInternalActorForAnAuthenticatedSession` |
 | Non-administrators are refused on every admin endpoint | `PermissionsAdminIntegrationTests#nonAdministratorsAreRefusedEverywhere` |
 | Admin confirmation opens retrieval and revocation closes it | `#confirmingAnIdentityOpensRetrievalAndRevokingClosesIt` |

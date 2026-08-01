@@ -9,12 +9,16 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-publication-lifecycle-coordinator (e1d84c91)`.
+Reconciled: `2026-08-02-publication-lifecycle-coordinator (e1d84c91)` and
+`2026-08-02-graph-extraction-model-route (aca7eede)`.
 
 ## Automated
 
 - Graph-core unit tests cover extraction-result invariants, internal retrieval
   plans, deterministic ranking/interleaving, and context budgets.
+- API, worker, and shared gateway-property tests prove graph extraction's
+  `gpt-5.4-mini` default is independent from the Assistant model and remains
+  explicitly overridable. Production Compose validation checks the same route.
 - Graph-testkit security tests prove permission-scoped contribution,
   adjacency, degree, weight, seed, replacement, and removal behavior.
 - Core traversal tests prove exact-snapshot validation before zero/empty

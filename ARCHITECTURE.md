@@ -44,8 +44,10 @@ CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 15.2.0. Tegami 1.2.7 manages one synthetic whole-product release unit backed
 by `release/product.json`; that product release does not publish Gradle or pnpm
 workspaces. `@orgmemory/cli` has a separate package-owned SemVer and a dedicated
-manual npm Trusted Publishing workflow. A CLI version is consumer-visible only
-after its exact registry release and provenance have been verified.
+manual npm Trusted Publishing workflow. Public consumer version `0.1.0` has
+verified registry integrity and SLSA provenance. A later CLI version is
+consumer-visible only after its exact registry release and provenance have been
+verified.
 
 Green `main` commits remain the executable delivery identity. Production and
 docs workflows publish immutable SHA-addressed images and manifests. Tegami
@@ -150,14 +152,19 @@ required for publication and the projection namespace identity; callers
 translate Retrieval's richer profile at the boundary. Retrieval resolves Asset
 existence, active authorization scopes, and current catalog projections through
 the Asset-owned `KnowledgeAssetRetrievalQuery`; it does not import Asset
-repositories. Asset has no direct dependency on Retrieval and is a closed
+repositories. Organization-owned queries reload persisted active department and
+Executive facts and resolve organization/department existence without exposing
+Organization persistence or roles. Source Ledger resolves tenant-scoped ready
+revision plus validated blob state through `SourceCitationEvidenceQuery`, so
+citation opening consumes immutable evidence rather than revision/blob
+persistence. Asset has no direct dependency on Retrieval and is a closed
 nested module with an exact outgoing dependency allowlist. Parent Knowledge
 exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
 the exact `knowledge::search` named interface. Assistant and Asset Registry
 consume that parent interface without importing Retrieval implementation types.
-Retrieval remains explicitly open while its remaining sibling adapters and
-Asset persistence/orchestration seams are replaced by intentional APIs. The
+Retrieval remains explicitly open while its Graph verifier and remaining
+sibling adapters are replaced by intentional APIs. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset
@@ -206,7 +213,11 @@ changing the immutable release.
 ## Persisted Model
 
 The identity ledger persists organizations, departments, users, and external
-identities. The knowledge slice persists Knowledge Spaces and the canonical
+identities. Knowledge retrieval reloads an active subject's canonical department
+and Executive state through `KnowledgeAccessSubjectQuery`, and resolves
+organization/department authorization resources through
+`OrganizationResourceQuery`; it does not import Organization entities, roles,
+or repositories. The knowledge slice persists Knowledge Spaces and the canonical
 source ledger (`SourceObject`, immutable `SourceRevision`, and `EvidenceBlob`
 metadata), leased ingestion jobs, source-shaped raw and normalized records,
 stable `KnowledgeAsset` roots, immutable `KnowledgeAssetVersion` records,
@@ -338,8 +349,10 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral `integrations/ai-model-gateways` runtime. The shared dispatcher
 selects protocol factories for Spring AI OpenAI-compatible or native Anthropic
 Messages models and fails closed when a protocol implementation is absent.
-Assistant chat, graph extraction, and document
-embedding have independent configured routes; immutable Knowledge Asset embedding
+Assistant chat, graph extraction, and document embedding have independent
+configured routes. Graph extraction defaults to `gpt-5.4-mini`; the
+`ORGMEMORY_GRAPH_EXTRACTION_MODEL` deployment override is independent from the
+Assistant model. Immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit
 local retrieval fallback. A persistent agent conversation model does not exist

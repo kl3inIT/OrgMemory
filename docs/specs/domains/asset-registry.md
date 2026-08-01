@@ -7,10 +7,11 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
-`apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
+`apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`,
+`apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (ce1a970b)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (1030a77b)`.
 
 ## Current Behavior
 
@@ -172,16 +173,18 @@ tree to quarantine, commits receipt removal, then deletes the quarantine. It
 has no destructive `--force`; modified and legacy trees require manual cleanup
 or a verified reinstall first.
 
-`@orgmemory/cli` owns an independent package SemVer. The dedicated manual npm
-workflow accepts only the exact current green `main` SHA and matching package
-version, runs Node 24 frozen-package gates, inspects the tarball, publishes
-through a protected environment with OIDC Trusted Publishing and provenance,
-and verifies the registry package and executable. It has no long-lived npm
-token or dependency cache. The public package includes a proprietary license
-that permits only authorized, unmodified execution against accessible
-OrgMemory services. The initial registry bootstrap remains an explicit owner
-operation; product UI and public docs must not render a pinned `npx` command
-until that exact version has been verified live.
+`@orgmemory/cli` owns an independent package SemVer. Consumer version `0.1.0`
+is public with registry integrity, repository-bound SLSA provenance, and an
+executable `orgmemory` binary. The dedicated manual npm workflow accepts only
+the exact current green `main` SHA and matching package version, runs Node 24
+frozen-package gates, inspects the tarball, and publishes through a protected
+environment with OIDC Trusted Publishing. It has no long-lived npm token or
+dependency cache. A rerun may accept an existing immutable version only when
+its registry integrity equals the reviewed tarball, then polls until integrity
+and provenance are both visible before executing that exact registry version.
+The public package includes a proprietary license that permits only authorized,
+unmodified execution against accessible OrgMemory services. Product UI and
+public docs may render a pinned `0.1.0` command only after that live proof.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
@@ -396,5 +399,4 @@ separate owner and support-agent sessions.
 
 - controlled SOP effectivity
 - runtime compatibility policy enforcement beyond deterministic installation
-- first public npm publication and registry activation of the prepared CLI
 - cross-company public marketplace, ratings, and social publishing
