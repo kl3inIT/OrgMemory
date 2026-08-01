@@ -10,6 +10,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
+import org.springframework.modulith.core.ApplicationModuleInformation;
 import org.springframework.modulith.core.ApplicationModules;
 
 class ModulithVerificationTests {
@@ -452,9 +453,9 @@ class ModulithVerificationTests {
     @Test
     void knowledgeConnectorIsAClosedNestedModule() {
         var connector = modules.getModuleByName("knowledge.connector").orElseThrow();
-        var allowedDependencies = connector.getAllowedDependencies(modules).stream()
-                .map(Object::toString)
-                .map(dependency -> dependency.replace(" :: ", "::"))
+        var declaredDependencies = ApplicationModuleInformation.of(connector.getBasePackage())
+                .getDeclaredDependencies()
+                .stream()
                 .collect(TreeSet::new, Set::add, Set::addAll);
 
         assertFalse(connector.isOpen());
@@ -471,7 +472,7 @@ class ModulithVerificationTests {
                         "shared",
                         "shared::error",
                         "shared::secret"),
-                allowedDependencies);
+                declaredDependencies);
     }
 
     @Test

@@ -871,3 +871,18 @@ mirrored domain pairs; all 37 release-policy tests passed under Node 24.15;
 and the terminating repository-wide `clean test` completed successfully across
 99 tasks. Mechanical package, zero-byte, and migration-name checks, diff
 hygiene, and the 5-path pull-request scope check passed.
+
+CodeRabbit review then tightened the closure regression to read the exact
+annotation declaration through Spring Modulith's `ApplicationModuleInformation`
+rather than the effective dependency set. Connector's package contract now
+also states why its unqualified Asset and Retrieval dependencies are temporary
+and safe: every consumed type is in the owners' root API package and the
+existing dependency tests pin that surface until those two modules close. The
+review request for a new architecture record was rejected as duplication: this
+closure directly applies the already judged Claude Fable 5 verdict in
+[challenge-verdict.md](challenge-verdict.md), and introduces no new material
+boundary decision.
+
+Review-fix verification passed: focused `ModulithVerificationTests` in 29s,
+`:core:test` in 1m30s, the 437-file docs check, all 37 release-policy tests
+under Node 24.15, and a terminating repository `clean test` across 99 tasks.
