@@ -514,7 +514,7 @@ PR #210 merged as `4feaf5ca3a89b254c57932d2441747ced5c56b04` after all
 required CI checks passed. CodeRabbit confirmed both fixes and resolved both
 review threads before merge.
 
-## Current Pull Request Gates
+## Twentieth Pull Request Evidence
 
 - ACL owns a read-only `SourceAclQuery` and immutable snapshot/Space-generation
   facts for sibling consumers.
@@ -545,3 +545,33 @@ authorization-consolidation changes, focused boundary tests passed in 46s, the
 docs check passed across 415 Markdown files, all 37 release-policy tests passed,
 and the terminating `clean test` completed successfully in 5m53s across 99
 tasks. The PR diff remains 16 paths.
+
+PR #213 merged as `6e8e5fe2d357f217d9c0bf16716576046a2bba8e` after all
+required CI checks passed. CodeRabbit was rate limited, and direct inspection
+confirmed zero inline comments, reviews, or review threads before merge.
+
+## Current Pull Request Gates
+
+- `knowledge.acl` is a closed nested application module rather than an open
+  migration module.
+- Its outgoing allowlist is limited to organization, permission, shared, and
+  `shared::error`.
+- `modules.verify()` passes, proving existing consumers use only ACL's public
+  root-package contracts and no undeclared outgoing edge exists.
+- The closure regression test pins both the closed state and the exact
+  four-entry dependency allowlist.
+- Focused ACL and Modulith tests, `:core:test`, docs/release checks, and the
+  terminating repository `clean test` gate pass.
+- The pull request contains production module metadata and tests and remains
+  below 100 changed files before the next Knowledge module is assessed.
+
+Pre-PR verification completed: focused ACL and Modulith tests passed in 25s;
+`:core:test` passed in 1m08s; the docs operating-model check passed across 417
+Markdown files and 8 mirrored domain pairs; all 37 release-policy tests passed
+under Node 24.15; and the terminating repository `clean test` gate completed
+successfully in 5m07s across 99 tasks. Diff hygiene, the zero ACL sibling-import
+scan, and the four-path PR scope check passed.
+
+CodeRabbit requested that the release note spell out `shared::error` instead
+of grouping it under vague shared-foundation wording. The note now mirrors the
+exact four-entry allowlist already enforced by production metadata and tests.
