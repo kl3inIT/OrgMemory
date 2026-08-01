@@ -20,6 +20,7 @@ public record ClaimedGraphIndex(
         EmbeddingProfileRef embeddingProfile,
         String language,
         int attempt,
+        long claimEpoch,
         List<GraphIndexChunk> chunks) {
 
     public ClaimedGraphIndex {
@@ -34,6 +35,9 @@ public record ClaimedGraphIndex(
         idempotencyKey = Objects.requireNonNull(idempotencyKey, "idempotencyKey").strip();
         if (idempotencyKey.isEmpty()) {
             throw new IllegalArgumentException("idempotencyKey must not be blank");
+        }
+        if (claimEpoch <= 0) {
+            throw new IllegalArgumentException("claimEpoch must be positive");
         }
         Objects.requireNonNull(embeddingProfile, "embeddingProfile");
         if (!organizationId.equals(embeddingProfile.organizationId())) {

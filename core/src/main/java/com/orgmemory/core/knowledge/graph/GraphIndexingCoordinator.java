@@ -11,6 +11,10 @@ import com.orgmemory.core.knowledge.acl.SourceAclSnapshotRef;
 
 import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexQuery;
 import com.orgmemory.core.knowledge.sourceledger.SourceGraphIndexRevisionRef;
+import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -99,6 +103,97 @@ public class GraphIndexingCoordinator {
         requireRunnable(job, now);
         job.bindManifest(manifestFingerprint);
         job.refreshLease(now, leaseDuration);
+    }
+
+    /**
+     * Irrevocably authorizes one exact physical publication attempt.
+     *
+     * <p>A previously issued exact permit is replayable after lease expiry. A new permit is
+     * issued only while the caller owns the current claim epoch and the target is still current.
+     */
+    @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
+    public ProjectionCommitPermit issueOrLoadPublicationPermit(
+            UUID jobId,
+            String workerId,
+            long claimEpoch,
+            ProjectionBatch batch) {
+        Objects.requireNonNull(batch, "batch");
+        Instant now = Instant.now();
+        GraphIndexJob job = jobs.findById(jobId).orElseThrow();
+        if (job.hasPublicationPermitFor(batch.id(), batch.manifestFingerprint())) {
+            return permit(job, batch.manifestFingerprint());
+        }
+        job = claimedJob(jobId, workerId, now);
+        if (job.getClaimEpoch() != claimEpoch) {
+            throw new IllegalStateException("graph publication claim epoch is stale");
+        }
+        requireRunnable(job, now);
+        job.bindManifest(batch.manifestFingerprint());
+        UUID permitId = UUID.randomUUID();
+        job.issuePublicationPermit(permitId, batch.id(), claimEpoch, now);
+        return permit(job, batch.manifestFingerprint());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProjectionCommitPermit> publicationPermit(UUID jobId) {
+        GraphIndexJob job = jobs.findById(Objects.requireNonNull(jobId, "jobId"))
+                .orElseThrow();
+        return job.getPublicationPermitId() == null
+                ? Optional.empty()
+                : Optional.of(permit(job, job.getManifestFingerprint()));
+    }
+
+    @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
+    public void retirePublicationPermit(
+            UUID jobId,
+            String workerId,
+            long claimEpoch,
+            ProjectionBatch batch,
+            ProjectionDiscardPermit discardPermit) {
+        Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(discardPermit, "discardPermit")
+                .requireAuthorizes(batch);
+        Instant now = Instant.now();
+        GraphIndexJob job = claimedJob(jobId, workerId, now);
+        if (job.getClaimEpoch() != claimEpoch) {
+            throw new IllegalStateException("graph publication claim epoch is stale");
+        }
+        requireRunnable(job, now);
+        if (!job.hasPublicationPermitFor(batch.id(), batch.manifestFingerprint())) {
+            throw new IllegalStateException(
+                    "discard proof does not match the durable graph commit permit");
+        }
+        job.retirePublicationPermit(batch.id());
+    }
+
+    /** Completes exact post-head convergence from durable permit evidence, without a live lease. */
+    @Transactional
+    public void completePublished(
+            UUID jobId,
+            String workerId,
+            long claimEpoch,
+            ProjectionSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        GraphIndexJob job = jobs.findById(jobId).orElseThrow();
+        if (job.getStatus() == GraphIndexJobStatus.SUCCEEDED) {
+            return;
+        }
+        if (job.getPublicationPermitId() == null) {
+            Instant now = Instant.now();
+            job = claimedJob(jobId, workerId, now);
+            if (job.getClaimEpoch() != claimEpoch) {
+                throw new IllegalStateException("graph publication claim epoch is stale");
+            }
+            requireRunnable(job, now);
+            job.bindManifest(snapshot.manifestFingerprint());
+            job.issuePublicationPermit(
+                    UUID.randomUUID(), snapshot.batchId(), claimEpoch, now);
+        }
+        if (!job.hasPublicationPermitFor(snapshot.batchId(), snapshot.manifestFingerprint())) {
+            throw new IllegalStateException(
+                    "published snapshot is not authorized by the durable graph commit permit");
+        }
+        job.succeed(Instant.now());
     }
 
     @Transactional(noRollbackFor = GraphIndexingStoppedException.class)
@@ -200,6 +295,7 @@ public class GraphIndexingCoordinator {
                 embeddingProfile,
                 version.language(),
                 job.getAttemptCount(),
+                job.getClaimEpoch(),
                 activeChunks));
     }
 
@@ -292,5 +388,15 @@ public class GraphIndexingCoordinator {
             GraphIndexJob job, String code, String message, Instant now) {
         long delaySeconds = Math.min(300, 1L << Math.min(job.getAttemptCount(), 8));
         job.retry(code, message, now, now.plusSeconds(delaySeconds));
+    }
+
+    private static ProjectionCommitPermit permit(
+            GraphIndexJob job, String manifestFingerprint) {
+        return new ProjectionCommitPermit(
+                job.getPublicationPermitId(),
+                job.getPublicationPermitBatchId(),
+                manifestFingerprint,
+                Objects.requireNonNull(job.getPublicationPermitClaimEpoch()),
+                job.getPublicationPermitIssuedAt());
     }
 }

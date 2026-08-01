@@ -1,5 +1,8 @@
 package com.orgmemory.graphrag.postgres;
 
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.commitPermit;
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.discardPermit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -146,7 +149,8 @@ class PostgresSharedProjectionIntegrationTests {
                 new PostgresProjectionPublicationStore(
                         new NamedParameterJdbcTemplate(dataSource),
                         new DataSourceTransactionManager(dataSource));
-        ProjectionSnapshot snapshot = restarted.publish(batch, NOW.plusSeconds(1));
+        ProjectionSnapshot snapshot = restarted.publish(
+                batch, commitPermit(batch, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertEquals(batch.id(), snapshot.batchId());
         assertEquals(snapshot, restarted.current(namespace).orElseThrow());
@@ -222,7 +226,8 @@ class PostgresSharedProjectionIntegrationTests {
                         Map.of())));
         graph.stageReplaceRevision(first, graphRevision(first.generation()));
         markPrepared(first);
-        ProjectionSnapshot firstSnapshot = publications.publish(first, NOW);
+        ProjectionSnapshot firstSnapshot = publications.publish(
+                first, commitPermit(first, NOW), NOW);
 
         AuthorizedEvidenceScope allowed = scope(Set.of(ASSET_ID));
         AuthorizedEvidenceScope denied = scope(Set.of());
@@ -300,7 +305,8 @@ class PostgresSharedProjectionIntegrationTests {
         graph.stageDeleteRevision(second, REVISION_ID);
         markPrepared(second);
         ProjectionSnapshot secondSnapshot =
-                publications.publish(second, NOW.plusSeconds(1));
+                publications.publish(
+                        second, commitPermit(second, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertTrue(content.get(allowed, secondSnapshot, CHUNK_ID.toString()).isEmpty());
         assertTrue(graph.loadEntities(
@@ -374,7 +380,8 @@ class PostgresSharedProjectionIntegrationTests {
                         .toList());
         boundedGraph.stageReplaceRevision(batch, graphRevision(batch.generation()));
         markPrepared(batch);
-        ProjectionSnapshot snapshot = publications.publish(batch, NOW.plusSeconds(2));
+        ProjectionSnapshot snapshot = publications.publish(
+                batch, commitPermit(batch, NOW.plusSeconds(2)), NOW.plusSeconds(2));
 
         assertEquals(
                 ids,
@@ -470,17 +477,18 @@ class PostgresSharedProjectionIntegrationTests {
         publications.markPrepared(winner, ProjectionKind.CONTENT, NOW);
         publications.markPrepared(loser, ProjectionKind.CONTENT, NOW);
 
-        ProjectionSnapshot snapshot = publications.publish(winner, NOW);
+        ProjectionSnapshot snapshot = publications.publish(
+                winner, commitPermit(winner, NOW), NOW);
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(loser, NOW));
+                () -> publications.publish(loser, commitPermit(loser, NOW), NOW));
         assertTrue(content.get(scope(Set.of(ASSET_ID)), snapshot, "winner-record")
                 .isPresent());
         assertTrue(content.get(scope(Set.of(ASSET_ID)), snapshot, "loser-record")
                 .isEmpty());
 
         publications.abort(loser, "lost publication race", NOW);
-        content.discard(loser);
+        content.discard(loser, discardPermit(loser, NOW));
         assertEquals(
                 0,
                 plainJdbc.queryForObject(

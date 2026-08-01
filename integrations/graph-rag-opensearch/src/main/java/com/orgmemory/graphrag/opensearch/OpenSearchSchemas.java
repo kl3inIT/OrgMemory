@@ -11,7 +11,9 @@ final class OpenSearchSchemas {
             OpenSearchProjectionCodec.ORGANIZATION_ID,
             OpenSearchProjectionCodec.WORKSPACE,
             OpenSearchProjectionCodec.COLLECTION,
-            OpenSearchProjectionCodec.BATCH_ID,
+                      OpenSearchProjectionCodec.BATCH_ID,
+                      "expected_previous_batch_id",
+                      "commit_permit_id",
             OpenSearchProjectionCodec.RECORD_ID,
             OpenSearchProjectionCodec.ASSET_ID,
             OpenSearchProjectionCodec.REVISION_ID,
@@ -38,14 +40,21 @@ final class OpenSearchSchemas {
             mapping.properties(
                     OpenSearchProjectionCodec.GENERATION,
                     property -> property.long_(number -> number));
-            mapping.properties(
-                    "expected_previous_generation",
-                    property -> property.long_(number -> number));
+              mapping.properties(
+                      "expected_previous_generation",
+                      property -> property.long_(number -> number));
+              mapping.properties(
+                      "claim_epoch",
+                      property -> property.long_(number -> number));
+              mapping.properties(
+                      "commit_permit_claim_epoch",
+                      property -> property.long_(number -> number));
             for (String field : List.of(
                     "created_at",
                     "prepared_at",
-                    "published_at",
-                    "aborted_at")) {
+                      "published_at",
+                      "aborted_at",
+                      "commit_permit_issued_at")) {
                 mapping.properties(field, property -> property.date(date -> date));
             }
             return mapping;

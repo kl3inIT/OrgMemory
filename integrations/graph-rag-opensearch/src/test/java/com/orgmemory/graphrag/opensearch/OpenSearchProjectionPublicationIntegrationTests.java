@@ -1,5 +1,8 @@
 package com.orgmemory.graphrag.opensearch;
 
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.commitPermit;
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.discardPermit;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +27,8 @@ import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionBatchLifecycle;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
@@ -146,11 +151,12 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 "knowledge");
         ProjectionBatch first = batch(namespace, "first", 0);
         publications.markPrepared(first, ProjectionKind.CONTENT, NOW);
-        var firstSnapshot = publications.publish(first, NOW);
+        var firstSnapshot = publications.publish(first, commitPermit(first, NOW), NOW);
 
         ProjectionBatch second = batch(namespace, "second", 1);
         publications.markPrepared(second, ProjectionKind.CONTENT, NOW.plusSeconds(1));
-        var secondSnapshot = publications.publish(second, NOW.plusSeconds(1));
+        var secondSnapshot = publications.publish(
+                second, commitPermit(second, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertEquals(firstSnapshot, publications.published(namespace, 1).orElseThrow());
         assertEquals(secondSnapshot, publications.current(namespace).orElseThrow());
@@ -167,10 +173,11 @@ class OpenSearchProjectionPublicationIntegrationTests {
         publications.markPrepared(winner, ProjectionKind.CONTENT, NOW);
         publications.markPrepared(loser, ProjectionKind.CONTENT, NOW);
 
-        var snapshot = publications.publish(winner, NOW);
+        var snapshot = publications.publish(winner, commitPermit(winner, NOW), NOW);
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(loser, NOW.plusSeconds(1)));
+                () -> publications.publish(
+                        loser, commitPermit(loser, NOW.plusSeconds(1)), NOW.plusSeconds(1)));
         assertEquals(snapshot, publications.current(namespace).orElseThrow());
     }
 
@@ -209,7 +216,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
 
         OpenSearchProjectionPublicationStore restarted =
                 new OpenSearchProjectionPublicationStore(operations, indexes);
-        ProjectionSnapshot snapshot = restarted.publish(batch, NOW.plusSeconds(1));
+        ProjectionSnapshot snapshot = restarted.publish(
+                batch, commitPermit(batch, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertEquals(batch.id(), snapshot.batchId());
         assertEquals(snapshot, restarted.current(namespace).orElseThrow());
@@ -223,7 +231,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
                 "knowledge");
         ProjectionBatch batch = batch(namespace, "committing-replay", 0);
         publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
-        ProjectionSnapshot published = publications.publish(batch, NOW);
+        ProjectionSnapshot published = publications.publish(
+                batch, commitPermit(batch, NOW), NOW);
         OpenSearchOperations.VersionedDocument registered =
                 operations.get(indexes.control(), "batch:" + batch.id());
         Map<String, Object> committing = new LinkedHashMap<>(registered.source());
@@ -236,13 +245,55 @@ class OpenSearchProjectionPublicationIntegrationTests {
 
         OpenSearchProjectionPublicationStore restarted =
                 new OpenSearchProjectionPublicationStore(operations, indexes);
-        ProjectionSnapshot replay = restarted.publish(batch, NOW.plusSeconds(1));
+        ProjectionSnapshot replay = restarted.publish(
+                batch, commitPermit(batch, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertEquals(published, replay);
         assertEquals(published, restarted.current(namespace).orElseThrow());
         assertThrows(
                 PublicationConflictException.class,
                 () -> restarted.abort(batch, "must not discard visible data", NOW));
+    }
+
+    @Test
+    void crashAfterHeadWriteKeepsStagingAndRestartFinalizesWithoutRestaging() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                id("head-crash-organization"), "default", "knowledge");
+        ProjectionBatch batch = batch(namespace, "head-crash", 0);
+        OpenSearchOperations crashingOperations =
+                new CrashAfterHeadCreateOperations(operations);
+        OpenSearchProjectionPublicationStore crashingStore =
+                new OpenSearchProjectionPublicationStore(crashingOperations, indexes);
+        ProjectionBatchLifecycle.Preparation firstPreparation =
+                preparationThatMustNotDiscard();
+
+        assertThrows(
+                PublicationCrash.class,
+                () -> new ProjectionBatchLifecycle(crashingStore).publish(
+                        batch,
+                        List.of(firstPreparation),
+                        candidate -> commitPermit(candidate, NOW),
+                        NOW));
+
+        assertEquals(batch.id(), crashingStore.current(namespace).orElseThrow().batchId());
+        OpenSearchOperations.VersionedDocument marker =
+                operations.get(indexes.control(), "batch:" + batch.id());
+        assertEquals("COMMITTING", marker.source().get("status"));
+
+        OpenSearchProjectionPublicationStore restarted =
+                new OpenSearchProjectionPublicationStore(operations, indexes);
+        ProjectionSnapshot replay = new ProjectionBatchLifecycle(restarted).publish(
+                batch,
+                List.of(preparationThatMustNotRun()),
+                candidate -> commitPermit(candidate, NOW),
+                NOW.plusSeconds(1));
+
+        assertEquals(batch.id(), replay.batchId());
+        assertEquals(
+                "PUBLISHED",
+                operations.get(indexes.control(), "batch:" + batch.id())
+                        .source()
+                        .get("status"));
     }
 
     @Test
@@ -278,7 +329,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
                         Map.of())));
         graph.stageReplaceRevision(first, graphRevision(first.generation()));
         markPrepared(first);
-        ProjectionSnapshot firstSnapshot = publications.publish(first, NOW);
+        ProjectionSnapshot firstSnapshot = publications.publish(
+                first, commitPermit(first, NOW), NOW);
 
         AuthorizedEvidenceScope allowed = scope(Set.of(ASSET_ID));
         AuthorizedEvidenceScope denied = scope(Set.of());
@@ -419,7 +471,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
         graph.stageDeleteRevision(second, REVISION_ID);
         markPrepared(second);
         ProjectionSnapshot secondSnapshot =
-                publications.publish(second, NOW.plusSeconds(1));
+                publications.publish(
+                        second, commitPermit(second, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertTrue(content.get(allowed, secondSnapshot, CHUNK_ID.toString()).isEmpty());
         assertTrue(lexical.search(
@@ -492,7 +545,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
                         List.of(new CanonicalEntity(ENTITY_A_ID, "Original entity")),
                         List.of()));
         publications.markPrepared(first, ProjectionKind.GRAPH, NOW);
-        publications.publish(first, NOW);
+        publications.publish(first, commitPermit(first, NOW), NOW);
 
         ProjectionBatch second = graphOnlyBatch(namespace, "second", 1);
         graph.stageReplaceRevision(
@@ -503,7 +556,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
                         List.of(new CanonicalEntity(ENTITY_B_ID, "Replacement entity")),
                         List.of()));
         publications.markPrepared(second, ProjectionKind.GRAPH, NOW.plusSeconds(1));
-        ProjectionSnapshot snapshot = publications.publish(second, NOW.plusSeconds(1));
+        ProjectionSnapshot snapshot = publications.publish(
+                second, commitPermit(second, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         assertEquals(
                 Set.of(retainedSource, retainedTarget),
@@ -594,7 +648,7 @@ class OpenSearchProjectionPublicationIntegrationTests {
 
         first.requiredProjections()
                 .forEach(kind -> publications.markPrepared(first, kind, NOW));
-        publications.publish(first, NOW);
+        publications.publish(first, commitPermit(first, NOW), NOW);
 
         content.stageDelete(second, List.of());
         lexical.stageDelete(second, List.of());
@@ -702,22 +756,83 @@ class OpenSearchProjectionPublicationIntegrationTests {
         publications.markPrepared(winner, ProjectionKind.CONTENT, NOW);
         publications.markPrepared(loser, ProjectionKind.CONTENT, NOW);
 
-        ProjectionSnapshot snapshot = publications.publish(winner, NOW);
+        ProjectionSnapshot snapshot = publications.publish(
+                winner, commitPermit(winner, NOW), NOW);
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(loser, NOW));
+                () -> publications.publish(loser, commitPermit(loser, NOW), NOW));
         assertTrue(content.get(scope(Set.of(ASSET_ID)), snapshot, "winner-record")
                 .isPresent());
         assertTrue(content.get(scope(Set.of(ASSET_ID)), snapshot, "loser-record")
                 .isEmpty());
 
         publications.abort(loser, "lost publication race", NOW);
-        content.discard(loser);
-        content.discard(loser);
+        content.discard(loser, discardPermit(loser, NOW));
+        content.discard(loser, discardPermit(loser, NOW));
         QueryAssertions.assertNoBatchDocuments(
                 operations,
                 indexes.content(),
                 loser.id());
+    }
+
+    private static ProjectionBatchLifecycle.Preparation preparationThatMustNotDiscard() {
+        return new ProjectionBatchLifecycle.Preparation() {
+            @Override
+            public void prepare(ProjectionBatch batch) {
+                // The receipt is the durable boundary under test.
+            }
+
+            @Override
+            public ProjectionKind projectionKind() {
+                return ProjectionKind.CONTENT;
+            }
+
+            @Override
+            public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+                throw new AssertionError("ambiguous visible staging must not be discarded");
+            }
+        };
+    }
+
+    private static ProjectionBatchLifecycle.Preparation preparationThatMustNotRun() {
+        return new ProjectionBatchLifecycle.Preparation() {
+            @Override
+            public void prepare(ProjectionBatch batch) {
+                throw new AssertionError("a permitted committing attempt must not restage");
+            }
+
+            @Override
+            public ProjectionKind projectionKind() {
+                return ProjectionKind.CONTENT;
+            }
+
+            @Override
+            public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+                throw new AssertionError("a permitted committing attempt must not discard");
+            }
+        };
+    }
+
+    private static final class CrashAfterHeadCreateOperations extends OpenSearchOperations {
+
+        private boolean armed = true;
+
+        private CrashAfterHeadCreateOperations(OpenSearchOperations delegate) {
+            super(delegate.client(), delegate.bulkMaximumOperations());
+        }
+
+        @Override
+        boolean create(String index, String id, Map<String, Object> document) {
+            boolean created = super.create(index, id, document);
+            if (created && armed && id.startsWith("head:")) {
+                armed = false;
+                throw new PublicationCrash();
+            }
+            return created;
+        }
+    }
+
+    private static final class PublicationCrash extends Error {
     }
 
     @Test
@@ -810,7 +925,8 @@ class OpenSearchProjectionPublicationIntegrationTests {
                                 ENTITY_B_ID,
                                 RelationOrientation.DIRECTED))));
         publications.markPrepared(batch, ProjectionKind.GRAPH, NOW);
-        ProjectionSnapshot snapshot = publications.publish(batch, NOW);
+        ProjectionSnapshot snapshot = publications.publish(
+                batch, commitPermit(batch, NOW), NOW);
         AuthorizedEvidenceScope scope = new AuthorizedEvidenceScope(
                 ORGANIZATION_ID,
                 ACTOR_ID,

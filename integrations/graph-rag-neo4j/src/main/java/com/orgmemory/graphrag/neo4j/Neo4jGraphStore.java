@@ -13,6 +13,7 @@ import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
 import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.time.Instant;
@@ -415,7 +416,8 @@ public final class Neo4jGraphStore implements GraphStore {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         support.discard(batch, writeBatchSize);
     }
 
