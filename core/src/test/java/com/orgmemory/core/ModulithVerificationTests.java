@@ -792,9 +792,8 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphRef",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetPublicationService",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetRef",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository",
+                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery",
                         "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionGraphRef",
-                        "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository",
                         "com.orgmemory.core.knowledge.asset.KnowledgeCatalogItem",
                         "com.orgmemory.core.knowledge.asset.KnowledgeChunkDraft",
                         "com.orgmemory.core.knowledge.asset.KnowledgeEmbeddingProfileRef",
@@ -802,6 +801,44 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.asset.PgVectorLiteral",
                         "com.orgmemory.core.knowledge.asset.PublishKnowledgeAssetCommand"),
                 consumedInternalTypes);
+    }
+
+    @Test
+    void retrievalDoesNotDependOnAssetRepositories() {
+        var assetRepositoryTypes = Set.of(
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository",
+                "com.orgmemory.core.knowledge.asset.KnowledgeAssetVersionRepository");
+        var consumers = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .filter(dependency -> assetRepositoryTypes.contains(
+                        dependency.getTargetType().getName()))
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(Set.of(), consumers);
+    }
+
+    @Test
+    void retrievalAssetReadsUseOnlyTheOwnerQuery() {
+        var consumers = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetType()
+                        .getName()
+                        .equals("com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery"))
+                .map(dependency -> dependency.getSourceType().getName())
+                .filter(name -> name.startsWith(
+                        "com.orgmemory.core.knowledge.retrieval"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver"),
+                consumers);
     }
 
     @Test

@@ -1051,7 +1051,7 @@ passed. CodeRabbit remained rate limited; direct inspection confirmed zero
 inline comments, reviews, or review threads before merge, and both the PR head
 and merge commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-sixth Pull Request Evidence
 
 - Parent Knowledge exposes exactly `PermissionAwareKnowledgeSearch`,
   `RetrievedKnowledgeEvidence`, `SecureKnowledgeSearchResult`, and
@@ -1089,3 +1089,38 @@ After merging current `origin/main` at `142a11cc`, the complete focused suite
 passed again in 39s. The documentation check passed across 473 Markdown files
 and 8 mirrored domain pairs, and all 40 release-policy tests passed again under
 Node 24.15.
+
+PR #250 merged as `ce1a970b` after Backend Java 25, Web Node 24,
+documentation, evaluation, secret, impact, release-preview, release-policy,
+and aggregate CI checks passed. CodeRabbit was rate limited; direct audit found
+zero reviews, inline comments, or review threads, and both the PR head and merge
+commit are ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Asset owns `KnowledgeAssetRetrievalQuery` for tenant-scoped existence, active
+  authorization scopes, and current active catalog projections.
+- Its JPA implementation remains package-private inside the closed Asset module;
+  Retrieval imports neither `KnowledgeAssetRepository` nor
+  `KnowledgeAssetVersionRepository`.
+- `AuthorizationResourceDirectory`, `KnowledgeEvidenceScopeResolver`, and
+  `KnowledgeCatalogService` are the exact Retrieval consumers of the owner
+  query. Existing immutable Asset scope/catalog projections retain their shapes.
+- Empty authorized sets return empty without persistence access; tenant,
+  archived-asset, current-version, and active-version predicates remain in the
+  Asset repositories behind the query.
+- This code PR remains below 100 changed paths. Retrieval stays open for the
+  Organization, Source Ledger citation, Graph verifier, and adapter seams.
+
+Local verification so far: the repository-isolation test failed first against
+the unchanged three repository consumers. Core/test/API/Worker compilation
+passed in 39s. The Asset query, catalog, evidence-scope, and full Modulith test
+slice passed in 37s. The real PostgreSQL external-principal scope proof and the
+Spring API admin-resource integration proof passed together in 1m35s, confirming
+the internal transactional bean and preserving authorization/resource behavior.
+The combined full Core/API/Worker gate passed in 7m04s. The documentation
+operating-model check passed across 478 Markdown files and 8 mirrored domain
+pairs; all 40 release-policy tests passed under Node 24.15; and the terminating
+repository-wide `clean test` passed in 1m03s across 99 tasks. Mechanical
+repository-import, zero-byte, migration-scope, diff-hygiene, and 18-path scope
+checks passed.

@@ -147,9 +147,12 @@ the parent-owned `knowledge::catalog` interface consumed by Asset Registry and
 the API; version-only reads resolve the canonical actor scope before querying a
 current active version. Asset also owns the compact embedding-profile reference
 required for publication and the projection namespace identity; callers
-translate Retrieval's richer profile at the boundary. Asset has no direct
-dependency on Retrieval and is a closed nested module with an exact outgoing
-dependency allowlist. Parent Knowledge exposes the stable permission-aware
+translate Retrieval's richer profile at the boundary. Retrieval resolves Asset
+existence, active authorization scopes, and current catalog projections through
+the Asset-owned `KnowledgeAssetRetrievalQuery`; it does not import Asset
+repositories. Asset has no direct dependency on Retrieval and is a closed
+nested module with an exact outgoing dependency allowlist. Parent Knowledge
+exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
 the exact `knowledge::search` named interface. Assistant and Asset Registry
 consume that parent interface without importing Retrieval implementation types.
