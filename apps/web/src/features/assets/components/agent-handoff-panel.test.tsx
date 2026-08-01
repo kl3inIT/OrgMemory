@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
 import { buildSkillInstallHandoff } from "@/features/assets/agent-handoff/skill-agent-handoffs"
+import { getSkillConsumer } from "@/features/assets/agent-handoff/skill-consumers"
 import { AgentHandoffPanel } from "@/features/assets/components/agent-handoff-panel"
 import { copyWithToast } from "@/lib/copy"
 
@@ -13,7 +14,10 @@ vi.mock("@/lib/copy", () => ({
 describe("AgentHandoffPanel", () => {
   it("always renders the confirmation boundary and copies exact agent instructions", async () => {
     const user = userEvent.setup()
-    const handoff = buildSkillInstallHandoff("productivity/decision-record-writer@1.0.0")
+    const handoff = buildSkillInstallHandoff(
+      "productivity/decision-record-writer@1.0.0",
+      getSkillConsumer("codex"),
+    )
 
     render(<AgentHandoffPanel handoff={handoff} />)
 
@@ -25,10 +29,10 @@ describe("AgentHandoffPanel", () => {
     expect(copyWithToast).toHaveBeenLastCalledWith(handoff.promptTemplate, "Agent prompt")
 
     await user.click(screen.getByRole("tab", { name: "Use CLI" }))
-    await user.click(screen.getByRole("button", { name: "Copy Codex command" }))
+    await user.click(screen.getByRole("button", { name: "Copy OrgMemory CLI command" }))
     expect(copyWithToast).toHaveBeenLastCalledWith(
       "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent codex",
-      "Codex",
+      "OrgMemory CLI",
     )
   })
 })
