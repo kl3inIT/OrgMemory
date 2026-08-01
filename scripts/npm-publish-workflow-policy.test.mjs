@@ -47,6 +47,13 @@ test("CLI publication verifies Node 24, the tarball, provenance, and npx executi
   assert.match(workflow, /did not become fully verifiable on npm within 180 seconds/);
   assert.doesNotMatch(workflow, /if \[\[ -n "\$published" \]\]; then break; fi/);
   assert.match(workflow, /npm exec --yes --package=/);
+  assert.match(workflow, /npm install[\s\S]*@orgmemory\/cli@\$PACKAGE_VERSION/);
+  assert.match(workflow, /npm audit signatures/);
+  assert.ok(
+    workflow.indexOf("npm audit signatures") <
+      workflow.lastIndexOf("npm exec --yes --package="),
+    "registry signatures must be audited before the published CLI executes",
+  );
   assert.doesNotMatch(workflow, /cache:/);
 });
 

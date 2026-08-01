@@ -180,4 +180,13 @@ jobs:
           if (!value.dist?.integrity) throw new Error('Published package has no registry integrity')
           if (!value.dist?.attestations?.url) throw new Error('Published package has no provenance attestation')
           NODE
+          audit_dir="$RUNNER_TEMP/orgmemory-cli-registry-audit"
+          mkdir "$audit_dir"
+          (
+            cd "$audit_dir"
+            npm init --yes >/dev/null
+            npm install --ignore-scripts --no-audit --no-fund --save-exact \
+              "@orgmemory/cli@$PACKAGE_VERSION"
+            npm audit signatures
+          )
           npm exec --yes --package="@orgmemory/cli@$PACKAGE_VERSION" -- orgmemory --version | grep -Fx "$PACKAGE_VERSION"
