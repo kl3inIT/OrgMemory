@@ -43,8 +43,21 @@ class ModulithVerificationTests {
     @Test
     void sourceLedgerIsAClosedNestedModule() {
         var sourceLedger = modules.getModuleByName("knowledge.sourceledger").orElseThrow();
+        var allowedDependencies = sourceLedger.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
         assertFalse(sourceLedger.isOpen());
+        assertEquals(
+                Set.of(
+                        "knowledge.acl",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
     }
 
     @Test

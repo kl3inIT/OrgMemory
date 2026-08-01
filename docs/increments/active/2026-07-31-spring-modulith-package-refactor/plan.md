@@ -502,3 +502,10 @@ in 1m24s; the docs operating-model check passed across 399 Markdown files and
 8 mirrored domain pairs; all 37 release-policy tests passed; and the
 terminating repository `clean test` gate completed successfully in 6m30s
 across 108 tasks. Diff hygiene and the under-100-file scope check passed.
+
+CodeRabbit requested that the regression test pin the exact outgoing allowlist
+and that the release note link the existing independent architecture
+challenge. Both review findings are addressed without rerunning the settled
+challenge or changing the closure outcome. The focused Modulith, docs, and
+release gates passed, and the terminating repository `clean test` gate passed
+again in 1m23s across 99 tasks using the shared build cache.
