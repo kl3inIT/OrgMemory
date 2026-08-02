@@ -7,8 +7,8 @@ import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
-import com.orgmemory.core.knowledge.sourceledger.SourceLifecycleService;
 import com.orgmemory.core.knowledge.sourceledger.ReadyManualUploadRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceRetirementPort;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
@@ -32,7 +32,7 @@ public class KnowledgeAssetLifecycleService {
     private final RelationshipAuthorizationPort authorization;
     private final ModelInvocationCache modelCache;
     private final RetrievalResultCache retrievalCache;
-    private final SourceLifecycleService sourceLifecycle;
+    private final SourceRetirementPort sourceLifecycle;
 
     KnowledgeAssetLifecycleService(
             KnowledgeAssetRepository assets,
@@ -40,7 +40,7 @@ public class KnowledgeAssetLifecycleService {
             RelationshipAuthorizationPort authorization,
             ModelInvocationCache modelCache,
             RetrievalResultCache retrievalCache,
-            SourceLifecycleService sourceLifecycle) {
+            SourceRetirementPort sourceLifecycle) {
         this.assets = assets;
         this.versions = versions;
         this.authorization = authorization;

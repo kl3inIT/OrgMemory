@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Source Ledger-owned lifecycle commands for canonical source objects. */
 @Service
-public class SourceLifecycleService {
+public class SourceLifecycleService implements SourceRetirementPort {
 
     private final SourceObjectRepository sources;
     private final SourceRevisionRepository revisions;
@@ -20,6 +20,7 @@ public class SourceLifecycleService {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public ReadyManualUploadRef requireReadyManualUpload(UUID organizationId, UUID sourceId) {
         SourceObject source = manualUpload(organizationId, sourceId);
         SourceRevision revision = revisions
@@ -36,6 +37,7 @@ public class SourceLifecycleService {
     }
 
     @Transactional
+    @Override
     public void archiveReadyManualUpload(
             UUID organizationId, UUID sourceId, UUID expectedAssetId) {
         SourceObject source = manualUpload(organizationId, sourceId);

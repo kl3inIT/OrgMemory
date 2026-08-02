@@ -11,8 +11,8 @@ import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
-import com.orgmemory.core.knowledge.sourceledger.SourceLifecycleService;
 import com.orgmemory.core.knowledge.sourceledger.ReadyManualUploadRef;
+import com.orgmemory.core.knowledge.sourceledger.SourceRetirementPort;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
@@ -39,8 +39,8 @@ class KnowledgeAssetLifecycleServiceTests {
             mock(ModelInvocationCache.class);
     private final RetrievalResultCache retrievalCache =
             mock(RetrievalResultCache.class);
-    private final SourceLifecycleService sourceLifecycle =
-            mock(SourceLifecycleService.class);
+    private final SourceRetirementPort sourceLifecycle =
+            mock(SourceRetirementPort.class);
     private final CurrentActor actor =
             new CurrentActor(USER_ID, ORGANIZATION_ID, null, "User", "user@example.com");
     private final KnowledgeAsset asset = mock(KnowledgeAsset.class);
