@@ -1,10 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceDocumentEvidenceQuery;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
-import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -21,20 +18,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class SourceContentService {
 
     private final KnowledgeEvidenceScopeResolver authorization;
-    private final SourceRevisionRepository revisions;
-    private final EvidenceBlobRepository blobs;
+    private final SourceDocumentEvidenceQuery evidenceQuery;
     private final ObjectStoragePort objects;
     private final PermissionAuditService audit;
 
     SourceContentService(
             KnowledgeEvidenceScopeResolver authorization,
-            SourceRevisionRepository revisions,
-            EvidenceBlobRepository blobs,
+            SourceDocumentEvidenceQuery evidenceQuery,
             ObjectStoragePort objects,
             PermissionAuditService audit) {
         this.authorization = authorization;
-        this.revisions = revisions;
-        this.blobs = blobs;
+        this.evidenceQuery = evidenceQuery;
         this.objects = objects;
         this.audit = audit;
     }
@@ -47,17 +41,15 @@ public class SourceContentService {
                 ? UUID.randomUUID().toString()
                 : requestId.strip();
         var scope = authorization.resolve(actor, null);
-        var revision = revisions
-                .findCurrentReadyBySourceObjectIdAndOrganizationId(
-                        sourceId, actor.organizationId())
+        var document = evidenceQuery
+                .findAvailable(actor.organizationId(), sourceId)
                 .orElseThrow(() -> notFound(
                         actor,
                         sourceId,
                         normalizedRequestId,
                         scope.authorizationModelId(),
                         "SOURCE_NOT_CURRENT"));
-        if (revision.getKnowledgeAssetId() == null
-                || !scope.allAssetIds().contains(revision.getKnowledgeAssetId())) {
+        if (!scope.allAssetIds().contains(document.knowledgeAssetId())) {
             throw notFound(
                     actor,
                     sourceId,
@@ -65,21 +57,12 @@ public class SourceContentService {
                     scope.authorizationModelId(),
                     "SOURCE_NOT_AUTHORIZED");
         }
-        var blob = blobs
-                .findByIdAndOrganizationId(
-                        revision.getEvidenceBlobId(), actor.organizationId())
-                .filter(value -> value.getScanStatus() == EvidenceScanStatus.BASIC_VALIDATED)
-                .orElseThrow(() -> notFound(
-                        actor,
-                        sourceId,
-                        normalizedRequestId,
-                        scope.authorizationModelId(),
-                        "SOURCE_BLOB_NOT_AVAILABLE"));
-        ObjectContent content = objects.open(new ObjectKey(blob.getObjectKey()));
-        if (!blob.getContentSha256().equals(revision.getContentSha256())
-                || blob.getContentLength() != revision.getContentLength()
-                || !blob.getContentSha256().equals(content.metadata().sha256())
-                || blob.getContentLength() != content.metadata().contentLength()) {
+        var evidence = document.evidence();
+        ObjectContent content = objects.open(evidence.objectKey());
+        if (!evidence.storedContentSha256().equals(evidence.contentSha256())
+                || evidence.storedContentLength() != evidence.contentLength()
+                || !evidence.storedContentSha256().equals(content.metadata().sha256())
+                || evidence.storedContentLength() != content.metadata().contentLength()) {
             closeQuietly(content);
             audit.record(new PermissionAuditCommand(
                     actor.organizationId(),
@@ -109,16 +92,16 @@ public class SourceContentService {
                 null,
                 null,
                 scope.authorizationModelId(),
-                revision.getId(),
+                document.sourceRevisionId(),
                 null,
-                revision.getEmbeddingProfileId(),
+                document.embeddingProfileId(),
                 null));
         return new SourceContent(
                 sourceId,
-                revision.getFileName(),
-                revision.getMediaType(),
-                revision.getContentLength(),
-                revision.getContentSha256(),
+                evidence.fileName(),
+                evidence.mediaType(),
+                evidence.contentLength(),
+                evidence.contentSha256(),
                 content);
     }
 

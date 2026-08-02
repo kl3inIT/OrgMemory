@@ -8,11 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlob;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository;
-import com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevision;
-import com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository;
+import com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidence;
+import com.orgmemory.core.knowledge.sourceledger.SourceDocumentEvidence;
+import com.orgmemory.core.knowledge.sourceledger.SourceDocumentEvidenceQuery;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -22,7 +20,6 @@ import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -36,18 +33,17 @@ class SourceContentServiceTests {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID SOURCE_ID = UUID.randomUUID();
     private static final UUID REVISION_ID = UUID.randomUUID();
-    private static final UUID BLOB_ID = UUID.randomUUID();
+    private static final UUID ASSET_ID = UUID.randomUUID();
     private static final byte[] CONTENT = "approved handbook".getBytes(StandardCharsets.UTF_8);
     private static final CurrentActor ACTOR = new CurrentActor(
             USER_ID, ORGANIZATION_ID, null, "User", "user@example.test");
 
     private final KnowledgeEvidenceScopeResolver authorization = mock(KnowledgeEvidenceScopeResolver.class);
-    private final SourceRevisionRepository revisions = mock(SourceRevisionRepository.class);
-    private final EvidenceBlobRepository blobs = mock(EvidenceBlobRepository.class);
+    private final SourceDocumentEvidenceQuery evidenceQuery = mock(SourceDocumentEvidenceQuery.class);
     private final ObjectStoragePort objects = mock(ObjectStoragePort.class);
     private final PermissionAuditService audit = mock(PermissionAuditService.class);
     private final SourceContentService service = new SourceContentService(
-            authorization, revisions, blobs, objects, audit);
+            authorization, evidenceQuery, objects, audit);
 
     @Test
     void streamsOnlyTheCurrentPermissionVisibleReadyRevision() throws Exception {
@@ -116,32 +112,22 @@ class SourceContentServiceTests {
     }
 
     private void sourceRevisionAndBlob() {
-        SourceRevision revision = mock(SourceRevision.class);
-        when(revision.getId()).thenReturn(REVISION_ID);
-        when(revision.getEvidenceBlobId()).thenReturn(BLOB_ID);
-        when(revision.getFileName()).thenReturn("handbook.txt");
-        when(revision.getMediaType()).thenReturn("text/plain");
-        when(revision.getContentLength()).thenReturn((long) CONTENT.length);
-        when(revision.getContentSha256()).thenReturn("sha256");
-        when(revisions.findCurrentReadyBySourceObjectIdAndOrganizationId(
-                        SOURCE_ID, ORGANIZATION_ID))
-                .thenReturn(Optional.of(revision));
-
-        EvidenceBlob blob = mock(EvidenceBlob.class);
-        when(blob.getScanStatus()).thenReturn(EvidenceScanStatus.BASIC_VALIDATED);
-        when(blob.getObjectKey()).thenReturn("org/handbook.txt");
-        when(blob.getContentLength()).thenReturn((long) CONTENT.length);
-        when(blob.getContentSha256()).thenReturn("sha256");
-        when(blobs.findByIdAndOrganizationId(BLOB_ID, ORGANIZATION_ID))
-                .thenReturn(Optional.of(blob));
+        when(evidenceQuery.findAvailable(ORGANIZATION_ID, SOURCE_ID)).thenReturn(
+                Optional.of(new SourceDocumentEvidence(
+                        REVISION_ID,
+                        ASSET_ID,
+                        null,
+                        new SourceCitationEvidence(
+                                "handbook.txt",
+                                "text/plain",
+                                CONTENT.length,
+                                "sha256",
+                                new ObjectKey("org/handbook.txt"),
+                                CONTENT.length,
+                                "sha256"))));
     }
 
     private void authorizeAsset() {
-        UUID assetId = UUID.randomUUID();
-        SourceRevision revision = revisions
-                .findCurrentReadyBySourceObjectIdAndOrganizationId(SOURCE_ID, ORGANIZATION_ID)
-                .orElseThrow();
-        when(revision.getKnowledgeAssetId()).thenReturn(assetId);
         UUID spaceId = UUID.randomUUID();
         when(authorization.resolve(ACTOR, null)).thenReturn(new ResolvedKnowledgeEvidenceScope(
                 ORGANIZATION_ID,
@@ -150,7 +136,7 @@ class SourceContentServiceTests {
                 false,
                 "model-v1",
                 Instant.now(),
-                Map.of(spaceId, Set.of(assetId)),
+                Map.of(spaceId, Set.of(ASSET_ID)),
                 Map.of(spaceId, 1L)));
     }
 }
