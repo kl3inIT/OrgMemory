@@ -9,8 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-publication-lifecycle-coordinator (e1d84c91)` and
-`2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
 
 ## Automated
 

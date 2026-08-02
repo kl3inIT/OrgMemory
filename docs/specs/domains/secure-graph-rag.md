@@ -8,8 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-publication-lifecycle-coordinator (e1d84c91)` and
-`2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
 
 ## Current Contract
 
