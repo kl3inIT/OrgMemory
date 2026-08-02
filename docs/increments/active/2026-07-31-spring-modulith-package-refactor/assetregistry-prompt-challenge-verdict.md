@@ -35,7 +35,6 @@ amendment corrected the topology and preparation semantics below.
 The exact public nested Prompt top-level surface is:
 
 - `PromptExecutionService`
-- `PromptPreparationService`
 - `PromptEvaluationResult`
 - `PromptEvaluationComparison`
 
@@ -47,8 +46,8 @@ records' existing nested values.
 
 ## Preparation Contract
 
-`PromptPreparationService.preparePrompt(actor, assetId, releaseId)` authorizes
-and resolves that exact immutable release through `AssetReleaseUseQuery`,
+The internal `PromptPreparationService` authorizes and resolves the exact
+immutable release through `AssetReleaseUseQuery`,
 parses the schema internally, and returns the existing form metadata:
 objective, audience, variables, output contract, knowledge requirements, and
 known limitations. It accepts no variable values, renders nothing, calls no
@@ -74,7 +73,7 @@ The independent fallback reviewer amended the topology in the same Orca
 session. The parent now exposes exact named interface `assetregistry::prompt`
 with one top-level `PromptAssistantOperations` contract. Assistant consumes
 only that interface. A package-private adapter inside the closed Prompt module
-implements it and delegates to the four public nested Prompt contracts.
+implements it and delegates to the nested Prompt services.
 This dependency inversion avoids the cycle a parent implementation facade
 would create.
 
@@ -118,6 +117,13 @@ The PR changes at most 69 file entries, contains code, closes Prompt in the
 same PR, and changes no schema, Flyway migration, endpoint, wire contract, or
 execution behavior. Tests must fail first on the unchanged code and then pass
 for the exact named-interface surfaces, closed nine-entry Prompt allowlist,
-exact four-type nested public surface, exact parent Prompt contract, Assistant isolation from
+exact three-type nested public surface, exact parent Prompt contract, Assistant isolation from
 the nested module, built-in profile set, and repository-wide
 `ApplicationModules.verify()`.
+
+The completed review narrowed the nested public surface from four types to
+three because preparation is reached only through the parent Prompt contract.
+It also replaced name-based internal-to-contract enum conversion with an
+exhaustive mapping and recursively froze nested JSON values in the preparation
+result. The exact-surface and immutability tests make those corrections
+executable without changing the wire schema.

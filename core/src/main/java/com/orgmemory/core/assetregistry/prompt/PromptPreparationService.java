@@ -8,7 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
-public class PromptPreparationService {
+class PromptPreparationService {
 
     private final AssetReleaseUseQuery releases;
     private final PromptTemplateRenderer renderer;
@@ -33,8 +33,7 @@ public class PromptPreparationService {
                 spec.variables().stream()
                         .map(variable -> new PromptPreparationResult.Variable(
                                 variable.name(),
-                                PromptPreparationResult.VariableType.valueOf(
-                                        variable.type().name()),
+                                preparationType(variable.type()),
                                 variable.required(),
                                 variable.defaultValue(),
                                 variable.sensitive(),
@@ -44,5 +43,16 @@ public class PromptPreparationService {
                 spec.outputContract(),
                 spec.knowledgeRequirements(),
                 spec.knownLimitations());
+    }
+
+    static PromptPreparationResult.VariableType preparationType(
+            PromptTemplateSpec.VariableType type) {
+        return switch (type) {
+            case STRING -> PromptPreparationResult.VariableType.STRING;
+            case INTEGER -> PromptPreparationResult.VariableType.INTEGER;
+            case NUMBER -> PromptPreparationResult.VariableType.NUMBER;
+            case BOOLEAN -> PromptPreparationResult.VariableType.BOOLEAN;
+            case STRING_LIST -> PromptPreparationResult.VariableType.STRING_LIST;
+        };
     }
 }

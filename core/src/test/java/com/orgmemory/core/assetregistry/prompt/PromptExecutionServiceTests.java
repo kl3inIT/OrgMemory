@@ -26,7 +26,11 @@ import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -172,5 +176,71 @@ class PromptExecutionServiceTests {
         assertEquals("object", result.outputContract().get("type"));
         assertEquals(java.util.List.of(), result.knowledgeRequirements());
         assertEquals("", result.knownLimitations());
+    }
+
+    @Test
+    void preparationMapsEveryInternalVariableTypeToThePublicContract() {
+        Map<PromptTemplateSpec.VariableType, PromptPreparationResult.VariableType> expected =
+                Map.of(
+                        PromptTemplateSpec.VariableType.STRING,
+                                PromptPreparationResult.VariableType.STRING,
+                        PromptTemplateSpec.VariableType.INTEGER,
+                                PromptPreparationResult.VariableType.INTEGER,
+                        PromptTemplateSpec.VariableType.NUMBER,
+                                PromptPreparationResult.VariableType.NUMBER,
+                        PromptTemplateSpec.VariableType.BOOLEAN,
+                                PromptPreparationResult.VariableType.BOOLEAN,
+                        PromptTemplateSpec.VariableType.STRING_LIST,
+                                PromptPreparationResult.VariableType.STRING_LIST);
+
+        assertEquals(
+                Set.copyOf(List.of(PromptTemplateSpec.VariableType.values())),
+                expected.keySet());
+        expected.forEach((internal, contract) -> assertEquals(
+                contract, PromptPreparationService.preparationType(internal)));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void preparationResultRecursivelyFreezesNestedJsonValues() {
+        List<Object> outputRequired = new ArrayList<>(List.of("category"));
+        Map<String, Object> outputContract = new LinkedHashMap<>();
+        outputContract.put("type", "object");
+        outputContract.put("required", outputRequired);
+        List<Object> defaultItems = new ArrayList<>(List.of("support"));
+        Map<String, Object> defaultValue = new LinkedHashMap<>();
+        defaultValue.put("items", defaultItems);
+
+        PromptPreparationResult result = new PromptPreparationResult(
+                ASSET_ID,
+                RELEASE_ID,
+                "d".repeat(64),
+                "objective",
+                "audience",
+                List.of(new PromptPreparationResult.Variable(
+                        "labels",
+                        PromptPreparationResult.VariableType.STRING_LIST,
+                        false,
+                        defaultValue,
+                        false,
+                        "",
+                        List.of())),
+                outputContract,
+                List.of(),
+                "");
+
+        outputRequired.add("tainted");
+        defaultItems.add("tainted");
+        assertEquals(List.of("category"), result.outputContract().get("required"));
+        Map<String, Object> frozenDefault =
+                (Map<String, Object>) result.variables().getFirst().defaultValue();
+        assertEquals(List.of("support"), frozenDefault.get("items"));
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> ((List<Object>) result.outputContract().get("required"))
+                        .add("blocked"));
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> ((List<Object>) frozenDefault.get("items")).add("blocked"));
     }
 }

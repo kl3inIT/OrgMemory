@@ -1513,12 +1513,17 @@ the adapter returns them unchanged. Both the focused structure gate and
 `OpenApiContractTests` then passed without modifying `contracts/openapi.json`.
 
 Prompt structure and behavior tests passed with the exact parent named
-interfaces, nine-entry closed-module allowlist, four-type nested public surface,
+interfaces, nine-entry closed-module allowlist, three-type nested public surface,
 Assistant isolation, metadata-only preparation, deterministic render/run, and
 built-in profile set. The full clean suites passed 474 Core, 182 API, and 65
 Worker tests with zero failures. The live OpenAPI model remained structurally
 identical without a contract rewrite; the Worker context also proved Prompt
 execution stays conditional on the API-side AI/search capabilities.
+
+CodeRabbit's completed review produced three findings. Preparation service
+visibility, exhaustive variable-type mapping, and recursive immutability of
+nested JSON contract values were all corrected with focused tests; the parent
+Prompt interface and OpenAPI shape remain unchanged.
 
 Documentation hygiene passed for 516 Markdown files and 8 mirrored domain
 pairs. Release policy passed 18 Tegami/product tests and 23 workflow/policy

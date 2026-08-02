@@ -434,9 +434,9 @@ ownership, transaction rules, comparable-source evidence, and binding gates.
 ## Asset Registry Prompt Boundary
 
 The Prompt profile becomes a closed `assetregistry.prompt` nested module. Its
-public top-level surface is limited to execution, preparation, and evaluation
-services/results; schema, renderer, profile implementation, coordinator,
-entities, repositories, and status remain internal. The immutable preparation,
+public top-level surface is limited to execution and evaluation
+services/results; preparation, schema, renderer, profile implementation,
+coordinator, entities, repositories, and status remain internal. The immutable preparation,
 render, and run results live in the parent Prompt interface because both Core
 Assistant and the nested implementation consume those concrete wire contracts.
 

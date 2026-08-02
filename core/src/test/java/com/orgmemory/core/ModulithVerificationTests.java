@@ -1230,8 +1230,7 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.assetregistry.prompt.PromptEvaluationComparison",
                         "com.orgmemory.core.assetregistry.prompt.PromptEvaluationResult",
-                        "com.orgmemory.core.assetregistry.prompt.PromptExecutionService",
-                        "com.orgmemory.core.assetregistry.prompt.PromptPreparationService"),
+                        "com.orgmemory.core.assetregistry.prompt.PromptExecutionService"),
                 publicTopLevelTypes);
     }
 
