@@ -131,9 +131,11 @@ class KnowledgeSpaceAdminIntegrationTests {
         String created = mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Sales Knowledge\"}"))
+                        .content("{\"name\":\"Sales Knowledge\",\"audienceMode\":\"ORGANIZATION\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.key").value("sales-knowledge"))
+                .andExpect(jsonPath("$.audienceMode").value("ORGANIZATION"))
+                .andExpect(jsonPath("$.audienceVersion").value(1))
                 .andExpect(jsonPath("$.active").value(true))
                 .andReturn()
                 .getResponse()
@@ -154,6 +156,15 @@ class KnowledgeSpaceAdminIntegrationTests {
                                 "$[?(@.id == '" + spaceId + "')].grants[?(@.relation == 'administrator')]"
                                         + ".subject")
                         .value("user:" + ADMIN_USER));
+
+        assertEquals(
+                Set.of(
+                        "organization:" + ORG + " organization",
+                        "organization:" + ORG + "#member viewer",
+                        "user:" + ADMIN_USER + " administrator"),
+                stored.stream()
+                        .map(tuple -> tuple.user() + " " + tuple.relation())
+                        .collect(java.util.stream.Collectors.toSet()));
     }
 
     /**
@@ -165,13 +176,15 @@ class KnowledgeSpaceAdminIntegrationTests {
         mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Company Handbook\",\"departmentId\":\"" + DEPT + "\"}"))
+                        .content("{\"name\":\"Company Handbook\",\"audienceMode\":\"DEPARTMENT\","
+                                + "\"departmentId\":\"" + DEPT + "\"}"))
                 .andExpect(status().isCreated());
 
         assertEquals(
                 Set.of(
                         "organization:" + ORG + " organization",
                         "organizational_unit:" + DEPT + " organizational_unit",
+                        "organizational_unit:" + DEPT + "#member viewer",
                         "user:" + ADMIN_USER + " administrator"),
                 stored.stream()
                         .map(tuple -> tuple.user() + " " + tuple.relation())
@@ -179,17 +192,95 @@ class KnowledgeSpaceAdminIntegrationTests {
     }
 
     @Test
+    void departmentAudienceCannotBeBroadenedOrRemovedThroughOrdinaryGrants() throws Exception {
+        UUID spaceId = createSpace("Department Operations", "DEPARTMENT", DEPT);
+
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"relation\":\"viewer\",\"kind\":\"ORGANIZATION\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .param("relation", "viewer")
+                        .param("kind", "DEPARTMENT")
+                        .param("subjectId", DEPT.toString()))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(
+                1,
+                stored.stream()
+                        .filter(tuple -> "viewer".equals(tuple.relation()))
+                        .count());
+    }
+
+    @Test
+    void restrictedCustomAudienceStartsClosedAndRejectsOrganizationWideViewer() throws Exception {
+        UUID spaceId = createSpace("Incident Response", "RESTRICTED_CUSTOM", null);
+
+        assertEquals(
+                0,
+                stored.stream()
+                        .filter(tuple -> "viewer".equals(tuple.relation()))
+                        .count());
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"relation\":\"viewer\",\"kind\":\"ORGANIZATION\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"relation\":\"viewer\",\"kind\":\"USER\",\"subjectId\":\""
+                                + AN_USER + "\"}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/admin/knowledge-spaces").with(jwtFor(ADMIN_USER)))
+                .andExpect(jsonPath(
+                                "$[?(@.id == '" + spaceId
+                                        + "')].grants[?(@.subject == 'user:" + AN_USER + "')].effective")
+                        .value(true));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM knowledge_space_custom_viewer_grants "
+                                + "WHERE knowledge_space_id = ? AND user_id = ?",
+                        Integer.class,
+                        spaceId,
+                        AN_USER));
+    }
+
+    @Test
+    void audienceModeAndDepartmentMustDescribeOneValidPolicy() throws Exception {
+        mvc.perform(post("/api/admin/knowledge-spaces")
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Ambiguous\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/knowledge-spaces")
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Too Broad\",\"audienceMode\":\"ORGANIZATION\","
+                                + "\"departmentId\":\"" + DEPT + "\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/knowledge-spaces")
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"No Owner\",\"audienceMode\":\"DEPARTMENT\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void aSecondSpaceWhoseNameDerivesTheSameKeyIsRefused() throws Exception {
         mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Sales Knowledge\"}"))
+                        .content("{\"name\":\"Sales Knowledge\",\"audienceMode\":\"RESTRICTED_CUSTOM\"}"))
                 .andExpect(status().isCreated());
 
         mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"  sales knowledge  \"}"))
+                        .content("{\"name\":\"  sales knowledge  \",\"audienceMode\":\"RESTRICTED_CUSTOM\"}"))
                 .andExpect(status().isConflict());
 
         assertEquals(
@@ -270,14 +361,20 @@ class KnowledgeSpaceAdminIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.relation == 'viewer')].kinds").value(
                         org.hamcrest.Matchers.hasItem(
-                                org.hamcrest.Matchers.hasItem("ORGANIZATION"))))
+                                org.hamcrest.Matchers.not(
+                                        org.hamcrest.Matchers.hasItem("ORGANIZATION")))))
                 .andExpect(jsonPath("$[?(@.relation == 'reviewer')].kinds").value(
                         org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.hasItem("DEPARTMENT_MANAGERS"))))
+                .andExpect(jsonPath("$[?(@.relation == 'reviewer')].roles").value(
+                        org.hamcrest.Matchers.hasItem(
+                                org.hamcrest.Matchers.hasItem("knowledge-reviewer"))))
                 .andExpect(jsonPath("$[?(@.relation == 'administrator')].kinds").value(
                         org.hamcrest.Matchers.hasItem(
                                 org.hamcrest.Matchers.not(
-                                        org.hamcrest.Matchers.hasItem("ORGANIZATION")))));
+                                        org.hamcrest.Matchers.hasItem("ROLE")))))
+                .andExpect(jsonPath("$[?(@.relation == 'administrator')].roles").value(
+                        org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.empty())));
 
         // Reviewing takes a unit's managers, not its members.
         mvc.perform(post("/api/admin/knowledge-spaces/{id}/grants", spaceId)
@@ -325,7 +422,7 @@ class KnowledgeSpaceAdminIntegrationTests {
         mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(AN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Shadow Space\"}"))
+                        .content("{\"name\":\"Shadow Space\",\"audienceMode\":\"RESTRICTED_CUSTOM\"}"))
                 .andExpect(status().isForbidden());
 
         assertEquals(
@@ -337,10 +434,16 @@ class KnowledgeSpaceAdminIntegrationTests {
     }
 
     private UUID createSpace(String name) throws Exception {
+        return createSpace(name, "RESTRICTED_CUSTOM", null);
+    }
+
+    private UUID createSpace(String name, String audienceMode, UUID departmentId) throws Exception {
+        String departmentField = departmentId == null ? "" : ",\"departmentId\":\"" + departmentId + "\"";
         String created = mvc.perform(post("/api/admin/knowledge-spaces")
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + name + "\"}"))
+                        .content("{\"name\":\"" + name + "\",\"audienceMode\":\"" + audienceMode
+                                + "\"" + departmentField + "}"))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()

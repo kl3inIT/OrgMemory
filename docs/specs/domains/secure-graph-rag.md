@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (pending merge synchronization)`.
 
 ## Current Contract
 
@@ -99,9 +99,22 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 - pgvector supports exact, HNSW, half-vector HNSW, IVFFlat, and optional
   VChordRQ index strategies for immutable shared-projection vectors. Indexes
   are rebuildable and embedding profiles remain immutable.
-- Apache AGE stores topology identity and evidence identifiers only. Bounded
-  traversal filters every edge by authorized Knowledge Asset; all returned IDs
-  remain candidates requiring relational evidence recheck.
+- PostgreSQL topology selection is exact:
+  `orgmemory.graph-rag.postgres.topology-backend=APACHE_AGE|RELATIONAL`.
+  `APACHE_AGE` is the production default and fails startup when the extension,
+  catalog, session preload, or privileges are unavailable. `RELATIONAL` is an
+  explicit reference/test backend; there is no optional runtime fallback.
+- With AGE selected, the relational target batch, fixed-size AGE topology, and
+  exact ready marker stage in one transaction. Entity identity includes batch
+  plus entity UUID; relation-contribution edges include batch, relation,
+  contribution, Knowledge Asset, endpoints, and orientation. AGE contains no
+  descriptions, keywords, prompts, ACL payload, or model output. Exact-batch
+  discard joins relational cleanup only after the store-issued permit is
+  validated.
+- AGE incident paging validates the relational publication snapshot and exact
+  ready marker, then filters batch, requested entities, authorized Knowledge
+  Assets, and exclusive relation cursor before deduplication, canonical order,
+  and `pageSize + 1`. Missing or contradictory marker state fails closed.
 - The pure-Java core is the only result-producing graph traversal authority.
   It validates the exact published graph snapshot before zero/empty returns,
   authorizes seeds and candidate endpoints, drains the complete authorized
@@ -113,9 +126,9 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
   repeated, oversized, or non-advancing pages fail the traversal. Adapters no
   longer expose final expanded entity identifiers or native final-result
   overrides.
-- A relational traversal still implements the separate topology-candidate port
-  when AGE is disabled. Those candidates require relational evidence recheck
-  and do not bypass the core authorized traversal contract.
+- The relational backend implements the identical graph-store page contract
+  when selected explicitly. Both backends require relational evidence recheck
+  and cannot bypass the core authorized traversal contract.
 
 ## Worker Publication
 
@@ -327,3 +340,4 @@ layout without changing graph authorization or query state.
 - [0011](../../decisions/0011-postgresql-multimodel-graph-projection.md)
 - [0012](../../decisions/0012-stable-knowledge-assets-and-immutable-versions.md)
 - [0013](../../decisions/0013-full-lightrag-semantic-port.md)
+- [0030](../../decisions/0030-explicit-apache-age-topology-backend.md)

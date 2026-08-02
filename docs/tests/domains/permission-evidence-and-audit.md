@@ -6,7 +6,7 @@ Source: `core/src/test/java/com/orgmemory/core/permission`,
 `apps/api/src/test/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
+Reconciled: `2026-08-02-knowledge-space-audience-modes (75a8dd3b)`.
 
 | Behavior | Evidence |
 | --- | --- |
@@ -22,3 +22,6 @@ Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
 | Relationship allowance cannot be presented as final document access when canonical retrieval denies | `PermissionsAdminIntegrationTests#effectiveContentAccessSeparatesRelationshipGrantFromCanonicalDenial` |
 | Member administration alone cannot inspect protected resource metadata | `PermissionsAdminIntegrationTests#memberAdministrationDoesNotRevealAccessInspectionMetadata` |
 | Layered result names, relationship-only identifier suppression, and unresolved-state semantics | `access-inspector.test.tsx` |
+| Typed Space creation, built-in projection, immutable managed audiences, custom grant ledger, drift repair, and tenant isolation | `KnowledgeSpaceAdminIntegrationTests`, `KnowledgeSpaceAdministrationServiceTests` |
+| Existing Space audience backfill and database-invalid mode/department combinations | `KnowledgeSpaceAudienceMigrationTests` |
+| Space operational permissions do not imply Space or Knowledge Asset viewing | OpenFGA `store.fga.yaml` operational-independence checks |

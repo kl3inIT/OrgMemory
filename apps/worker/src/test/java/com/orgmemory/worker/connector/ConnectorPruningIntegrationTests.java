@@ -79,7 +79,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-dimensions=3",
         "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.graph-rag.indexing.scheduling-enabled=false",
-        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
+        "orgmemory.graph-rag.postgres.topology-backend=relational",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(CanonicalHybridKnowledgeSearchConfiguration.class)
@@ -309,8 +309,10 @@ class ConnectorPruningIntegrationTests {
         insertUser(LAN_USER, LAN_EMAIL);
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
-                    id, organization_id, department_id, space_key, name, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, 'prune-space', 'Prune Space', true, now(), now(), 0)
+                    id, organization_id, department_id, audience_mode, audience_version,
+                    space_key, name, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'DEPARTMENT', 1,
+                    'prune-space', 'Prune Space', true, now(), now(), 0)
                 """, SPACE, ORG, DEPT);
     }
 

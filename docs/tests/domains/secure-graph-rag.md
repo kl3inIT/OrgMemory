@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (pending merge synchronization)`.
 
 ## Automated
 
@@ -35,11 +35,11 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
   ordering, one global limit, cycles, disconnected nodes, seed permutations,
   model-level self-loop rejection, and fail-closed page/cursor/source contract
   violations.
-- The reusable `GraphStoreConformance` suite runs against PostgreSQL, Neo4j,
-  and OpenSearch and proves the same authorized traversal result plus exclusive
-  relation-UUID paging across all production stores. The in-memory query double
-  executes the same core coordinator rather than maintaining a second queue
-  policy.
+- The reusable `GraphStoreConformance` suite runs against PostgreSQL relational,
+  PostgreSQL Apache AGE, Neo4j, and OpenSearch and proves the same authorized
+  traversal result plus exclusive relation-UUID paging across all production
+  stores. The in-memory query double executes the same core coordinator rather
+  than maintaining a second queue policy.
 - `SpringAiEntityRelationExtractorTests` exercises Spring AI's actual structured
   response conversion with a deterministic fake `ChatModel`.
 - Adapter tests cover valid mapping, prompt placement and limits, model options,
@@ -74,9 +74,13 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
   immutable embedding-route enforcement, durable job creation for both upload
   and connector ingestion, and atomic contribution-plus-embedding publication
   rollback.
-- The pinned PostgreSQL 18 image test proves real Apache AGE graph creation,
-  idempotent replacement, content-free topology properties, authorized
-  traversal, denied-edge exclusion, and revision removal.
+- The pinned PostgreSQL 18 image test proves the selected AGE `GraphStore`
+  creates publication-batch topology, passes shared conformance, retains
+  historical snapshots, excludes denied edges before paging, stores no evidence
+  text, and fails closed after exact ready-marker corruption. Auto-configuration
+  tests prove `RELATIONAL` selection, real `APACHE_AGE` construction, missing-
+  dependency startup failure, the production default, and rejection of the
+  obsolete `apache-age-mode` key.
 - LightRAG runtime conformance tests prove contribution-level references,
   complete evidence closure, one final input-token budget, disabled reranker
   non-invocation, threshold behavior, bounded provider fallback, and one

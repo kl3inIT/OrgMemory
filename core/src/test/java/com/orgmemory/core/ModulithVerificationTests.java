@@ -5,10 +5,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTargetQuery;
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetIdentity;
+import com.orgmemory.core.assetregistry.api.AssetIdentityQuery;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioCommand;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetRegistrationCommand;
 import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetRoleCommand;
+import com.orgmemory.core.assetregistry.api.AssetRoleQuery;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
@@ -1164,7 +1173,84 @@ class ModulithVerificationTests {
                         AssetPortfolioState.class.getName(),
                         AssetRole.class.getName(),
                         AssetType.class.getName(),
-                        AssetUnavailableException.class.getName()),
+                        AssetUnavailableException.class.getName(),
+                        AssetAuthorizationProjectionCommand.class.getName(),
+                        AssetAuthorizationTarget.class.getName(),
+                        AssetAuthorizationTargetQuery.class.getName(),
+                        AssetIdentity.class.getName(),
+                        AssetIdentityQuery.class.getName(),
+                        AssetPortfolioCommand.class.getName(),
+                        AssetRegistrationCommand.class.getName(),
+                        AssetRegistrationCommand.NewAsset.class.getName(),
+                        AssetRoleCommand.class.getName(),
+                        AssetRoleCommand.Assignment.class.getName(),
+                        AssetRoleQuery.class.getName(),
+                        AssetRoleQuery.OwnershipHealth.class.getName(),
+                        AssetRoleQuery.RoleAssignment.class.getName(),
+                        AssetRoleQuery.RoleHistory.class.getName()),
                 exposedTypes);
+    }
+
+    @Test
+    void assetRegistryKernelIsAClosedNestedModule() {
+        var kernel = modules.getModuleByName("assetregistry.kernel").orElseThrow();
+        var allowedDependencies = kernel.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(kernel.isOpen());
+        assertEquals(
+                Set.of("assetregistry::api", "authorization", "shared"),
+                allowedDependencies);
+    }
+
+    @Test
+    void assetRegistryKernelExposesOnlyProjectionQueueContracts() {
+        var publicRootTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry.kernel")
+                .stream()
+                .filter(type -> type.getPackageName().equals(
+                        "com.orgmemory.core.assetregistry.kernel"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch",
+                        "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue"),
+                publicRootTypes);
+    }
+
+    @Test
+    void assetRegistryKernelDoesNotDependOnParentPersistenceOrProjection() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry.kernel..")
+                .should()
+                .dependOnClassesThat()
+                // Exact parent-package match keeps assetregistry.api available to the kernel.
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry.kernel"));
+    }
+
+    @Test
+    void assetRegistryAuthorizationIsAClosedProjectionModule() {
+        var authorization = modules.getModuleByName("assetregistry.authorization").orElseThrow();
+        var allowedDependencies = authorization.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(authorization.isOpen());
+        assertEquals(
+                Set.of("assetregistry.kernel", "assetregistry::api", "authorization"),
+                allowedDependencies);
     }
 }

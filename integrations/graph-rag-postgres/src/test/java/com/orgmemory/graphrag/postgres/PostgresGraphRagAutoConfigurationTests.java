@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.cache.RetrievalResultCache;
@@ -23,6 +24,8 @@ import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -48,7 +51,9 @@ class PostgresGraphRagAutoConfigurationTests {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(
                     AutoConfigurations.of(PostgresGraphRagAutoConfiguration.class))
-            .withUserConfiguration(CollaboratorConfiguration.class);
+            .withUserConfiguration(CollaboratorConfiguration.class)
+            .withPropertyValues(
+                    "orgmemory.graph-rag.postgres.topology-backend=relational");
 
     @Test
     void staysDiscoverableWithoutAnApplicationNamingIt() {
@@ -76,6 +81,63 @@ class PostgresGraphRagAutoConfigurationTests {
                     PostgresRetrievalResultCache.class,
                     context.getBean(RetrievalResultCache.class));
         });
+    }
+
+    @Test
+    void apacheAgeSelectionFailsClosedWhenTheExtensionIsUnavailable() {
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.topology-backend=apache-age")
+                .run(context -> {
+                    Throwable failure = context.getStartupFailure();
+                    assertTrue(failure != null);
+                    assertTrue(rootCause(failure)
+                            .getMessage()
+                            .contains("Apache AGE topology backend was selected"));
+                });
+    }
+
+    @Test
+    void defaultSelectionConstructsTheRealApacheAgeRuntimeWhenAvailable() {
+        NamedParameterJdbcTemplate jdbc = mock(NamedParameterJdbcTemplate.class);
+        JdbcTemplate plainJdbc = mock(JdbcTemplate.class);
+        when(jdbc.getJdbcTemplate()).thenReturn(plainJdbc);
+        when(jdbc.queryForObject(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(MapSqlParameterSource.class),
+                        org.mockito.ArgumentMatchers.eq(Boolean.class)))
+                .thenReturn(true);
+        when(plainJdbc.queryForObject(
+                        org.mockito.ArgumentMatchers.contains("session_preload_libraries"),
+                        org.mockito.ArgumentMatchers.eq(String.class)))
+                .thenReturn("age");
+        when(plainJdbc.queryForObject(
+                        org.mockito.ArgumentMatchers.contains("ag_catalog.ag_graph"),
+                        org.mockito.ArgumentMatchers.eq(Long.class)))
+                .thenReturn(0L);
+        PostgresGraphRagProperties properties = new PostgresGraphRagProperties();
+
+        GraphStore selected = new PostgresGraphRagAutoConfiguration()
+                .postgresSharedSnapshotGraphStore(
+                        jdbc,
+                        mock(PlatformTransactionManager.class),
+                        mock(PostgresProjectionPublicationStore.class),
+                        properties);
+
+        assertEquals(
+                PostgresGraphTopologyBackend.APACHE_AGE,
+                properties.getTopologyBackend());
+        assertInstanceOf(ApacheAgeGraphStore.class, selected);
+    }
+
+    @Test
+    void rejectsTheObsoleteApacheAgeModeProperty() {
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.apache-age-mode=disabled")
+                .run(context -> {
+                    Throwable failure = context.getStartupFailure();
+                    assertTrue(failure != null);
+                    assertTrue(failure.getMessage().contains("PostgresGraphRagProperties"));
+                });
     }
 
     @Test
@@ -116,6 +178,14 @@ class PostgresGraphRagAutoConfigurationTests {
                         PostgresGraphRagAutoConfigurationTests.class.getClassLoader())
                 .forEach(names::add);
         return names;
+    }
+
+    private static Throwable rootCause(Throwable failure) {
+        Throwable current = failure;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
     }
 
     /** The collaborators an application already owns before this adapter loads. */

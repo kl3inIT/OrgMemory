@@ -84,13 +84,23 @@ public class PostgresGraphRagAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(GraphStore.class)
     @DependsOnDatabaseInitialization
-    PostgresGraphStore postgresSharedSnapshotGraphStore(
+    GraphStore postgresSharedSnapshotGraphStore(
             NamedParameterJdbcTemplate jdbc,
             PlatformTransactionManager transactionManager,
             PostgresProjectionPublicationStore publications,
             PostgresGraphRagProperties properties) {
-        return new PostgresGraphStore(
-                jdbc, transactionManager, publications, properties.getWriteBatchSize());
+        return switch (properties.getTopologyBackend()) {
+            case RELATIONAL -> new PostgresGraphStore(
+                    jdbc,
+                    transactionManager,
+                    publications,
+                    properties.getWriteBatchSize());
+            case APACHE_AGE -> new ApacheAgeGraphStore(
+                    jdbc,
+                    transactionManager,
+                    publications,
+                    properties.getWriteBatchSize());
+        };
     }
 
     @Bean

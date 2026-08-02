@@ -74,7 +74,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.ingestion.processing.embedding-dimensions=3",
         "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.graph-rag.indexing.scheduling-enabled=false",
-        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
+        "orgmemory.graph-rag.postgres.topology-backend=relational",
         "orgmemory.connector.scheduling-enabled=false"
 })
 @Import(CanonicalHybridKnowledgeSearchConfiguration.class)
@@ -315,8 +315,10 @@ class ConnectorStagingIngestionIntegrationTests {
         insertUser(CHI_USER, "chi@slackfix.example");
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
-                    id, organization_id, department_id, space_key, name, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, 'fixture-space', 'Fixture Space', true, now(), now(), 0)
+                    id, organization_id, department_id, audience_mode, audience_version,
+                    space_key, name, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'DEPARTMENT', 1,
+                    'fixture-space', 'Fixture Space', true, now(), now(), 0)
                 """, SPACE, ORG, DEPT);
     }
 

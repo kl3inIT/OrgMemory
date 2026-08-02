@@ -106,6 +106,25 @@ canonical writes, queue transactions, and OpenFGA calls are forbidden.
 Every PR contains code, remains below both its slice cap and the repository
 100-file ceiling, and may not weaken closure or expose persistence types.
 
+## Executable Topology Correction — 2026-08-02
+
+The full `modules.verify()` gate rejected the planned intermediate parent to
+Kernel projection dependency as a real cycle: Kernel consumes the parent-owned
+`assetregistry::api`, so a parent import of Kernel or Authorization cannot be
+retained. The strongest alternative was to keep PR 2 and PR 3 separate by
+leaving the outbox coordinator in the parent temporarily. That would contradict
+the selected atomic ownership boundary and make Kernel incomplete on arrival.
+
+The binding implementation therefore combines delivery steps 2 and 3 while
+retaining their total 60-path ceiling. Parent orchestration depends only on the
+new `AssetAuthorizationProjectionCommand` in `assetregistry::api`;
+package-private Authorization projection implements it. Authorization publicly
+exposes only convergence service/report for Worker, while its exact dependency
+allowlist remains Kernel, `assetregistry::api`, and Authorization. This
+supersedes the parent-to-Authorization arrow and the public projection-service
+statement above; all aggregate ownership, transaction rules, and rejected
+alternatives remain unchanged.
+
 ## Required Evidence
 
 - Characterization tests fail first for module existence/closure, exact public

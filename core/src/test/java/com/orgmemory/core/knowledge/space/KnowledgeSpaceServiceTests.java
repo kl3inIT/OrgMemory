@@ -59,6 +59,20 @@ class KnowledgeSpaceServiceTests {
     }
 
     @Test
+    void visibleSpaceListingRejectsAnOpenFgaResultOutsideTheDepartmentAudience() {
+        ResourceRef resource = ResourceRef.of(ORGANIZATION_ID, "knowledge_space", SPACE_ID);
+        KnowledgeSpace space = space();
+        when(space.admits(DEPARTMENT_ID)).thenReturn(false);
+        when(authorizationSets.listAuthorizedResources(any())).thenReturn(
+                AuthorizedResourceSetResult.resolved(List.of(resource), "model-1"));
+        when(spaces.findByOrganizationIdAndIdInAndActiveTrueOrderByName(
+                        ORGANIZATION_ID, Set.of(SPACE_ID)))
+                .thenReturn(List.of(space));
+
+        assertEquals(List.of(), service.listVisibleTargets(ACTOR));
+    }
+
+    @Test
     void failsClosedWhenOpenFgaCannotResolveUploadTargets() {
         when(authorizationSets.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.indeterminate("OPENFGA_UNAVAILABLE", "model-1"));
@@ -95,6 +109,7 @@ class KnowledgeSpaceServiceTests {
         when(space.getKey()).thenReturn("sales");
         when(space.getName()).thenReturn("Sales Knowledge");
         when(space.getDepartmentId()).thenReturn(DEPARTMENT_ID);
+        when(space.admits(DEPARTMENT_ID)).thenReturn(true);
         return space;
     }
 }

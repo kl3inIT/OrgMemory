@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/permission`,
 `apps/api/src/main/java/com/orgmemory/api/admin`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
+Reconciled: `2026-08-02-knowledge-space-audience-modes (75a8dd3b)`.
 
 ## Current Behavior
 
@@ -40,6 +40,17 @@ relationship result from the canonical content-policy result and exposes their
 intersection as the final verdict. Other resource and permission combinations
 are labeled relationship-only. The UI uses resolved names as primary labels and
 keeps identifiers and policy reason codes in collapsed technical details.
+
+Each Knowledge Space persists one versioned audience mode. Organization and
+department modes project an immutable built-in viewer audience; the ordinary
+grant API cannot remove or widen it. Restricted custom Spaces start closed and
+accept only explicit users or departments recorded in both the PostgreSQL
+audience ledger and OpenFGA. Stored viewer tuples that contradict the mode are
+reported as ineffective drift and may be removed without making the invalid
+shape grantable. Space administration, publication, authoring, and viewing are
+independent permissions; an operational relation alone does not grant content
+read. Every Space audience remains only an eligibility gate: Source ACL and the
+other canonical content gates remain hard ceilings.
 
 ## Source Modules
 

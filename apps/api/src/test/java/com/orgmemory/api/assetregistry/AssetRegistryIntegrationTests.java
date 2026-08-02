@@ -21,7 +21,7 @@ import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
-import com.orgmemory.core.assetregistry.AssetAuthorizationConvergenceService;
+import com.orgmemory.core.assetregistry.authorization.AssetAuthorizationConvergenceService;
 import com.orgmemory.core.assetregistry.AssetAvailability;
 import com.orgmemory.core.assetregistry.AssetCatalogSort;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;

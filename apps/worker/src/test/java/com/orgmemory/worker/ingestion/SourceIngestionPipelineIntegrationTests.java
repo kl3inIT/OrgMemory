@@ -80,7 +80,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "spring.flyway.enabled=true",
         "orgmemory.ingestion.processing.scheduling-enabled=false",
         "orgmemory.graph-rag.indexing.scheduling-enabled=false",
-        "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
+        "orgmemory.graph-rag.postgres.topology-backend=relational",
         "orgmemory.authorization.convergence.scheduling-enabled=false",
         "orgmemory.ingestion.processing.embedding-model=text-embedding-3-large",
         "orgmemory.ingestion.processing.embedding-dimensions=1536"

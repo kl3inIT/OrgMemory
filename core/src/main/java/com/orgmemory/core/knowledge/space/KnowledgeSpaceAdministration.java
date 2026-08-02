@@ -18,7 +18,7 @@ public final class KnowledgeSpaceAdministration {
      * does not offer — {@code organization:<id>#knowledge_contributor} among them. Reporting only
      * the shapes this service can author would hide the rest.
      */
-    public record Grant(String relation, String subject) {
+    public record Grant(String relation, String subject, boolean effective) {
 
         public Grant {
             Objects.requireNonNull(relation, "relation");
@@ -36,6 +36,8 @@ public final class KnowledgeSpaceAdministration {
             UUID id,
             String key,
             String name,
+            KnowledgeSpaceAudienceMode audienceMode,
+            long audienceVersion,
             UUID departmentId,
             boolean active,
             List<Grant> grants,
@@ -46,6 +48,10 @@ public final class KnowledgeSpaceAdministration {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(key, "key");
             Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(audienceMode, "audienceMode");
+            if (audienceVersion < 1) {
+                throw new IllegalArgumentException("audienceVersion must be positive");
+            }
             grants = List.copyOf(Objects.requireNonNull(grants, "grants"));
             Objects.requireNonNull(policyVersion, "policyVersion");
         }
