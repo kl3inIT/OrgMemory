@@ -15,6 +15,7 @@ import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector;
 import com.orgmemory.core.knowledge.retrieval.SourceContentService;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import java.lang.reflect.Modifier;
@@ -720,10 +721,71 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeRetrievalIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeRetrievalIsAClosedNestedModule() {
         var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+        var allowedDependencies = retrieval.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(retrieval.isOpen());
+        assertFalse(retrieval.isOpen());
+        assertEquals(
+                Set.of(
+                        "ai",
+                        "authorization",
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge::catalog",
+                        "knowledge::search",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
+    }
+
+    @Test
+    void knowledgeRetrievalExposesOnlyIntentionalRootApi() {
+        var publicRootTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.knowledge.retrieval")
+                .stream()
+                .filter(type -> type.getPackageName().equals(
+                        "com.orgmemory.core.knowledge.retrieval"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration",
+                        "com.orgmemory.core.knowledge.retrieval.CitationContent",
+                        "com.orgmemory.core.knowledge.retrieval.CitationContentService",
+                        "com.orgmemory.core.knowledge.retrieval.CitationNotFoundException",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy$RerankPolicy",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector$AssetInspection",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbedding",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort",
+                        "com.orgmemory.core.knowledge.retrieval.SourceContent",
+                        "com.orgmemory.core.knowledge.retrieval.SourceContentService",
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
+                publicRootTypes);
     }
 
     @Test

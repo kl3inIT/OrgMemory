@@ -11,11 +11,24 @@
  * snapshot instead of scope resolution or retrieval-store implementation types. API and Worker
  * adapters inject Retrieval interfaces for canonical/GraphRAG search, citation/source opening,
  * authorization inspection, and embedding-profile resolution; their default/JDBC implementations
- * are package-private. Full evidence-scope resolution remains internal. The module remains open
- * only while the rest of its concrete
- * and persistence root types are internalized and its final allowlist is proven. Asset,
- * Organization, and Source Ledger citation reads already cross owner-defined queries.
+ * are package-private. Full evidence-scope resolution, canonical persistence, candidates, and
+ * embedding-profile persistence remain internal. Asset, Organization, and Source Ledger citation
+ * reads cross owner-defined queries.
  */
 @org.springframework.modulith.ApplicationModule(
-        type = org.springframework.modulith.ApplicationModule.Type.OPEN)
+        allowedDependencies = {
+            "ai",
+            "authorization",
+            "knowledge.acl",
+            "knowledge.asset",
+            "knowledge::catalog",
+            "knowledge::search",
+            "knowledge.sourceledger",
+            "knowledge.space",
+            "knowledge::storage",
+            "organization",
+            "permission",
+            "shared",
+            "shared::error"
+        })
 package com.orgmemory.core.knowledge.retrieval;

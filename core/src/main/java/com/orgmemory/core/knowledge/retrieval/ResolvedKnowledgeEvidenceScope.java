@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-public record ResolvedKnowledgeEvidenceScope(
+record ResolvedKnowledgeEvidenceScope(
         UUID organizationId,
         UUID actorUserId,
         UUID actorDepartmentId,

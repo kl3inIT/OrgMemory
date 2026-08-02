@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * creates registry Asset rows or copies Knowledge authorization tuples.
  */
 @Service
-public class KnowledgeCatalogService implements KnowledgeCatalogQuery {
+class KnowledgeCatalogService implements KnowledgeCatalogQuery {
 
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
     private final KnowledgeAssetRetrievalQuery assets;
