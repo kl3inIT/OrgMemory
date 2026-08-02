@@ -21,7 +21,6 @@ class PostgresGraphStoreOptionsTests {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new PostgresGraphStoreOptions(
-                        ApacheAgeMode.REQUIRED,
                         PostgresVectorIndexStrategy.HNSW,
                         Set.of(),
                         16,

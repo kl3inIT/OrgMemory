@@ -4,12 +4,15 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties("orgmemory.graph-rag.postgres")
+@ConfigurationProperties(
+        prefix = "orgmemory.graph-rag.postgres",
+        ignoreUnknownFields = false)
 public class PostgresGraphRagProperties {
 
     private boolean enabled = true;
     private boolean provisionIndexes = true;
-    private ApacheAgeMode apacheAgeMode = ApacheAgeMode.REQUIRED;
+    private PostgresGraphTopologyBackend topologyBackend =
+            PostgresGraphTopologyBackend.APACHE_AGE;
     private PostgresVectorIndexStrategy vectorIndexStrategy =
             PostgresVectorIndexStrategy.HNSW;
     private Set<Integer> indexedVectorDimensions = new LinkedHashSet<>(Set.of(1536));
@@ -21,7 +24,6 @@ public class PostgresGraphRagProperties {
 
     public PostgresGraphStoreOptions toStoreOptions() {
         return new PostgresGraphStoreOptions(
-                apacheAgeMode,
                 vectorIndexStrategy,
                 indexedVectorDimensions,
                 hnswM,
@@ -46,12 +48,12 @@ public class PostgresGraphRagProperties {
         this.provisionIndexes = provisionIndexes;
     }
 
-    public ApacheAgeMode getApacheAgeMode() {
-        return apacheAgeMode;
+    public PostgresGraphTopologyBackend getTopologyBackend() {
+        return topologyBackend;
     }
 
-    public void setApacheAgeMode(ApacheAgeMode apacheAgeMode) {
-        this.apacheAgeMode = apacheAgeMode;
+    public void setTopologyBackend(PostgresGraphTopologyBackend topologyBackend) {
+        this.topologyBackend = topologyBackend;
     }
 
     public PostgresVectorIndexStrategy getVectorIndexStrategy() {

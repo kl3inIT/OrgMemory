@@ -43,6 +43,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
 | Durable cross-store publication lifecycle | shipped | [completed plan](increments/completed/2026-08-02-publication-lifecycle-coordinator/plan.md), [decision 0028](decisions/0028-durable-cross-store-publication-permits.md) |
 | Typed Knowledge Space audiences | shipped | [completed verification](increments/completed/2026-08-02-knowledge-space-audience-modes/verification.md), [decision 0029](decisions/0029-typed-knowledge-space-audiences.md) |
+| Explicit Apache AGE graph backend | shipped | [completed verification](increments/completed/2026-08-02-apache-age-graph-backend/verification.md), [decision 0030](decisions/0030-explicit-apache-age-topology-backend.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
