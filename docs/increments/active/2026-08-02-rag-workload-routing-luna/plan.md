@@ -11,40 +11,40 @@ Design: [design.md](design.md).
 
 ## Step 2 - Characterization tests first
 
-- [ ] Pin unchanged route defaults, OpenAI-option capability validation,
+- [x] Pin unchanged route defaults, OpenAI-option capability validation,
   protocol fail-closed behavior, route/cache identity, Keyword editability,
   request-time organization isolation, and Graph mutation denial.
-- [ ] Pin schema-v1 graph profile restore and schema-v2 reasoning identity.
-- [ ] Pin the REST/OpenAPI contract and RAG pipeline UI lifecycle copy.
+- [x] Pin schema-v1 graph profile restore and schema-v2 reasoning identity.
+- [x] Pin the REST/OpenAPI contract and RAG pipeline UI lifecycle copy.
 
 ## Step 3 - Backend and persistence
 
-- [ ] Add capability-gated OpenAI route reasoning effort and pass it only
+- [x] Add capability-gated OpenAI route reasoning effort and pass it only
   through a declared supporting OpenAI-compatible adapter.
-- [ ] Persist reasoning effort on organization Keyword/Assistant/Prompt route
+- [x] Persist reasoning effort on organization Keyword/Assistant/Prompt route
   overrides and widen the workload constraint to Keyword Planning.
-- [ ] Add reasoning effort to new immutable graph profiles while preserving
+- [x] Add reasoning effort to new immutable graph profiles while preserving
   exact schema-v1 restore behavior.
-- [ ] Retain current deployment defaults until the live gates approve separate
+- [x] Retain current deployment defaults until the live gates approve separate
   candidate activation.
 
 ## Step 4 - Administration UI
 
-- [ ] Present Assistant Answer, Keyword Planning, and Graph Extraction as one
+- [x] Present Assistant Answer, Keyword Planning, and Graph Extraction as one
   RAG pipeline section.
-- [ ] Allow Answer and Keyword route/reasoning edits; show Graph as
+- [x] Allow Answer and Keyword route/reasoning edits; show Graph as
   deployment-managed and future-jobs-only.
-- [ ] Keep Prompt Execution available and keep Reindex absent.
+- [x] Keep Prompt Execution available and keep Reindex absent.
 
 ## Step 5 - Evaluation and verification
 
-- [ ] Run bounded redacted Keyword and Graph candidate evaluations against the
+- [x] Run bounded redacted Keyword and Graph candidate evaluations against the
   current baselines.
-- [ ] Apply the activation rules in `design.md`; retain Graph baseline if Luna
+- [x] Apply the activation rules in `design.md`; retain Graph baseline if Luna
   does not pass.
-- [ ] Run focused backend/static/frontend gates, contract generation/drift,
+- [x] Run focused backend/static/frontend gates, contract generation/drift,
   production build, and terminating clean JVM test.
-- [ ] Reconcile specs, test matrices, architecture facts, and deployment docs.
+- [x] Reconcile specs, test matrices, architecture facts, and deployment docs.
 
 ## Step 6 - Delivery
 
