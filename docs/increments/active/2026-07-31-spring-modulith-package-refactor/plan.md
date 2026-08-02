@@ -1279,3 +1279,8 @@ tests failed first against the permissive/default APIs; the corrected Graph,
 verifier, and full Modulith slice passed in 35s, followed by full Core in 1m43s.
 The terminating post-review `clean test` then passed all 99 tasks in 6m31s,
 including uncached API and Worker tests affected by the Core boundary change.
+
+After a second main sync at `8bf800c6` brought the governed document-action
+Retrieval changes, the Graph/verifier classes plus full Modulith slice passed
+again in 51s. Documentation passed for 506 Markdown files and 8 mirrored domain
+pairs, and all 41 release-policy tests passed on Node 24.15.0.
