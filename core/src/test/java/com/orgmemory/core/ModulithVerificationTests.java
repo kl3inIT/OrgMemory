@@ -893,6 +893,45 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void retrievalDoesNotDependOnSourceLedgerCitationPersistenceOrStatusTypes() {
+        var forbiddenTypes = Set.of(
+                "com.orgmemory.core.knowledge.sourceledger.EvidenceBlob",
+                "com.orgmemory.core.knowledge.sourceledger.EvidenceBlobRepository",
+                "com.orgmemory.core.knowledge.sourceledger.EvidenceScanStatus",
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevision",
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevisionRepository",
+                "com.orgmemory.core.knowledge.sourceledger.SourceRevisionStatus");
+        var consumers = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getSourceType()
+                        .getPackageName()
+                        .startsWith("com.orgmemory.core.knowledge.retrieval"))
+                .filter(dependency -> forbiddenTypes.contains(
+                        dependency.getTargetType().getName()))
+                .map(dependency -> dependency.getSourceType().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(Set.of(), consumers);
+    }
+
+    @Test
+    void citationContentUsesTheSourceLedgerOwnerQuery() {
+        var consumers = modules.stream()
+                .flatMap(module -> module.getDirectDependencies(modules).stream())
+                .filter(dependency -> dependency.getTargetType()
+                        .getName()
+                        .equals("com.orgmemory.core.knowledge.sourceledger.SourceCitationEvidenceQuery"))
+                .map(dependency -> dependency.getSourceType().getName())
+                .filter(name -> name.startsWith(
+                        "com.orgmemory.core.knowledge.retrieval"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of("com.orgmemory.core.knowledge.retrieval.CitationContentService"),
+                consumers);
+    }
+
+    @Test
     void objectStorageIsAnExplicitKnowledgeInterface() {
         var knowledge = modules.getModuleByName("knowledge").orElseThrow();
         var storage = knowledge.getNamedInterfaces().getByName("storage").orElseThrow();
