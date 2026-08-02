@@ -44,16 +44,16 @@
 
 - [x] Run backend static analysis or record the documented fallback if the IDE
   transport is unavailable.
-- [ ] Run a terminating `gradlew clean test`, docs check, `git diff --check`, and
+- [x] Run a terminating `gradlew clean test`, docs check, `git diff --check`, and
   confirm the worktree is free of unrelated changes and secrets.
-- [ ] Record the decision and rejected alternative; reconcile `ARCHITECTURE.md`,
+- [x] Record the decision and rejected alternative; reconcile `ARCHITECTURE.md`,
   Secure GraphRAG spec/test matrix, and their `Source:`/`Reconciled:` lines.
-- [ ] Move the increment to `completed/` and mark the roadmap entry shipped.
+- [x] Move the increment to `completed/` and mark the roadmap entry shipped.
 
 ## 5. Delivery
 
-- [ ] Sync current `origin/main`, preserve logical commits, push the branch, and
-  open a conventional PR.
+- [x] Sync current `origin/main` and preserve logical commits.
+- [ ] Push the branch and open a conventional PR.
 - [ ] Resolve all actionable review findings, pass required CI, merge, and verify
   post-merge delivery impact.
 - [ ] Record the verified decision, evidence, risks, and next step in Northstar.

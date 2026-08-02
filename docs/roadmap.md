@@ -43,6 +43,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
 | Durable cross-store publication lifecycle | shipped | [completed plan](increments/completed/2026-08-02-publication-lifecycle-coordinator/plan.md), [decision 0028](decisions/0028-durable-cross-store-publication-permits.md) |
 | Typed Knowledge Space audiences | shipped | [completed verification](increments/completed/2026-08-02-knowledge-space-audience-modes/verification.md), [decision 0029](decisions/0029-typed-knowledge-space-audiences.md) |
+| Explicit Apache AGE graph backend | shipped | [completed verification](increments/completed/2026-08-02-apache-age-graph-backend/verification.md), [decision 0030](decisions/0030-explicit-apache-age-topology-backend.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
@@ -51,7 +52,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Explicit Apache AGE graph backend](increments/active/2026-08-02-apache-age-graph-backend/plan.md) | active | independent architecture challenge, characterization-first implementation, full CI, and merge |
 | [Document View and Delete](increments/completed/2026-08-02-document-view-delete/plan.md) | completed | none — merged and production-verified; no Reindex action |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
