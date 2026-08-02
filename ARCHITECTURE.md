@@ -405,6 +405,9 @@ entity/relation vectors. One exact topology backend is selected through
 `orgmemory.graph-rag.postgres.topology-backend=APACHE_AGE|RELATIONAL`;
 `APACHE_AGE` is the production default, has no automatic fallback, and fails
 startup when its extension, catalog, session preload, or privileges are absent.
+The shared-database bootstrap exposes only a SECURITY DEFINER boolean preload
+probe to the application role; the role does not receive the broad
+`pg_read_all_settings` capability.
 AGE stores only tenant- and publication-batch-pinned topology identity plus a
 transactional ready marker. Its incident-relation pages filter authorized
 Knowledge Assets before paging and remain subject to relational evidence and

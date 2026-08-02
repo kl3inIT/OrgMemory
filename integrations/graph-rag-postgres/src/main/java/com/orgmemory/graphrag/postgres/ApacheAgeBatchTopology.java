@@ -180,17 +180,23 @@ final class ApacheAgeBatchTopology {
             if (!Boolean.TRUE.equals(installed)) {
                 throw unavailable("the age extension is not installed", null);
             }
-            String preload = jdbc.getJdbcTemplate().queryForObject(
-                    "SELECT current_setting('session_preload_libraries')",
-                    String.class);
-            boolean agePreloaded = preload != null
-                    && java.util.Arrays.stream(preload.split(","))
-                            .map(String::strip)
-                            .anyMatch("age"::equalsIgnoreCase);
-            if (!agePreloaded) {
+        } catch (DataAccessException exception) {
+            throw unavailable("the extension catalog is not readable", exception);
+        }
+        try {
+            Boolean agePreloaded = jdbc.queryForObject("""
+                    SELECT orgmemory_runtime.age_session_preloaded()
+                    """, new MapSqlParameterSource(), Boolean.class);
+            if (!Boolean.TRUE.equals(agePreloaded)) {
                 throw unavailable(
                         "session_preload_libraries does not include age", null);
             }
+        } catch (DataAccessException exception) {
+            throw unavailable(
+                    "the least-privilege AGE preload probe is unavailable; rerun the shared database bootstrap",
+                    exception);
+        }
+        try {
             jdbc.getJdbcTemplate().queryForObject(
                     "SELECT count(*) FROM ag_catalog.ag_graph", Long.class);
         } catch (DataAccessException exception) {

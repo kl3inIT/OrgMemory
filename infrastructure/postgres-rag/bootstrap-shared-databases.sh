@@ -44,6 +44,9 @@ psql \
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS age CASCADE;
 
+CREATE SCHEMA IF NOT EXISTS orgmemory_runtime;
+REVOKE ALL ON SCHEMA orgmemory_runtime FROM PUBLIC;
+
 SELECT format(
     'GRANT USAGE ON SCHEMA ag_catalog TO %I',
     :'database_role'
@@ -52,6 +55,35 @@ SELECT format(
 
 SELECT format(
     'GRANT SELECT ON TABLE ag_catalog.ag_graph TO %I',
+    :'database_role'
+)
+\gexec
+
+SELECT format(
+    'GRANT USAGE ON SCHEMA orgmemory_runtime TO %I',
+    :'database_role'
+)
+\gexec
+
+CREATE OR REPLACE FUNCTION orgmemory_runtime.age_session_preloaded()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM unnest(string_to_array(
+            current_setting('session_preload_libraries'), ',')) AS library
+        WHERE btrim(library) = 'age'
+    )
+$$;
+
+REVOKE ALL ON FUNCTION orgmemory_runtime.age_session_preloaded() FROM PUBLIC;
+
+SELECT format(
+    'GRANT EXECUTE ON FUNCTION orgmemory_runtime.age_session_preloaded() TO %I',
     :'database_role'
 )
 \gexec
