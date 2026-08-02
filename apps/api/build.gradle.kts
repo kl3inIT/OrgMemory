@@ -47,7 +47,7 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     systemProperty("spring.session.jdbc.cleanup-cron", "-")
-    systemProperty("orgmemory.graph-rag.postgres.apache-age-mode", "DISABLED")
+    systemProperty("orgmemory.graph-rag.postgres.topology-backend", "RELATIONAL")
 }
 
 tasks.named<ProcessResources>("processTestResources") {

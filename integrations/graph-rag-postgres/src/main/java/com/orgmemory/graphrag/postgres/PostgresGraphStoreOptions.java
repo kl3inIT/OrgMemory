@@ -10,7 +10,6 @@ import java.util.Set;
  * always come from the use-case ports and cannot be relaxed here.
  */
 public record PostgresGraphStoreOptions(
-        ApacheAgeMode apacheAgeMode,
         PostgresVectorIndexStrategy vectorIndexStrategy,
         Set<Integer> indexedVectorDimensions,
         int hnswM,
@@ -21,7 +20,6 @@ public record PostgresGraphStoreOptions(
     private static final int POSTGRES_IDENTIFIER_SAFE_MAX_DIMENSION = 16_000;
 
     public PostgresGraphStoreOptions {
-        Objects.requireNonNull(apacheAgeMode, "apacheAgeMode");
         Objects.requireNonNull(vectorIndexStrategy, "vectorIndexStrategy");
         indexedVectorDimensions = Set.copyOf(
                 Objects.requireNonNull(indexedVectorDimensions, "indexedVectorDimensions"));
@@ -52,7 +50,6 @@ public record PostgresGraphStoreOptions(
 
     public static PostgresGraphStoreOptions defaults() {
         return new PostgresGraphStoreOptions(
-                ApacheAgeMode.OPTIONAL,
                 PostgresVectorIndexStrategy.HNSW,
                 Set.of(1536),
                 16,
@@ -61,14 +58,4 @@ public record PostgresGraphStoreOptions(
                 "");
     }
 
-    public PostgresGraphStoreOptions withApacheAgeMode(ApacheAgeMode mode) {
-        return new PostgresGraphStoreOptions(
-                mode,
-                vectorIndexStrategy,
-                indexedVectorDimensions,
-                hnswM,
-                hnswEfConstruction,
-                ivfFlatLists,
-                vchordBuildOptions);
-    }
 }
