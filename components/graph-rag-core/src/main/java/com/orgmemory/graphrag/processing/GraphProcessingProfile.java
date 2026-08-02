@@ -39,6 +39,11 @@ public record GraphProcessingProfile(
         }
         algorithmVersion = requireText(algorithmVersion, "algorithmVersion");
         Objects.requireNonNull(extractionProfile, "extractionProfile");
+        if (schemaVersion == 1
+                && extractionProfile.openAiReasoningEffort() != null) {
+            throw new IllegalArgumentException(
+                    "schema-v1 graph processing profiles cannot set OpenAI reasoning effort");
+        }
         promptTemplate = requireText(promptTemplate, "promptTemplate");
         mergeSemanticsVersion =
                 requireText(mergeSemanticsVersion, "mergeSemanticsVersion");

@@ -16,6 +16,18 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = "orgmemory.workload-routing-evaluation.v1"
+REQUIRED_CASE_KEYS = frozenset(
+    {
+        "caseId",
+        "language",
+        "query",
+        "evidence",
+        "requiredKeywordFragments",
+        "requiredEntityFragments",
+        "minimumEntities",
+        "minimumRelationships",
+    }
+)
 KEYWORD_SCHEMA = {
     "type": "object",
     "properties": {
@@ -175,21 +187,53 @@ Only output a relationship when its source and target entities are included in t
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
+def validate_fixture_cases(cases: Any) -> list[dict[str, Any]]:
+    if not isinstance(cases, list) or not cases:
+        raise SystemExit("workload-routing fixture must contain cases")
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            raise SystemExit(f"fixture case {index} must be an object")
+        missing = sorted(REQUIRED_CASE_KEYS - case.keys())
+        if missing:
+            raise SystemExit(f"fixture case {index} is missing keys: {missing}")
+    return cases
+
+
+def transient_transport_error(error: BaseException) -> bool:
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code == 429 or 500 <= error.code < 600
+    if isinstance(error, TimeoutError):
+        return True
+    return isinstance(error, urllib.error.URLError) and isinstance(
+        error.reason, TimeoutError
+    )
+
+
 def request_json(
     *,
     base_url: str,
     api_key: str,
     timeout_seconds: int,
     payload: dict[str, Any],
+    max_attempts: int = 3,
 ) -> tuple[dict[str, Any], float]:
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be positive")
     request = urllib.request.Request(
         f"{base_url.rstrip('/')}/chat/completions",
         data=json.dumps(payload, ensure_ascii=False).encode(),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     )
     started = time.perf_counter()
-    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-        body = json.load(response)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                body = json.load(response)
+            break
+        except (urllib.error.URLError, TimeoutError) as error:
+            if attempt == max_attempts or not transient_transport_error(error):
+                raise
+            time.sleep(0.5 * (2 ** (attempt - 1)))
     latency_ms = (time.perf_counter() - started) * 1000
     content = body["choices"][0]["message"]["content"]
     return json.loads(content), latency_ms
@@ -252,7 +296,9 @@ def observe(
         )
         recall = fragment_recall(names, case["requiredEntityFragments"])
         return Observation(valid, latency_ms, recall, len(entities), len(relationships))
-    except (KeyError, TypeError, ValueError, urllib.error.URLError, TimeoutError) as error:
+    except (urllib.error.URLError, TimeoutError) as error:
+        return Observation(False, 0.0, 0.0, 0, 0, type(error).__name__)
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError) as error:
         return Observation(False, 0.0, 0.0, 0, 0, type(error).__name__)
 
 
@@ -264,16 +310,23 @@ def percentile95(values: Sequence[float]) -> float:
 
 
 def aggregate(observations: Sequence[Observation]) -> dict[str, Any]:
+    measured = [item for item in observations if item.error_code is None]
     return {
         "samples": len(observations),
         "validResponses": sum(item.valid for item in observations),
         "providerFailures": sum(item.error_code is not None for item in observations),
-        "meanRecall": round(statistics.fmean(item.recall for item in observations), 4),
-        "p95LatencyMs": round(percentile95([item.latency_ms for item in observations]), 1),
-        "meanEntities": round(statistics.fmean(item.entities for item in observations), 2),
+        "meanRecall": round(statistics.fmean(item.recall for item in measured), 4)
+        if measured
+        else 0.0,
+        "p95LatencyMs": round(percentile95([item.latency_ms for item in measured]), 1),
+        "meanEntities": round(statistics.fmean(item.entities for item in measured), 2)
+        if measured
+        else 0.0,
         "meanRelationships": round(
-            statistics.fmean(item.relationships for item in observations), 2
-        ),
+            statistics.fmean(item.relationships for item in measured), 2
+        )
+        if measured
+        else 0.0,
         "errorCodes": sorted({item.error_code for item in observations if item.error_code}),
     }
 
@@ -301,8 +354,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
     raw = args.input.read_bytes()
     fixture = json.loads(raw)
-    if fixture.get("schemaVersion") != SCHEMA_VERSION or not fixture.get("cases"):
+    if not isinstance(fixture, dict) or fixture.get("schemaVersion") != SCHEMA_VERSION:
         raise SystemExit("unsupported or empty workload-routing fixture")
+    cases = validate_fixture_cases(fixture.get("cases"))
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         raise SystemExit("OPENAI_API_KEY is required")
@@ -324,7 +378,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             payload=payload,
         )
     for _ in range(args.repetitions):
-        for case in fixture["cases"]:
+        for case in cases:
             for route in routes:
                 observations[(route.role, route.label)].append(observe(case, route, caller))
     aggregates = {
@@ -337,7 +391,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         "schemaVersion": "orgmemory.workload-routing-evaluation-result.v1",
         "generatedAt": datetime.now(UTC).isoformat(),
         "fixtureSha256": hashlib.sha256(raw).hexdigest(),
-        "caseCount": len(fixture["cases"]),
+        "caseCount": len(cases),
         "repetitions": args.repetitions,
         "routes": [
             {

@@ -168,6 +168,28 @@ public class AiGatewayAdministrationService {
             SecretValue credential,
             UUID adminUserId) {
         AiGatewayProfile profile = requireProfile(organizationId, profileId);
+        return updateProfile(
+                organizationId,
+                profileId,
+                displayName,
+                baseUrl,
+                requestTimeoutSeconds,
+                supportsOpenAiReasoningEffort,
+                credential,
+                adminUserId,
+                profile);
+    }
+
+    private AiGatewayProfileView updateProfile(
+            UUID organizationId,
+            UUID profileId,
+            String displayName,
+            String baseUrl,
+            Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
+            SecretValue credential,
+            UUID adminUserId,
+            AiGatewayProfile profile) {
         if (profile.supportsOpenAiReasoningEffort()
                 && !supportsOpenAiReasoningEffort
                 && routes.existsByOrganizationIdAndGatewayProfileIdAndOpenAiReasoningEffortIsNotNull(
@@ -211,6 +233,7 @@ public class AiGatewayAdministrationService {
         return view(profile);
     }
 
+    @Transactional
     public AiGatewayProfileView update(
             UUID organizationId,
             UUID profileId,
@@ -220,7 +243,7 @@ public class AiGatewayAdministrationService {
             SecretValue credential,
             UUID adminUserId) {
         AiGatewayProfile profile = requireProfile(organizationId, profileId);
-        return update(
+        return updateProfile(
                 organizationId,
                 profileId,
                 displayName,
@@ -228,7 +251,8 @@ public class AiGatewayAdministrationService {
                 requestTimeoutSeconds,
                 profile.supportsOpenAiReasoningEffort(),
                 credential,
-                adminUserId);
+                adminUserId,
+                profile);
     }
 
     @Transactional

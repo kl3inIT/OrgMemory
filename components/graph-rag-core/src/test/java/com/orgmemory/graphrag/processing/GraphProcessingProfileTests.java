@@ -64,6 +64,36 @@ class GraphProcessingProfileTests {
     }
 
     @Test
+    void schemaV1RejectsReasoningThatItsCanonicalIdentityCannotRepresent() {
+        GraphProcessingProfile restored = GraphProcessingProfile.restore(
+                SCHEMA_V1_CANONICAL,
+                SCHEMA_V1_SHA);
+        ExtractionProfile extraction = restored.extractionProfile();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GraphProcessingProfile(
+                        1,
+                        restored.algorithmVersion(),
+                        new ExtractionProfile(
+                                extraction.provider(),
+                                extraction.model(),
+                                "none",
+                                extraction.promptVersion(),
+                                extraction.maxEntities(),
+                                extraction.maxRelations(),
+                                extraction.entityTypeGuidance(),
+                                extraction.examples(),
+                                extraction.maxGleaningRounds(),
+                                extraction.maxGleaningInputTokens(),
+                                extraction.maxSectionContextTokens()),
+                        restored.promptTemplate(),
+                        restored.mergeSemanticsVersion(),
+                        restored.embeddingPayloadFormatVersion(),
+                        restored.canonicalSha256()));
+    }
+
+    @Test
     void currentWorkerSemanticsContinueToSupportQueuedSchemaV1Profiles() {
         GraphProcessingProfile current =
                 LightRagGraphProcessingProfiles.current(profile().extractionProfile());
