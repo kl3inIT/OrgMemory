@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
+Reconciled: `2026-08-02-prod-ai-gateway-binding (0781ba3c)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -24,6 +24,7 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 | Custom endpoints require exact operator allowlisting | `ConfiguredAiGatewayEndpointPolicyTests` | covered |
 | Explicit organization routes fail closed | `AiGatewayPropertiesTests#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | A colliding organization gateway key cannot replace a deployment default | `AiGatewayPropertiesTests#aCollidingOrganizationGatewayKeyDoesNotReplaceTheDeploymentDefault` | covered |
+| API and worker production profiles can contribute a credential without replacing the base OpenAI gateway endpoint, capabilities, timeout, or feature flags | API/worker `ProductionAiGatewayConfigurationBindingTests` | covered |
 | Explicit OpenAI reasoning is accepted only for a declared compatible gateway, reaches Spring AI options, and is rejected for undeclared/native gateways | `AiGatewayAdministrationServiceTests`, `AiGatewayPropertiesTests`, `OpenAiCompatibleChatModelFactoryTests`, `AnthropicMessagesChatModelFactory` tests | covered |
 | A gateway capability cannot be disabled while an explicit route still uses it | `AiGatewayAdministrationServiceTests#reasoningCapabilityCannotBeDisabledWhileAnExplicitRouteUsesIt` | covered |
 | Graph Extraction defaults independently to `gpt-5.4-mini` in API, worker, and shared Java configuration; its explicit override still wins | API/worker `AiRouteDefaultsTests`, `AiGatewayPropertiesTests#defaultChatRoutesKeepGraphExtractionIndependent`, production Compose validation | covered |

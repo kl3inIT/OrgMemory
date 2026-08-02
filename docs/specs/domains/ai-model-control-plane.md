@@ -1,10 +1,11 @@
 # AI Model Control Plane Spec
 
 Source: `core/src/main/java/com/orgmemory/core/ai`,
-`integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
+`integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`,
+API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
+Reconciled: `2026-08-02-prod-ai-gateway-binding (0781ba3c)`.
 
 ## Current Behavior
 
@@ -48,6 +49,12 @@ organization overrides.
 Administrators can restore the deployment default by clearing an override.
 Gateway-key collisions never substitute an organization credential for a
 deployment route.
+
+Deployment gateways use binder-safe nested objects. A production profile may
+contribute only a managed credential while retaining the endpoint,
+capabilities, timeout, and feature flags defined in base configuration; API and
+worker verify this base-plus-profile binding against their real configuration
+files.
 
 Fixed providers use fixed HTTPS endpoints. Custom endpoints require an exact
 origin in `ORGMEMORY_AI_ALLOWED_CUSTOM_ORIGINS`; redirects, response size,
