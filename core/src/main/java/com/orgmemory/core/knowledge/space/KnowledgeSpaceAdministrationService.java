@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,9 +67,7 @@ public class KnowledgeSpaceAdministrationService {
     private static final Map<String, Set<KnowledgeSpaceSubject.Kind>> GRANTABLE_SUBJECTS = Map.of(
             "viewer",
                     Set.of(
-                            KnowledgeSpaceSubject.Kind.ORGANIZATION,
                             KnowledgeSpaceSubject.Kind.DEPARTMENT,
-                            KnowledgeSpaceSubject.Kind.ROLE,
                             KnowledgeSpaceSubject.Kind.USER),
             "contributor",
                     Set.of(
@@ -81,7 +80,14 @@ public class KnowledgeSpaceAdministrationService {
                             KnowledgeSpaceSubject.Kind.ROLE,
                             KnowledgeSpaceSubject.Kind.USER),
             "administrator",
-                    Set.of(KnowledgeSpaceSubject.Kind.ROLE, KnowledgeSpaceSubject.Kind.USER));
+                    Set.of(KnowledgeSpaceSubject.Kind.USER));
+
+    /** Organization roles that the OpenFGA model accepts for each Space relation. */
+    private static final Map<String, Set<String>> GRANTABLE_ROLES = Map.of(
+            "viewer", Set.of(),
+            "contributor", Set.of("knowledge-contributor"),
+            "reviewer", Set.of("knowledge-reviewer"),
+            "administrator", Set.of());
 
     /** The relations an administrator may author. Structural links are written at creation only. */
     private static final Set<String> GRANTABLE_RELATIONS = GRANTABLE_SUBJECTS.keySet();
@@ -106,6 +112,7 @@ public class KnowledgeSpaceAdministrationService {
     private final KnowledgeSpaceRepository spaces;
     private final DepartmentRepository departments;
     private final AppUserRepository users;
+    private final KnowledgeSpaceCustomViewerGrantRepository customViewers;
     private final RelationshipAuthorizationPort authorization;
     private final RelationshipTupleWritePort writes;
     private final RelationshipTupleReconciliationPort tuples;
@@ -115,6 +122,7 @@ public class KnowledgeSpaceAdministrationService {
             KnowledgeSpaceRepository spaces,
             DepartmentRepository departments,
             AppUserRepository users,
+            KnowledgeSpaceCustomViewerGrantRepository customViewers,
             RelationshipAuthorizationPort authorization,
             RelationshipTupleWritePort writes,
             RelationshipTupleReconciliationPort tuples,
@@ -122,6 +130,7 @@ public class KnowledgeSpaceAdministrationService {
         this.spaces = spaces;
         this.departments = departments;
         this.users = users;
+        this.customViewers = customViewers;
         this.authorization = authorization;
         this.writes = writes;
         this.tuples = tuples;
@@ -145,9 +154,15 @@ public class KnowledgeSpaceAdministrationService {
      */
     @Transactional
     public KnowledgeSpaceAdministration.Space create(
-            CurrentActor actor, String name, UUID departmentId, String requestId) {
+            CurrentActor actor,
+            String name,
+            KnowledgeSpaceAudienceMode audienceMode,
+            UUID departmentId,
+            String requestId) {
         Objects.requireNonNull(actor, "actor");
         requireOrganizationPermission(actor, CAN_CREATE_SPACE);
+
+        requireAudienceDefinition(audienceMode, departmentId);
 
         String trimmedName = requireName(name);
         String key;
@@ -175,7 +190,8 @@ public class KnowledgeSpaceAdministrationService {
         KnowledgeSpace space;
         try {
             space = spaces.saveAndFlush(
-                    new KnowledgeSpace(actor.organizationId(), departmentId, key, trimmedName));
+                    new KnowledgeSpace(
+                            actor.organizationId(), audienceMode, departmentId, key, trimmedName));
         } catch (DataIntegrityViolationException concurrentCreate) {
             throw new KnowledgeSpaceKeyConflictException(
                     "A Knowledge Space with the key '" + key + "' already exists in this organization");
@@ -185,9 +201,16 @@ public class KnowledgeSpaceAdministrationService {
         created.add(tuple(
                 "organization:" + actor.organizationId(), "organization", space.getId()));
         created.add(tuple("user:" + actor.userId(), "administrator", space.getId()));
-        if (departmentId != null) {
+        if (audienceMode == KnowledgeSpaceAudienceMode.ORGANIZATION) {
+            created.add(tuple(
+                    "organization:" + actor.organizationId() + "#member",
+                    "viewer",
+                    space.getId()));
+        } else if (audienceMode == KnowledgeSpaceAudienceMode.DEPARTMENT) {
             created.add(tuple(
                     "organizational_unit:" + departmentId, "organizational_unit", space.getId()));
+            created.add(tuple(
+                    "organizational_unit:" + departmentId + "#member", "viewer", space.getId()));
         }
         RelationshipTupleWriteResult result =
                 writes.write(new RelationshipTupleWriteRequest(created));
@@ -218,9 +241,10 @@ public class KnowledgeSpaceAdministrationService {
             String relation,
             KnowledgeSpaceSubject subject,
             String requestId) {
-        RelationshipTuple tuple = grantTuple(actor, knowledgeSpaceId, relation, subject);
+        GrantChange change = grantChange(actor, knowledgeSpaceId, relation, subject, false);
+        persistCustomViewer(change, false);
         RelationshipTupleWriteResult result =
-                writes.write(new RelationshipTupleWriteRequest(List.of(tuple)));
+                writes.write(new RelationshipTupleWriteRequest(List.of(change.tuple())));
         if (!result.applied()) {
             throw new KnowledgeSpaceUnavailableException(
                     "The Knowledge Space grant was not applied: " + result.reasonCode());
@@ -240,9 +264,10 @@ public class KnowledgeSpaceAdministrationService {
             String relation,
             KnowledgeSpaceSubject subject,
             String requestId) {
-        RelationshipTuple tuple = grantTuple(actor, knowledgeSpaceId, relation, subject);
+        GrantChange change = grantChange(actor, knowledgeSpaceId, relation, subject, true);
+        persistCustomViewer(change, true);
         RelationshipTupleWriteResult result =
-                tuples.delete(new RelationshipTupleWriteRequest(List.of(tuple)));
+                tuples.delete(new RelationshipTupleWriteRequest(List.of(change.tuple())));
         if (!result.applied()) {
             throw new KnowledgeSpaceUnavailableException(
                     "The Knowledge Space revocation was not applied: " + result.reasonCode());
@@ -255,8 +280,12 @@ public class KnowledgeSpaceAdministrationService {
                 requestId);
     }
 
-    private RelationshipTuple grantTuple(
-            CurrentActor actor, UUID knowledgeSpaceId, String relation, KnowledgeSpaceSubject subject) {
+    private GrantChange grantChange(
+            CurrentActor actor,
+            UUID knowledgeSpaceId,
+            String relation,
+            KnowledgeSpaceSubject subject,
+            boolean revocation) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId");
         Objects.requireNonNull(subject, "subject");
@@ -265,15 +294,27 @@ public class KnowledgeSpaceAdministrationService {
                 .orElseThrow(KnowledgeSpaceAdministrationService::accessDenied);
         requireSpacePermission(actor, space.getId());
         requireSubjectInOrganization(actor, subject);
-        return tuple(
-                subject.openFgaUser(actor.organizationId()),
-                requireRelationAccepts(relation, subject.kind()),
-                space.getId());
+        String acceptedRelation = requireRelationAccepts(relation, subject.kind(), revocation);
+        requireAudienceMutation(space, acceptedRelation, subject, revocation);
+        return new GrantChange(
+                actor.organizationId(),
+                space,
+                acceptedRelation,
+                subject,
+                tuple(
+                        subjectUser(actor.organizationId(), acceptedRelation, subject),
+                        acceptedRelation,
+                        space.getId()));
     }
 
     /** The subject shapes each relation accepts, for a caller building a grant form. */
     public Map<String, Set<KnowledgeSpaceSubject.Kind>> grantOptions() {
         return GRANTABLE_SUBJECTS;
+    }
+
+    /** Named organization roles accepted for one relation; other names fail before OpenFGA. */
+    public Set<String> grantableRoles(String relation) {
+        return GRANTABLE_ROLES.getOrDefault(relation, Set.of());
     }
 
     /**
@@ -315,6 +356,8 @@ public class KnowledgeSpaceAdministrationService {
                         space.getId(),
                         space.getKey(),
                         space.getName(),
+                        space.getAudienceMode(),
+                        space.getAudienceVersion(),
                         space.getDepartmentId(),
                         space.isActive(),
                         List.of(),
@@ -324,7 +367,10 @@ public class KnowledgeSpaceAdministrationService {
             for (RelationshipTuple tuple : page.tuples()) {
                 if (GRANTABLE_RELATIONS.contains(tuple.relation())
                         && seen.add(tuple.relation() + " " + tuple.user())) {
-                    grants.add(new KnowledgeSpaceAdministration.Grant(tuple.relation(), tuple.user()));
+                    grants.add(new KnowledgeSpaceAdministration.Grant(
+                            tuple.relation(),
+                            tuple.user(),
+                            grantIsEffective(space, tuple)));
                 }
             }
             scanned += page.tuples().size();
@@ -344,6 +390,8 @@ public class KnowledgeSpaceAdministrationService {
                 space.getId(),
                 space.getKey(),
                 space.getName(),
+                space.getAudienceMode(),
+                space.getAudienceVersion(),
                 space.getDepartmentId(),
                 space.isActive(),
                 List.copyOf(grants),
@@ -397,7 +445,8 @@ public class KnowledgeSpaceAdministrationService {
                 RelationshipTuple.of(user, relation, RESOURCE_TYPE + ":" + knowledgeSpaceId));
     }
 
-    private static String requireRelationAccepts(String value, KnowledgeSpaceSubject.Kind kind) {
+    private static String requireRelationAccepts(
+            String value, KnowledgeSpaceSubject.Kind kind, boolean revocation) {
         String normalized = value == null ? "" : value.trim();
         Set<KnowledgeSpaceSubject.Kind> accepted = GRANTABLE_SUBJECTS.get(normalized);
         if (accepted == null) {
@@ -405,12 +454,35 @@ public class KnowledgeSpaceAdministrationService {
                     "knowledge-space.grant-invalid",
                     "A Knowledge Space grant must be one of " + GRANTABLE_RELATIONS);
         }
-        if (!accepted.contains(kind)) {
+        boolean repairableManagedViewer = revocation
+                && "viewer".equals(normalized)
+                && kind == KnowledgeSpaceSubject.Kind.ORGANIZATION;
+        if (!accepted.contains(kind) && !repairableManagedViewer) {
             throw new BusinessValidationException(
                     "knowledge-space.grant-invalid",
                     "A " + normalized + " grant cannot name " + kind + "; it accepts " + accepted);
         }
         return normalized;
+    }
+
+    private static String subjectUser(
+            UUID organizationId, String relation, KnowledgeSpaceSubject subject) {
+        if (subject.kind() != KnowledgeSpaceSubject.Kind.ROLE) {
+            return subject.openFgaUser(organizationId);
+        }
+        String role = subject.role();
+        if (!GRANTABLE_ROLES.getOrDefault(relation, Set.of()).contains(role)) {
+            throw new BusinessValidationException(
+                    "knowledge-space.grant-invalid",
+                    "A " + relation + " grant cannot name role " + role + "; it accepts "
+                            + GRANTABLE_ROLES.getOrDefault(relation, Set.of()));
+        }
+        String openFgaRelation = switch (role) {
+            case "knowledge-contributor" -> "knowledge_contributor";
+            case "knowledge-reviewer" -> "knowledge_reviewer";
+            default -> throw new IllegalStateException("Unmapped grantable role " + role);
+        };
+        return "organization:" + organizationId + "#" + openFgaRelation;
     }
 
     private static String requireName(String value) {
@@ -426,6 +498,142 @@ public class KnowledgeSpaceAdministrationService {
                     "A Knowledge Space name may be at most 255 characters");
         }
         return normalized;
+    }
+
+    private static void requireAudienceDefinition(
+            KnowledgeSpaceAudienceMode audienceMode, UUID departmentId) {
+        if (audienceMode == null) {
+            throw new BusinessValidationException(
+                    "knowledge-space.audience-invalid", "A Knowledge Space audience mode is required");
+        }
+        if (audienceMode == KnowledgeSpaceAudienceMode.DEPARTMENT && departmentId == null) {
+            throw new BusinessValidationException(
+                    "knowledge-space.audience-invalid",
+                    "A department Space requires an owning department");
+        }
+        if (audienceMode != KnowledgeSpaceAudienceMode.DEPARTMENT && departmentId != null) {
+            throw new BusinessValidationException(
+                    "knowledge-space.audience-invalid",
+                    "Only a department Space may name an owning department");
+        }
+    }
+
+    private static void requireAudienceMutation(
+            KnowledgeSpace space,
+            String relation,
+            KnowledgeSpaceSubject subject,
+            boolean revocation) {
+        if (!"viewer".equals(relation)) {
+            return;
+        }
+        if (space.getAudienceMode() != KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM) {
+            if (revocation && !isBuiltInViewer(space, subject)) {
+                return;
+            }
+            throw new BusinessValidationException(
+                    "knowledge-space.audience-managed",
+                    "The " + space.getAudienceMode()
+                            + " audience is policy-managed and cannot be changed by an ordinary grant");
+        }
+        if (subject.kind() == KnowledgeSpaceSubject.Kind.ORGANIZATION) {
+            throw new BusinessValidationException(
+                    "knowledge-space.audience-invalid",
+                    "A restricted custom Space cannot grant the whole organization access");
+        }
+    }
+
+    private void persistCustomViewer(GrantChange change, boolean revocation) {
+        if (!"viewer".equals(change.relation())
+                || change.space().getAudienceMode()
+                        != KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM) {
+            return;
+        }
+        Optional<KnowledgeSpaceCustomViewerGrant> stored = findCustomViewer(change);
+        if (revocation) {
+            stored.ifPresent(customViewers::delete);
+            customViewers.flush();
+        } else if (stored.isEmpty()) {
+            KnowledgeSpaceCustomViewerGrant grant = switch (change.subject().kind()) {
+                case USER -> KnowledgeSpaceCustomViewerGrant.user(
+                        change.organizationId(), change.space().getId(), change.subject().id());
+                case DEPARTMENT -> KnowledgeSpaceCustomViewerGrant.department(
+                        change.organizationId(), change.space().getId(), change.subject().id());
+                default -> throw new BusinessValidationException(
+                        "knowledge-space.audience-invalid",
+                        "A restricted custom viewer must be a person or department");
+            };
+            customViewers.saveAndFlush(grant);
+        }
+    }
+
+    private Optional<KnowledgeSpaceCustomViewerGrant> findCustomViewer(GrantChange change) {
+        return switch (change.subject().kind()) {
+            case USER -> customViewers.findByOrganizationIdAndKnowledgeSpaceIdAndSubjectKindAndUserId(
+                    change.organizationId(),
+                    change.space().getId(),
+                    KnowledgeSpaceCustomViewerGrant.SubjectKind.USER,
+                    change.subject().id());
+            case DEPARTMENT ->
+                    customViewers.findByOrganizationIdAndKnowledgeSpaceIdAndSubjectKindAndDepartmentId(
+                            change.organizationId(),
+                            change.space().getId(),
+                            KnowledgeSpaceCustomViewerGrant.SubjectKind.DEPARTMENT,
+                            change.subject().id());
+            default -> Optional.empty();
+        };
+    }
+
+    private boolean grantIsEffective(KnowledgeSpace space, RelationshipTuple tuple) {
+        if (!"viewer".equals(tuple.relation())) {
+            return true;
+        }
+        KnowledgeSpaceSubject subject = subject(tuple.user());
+        if (subject == null) {
+            return false;
+        }
+        if (space.getAudienceMode() != KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM) {
+            return isBuiltInViewer(space, subject);
+        }
+        GrantChange change = new GrantChange(
+                space.getOrganizationId(), space, tuple.relation(), subject, tuple);
+        return findCustomViewer(change).isPresent();
+    }
+
+    private static boolean isBuiltInViewer(
+            KnowledgeSpace space, KnowledgeSpaceSubject subject) {
+        return switch (space.getAudienceMode()) {
+            case ORGANIZATION -> subject.kind() == KnowledgeSpaceSubject.Kind.ORGANIZATION;
+            case DEPARTMENT -> subject.kind() == KnowledgeSpaceSubject.Kind.DEPARTMENT
+                    && Objects.equals(space.getDepartmentId(), subject.id());
+            case RESTRICTED_CUSTOM -> false;
+        };
+    }
+
+    private static KnowledgeSpaceSubject subject(String user) {
+        try {
+            if (user.startsWith("user:")) {
+                return KnowledgeSpaceSubject.user(UUID.fromString(user.substring("user:".length())));
+            }
+            if (user.startsWith("organizational_unit:") && user.endsWith("#member")) {
+                String id = user.substring(
+                        "organizational_unit:".length(), user.length() - "#member".length());
+                return KnowledgeSpaceSubject.department(UUID.fromString(id));
+            }
+            if (user.startsWith("organization:") && user.endsWith("#member")) {
+                return KnowledgeSpaceSubject.organization();
+            }
+        } catch (IllegalArgumentException invalidReference) {
+            return null;
+        }
+        return null;
+    }
+
+    private record GrantChange(
+            UUID organizationId,
+            KnowledgeSpace space,
+            String relation,
+            KnowledgeSpaceSubject subject,
+            RelationshipTuple tuple) {
     }
 
     private static OrgMemoryAccessDeniedException accessDenied() {

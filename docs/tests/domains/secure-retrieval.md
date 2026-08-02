@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (6a8e4224)`.
+Reconciled: `2026-08-02-knowledge-space-audience-main-sync (405fa212)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
@@ -15,6 +15,9 @@ Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeR
 | Eligible reader gets generic missing/denied 404 | `detailAllowsVisibleContentAndUsesGenericNotFoundForEveryDenial` |
 | Admin is not Executive | `controlPlaneAdminIsNotExecutiveButBusinessExecutiveCanReadRestricted` |
 | Confidential missing/foreign department fails closed | `nullDepartmentExecutiveCannotUseRoleToBypassConfidentialDepartmentRequirement`, policy tests |
+| Department Space rejects an OpenFGA-authorized actor from another current persisted department | `ExternalPrincipalRetrievalIntegrationTests#departmentAudienceRejectsAnOtherwiseAuthorizedCrossDepartmentCandidate` |
+| Restricted custom Space requires both OpenFGA and the PostgreSQL audience ledger, so a rogue tuple alone grants nothing | `ExternalPrincipalRetrievalIntegrationTests#restrictedCustomAudienceRequiresItsPostgresGrantInAdditionToOpenFgaEligibility` |
+| Visible Space discovery applies the persisted department audience after OpenFGA candidate selection | `KnowledgeSpaceServiceTests#visibleSpaceListingRejectsAnOpenFgaResultOutsideTheDepartmentAudience` |
 | Restriction revokes before retrieval | `aclHeadRotationRevokesAssetBeforeKeywordAndContentRetrieval` |
 | Later expansion cannot exceed ingestion ceiling | `widerCurrentAclCannotOverrideTheIngestionSnapshotDeny` |
 | Refreshed head preserves availability without widening | `refreshedHeadKeepsAssetAvailableAfterHistoricalSnapshotExpiresWithoutWideningIt` |

@@ -4,6 +4,7 @@ import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministration;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceAdministrationService;
+import com.orgmemory.core.knowledge.space.KnowledgeSpaceAudienceMode;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceSubject;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
@@ -42,10 +43,11 @@ class AdminKnowledgeSpaceController {
         this.spaces = spaces;
     }
 
-    record CreateKnowledgeSpaceRequest(String name, UUID departmentId) {
+    record CreateKnowledgeSpaceRequest(
+            String name, KnowledgeSpaceAudienceMode audienceMode, UUID departmentId) {
     }
 
-    record KnowledgeSpaceGrantResponse(String relation, String subject) {
+    record KnowledgeSpaceGrantResponse(String relation, String subject, boolean effective) {
     }
 
     /** {@code grantsComplete} is false when the space held more tuples than the listing read. */
@@ -53,6 +55,8 @@ class AdminKnowledgeSpaceController {
             UUID id,
             String key,
             String name,
+            KnowledgeSpaceAudienceMode audienceMode,
+            long audienceVersion,
             UUID departmentId,
             boolean active,
             List<KnowledgeSpaceGrantResponse> grants,
@@ -64,10 +68,13 @@ class AdminKnowledgeSpaceController {
                     space.id(),
                     space.key(),
                     space.name(),
+                    space.audienceMode(),
+                    space.audienceVersion(),
                     space.departmentId(),
                     space.active(),
                     space.grants().stream()
-                            .map(grant -> new KnowledgeSpaceGrantResponse(grant.relation(), grant.subject()))
+                            .map(grant -> new KnowledgeSpaceGrantResponse(
+                                    grant.relation(), grant.subject(), grant.effective()))
                             .toList(),
                     space.grantsComplete(),
                     space.policyVersion());
@@ -79,7 +86,8 @@ class AdminKnowledgeSpaceController {
     }
 
     /** One relation and the subject shapes the authorization model accepts for it. */
-    record KnowledgeSpaceGrantOptionResponse(String relation, List<KnowledgeSpaceSubject.Kind> kinds) {
+    record KnowledgeSpaceGrantOptionResponse(
+            String relation, List<KnowledgeSpaceSubject.Kind> kinds, List<String> roles) {
     }
 
     /**
@@ -97,7 +105,9 @@ class AdminKnowledgeSpaceController {
         actors.current(authentication);
         return spaces.grantOptions().entrySet().stream()
                 .map(entry -> new KnowledgeSpaceGrantOptionResponse(
-                        entry.getKey(), entry.getValue().stream().sorted().toList()))
+                        entry.getKey(),
+                        entry.getValue().stream().sorted().toList(),
+                        spaces.grantableRoles(entry.getKey()).stream().sorted().toList()))
                 .sorted(java.util.Comparator.comparing(KnowledgeSpaceGrantOptionResponse::relation))
                 .toList();
     }
@@ -119,7 +129,11 @@ class AdminKnowledgeSpaceController {
             @RequestBody CreateKnowledgeSpaceRequest request, Authentication authentication) {
         String requestId = UUID.randomUUID().toString();
         return AdminKnowledgeSpaceResponse.from(spaces.create(
-                actors.current(authentication), request.name(), request.departmentId(), requestId));
+                actors.current(authentication),
+                request.name(),
+                request.audienceMode(),
+                request.departmentId(),
+                requestId));
     }
 
     @PostMapping("/{knowledgeSpaceId}/grants")

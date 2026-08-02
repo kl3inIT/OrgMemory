@@ -136,6 +136,56 @@ class ExternalPrincipalRetrievalIntegrationTests {
     }
 
     @Test
+    void departmentAudienceRejectsAnOtherwiseAuthorizedCrossDepartmentCandidate() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+
+        assertFalse(
+                visibleAt(
+                        AN_USER,
+                        ASSET,
+                        OBJECT,
+                        EVALUATED_AT,
+                        UUID.fromString("f0000000-0000-4000-8000-0000000000ff")),
+                "a stale or rogue OpenFGA tuple must not override the persisted department audience");
+    }
+
+    @Test
+    void restrictedCustomAudienceRequiresItsPostgresGrantInAdditionToOpenFgaEligibility() {
+        mapActive(AN_PRINCIPAL, AN_USER);
+        jdbc.update(
+                "UPDATE knowledge_spaces SET audience_mode = 'RESTRICTED_CUSTOM', department_id = NULL "
+                        + "WHERE id = ?",
+                SPACE);
+        try {
+            assertFalse(
+                    visibleAs(AN_USER),
+                    "an authorized asset id without a governed custom-audience grant must fail closed");
+
+            jdbc.update(
+                    """
+                    INSERT INTO knowledge_space_custom_viewer_grants (
+                        id, organization_id, knowledge_space_id, subject_kind, user_id,
+                        created_at, updated_at, version)
+                    VALUES (?, ?, ?, 'USER', ?, now(), now(), 0)
+                    """,
+                    UUID.randomUUID(),
+                    ORG,
+                    SPACE,
+                    AN_USER);
+
+            assertTrue(
+                    visibleAs(AN_USER),
+                    "the PostgreSQL audience ledger and OpenFGA eligibility must both agree");
+        } finally {
+            jdbc.update("DELETE FROM knowledge_space_custom_viewer_grants WHERE knowledge_space_id = ?", SPACE);
+            jdbc.update(
+                    "UPDATE knowledge_spaces SET audience_mode = 'DEPARTMENT', department_id = ? WHERE id = ?",
+                    DEPT,
+                    SPACE);
+        }
+    }
+
+    @Test
     void revokingMappingClosesAccess() {
         mapActive(AN_PRINCIPAL, AN_USER);
         assertTrue(visibleAs(AN_USER));
@@ -330,8 +380,17 @@ class ExternalPrincipalRetrievalIntegrationTests {
             UUID assetId,
             UUID objectId,
             Instant evaluatedAt) {
+        return visibleAt(userId, assetId, objectId, evaluatedAt, DEPT);
+    }
+
+    private boolean visibleAt(
+            UUID userId,
+            UUID assetId,
+            UUID objectId,
+            Instant evaluatedAt,
+            UUID actorDepartmentId) {
         List<UUID> visible = store.visibleSourceObjectIds(new SecureKnowledgeRetrievalStore.RetrievalScope(
-                ORG, userId, DEPT, false, List.of(assetId), MODEL_ID, evaluatedAt));
+                ORG, userId, actorDepartmentId, false, List.of(assetId), MODEL_ID, evaluatedAt));
         return visible.contains(objectId);
     }
 
@@ -431,8 +490,10 @@ class ExternalPrincipalRetrievalIntegrationTests {
 
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
-                    id, organization_id, department_id, space_key, name, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, 'slacktest-space', 'Slack Test Space', true, now(), now(), 0)
+                    id, organization_id, department_id, audience_mode, audience_version,
+                    space_key, name, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'DEPARTMENT', 1,
+                    'slacktest-space', 'Slack Test Space', true, now(), now(), 0)
                 """, SPACE, ORG, DEPT);
 
         jdbc.update("""

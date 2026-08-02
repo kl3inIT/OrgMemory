@@ -36,12 +36,14 @@ INSERT INTO app_users (
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO knowledge_spaces (
-    id, organization_id, department_id, space_key, name, active,
+    id, organization_id, department_id, audience_mode, audience_version, space_key, name, active,
     created_at, updated_at, version
 ) VALUES (
     '88888888-8888-4888-8888-888888888802',
     '11111111-1111-1111-1111-111111111111',
     '22222222-2222-2222-2222-222222222222',
+    'DEPARTMENT',
+    1,
     'sales',
     'Sales Knowledge',
     true,

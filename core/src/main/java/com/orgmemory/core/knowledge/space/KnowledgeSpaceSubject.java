@@ -13,7 +13,7 @@ import java.util.UUID;
  * makes the tenant check a field comparison instead.
  *
  * <p>Reading grants back does not use this type. Bootstrap tuples carry references outside these
- * four shapes, so a listing reports what is stored rather than only what this can express.
+ * request shapes, so a listing reports what is stored rather than only what this can express.
  */
 public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
 
@@ -86,7 +86,8 @@ public record KnowledgeSpaceSubject(Kind kind, UUID id, String role) {
             case ORGANIZATION -> "organization:" + organizationId + "#member";
             case DEPARTMENT -> "organizational_unit:" + id + "#member";
             case DEPARTMENT_MANAGERS -> "organizational_unit:" + id + "#manager";
-            case ROLE -> "role:" + role + "#assignee";
+            case ROLE -> throw new IllegalStateException(
+                    "A role requires relation-specific organization projection");
             case USER -> "user:" + id;
         };
     }
