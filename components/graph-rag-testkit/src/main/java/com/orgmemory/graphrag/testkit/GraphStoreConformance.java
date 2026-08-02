@@ -13,6 +13,8 @@ import com.orgmemory.graphrag.query.AuthorizedGraphTraversal;
 import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -288,7 +290,13 @@ public final class GraphStoreConformance {
                         allScope,
                         loserSnapshot,
                         List.of(SECRET_NEIGHBOR_ID)));
-        store.discard(loser);
+        store.discard(
+                loser,
+                new ProjectionDiscardPermit(
+                        UUID.nameUUIDFromBytes(
+                                ("discard:" + loser.id()).getBytes(StandardCharsets.UTF_8)),
+                        loser.id(),
+                        NOW));
 
         ProjectionBatch third = batch("third", 2, 3);
         store.stageDeleteRevision(third, SECRET_REVISION_ID);
@@ -330,7 +338,16 @@ public final class GraphStoreConformance {
             ProjectionBatch batch,
             ProjectionPublicationStore publications) {
         publications.markPrepared(batch, ProjectionKind.GRAPH, NOW);
-        return publications.publish(batch, NOW);
+        return publications.publish(
+                batch,
+                new ProjectionCommitPermit(
+                        UUID.nameUUIDFromBytes(
+                                ("permit:" + batch.id()).getBytes(StandardCharsets.UTF_8)),
+                        batch.id(),
+                        batch.manifestFingerprint(),
+                        1,
+                        NOW),
+                NOW);
     }
 
     private static GraphRevisionContributions publicRevision(

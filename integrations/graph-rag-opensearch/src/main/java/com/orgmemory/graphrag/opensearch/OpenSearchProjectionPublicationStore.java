@@ -3,6 +3,9 @@ package com.orgmemory.graphrag.opensearch;
 import static com.orgmemory.graphrag.validation.TextValidation.requireText;
 
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionAbortOutcome;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -44,6 +47,54 @@ public final class OpenSearchProjectionPublicationStore
         this.operations = Objects.requireNonNull(operations, "operations");
         controlIndex = Objects.requireNonNull(indexes, "indexes").control();
         operations.ensureIndex(controlIndex, OpenSearchSchemas.control());
+    }
+
+    @Override
+    public ProjectionBatch begin(ProjectionBatch candidate) {
+        Objects.requireNonNull(candidate, "candidate");
+        OpenSearchOperations.VersionedDocument exact =
+                operations.get(controlIndex, batchId(candidate.id()));
+        if (exact != null) {
+            RegisteredBatch registered = requireRegistered(candidate.id());
+            requireSameBatch(candidate, registered.batch());
+            return registered.batch();
+        }
+        Optional<RegisteredBatch> active = activeAttemptByIdempotency(candidate);
+        if (active.isEmpty()) {
+            return ensureRegistered(candidate).batch();
+        }
+        RegisteredBatch previousAttempt = active.orElseThrow();
+        requireSameOperation(candidate, previousAttempt.batch());
+        if (hasPermit(previousAttempt)) {
+            return previousAttempt.batch();
+        }
+        if (candidate.claimEpoch() <= 0
+                || candidate.claimEpoch() <= previousAttempt.batch().claimEpoch()) {
+            throw new PublicationConflictException(
+                    "a live or unfenced publication attempt already owns the operation");
+        }
+        Map<String, Object> aborted =
+                new LinkedHashMap<>(previousAttempt.document().source());
+        aborted.put("status", ABORTED);
+        aborted.put("aborted_at", candidate.createdAt().toString());
+        aborted.put("abort_reason", "SUPERSEDED_CLAIM_EPOCH");
+        if (!operations.compareAndSet(
+                controlIndex,
+                batchId(previousAttempt.batch().id()),
+                previousAttempt.document(),
+                aborted)) {
+            throw new PublicationConflictException(
+                    "publication attempt changed while rebasing to a newer claim epoch");
+        }
+        return ensureRegistered(candidate).batch();
+    }
+
+    @Override
+    public boolean hasBoundCommitPermit(ProjectionBatch batch) {
+        Objects.requireNonNull(batch, "batch");
+        RegisteredBatch registered = requireRegistered(batch.id());
+        requireSameBatch(batch, registered.batch());
+        return hasPermit(registered);
     }
 
     @Override
@@ -132,11 +183,19 @@ public final class OpenSearchProjectionPublicationStore
     @Override
     public ProjectionSnapshot publish(
             ProjectionBatch batch,
+            ProjectionCommitPermit permit,
             Instant publishedAt) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         Objects.requireNonNull(publishedAt, "publishedAt");
         Optional<ProjectionSnapshot> replay = findReplay(batch);
         if (replay.isPresent()) {
+            ProjectionSnapshot snapshot = replay.orElseThrow();
+            if (snapshot.batchId().equals(batch.id())) {
+                RegisteredBatch registered = ensureRegistered(batch);
+                bindCommitPermit(batch, permit, registered);
+                finalizeVisibleBatch(batch);
+            }
             return replay.orElseThrow();
         }
 
@@ -145,6 +204,7 @@ public final class OpenSearchProjectionPublicationStore
             throw new PublicationConflictException("an aborted batch cannot be published");
         }
         requirePrepared(batch);
+        registered = bindCommitPermit(batch, permit, registered);
         claimForPublication(batch, registered);
 
         try {
@@ -155,12 +215,20 @@ public final class OpenSearchProjectionPublicationStore
                     : OpenSearchProjectionCodec.snapshot(currentHead.source())
                             .generation();
             if (currentGeneration != batch.expectedPreviousGeneration()) {
-                restorePreparing(batch);
                 throw new PublicationConflictException(
                         "expected generation "
                                 + batch.expectedPreviousGeneration()
                                 + " but current generation is "
                                 + currentGeneration);
+            }
+            UUID currentBatchId = currentHead == null
+                    ? null
+                    : OpenSearchProjectionCodec.snapshot(currentHead.source()).batchId();
+            if (batch.claimEpoch() > 0
+                    && !Objects.equals(
+                            currentBatchId, batch.expectedPreviousBatchId())) {
+                throw new PublicationConflictException(
+                        "expected predecessor batch does not match the namespace head");
             }
             if (currentHead != null) {
                 persistHistory(currentHead);
@@ -188,7 +256,6 @@ public final class OpenSearchProjectionPublicationStore
                     markPublished(batch);
                     return afterConflict.orElseThrow();
                 }
-                restorePreparing(batch);
                 throw new PublicationConflictException(
                         "another publication advanced the namespace head");
             }
@@ -220,40 +287,64 @@ public final class OpenSearchProjectionPublicationStore
         Objects.requireNonNull(batch, "batch");
         String normalizedReason = requireText(reason, "reason");
         Objects.requireNonNull(abortedAt, "abortedAt");
-        RegisteredBatch registered = ensureRegistered(batch);
-        if (PUBLISHED.equals(registered.status())
-                || current(batch.namespace())
-                        .filter(snapshot -> snapshot.batchId().equals(batch.id()))
-                        .isPresent()) {
+        ProjectionAbortOutcome outcome = abortIfUnreachable(
+                batch, normalizedReason, abortedAt);
+        if (outcome.status() != ProjectionAbortOutcome.Status.DISCARD_ALLOWED) {
             throw new PublicationConflictException(
-                    "a published batch cannot be aborted");
+                    "a published or ambiguous batch cannot be aborted");
+        }
+    }
+
+    @Override
+    public ProjectionAbortOutcome abortIfUnreachable(
+            ProjectionBatch batch,
+            String reason,
+            Instant abortedAt) {
+        Objects.requireNonNull(batch, "batch");
+        String normalizedReason = requireText(reason, "reason");
+        Objects.requireNonNull(abortedAt, "abortedAt");
+        Optional<ProjectionSnapshot> exact = exactPublication(batch);
+        if (exact.isPresent()) {
+            finalizeVisibleBatch(batch);
+            return ProjectionAbortOutcome.published(exact.orElseThrow());
+        }
+        RegisteredBatch registered = ensureRegistered(batch);
+        if (PUBLISHED.equals(registered.status())) {
+            return ProjectionAbortOutcome.keepStaging();
+        }
+        if (PREPARING.equals(registered.status()) && hasPermit(registered)) {
+            return ProjectionAbortOutcome.keepStaging();
         }
         if (ABORTED.equals(registered.status())) {
-            return;
+            return ProjectionAbortOutcome.discardAllowed(
+                    discardPermit(batch, abortedAt));
         }
-        if (COMMITTING.equals(registered.status())) {
-            throw new PublicationConflictException(
-                    "a committing batch cannot be aborted");
+        if (COMMITTING.equals(registered.status())
+                && !foreignHeadProvesLoss(batch)) {
+            return ProjectionAbortOutcome.keepStaging();
         }
-        if (!PREPARING.equals(registered.status())) {
-            throw new PublicationConflictException(
-                    "batch is not available for abort");
+        if (!PREPARING.equals(registered.status())
+                && !COMMITTING.equals(registered.status())) {
+            return ProjectionAbortOutcome.keepStaging();
         }
         Map<String, Object> aborted = new LinkedHashMap<>(registered.document().source());
         aborted.put("status", ABORTED);
         aborted.put("aborted_at", abortedAt.toString());
         aborted.put("abort_reason", normalizedReason);
-        if (!operations.compareAndSet(
+        if (operations.compareAndSet(
                 controlIndex,
                 batchId(batch.id()),
                 registered.document(),
                 aborted)) {
-            RegisteredBatch latest = requireRegistered(batch.id());
-            if (!ABORTED.equals(latest.status())) {
-                throw new PublicationConflictException(
-                        "batch state changed while aborting");
-            }
+            return ProjectionAbortOutcome.discardAllowed(
+                    discardPermit(batch, abortedAt));
         }
+        RegisteredBatch latest = requireRegistered(batch.id());
+        if (ABORTED.equals(latest.status())) {
+            return ProjectionAbortOutcome.discardAllowed(
+                    discardPermit(batch, abortedAt));
+        }
+        return ProjectionAbortOutcome.keepStaging();
     }
 
     void requireReadable(
@@ -297,6 +388,55 @@ public final class OpenSearchProjectionPublicationStore
         return registered;
     }
 
+    private Optional<RegisteredBatch> activeAttemptByIdempotency(
+            ProjectionBatch candidate) {
+        try {
+            var response = operations.client().search(
+                    request -> request
+                            .index(controlIndex)
+                            .size(10)
+                            .seqNoPrimaryTerm(true)
+                            .query(query -> query.bool(bool -> bool
+                                    .filter(OpenSearchStoreSupport.term(
+                                            "document_kind", "BATCH"))
+                                    .filter(OpenSearchStoreSupport.term(
+                                            OpenSearchProjectionCodec.ORGANIZATION_ID,
+                                            candidate.namespace()
+                                                    .organizationId()
+                                                    .toString()))
+                                    .filter(OpenSearchStoreSupport.term(
+                                            OpenSearchProjectionCodec.WORKSPACE,
+                                            candidate.namespace().workspace()))
+                                    .filter(OpenSearchStoreSupport.term(
+                                            OpenSearchProjectionCodec.COLLECTION,
+                                            candidate.namespace().collection()))
+                                    .filter(OpenSearchStoreSupport.term(
+                                            "idempotency_key",
+                                            candidate.idempotencyKey())))),
+                    Map.class);
+            return response.hits().hits().stream()
+                    .filter(hit -> hit.source() != null)
+                    .map(hit -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> source =
+                                (Map<String, Object>) hit.source();
+                        return new RegisteredBatch(
+                                OpenSearchProjectionCodec.batch(source),
+                                source.get("status").toString(),
+                                new OpenSearchOperations.VersionedDocument(
+                                        source,
+                                        hit.seqNo().longValue(),
+                                        hit.primaryTerm().longValue()));
+                    })
+                    .filter(batch -> !ABORTED.equals(batch.status()))
+                    .findFirst();
+        } catch (IOException | OpenSearchException exception) {
+            throw new OpenSearchProjectionException(
+                    "OpenSearch failed to find an active publication attempt",
+                    exception);
+        }
+    }
+
     private RegisteredBatch requireRegistered(UUID batchId) {
         OpenSearchOperations.VersionedDocument document =
                 operations.get(controlIndex, batchId(batchId));
@@ -338,6 +478,45 @@ public final class OpenSearchProjectionPublicationStore
         return requireRegistered(batch.id());
     }
 
+    private RegisteredBatch bindCommitPermit(
+            ProjectionBatch batch,
+            ProjectionCommitPermit permit,
+            RegisteredBatch registered) {
+        Object existing = registered.document().source().get("commit_permit_id");
+        if (existing != null) {
+            if (!permit.id().toString().equals(existing.toString())
+                    || !Objects.equals(
+                            permit.claimEpoch(),
+                            ((Number) registered.document().source()
+                                    .get("commit_permit_claim_epoch")).longValue())) {
+                throw new PublicationConflictException(
+                        "publication attempt is bound to a different commit permit");
+            }
+            return registered;
+        }
+        if (PUBLISHED.equals(registered.status())) {
+            return registered;
+        }
+        if (!PREPARING.equals(registered.status())) {
+            throw new PublicationConflictException(
+                    "only a preparing batch can bind a commit permit");
+        }
+        Map<String, Object> authorized =
+                new LinkedHashMap<>(registered.document().source());
+        authorized.put("commit_permit_id", permit.id().toString());
+        authorized.put("commit_permit_claim_epoch", permit.claimEpoch());
+        authorized.put("commit_permit_issued_at", permit.issuedAt().toString());
+        if (!operations.compareAndSet(
+                controlIndex,
+                batchId(batch.id()),
+                registered.document(),
+                authorized)) {
+            RegisteredBatch latest = requireRegistered(batch.id());
+            return bindCommitPermit(batch, permit, latest);
+        }
+        return requireRegistered(batch.id());
+    }
+
     private void markPublished(ProjectionBatch batch) {
         for (int attempt = 0; attempt < 3; attempt++) {
             RegisteredBatch registered = requireRegistered(batch.id());
@@ -361,22 +540,6 @@ public final class OpenSearchProjectionPublicationStore
         }
         throw new OpenSearchProjectionException(
                 "published namespace head but could not finalize batch status");
-    }
-
-    private void restorePreparing(ProjectionBatch batch) {
-        RegisteredBatch latest = requireRegistered(batch.id());
-        if (!COMMITTING.equals(latest.status())) {
-            return;
-        }
-        Map<String, Object> preparing =
-                new LinkedHashMap<>(latest.document().source());
-        preparing.put("status", PREPARING);
-        preparing.remove("commit_started_at");
-        operations.compareAndSet(
-                controlIndex,
-                batchId(batch.id()),
-                latest.document(),
-                preparing);
     }
 
     private void requirePrepared(ProjectionBatch batch) {
@@ -428,6 +591,69 @@ public final class OpenSearchProjectionPublicationStore
                 published(batch.namespace(), batch.idempotencyKey());
         idempotent.ifPresent(snapshot -> requireSamePublication(batch, snapshot));
         return idempotent;
+    }
+
+    private Optional<ProjectionSnapshot> exactPublication(ProjectionBatch batch) {
+        Optional<ProjectionSnapshot> candidate =
+                published(batch.namespace(), batch.generation());
+        if (candidate.filter(snapshot -> snapshot.batchId().equals(batch.id()))
+                .isPresent()) {
+            requireSamePublication(batch, candidate.orElseThrow());
+            return candidate;
+        }
+        return Optional.empty();
+    }
+
+    private void finalizeVisibleBatch(ProjectionBatch batch) {
+        RegisteredBatch registered = requireRegistered(batch.id());
+        if (PUBLISHED.equals(registered.status())) {
+            return;
+        }
+        if (!COMMITTING.equals(registered.status())
+                && !PREPARING.equals(registered.status())) {
+            throw new PublicationConflictException(
+                    "visible batch marker cannot be finalized from " + registered.status());
+        }
+        markPublishedFrom(registered);
+    }
+
+    private void markPublishedFrom(RegisteredBatch registered) {
+        for (int attempt = 0; attempt < 3; attempt++) {
+            if (PUBLISHED.equals(registered.status())) {
+                return;
+            }
+            Map<String, Object> published =
+                    new LinkedHashMap<>(registered.document().source());
+            published.put("status", PUBLISHED);
+            if (operations.compareAndSet(
+                    controlIndex,
+                    batchId(registered.batch().id()),
+                    registered.document(),
+                    published)) {
+                return;
+            }
+            registered = requireRegistered(registered.batch().id());
+        }
+        throw new OpenSearchProjectionException(
+                "visible namespace head could not finalize batch status");
+    }
+
+    private boolean foreignHeadProvesLoss(ProjectionBatch batch) {
+        OpenSearchOperations.VersionedDocument head =
+                operations.get(controlIndex, headId(batch.namespace()));
+        if (head == null) {
+            return false;
+        }
+        ProjectionSnapshot current = OpenSearchProjectionCodec.snapshot(head.source());
+        if (current.batchId().equals(batch.id())) {
+            return false;
+        }
+        if (current.generation() < batch.generation()) {
+            return false;
+        }
+        return published(batch.namespace(), batch.generation())
+                .filter(snapshot -> snapshot.batchId().equals(batch.id()))
+                .isEmpty();
     }
 
     private Optional<ProjectionSnapshot> historyByIdempotency(
@@ -495,10 +721,46 @@ public final class OpenSearchProjectionPublicationStore
     private static void requireSameBatch(
             ProjectionBatch expected,
             ProjectionBatch actual) {
-        if (!expected.equals(actual)) {
+        if (!expected.id().equals(actual.id())
+                || !expected.namespace().equals(actual.namespace())
+                || expected.expectedPreviousGeneration()
+                        != actual.expectedPreviousGeneration()
+                || !Objects.equals(
+                        expected.expectedPreviousBatchId(),
+                        actual.expectedPreviousBatchId())
+                || expected.generation() != actual.generation()
+                || !expected.idempotencyKey().equals(actual.idempotencyKey())
+                || !expected.manifestFingerprint().equals(actual.manifestFingerprint())
+                || !expected.requiredProjections().equals(actual.requiredProjections())
+                || expected.claimEpoch() != actual.claimEpoch()) {
             throw new PublicationConflictException(
                     "a batch id cannot identify different publication content");
         }
+    }
+
+    private static void requireSameOperation(
+            ProjectionBatch candidate, ProjectionBatch existing) {
+        if (!candidate.namespace().equals(existing.namespace())
+                || !candidate.idempotencyKey().equals(existing.idempotencyKey())
+                || !candidate.manifestFingerprint().equals(existing.manifestFingerprint())
+                || !candidate.requiredProjections().equals(existing.requiredProjections())) {
+            throw new PublicationConflictException(
+                    "an idempotency key cannot identify different publication content");
+        }
+    }
+
+    private static boolean hasPermit(RegisteredBatch registered) {
+        return registered.document().source().get("commit_permit_id") != null;
+    }
+
+    private static ProjectionDiscardPermit discardPermit(
+            ProjectionBatch batch,
+            Instant issuedAt) {
+        return new ProjectionDiscardPermit(
+                UUID.nameUUIDFromBytes(("discard:" + batch.id())
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                batch.id(),
+                issuedAt);
     }
 
     private static String batchId(UUID batchId) {

@@ -1,6 +1,7 @@
 package com.orgmemory.worker.graph;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -27,12 +28,18 @@ import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionAbortOutcome;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
+import com.orgmemory.graphrag.storage.ProjectionPublicationStore.PublicationConflictException;
+import com.orgmemory.graphrag.storage.PublicationRebaseRequiredException;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,18 +87,16 @@ class GraphPublicationCommitterTests {
                 modelCache,
                 retrievalCache);
 
-        assertTrue(committer.completePublished(
-                fixture.claim(), "worker-1", Duration.ofMinutes(10)));
+        assertTrue(committer.completePublished(fixture.claim(), "worker-1"));
 
         var order = inOrder(coordinator, modelCache, retrievalCache);
-        order.verify(coordinator).preparePublication(
-                fixture.claim().jobId(),
-                "worker-1",
-                Duration.ofMinutes(10),
-                snapshot.manifestFingerprint());
         order.verify(modelCache).invalidate(namespace);
         order.verify(retrievalCache).invalidateNamespace(namespace);
-        order.verify(coordinator).complete(fixture.claim().jobId(), "worker-1");
+        order.verify(coordinator).completePublished(
+                fixture.claim().jobId(),
+                "worker-1",
+                fixture.claim().claimEpoch(),
+                snapshot);
     }
 
     @Test
@@ -111,6 +116,28 @@ class GraphPublicationCommitterTests {
         when(graph.projectionKind()).thenReturn(ProjectionKind.GRAPH);
         when(publications.current(any())).thenReturn(Optional.empty());
         Fixture fixture = fixture();
+        when(publications.begin(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(coordinator.issueOrLoadPublicationPermit(
+                        any(), any(), org.mockito.ArgumentMatchers.anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    ProjectionBatch candidate = invocation.getArgument(3);
+                    return new ProjectionCommitPermit(
+                            UUID.randomUUID(),
+                            candidate.id(),
+                            candidate.manifestFingerprint(),
+                            fixture.claim().claimEpoch(),
+                            Instant.now());
+                });
+        when(publications.publish(any(), any(), any())).thenAnswer(invocation -> {
+            ProjectionBatch candidate = invocation.getArgument(0);
+            return new ProjectionSnapshot(
+                    candidate.id(),
+                    candidate.namespace(),
+                    candidate.generation(),
+                    candidate.manifestFingerprint(),
+                    candidate.requiredProjections(),
+                    Instant.now());
+        });
         GraphPublicationCommitter committer = new GraphPublicationCommitter(
                 coordinator,
                 publications,
@@ -129,7 +156,7 @@ class GraphPublicationCommitterTests {
 
         ArgumentCaptor<ProjectionBatch> batch =
                 ArgumentCaptor.forClass(ProjectionBatch.class);
-        verify(publications).publish(batch.capture(), any());
+        verify(publications).publish(batch.capture(), any(), any());
         assertEquals(0, batch.getValue().expectedPreviousGeneration());
         assertEquals(1, batch.getValue().generation());
         assertEquals(fixture.claim().idempotencyKey(), batch.getValue().idempotencyKey());
@@ -187,10 +214,84 @@ class GraphPublicationCommitterTests {
                 any(), org.mockito.ArgumentMatchers.eq(fixture.projection().contributions()));
         order.verify(publications).markPrepared(
                 any(), org.mockito.ArgumentMatchers.eq(ProjectionKind.GRAPH), any());
-        order.verify(publications).publish(any(), any());
+        order.verify(coordinator).issueOrLoadPublicationPermit(
+                any(), any(), org.mockito.ArgumentMatchers.anyLong(), any());
+        order.verify(publications).publish(any(), any(), any());
         order.verify(modelCache).invalidate(namespace);
         order.verify(retrievalCache).invalidateNamespace(namespace);
-        order.verify(coordinator).complete(fixture.claim().jobId(), "worker-1");
+        order.verify(coordinator).completePublished(
+                org.mockito.ArgumentMatchers.eq(fixture.claim().jobId()),
+                org.mockito.ArgumentMatchers.eq("worker-1"),
+                org.mockito.ArgumentMatchers.eq(fixture.claim().claimEpoch()),
+                any());
+    }
+
+    @Test
+    void retiresDurablePermitBeforeDiscardingAProvenConcurrentLoser() {
+        GraphIndexingCoordinator coordinator = mock(GraphIndexingCoordinator.class);
+        ProjectionPublicationStore publications = mock(ProjectionPublicationStore.class);
+        ContentStore content = mock(ContentStore.class);
+        LexicalIndex lexical = mock(LexicalIndex.class);
+        VectorIndex vectors = mock(VectorIndex.class);
+        GraphStore graph = mock(GraphStore.class);
+        ModelInvocationCache modelCache = mock(ModelInvocationCache.class);
+        RetrievalResultCache retrievalCache = mock(RetrievalResultCache.class);
+        when(content.projectionKind()).thenReturn(ProjectionKind.CONTENT);
+        when(lexical.projectionKind()).thenReturn(ProjectionKind.LEXICAL);
+        when(vectors.projectionKind()).thenReturn(ProjectionKind.VECTOR);
+        when(graph.projectionKind()).thenReturn(ProjectionKind.GRAPH);
+        when(publications.current(any())).thenReturn(Optional.empty());
+        when(publications.begin(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        Fixture fixture = fixture();
+        when(coordinator.issueOrLoadPublicationPermit(
+                        any(), any(), org.mockito.ArgumentMatchers.anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    ProjectionBatch candidate = invocation.getArgument(3);
+                    return new ProjectionCommitPermit(
+                            UUID.randomUUID(),
+                            candidate.id(),
+                            candidate.manifestFingerprint(),
+                            candidate.claimEpoch(),
+                            Instant.now());
+                });
+        when(publications.publish(any(), any(), any()))
+                .thenThrow(new PublicationConflictException("foreign head won"));
+        when(publications.abortIfUnreachable(any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    ProjectionBatch candidate = invocation.getArgument(0);
+                    return ProjectionAbortOutcome.discardAllowed(
+                            new ProjectionDiscardPermit(
+                                    UUID.randomUUID(), candidate.id(), Instant.now()));
+                });
+        GraphPublicationCommitter committer = new GraphPublicationCommitter(
+                coordinator,
+                publications,
+                content,
+                lexical,
+                vectors,
+                graph,
+                modelCache,
+                retrievalCache);
+
+        assertThrows(
+                PublicationRebaseRequiredException.class,
+                () -> committer.commit(
+                        fixture.claim(),
+                        "worker-1",
+                        Duration.ofMinutes(10),
+                        fixture.projection()));
+
+        var order = inOrder(coordinator, graph, vectors, lexical, content);
+        order.verify(coordinator).retirePublicationPermit(
+                org.mockito.ArgumentMatchers.eq(fixture.claim().jobId()),
+                org.mockito.ArgumentMatchers.eq("worker-1"),
+                org.mockito.ArgumentMatchers.eq(fixture.claim().claimEpoch()),
+                any(),
+                any());
+        order.verify(graph).discard(any(), any());
+        order.verify(vectors).discard(any(), any());
+        order.verify(lexical).discard(any(), any());
+        order.verify(content).discard(any(), any());
     }
 
     private static Fixture fixture() {
@@ -236,6 +337,7 @@ class GraphPublicationCommitterTests {
                 idempotencyKey,
                 profile,
                 "en",
+                1,
                 1,
                 List.of(new GraphIndexChunk(
                         UUID.randomUUID(),

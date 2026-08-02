@@ -12,6 +12,7 @@ import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
 import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.sql.ResultSet;
@@ -600,7 +601,8 @@ public final class PostgresGraphStore implements GraphStore {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         support.discard(
                 batch,
                 ProjectionKind.GRAPH,

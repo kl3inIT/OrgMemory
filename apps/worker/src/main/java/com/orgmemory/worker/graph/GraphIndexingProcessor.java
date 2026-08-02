@@ -154,8 +154,7 @@ class GraphIndexingProcessor {
 
     private void process(ClaimedGraphIndex claim) {
         try {
-            if (publications.completePublished(
-                    claim, properties.workerId(), properties.leaseDuration())) {
+            if (publications.completePublished(claim, properties.workerId())) {
                 log.info(
                         "Completed replayed graph publication for Knowledge Asset version {}",
                         claim.knowledgeAssetVersionId());

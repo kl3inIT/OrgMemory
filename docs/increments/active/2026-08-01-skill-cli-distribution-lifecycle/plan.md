@@ -35,6 +35,8 @@
   before publication.
 - [x] Publish and verify `@orgmemory/cli@0.1.0` with registry integrity, SLSA
   provenance, exact-version execution, and a retry-safe post-publish gate.
+- [x] Treat npm's non-empty missing-version error JSON as absent by branching on
+  the `npm view` exit status before the immutable-integrity retry check.
 - [ ] Publish and verify current-main `@orgmemory/cli@0.1.1` after the integrity
   guard correctly rejected rebuilding the immutable `0.1.0` bytes.
 
