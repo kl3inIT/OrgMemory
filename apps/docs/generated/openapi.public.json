@@ -3149,6 +3149,38 @@
         }
       }
     },
+    "/api/sources/{sourceId}/content": {
+      "get": {
+        "tags": [
+          "Sources and connections"
+        ],
+        "summary": "Stream permission-verified current source evidence",
+        "operationId": "readSourceContent",
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamingResponseBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/session": {
       "get": {
         "tags": [
@@ -4841,6 +4873,38 @@
         }
       }
     },
+    "/api/sources/{sourceId}": {
+      "delete": {
+        "tags": [
+          "Sources and connections"
+        ],
+        "summary": "Retire a ready manual-upload document",
+        "operationId": "deleteSource",
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeAssetRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/knowledge-spaces/{knowledgeSpaceId}/graph/curations/{curationId}": {
       "delete": {
         "tags": [
@@ -5974,6 +6038,16 @@
           },
           "failureMessage": {
             "type": "string"
+          },
+          "knowledgeAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contentAvailable": {
+            "type": "boolean"
+          },
+          "deletionAllowed": {
+            "type": "boolean"
           },
           "embeddingProfileKey": {
             "type": "string"
@@ -7941,6 +8015,7 @@
           }
         }
       },
+      "StreamingResponseBody": {},
       "SessionResponse": {
         "type": "object",
         "properties": {
@@ -8274,7 +8349,6 @@
           }
         }
       },
-      "StreamingResponseBody": {},
       "WorkInstructionToolResult": {
         "type": "object",
         "properties": {

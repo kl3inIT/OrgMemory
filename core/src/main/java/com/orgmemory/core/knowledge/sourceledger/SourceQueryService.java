@@ -18,16 +18,19 @@ public class SourceQueryService {
     private final SourceRevisionRepository revisions;
     private final SourceEmbeddingProfileDirectory embeddingProfiles;
     private final SourceVisibilityPort visibility;
+    private final SourceActionAuthorizationPort actions;
 
     SourceQueryService(
             SourceObjectRepository sources,
             SourceRevisionRepository revisions,
             SourceEmbeddingProfileDirectory embeddingProfiles,
-            SourceVisibilityPort visibility) {
+            SourceVisibilityPort visibility,
+            SourceActionAuthorizationPort actions) {
         this.sources = sources;
         this.revisions = revisions;
         this.embeddingProfiles = embeddingProfiles;
         this.visibility = visibility;
+        this.actions = actions;
     }
 
     @Transactional(readOnly = true)
@@ -36,7 +39,9 @@ public class SourceQueryService {
         return summaries(
                 actor.organizationId(),
                 sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
-                        actor.organizationId(), actor.userId()));
+                        actor.organizationId(), actor.userId()),
+                Set.of(),
+                Set.of());
     }
 
     @Transactional(readOnly = true)
@@ -47,17 +52,27 @@ public class SourceQueryService {
                         actor.organizationId(), actor.userId())
                 .forEach(source -> sourceIds.add(source.getId()));
 
-        sourceIds.addAll(visibility.visibleSourceObjectIds(actor));
+        Set<UUID> contentVisible = Set.copyOf(visibility.visibleSourceObjectIds(actor));
+        sourceIds.addAll(contentVisible);
         if (sourceIds.isEmpty()) {
             return List.of();
         }
         return summaries(
                 actor.organizationId(),
                 sources.findAllByOrganizationIdAndIdInOrderByUpdatedAtDesc(
-                        actor.organizationId(), sourceIds));
+                        actor.organizationId(), sourceIds),
+                contentVisible,
+                actions.deletableKnowledgeAssetIds(actor));
     }
 
-    private List<SourceSummary> summaries(UUID organizationId, List<SourceObject> visibleSources) {
+    private List<SourceSummary> summaries(
+            UUID organizationId,
+            List<SourceObject> visibleSources,
+            Set<UUID> contentVisible,
+            Set<UUID> deletableAssetIds) {
+        visibleSources = visibleSources.stream()
+                .filter(source -> source.getStatus() == SourceObjectStatus.ACTIVE)
+                .toList();
         if (visibleSources.isEmpty()) {
             return List.of();
         }
@@ -78,7 +93,13 @@ public class SourceQueryService {
                             : profileById.computeIfAbsent(
                                     revision.getEmbeddingProfileId(),
                                     profileId -> embeddingProfiles.get(organizationId, profileId));
-                    return summary(source, revision, profile);
+                    return summary(
+                            source,
+                            revision,
+                            profile,
+                            contentVisible.contains(source.getId()),
+                            revision.getKnowledgeAssetId() != null
+                                    && deletableAssetIds.contains(revision.getKnowledgeAssetId()));
                 })
                 .toList();
     }
@@ -87,6 +108,17 @@ public class SourceQueryService {
             SourceObject source,
             SourceRevision revision,
             SourceEmbeddingProfileView embeddingProfile) {
+        return summary(source, revision, embeddingProfile, false, false);
+    }
+
+    static SourceSummary summary(
+            SourceObject source,
+            SourceRevision revision,
+            SourceEmbeddingProfileView embeddingProfile,
+            boolean contentAuthorized,
+            boolean deleteAuthorized) {
+        boolean ready = revision.getStatus() == SourceRevisionStatus.READY;
+        UUID knowledgeAssetId = revision.getKnowledgeAssetId();
         return new SourceSummary(
                 source.getId(),
                 source.getTitle(),
@@ -99,6 +131,12 @@ public class SourceQueryService {
                 revision.getContentLength(),
                 revision.getFailureCode(),
                 revision.getFailureMessage(),
+                knowledgeAssetId,
+                ready && knowledgeAssetId != null && contentAuthorized,
+                ready
+                        && knowledgeAssetId != null
+                        && SourceObject.NATIVE_UPLOAD_SYSTEM.equals(source.getSourceSystem())
+                        && deleteAuthorized,
                 embeddingProfile == null ? null : embeddingProfile.profileKey(),
                 embeddingProfile == null ? null : embeddingProfile.provider(),
                 embeddingProfile == null ? null : embeddingProfile.model(),
