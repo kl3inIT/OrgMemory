@@ -399,14 +399,17 @@ a system instruction. Deterministic adapter tests use a fake `ChatModel`, so no
 provider credentials or network calls are required.
 
 The `graph-rag-postgres` integration implements the graph read/write, lexical
-seed, contribution-vector, and topology-candidate ports. PostgreSQL owns
-canonical identities, immutable evidence contributions, published revision
-heads, and entity/relation vectors. Apache AGE mirrors tenant-separated topology
-identity for bounded candidate traversal; it never owns descriptions, ACL, or
-provenance. AGE candidates are edge-filtered by authorized Knowledge Asset and
-relationally rechecked. A relational implementation supplies the same separate
-topology-candidate port when AGE is disabled; neither path is the public
-authorized traversal result producer.
+seed, contribution-vector, and topology ports. PostgreSQL owns canonical
+identities, immutable evidence contributions, published revision heads, and
+entity/relation vectors. One exact topology backend is selected through
+`orgmemory.graph-rag.postgres.topology-backend=APACHE_AGE|RELATIONAL`;
+`APACHE_AGE` is the production default, has no automatic fallback, and fails
+startup when its extension, catalog, session preload, or privileges are absent.
+AGE stores only tenant- and publication-batch-pinned topology identity plus a
+transactional ready marker. Its incident-relation pages filter authorized
+Knowledge Assets before paging and remain subject to relational evidence and
+core coordinator rechecks. `RELATIONAL` implements the same page contract as an
+explicit backend choice; neither adapter owns final traversal results.
 
 The integration also implements the framework-neutral content, lexical,
 vector, graph, and publication contracts over one namespace snapshot. Staged
@@ -418,7 +421,11 @@ commit permit after the current lease, target, cancellation state, and manifest
 are rechecked; the selected PostgreSQL or OpenSearch publication adapter binds
 that permit before its local head CAS. Ambiguous outcomes retain staging, while
 cleanup requires a store-issued discard permit and retires the durable commit
-permit before deleting staged records. Content, FTS, pgvector, and graph readers
+permit before deleting staged records. For the selected AGE backend, relational
+graph staging, exact-batch AGE rebuild, and the ready marker commit in one
+transaction before the graph preparation receipt becomes durable; permit-
+authorized discard removes the same AGE and relational staging atomically.
+Content, FTS, pgvector, and graph readers
 validate the winning batch and prefilter organization plus authorized Knowledge
 Asset IDs before scoring or traversal. Published predecessor batches remain
 addressable; losing or aborted staged records are never selected by a
@@ -432,7 +439,7 @@ back. Index provisioning runs after database initialization with concurrent
 PostgreSQL DDL. Writes use advisory revision locks, atomic generation replacement,
 monotonic generation checks, and record/payload-bounded JDBC batches. Spring Boot
 auto-configuration binds these mechanics under `orgmemory.graph-rag.postgres`;
-production defaults require AGE rather than silently dropping topology.
+the obsolete three-state AGE mode is rejected rather than silently ignored.
 Large-table upgrades pre-stage the graph prerequisite unique indexes through the
 deployment pipeline before Flyway attaches them as constraints; fresh and small
 installations can let Flyway create them directly.

@@ -18,28 +18,31 @@
 
 ## 2. Explicit backend and fail-closed startup
 
-- [ ] Replace the three-state AGE mode with exact `APACHE_AGE|RELATIONAL`
+- [x] Replace the three-state AGE mode with exact `APACHE_AGE|RELATIONAL`
   topology selection; retain no optional fallback.
-- [ ] Make `APACHE_AGE` the production default and fail context creation when
+- [x] Make `APACHE_AGE` the production default and fail context creation when
   extension/catalog/privileges are unavailable.
-- [ ] Migrate intentional test configuration to `RELATIONAL`.
-- [ ] Run the focused PostgreSQL gate and commit the selection change.
+- [x] Migrate intentional test configuration to `RELATIONAL` and reject the
+  obsolete key through strict typed binding.
+- [x] Run the focused PostgreSQL gate and commit the selection change
+  (`6cb1a251`).
 
 ## 3. Snapshot-safe AGE runtime
 
-- [ ] Stage fixed-size AGE topology under the exact publication batch and create
+- [x] Stage fixed-size AGE topology under the exact publication batch and create
   its ready marker only after a complete transactional rebuild.
-- [ ] Require the existing discard permit for exact AGE cleanup.
-- [ ] Serve authorized, cursor-bounded incident-relation pages from AGE while
+- [x] Require the existing discard permit for exact AGE cleanup.
+- [x] Serve authorized, cursor-bounded incident-relation pages from AGE while
   leaving all evidence and final traversal authority relational/core-owned.
-- [ ] Prove idempotent replay, unpublished invisibility, historical snapshots,
+- [x] Prove idempotent replay, unpublished invisibility, historical snapshots,
   authorization-negative behavior, missing/corrupt marker failure, and parity
   with the relational reference.
-- [ ] Run the focused PostgreSQL and affected app gates and commit runtime work.
+- [x] Run the focused PostgreSQL gate plus API/worker reports (244 tests, zero
+  failures/errors) and commit runtime work.
 
 ## 4. Verification and consolidation
 
-- [ ] Run backend static analysis or record the documented fallback if the IDE
+- [x] Run backend static analysis or record the documented fallback if the IDE
   transport is unavailable.
 - [ ] Run a terminating `gradlew clean test`, docs check, `git diff --check`, and
   confirm the worktree is free of unrelated changes and secrets.
