@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
 
 ## Automated
 
@@ -42,7 +42,24 @@ Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
   bounded batch partitioning, and replaceable vector index strategies.
 - Shared-snapshot PostgreSQL tests run the reusable publication conformance
   suite and prove one authorized content/FTS/vector/graph snapshot, historical
-  reads after delete, losing-batch non-disclosure, and staged-row discard.
+  reads after delete, losing-batch non-disclosure, staged-row discard, durable
+  receipts across store recreation, same-epoch exclusion, and higher-claim-
+  epoch recovery of an unpermitted abandoned physical attempt.
+- The shared publication conformance suite pins exact predecessor identity,
+  logical-operation manifest/projection conflicts, register-before-stage, and
+  store-issued discard authority across the in-memory, PostgreSQL, and
+  OpenSearch publication stores.
+- Lifecycle tests inject an acknowledgement failure after durable permit
+  issuance and prove no cleanup occurs; recovery reuses the exact permit and
+  fails if any projection restages or discards. Worker tests prove a concurrent
+  loser retires its durable job permit before reverse-order staging cleanup,
+  and that both caches invalidate before proof-based job completion.
+- OpenSearch integration tests use an operations decorator that writes the real
+  namespace head and then throws `Error`. A recreated store observes the exact
+  head plus `COMMITTING` marker, skips staging, repairs `PUBLISHED`, and never
+  receives discard authority. Existing copy-forward tests keep byte identity,
+  page-to-bulk count/byte bounds, canonical target keys, distinct graph
+  entity/relation units, and rejection of `_reindex`.
 - Worker tests prove deterministic assembly, bounded extraction orchestration,
   immutable embedding-route enforcement, durable job creation for both upload
   and connector ingestion, and atomic contribution-plus-embedding publication

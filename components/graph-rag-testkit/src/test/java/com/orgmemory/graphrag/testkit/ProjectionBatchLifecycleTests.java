@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class ProjectionBatchLifecycleTests {
@@ -37,6 +39,7 @@ class ProjectionBatchLifecycleTests {
                 List.of(
                         preparation(ProjectionKind.CONTENT, events, false),
                         preparation(ProjectionKind.VECTOR, events, false)),
+                candidate -> ProjectionPermitFixtures.commitPermit(candidate, NOW),
                 NOW);
 
         assertEquals(1, snapshot.generation());
@@ -60,6 +63,7 @@ class ProjectionBatchLifecycleTests {
                                         ProjectionKind.CONTENT, events, false),
                                 preparation(
                                         ProjectionKind.VECTOR, events, true)),
+                        candidate -> ProjectionPermitFixtures.commitPermit(candidate, NOW),
                         NOW));
 
         assertEquals(
@@ -72,7 +76,50 @@ class ProjectionBatchLifecycleTests {
         assertTrue(store.current(NAMESPACE).isEmpty());
         assertThrows(
                 RuntimeException.class,
-                () -> store.publish(batch, NOW.plusSeconds(1)));
+                () -> store.publish(
+                        batch,
+                        ProjectionPermitFixtures.commitPermit(batch, NOW.plusSeconds(1)),
+                        NOW.plusSeconds(1)));
+    }
+
+    @Test
+    void ambiguousPermitAcknowledgementKeepsStagingAndRecoveryDoesNotRestage() {
+        InMemoryProjectionPublicationStore store =
+                new InMemoryProjectionPublicationStore();
+        ProjectionBatch batch = batch("permit-ambiguity");
+        List<String> events = new ArrayList<>();
+        AtomicReference<com.orgmemory.graphrag.storage.ProjectionCommitPermit> durablePermit =
+                new AtomicReference<>();
+        ProjectionBatchLifecycle lifecycle = new ProjectionBatchLifecycle(store);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> lifecycle.publish(
+                        batch,
+                        List.of(
+                                preparation(ProjectionKind.CONTENT, events, false),
+                                preparation(ProjectionKind.VECTOR, events, false)),
+                        candidate -> {
+                            durablePermit.set(ProjectionPermitFixtures.commitPermit(
+                                    candidate, NOW));
+                            throw new IllegalStateException(
+                                    "commit acknowledgement was lost");
+                        },
+                        NOW));
+
+        assertEquals(List.of("prepare-CONTENT", "prepare-VECTOR"), events);
+        var recovered = lifecycle.publish(
+                batch,
+                List.of(
+                        preparationThatMustNotRun(ProjectionKind.CONTENT),
+                        preparationThatMustNotRun(ProjectionKind.VECTOR)),
+                candidate -> {
+                    throw new AssertionError("the durable permit must be reused");
+                },
+                Optional.of(durablePermit.get()),
+                NOW.plusSeconds(1));
+
+        assertEquals(batch.id(), recovered.batchId());
     }
 
     private static ProjectionBatchLifecycle.Preparation preparation(
@@ -92,8 +139,32 @@ class ProjectionBatchLifecycleTests {
             }
 
             @Override
-            public void discard(ProjectionBatch batch) {
+            public void discard(
+                    ProjectionBatch batch,
+                    com.orgmemory.graphrag.storage.ProjectionDiscardPermit permit) {
                 events.add("discard-" + kind);
+            }
+        };
+    }
+
+    private static ProjectionBatchLifecycle.Preparation preparationThatMustNotRun(
+            ProjectionKind kind) {
+        return new ProjectionBatchLifecycle.Preparation() {
+            @Override
+            public void prepare(ProjectionBatch batch) {
+                throw new AssertionError("recovery after a durable permit must not restage");
+            }
+
+            @Override
+            public ProjectionKind projectionKind() {
+                return kind;
+            }
+
+            @Override
+            public void discard(
+                    ProjectionBatch batch,
+                    com.orgmemory.graphrag.storage.ProjectionDiscardPermit permit) {
+                throw new AssertionError("recovery after a durable permit must not discard");
             }
         };
     }

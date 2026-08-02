@@ -8,5 +8,5 @@ public interface StagedProjectionWriter {
 
     ProjectionKind projectionKind();
 
-    void discard(ProjectionBatch batch);
+    void discard(ProjectionBatch batch, ProjectionDiscardPermit permit);
 }

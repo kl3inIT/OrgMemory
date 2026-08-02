@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.testkit;
 
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.commitPermit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -49,21 +51,23 @@ class ProjectionContractTests {
 
         assertThrows(
                 PublicationNotReadyException.class,
-                () -> publications.publish(first, NOW));
+                () -> publications.publish(first, commitPermit(first, NOW), NOW));
         first.requiredProjections()
                 .forEach(kind -> publications.markPrepared(first, kind, NOW));
 
-        ProjectionSnapshot published = publications.publish(first, NOW);
+        ProjectionSnapshot published = publications.publish(
+                first, commitPermit(first, NOW), NOW);
         assertEquals(1, published.generation());
         assertEquals(
                 published,
-                publications.publish(first, NOW.plusSeconds(5)));
+                publications.publish(
+                        first, commitPermit(first, NOW.plusSeconds(5)), NOW.plusSeconds(5)));
 
         ProjectionBatch stale = batch("stale", 0, 1, Set.of(ProjectionKind.CONTENT));
         publications.markPrepared(stale, ProjectionKind.CONTENT, NOW);
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(stale, NOW));
+                () -> publications.publish(stale, commitPermit(stale, NOW), NOW));
     }
 
     @Test
@@ -123,7 +127,7 @@ class ProjectionContractTests {
 
         assertThrows(
                 PublicationConflictException.class,
-                () -> publications.publish(batch, NOW));
+                () -> publications.publish(batch, commitPermit(batch, NOW), NOW));
         assertTrue(publications.current(NAMESPACE).isEmpty());
     }
 
@@ -139,7 +143,8 @@ class ProjectionContractTests {
                         record("allowed", ALLOWED_ASSET_ID),
                         record("denied", DENIED_ASSET_ID)));
         publications.markPrepared(batch, ProjectionKind.CONTENT, NOW);
-        ProjectionSnapshot snapshot = publications.publish(batch, NOW);
+        ProjectionSnapshot snapshot = publications.publish(
+                batch, commitPermit(batch, NOW), NOW);
 
         assertTrue(content.get(scope(Set.of(ALLOWED_ASSET_ID), 7), snapshot, "allowed")
                 .isPresent());
@@ -187,14 +192,15 @@ class ProjectionContractTests {
                 batch("published-content", 0, 1, Set.of(ProjectionKind.CONTENT));
         content.stageUpsert(first, List.of(record("published", ALLOWED_ASSET_ID)));
         publications.markPrepared(first, ProjectionKind.CONTENT, NOW);
-        publications.publish(first, NOW);
+        publications.publish(first, commitPermit(first, NOW), NOW);
 
         ProjectionBatch second =
                 batch("second-content", 1, 2, Set.of(ProjectionKind.CONTENT));
         content.stageUpsert(second, List.of(record("second", ALLOWED_ASSET_ID)));
         publications.markPrepared(second, ProjectionKind.CONTENT, NOW.plusSeconds(1));
         ProjectionSnapshot secondSnapshot =
-                publications.publish(second, NOW.plusSeconds(1));
+                publications.publish(
+                        second, commitPermit(second, NOW.plusSeconds(1)), NOW.plusSeconds(1));
 
         AuthorizedEvidenceScope scope = scope(Set.of(ALLOWED_ASSET_ID), 7);
         assertTrue(content.get(scope, secondSnapshot, "aborted").isEmpty());
