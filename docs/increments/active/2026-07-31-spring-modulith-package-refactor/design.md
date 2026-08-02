@@ -230,10 +230,45 @@ queries and intentional adapter interfaces in separate code PRs below the
 documented security read model; this increment claims Java/domain/API closure,
 not datastore autonomy.
 
+## Retrieval Adapter Boundary
+
+The API and Worker retain engine selection and provider wiring, but they inject
+Retrieval contracts rather than implementation classes. The existing canonical
+hybrid, GraphRAG, citation/source opening, authorization-resource, bounded
+single-Asset inspection, and embedding-registry capabilities become interfaces
+with unchanged method shapes. Full evidence-scope resolution stays
+package-private so its internal scope model is not laundered into the API. The
+default or JDBC implementations use distinct package-private types. A public canonical-engine configuration is the explicit
+opt-in used by the API and by Worker integration tests; the production Worker
+excludes that configuration because it does not serve interactive queries.
+
+This is the adapter-interface slice already required by the independent
+Retrieval closure verdict, not a new policy or ownership decision. Query and
+embedding properties/value types remain intentional adapter configuration
+contracts. Retrieval stays open until the remaining root-package persistence
+and concrete types are internalized and the exact final dependency allowlist is
+verified.
+
 See
 [retrieval-closure-challenge-verdict.md](retrieval-closure-challenge-verdict.md)
 for reviewer availability, exact ownership, the counterattack, blocking
 conditions, PR sequence, and verification requirements.
+
+## Retrieval Closure
+
+The final Retrieval slice follows the already challenged closure decision: the
+module becomes closed with only its intentional public root contracts and an
+exact outgoing dependency allowlist. Persistence and runtime collaboration
+types that no external production consumer imports become package-private in
+the module base package. This preserves JPA/Spring wiring and test-package
+access without presenting those types as Modulith API or creating a mechanical
+internal subpackage whose public Java types could still be imported by an
+adapter.
+
+The canonical multi-table security read model remains Retrieval-owned, exactly
+as the challenge allowed. This closure therefore proves Java/domain/API
+encapsulation; it does not claim datastore autonomy or change authorization,
+ranking, persistence, endpoint, or provider behavior.
 
 ## First Cycle-Removal Slice
 
@@ -353,6 +388,40 @@ interface because Source Ledger's intentional consumer contracts already live
 in its module base package, while no consumer reaches an internal subpackage.
 The closure test and `modules.verify()` make both that API visibility and the
 outgoing allowlist executable constraints.
+
+## Asset Registry Kernel And Authorization Boundary
+
+The independently challenged Asset Registry split follows the consistency
+boundary rather than the nouns in the authorization flow. The closed
+`assetregistry.kernel` module owns Asset identity and portfolio state together
+with accountable roles, authorization outbox leases, and fail-closed readiness.
+Those rows form one transactional cluster during registration, role assignment,
+and projection completion; separating them would require a lock capability,
+reverse persistence dependency, or weaker asynchronous readiness semantics.
+
+The closed `assetregistry.authorization` module owns only the external
+projection and convergence entry points. OpenFGA calls are made with transaction
+propagation `NEVER`, around kernel queue operations that each own their database
+transaction. Draft, revision, review, release, availability, catalog, delivery,
+and parent orchestration remain in the parent Asset Registry module. In
+particular, `AssetAvailability` and the broad catalog queries cannot move into
+kernel because they depend on parent-owned release persistence.
+
+Executable Modulith verification corrected the first vocabulary placement:
+unrelated top-level modules cannot import a nested Kernel directly. The six
+cross-module Asset enums and business exceptions therefore move first to the
+exact parent-owned `assetregistry::api` named interface. Parent-facing kernel
+commands and queries also belong to that interface and are implemented by
+Kernel, preserving dependency inversion without changing transaction ownership.
+
+Delivery is split into code PRs for parent API vocabulary, the canonical kernel
+ledger, and external projection, capped at 70, 60, and 20 changed paths. Kernel
+begins with the real ledger in the second PR and closes immediately. Both nested
+modules close when introduced; no `Type.OPEN`, public JPA type, repository,
+lock handle, readiness mutator, or mixed database/OpenFGA facade is allowed. See
+[assetregistry-authorization-challenge-verdict.md](assetregistry-authorization-challenge-verdict.md)
+for the Fable availability failure, fallback review, counterattack, exact
+ownership, transaction rules, comparable-source evidence, and binding gates.
 
 ## Strongest Counterargument
 

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.api;
 
 public enum AssetRole {
     OWNER("owner"),

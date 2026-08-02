@@ -164,8 +164,18 @@ exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
 the exact `knowledge::search` named interface. Assistant and Asset Registry
 consume that parent interface without importing Retrieval implementation types.
-Retrieval remains explicitly open while its Graph verifier and remaining
-sibling adapters are replaced by intentional APIs. The
+Graph exploration, export, and curation obtain their immutable authorized
+evidence snapshot and exact current governing-evidence decision through the
+Retrieval-owned `GraphEvidenceVerifier`; Graph does not import Retrieval scope
+resolution, candidate, or store implementation types. Verified snapshots reject
+unknown Knowledge Spaces, and canonical evidence rechecks carry only the assets
+authorized for the requested Space. API and Worker inject interfaces for the
+canonical/GraphRAG engines, citation/source opening, authorization inspection,
+and embedding-profile resolution; full evidence-scope resolution plus the
+default and JDBC implementations are package-private. Retrieval is a closed
+nested module with an exact outgoing dependency allowlist. Its embedding
+entity/repository, canonical store, resolved scope, candidate, catalog
+implementation, and scope-unavailable exception are non-public root types. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

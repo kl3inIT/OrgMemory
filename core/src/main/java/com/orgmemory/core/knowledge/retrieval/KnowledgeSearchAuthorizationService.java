@@ -72,6 +72,22 @@ class KnowledgeSearchAuthorizationService {
             String query,
             String reason,
             String policyVersion) {
+        return unavailable(
+                actor,
+                requestId,
+                query,
+                reason,
+                policyVersion,
+                null);
+    }
+
+    KnowledgeRetrievalUnavailableException unavailable(
+            CurrentActor actor,
+            String requestId,
+            String query,
+            String reason,
+            String policyVersion,
+            Throwable cause) {
         audit.record(command(
                 actor,
                 requestId,
@@ -79,8 +95,10 @@ class KnowledgeSearchAuthorizationService {
                 PermissionAuditDecision.DENY,
                 reason,
                 policyVersion));
-        return new KnowledgeRetrievalUnavailableException(
-                "Secure knowledge retrieval is temporarily unavailable");
+        String message = "Secure knowledge retrieval is temporarily unavailable";
+        return cause == null
+                ? new KnowledgeRetrievalUnavailableException(message)
+                : new KnowledgeRetrievalUnavailableException(message, cause);
     }
 
     PermissionAuditCommand command(

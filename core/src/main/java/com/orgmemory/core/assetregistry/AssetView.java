@@ -1,5 +1,8 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetType;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

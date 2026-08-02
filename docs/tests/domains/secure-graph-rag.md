@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
 
 ## Automated
 
@@ -20,6 +20,12 @@ Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction ro
   explicitly overridable. Production Compose validation checks the same route.
 - Graph-testkit security tests prove permission-scoped contribution,
   adjacency, degree, weight, seed, replacement, and removal behavior.
+- Core verifier and Graph use-case tests prove immutable authorized snapshots,
+  unavailable-scope translation, exact current governing-evidence identity,
+  per-Space canonical recheck scope, rejection of unknown Spaces before export
+  or deactivation, before/after authorization checks, and no Graph dependency
+  on Retrieval's resolver, resolved scope, store, or candidate implementation
+  types.
 - Core traversal tests prove exact-snapshot validation before zero/empty
   returns, authorized seed normalization, multi-page completion, canonical UUID
   ordering, one global limit, cycles, disconnected nodes, seed permutations,
@@ -74,10 +80,15 @@ Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction ro
   executions of one prepared query.
 - Application tests prove entity/relation/chunk closure BatchCheck plus
   canonical recheck, authorization-model mismatch denial before rendering,
-  request-scope revocation retry, exact Assistant handoff, and sanitized rerank
-  fallback telemetry. Multi-space tests additionally prove one preparation,
+  deterministic duplicate-chunk collapse, request-scope revocation retry,
+  exact Assistant handoff, and sanitized rerank fallback telemetry. Multi-space
+  tests additionally prove one preparation,
   bounded concurrent snapshot execution, deterministic collection, fail-closed
   multi-space reranking and hashed snapshot-stage telemetry.
+- The Modulith adapter-contract guard proves both GraphRAG and canonical engine
+  surfaces are interfaces and their default implementations are package-private;
+  the API and Worker exact dependency-surface guards prevent concrete imports,
+  and API Assistant configuration tests retain engine-selection behavior.
 - Keyword-cache tests prove exact hit/miss isolation across organization,
   language, query strategy, route and query, plus trusted-keyword bypass.
 - OpenTelemetry adapter tests prove the closed payload-free attribute set,

@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface SourceObjectRepository extends JpaRepository<SourceObject, UUID> {
 
+    Optional<SourceObject> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
     List<SourceObject> findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
             UUID organizationId, UUID createdByUserId);
 

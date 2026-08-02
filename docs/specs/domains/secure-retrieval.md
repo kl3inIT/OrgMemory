@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-knowledge-space-audience-modes (75a8dd3b)`.
+Reconciled: `2026-08-02-knowledge-space-audience-main-sync (pending merge commit)`.
 
 ## Current Behavior
 
@@ -38,9 +38,17 @@ tenant, and evidence-integrity gates; no Space mode overrides them.
 
 Parent Knowledge exposes the permission-aware query, immutable evidence,
 secure result, and verified grounding through the exact `knowledge::search`
-named interface. Assistant and Asset Registry cross that interface; the open
-Retrieval nested module retains the concrete engines, authorization sequence,
-ranking, and persistence while its remaining adapter seams are closed.
+named interface. Assistant and Asset Registry cross that interface. API and
+Worker inject Retrieval interfaces for engine selection, citation/source
+opening, bounded single-Asset authorization inspection, and embedding-profile
+resolution. Full evidence-scope resolution and the default/JDBC implementations
+are package-private. The bounded inspector independently rechecks the Asset's
+relationship decision and authorization-model identity before canonical SQL,
+so it does not rely on a caller-supplied authorization precondition. The
+closed Retrieval nested module retains authorization, ranking, and persistence
+behind an exact outgoing dependency allowlist. Its entity, repository,
+canonical store, resolved scope, candidate, catalog implementation, and
+scope-unavailable exception are not part of the public module API.
 Asset existence, active authorization-scope, and current catalog reads cross
 one Asset-owned query that keeps tenant and lifecycle predicates behind the
 closed Asset module; Retrieval imports neither Asset repository.
@@ -48,6 +56,15 @@ Retrieval also reloads the current active subject, department, and Executive
 state through Organization-owned queries before resolving evidence or source
 visibility. It does not trust those actor fields as authorization facts and
 imports no Organization entity, role, or repository.
+
+Graph exploration, export, and curation cross the Retrieval-owned
+`GraphEvidenceVerifier` and immutable `VerifiedGraphEvidenceScope`. The
+package-private implementation alone resolves canonical authorization state
+and rechecks governing evidence through the secure retrieval store. Graph
+imports neither the scope resolver, internal resolved scope, store, nor secure
+candidate representation. Unknown Knowledge Spaces are rejected rather than
+degrading to an empty/zero scope, and each governing-evidence recheck contains
+only the Asset IDs authorized for the requested Space.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob
@@ -62,6 +79,9 @@ revision plus a validated blob, and returns only immutable response and storage
 integrity metadata. Retrieval imports no Source Revision/Evidence Blob entity,
 repository, or lifecycle enum. Missing revision and unavailable blob outcomes
 remain distinct audit reasons even though both map to the same opaque `404`.
+An object-storage length or digest mismatch closes the stream, records a
+`CITATION_BLOB_INTEGRITY_FAILED` deny audit, and returns unavailable without an
+allow audit.
 
 Control-plane roles (`ADMIN`, `REVIEWER`, `CONTRIBUTOR`, `VIEWER`) are separate
 from knowledge roles (`EMPLOYEE`, `MANAGER`, `DIRECTOR`, `EXECUTIVE`). Admin does

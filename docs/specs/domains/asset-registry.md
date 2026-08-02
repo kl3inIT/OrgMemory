@@ -11,7 +11,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (fdf3cca4)`.
 
 ## Current Behavior
 
@@ -20,6 +20,11 @@ drafts, immutable revisions, review decisions, and immutable releases.
 `PROMPT_TEMPLATE`, `WORK_INSTRUCTION`, `CAPABILITY_PACK`, and `SKILL` are the
 enabled payload profiles. Each profile validates its own versioned JSON
 contract while the shared registry remains free of type-specific columns.
+
+Cross-module Asset vocabulary and business errors are exposed through the
+exact parent-owned `assetregistry::api` named interface. Nested implementation
+modules implement parent-facing contracts instead of being imported directly
+by unrelated top-level modules.
 
 Consumers always address an exact authorized release. A withdrawn release
 cannot start new consumption. Forking creates a new Asset draft from an exact

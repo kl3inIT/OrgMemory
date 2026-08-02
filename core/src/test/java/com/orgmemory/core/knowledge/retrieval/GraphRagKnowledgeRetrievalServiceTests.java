@@ -318,7 +318,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 new NeverRecheckedStore();
         GraphRagEventSink events = mock(GraphRagEventSink.class);
 
-        var service = new GraphRagKnowledgeRetrievalService(
+        var service = new DefaultGraphRagKnowledgeRetrievalService(
                 new KnowledgeSearchAuthorizationService(entry, audit),
                 scopes,
                 finalAuthorization,
@@ -410,6 +410,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         MODEL_ID));
         RecordingRecheckedStore canonical =
                 new RecordingRecheckedStore(List.of(
+                        candidate(ENTITY_CHUNK_ID),
                         candidate(ENTITY_CHUNK_ID),
                         candidate(RELATION_CHUNK_ID),
                         candidate(CHUNK_ID)));
@@ -941,7 +942,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         "text-embedding-3-large",
                         1536,
                         EmbeddingDistanceMetric.COSINE)));
-        return new GraphRagKnowledgeRetrievalService(
+        return new DefaultGraphRagKnowledgeRetrievalService(
                 new KnowledgeSearchAuthorizationService(entry, audit),
                 scopes,
                 finalAuthorization,

@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-public final class KnowledgeEvidenceScopeUnavailableException extends RuntimeException {
+final class KnowledgeEvidenceScopeUnavailableException extends RuntimeException {
 
     private final String reasonCode;
     private final String policyVersion;

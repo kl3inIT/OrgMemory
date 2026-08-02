@@ -3,6 +3,8 @@ package com.orgmemory.api.source;
 import com.orgmemory.core.knowledge.sourceledger.CreateUploadSourceCommand;
 import com.orgmemory.core.knowledge.sourceledger.SourceQueryService;
 import com.orgmemory.core.knowledge.sourceledger.SourceUploadService;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetLifecycleService;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRef;
 
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.api.security.CurrentActorProvider;
@@ -16,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,11 +35,17 @@ class SourceController {
     private final SourceQueryService sources;
     private final SourceUploadService uploads;
     private final CurrentActorProvider actors;
+    private final KnowledgeAssetLifecycleService lifecycle;
 
-    SourceController(SourceQueryService sources, SourceUploadService uploads, CurrentActorProvider actors) {
+    SourceController(
+            SourceQueryService sources,
+            SourceUploadService uploads,
+            CurrentActorProvider actors,
+            KnowledgeAssetLifecycleService lifecycle) {
         this.sources = sources;
         this.uploads = uploads;
         this.actors = actors;
+        this.lifecycle = lifecycle;
     }
 
     @GetMapping
@@ -43,6 +53,14 @@ class SourceController {
     List<SourceResponse> list(Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
         return sources.listVisible(actor).stream().map(SourceResponse::from).toList();
+    }
+
+    @DeleteMapping("/{sourceId}")
+    @Operation(operationId = "deleteSource", summary = "Retire a ready manual-upload document")
+    KnowledgeAssetRef delete(
+            @PathVariable UUID sourceId,
+            Authentication authentication) {
+        return lifecycle.deleteSource(actors.current(authentication), sourceId);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

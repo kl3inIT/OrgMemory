@@ -1,9 +1,9 @@
 package com.orgmemory.api.assistant;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantFeedbackType;
-import com.orgmemory.core.assetregistry.AssetType;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Map;
 import java.util.UUID;

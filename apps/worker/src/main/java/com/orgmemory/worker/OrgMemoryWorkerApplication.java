@@ -2,7 +2,7 @@ package com.orgmemory.worker;
 
 import com.orgmemory.core.knowledge.sourceledger.SourceIngestionProperties;
 
-import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration;
 import com.orgmemory.core.knowledge.graph.GraphProcessingProperties;
 import com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties;
@@ -51,7 +51,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {
-                        CanonicalHybridKnowledgeSearch.class,
+                        CanonicalHybridKnowledgeSearchConfiguration.class,
                         KnowledgeGraphExplorerConfiguration.class
                 }))
 public class OrgMemoryWorkerApplication {

@@ -1171,7 +1171,7 @@ unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
 direct audit found no defect, review, inline comment, or review thread. Both the
 PR head `b5428d33` and merge commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-ninth Pull Request Evidence
 
 - Source Ledger owns one typed citation-evidence query that resolves a
   tenant-scoped ready revision, matching Knowledge Asset, and validated evidence
@@ -1207,3 +1207,224 @@ After merging current `origin/main` at `39281c33`, the Citation plus full
 Modulith slice passed again in 55s. The documentation check passed across the
 new base's 485 Markdown files and 8 mirrored domain pairs, and all 41
 release-policy tests passed again on Node 24.15.0.
+
+PR #258 merged as `6ed738c2` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
+direct audit against the architecture verdict found no defect, review, inline
+comment, or review thread. Both the PR head `815640cd` and merge commit are
+ancestors of current `origin/main`.
+
+## Fortieth Pull Request Evidence
+
+- Retrieval owns one `GraphEvidenceVerifier` contract and immutable
+  `VerifiedGraphEvidenceScope`; its package-private implementation alone may use
+  `KnowledgeEvidenceScopeResolver`, `ResolvedKnowledgeEvidenceScope`,
+  `SecureKnowledgeRetrievalStore`, its retrieval scope, or
+  `SecureRetrievalCandidate`.
+- Graph exploration and export use verified per-Space evidence snapshots and
+  retain their existing before/after authorization comparison and retry/fail
+  behavior. Curation uses the verifier for governing chunk freshness and retains
+  its stricter authorized-asset plus ACL-generation comparison.
+- Graph imports no Retrieval resolver, resolved scope, store, store scope, or
+  candidate. Its remaining Retrieval dependencies are the verifier/snapshot,
+  existing retrieval-unavailable exception, and embedding profile contracts.
+- Current authorization remains resolved before Graph reads; governing evidence
+  must still match organization, Asset, revision, ACL snapshot, and chunk after a
+  canonical store recheck.
+- This code PR remains below 100 changed paths. Retrieval stays open for the
+  remaining API/Worker adapter interfaces and final closure.
+
+Local verification starts by changing the exact Graph-to-Retrieval dependency
+test to the intended verifier-only surface and observing it fail against the
+current resolver/store/candidate imports. The verifier, all three Graph use
+cases, and both exact Modulith guards then passed their focused slice. The first
+full Core run exposed the second temporary-open-boundary allowlist that still
+named the retired Graph dependencies; after aligning that guard, the two
+structural tests and full Core rerun passed. That first run also exhausted native
+JVM memory while two unrelated worktrees were running Gradle concurrently; the
+isolated sequential rerun passed in 2m10s. Full API and Worker reruns passed in
+5m and 2m36s, including deployable Spring wiring. The documentation
+operating-model check passed for 486 Markdown files and 8 mirrored domain pairs.
+Release policy passed all 41 tests on Node 24.15.0. The mechanical audit found
+20 changed paths, no migration, no empty changed file, no forbidden Graph import
+of Retrieval implementation types, and a clean whitespace diff. The terminating
+sequential `clean test` passed with 99 actionable tasks in 2m05s; after the
+verifier test was strengthened to cover organization and chunk mismatches, its
+focused rerun stayed green and a fresh terminating `clean test` passed all 99
+tasks again in 1m41s.
+
+After merging current `origin/main` at `f2cf3c67`, the four Graph/verifier test
+classes plus the full Modulith verification slice passed in 1m35s. The
+documentation operating-model check passed on the merged base for 501 Markdown
+files and 8 mirrored domain pairs, and all 41 release-policy tests passed again
+on Node 24.15.0.
+
+PR CI's first product-release job passed its contract tests but rejected the
+missing release disposition in the PR event payload. The PR now explicitly
+skips an intermediate release because the project owner requested one release
+only after the full refactor goal; a new synchronize event is required because
+rerunning the original workflow retains its original PR payload.
+
+CodeRabbit then found a valid fail-closed gap: an absent Space could degrade to
+an empty asset set and generation zero, allowing export comparison or
+deactivation guards to treat two absent scopes as stable. The fix makes snapshot
+accessors reject unknown Spaces, explicitly denies export/deactivation before
+read or write, and narrows canonical evidence rechecks to the requested Space's
+assets. Candidate identity tests now vary organization, chunk, Asset, revision,
+and current ACL independently; curation tests cover stale evidence and absent
+Space deactivation. The duplicated Graph-side unavailable-scope translation and
+Space comparison rules were consolidated to avoid authorization drift. The new
+tests failed first against the permissive/default APIs; the corrected Graph,
+verifier, and full Modulith slice passed in 35s, followed by full Core in 1m43s.
+The terminating post-review `clean test` then passed all 99 tasks in 6m31s,
+including uncached API and Worker tests affected by the Core boundary change.
+
+After a second main sync at `8bf800c6` brought the governed document-action
+Retrieval changes, the Graph/verifier classes plus full Modulith slice passed
+again in 51s. Documentation passed for 506 Markdown files and 8 mirrored domain
+pairs, and all 41 release-policy tests passed on Node 24.15.0.
+
+PR #263 merged as `7772104d9733b6cb8361693cce42b3521f8a37f1` after all
+required CI checks passed. CodeRabbit's fail-closed findings were fixed at head
+`0a0f0eaaaf9a512762bccf10009ca66332f4e10d`; all five inline threads were
+answered and resolved. Both the reviewed head and merge commit are ancestors of
+current `origin/main`.
+
+## Forty-first Pull Request Evidence
+
+- Canonical hybrid search, GraphRAG search, citation/source content,
+  authorization-resource lookup, bounded Asset inspection, and embedding
+  profile resolution are adapter-facing interfaces rather than concrete types.
+- Full evidence-scope resolution remains package-private and its internal scope
+  value does not leak through the API inspection contract.
+- Their default/JDBC implementations are distinct package-private classes, so
+  API and Worker cannot import them. Existing method shapes and domain values
+  remain unchanged.
+- The API selects canonical or GraphRAG through those interfaces. The production
+  Worker excludes the explicit canonical-query configuration, while Worker
+  integration tests opt into that same configuration when exercising real
+  search behavior.
+- A failing-first structural test proves the seven adapter contracts are interfaces
+  and their seven implementation types are non-public.
+- Focused engine, content, scope, registry, API configuration/controller, and
+  Worker integration tests pass; full Core/API/Worker and terminating repository
+  gates follow before the PR is opened.
+- This is a code PR below 100 changed files. Retrieval remains open only for
+  root implementation/persistence internalization and its exact final closure.
+
+Local verification started with the seven-contract interface guard failing on
+the unchanged concrete classes in 28s. Core/API/Worker main and test compilation
+then passed in 27s. Focused engine, content, scope, registry, Modulith, API
+controller/configuration, API context, external-principal, admin-inspector, and
+Worker PostgreSQL integration slices passed. The combined full Core/API/Worker
+run completed 142 test classes with zero failures in about 5m43s. The docs
+operating-model check passed across 506 Markdown files and 8 mirrored domain
+pairs; all 41 release-policy tests passed on Node 24.15.0; and the terminating
+repository-wide `clean test` initially passed 99 tasks in 1m09s. Exact API and
+Worker ArchUnit dependency-surface guards were then added and passed in 57s; a
+fresh terminating `clean test` including those guards passed 108 tasks in
+5m18s. The mechanical audit found 41 changed paths, no migration, no empty file,
+no external import of Retrieval implementation/scope/store/candidate types, and
+a clean whitespace diff.
+
+After merging current `origin/main` at `0b5b0cfd`, the full Modulith verifier,
+both exact deployable dependency guards, and API engine-selection tests passed
+again in 48s. The documentation check still passed across 506 Markdown files
+and 8 mirrored domain pairs, and all 41 release-policy tests passed again on
+Node 24.15.0.
+
+CodeRabbit raised six inline findings. Five valid findings are fixed: evidence-
+scope unavailability retains its cause, citation integrity mismatch records a
+deny audit, duplicate canonical chunk rows collapse deterministically, all six
+GraphRAG telemetry emitters share one fail-safe guard, and the bounded Asset
+inspector independently rechecks relationship authorization plus model identity
+before canonical SQL. Four characterization tests failed first on the unchanged
+implementation and passed after the fixes. The focused Retrieval tests, full
+Modulith verifier, API admin integration, and exact API/Worker dependency guards
+then passed sequentially. The remaining UPSERT suggestion is rejected because
+the repository uses PostgreSQL's default Read Committed isolation: the
+`ON CONFLICT DO NOTHING` command may observe a concurrent uniqueness conflict,
+and the following repository `SELECT` starts a new command snapshot that sees
+the committed row; a no-op update would add writes and lock/trigger semantics
+without closing a real visibility gap.
+
+After the review-fix commits, the terminating sequential repository-wide
+`clean test` passed all 99 tasks in 4m44s. The documentation operating-model
+check passed for 506 Markdown files and 8 mirrored domain pairs, and all 41
+release-policy tests passed again on exact Node 24.15.0. The PR diff remains 43
+changed paths.
+
+PR #266 merged as `fa226b0d676116292c662e204d30cf0ce326a1bc`
+after all required CI checks passed. Five valid CodeRabbit findings were fixed,
+the PostgreSQL UPSERT false positive was rejected with current Read Committed
+documentation, and all six inline threads were answered and resolved. Both the
+reviewed head `45518b1b940cbcb90e8b4611d06e4c456d75225a` and merge commit are
+ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Retrieval is a closed nested module with an exact allowlist for AI,
+  authorization, its owner queries/named interfaces, Organization, Permission,
+  and shared contracts.
+- The public root API is pinned exactly. The embedding entity/repository,
+  catalog implementation, evidence-scope exception and value, canonical store
+  and retrieval scope, and secure candidate are package-private.
+- Existing adapter contracts and their default/JDBC implementations retain the
+  visibility established in PR #266; no endpoint, query, persistence, ranking,
+  or authorization behavior changes.
+- Failing-first structural tests prove both the previously open module and the
+  leaked public root types. `modules.verify()` enforces the closed boundary.
+- Focused registry, catalog, scope, hybrid, GraphRAG, content, verifier,
+  PostgreSQL external-principal, API admin/configuration/boundary, and Worker
+  boundary tests pass.
+- This code PR remains below 100 changed files and completes Retrieval closure
+  before the next Knowledge/Asset Registry slice begins.
+
+Local verification started with the closed-module and exact-public-root tests
+failing against the unchanged `Type.OPEN` module and seven leaked persistence/
+runtime types. After internalization, both tests and `modules.verify()` passed
+in 26s. The complete focused Core/API/Worker slice then passed in 4m06s,
+including Spring Data/Hibernate wiring for the package-private embedding entity
+and repository. The documentation operating-model check passed for 506
+Markdown files and 8 mirrored domain pairs, and all 41 release-policy tests
+passed on exact Node 24.15.0. The terminating sequential repository-wide
+`clean test` passed all 99 tasks in 2m10s. The pre-stage diff contains 14
+changed paths.
+
+## Asset Registry Kernel Sequence
+
+Independent review rejected the initial split between an Asset kernel and an
+authorization persistence module. Role, outbox, lease completion, and readiness
+belong with Asset in one transactional kernel; the authorization module is the
+external OpenFGA projection edge only.
+
+- [ ] PR 1: move the six cross-module Asset vocabulary/error types to the exact
+  parent-owned `assetregistry::api` named interface; keep Kernel absent and stay
+  at or below 70 changed paths.
+- [ ] PR 2: introduce and immediately close Kernel; move the canonical
+  Asset/role/outbox ledger, narrow the identity repository, extract the parent
+  catalog read model, add parent draft locking, and implement parent-facing
+  `assetregistry::api` command/query contracts; stay at or below 60 changed
+  paths.
+- [ ] PR 3: move projection and convergence entry points, enforce transaction
+  propagation `NEVER` around OpenFGA calls, close
+  `assetregistry.authorization`, and update Worker wiring; stay at or below 20
+  changed paths.
+- [ ] Run the focused Core/API/Worker gates, docs and release-policy checks,
+  static analysis, and a terminating clean repository test for every slice.
+- [ ] Merge each code-bearing PR through CI and CodeRabbit before starting the
+  next branch. Release only after all remaining Asset Registry slices and the
+  full increment are complete.
+
+PR 1 characterization first proved that a closed Kernel containing public
+vocabulary was insufficient: the two focused tests passed while the full
+Modulith verifier rejected Assistant's direct nested-module reference. The
+independent reviewer amended the placement to the exact parent-owned
+`assetregistry::api` named interface; the corrected named-interface test and
+`modules.verify()` then passed in 10s. Full Core and API suites completed 621
+tests with zero failures. Documentation checks and 23 release-policy tests
+passed on exact Node 24.15.0, and the terminating repository-wide `clean test`
+passed 99 tasks in 2m07s. JetBrains semantic inspection was unavailable, so the
+documented Gradle/mechanical fallback was used. The complete PR remains at 68
+changed paths.

@@ -7,9 +7,12 @@ import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
+import com.orgmemory.core.authorization.BatchAuthorizationResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.CurrentActor;
@@ -36,6 +39,60 @@ class KnowledgeEvidenceScopeResolverTests {
     private static final UUID ASSET_ID =
             UUID.fromString("71000000-0000-0000-0000-000000000004");
     private static final String MODEL_ID = "model-v1";
+
+    @Test
+    void assetInspectionRequiresRelationshipAuthorizationBeforeCanonicalVisibility() {
+        KnowledgeAccessSubjectQuery subjects = mock(KnowledgeAccessSubjectQuery.class);
+        RelationshipAuthorizationSetPort authorization =
+                mock(RelationshipAuthorizationSetPort.class);
+        SecureKnowledgeRetrievalStore canonical =
+                mock(SecureKnowledgeRetrievalStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<Clock> clocks = mock(ObjectProvider.class);
+        CurrentActor actor = new CurrentActor(
+                USER_ID,
+                ORGANIZATION_ID,
+                null,
+                "User",
+                "user@example.test");
+        ResourceRef asset = ResourceRef.of(
+                ORGANIZATION_ID,
+                "knowledge_asset",
+                ASSET_ID);
+        when(subjects.findActive(ORGANIZATION_ID, USER_ID))
+                .thenReturn(Optional.of(new KnowledgeAccessSubject(
+                        USER_ID,
+                        ORGANIZATION_ID,
+                        null,
+                        false)));
+        when(authorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        java.util.Map.of(
+                                asset,
+                                AuthorizationDecision.deny(
+                                        "RELATIONSHIP_DENIED",
+                                        MODEL_ID)),
+                        MODEL_ID));
+
+        var resolver = new KnowledgeEvidenceScopeResolver(
+                subjects,
+                authorization,
+                mock(KnowledgeAssetRetrievalQuery.class),
+                mock(SourceAclQuery.class),
+                canonical,
+                new KnowledgeRetrievalProperties(null, null, null, null),
+                clocks);
+
+        KnowledgeAssetAccessInspector.AssetInspection result = resolver.inspectAsset(
+                actor,
+                ASSET_ID,
+                MODEL_ID,
+                Instant.parse("2026-08-02T00:00:00Z"));
+
+        assertEquals(com.orgmemory.core.authorization.AccessState.DENIED, result.state());
+        assertEquals("RELATIONSHIP_DENIED", result.reasonCode());
+        verifyNoInteractions(canonical);
+    }
 
     @Test
     void administratorUsesOpenFgaAssetVisibilityWithoutImplicitExecutiveAccess() {

@@ -10,10 +10,11 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (fdf3cca4)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
+| The parent-owned `assetregistry::api` named interface exposes exactly the six cross-module vocabulary/error types, and the full module graph rejects invalid nested-module references | `ModulithVerificationTests#assetRegistryApiIsAnExactExplicitNamedInterface`, `ModulithVerificationTests#modulesAreWellFormed` | covered |
 | Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
 | Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
 | Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |

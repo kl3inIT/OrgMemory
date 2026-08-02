@@ -1,15 +1,30 @@
 package com.orgmemory.core;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
+import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector;
+import com.orgmemory.core.knowledge.retrieval.SourceContentService;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import java.lang.reflect.Modifier;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
@@ -23,6 +38,28 @@ class ModulithVerificationTests {
     @Test
     void modulesAreWellFormed() {
         modules.verify();
+    }
+
+    @Test
+    void retrievalAdapterContractsAreInterfaces() throws ClassNotFoundException {
+        assertTrue(AuthorizationResourceDirectory.class.isInterface());
+        assertTrue(CanonicalHybridKnowledgeSearch.class.isInterface());
+        assertTrue(CitationContentService.class.isInterface());
+        assertTrue(EmbeddingProfileRegistry.class.isInterface());
+        assertTrue(GraphRagKnowledgeRetrievalService.class.isInterface());
+        assertTrue(KnowledgeAssetAccessInspector.class.isInterface());
+        assertTrue(SourceContentService.class.isInterface());
+
+        for (String implementation : Set.of(
+                "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
+                "com.orgmemory.core.knowledge.retrieval.DefaultCanonicalHybridKnowledgeSearch",
+                "com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService",
+                "com.orgmemory.core.knowledge.retrieval.DefaultGraphRagKnowledgeRetrievalService",
+                "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                "com.orgmemory.core.knowledge.retrieval.DefaultSourceContentService",
+                "com.orgmemory.core.knowledge.retrieval.JdbcEmbeddingProfileRegistry")) {
+            assertFalse(Modifier.isPublic(Class.forName(implementation).getModifiers()));
+        }
     }
 
     @Test
@@ -400,12 +437,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedTypes);
     }
 
@@ -613,8 +647,10 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
                         "com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand",
                         "com.orgmemory.core.knowledge.sourceledger.PublishSourceRevisionCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.ReadyManualUploadRef",
                         "com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage",
                         "com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRetirementPort",
                         "com.orgmemory.core.knowledge.sourceledger.SourcePublicationService"),
                 consumedTypes);
     }
@@ -691,10 +727,71 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void knowledgeRetrievalIsAnOpenNestedModuleDuringTheRefactor() {
+    void knowledgeRetrievalIsAClosedNestedModule() {
         var retrieval = modules.getModuleByName("knowledge.retrieval").orElseThrow();
+        var allowedDependencies = retrieval.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
 
-        assertTrue(retrieval.isOpen());
+        assertFalse(retrieval.isOpen());
+        assertEquals(
+                Set.of(
+                        "ai",
+                        "authorization",
+                        "knowledge.acl",
+                        "knowledge.asset",
+                        "knowledge::catalog",
+                        "knowledge::search",
+                        "knowledge.sourceledger",
+                        "knowledge.space",
+                        "knowledge::storage",
+                        "organization",
+                        "permission",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
+    }
+
+    @Test
+    void knowledgeRetrievalExposesOnlyIntentionalRootApi() {
+        var publicRootTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.knowledge.retrieval")
+                .stream()
+                .filter(type -> type.getPackageName().equals(
+                        "com.orgmemory.core.knowledge.retrieval"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch",
+                        "com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration",
+                        "com.orgmemory.core.knowledge.retrieval.CitationContent",
+                        "com.orgmemory.core.knowledge.retrieval.CitationContentService",
+                        "com.orgmemory.core.knowledge.retrieval.CitationNotFoundException",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
+                        "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy",
+                        "com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy$RerankPolicy",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector$AssetInspection",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties",
+                        "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbedding",
+                        "com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort",
+                        "com.orgmemory.core.knowledge.retrieval.SourceContent",
+                        "com.orgmemory.core.knowledge.retrieval.SourceContentService",
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
+                publicRootTypes);
     }
 
     @Test
@@ -717,6 +814,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
                         "com.orgmemory.core.knowledge.graph.ClaimedGraphIndex",
+                        "com.orgmemory.core.knowledge.graph.GraphEvidenceScopeAccess",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration",
@@ -727,12 +825,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedInternalTypes);
     }
 
@@ -770,7 +865,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
@@ -778,7 +873,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
-                        "com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultGraphRagKnowledgeRetrievalService",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
@@ -835,7 +930,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver"),
                 consumers);
@@ -885,7 +980,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.SecureSourceVisibilityAdapter"),
                 consumers);
@@ -927,7 +1022,7 @@ class ModulithVerificationTests {
                 .collect(TreeSet::new, Set::add, Set::addAll);
 
         assertEquals(
-                Set.of("com.orgmemory.core.knowledge.retrieval.CitationContentService"),
+                Set.of("com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService"),
                 consumers);
     }
 
@@ -1052,5 +1147,24 @@ class ModulithVerificationTests {
                 .resideInAPackage("com.orgmemory.core.knowledge.asset..")
                 .check(new ClassFileImporter()
                         .importPackages("com.orgmemory.core.assetregistry"));
+    }
+
+    @Test
+    void assetRegistryApiIsAnExactExplicitNamedInterface() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+        var api = assetRegistry.getNamedInterfaces().getByName("api").orElseThrow();
+        var exposedTypes = api.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        AssetConflictException.class.getName(),
+                        AssetNotFoundException.class.getName(),
+                        AssetPortfolioState.class.getName(),
+                        AssetRole.class.getName(),
+                        AssetType.class.getName(),
+                        AssetUnavailableException.class.getName()),
+                exposedTypes);
     }
 }

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.api;
 
 import com.orgmemory.core.shared.error.BusinessErrorCategory;
 import com.orgmemory.core.shared.error.BusinessErrorExposure;
@@ -10,7 +10,7 @@ public class AssetNotFoundException extends BusinessException {
         this(null);
     }
 
-    AssetNotFoundException(Throwable cause) {
+    public AssetNotFoundException(Throwable cause) {
         super(
                 BusinessErrorCategory.NOT_FOUND,
                 "knowledge.resource-not-available",

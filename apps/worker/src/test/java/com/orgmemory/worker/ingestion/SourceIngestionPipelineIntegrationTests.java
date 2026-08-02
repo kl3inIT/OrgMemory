@@ -33,6 +33,7 @@ import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectWriteRequest;
@@ -86,7 +87,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 })
 @Import({
         SourceIngestionPipelineIntegrationTests.UploadTestConfiguration.class,
-        CanonicalHybridKnowledgeSearch.class
+        CanonicalHybridKnowledgeSearchConfiguration.class
 })
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
