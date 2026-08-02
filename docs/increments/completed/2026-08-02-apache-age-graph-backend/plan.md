@@ -53,7 +53,7 @@
 ## 5. Delivery
 
 - [x] Sync current `origin/main` and preserve logical commits.
-- [ ] Push the branch and open a conventional PR.
+- [x] Push the branch and open conventional PR #271.
 - [ ] Resolve all actionable review findings, pass required CI, merge, and verify
   post-merge delivery impact.
 - [ ] Record the verified decision, evidence, risks, and next step in Northstar.
