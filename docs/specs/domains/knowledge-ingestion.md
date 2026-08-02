@@ -3,10 +3,11 @@
 Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/source`,
+`apps/web/src/features/sources`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-01-connector-polling-driver (fc6995cf)`.
+Reconciled: `2026-08-02-document-view-delete (570b1fec)`.
 
 ## Current Behavior
 
@@ -17,6 +18,26 @@ OpenFGA `ListObjects(can_create_asset)`, and the mutation rechecks
 behind the provider-neutral object-storage contract. PostgreSQL persists canonical
 `SourceObject`, `SourceRevision`, `EvidenceBlob`, and leased durable ingestion
 jobs with the target Knowledge Space identity.
+
+The Documents list uses Source Object ids as its stable browser identity. A
+visible row exposes separate `contentAvailable` and `deletionAllowed` hints;
+each action rechecks authorization server-side. View always opens governed
+metadata, while original bytes are available only for the exact current READY
+revision whose active Knowledge Asset remains inside the caller's canonical
+evidence scope. Delivery verifies evidence hash and length, audits allow/deny,
+uses `no-store` and `nosniff`, and applies a closed filename allowlist: PDF,
+plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
+HTML, SVG, XML, JSON, unknown, or mismatched types are download-only.
+
+Delete is an idempotent governed retirement command, not physical erasure. It
+is available only for fully published READY native uploads and rechecks
+`knowledge_asset can_delete`; connector and pre-publication states stay
+non-deletable. The command retires the active asset version, archives its stable
+Knowledge Asset and Source Object, and invalidates model/retrieval caches.
+Canonical retrieval and graph evidence scopes require the non-archived asset,
+ACTIVE version, and ACTIVE source, so retained rows and tuples stop serving
+immediately while physical evidence continues under organization retention
+policy. There is no document Reindex action.
 
 The ingestion and graph-indexing schedulers process a bounded burst of queued
 jobs per fixed-delay tick — up to a configured per-queue job cap within a

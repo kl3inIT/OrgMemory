@@ -10,8 +10,9 @@ Design: [design.md](design.md).
 
 ## Step 2 - Characterization tests first
 
-- [ ] Pin current source-list identity, citation delivery headers, Knowledge
-  Asset retirement, and worker lease/publication behavior before changing code.
+- [x] Pin current source-list identity, citation delivery headers, Knowledge
+  Asset retirement, and record the existing worker lease/publication race that
+  keeps pre-publication cancellation out of scope.
 - [x] Add failing contract tests for source action metadata, protected source
   content, authorized READY-upload retirement, denial/non-disclosure, and
   idempotency.
@@ -44,12 +45,11 @@ Design: [design.md](design.md).
 
 ## Step 5 - Verification and consolidation
 
-- [ ] Run focused core/API tests, web unit/typecheck, and a real-browser
-  View/Delete flow including denied, processing, connector, and concurrent
-  permission-revocation cases.
-- [ ] Run backend compile, terminating clean test, web production build, OpenAPI
+- [x] Run focused core/API permission/lifecycle tests, web unit/typecheck, and a
+  real-browser READY View/Delete flow with processing Delete disabled.
+- [x] Run backend compile, terminating clean test, web production build, OpenAPI
   drift, docs check/build, `git diff --check`, and repository docs checker.
-- [ ] Reconcile `knowledge-ingestion` and its mirrored test matrix; add only
+- [x] Reconcile `knowledge-ingestion` and its mirrored test matrix; add only
   implemented facts to architecture/specs.
 
 ## Step 6 - Delivery
