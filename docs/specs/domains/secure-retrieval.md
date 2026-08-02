@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (6a8e4224)`.
+Reconciled: `2026-08-02-knowledge-space-audience-main-sync (405fa212)`.
 
 ## Current Behavior
 
@@ -26,6 +26,15 @@ Only evidence that fits the model-context budget is exposed as a citation, and
 answer tokens stream without a post-generation authorization replay. A
 revocation applies to every new turn; an already-started turn may finish under
 its request snapshot and is bounded by the configured two-minute turn timeout.
+
+The same canonical SQL intersects OpenFGA eligibility with the Space's
+persisted audience mode. Organization mode admits organization members;
+department mode requires the current persisted actor department to equal the
+Space owner; restricted custom mode requires a matching user or department row
+in the PostgreSQL audience ledger. OpenFGA remains necessary, but a stray tuple
+that contradicts the persisted mode is never sufficient. This Space gate is
+then intersected with Source ACL, classification, publication, lifecycle,
+tenant, and evidence-integrity gates; no Space mode overrides them.
 
 Parent Knowledge exposes the permission-aware query, immutable evidence,
 secure result, and verified grounding through the exact `knowledge::search`
@@ -126,3 +135,4 @@ independent ACL. Multi-source derived-permission intersection remains open.
 - [0003](../../decisions/0003-postgresql-ledger-openfga-authorization.md)
 - [0009](../../decisions/0009-dynamic-source-acl-ceiling.md)
 - [0012](../../decisions/0012-stable-knowledge-assets-and-immutable-versions.md)
+- [0029](../../decisions/0029-typed-knowledge-space-audiences.md)

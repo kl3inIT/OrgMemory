@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, FolderPlus, X } from "lucide-react"
+import { Building2, ChevronDown, FolderPlus, LockKeyhole, Users, X } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 
@@ -16,18 +16,26 @@ import {
   invalidateAdminData,
   organizationContextQueryOptions,
 } from "@/features/admin/admin-queries"
+import {
+  audienceLabel,
+  isBuiltInAudience,
+  organizationRole,
+  parseSpaceSubject,
+  roleLabel,
+  subjectLabel,
+} from "@/features/admin/admin-space-audience"
 import { AdminEmpty, AdminPage, AdminSection, AdminStats } from "@/features/admin/components/admin-page"
 import {
   createAdminKnowledgeSpaceMutation,
   grantAdminKnowledgeSpaceAccessMutation,
   listAdminKnowledgeSpacesOptions,
-  listAdminRolesOptions,
   listAdminUsersOptions,
   revokeAdminKnowledgeSpaceAccessMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminKnowledgeSpaceResponse } from "@/lib/hey-api"
+import { cn } from "@/lib/utils"
 
-/** What each grant lets its holder do. Ordered from least to most, which is how they nest. */
+/** Operational grants are intentionally independent from the viewer audience. */
 const RELATIONS = [
   { value: "viewer", label: "Can read", hint: "Reads what the source system also allows" },
   { value: "contributor", label: "Can add", hint: "Adds knowledge to this space" },
@@ -44,6 +52,28 @@ const SUBJECT_LABELS: Record<string, string> = {
 }
 
 type SubjectKind = "ORGANIZATION" | "DEPARTMENT" | "DEPARTMENT_MANAGERS" | "ROLE" | "USER"
+type AudienceMode = "ORGANIZATION" | "DEPARTMENT" | "RESTRICTED_CUSTOM"
+
+const AUDIENCE_MODES = [
+  {
+    value: "ORGANIZATION",
+    label: "Organization",
+    description: "Every current member is eligible. Source permissions still limit each document.",
+    icon: Building2,
+  },
+  {
+    value: "DEPARTMENT",
+    label: "Department",
+    description: "Only current members of one department are eligible.",
+    icon: Users,
+  },
+  {
+    value: "RESTRICTED_CUSTOM",
+    label: "Restricted custom",
+    description: "Starts closed. Add approved people or departments as readers.",
+    icon: LockKeyhole,
+  },
+] as const
 
 /** Which shapes name a department, and so need one picked. */
 const DEPARTMENT_KINDS: SubjectKind[] = ["DEPARTMENT", "DEPARTMENT_MANAGERS"]
@@ -53,49 +83,12 @@ type Directory = {
   users: Map<string, string>
   /** Relation to the subject shapes the authorization model accepts for it. */
   grantOptions: Map<string, SubjectKind[]>
+  /** Relation to the named organization roles the model accepts for it. */
+  grantRoles: Map<string, string[]>
 }
 
 function relationLabel(relation: string) {
   return RELATIONS.find((entry) => entry.value === relation)?.label ?? relation
-}
-
-/**
- * A stored grant reads back as an OpenFGA reference. Rendering that raw would put an id in front
- * of somebody deciding who sees a body of knowledge, so each known shape resolves to the name the
- * administrator chose it by.
- *
- * <p>A reference that resolves to nothing falls back to the reference itself rather than a generic
- * word. A tuple naming a unit the directory does not list is real — the demo dataset contains one
- * — and "a department" would hide which, leaving somebody auditing access with a subject they
- * cannot look up. The id is the only useful thing left to show.
- */
-function parseSubject(subject: string) {
-  const colon = subject.indexOf(":")
-  if (colon < 0) return { type: "", id: subject, relation: undefined as string | undefined }
-  const rest = subject.slice(colon + 1)
-  const hash = rest.indexOf("#")
-  return {
-    type: subject.slice(0, colon),
-    id: hash < 0 ? rest : rest.slice(0, hash),
-    relation: hash < 0 ? undefined : rest.slice(hash + 1),
-  }
-}
-
-function subjectLabel(subject: string, directory: Directory) {
-  const { type, id, relation } = parseSubject(subject)
-
-  if (type === "organization" && relation === "member") return "Everyone in the organization"
-  if (type === "organizational_unit" && relation === "member") {
-    const department = directory.departments.get(id)
-    return department ?? subject
-  }
-  if (type === "organizational_unit" && relation === "manager") {
-    const department = directory.departments.get(id)
-    return department ? `${department} · managers` : subject
-  }
-  if (type === "role") return `Role · ${id}`
-  if (type === "user") return directory.users.get(id) ?? subject
-  return subject
 }
 
 /**
@@ -107,11 +100,15 @@ function subjectLabel(subject: string, directory: Directory) {
  * change nothing. A grant this cannot express gets no revoke control instead.
  */
 function revocationFor(subject: string): { kind: SubjectKind; subjectId?: string; role?: string } | null {
-  const { type, id, relation } = parseSubject(subject)
+  const { type, id, relation } = parseSpaceSubject(subject)
 
   if (type === "user" && relation === undefined) return { kind: "USER", subjectId: id }
   if (type === "role" && relation === "assignee") return { kind: "ROLE", role: id }
   if (type === "organization" && relation === "member") return { kind: "ORGANIZATION" }
+  const namedRole = type === "organization" ? organizationRole(relation) : undefined
+  if (namedRole) {
+    return { kind: "ROLE", role: namedRole }
+  }
   if (type === "organizational_unit" && relation === "member") {
     return { kind: "DEPARTMENT", subjectId: id }
   }
@@ -126,19 +123,42 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
   const grant = useMutation(grantAdminKnowledgeSpaceAccessMutation())
   const revoke = useMutation(revokeAdminKnowledgeSpaceAccessMutation())
 
-  const [relation, setRelation] = useState<string>("viewer")
-  const [kind, setKind] = useState<SubjectKind>("ORGANIZATION")
+  const audienceIsManaged = space.audienceMode !== "RESTRICTED_CUSTOM"
+  const [relation, setRelation] = useState<string>(audienceIsManaged ? "contributor" : "viewer")
+  const [kind, setKind] = useState<SubjectKind>("DEPARTMENT")
   const [subjectId, setSubjectId] = useState("")
   const [role, setRole] = useState("")
 
   // The relation decides which subjects are even expressible, so it drives the second control
   // rather than the two being chosen independently and reconciled by a refusal.
   const allowedKinds = directory.grantOptions.get(relation) ?? []
+  const allowedRoles = directory.grantRoles.get(relation) ?? []
+  const availableRelations = audienceIsManaged
+    ? RELATIONS.filter((entry) => entry.value !== "viewer")
+    : RELATIONS
   const grants = space.grants ?? []
-  // Administrators can always reach a space they administer, so a space holding only those is not
-  // broken — but nobody it was created for can see it yet, and that is worth saying out loud.
-  // Every other relation reaches can_view through the model, so each one counts as a reader.
-  const readers = grants.filter((entry) => entry.relation !== "administrator")
+  const readers = grants.filter(
+    (entry) =>
+      entry.relation === "viewer" &&
+      entry.effective !== false &&
+      (space.audienceMode === "RESTRICTED_CUSTOM" ||
+        isBuiltInAudience(space, entry.subject ?? "")),
+  )
+  const builtInAudiencePresent = grants.some(
+    (entry) => entry.relation === "viewer" && isBuiltInAudience(space, entry.subject ?? ""),
+  )
+  const ineffectiveViewerPresent = grants.some(
+    (entry) => entry.relation === "viewer" && entry.effective === false,
+  )
+  const policyDrift =
+    space.grantsComplete !== false &&
+    (ineffectiveViewerPresent ||
+      (audienceIsManaged &&
+        (!builtInAudiencePresent ||
+          grants.some(
+            (entry) =>
+              entry.relation === "viewer" && !isBuiltInAudience(space, entry.subject ?? ""),
+          ))))
 
   async function addGrant() {
     try {
@@ -201,21 +221,18 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{space.name}</span>
             <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-              {space.key}
-              {space.departmentId
-                ? ` · ${directory.departments.get(space.departmentId) ?? "a department"}`
-                : " · whole organization"}
+              {audienceLabel(space, directory)} · Policy v{space.audienceVersion ?? 1}
             </span>
           </span>
           <span className="hidden items-center gap-2 sm:flex">
             {space.grantsComplete === false ? (
               <Badge variant="warning">Partial list</Badge>
+            ) : policyDrift ? (
+              <Badge variant="warning">Audience policy drift</Badge>
             ) : readers.length === 0 ? (
-              <Badge variant="warning">Nobody can read this yet</Badge>
+              <Badge variant="warning">Closed audience</Badge>
             ) : (
-              <Badge variant="secondary">
-                {grants.length} {grants.length === 1 ? "grant" : "grants"}
-              </Badge>
+              <Badge variant="secondary">{audienceLabel(space, directory)}</Badge>
             )}
           </span>
           <ChevronDown
@@ -239,6 +256,10 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
           <ul className="space-y-1.5">
             {grants.map((entry) => {
               const removal = revocationFor(entry.subject!)
+              const policyManaged =
+                entry.relation === "viewer" && isBuiltInAudience(space, entry.subject!)
+              const conflictsWithPolicy =
+                entry.relation === "viewer" && entry.effective === false
               return (
                 <li
                   key={`${entry.relation}:${entry.subject}`}
@@ -248,7 +269,23 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
                   <span className="min-w-0 flex-1 truncate text-sm">
                     {subjectLabel(entry.subject!, directory)}
                   </span>
-                  {removal ? (
+                  {conflictsWithPolicy ? (
+                    <span className="flex shrink-0 items-center gap-1 text-xs text-warning-foreground">
+                      Not effective · remove drift
+                      {removal ? (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          aria-label={`Remove ineffective ${relationLabel(entry.relation!)} grant for ${subjectLabel(entry.subject!, directory)}`}
+                          disabled={revoke.isPending}
+                          onClick={() => void removeGrant(entry.relation!, removal)}
+                        >
+                          <X className="size-4" aria-hidden="true" />
+                        </Button>
+                      ) : null}
+                    </span>
+                  ) : removal && !policyManaged ? (
                     <Button
                       type="button"
                       size="icon"
@@ -261,7 +298,7 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
                     </Button>
                   ) : (
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      Written at bootstrap
+                      {policyManaged ? "Managed by audience policy" : "Managed outside this form"}
                     </span>
                   )}
                 </li>
@@ -282,7 +319,7 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {RELATIONS.map((entry) => (
+              {availableRelations.map((entry) => (
                 <SelectItem key={entry.value} value={entry.value}>
                   {entry.label}
                 </SelectItem>
@@ -341,13 +378,18 @@ function SpaceRow({ space, directory }: { space: AdminKnowledgeSpaceResponse; di
           ) : null}
 
           {kind === "ROLE" ? (
-            <Input
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-              placeholder="organization-admin"
-              aria-label="Role name"
-              className="w-56"
-            />
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger className="w-56" aria-label="Organization role">
+                <SelectValue placeholder="Choose a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {allowedRoles.map((entry) => (
+                  <SelectItem key={entry} value={entry}>
+                    {roleLabel(entry)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : null}
 
           <Button type="submit" variant="outline" disabled={!subjectIsChosen || grant.isPending}>
@@ -372,12 +414,12 @@ export function AdminSpacesPage() {
   const spaces = useQuery(adminQuery(listAdminKnowledgeSpacesOptions()))
   const context = useQuery(organizationContextQueryOptions())
   const users = useQuery(adminQuery(listAdminUsersOptions()))
-  const roles = useQuery(adminQuery(listAdminRolesOptions()))
   const grantOptions = useQuery(adminKnowledgeSpaceGrantOptionsQueryOptions())
   const create = useMutation(createAdminKnowledgeSpaceMutation())
 
   const [name, setName] = useState("")
-  const [departmentId, setDepartmentId] = useState("ORGANIZATION")
+  const [audienceMode, setAudienceMode] = useState<AudienceMode>("DEPARTMENT")
+  const [departmentId, setDepartmentId] = useState("")
 
   if (spaces.isPending) {
     return <LoadingState label="Loading Knowledge Spaces" className="min-h-full flex-1" />
@@ -400,18 +442,27 @@ export function AdminSpacesPage() {
     departments: new Map(
       (context.data?.departments ?? []).map((department) => [department.id!, department.name!]),
     ),
-    users: new Map((users.data ?? []).map((user) => [user.id!, user.name || user.email || user.id!])),
+    users: new Map(
+      (users.data ?? []).map((user) => [user.id!, user.name || user.email || "Unnamed person"]),
+    ),
     grantOptions: new Map(
       (grantOptions.data ?? []).map((option) => [
         option.relation!,
         (option.kinds ?? []) as SubjectKind[],
       ]),
     ),
+    grantRoles: new Map(
+      (grantOptions.data ?? []).map((option) => [option.relation!, option.roles ?? []]),
+    ),
   }
 
   const rows = spaces.data ?? []
   const withoutReaders = rows.filter(
-    (space) => (space.grants ?? []).filter((grant) => grant.relation !== "administrator").length === 0,
+    (space) =>
+      space.audienceMode === "RESTRICTED_CUSTOM" &&
+      (space.grants ?? []).filter(
+        (grant) => grant.relation === "viewer" && grant.effective !== false,
+      ).length === 0,
   ).length
 
   async function createSpace() {
@@ -419,14 +470,19 @@ export function AdminSpacesPage() {
       const created = await create.mutateAsync({
         body: {
           name,
-          departmentId: departmentId === "ORGANIZATION" ? undefined : departmentId,
+          audienceMode,
+          departmentId: audienceMode === "DEPARTMENT" ? departmentId : undefined,
         },
       })
       setName("")
-      setDepartmentId("ORGANIZATION")
+      setAudienceMode("DEPARTMENT")
+      setDepartmentId("")
       await invalidateAdminData(queryClient)
       toast.success(`${created.name} was created`, {
-        description: "Nobody can read it until you grant access below.",
+        description:
+          audienceMode === "RESTRICTED_CUSTOM"
+            ? "This Space starts closed. Add explicit viewers below."
+            : "Its built-in audience is active; source permissions still cap every document.",
       })
     } catch {
       toast.error("That space could not be created", {
@@ -438,57 +494,110 @@ export function AdminSpacesPage() {
   return (
     <AdminPage
       title="Knowledge Spaces"
-      description="A space is one body of knowledge: who it serves, and who answers for it. Granting a space decides who may reach what lands in it — the source system still caps every read, so a grant here can never reveal a document Slack or Drive would refuse."
+      description="Choose one durable audience promise for each body of knowledge. A Space makes someone eligible; source permissions still decide which documents that person may read."
     >
       <AdminStats
         stats={[
           { label: "Spaces", value: rows.length },
-          { label: "Scoped to a department", value: rows.filter((space) => space.departmentId).length },
           {
-            label: "Nobody can read yet",
-            value: withoutReaders,
-            hint: "Only their administrators can reach these",
+            label: "Department audiences",
+            value: rows.filter((space) => space.audienceMode === "DEPARTMENT").length,
           },
-          { label: "Roles available to grant", value: roles.data?.roles?.length ?? 0 },
+          {
+            label: "Closed custom audiences",
+            value: withoutReaders,
+            hint: "No viewer has been approved yet",
+          },
+          {
+            label: "Grantable role policies",
+            value: new Set((grantOptions.data ?? []).flatMap((option) => option.roles ?? [])).size,
+          },
         ]}
       />
 
       <AdminSection title="Create a space">
         <form
-          className="flex flex-wrap items-end gap-2 p-4"
+          className="space-y-5 p-4"
           onSubmit={(event) => {
             event.preventDefault()
             void createSpace()
           }}
         >
-          <Input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Sales Knowledge"
-            aria-label="Knowledge Space name"
-            className="min-w-[260px] flex-1"
-          />
-          <Select value={departmentId} onValueChange={setDepartmentId}>
-            <SelectTrigger className="w-56" aria-label="Who this space belongs to">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ORGANIZATION">Whole organization</SelectItem>
-              {[...directory.departments].map(([id, label]) => (
-                <SelectItem key={id} value={id}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button type="submit" disabled={!name.trim() || create.isPending}>
-            <FolderPlus className="size-4" aria-hidden="true" />
-            Create
-          </Button>
+          <div className="flex flex-wrap items-end gap-3">
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Sales Knowledge"
+              aria-label="Knowledge Space name"
+              className="min-w-[260px] flex-1"
+            />
+            {audienceMode === "DEPARTMENT" ? (
+              <Select value={departmentId} onValueChange={setDepartmentId}>
+                <SelectTrigger className="w-64" aria-label="Owning department">
+                  <SelectValue placeholder="Choose the department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[...directory.departments].map(([id, label]) => (
+                    <SelectItem key={id} value={id}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-3" role="radiogroup" aria-label="Space audience">
+            {AUDIENCE_MODES.map((mode) => {
+              const Icon = mode.icon
+              const selected = audienceMode === mode.value
+              return (
+                <button
+                  key={mode.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={cn(
+                    "rounded-xl border p-3 text-left outline-none transition-colors",
+                    "focus-visible:ring-2 focus-visible:ring-focus-ring",
+                    selected
+                      ? "border-primary bg-primary/5"
+                      : "border-border-subtle bg-surface-raised hover:bg-surface-subtle",
+                  )}
+                  onClick={() => {
+                    setAudienceMode(mode.value)
+                    if (mode.value !== "DEPARTMENT") setDepartmentId("")
+                  }}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className="size-4" aria-hidden="true" />
+                    {mode.label}
+                  </span>
+                  <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">
+                    {mode.description}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={
+                !name.trim() ||
+                create.isPending ||
+                (audienceMode === "DEPARTMENT" && !departmentId)
+              }
+            >
+              <FolderPlus className="size-4" aria-hidden="true" />
+              Create Space
+            </Button>
+          </div>
         </form>
         <p className="border-t border-border-subtle px-4 py-3 text-xs text-muted-foreground">
-          The key is derived from the name and never changes, so a later rename keeps every existing
-          reference working.
+          Audience mode is fixed at creation. Changing it later requires a governed impact review;
+          ordinary grants cannot silently widen an organization or department audience.
         </p>
       </AdminSection>
 

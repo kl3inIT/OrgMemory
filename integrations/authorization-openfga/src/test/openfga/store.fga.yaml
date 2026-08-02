@@ -18,6 +18,15 @@ tuples:
   - user: user:priya
     relation: knowledge_curator
     object: organization:acme
+  - user: user:operator
+    relation: member
+    object: organization:acme
+  - user: user:author
+    relation: member
+    object: organization:acme
+  - user: user:publisher
+    relation: member
+    object: organization:acme
 
   - user: user:evelyn
     relation: knowledge_reader
@@ -80,6 +89,15 @@ tuples:
     object: knowledge_space:executive
   - user: user:evelyn
     relation: viewer
+    object: knowledge_space:executive
+  - user: user:operator
+    relation: administrator
+    object: knowledge_space:executive
+  - user: user:author
+    relation: contributor
+    object: knowledge_space:executive
+  - user: user:publisher
+    relation: reviewer
     object: knowledge_space:executive
 
   - user: knowledge_space:company
@@ -273,6 +291,45 @@ tests:
         object: knowledge_space:company
         assertions:
           can_create_asset: false
+      - user: user:operator
+        object: knowledge_space:executive
+        assertions:
+          can_manage_acl: true
+          can_publish: false
+          can_create_asset: false
+          can_view: false
+      - user: user:author
+        object: knowledge_space:executive
+        assertions:
+          can_manage_acl: false
+          can_publish: false
+          can_create_asset: true
+          can_view: false
+      - user: user:publisher
+        object: knowledge_space:executive
+        assertions:
+          can_manage_acl: false
+          can_publish: true
+          can_create_asset: false
+          can_view: false
+      - user: user:operator
+        object: knowledge_asset:financial-forecast
+        assertions:
+          can_manage_acl: true
+          can_publish: true
+          can_view: false
+      - user: user:author
+        object: knowledge_asset:financial-forecast
+        assertions:
+          can_manage_acl: false
+          can_publish: false
+          can_view: false
+      - user: user:publisher
+        object: knowledge_asset:financial-forecast
+        assertions:
+          can_manage_acl: false
+          can_publish: true
+          can_view: false
     list_objects:
       - user: user:laura
         type: knowledge_space
@@ -385,13 +442,13 @@ tests:
       - user: user:orgadmin
         object: asset:support-triage
         assertions:
-          can_manage_roles: true
-          can_edit: true
-          can_publish_skill: true
-          can_review: true
-          can_publish: true
-          can_withdraw: true
-          can_view: true
+          can_manage_roles: false
+          can_edit: false
+          can_publish_skill: false
+          can_review: false
+          can_publish: false
+          can_withdraw: false
+          can_view: false
     list_objects:
       - user: user:laura
         type: asset
