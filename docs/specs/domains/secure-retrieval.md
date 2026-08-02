@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
 
 ## Current Behavior
 
@@ -29,9 +29,13 @@ its request snapshot and is bounded by the configured two-minute turn timeout.
 
 Parent Knowledge exposes the permission-aware query, immutable evidence,
 secure result, and verified grounding through the exact `knowledge::search`
-named interface. Assistant and Asset Registry cross that interface; the open
-Retrieval nested module retains the concrete engines, authorization sequence,
-ranking, and persistence while its remaining adapter seams are closed.
+named interface. Assistant and Asset Registry cross that interface. API and
+Worker inject Retrieval interfaces for engine selection, citation/source
+opening, bounded single-Asset authorization inspection, and embedding-profile
+resolution. Full evidence-scope resolution and the default/JDBC implementations
+are package-private. The
+open Retrieval nested module retains authorization, ranking, and persistence
+while its remaining root implementation types are internalized before closure.
 Asset existence, active authorization-scope, and current catalog reads cross
 one Asset-owned query that keeps tenant and lifecycle predicates behind the
 closed Asset module; Retrieval imports neither Asset repository.

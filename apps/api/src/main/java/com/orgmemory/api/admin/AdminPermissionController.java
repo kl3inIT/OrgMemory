@@ -14,7 +14,7 @@ import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -64,7 +64,7 @@ class AdminPermissionController {
     private final AdminAccessGuard guard;
     private final AccessExplanationService explanations;
     private final AuthorizationResourceDirectory resources;
-    private final KnowledgeEvidenceScopeResolver evidenceScopes;
+    private final KnowledgeAssetAccessInspector evidenceScopes;
     private final KnowledgeAssetRepository assets;
     private final KnowledgeAssetVersionRepository versions;
     private final KnowledgeSpaceQuery spaces;
@@ -73,7 +73,7 @@ class AdminPermissionController {
             AdminAccessGuard guard,
             AccessExplanationService explanations,
             AuthorizationResourceDirectory resources,
-            KnowledgeEvidenceScopeResolver evidenceScopes,
+            KnowledgeAssetAccessInspector evidenceScopes,
             KnowledgeAssetRepository assets,
             KnowledgeAssetVersionRepository versions,
             KnowledgeSpaceQuery spaces) {
@@ -211,7 +211,7 @@ class AdminPermissionController {
             contentState = AccessState.UNKNOWN;
             contentReason = "NOT_EVALUATED_RELATIONSHIP_NOT_ALLOWED";
         } else {
-            KnowledgeEvidenceScopeResolver.AssetInspection content = evidenceScopes.inspectAsset(
+            KnowledgeAssetAccessInspector.AssetInspection content = evidenceScopes.inspectAsset(
                     subject,
                     assetId,
                     relationship.policyVersion(),

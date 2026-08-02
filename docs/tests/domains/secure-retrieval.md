@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
@@ -28,6 +28,7 @@ Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeR
 | Retrieval reloads active persisted department and Executive facts through Organization-owned queries and imports no Organization persistence or role types | `JpaKnowledgeAccessSubjectQueryTests`, `JpaOrganizationResourceQueryTests`, `ModulithVerificationTests#retrievalDoesNotDependOnOrganizationPersistenceOrRoleTypes`, `#retrievalOrganizationReadsUseOnlyOwnerQueries`, `SecureSourceVisibilityAdapterTests`, `KnowledgeRetrievalIntegrationTests` |
 | Citation opening consumes Source Ledger-owned immutable evidence without revision/blob persistence leakage, preserves typed unavailable audit reasons, and closes integrity-mismatched content before an allow audit | `SourceCitationEvidenceQueryTests`, `CitationContentServiceTests`, `ModulithVerificationTests#retrievalDoesNotDependOnSourceLedgerCitationPersistenceOrStatusTypes`, `#citationContentUsesTheSourceLedgerOwnerQuery` |
 | Graph exploration, export, and curation consume only Retrieval's verifier and immutable snapshot; unknown Spaces fail closed, rechecks carry only the requested Space's assets, and the verifier accepts only one exact current governing-evidence candidate | `CanonicalGraphEvidenceVerifierTests`, `KnowledgeGraphExplorerServiceTests`, `KnowledgeGraphExportServiceTests`, `KnowledgeGraphCurationServiceTests`, `ModulithVerificationTests#graphConsumesOnlyRetrievalGraphContracts` |
+| API and Worker adapter contracts are interfaces, bounded Asset inspection does not expose the full evidence scope, default/JDBC implementations cannot be imported, and each deployable pins its exact Retrieval dependency surface | `ModulithVerificationTests#retrievalAdapterContractsAreInterfaces`, `apps/api/.../RetrievalAdapterBoundaryTests`, `apps/worker/.../RetrievalAdapterBoundaryTests`, focused engine/content/scope/registry tests, API controller/configuration tests, Worker connector and ingestion integration tests |
 
 Request-boundary missing control role/incomplete actor returns `403`; generic
 resource `404` does not claim otherwise. Provider-backed evaluation,

@@ -169,9 +169,12 @@ evidence snapshot and exact current governing-evidence decision through the
 Retrieval-owned `GraphEvidenceVerifier`; Graph does not import Retrieval scope
 resolution, candidate, or store implementation types. Verified snapshots reject
 unknown Knowledge Spaces, and canonical evidence rechecks carry only the assets
-authorized for the requested Space. Retrieval remains
-explicitly open while its remaining sibling adapters are replaced by
-intentional APIs. The
+authorized for the requested Space. API and Worker inject interfaces for the
+canonical/GraphRAG engines, citation/source opening, authorization inspection,
+and embedding-profile resolution; full evidence-scope resolution plus the
+default and JDBC implementations are package-private. Retrieval remains explicitly open while
+its remaining concrete/persistence root types are internalized and its final
+dependency allowlist is proven. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

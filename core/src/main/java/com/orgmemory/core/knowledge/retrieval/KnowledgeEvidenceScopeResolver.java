@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * permission-aware retrieval, graph and citation use cases.
  */
 @Service
-public class KnowledgeEvidenceScopeResolver {
+class KnowledgeEvidenceScopeResolver implements KnowledgeAssetAccessInspector {
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
@@ -173,6 +173,7 @@ public class KnowledgeEvidenceScopeResolver {
      * relationship-authorized asset inspected by an audit viewer.
      */
     @Transactional(readOnly = true)
+    @Override
     public AssetInspection inspectAsset(
             CurrentActor actor,
             UUID assetId,
@@ -264,6 +265,4 @@ public class KnowledgeEvidenceScopeResolver {
                 policyVersion);
     }
 
-    public record AssetInspection(AccessState state, String reasonCode) {
-    }
 }

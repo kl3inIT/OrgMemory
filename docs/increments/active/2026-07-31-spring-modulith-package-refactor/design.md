@@ -230,6 +230,25 @@ queries and intentional adapter interfaces in separate code PRs below the
 documented security read model; this increment claims Java/domain/API closure,
 not datastore autonomy.
 
+## Retrieval Adapter Boundary
+
+The API and Worker retain engine selection and provider wiring, but they inject
+Retrieval contracts rather than implementation classes. The existing canonical
+hybrid, GraphRAG, citation/source opening, authorization-resource, bounded
+single-Asset inspection, and embedding-registry capabilities become interfaces
+with unchanged method shapes. Full evidence-scope resolution stays
+package-private so its internal scope model is not laundered into the API. The
+default or JDBC implementations use distinct package-private types. A public canonical-engine configuration is the explicit
+opt-in used by the API and by Worker integration tests; the production Worker
+excludes that configuration because it does not serve interactive queries.
+
+This is the adapter-interface slice already required by the independent
+Retrieval closure verdict, not a new policy or ownership decision. Query and
+embedding properties/value types remain intentional adapter configuration
+contracts. Retrieval stays open until the remaining root-package persistence
+and concrete types are internalized and the exact final dependency allowlist is
+verified.
+
 See
 [retrieval-closure-challenge-verdict.md](retrieval-closure-challenge-verdict.md)
 for reviewer availability, exact ownership, the counterattack, blocking

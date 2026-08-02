@@ -1215,7 +1215,7 @@ direct audit against the architecture verdict found no defect, review, inline
 comment, or review thread. Both the PR head `815640cd` and merge commit are
 ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Fortieth Pull Request Evidence
 
 - Retrieval owns one `GraphEvidenceVerifier` contract and immutable
   `VerifiedGraphEvidenceScope`; its package-private implementation alone may use
@@ -1284,3 +1284,46 @@ After a second main sync at `8bf800c6` brought the governed document-action
 Retrieval changes, the Graph/verifier classes plus full Modulith slice passed
 again in 51s. Documentation passed for 506 Markdown files and 8 mirrored domain
 pairs, and all 41 release-policy tests passed on Node 24.15.0.
+
+PR #263 merged as `7772104d9733b6cb8361693cce42b3521f8a37f1` after all
+required CI checks passed. CodeRabbit's fail-closed findings were fixed at head
+`0a0f0eaaaf9a512762bccf10009ca66332f4e10d`; all five inline threads were
+answered and resolved. Both the reviewed head and merge commit are ancestors of
+current `origin/main`.
+
+## Current Pull Request Gates
+
+- Canonical hybrid search, GraphRAG search, citation/source content,
+  authorization-resource lookup, bounded Asset inspection, and embedding
+  profile resolution are adapter-facing interfaces rather than concrete types.
+- Full evidence-scope resolution remains package-private and its internal scope
+  value does not leak through the API inspection contract.
+- Their default/JDBC implementations are distinct package-private classes, so
+  API and Worker cannot import them. Existing method shapes and domain values
+  remain unchanged.
+- The API selects canonical or GraphRAG through those interfaces. The production
+  Worker excludes the explicit canonical-query configuration, while Worker
+  integration tests opt into that same configuration when exercising real
+  search behavior.
+- A failing-first structural test proves the seven adapter contracts are interfaces
+  and their seven implementation types are non-public.
+- Focused engine, content, scope, registry, API configuration/controller, and
+  Worker integration tests pass; full Core/API/Worker and terminating repository
+  gates follow before the PR is opened.
+- This is a code PR below 100 changed files. Retrieval remains open only for
+  root implementation/persistence internalization and its exact final closure.
+
+Local verification started with the seven-contract interface guard failing on
+the unchanged concrete classes in 28s. Core/API/Worker main and test compilation
+then passed in 27s. Focused engine, content, scope, registry, Modulith, API
+controller/configuration, API context, external-principal, admin-inspector, and
+Worker PostgreSQL integration slices passed. The combined full Core/API/Worker
+run completed 142 test classes with zero failures in about 5m43s. The docs
+operating-model check passed across 506 Markdown files and 8 mirrored domain
+pairs; all 41 release-policy tests passed on Node 24.15.0; and the terminating
+repository-wide `clean test` initially passed 99 tasks in 1m09s. Exact API and
+Worker ArchUnit dependency-surface guards were then added and passed in 57s; a
+fresh terminating `clean test` including those guards passed 108 tasks in
+5m18s. The mechanical audit found 41 changed paths, no migration, no empty file,
+no external import of Retrieval implementation/scope/store/candidate types, and
+a clean whitespace diff.

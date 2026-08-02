@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
 
 ## Current Contract
 
@@ -29,6 +29,9 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
   reject an unverified Knowledge Space, and the canonical recheck is narrowed
   to the assets authorized for that exact Space.
 - `SECURE_MIX` is the product default. Strategy selection remains internal.
+- API engine selection consumes the GraphRAG engine interface; its concrete
+  Retrieval implementation is package-private and constructed by Retrieval's
+  conditional runtime configuration.
 - Query results preserve structured entity, relation, and chunk selections.
   Entity and relation descriptions retain their individual chunk evidence;
   they are never reduced to an authorization-free merged string.

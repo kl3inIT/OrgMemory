@@ -318,7 +318,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 new NeverRecheckedStore();
         GraphRagEventSink events = mock(GraphRagEventSink.class);
 
-        var service = new GraphRagKnowledgeRetrievalService(
+        var service = new DefaultGraphRagKnowledgeRetrievalService(
                 new KnowledgeSearchAuthorizationService(entry, audit),
                 scopes,
                 finalAuthorization,
@@ -941,7 +941,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         "text-embedding-3-large",
                         1536,
                         EmbeddingDistanceMetric.COSINE)));
-        return new GraphRagKnowledgeRetrievalService(
+        return new DefaultGraphRagKnowledgeRetrievalService(
                 new KnowledgeSearchAuthorizationService(entry, audit),
                 scopes,
                 finalAuthorization,

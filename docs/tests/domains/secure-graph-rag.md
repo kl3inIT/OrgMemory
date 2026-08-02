@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
 
 ## Automated
 
@@ -84,6 +84,10 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
   fallback telemetry. Multi-space tests additionally prove one preparation,
   bounded concurrent snapshot execution, deterministic collection, fail-closed
   multi-space reranking and hashed snapshot-stage telemetry.
+- The Modulith adapter-contract guard proves both GraphRAG and canonical engine
+  surfaces are interfaces and their default implementations are package-private;
+  the API and Worker exact dependency-surface guards prevent concrete imports,
+  and API Assistant configuration tests retain engine-selection behavior.
 - Keyword-cache tests prove exact hit/miss isolation across organization,
   language, query strategy, route and query, plus trusted-keyword bypass.
 - OpenTelemetry adapter tests prove the closed payload-free attribute set,

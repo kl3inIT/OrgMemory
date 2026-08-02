@@ -177,7 +177,7 @@ class CitationContentServiceTests {
         private final PermissionAuditService audit =
                 mock(PermissionAuditService.class);
         private final CitationContentService service =
-                new CitationContentService(
+                new DefaultCitationContentService(
                         authorization,
                         evidenceQuery,
                         objects,

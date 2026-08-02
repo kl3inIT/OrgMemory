@@ -42,7 +42,7 @@ class SourceContentServiceTests {
     private final SourceDocumentEvidenceQuery evidenceQuery = mock(SourceDocumentEvidenceQuery.class);
     private final ObjectStoragePort objects = mock(ObjectStoragePort.class);
     private final PermissionAuditService audit = mock(PermissionAuditService.class);
-    private final SourceContentService service = new SourceContentService(
+    private final SourceContentService service = new DefaultSourceContentService(
             authorization, evidenceQuery, objects, audit);
 
     @Test

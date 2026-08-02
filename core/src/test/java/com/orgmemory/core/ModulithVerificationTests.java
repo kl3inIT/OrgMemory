@@ -7,9 +7,17 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
+import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
+import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeAssetAccessInspector;
+import com.orgmemory.core.knowledge.retrieval.SourceContentService;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import java.lang.reflect.Modifier;
 import java.util.Set;
 import java.util.TreeSet;
 import org.junit.jupiter.api.Test;
@@ -23,6 +31,28 @@ class ModulithVerificationTests {
     @Test
     void modulesAreWellFormed() {
         modules.verify();
+    }
+
+    @Test
+    void retrievalAdapterContractsAreInterfaces() throws ClassNotFoundException {
+        assertTrue(AuthorizationResourceDirectory.class.isInterface());
+        assertTrue(CanonicalHybridKnowledgeSearch.class.isInterface());
+        assertTrue(CitationContentService.class.isInterface());
+        assertTrue(EmbeddingProfileRegistry.class.isInterface());
+        assertTrue(GraphRagKnowledgeRetrievalService.class.isInterface());
+        assertTrue(KnowledgeAssetAccessInspector.class.isInterface());
+        assertTrue(SourceContentService.class.isInterface());
+
+        for (String implementation : Set.of(
+                "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
+                "com.orgmemory.core.knowledge.retrieval.DefaultCanonicalHybridKnowledgeSearch",
+                "com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService",
+                "com.orgmemory.core.knowledge.retrieval.DefaultGraphRagKnowledgeRetrievalService",
+                "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                "com.orgmemory.core.knowledge.retrieval.DefaultSourceContentService",
+                "com.orgmemory.core.knowledge.retrieval.JdbcEmbeddingProfileRegistry")) {
+            assertFalse(Modifier.isPublic(Class.forName(implementation).getModifiers()));
+        }
     }
 
     @Test
@@ -767,7 +797,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.GraphIndexJobQueue",
                         "com.orgmemory.core.knowledge.graph.GraphIndexLifecycleService",
@@ -775,7 +805,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExportService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
-                        "com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultGraphRagKnowledgeRetrievalService",
                         "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
@@ -832,7 +862,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeCatalogService",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver"),
                 consumers);
@@ -882,7 +912,7 @@ class ModulithVerificationTests {
 
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultAuthorizationResourceDirectory",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
                         "com.orgmemory.core.knowledge.retrieval.SecureSourceVisibilityAdapter"),
                 consumers);
@@ -924,7 +954,7 @@ class ModulithVerificationTests {
                 .collect(TreeSet::new, Set::add, Set::addAll);
 
         assertEquals(
-                Set.of("com.orgmemory.core.knowledge.retrieval.CitationContentService"),
+                Set.of("com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService"),
                 consumers);
     }
 
