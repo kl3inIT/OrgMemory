@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.Objects;

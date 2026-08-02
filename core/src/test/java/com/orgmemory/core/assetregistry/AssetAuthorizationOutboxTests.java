@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.authorization.RelationshipTuple;
 import java.time.Instant;
 import java.util.UUID;

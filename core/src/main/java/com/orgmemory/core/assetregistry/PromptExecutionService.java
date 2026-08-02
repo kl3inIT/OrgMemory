@@ -5,6 +5,8 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
@@ -19,9 +21,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
-import tools.jackson.databind.json.JsonMapper;
 
 public class PromptExecutionService {
 

@@ -11,6 +11,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.KnowledgeClassification;

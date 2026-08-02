@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.authorization.RelationshipTupleWritePort;
 import com.orgmemory.core.authorization.RelationshipTupleWriteRequest;
 import com.orgmemory.core.authorization.RelationshipTupleWriteResult;

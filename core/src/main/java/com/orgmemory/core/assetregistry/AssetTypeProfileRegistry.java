@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;

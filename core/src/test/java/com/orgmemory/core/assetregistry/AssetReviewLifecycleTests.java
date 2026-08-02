@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.UUID;
