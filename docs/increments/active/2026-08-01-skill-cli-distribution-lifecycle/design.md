@@ -173,3 +173,9 @@ registry bytes predated a packaged README correction, so rebuilding that version
 produced a different integrity. The activation release is therefore `0.1.1`;
 the workflow must publish and verify those exact current-main bytes before the
 web and documentation handoffs are considered live.
+
+The first `0.1.1` activation attempt exposed a separate missing-version probe
+bug: npm returns a non-empty JSON error document for an absent version even
+when `npm view` exits unsuccessfully. Publication now branches on that command
+exit status, so only a successful registry lookup enters immutable-integrity
+comparison and an absent version proceeds to Trusted Publishing.
