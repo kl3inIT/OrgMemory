@@ -20,6 +20,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation(libs.apache.poi.ooxml)
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

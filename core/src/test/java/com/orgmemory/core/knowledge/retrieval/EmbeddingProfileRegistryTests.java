@@ -17,7 +17,7 @@ class EmbeddingProfileRegistryTests {
 
     private final EmbeddingProfileRepository profiles = mock(EmbeddingProfileRepository.class);
     private final EmbeddingProfileRegistry registry =
-            new EmbeddingProfileRegistry(profiles, mock(JdbcClient.class));
+            new JdbcEmbeddingProfileRegistry(profiles, mock(JdbcClient.class));
 
     @Test
     void findsAnImmutableProfileByTenantAndId() {

@@ -6,6 +6,7 @@ import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
 import com.orgmemory.core.authorization.AccessState;
+import com.orgmemory.core.authorization.BatchAuthorizationQuery;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
@@ -32,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  * permission-aware retrieval, graph and citation use cases.
  */
 @Service
-public class KnowledgeEvidenceScopeResolver {
+class KnowledgeEvidenceScopeResolver implements KnowledgeAssetAccessInspector {
 
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
@@ -168,11 +169,9 @@ public class KnowledgeEvidenceScopeResolver {
                 visibleBySpace);
     }
 
-    /**
-     * Reuses the canonical retrieval eligibility query for one bounded, already
-     * relationship-authorized asset inspected by an audit viewer.
-     */
+    /** Rechecks relationship authorization before canonical retrieval eligibility. */
     @Transactional(readOnly = true)
+    @Override
     public AssetInspection inspectAsset(
             CurrentActor actor,
             UUID assetId,
@@ -186,6 +185,42 @@ public class KnowledgeEvidenceScopeResolver {
                 .orElse(null);
         if (subject == null) {
             return new AssetInspection(AccessState.DENIED, "SUBJECT_INACTIVE");
+        }
+        ResourceRef resource = ResourceRef.of(
+                actor.organizationId(),
+                RESOURCE_TYPE,
+                assetId);
+        var checked = authorization.batchCheck(new BatchAuthorizationQuery(
+                actor.organizationId(),
+                actor.principal(),
+                CAN_VIEW,
+                List.of(resource)));
+        if (!checked.resolved()) {
+            return new AssetInspection(AccessState.UNKNOWN, checked.reasonCode());
+        }
+        if (checked.decisions().size() != 1) {
+            return new AssetInspection(
+                    AccessState.UNKNOWN,
+                    "RELATIONSHIP_DECISION_INCOMPLETE");
+        }
+        if (!Objects.equals(authorizationModelId, checked.policyVersion())) {
+            return new AssetInspection(
+                    AccessState.UNKNOWN,
+                    "AUTHORIZATION_MODEL_MISMATCH");
+        }
+        var decision = checked.decisions().get(resource);
+        if (decision == null) {
+            return new AssetInspection(
+                    AccessState.UNKNOWN,
+                    "RELATIONSHIP_DECISION_INCOMPLETE");
+        }
+        if (!Objects.equals(authorizationModelId, decision.policyVersion())) {
+            return new AssetInspection(
+                    AccessState.UNKNOWN,
+                    "AUTHORIZATION_MODEL_MISMATCH");
+        }
+        if (!decision.allowed()) {
+            return new AssetInspection(AccessState.DENIED, decision.reasonCode());
         }
         var scope = new SecureKnowledgeRetrievalStore.RetrievalScope(
                 actor.organizationId(),
@@ -264,6 +299,4 @@ public class KnowledgeEvidenceScopeResolver {
                 policyVersion);
     }
 
-    public record AssetInspection(AccessState state, String reasonCode) {
-    }
 }

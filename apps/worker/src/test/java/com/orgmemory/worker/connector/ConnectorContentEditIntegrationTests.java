@@ -34,6 +34,7 @@ import com.orgmemory.core.knowledge.connector.ConnectorMembershipItem;
 import com.orgmemory.core.knowledge.connector.ConnectorMembershipMember;
 import com.orgmemory.core.knowledge.connector.ConnectorPermissionItem;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
+import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalProperties;
 import com.orgmemory.core.knowledge.connector.ConnectorCaptureStatus;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
@@ -88,7 +89,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
         "orgmemory.graph-rag.postgres.apache-age-mode=disabled",
         "orgmemory.connector.scheduling-enabled=false"
 })
-@Import(CanonicalHybridKnowledgeSearch.class)
+@Import(CanonicalHybridKnowledgeSearchConfiguration.class)
 @EnableConfigurationProperties(KnowledgeRetrievalProperties.class)
 @Testcontainers
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)

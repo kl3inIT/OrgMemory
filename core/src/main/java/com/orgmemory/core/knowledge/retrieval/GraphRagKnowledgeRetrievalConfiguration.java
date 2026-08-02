@@ -1,7 +1,5 @@
 package com.orgmemory.core.knowledge.retrieval;
 
-import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
@@ -32,7 +30,7 @@ class GraphRagKnowledgeRetrievalConfiguration {
             KnowledgeRetrievalProperties retrievalProperties,
             ObjectProvider<GraphRagEventSink> eventSinks,
             ObjectProvider<GraphRagTaskDecorator> taskDecorators) {
-        return new GraphRagKnowledgeRetrievalService(
+        return new DefaultGraphRagKnowledgeRetrievalService(
                 searchAuthorization,
                 evidenceScopes,
                 authorization,
