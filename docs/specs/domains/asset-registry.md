@@ -11,7 +11,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (fdf3cca4)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 
 ## Current Behavior
 
@@ -25,6 +25,22 @@ Cross-module Asset vocabulary and business errors are exposed through the
 exact parent-owned `assetregistry::api` named interface. Nested implementation
 modules implement parent-facing contracts instead of being imported directly
 by unrelated top-level modules.
+
+The closed `assetregistry.kernel` module owns the package-private canonical
+Asset identity/portfolio entity, accountable roles, authorization outbox
+leases, readiness state, and their repositories. Registration and role writes
+join parent transactions and persist their authorization intent atomically;
+portfolio transitions remain behind immutable parent-facing commands. The
+parent retains Draft, revision, review, release, availability, audit, and
+catalog read-model persistence. Skill package replacement, submission, and
+direct publication serialize on the Draft row rather than exposing a Kernel
+lock.
+
+The closed `assetregistry.authorization` module owns only the external OpenFGA
+projection and convergence edge. Parent orchestration invokes its projection
+through `assetregistry::api`; Worker uses the public convergence entry point.
+Queue claim/completion/failure use short independent transactions, while the
+external OpenFGA write explicitly rejects an ambient database transaction.
 
 Consumers always address an exact authorized release. A withdrawn release
 cannot start new consumption. Forking creates a new Asset draft from an exact

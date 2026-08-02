@@ -407,6 +407,14 @@ and parent orchestration remain in the parent Asset Registry module. In
 particular, `AssetAvailability` and the broad catalog queries cannot move into
 kernel because they depend on parent-owned release persistence.
 
+Executable Modulith verification corrected one dependency detail in the
+reviewed topology. Parent orchestration cannot import the sibling Authorization
+implementation while Kernel consumes the parent-owned API, because that forms a
+module cycle. The parent therefore invokes projection through a narrow
+`assetregistry::api` command implemented by Authorization; only Worker imports
+the public convergence entry point. This preserves the selected ownership and
+transaction boundaries without opening either nested module.
+
 Executable Modulith verification corrected the first vocabulary placement:
 unrelated top-level modules cannot import a nested Kernel directly. The six
 cross-module Asset enums and business exceptions therefore move first to the

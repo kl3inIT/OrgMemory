@@ -1399,19 +1399,19 @@ authorization persistence module. Role, outbox, lease completion, and readiness
 belong with Asset in one transactional kernel; the authorization module is the
 external OpenFGA projection edge only.
 
-- [ ] PR 1: move the six cross-module Asset vocabulary/error types to the exact
+- [x] PR 1: move the six cross-module Asset vocabulary/error types to the exact
   parent-owned `assetregistry::api` named interface; keep Kernel absent and stay
   at or below 70 changed paths.
-- [ ] PR 2: introduce and immediately close Kernel; move the canonical
+- [x] PR 2: introduce and immediately close Kernel; move the canonical
   Asset/role/outbox ledger, narrow the identity repository, extract the parent
   catalog read model, add parent draft locking, and implement parent-facing
   `assetregistry::api` command/query contracts; stay at or below 60 changed
   paths.
-- [ ] PR 3: move projection and convergence entry points, enforce transaction
+- [x] PR 3: move projection and convergence entry points, enforce transaction
   propagation `NEVER` around OpenFGA calls, close
   `assetregistry.authorization`, and update Worker wiring; stay at or below 20
   changed paths.
-- [ ] Run the focused Core/API/Worker gates, docs and release-policy checks,
+- [x] Run the focused Core/API/Worker gates, docs and release-policy checks,
   static analysis, and a terminating clean repository test for every slice.
 - [ ] Merge each code-bearing PR through CI and CodeRabbit before starting the
   next branch. Release only after all remaining Asset Registry slices and the
@@ -1428,3 +1428,24 @@ passed on exact Node 24.15.0, and the terminating repository-wide `clean test`
 passed 99 tasks in 2m07s. JetBrains semantic inspection was unavailable, so the
 documented Gradle/mechanical fallback was used. The complete PR remains at 68
 changed paths.
+
+PR 2's executable Modulith verifier exposed a cycle in the planned intermediate
+state: parent projection code importing Kernel while Kernel consumed the parent
+`assetregistry::api` interface produced `assetregistry -> kernel ->
+assetregistry`. The already-selected PR 3 topology was therefore delivered in
+the same code commit rather than weakening verification. Closed Kernel now owns
+the canonical Asset, role, outbox/lease, and readiness ledger; closed
+Authorization owns only external projection/convergence; the parent invokes
+projection through `assetregistry::api`. Registration, role, and portfolio
+commands join the parent transaction with `MANDATORY`, queue operations own
+short `REQUIRES_NEW` transactions, OpenFGA calls reject ambient transactions
+with `NEVER`, and the three mutable Skill/review flows serialize on the Draft
+row. Code commit `573c1d1f` contains 41 changed paths. Full Core passed 453
+tests, the Asset Registry API integration suite passed 22, and Worker passed 65,
+all with zero failures. Documentation hygiene passed for 509 Markdown files and
+8 mirrored domain pairs; all 23 release-policy tests passed on exact Node
+24.15.0. JetBrains semantic inspection was unavailable, so the documented
+Gradle, `modules.verify()`, import-boundary, and `git diff --check` fallback was
+used. The first clean run reached 94 tasks before an orphaned Gradle daemon
+caused native-memory exhaustion; after removing that process, the terminating
+single-worker `clean test` passed all 99 tasks in 4m18s with a 2 GB daemon heap.
