@@ -79,6 +79,31 @@ class PostgresGraphRagAutoConfigurationTests {
     }
 
     @Test
+    void apacheAgeModeDoesNotSelectTheRuntimeGraphStore() {
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.apache-age-mode=required")
+                .run(context -> {
+                    assertInstanceOf(
+                            PostgresGraphStore.class,
+                            context.getBean(GraphStore.class));
+                    assertTrue(context
+                            .getBeansOfType(ApacheAgeGraphTopologyProjection.class)
+                            .isEmpty());
+                });
+
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.apache-age-mode=disabled")
+                .run(context -> {
+                    assertInstanceOf(
+                            PostgresGraphStore.class,
+                            context.getBean(GraphStore.class));
+                    assertTrue(context
+                            .getBeansOfType(ApacheAgeGraphTopologyProjection.class)
+                            .isEmpty());
+                });
+    }
+
+    @Test
     void leavesEveryPortUnclaimedWhenTurnedOff() {
         runner.withPropertyValues("orgmemory.graph-rag.postgres.enabled=false")
                 .run(context -> CANONICAL_PORTS.forEach(port -> assertTrue(
