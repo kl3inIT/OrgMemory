@@ -1348,3 +1348,9 @@ the repository uses PostgreSQL's default Read Committed isolation: the
 and the following repository `SELECT` starts a new command snapshot that sees
 the committed row; a no-op update would add writes and lock/trigger semantics
 without closing a real visibility gap.
+
+After the review-fix commits, the terminating sequential repository-wide
+`clean test` passed all 99 tasks in 4m44s. The documentation operating-model
+check passed for 506 Markdown files and 8 mirrored domain pairs, and all 41
+release-policy tests passed again on exact Node 24.15.0. The PR diff remains 43
+changed paths.
