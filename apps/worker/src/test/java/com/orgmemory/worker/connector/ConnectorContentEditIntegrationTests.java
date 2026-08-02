@@ -375,8 +375,10 @@ class ConnectorContentEditIntegrationTests {
         insertUser(MAI_USER, MAI_EMAIL);
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
-                    id, organization_id, department_id, space_key, name, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, 'edit-space', 'Edit Space', true, now(), now(), 0)
+                    id, organization_id, department_id, audience_mode, audience_version,
+                    space_key, name, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'DEPARTMENT', 1,
+                    'edit-space', 'Edit Space', true, now(), now(), 0)
                 """, SPACE, ORG, DEPT);
     }
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Active.
+Completed locally on 2026-08-02.
 
 ## Steps
 
@@ -18,9 +18,9 @@ Active.
   retrieval.
 - [x] Separate OpenFGA operational permissions from `can_view`, validate and
   test the versioned model.
-- [ ] Expose the contract and implement the enterprise admin UX without raw
+- [x] Expose the contract and implement the enterprise admin UX without raw
   organization or department ids.
-- [ ] Reconcile domain specs/test matrices, generate contracts, and complete
+- [x] Reconcile domain specs/test matrices, generate contracts, and complete
   backend, frontend, browser, and migration gates.
 
 ## Exit gates

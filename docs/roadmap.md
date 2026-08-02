@@ -42,6 +42,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Connector polling coordination: shared lifecycle, client rotation, and failure admission | shipped | [completed plan](increments/completed/2026-08-01-connector-polling-driver/plan.md), [decision 0026](decisions/0026-connector-polling-lifecycle.md) |
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
 | Durable cross-store publication lifecycle | shipped | [completed plan](increments/completed/2026-08-02-publication-lifecycle-coordinator/plan.md), [decision 0028](decisions/0028-durable-cross-store-publication-permits.md) |
+| Typed Knowledge Space audiences | shipped | [completed verification](increments/completed/2026-08-02-knowledge-space-audience-modes/verification.md), [decision 0029](decisions/0029-typed-knowledge-space-audiences.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
@@ -50,7 +51,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Typed Knowledge Space audiences](increments/active/2026-08-02-knowledge-space-audience-modes/plan.md) | active | implement persistence, policy enforcement, independent OpenFGA permissions, enterprise UI, and all verification gates |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
