@@ -1,10 +1,16 @@
 package com.orgmemory.core;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
+import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.knowledge.retrieval.AuthorizationResourceDirectory;
@@ -1141,5 +1147,24 @@ class ModulithVerificationTests {
                 .resideInAPackage("com.orgmemory.core.knowledge.asset..")
                 .check(new ClassFileImporter()
                         .importPackages("com.orgmemory.core.assetregistry"));
+    }
+
+    @Test
+    void assetRegistryApiIsAnExactExplicitNamedInterface() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+        var api = assetRegistry.getNamedInterfaces().getByName("api").orElseThrow();
+        var exposedTypes = api.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        AssetConflictException.class.getName(),
+                        AssetNotFoundException.class.getName(),
+                        AssetPortfolioState.class.getName(),
+                        AssetRole.class.getName(),
+                        AssetType.class.getName(),
+                        AssetUnavailableException.class.getName()),
+                exposedTypes);
     }
 }

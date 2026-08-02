@@ -1,10 +1,10 @@
 package com.orgmemory.api.assetregistry;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.AssetCatalogSort;
 import com.orgmemory.core.assetregistry.AssetRecommendationPage;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
-import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.CapabilityPackService;

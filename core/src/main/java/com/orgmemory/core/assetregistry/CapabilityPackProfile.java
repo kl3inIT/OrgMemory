@@ -1,9 +1,10 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import java.util.Set;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 class CapabilityPackProfile implements AssetPayloadProfile {

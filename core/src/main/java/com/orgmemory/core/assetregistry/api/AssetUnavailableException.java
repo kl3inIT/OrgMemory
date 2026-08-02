@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.api;
 
 import com.orgmemory.core.shared.error.BusinessErrorCategory;
 import com.orgmemory.core.shared.error.BusinessException;

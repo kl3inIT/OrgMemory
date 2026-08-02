@@ -1,9 +1,9 @@
 package com.orgmemory.core.assistant;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.AssetConsumptionRelease;
 import com.orgmemory.core.assetregistry.AssetRecommendation;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
-import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PackJourney;

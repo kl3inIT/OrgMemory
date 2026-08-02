@@ -389,6 +389,40 @@ in its module base package, while no consumer reaches an internal subpackage.
 The closure test and `modules.verify()` make both that API visibility and the
 outgoing allowlist executable constraints.
 
+## Asset Registry Kernel And Authorization Boundary
+
+The independently challenged Asset Registry split follows the consistency
+boundary rather than the nouns in the authorization flow. The closed
+`assetregistry.kernel` module owns Asset identity and portfolio state together
+with accountable roles, authorization outbox leases, and fail-closed readiness.
+Those rows form one transactional cluster during registration, role assignment,
+and projection completion; separating them would require a lock capability,
+reverse persistence dependency, or weaker asynchronous readiness semantics.
+
+The closed `assetregistry.authorization` module owns only the external
+projection and convergence entry points. OpenFGA calls are made with transaction
+propagation `NEVER`, around kernel queue operations that each own their database
+transaction. Draft, revision, review, release, availability, catalog, delivery,
+and parent orchestration remain in the parent Asset Registry module. In
+particular, `AssetAvailability` and the broad catalog queries cannot move into
+kernel because they depend on parent-owned release persistence.
+
+Executable Modulith verification corrected the first vocabulary placement:
+unrelated top-level modules cannot import a nested Kernel directly. The six
+cross-module Asset enums and business exceptions therefore move first to the
+exact parent-owned `assetregistry::api` named interface. Parent-facing kernel
+commands and queries also belong to that interface and are implemented by
+Kernel, preserving dependency inversion without changing transaction ownership.
+
+Delivery is split into code PRs for parent API vocabulary, the canonical kernel
+ledger, and external projection, capped at 70, 60, and 20 changed paths. Kernel
+begins with the real ledger in the second PR and closes immediately. Both nested
+modules close when introduced; no `Type.OPEN`, public JPA type, repository,
+lock handle, readiness mutator, or mixed database/OpenFGA facade is allowed. See
+[assetregistry-authorization-challenge-verdict.md](assetregistry-authorization-challenge-verdict.md)
+for the Fable availability failure, fallback review, counterattack, exact
+ownership, transaction rules, comparable-source evidence, and binding gates.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

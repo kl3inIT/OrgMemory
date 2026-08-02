@@ -2,6 +2,7 @@ package com.orgmemory.core.assetregistry;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;

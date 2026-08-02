@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetType;
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;

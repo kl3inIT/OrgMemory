@@ -7,6 +7,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.organization.CurrentActor;
 import java.io.ByteArrayInputStream;
 import java.util.List;

@@ -1,11 +1,11 @@
 package com.orgmemory.api.assetregistry;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.AssetDeliveryRelease;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.AssetRecommendation;
 import com.orgmemory.core.assetregistry.AssetRelationResolution;
-import com.orgmemory.core.assetregistry.AssetType;
 import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.PromptExecutionService;
 import com.orgmemory.core.assetregistry.PromptRenderResult;

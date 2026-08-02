@@ -1,5 +1,9 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogEntry;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.organization.CurrentActor;

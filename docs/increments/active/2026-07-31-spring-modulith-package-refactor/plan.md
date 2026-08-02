@@ -1391,3 +1391,40 @@ Markdown files and 8 mirrored domain pairs, and all 41 release-policy tests
 passed on exact Node 24.15.0. The terminating sequential repository-wide
 `clean test` passed all 99 tasks in 2m10s. The pre-stage diff contains 14
 changed paths.
+
+## Asset Registry Kernel Sequence
+
+Independent review rejected the initial split between an Asset kernel and an
+authorization persistence module. Role, outbox, lease completion, and readiness
+belong with Asset in one transactional kernel; the authorization module is the
+external OpenFGA projection edge only.
+
+- [ ] PR 1: move the six cross-module Asset vocabulary/error types to the exact
+  parent-owned `assetregistry::api` named interface; keep Kernel absent and stay
+  at or below 70 changed paths.
+- [ ] PR 2: introduce and immediately close Kernel; move the canonical
+  Asset/role/outbox ledger, narrow the identity repository, extract the parent
+  catalog read model, add parent draft locking, and implement parent-facing
+  `assetregistry::api` command/query contracts; stay at or below 60 changed
+  paths.
+- [ ] PR 3: move projection and convergence entry points, enforce transaction
+  propagation `NEVER` around OpenFGA calls, close
+  `assetregistry.authorization`, and update Worker wiring; stay at or below 20
+  changed paths.
+- [ ] Run the focused Core/API/Worker gates, docs and release-policy checks,
+  static analysis, and a terminating clean repository test for every slice.
+- [ ] Merge each code-bearing PR through CI and CodeRabbit before starting the
+  next branch. Release only after all remaining Asset Registry slices and the
+  full increment are complete.
+
+PR 1 characterization first proved that a closed Kernel containing public
+vocabulary was insufficient: the two focused tests passed while the full
+Modulith verifier rejected Assistant's direct nested-module reference. The
+independent reviewer amended the placement to the exact parent-owned
+`assetregistry::api` named interface; the corrected named-interface test and
+`modules.verify()` then passed in 10s. Full Core and API suites completed 621
+tests with zero failures. Documentation checks and 23 release-policy tests
+passed on exact Node 24.15.0, and the terminating repository-wide `clean test`
+passed 99 tasks in 2m07s. JetBrains semantic inspection was unavailable, so the
+documented Gradle/mechanical fallback was used. The complete PR remains at 68
+changed paths.
