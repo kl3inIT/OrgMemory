@@ -1413,7 +1413,7 @@ external OpenFGA projection edge only.
   changed paths.
 - [x] Run the focused Core/API/Worker gates, docs and release-policy checks,
   static analysis, and a terminating clean repository test for every slice.
-- [ ] Merge each code-bearing PR through CI and CodeRabbit before starting the
+- [x] Merge each code-bearing PR through CI and CodeRabbit before starting the
   next branch. Release only after all remaining Asset Registry slices and the
   full increment are complete.
 
@@ -1466,3 +1466,8 @@ refactor because the locked canonical Asset already serializes all Kernel role
 writes. All review threads were answered and resolved. Full Core passed 456
 tests with zero failures; the terminating sequential repository-wide
 `clean test` then passed all 99 tasks in 8m52s on the reviewed code head.
+
+PR #270 merged as `9b88c33356515612b4ccb9e51e7e66769ddc2dc9`
+after all required checks passed and every CodeRabbit thread was resolved. The
+Prompt profile is the next code-bearing Asset Registry slice; release remains
+deferred until every profile module and the full increment are complete.
