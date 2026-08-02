@@ -1327,3 +1327,9 @@ fresh terminating `clean test` including those guards passed 108 tasks in
 5m18s. The mechanical audit found 41 changed paths, no migration, no empty file,
 no external import of Retrieval implementation/scope/store/candidate types, and
 a clean whitespace diff.
+
+After merging current `origin/main` at `0b5b0cfd`, the full Modulith verifier,
+both exact deployable dependency guards, and API engine-selection tests passed
+again in 48s. The documentation check still passed across 506 Markdown files
+and 8 mirrored domain pairs, and all 41 release-policy tests passed again on
+Node 24.15.0.
