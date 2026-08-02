@@ -1259,3 +1259,9 @@ classes plus the full Modulith verification slice passed in 1m35s. The
 documentation operating-model check passed on the merged base for 501 Markdown
 files and 8 mirrored domain pairs, and all 41 release-policy tests passed again
 on Node 24.15.0.
+
+PR CI's first product-release job passed its contract tests but rejected the
+missing release disposition in the PR event payload. The PR now explicitly
+skips an intermediate release because the project owner requested one release
+only after the full refactor goal; a new synchronize event is required because
+rerunning the original workflow retains its original PR payload.
