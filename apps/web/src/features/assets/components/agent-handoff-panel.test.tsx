@@ -31,7 +31,7 @@ describe("AgentHandoffPanel", () => {
     await user.click(screen.getByRole("tab", { name: "Use CLI" }))
     await user.click(screen.getByRole("button", { name: "Copy OrgMemory CLI command" }))
     expect(copyWithToast).toHaveBeenLastCalledWith(
-      "orgmemory skill add productivity/decision-record-writer@1.0.0 --agent codex",
+      "npx --yes @orgmemory/cli@0.1.1 skill add productivity/decision-record-writer@1.0.0 --agent codex",
       "OrgMemory CLI",
     )
   })

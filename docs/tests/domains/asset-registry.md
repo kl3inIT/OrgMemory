@@ -10,7 +10,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (1030a77b)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -36,6 +36,7 @@ Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (1030a77b)`.
 | CLI installation verifies package and per-file digests, refuses unowned/colliding targets, promotes atomically, and writes a token-free schema-v2 complete-tree receipt | `install.test.ts` | covered |
 | CLI lifecycle serializes concurrent receipt mutations, distinguishes exited and live lock owners, refuses links and altered trees, recovers an interrupted promoted tree from its durable journal, reports offline verified/modified/missing/unverifiable states, permits exact same-coordinate update, and removes only verified v2 trees without force deletion | `install.test.ts` | covered |
 | Dedicated CLI publication remains manual and approval-gated, validates the exact current green main SHA and package version, uses Node 24 OIDC provenance without a token/cache, executes the real packed tarball before publication, accepts a retry only when immutable registry integrity matches that tarball, waits for attestation propagation, and verifies exact-version execution | `npm-publish-workflow-policy.test.mjs`, `.github/workflows/publish-cli.yml`, live `@orgmemory/cli@0.1.0` registry integrity/provenance/executable proof | covered |
+| Browser and bilingual documentation handoffs use the selected exact CLI version through `npx`, while the CLI reports the same package version in command, MCP, and OAuth identities | `version.test.ts`, `skill-agent-handoffs.test.ts`, `agent-handoff-panel.test.tsx`, `skill-consumer-installer.test.tsx`, `asset-registry-golden-poc.spec.ts`, bilingual Product Guide publication checks | covered |
 | CLI authoring validates a root Skill folder and produces deterministic bounded ZIP bytes before authentication | `skill-package.test.ts` | covered |
 | CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
 | CLI Draft publication returns an exact same-origin Governance URL for the created Asset | `publish.test.ts` | covered |

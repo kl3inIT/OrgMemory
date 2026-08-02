@@ -13,7 +13,9 @@ describe("Skill agent handoffs", () => {
     const handoff = buildSkillDraftHandoff("./my-skill")
     const prompt = handoff.promptTemplate ?? ""
 
-    expect(prompt).toContain("orgmemory skill validate ./my-skill")
+    expect(prompt).toContain(
+      "npx --yes @orgmemory/cli@0.1.1 skill validate ./my-skill",
+    )
     expect(prompt).toContain("--dry-run")
     expect(prompt).toContain("more than one folder could match")
     expect(prompt).toContain("Ask me for the exact namespace, Knowledge Space UUID")
@@ -32,7 +34,9 @@ describe("Skill agent handoffs", () => {
     const reference = "productivity/decision-record-writer@1.0.0"
     const handoff = buildSkillInstallHandoff(reference, getSkillConsumer("codex"))
 
-    expect(handoff.cliCommand).toBe(`orgmemory skill add ${reference} --agent codex`)
+    expect(handoff.cliCommand).toBe(
+      `npx --yes @orgmemory/cli@0.1.1 skill add ${reference} --agent codex`,
+    )
     expect(handoff.promptTemplate).toContain(reference)
     expect(handoff.promptTemplate).toContain("Codex")
     expect(handoff.promptTemplate).toContain(".agents/skills/decision-record-writer")

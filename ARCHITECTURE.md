@@ -45,9 +45,10 @@ CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 by `release/product.json`; that product release does not publish Gradle or pnpm
 workspaces. `@orgmemory/cli` has a separate package-owned SemVer and a dedicated
 manual npm Trusted Publishing workflow. Public consumer version `0.1.0` has
-verified registry integrity and SLSA provenance. A later CLI version is
-consumer-visible only after its exact registry release and provenance have been
-verified.
+verified registry integrity and SLSA provenance. Source version `0.1.1` is the
+selected activation release and product handoffs pin that exact version; it is
+considered available only after the registry release, provenance, signature,
+and exact-version execution gates pass.
 
 Green `main` commits remain the executable delivery identity. Production and
 docs workflows publish immutable SHA-addressed images and manifests. Tegami

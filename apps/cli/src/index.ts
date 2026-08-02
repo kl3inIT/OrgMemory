@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Command, Option } from "commander"
-import packageJson from "../package.json" with { type: "json" }
 
 import {
   orgMemoryUuidSchema,
@@ -30,6 +29,7 @@ import {
   type SkillClassification,
 } from "./publish.js"
 import { buildLocalSkillPackage } from "./skill-package.js"
+import { CLI_VERSION } from "./version.js"
 
 const DEFAULT_SERVER = "https://om.kl3in.tech/mcp"
 const DEFAULT_CALLBACK_PORT = 53_682
@@ -39,7 +39,7 @@ const SKILL_PUBLISH_SCOPE = "assets:read assets:write"
 const program = new Command()
   .name("orgmemory")
   .description("Discover and install governed OrgMemory Skills")
-  .version(packageJson.version)
+  .version(CLI_VERSION)
   .option(
     "--server <url>",
     "OrgMemory MCP server URL",
