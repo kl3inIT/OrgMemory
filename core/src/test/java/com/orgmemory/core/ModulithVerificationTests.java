@@ -610,8 +610,10 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.sourceledger.KnowledgeIngestionService",
                         "com.orgmemory.core.knowledge.sourceledger.PromoteNormalizedRecordCommand",
                         "com.orgmemory.core.knowledge.sourceledger.PublishSourceRevisionCommand",
+                        "com.orgmemory.core.knowledge.sourceledger.ReadyManualUploadRef",
                         "com.orgmemory.core.knowledge.sourceledger.SourceFailureMessage",
                         "com.orgmemory.core.knowledge.sourceledger.SourceKnowledgeAssetRef",
+                        "com.orgmemory.core.knowledge.sourceledger.SourceRetirementPort",
                         "com.orgmemory.core.knowledge.sourceledger.SourcePublicationService"),
                 consumedTypes);
     }

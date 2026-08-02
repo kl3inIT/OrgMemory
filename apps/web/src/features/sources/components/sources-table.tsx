@@ -1,9 +1,16 @@
-import { FileText, SearchX } from "lucide-react"
+import { Ellipsis, Eye, FileText, SearchX, Trash2 } from "lucide-react"
 import { useMemo } from "react"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { Progress } from "@/components/ui/progress"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
 import {
   ACTIVE_SOURCE_STATUSES,
@@ -27,7 +34,15 @@ function accessScope(classification?: string) {
   }
 }
 
-export function SourcesTable({ sources }: { sources: SourceResponse[] }) {
+export function SourcesTable({
+  sources,
+  onView,
+  onDelete,
+}: {
+  sources: SourceResponse[]
+  onView: (source: SourceResponse) => void
+  onDelete: (source: SourceResponse) => void
+}) {
   const columns = useMemo<ColumnDef<SourceResponse>[]>(
     () => [
       {
@@ -43,9 +58,13 @@ export function SourcesTable({ sources }: { sources: SourceResponse[] }) {
                 <FileText className="size-4" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <div className="max-w-28 truncate font-medium sm:max-w-96">
+                <button
+                  type="button"
+                  className="max-w-28 truncate text-left font-medium hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring sm:max-w-96"
+                  onClick={() => onView(source)}
+                >
                   {source.title ?? source.fileName}
-                </div>
+                </button>
                 <div className="mt-0.5 max-w-28 truncate text-xs text-muted-foreground sm:max-w-none">
                   {formatBytes(source.contentLength)} · {source.mediaType ?? "Document"}
                 </div>
@@ -133,8 +152,43 @@ export function SourcesTable({ sources }: { sources: SourceResponse[] }) {
         },
         cell: ({ row }) => formatDate(row.original.updatedAt),
       },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        meta: {
+          headerClassName: "w-12 text-right",
+          cellClassName: "w-12 text-right",
+        },
+        cell: ({ row }) => {
+          const source = row.original
+          const title = source.title ?? source.fileName ?? "document"
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${title}`}>
+                  <Ellipsis aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => onView(source)}>
+                  <Eye aria-hidden="true" /> View
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={!source.deletionAllowed}
+                  onSelect={() => onDelete(source)}
+                >
+                  <Trash2 aria-hidden="true" />
+                  {source.deletionAllowed ? "Delete" : "Delete unavailable"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        },
+      },
     ],
-    [],
+    [onDelete, onView],
   )
 
   return (
