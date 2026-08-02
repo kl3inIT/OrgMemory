@@ -4,7 +4,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 `integrations/ai-model-gateways`, `apps/api/.../AdminAiModelController`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 
 ## Current Behavior
 
@@ -36,7 +36,15 @@ Provider-neutral routing and model caching live in
 factories during startup and fails closed if a route selects an unimplemented
 protocol.
 
-Assistant and prompt-execution routes are explicit organization overrides.
+An OpenAI-compatible gateway must explicitly declare support before a route may
+set OpenAI `reasoning_effort`. Supported values are `none`, `low`, `medium`,
+`high`, `xhigh`, and `max`; absence omits the field and preserves the provider
+default. Native Anthropic and undeclared compatible gateways reject the option.
+A capability cannot be disabled while one of its routes still uses an explicit
+value.
+
+Assistant, keyword-planning, and prompt-execution routes are explicit
+organization overrides.
 Administrators can restore the deployment default by clearing an override.
 Gateway-key collisions never substitute an organization credential for a
 deployment route.
@@ -48,13 +56,18 @@ Spring Boot 4.1 `HttpClientSettings` and `InetAddressFilter` harden the
 Boot-managed probe client. Spring AI provider SDK traffic is additionally
 bounded by origin policy and production egress controls.
 
-Assistant and Prompt execution routes are editable. Deployment routes remain
-visible defaults only when no organization override exists. An explicit
-override fails closed and is never silently replaced by a deployment default.
-Keyword planning and graph extraction stay deployment-managed.
-Graph Extraction defaults independently to `gpt-5.4-mini`; setting the
-Assistant model does not change it. Operators can still select a different
-extraction model explicitly with `ORGMEMORY_GRAPH_EXTRACTION_MODEL`.
+Assistant, Keyword Planning, and Prompt Execution routes are editable and apply
+to subsequent organization requests. Deployment routes remain visible defaults
+only when no organization override exists. An explicit override fails closed
+and is never silently replaced by a deployment default. Graph Extraction is
+visible but read-only, defaults independently to `gpt-5.4-mini`, and changes
+only through deployment configuration. A Graph route change affects newly
+enqueued jobs; it neither starts reindexing nor changes queued/completed jobs.
+
+The fixed live evaluation approved `gpt-5.6-luna` with reasoning `none` for
+Keyword Planning but rejected it for Graph Extraction. Graph therefore retains
+`gpt-5.4-mini`; Answer retains `gpt-5.6-sol`. Deployment defaults remain
+unchanged until the separately controlled production configuration activation.
 
 Index Settings is a separate read-only surface. The embedding provider, model,
 dimensions, and cosine metric cannot be mutated through the chat control plane;

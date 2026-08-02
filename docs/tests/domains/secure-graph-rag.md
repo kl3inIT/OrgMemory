@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 
 ## Automated
 
@@ -18,6 +18,10 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
 - API, worker, and shared gateway-property tests prove graph extraction's
   `gpt-5.4-mini` default is independent from the Assistant model and remains
   explicitly overridable. Production Compose validation checks the same route.
+- Graph-processing profile tests pin exact schema-v1 canonical bytes and SHA,
+  prove restored v1 profiles remain worker-supported with provider-default
+  reasoning, and prove explicit reasoning changes schema-v2 identity. The
+  ingestion integration test proves new jobs persist schema v2.
 - Graph-testkit security tests prove permission-scoped contribution,
   adjacency, degree, weight, seed, replacement, and removal behavior.
 - Core verifier and Graph use-case tests prove immutable authorized snapshots,
@@ -90,7 +94,9 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
   the API and Worker exact dependency-surface guards prevent concrete imports,
   and API Assistant configuration tests retain engine-selection behavior.
 - Keyword-cache tests prove exact hit/miss isolation across organization,
-  language, query strategy, route and query, plus trusted-keyword bypass.
+  language, query strategy, full route (including reasoning effort) and query,
+  plus trusted-keyword bypass. Organization-aware adapter tests change routes
+  inside one process and prove each organization resolves independently.
 - OpenTelemetry adapter tests prove the closed payload-free attribute set,
   original stage timing, cache status, model-route fingerprint and hashed scope
   fingerprint.

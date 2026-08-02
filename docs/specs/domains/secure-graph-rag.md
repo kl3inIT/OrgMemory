@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 
 ## Current Contract
 
@@ -125,9 +125,11 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
   retry time, and bounded failure evidence.
 - `GraphProcessingProfile` and `EmbeddingProfile` are independent coordinates.
   The former snapshots algorithm, complete extraction settings, exact prompt
-  templates, merge semantics and embedding-payload format; the latter owns
-  provider/model/vector geometry. Changing either produces a new rebuildable
-  generation without mutating a completed historical job.
+  templates, merge semantics, embedding-payload format, and any explicit OpenAI
+  reasoning effort; the latter owns provider/model/vector geometry. Schema-v1
+  profile bytes and hashes restore and execute exactly with provider-default
+  reasoning, while new jobs use schema v2. Changing either coordinate produces
+  a new rebuildable generation without mutating a completed historical job.
 - Claims pin the current asset/version/revision, active chunk generation, ACL
   snapshot/generation, language, immutable embedding profile and exact
   hash-addressed graph-processing profile. A retry reuses those coordinates;
@@ -163,8 +165,9 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
 
 - Assistant retrieval resolves the full canonical ACL/classification/lifecycle
   scope before the graph engine or model sees evidence.
-- Keyword planning has its own AI workload route and an exact organization-
-  scoped cache keyed by query, language, strategy, route and prompt profile.
+- Keyword planning resolves its organization AI workload route for each
+  planning attempt and has an exact organization-scoped cache keyed by query,
+  language, strategy, full route (including reasoning effort), and prompt profile.
   Trusted caller keywords bypass both provider and cache.
 - Published snapshots execute with bounded concurrency after provider
   preparation and outside a provider-spanning database transaction. Results

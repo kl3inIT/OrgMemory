@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -15,6 +15,8 @@ Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 | Empty authorized retrieval does not call the model | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Provider failure is surfaced as unavailable | `AssistantServiceTests#asynchronousProviderFailureIsReportedAsUnavailable` | covered |
 | Assistant and Prompt calls carry organization identity into route resolution | `AssistantServiceTests`, `PromptExecutionServiceTests` org-scoped model-port assertions | covered |
+| Direct LightRAG answer and Keyword planning resolve independent organization routes at request time, including changes within one process | `OrganizationAwareQueryAnswerModelTests`, `OrganizationAwareKeywordPlanningModelTests` | covered |
+| Keyword cache identity changes with the organization route and explicit reasoning effort | `LightRagKeywordPlannerCacheTests`, `OrganizationAwareKeywordPlanningModelTests` | covered |
 | An explicit organization route never silently falls back to the deployment provider | `AiGatewayPropertiesTests#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | Citation numbers are assigned with the exact prompt evidence order | `AssistantServiceTests#exposesCitationsOnlyForEvidenceIncludedInThePromptBudget`, `AssistantControllerStreamingTests`, `UiMessageStreamTests` | covered |
 | Assistant uses the already-verified LightRAG prompt instead of rebuilding chunk context | `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |

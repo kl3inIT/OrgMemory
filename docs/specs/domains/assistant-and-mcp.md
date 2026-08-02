@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
 
 ## Current Behavior
 
@@ -60,12 +60,13 @@ layer is a chat-memory read, not the missing time. Turn duration and time to
 first token are what answer "how long, and how long until the user saw
 something" while the trace cannot.
 
-Assistant chat and governed Prompt execution now resolve their model route with
-the current `organizationId`. An organization override selects one encrypted
-gateway profile and model id; absence means the read-only deployment default.
-An explicit override is fail-closed, so provider failure does not silently send
-organization prompts to a different provider. Keyword planning, graph
-extraction, and embedding remain deployment-managed in this increment.
+Assistant chat, direct LightRAG answer generation, Keyword Planning, and
+governed Prompt execution resolve their model route with the current
+`organizationId` at request time. An organization override selects one
+encrypted gateway profile, model id, and optional OpenAI reasoning effort;
+absence means the read-only deployment default. An explicit override is
+fail-closed, so provider failure does not silently send organization prompts to
+a different provider. Graph extraction and embedding remain deployment-managed.
 The citation response derives its media type from a closed extension allowlist,
 never from upload metadata. Text, PDF, and known raster images may render
 inline; Office and unknown formats are forced to download as binary content.

@@ -360,10 +360,17 @@ API and worker resolve workload-specific gateway/model routes through the
 provider-neutral `integrations/ai-model-gateways` runtime. The shared dispatcher
 selects protocol factories for Spring AI OpenAI-compatible or native Anthropic
 Messages models and fails closed when a protocol implementation is absent.
-Assistant chat, graph extraction, and document embedding have independent
-configured routes. Graph extraction defaults to `gpt-5.4-mini`; the
+Assistant answer, keyword planning, graph extraction, and document embedding
+have independent configured routes. Answer and Keyword organization overrides
+resolve at request time; Graph remains deployment-managed and read-only in the
+administration UI. OpenAI-specific reasoning effort is optional and is sent
+only through an OpenAI-compatible gateway that explicitly declares support;
+native Anthropic and undeclared compatible gateways fail closed. Graph
+extraction defaults to `gpt-5.4-mini`; the
 `ORGMEMORY_GRAPH_EXTRACTION_MODEL` deployment override is independent from the
-Assistant model. Immutable Knowledge Asset embedding
+Assistant model. New Graph jobs pin reasoning effort in schema-v2 processing
+profiles while persisted schema-v1 bytes and hashes remain executable.
+Immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit
 local retrieval fallback. A persistent agent conversation model does not exist
