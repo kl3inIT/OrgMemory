@@ -1449,3 +1449,20 @@ Gradle, `modules.verify()`, import-boundary, and `git diff --check` fallback was
 used. The first clean run reached 94 tasks before an orphaned Gradle daemon
 caused native-memory exhaustion; after removing that process, the terminating
 single-worker `clean test` passed all 99 tasks in 4m18s with a 2 GB daemon heap.
+
+CodeRabbit's full review of PR #270 produced ten inline findings and one
+outside-diff finding. Commit `01e26c23` accepted eight valid improvements:
+provider-failure logging without tuple disclosure, required-field validation
+for the public authorization target, the unclaimed projection branch, runtime
+Spring-proxy enforcement of both `NEVER` boundaries including the package-
+private batch overload, both completion transaction boundaries, non-Skill
+coordinate rejection, class-literal API pinning, and the intentional exact-
+package ArchUnit comment. The Draft lock-timeout suggestion was rejected
+because the repository has no established finite value and its PostgreSQL
+baseline explicitly leaves `lock_timeout` at zero. The terminal portfolio
+finding was rejected as unreachable after the existing withdrawn-release
+guard, and the optional role partial index remains outside this no-schema
+refactor because the locked canonical Asset already serializes all Kernel role
+writes. All review threads were answered and resolved. Full Core passed 456
+tests with zero failures; the terminating sequential repository-wide
+`clean test` then passed all 99 tasks in 8m52s on the reviewed code head.
