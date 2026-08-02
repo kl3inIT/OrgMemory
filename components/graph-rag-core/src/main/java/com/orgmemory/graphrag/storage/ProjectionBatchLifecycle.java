@@ -7,7 +7,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Executes the prepare/publish/abort lifecycle shared by projection adapters.
@@ -28,27 +30,86 @@ public final class ProjectionBatchLifecycle {
     public ProjectionSnapshot publish(
             ProjectionBatch batch,
             List<? extends Preparation> preparations,
+            Function<ProjectionBatch, ProjectionCommitPermit> permitIssuer,
+            Instant now) {
+        return publish(batch, preparations, permitIssuer, Optional.empty(), now);
+    }
+
+    public ProjectionSnapshot publish(
+            ProjectionBatch batch,
+            List<? extends Preparation> preparations,
+            Function<ProjectionBatch, ProjectionCommitPermit> permitIssuer,
+            Optional<ProjectionCommitPermit> recoveryPermit,
             Instant now) {
         Objects.requireNonNull(batch, "batch");
         Objects.requireNonNull(preparations, "preparations");
+        Objects.requireNonNull(permitIssuer, "permitIssuer");
+        Objects.requireNonNull(recoveryPermit, "recoveryPermit");
         Objects.requireNonNull(now, "now");
-        Map<ProjectionKind, Preparation> byKind = validate(batch, preparations);
+        ProjectionBatch registered = publications.begin(batch);
+        Map<ProjectionKind, Preparation> byKind = validate(registered, preparations);
         List<Preparation> prepared = new ArrayList<>();
+        boolean[] permitRequested = {recoveryPermit.isPresent()};
+        boolean[] publishStarted = {false};
         try {
-            for (ProjectionKind kind : batch.requiredProjections().stream()
+            if (recoveryPermit.isPresent()
+                    || publications.hasBoundCommitPermit(registered)) {
+                ProjectionCommitPermit storedPermit = recoveryPermit.orElseGet(() -> {
+                    permitRequested[0] = true;
+                    return Objects.requireNonNull(
+                            permitIssuer.apply(registered), "permitIssuer result");
+                });
+                storedPermit.requireAuthorizes(registered);
+                publishStarted[0] = true;
+                return publications.publish(registered, storedPermit, now);
+            }
+            for (ProjectionKind kind : registered.requiredProjections().stream()
                     .sorted(Comparator.comparingInt(Enum::ordinal))
                     .toList()) {
                 Preparation preparation = byKind.get(kind);
                 // Register before prepare so a preparation that fails after a
                 // partial write is itself discarded during saga cleanup.
                 prepared.add(preparation);
-                preparation.prepare(batch);
-                publications.markPrepared(batch, kind, now);
+                preparation.prepare(registered);
+                publications.markPrepared(registered, kind, now);
             }
-            return publications.publish(batch, now);
+            permitRequested[0] = true;
+            ProjectionCommitPermit permit = Objects.requireNonNull(
+                    permitIssuer.apply(registered), "permitIssuer result");
+            permit.requireAuthorizes(registered);
+            publishStarted[0] = true;
+            return publications.publish(registered, permit, now);
         } catch (RuntimeException failure) {
-            abortAndDiscard(batch, prepared, now, failure);
+            if (publishStarted[0]) {
+                ProjectionAbortOutcome outcome = reconcilePublishFailure(
+                        registered, now, failure);
+                if (outcome.status() == ProjectionAbortOutcome.Status.PUBLISHED) {
+                    return outcome.publishedSnapshotOptional().orElseThrow();
+                }
+                if (outcome.status()
+                        == ProjectionAbortOutcome.Status.DISCARD_ALLOWED) {
+                    throw new PublicationRebaseRequiredException(
+                            registered,
+                            outcome.discardPermitOptional().orElseThrow(),
+                            failure);
+                }
+            } else if (!permitRequested[0]) {
+                abortAndDiscard(registered, prepared, now, failure);
+            }
             throw failure;
+        }
+    }
+
+    private ProjectionAbortOutcome reconcilePublishFailure(
+            ProjectionBatch batch,
+            Instant now,
+            RuntimeException failure) {
+        try {
+            return publications.abortIfUnreachable(
+                    batch, failure.getClass().getSimpleName(), now);
+        } catch (RuntimeException reconciliationFailure) {
+            failure.addSuppressed(reconciliationFailure);
+            return ProjectionAbortOutcome.keepStaging();
         }
     }
 
@@ -57,14 +118,21 @@ public final class ProjectionBatchLifecycle {
             List<Preparation> prepared,
             Instant now,
             RuntimeException failure) {
+        ProjectionAbortOutcome outcome;
         try {
-            publications.abort(batch, failure.getClass().getSimpleName(), now);
+            outcome = publications.abortIfUnreachable(
+                    batch, failure.getClass().getSimpleName(), now);
         } catch (RuntimeException abortFailure) {
             failure.addSuppressed(abortFailure);
+            return;
         }
+        if (outcome.status() != ProjectionAbortOutcome.Status.DISCARD_ALLOWED) {
+            return;
+        }
+        ProjectionDiscardPermit permit = outcome.discardPermitOptional().orElseThrow();
         for (int index = prepared.size() - 1; index >= 0; index--) {
             try {
-                prepared.get(index).discard(batch);
+                prepared.get(index).discard(batch, permit);
             } catch (RuntimeException discardFailure) {
                 failure.addSuppressed(discardFailure);
             }

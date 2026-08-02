@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (6ed738c2)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
 
 ## Current Behavior
 
@@ -74,6 +74,15 @@ not imply Executive or source access. Classification requires:
 
 Every classification decision is still intersected with tenant, both source ACL
 snapshots, and OrgMemory policy.
+
+The administrator's Knowledge Asset `can_view` inspector reuses the canonical
+eligibility SQL for exactly one asset, after the OpenFGA relationship gate has
+allowed it. It does not call `ListObjects`, enumerate the tenant's catalog, or
+change enforcement. A missing canonical row is a content-policy denial; a
+database failure is `UNKNOWN`. The diagnostic groups Source ACL,
+classification, publication, lifecycle, and current-version eligibility into
+one canonical gate because the shared SQL remains the authority and the
+inspector does not maintain a second policy implementation.
 
 ACL snapshots are immutable and sealed. A compare-and-set head selects the
 current generation; superseded or absent current evidence fails closed. The

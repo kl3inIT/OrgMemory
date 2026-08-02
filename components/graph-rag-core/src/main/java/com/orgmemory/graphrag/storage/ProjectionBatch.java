@@ -11,16 +11,50 @@ import java.util.UUID;
 public record ProjectionBatch(
         UUID id,
         ProjectionNamespace namespace,
+        UUID expectedPreviousBatchId,
         long expectedPreviousGeneration,
         long generation,
         String idempotencyKey,
         String manifestFingerprint,
         Set<ProjectionKind> requiredProjections,
+        long claimEpoch,
         Instant createdAt) {
+
+    public ProjectionBatch(
+            UUID id,
+            ProjectionNamespace namespace,
+            long expectedPreviousGeneration,
+            long generation,
+            String idempotencyKey,
+            String manifestFingerprint,
+            Set<ProjectionKind> requiredProjections,
+            Instant createdAt) {
+        this(
+                id,
+                namespace,
+                null,
+                expectedPreviousGeneration,
+                generation,
+                idempotencyKey,
+                manifestFingerprint,
+                requiredProjections,
+                0,
+                createdAt);
+    }
 
     public ProjectionBatch {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(namespace, "namespace");
+        if (expectedPreviousGeneration == 0 && expectedPreviousBatchId != null) {
+            throw new IllegalArgumentException(
+                    "the empty predecessor cannot have a batch id");
+        }
+        if (expectedPreviousGeneration > 0
+                && expectedPreviousBatchId == null
+                && claimEpoch > 0) {
+            throw new IllegalArgumentException(
+                    "a production publication must pin the predecessor batch id");
+        }
         if (expectedPreviousGeneration < 0) {
             throw new IllegalArgumentException(
                     "expectedPreviousGeneration must be non-negative");
@@ -36,6 +70,9 @@ public record ProjectionBatch(
                 Set.copyOf(Objects.requireNonNull(requiredProjections, "requiredProjections"));
         if (requiredProjections.isEmpty()) {
             throw new IllegalArgumentException("requiredProjections must not be empty");
+        }
+        if (claimEpoch < 0) {
+            throw new IllegalArgumentException("claimEpoch must be non-negative");
         }
         Objects.requireNonNull(createdAt, "createdAt");
     }

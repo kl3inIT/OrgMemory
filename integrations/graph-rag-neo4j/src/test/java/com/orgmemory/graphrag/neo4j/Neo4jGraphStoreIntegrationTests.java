@@ -1,5 +1,7 @@
 package com.orgmemory.graphrag.neo4j;
 
+import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.commitPermit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.orgmemory.graphrag.storage.GraphStore;
@@ -71,7 +73,8 @@ class Neo4jGraphStoreIntegrationTests {
                     firstEntityId,
                     secondEntityId);
             publications.markPrepared(first, ProjectionKind.GRAPH, Instant.now());
-            publications.publish(first, Instant.now());
+            Instant publishedAt = Instant.now();
+            publications.publish(first, commitPermit(first, publishedAt), publishedAt);
 
             ProjectionBatch second = batch(namespace, 1, "copy-target");
             store.stageDeleteRevision(second, UUID.randomUUID());

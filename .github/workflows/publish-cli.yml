@@ -118,10 +118,9 @@ jobs:
           expected_integrity="$(
             node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/orgmemory-cli-pack.json', 'utf8'))[0].integrity"
           )"
-          published="$(
-            npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null || true
-          )"
-          if [[ -n "$published" ]]; then
+          if published="$(
+            npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null
+          )"; then
             PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node -e '
               const value = JSON.parse(process.env.PUBLISHED_JSON)
               const expectedVersion = process.env.PACKAGE_VERSION

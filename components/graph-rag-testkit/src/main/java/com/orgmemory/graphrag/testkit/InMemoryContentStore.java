@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.testkit;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
@@ -79,8 +80,11 @@ public final class InMemoryContentStore implements ContentStore {
     }
 
     @Override
-    public synchronized void discard(ProjectionBatch batch) {
+    public synchronized void discard(
+            ProjectionBatch batch,
+            ProjectionDiscardPermit permit) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         batches.remove(batch.id());
     }
 

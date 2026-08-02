@@ -1,6 +1,9 @@
 package com.orgmemory.graphrag.testkit;
 
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionAbortOutcome;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -31,7 +34,47 @@ public final class InMemoryProjectionPublicationStore
     private final Map<IdempotencyKey, UUID> registeredIdempotencyKeys = new HashMap<>();
     private final Map<UUID, Map<ProjectionKind, Instant>> preparationReceipts =
             new HashMap<>();
+    private final Map<UUID, ProjectionCommitPermit> commitPermits = new HashMap<>();
     private final Set<UUID> abortedBatches = new HashSet<>();
+
+    @Override
+    public synchronized ProjectionBatch begin(ProjectionBatch candidate) {
+        Objects.requireNonNull(candidate, "candidate");
+        ProjectionBatch exact = registeredBatches.get(candidate.id());
+        if (exact != null) {
+            requireSameBatchIdentity(candidate, exact);
+            return exact;
+        }
+        IdempotencyKey key = new IdempotencyKey(
+                candidate.namespace(), candidate.idempotencyKey());
+        UUID activeId = registeredIdempotencyKeys.get(key);
+        if (activeId != null) {
+            ProjectionBatch active = registeredBatches.get(activeId);
+            requireSameOperation(candidate, active);
+            if (commitPermits.containsKey(active.id())) {
+                return active;
+            }
+            if (candidate.claimEpoch() <= 0
+                    || candidate.claimEpoch() <= active.claimEpoch()) {
+                throw new PublicationConflictException(
+                        "a live or unfenced publication attempt already owns the operation");
+            }
+            abortedBatches.add(active.id());
+            registeredIdempotencyKeys.remove(key, active.id());
+        }
+        register(candidate);
+        return registeredBatches.get(candidate.id());
+    }
+
+    @Override
+    public synchronized boolean hasBoundCommitPermit(ProjectionBatch batch) {
+        ProjectionBatch registered = registeredBatches.get(batch.id());
+        if (registered == null) {
+            return false;
+        }
+        requireSameBatchIdentity(batch, registered);
+        return commitPermits.containsKey(batch.id());
+    }
 
     @Override
     public synchronized Optional<ProjectionSnapshot> current(ProjectionNamespace namespace) {
@@ -84,11 +127,20 @@ public final class InMemoryProjectionPublicationStore
     @Override
     public synchronized ProjectionSnapshot publish(
             ProjectionBatch batch,
+            ProjectionCommitPermit permit,
             Instant publishedAt) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         Objects.requireNonNull(publishedAt, "publishedAt");
         if (abortedBatches.contains(batch.id())) {
             throw new PublicationConflictException("an aborted batch cannot be published");
+        }
+        ProjectionCommitPermit existingPermit = commitPermits.get(batch.id());
+        if (existingPermit != null
+                && (!existingPermit.id().equals(permit.id())
+                        || existingPermit.claimEpoch() != permit.claimEpoch())) {
+            throw new PublicationConflictException(
+                    "publication attempt is bound to a different commit permit");
         }
         ProjectionSnapshot replay = publishedBatches.get(batch.id());
         if (replay != null) {
@@ -114,6 +166,7 @@ public final class InMemoryProjectionPublicationStore
             throw new PublicationNotReadyException(
                     "every required projection must have a durable preparation receipt");
         }
+        commitPermits.putIfAbsent(batch.id(), permit);
 
         long currentGeneration = Optional.ofNullable(heads.get(batch.namespace()))
                 .map(ProjectionSnapshot::generation)
@@ -124,6 +177,15 @@ public final class InMemoryProjectionPublicationStore
                             + batch.expectedPreviousGeneration()
                             + " but current generation is "
                             + currentGeneration);
+        }
+        UUID currentBatchId = Optional.ofNullable(heads.get(batch.namespace()))
+                .map(ProjectionSnapshot::batchId)
+                .orElse(null);
+        if (batch.claimEpoch() > 0
+                && !Objects.equals(
+                        currentBatchId, batch.expectedPreviousBatchId())) {
+            throw new PublicationConflictException(
+                    "expected predecessor batch does not match the namespace head");
         }
 
         ProjectionSnapshot published = new ProjectionSnapshot(
@@ -160,6 +222,30 @@ public final class InMemoryProjectionPublicationStore
                 batch.id());
     }
 
+    @Override
+    public synchronized ProjectionAbortOutcome abortIfUnreachable(
+            ProjectionBatch batch,
+            String reason,
+            Instant abortedAt) {
+        Objects.requireNonNull(batch, "batch");
+        requireText(reason, "reason");
+        Objects.requireNonNull(abortedAt, "abortedAt");
+        ProjectionSnapshot published = publishedBatches.get(batch.id());
+        if (published != null) {
+            return ProjectionAbortOutcome.published(published);
+        }
+        if (commitPermits.containsKey(batch.id())) {
+            return ProjectionAbortOutcome.keepStaging();
+        }
+        register(batch);
+        abortedBatches.add(batch.id());
+        registeredIdempotencyKeys.remove(
+                new IdempotencyKey(batch.namespace(), batch.idempotencyKey()),
+                batch.id());
+        return ProjectionAbortOutcome.discardAllowed(
+                new ProjectionDiscardPermit(UUID.randomUUID(), batch.id(), abortedAt));
+    }
+
     private void register(ProjectionBatch batch) {
         ProjectionBatch registered = registeredBatches.get(batch.id());
         if (registered != null) {
@@ -184,10 +270,14 @@ public final class InMemoryProjectionPublicationStore
         if (!registered.namespace().equals(candidate.namespace())
                 || registered.expectedPreviousGeneration()
                         != candidate.expectedPreviousGeneration()
+                || !Objects.equals(
+                        registered.expectedPreviousBatchId(),
+                        candidate.expectedPreviousBatchId())
                 || registered.generation() != candidate.generation()
                 || !registered.idempotencyKey().equals(candidate.idempotencyKey())
                 || !registered.manifestFingerprint().equals(candidate.manifestFingerprint())
-                || !registered.requiredProjections().equals(candidate.requiredProjections())) {
+                || !registered.requiredProjections().equals(candidate.requiredProjections())
+                || registered.claimEpoch() != candidate.claimEpoch()) {
             throw new PublicationConflictException(
                     "a batch id cannot identify different publication content");
         }
@@ -200,6 +290,17 @@ public final class InMemoryProjectionPublicationStore
                 || existing.generation() != batch.generation()
                 || !existing.manifestFingerprint().equals(batch.manifestFingerprint())
                 || !existing.projections().equals(batch.requiredProjections())) {
+            throw new PublicationConflictException(
+                    "an idempotency key cannot identify different publication content");
+        }
+    }
+
+    private static void requireSameOperation(
+            ProjectionBatch candidate, ProjectionBatch registered) {
+        if (!candidate.namespace().equals(registered.namespace())
+                || !candidate.idempotencyKey().equals(registered.idempotencyKey())
+                || !candidate.manifestFingerprint().equals(registered.manifestFingerprint())
+                || !candidate.requiredProjections().equals(registered.requiredProjections())) {
             throw new PublicationConflictException(
                     "an idempotency key cannot identify different publication content");
         }

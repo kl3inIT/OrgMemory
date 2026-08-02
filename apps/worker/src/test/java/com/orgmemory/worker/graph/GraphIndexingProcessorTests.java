@@ -633,6 +633,7 @@ class GraphIndexingProcessorTests {
                         EmbeddingDistanceMetric.COSINE),
                 "en",
                 1,
+                1,
                 chunks);
     }
 

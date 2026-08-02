@@ -44,6 +44,15 @@ test("CLI publication verifies Node 24, the tarball, provenance, and npx executi
   assert.match(workflow, /--prefer-online/);
   assert.match(workflow, /expected_integrity/);
   assert.match(workflow, /Exact package already exists with matching integrity/);
+  assert.match(
+    workflow,
+    /if published="\$\(\s*npm view "@orgmemory\/cli@\$PACKAGE_VERSION" --json --prefer-online 2>\/dev\/null\s*\)"; then/,
+    "a missing registry version must follow npm view's exit status instead of non-empty error JSON",
+  );
+  assert.doesNotMatch(
+    workflow,
+    /published="\$\([\s\S]*?npm view[\s\S]*?\|\| true[\s\S]*?\)"\s*if \[\[ -n "\$published" \]\]; then/,
+  );
   assert.match(workflow, /did not become fully verifiable on npm within 180 seconds/);
   assert.doesNotMatch(workflow, /if \[\[ -n "\$published" \]\]; then break; fi/);
   assert.match(workflow, /npm exec --yes --package=/);

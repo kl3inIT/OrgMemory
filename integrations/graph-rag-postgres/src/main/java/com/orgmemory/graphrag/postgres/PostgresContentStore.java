@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.postgres;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.sql.ResultSet;
@@ -173,7 +174,8 @@ public final class PostgresContentStore implements ContentStore {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         support.discard(
                 batch,
                 ProjectionKind.CONTENT,

@@ -1253,3 +1253,9 @@ sequential `clean test` passed with 99 actionable tasks in 2m05s; after the
 verifier test was strengthened to cover organization and chunk mismatches, its
 focused rerun stayed green and a fresh terminating `clean test` passed all 99
 tasks again in 1m41s.
+
+After merging current `origin/main` at `f2cf3c67`, the four Graph/verifier test
+classes plus the full Modulith verification slice passed in 1m35s. The
+documentation operating-model check passed on the merged base for 501 Markdown
+files and 8 mirrored domain pairs, and all 41 release-policy tests passed again
+on Node 24.15.0.

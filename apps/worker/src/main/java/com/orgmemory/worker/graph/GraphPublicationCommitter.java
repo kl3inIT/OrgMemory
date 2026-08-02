@@ -18,7 +18,10 @@ import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.LexicalIndex;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
 import com.orgmemory.graphrag.storage.ProjectionBatchLifecycle;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
+import com.orgmemory.graphrag.storage.PublicationRebaseRequiredException;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
@@ -26,12 +29,14 @@ import com.orgmemory.graphrag.storage.StagedProjectionWriter;
 import com.orgmemory.graphrag.storage.VectorIndex;
 import java.time.Duration;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -80,19 +85,17 @@ class GraphPublicationCommitter {
 
     boolean completePublished(
             ClaimedGraphIndex claim,
-            String workerId,
-            Duration renewedLeaseDuration) {
+            String workerId) {
         ProjectionNamespace namespace = namespace(claim);
         return publications
                 .published(namespace, claim.idempotencyKey())
                 .map(snapshot -> {
-                    coordinator.preparePublication(
+                    invalidate(namespace);
+                    coordinator.completePublished(
                             claim.jobId(),
                             workerId,
-                            renewedLeaseDuration,
-                            snapshot.manifestFingerprint());
-                    invalidate(namespace);
-                    coordinator.complete(claim.jobId(), workerId);
+                            claim.claimEpoch(),
+                            snapshot);
                     return true;
                 })
                 .orElse(false);
@@ -108,14 +111,27 @@ class GraphPublicationCommitter {
         ProjectionSnapshot current = publications.current(namespace).orElse(null);
         long previousGeneration = current == null ? 0 : current.generation();
         Instant now = Instant.now();
+        String manifestFingerprint = manifestFingerprint(claim, projection);
+        Optional<ProjectionCommitPermit> recoveryPermit =
+                coordinator.publicationPermit(claim.jobId());
+        recoveryPermit.ifPresent(permit -> {
+            if (!permit.manifestFingerprint().equals(manifestFingerprint)) {
+                throw new IllegalStateException(
+                        "durable graph publication permit has a different manifest");
+            }
+        });
         ProjectionBatch batch = new ProjectionBatch(
-                UUID.randomUUID(),
+                recoveryPermit.map(ProjectionCommitPermit::batchId)
+                        .orElseGet(() -> publicationAttemptId(claim, current)),
                 namespace,
+                current == null ? null : current.batchId(),
                 previousGeneration,
                 previousGeneration + 1,
                 claim.idempotencyKey(),
-                manifestFingerprint(claim, projection),
+                manifestFingerprint,
                 REQUIRED_PROJECTIONS,
+                recoveryPermit.map(ProjectionCommitPermit::claimEpoch)
+                        .orElse(claim.claimEpoch()),
                 now);
 
         List<ContentStore.ContentRecord> contentRecords = contentRecords(claim);
@@ -129,9 +145,7 @@ class GraphPublicationCommitter {
                 workerId,
                 renewedLeaseDuration,
                 batch.manifestFingerprint());
-        new ProjectionBatchLifecycle(publications).publish(
-                batch,
-                List.of(
+        List<ProjectionBatchLifecycle.Preparation> preparations = List.of(
                         preparation(
                                 content,
                                 candidate -> {
@@ -160,15 +174,47 @@ class GraphPublicationCommitter {
                                             candidate, claim.knowledgeAssetId());
                                     graph.stageReplaceRevision(
                                             candidate, projection.contributions());
-                                })),
-                now);
+                                }));
+        ProjectionSnapshot published;
+        try {
+            published = new ProjectionBatchLifecycle(publications).publish(
+                    batch,
+                    preparations,
+                    registered -> coordinator.issueOrLoadPublicationPermit(
+                            claim.jobId(), workerId, claim.claimEpoch(), registered),
+                    recoveryPermit,
+                    now);
+        } catch (PublicationRebaseRequiredException rebase) {
+            coordinator.retirePublicationPermit(
+                    claim.jobId(),
+                    workerId,
+                    claim.claimEpoch(),
+                    rebase.batch(),
+                    rebase.discardPermit());
+            discardAfterPermitRetirement(preparations, rebase);
+            throw rebase;
+        }
         invalidate(namespace);
-        coordinator.complete(claim.jobId(), workerId);
+        coordinator.completePublished(
+                claim.jobId(), workerId, claim.claimEpoch(), published);
     }
 
     private void invalidate(ProjectionNamespace namespace) {
         modelCache.invalidate(namespace);
         retrievalCache.invalidateNamespace(namespace);
+    }
+
+    private static void discardAfterPermitRetirement(
+            List<ProjectionBatchLifecycle.Preparation> preparations,
+            PublicationRebaseRequiredException rebase) {
+        for (int index = preparations.size() - 1; index >= 0; index--) {
+            try {
+                preparations.get(index).discard(
+                        rebase.batch(), rebase.discardPermit());
+            } catch (RuntimeException discardFailure) {
+                rebase.addSuppressed(discardFailure);
+            }
+        }
     }
 
     private static ProjectionNamespace namespace(ClaimedGraphIndex claim) {
@@ -317,6 +363,21 @@ class GraphPublicationCommitter {
         return kind + ":" + subjectId + ":" + profileId;
     }
 
+    private static UUID publicationAttemptId(
+            ClaimedGraphIndex claim, ProjectionSnapshot predecessor) {
+        String predecessorId = predecessor == null
+                ? "none"
+                : predecessor.batchId().toString();
+        return UUID.nameUUIDFromBytes(String.join(
+                        "|",
+                        "orgmemory.graph-rag.publication-attempt.v1",
+                        claim.jobId().toString(),
+                        claim.idempotencyKey(),
+                        predecessorId,
+                        Long.toString(claim.claimEpoch()))
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
     private static String manifestFingerprint(
             ClaimedGraphIndex claim,
             GraphRevisionProjection projection) {
@@ -387,8 +448,9 @@ class GraphPublicationCommitter {
             }
 
             @Override
-            public void discard(ProjectionBatch batch) {
-                writer.discard(batch);
+            public void discard(
+                    ProjectionBatch batch, ProjectionDiscardPermit permit) {
+                writer.discard(batch, permit);
             }
         };
     }

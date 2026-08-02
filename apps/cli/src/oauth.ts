@@ -3,6 +3,7 @@ import type {
   OAuthClientMetadata,
   OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js"
+
 import type {
   OAuthClientProvider,
   OAuthDiscoveryState,
@@ -15,6 +16,7 @@ import { dirname, join } from "node:path"
 import { spawn } from "node:child_process"
 
 import { atomicWriteJson, isENOENT } from "./shared.js"
+import { CLI_VERSION } from "./version.js"
 
 type PersistedOAuthState = {
   clientInformation?: OAuthClientInformationMixed
@@ -48,7 +50,7 @@ export class FileOAuthClientProvider implements OAuthClientProvider {
       token_endpoint_auth_method: "none",
       scope,
       software_id: "orgmemory-cli",
-      software_version: "0.1.0",
+      software_version: CLI_VERSION,
     }
   }
 

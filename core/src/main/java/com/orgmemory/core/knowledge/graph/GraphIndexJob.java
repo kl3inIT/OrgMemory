@@ -55,6 +55,9 @@ class GraphIndexJob extends BaseEntity {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    @Column(name = "claim_epoch", nullable = false)
+    private long claimEpoch;
+
     @Column(name = "max_attempts", nullable = false, updatable = false)
     private int maxAttempts;
 
@@ -69,6 +72,18 @@ class GraphIndexJob extends BaseEntity {
 
     @Column(name = "manifest_fingerprint", length = 64)
     private String manifestFingerprint;
+
+    @Column(name = "publication_permit_id")
+    private UUID publicationPermitId;
+
+    @Column(name = "publication_permit_batch_id")
+    private UUID publicationPermitBatchId;
+
+    @Column(name = "publication_permit_claim_epoch")
+    private Long publicationPermitClaimEpoch;
+
+    @Column(name = "publication_permit_issued_at")
+    private Instant publicationPermitIssuedAt;
 
     @Column(name = "cancellation_requested", nullable = false)
     private boolean cancellationRequested;
@@ -125,6 +140,7 @@ class GraphIndexJob extends BaseEntity {
         leaseOwner = workerId;
         leaseUntil = now.plus(leaseDuration);
         attemptCount++;
+        claimEpoch++;
         lastErrorCode = null;
         lastErrorMessage = null;
     }
@@ -148,6 +164,49 @@ class GraphIndexJob extends BaseEntity {
                     "a graph indexing retry produced a different manifest");
         }
         manifestFingerprint = normalized;
+    }
+
+    void issuePublicationPermit(UUID permitId, UUID batchId, long epoch, Instant issuedAt) {
+        Objects.requireNonNull(permitId, "permitId");
+        Objects.requireNonNull(batchId, "batchId");
+        Objects.requireNonNull(issuedAt, "issuedAt");
+        if (epoch != claimEpoch) {
+            throw new IllegalStateException("graph publication claim epoch is stale");
+        }
+        if (publicationPermitId != null) {
+            if (!publicationPermitId.equals(permitId)
+                    || !publicationPermitBatchId.equals(batchId)
+                    || publicationPermitClaimEpoch == null
+                    || publicationPermitClaimEpoch != epoch) {
+                throw new IllegalStateException(
+                        "graph publication already has a different commit permit");
+            }
+            return;
+        }
+        publicationPermitId = permitId;
+        publicationPermitBatchId = batchId;
+        publicationPermitClaimEpoch = epoch;
+        publicationPermitIssuedAt = issuedAt;
+    }
+
+    boolean hasPublicationPermitFor(UUID batchId, String fingerprint) {
+        return publicationPermitId != null
+                && publicationPermitBatchId.equals(batchId)
+                && manifestFingerprint != null
+                && manifestFingerprint.equals(requireFingerprint(fingerprint));
+    }
+
+    void retirePublicationPermit(UUID batchId) {
+        Objects.requireNonNull(batchId, "batchId");
+        if (publicationPermitId == null
+                || !publicationPermitBatchId.equals(batchId)) {
+            throw new IllegalStateException(
+                    "discard proof does not identify the durable publication permit");
+        }
+        publicationPermitId = null;
+        publicationPermitBatchId = null;
+        publicationPermitClaimEpoch = null;
+        publicationPermitIssuedAt = null;
     }
 
     void succeed(Instant now) {
@@ -266,6 +325,26 @@ class GraphIndexJob extends BaseEntity {
         return attemptCount;
     }
 
+    long getClaimEpoch() {
+        return claimEpoch;
+    }
+
+    UUID getPublicationPermitId() {
+        return publicationPermitId;
+    }
+
+    UUID getPublicationPermitBatchId() {
+        return publicationPermitBatchId;
+    }
+
+    Long getPublicationPermitClaimEpoch() {
+        return publicationPermitClaimEpoch;
+    }
+
+    Instant getPublicationPermitIssuedAt() {
+        return publicationPermitIssuedAt;
+    }
+
     GraphIndexJobStatus getStatus() {
         return status;
     }
@@ -276,6 +355,10 @@ class GraphIndexJob extends BaseEntity {
 
     String getIdempotencyKey() {
         return idempotencyKey;
+    }
+
+    String getManifestFingerprint() {
+        return manifestFingerprint;
     }
 
     Instant getCancellationRequestedAt() {

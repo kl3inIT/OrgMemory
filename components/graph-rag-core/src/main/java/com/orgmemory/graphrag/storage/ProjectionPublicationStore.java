@@ -31,6 +31,12 @@ import java.util.Optional;
  */
 public interface ProjectionPublicationStore {
 
+    /** Registers the attempt before any staging mutation and returns its exact identity. */
+    ProjectionBatch begin(ProjectionBatch candidate);
+
+    /** True only when this exact attempt already durably copied a commit permit. */
+    boolean hasBoundCommitPermit(ProjectionBatch batch);
+
     Optional<ProjectionSnapshot> current(ProjectionNamespace namespace);
 
     Optional<ProjectionSnapshot> published(
@@ -50,7 +56,19 @@ public interface ProjectionPublicationStore {
             ProjectionKind projection,
             Instant preparedAt);
 
-    ProjectionSnapshot publish(ProjectionBatch batch, Instant publishedAt);
+    ProjectionSnapshot publish(
+            ProjectionBatch batch,
+            ProjectionCommitPermit permit,
+            Instant publishedAt);
+
+    /**
+     * Proves whether cleanup is safe. Unknown, committing, visible, or
+     * contradictory state never grants a discard permit.
+     */
+    ProjectionAbortOutcome abortIfUnreachable(
+            ProjectionBatch batch,
+            String reason,
+            Instant abortedAt);
 
     void abort(ProjectionBatch batch, String reason, Instant abortedAt);
 

@@ -1,5 +1,6 @@
 package com.orgmemory.core.knowledge.space;
 
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,5 +23,14 @@ public class KnowledgeSpaceQuery {
     public boolean isActive(UUID organizationId, UUID knowledgeSpaceId) {
         return spaces.existsByIdAndOrganizationIdAndActiveTrue(
                 knowledgeSpaceId, organizationId);
+    }
+
+    public Optional<String> findName(
+            UUID organizationId,
+            UUID knowledgeSpaceId) {
+        return spaces.findByIdAndOrganizationIdAndActiveTrue(
+                        knowledgeSpaceId,
+                        organizationId)
+                .map(KnowledgeSpace::getName);
     }
 }
