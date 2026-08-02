@@ -1,6 +1,7 @@
 package com.orgmemory.integrations.ai.gateway;
 
 import com.orgmemory.core.ai.AiGatewayProtocol;
+import com.orgmemory.core.ai.OpenAiReasoningEffort;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
 import org.springframework.ai.chat.model.ChatModel;
@@ -21,12 +22,25 @@ public interface SpringAiChatModelFactory {
             String baseUrl,
             SecretValue credential,
             String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort,
             Duration timeout) {
+
+        public Request(
+                String baseUrl,
+                SecretValue credential,
+                String modelId,
+                Duration timeout) {
+            this(baseUrl, credential, modelId, null, timeout);
+        }
 
         @Override
         public String toString() {
-            return "Request[baseUrl=%s, credential=<redacted>, modelId=%s, timeout=%s]"
-                    .formatted(baseUrl, modelId, timeout);
+            return "Request[baseUrl=%s, credential=<redacted>, modelId=%s, openAiReasoningEffort=%s, timeout=%s]"
+                    .formatted(
+                            baseUrl,
+                            modelId,
+                            openAiReasoningEffort,
+                            timeout);
         }
     }
 }

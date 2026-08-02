@@ -5869,6 +5869,17 @@
           },
           "modelId": {
             "type": "string"
+          },
+          "openAiReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "XHIGH",
+              "MAX"
+            ]
           }
         }
       },
@@ -5896,6 +5907,17 @@
           "modelId": {
             "type": "string"
           },
+          "openAiReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "XHIGH",
+              "MAX"
+            ]
+          },
           "source": {
             "type": "string"
           },
@@ -5905,6 +5927,9 @@
           "version": {
             "type": "integer",
             "format": "int64"
+          },
+          "lifecycleNote": {
+            "type": "string"
           }
         }
       },
@@ -5920,6 +5945,9 @@
           "requestTimeoutSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "supportsOpenAiReasoningEffort": {
+            "type": "boolean"
           },
           "credential": {
             "type": "string"
@@ -5965,6 +5993,9 @@
               "OPENAI_COMPATIBLE",
               "ANTHROPIC_MESSAGES"
             ]
+          },
+          "supportsOpenAiReasoningEffort": {
+            "type": "boolean"
           },
           "baseUrl": {
             "type": "string"
@@ -6599,6 +6630,17 @@
           },
           "modelId": {
             "type": "string"
+          },
+          "openAiReasoningEffort": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "XHIGH",
+              "MAX"
+            ]
           }
         }
       },
@@ -7713,6 +7755,9 @@
           "requestTimeoutSeconds": {
             "type": "integer",
             "format": "int32"
+          },
+          "supportsOpenAiReasoningEffort": {
+            "type": "boolean"
           },
           "credential": {
             "type": "string"

@@ -10,6 +10,7 @@ public record AiGatewayProfileView(
         AiGatewayPreset preset,
         AiGatewayCategory category,
         AiGatewayProtocol protocol,
+        boolean supportsOpenAiReasoningEffort,
         String baseUrl,
         int requestTimeoutSeconds,
         boolean enabled,

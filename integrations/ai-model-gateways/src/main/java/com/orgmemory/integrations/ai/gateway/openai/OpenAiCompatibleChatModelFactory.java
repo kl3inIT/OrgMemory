@@ -33,13 +33,17 @@ public final class OpenAiCompatibleChatModelFactory
 
     @Override
     public ChatModel create(Request request) {
+        var options = OpenAiChatOptions.builder()
+                .baseUrl(request.baseUrl())
+                .apiKey(request.credential().expose())
+                .model(request.modelId())
+                .timeout(request.timeout());
+        if (request.openAiReasoningEffort() != null) {
+            options.reasoningEffort(
+                    request.openAiReasoningEffort().wireValue());
+        }
         return OpenAiChatModel.builder()
-                .options(OpenAiChatOptions.builder()
-                        .baseUrl(request.baseUrl())
-                        .apiKey(request.credential().expose())
-                        .model(request.modelId())
-                        .timeout(request.timeout())
-                        .build())
+                .options(options.build())
                 .observationRegistry(observations)
                 .meterRegistry(meters)
                 .build();

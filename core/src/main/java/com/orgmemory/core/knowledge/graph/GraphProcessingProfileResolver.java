@@ -28,6 +28,9 @@ class GraphProcessingProfileResolver {
         return LightRagGraphProcessingProfiles.current(new ExtractionProfile(
                 route.gatewayId(),
                 route.modelId(),
+                route.openAiReasoningEffort() == null
+                        ? null
+                        : route.openAiReasoningEffort().wireValue(),
                 LightRagExtractionPrompt.VERSION,
                 properties.maximumEntitiesPerChunk(),
                 properties.maximumRelationsPerChunk(),

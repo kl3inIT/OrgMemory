@@ -4,6 +4,7 @@ import com.orgmemory.graphrag.processing.ProcessingComponentRef;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Framework-neutral answer generation boundary. */
 public interface QueryAnswerModel {
@@ -13,6 +14,7 @@ public interface QueryAnswerModel {
     Response answer(Request request);
 
     record Request(
+            UUID organizationId,
             String query,
             String systemPrompt,
             List<Message> conversationHistory,
@@ -23,6 +25,19 @@ public interface QueryAnswerModel {
             systemPrompt = Objects.requireNonNull(systemPrompt, "systemPrompt");
             conversationHistory =
                     List.copyOf(Objects.requireNonNull(conversationHistory, "conversationHistory"));
+        }
+
+        public Request(
+                String query,
+                String systemPrompt,
+                List<Message> conversationHistory,
+                boolean streaming) {
+            this(
+                    null,
+                    query,
+                    systemPrompt,
+                    conversationHistory,
+                    streaming);
         }
     }
 

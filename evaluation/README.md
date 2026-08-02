@@ -54,3 +54,30 @@ The API key is read only from the environment. Prompts, retrieved contexts and
 answers are not copied into the result artifact. Do not use production evidence
 in evaluation fixtures. The included synthetic fixture proves evaluator wiring
 only; it is not a product-quality benchmark.
+
+## RAG workload route comparison
+
+`orgmemory-workload-routing` compares the current Keyword and Graph baselines
+with GPT-5.6 Luna using a fixed bilingual synthetic corpus. The default run uses
+four cases and three repetitions per route. Luna uses `reasoning_effort=none`;
+baseline requests omit the option so the provider default is preserved.
+
+The output retains only fixture identity, model coordinates, validity counts,
+keyword/entity recall, graph yields, provider-failure counts, and p95 latency.
+It never retains the prompts, evidence, or raw model responses.
+
+```powershell
+Set-Location evaluation
+uv sync --frozen --dev
+$env:OPENAI_API_KEY = "<managed secret>"
+uv run orgmemory-workload-routing `
+  --input fixtures\workload-routing-v1.json `
+  --output output\workload-routing-results.json `
+  --repetitions 3
+```
+
+Keyword activation requires every candidate response to validate, no higher
+provider-failure count, and no more than 0.05 mean recall regression. Graph also
+requires at least 80% of baseline entity/relation yield and improved p95
+latency. These gates are independent; a failed Graph gate does not block an
+approved Keyword route.

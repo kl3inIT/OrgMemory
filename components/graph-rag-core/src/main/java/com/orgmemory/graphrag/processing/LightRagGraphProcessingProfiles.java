@@ -23,4 +23,15 @@ public final class LightRagGraphProcessingProfiles {
                 GraphContributionAssembler.MERGE_SEMANTICS_VERSION,
                 LightRagEmbeddingPayloads.FORMAT_ID);
     }
+
+    public static boolean supports(GraphProcessingProfile profile) {
+        Objects.requireNonNull(profile, "profile");
+        return ALGORITHM_VERSION.equals(profile.algorithmVersion())
+                && LightRagExtractionPrompt.templateSnapshot().strip()
+                        .equals(profile.promptTemplate())
+                && GraphContributionAssembler.MERGE_SEMANTICS_VERSION
+                        .equals(profile.mergeSemanticsVersion())
+                && LightRagEmbeddingPayloads.FORMAT_ID
+                        .equals(profile.embeddingPayloadFormatVersion());
+    }
 }

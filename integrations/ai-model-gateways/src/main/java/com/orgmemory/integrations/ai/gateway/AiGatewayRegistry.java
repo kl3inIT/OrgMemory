@@ -86,8 +86,14 @@ final class AiGatewayRegistry implements AiRouteResolver {
                         "The selected organization AI gateway is unavailable");
             }
             AiGatewayConnection connection = organizationConnection.orElseThrow();
+            if (route.openAiReasoningEffort() != null
+                    && !connection.supportsOpenAiReasoningEffort()) {
+                throw new AiGatewayUnavailableException(
+                        "The selected organization AI gateway has not declared OpenAI reasoning effort support");
+            }
             return new ResolvedGateway(
                     connection.protocol(),
+                    connection.supportsOpenAiReasoningEffort(),
                     connection.baseUrl(),
                     connection.credential(),
                     connection.timeout(),
@@ -107,8 +113,15 @@ final class AiGatewayRegistry implements AiRouteResolver {
         if (route.modelId().isBlank()) {
             throw new AiGatewayUnavailableException("AI route model is not configured for " + workload);
         }
+        if (route.openAiReasoningEffort() != null
+                && !gateway.supportsOpenAiReasoningEffort()) {
+            throw new AiGatewayUnavailableException(
+                    "AI gateway has not declared OpenAI reasoning effort support: "
+                            + route.gatewayId());
+        }
         return new ResolvedGateway(
                 AiGatewayProtocol.OPENAI_COMPATIBLE,
+                gateway.supportsOpenAiReasoningEffort(),
                 gateway.baseUrl(),
                 SecretValue.of(gateway.apiKey()),
                 gateway.timeout(),
@@ -117,6 +130,7 @@ final class AiGatewayRegistry implements AiRouteResolver {
 
     record ResolvedGateway(
             AiGatewayProtocol protocol,
+            boolean supportsOpenAiReasoningEffort,
             String baseUrl,
             SecretValue credential,
             Duration timeout,
@@ -124,9 +138,10 @@ final class AiGatewayRegistry implements AiRouteResolver {
 
         @Override
         public String toString() {
-            return "ResolvedGateway[protocol=%s, baseUrl=%s, credential=<redacted>, timeout=%s, profileVersion=%d]"
+            return "ResolvedGateway[protocol=%s, supportsOpenAiReasoningEffort=%s, baseUrl=%s, credential=<redacted>, timeout=%s, profileVersion=%d]"
                     .formatted(
                             protocol,
+                            supportsOpenAiReasoningEffort,
                             baseUrl,
                             timeout,
                             profileVersion);

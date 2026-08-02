@@ -79,7 +79,8 @@ public final class LightRagKeywordPlanner {
                                 trustedKeywords.highLevel(),
                                 trustedKeywords.lowLevel(),
                                 KeywordPlan.Source.TRUSTED_CALLER),
-                        GraphRagEventSink.CacheStatus.BYPASS);
+                        GraphRagEventSink.CacheStatus.BYPASS,
+                        null);
         KeywordPlan candidate = planning.plan();
         Objects.requireNonNull(candidate, "keyword plan");
         if (!candidate.empty()) {
@@ -92,43 +93,53 @@ public final class LightRagKeywordPlanner {
                             List.of(),
                             List.of(normalizedQuery),
                             KeywordPlan.Source.SHORT_QUERY_FALLBACK),
-                    planning.cacheStatus());
+                    planning.cacheStatus(),
+                    planning.modelRouteFingerprint());
         }
         return new PlanningResult(
                 KeywordPlan.empty(candidate.source()),
-                planning.cacheStatus());
+                planning.cacheStatus(),
+                planning.modelRouteFingerprint());
     }
 
     private PlanningResult modelPlan(
             String normalizedQuery,
             UUID organizationId,
             String strategy) {
-        ModelInvocationCache.Key key =
-                cacheKey(normalizedQuery, organizationId, strategy);
+        KeywordPlanningModel.Invocation invocation = model.resolve(organizationId);
+        String routeFingerprint = invocation.modelRouteFingerprint();
+        ModelInvocationCache.Key key = cacheKey(
+                normalizedQuery,
+                organizationId,
+                strategy,
+                routeFingerprint);
         if (key != null) {
             Optional<KeywordPlan> cached = cached(key);
             if (cached.isPresent()) {
                 return new PlanningResult(
                         cached.orElseThrow(),
-                        GraphRagEventSink.CacheStatus.HIT);
+                        GraphRagEventSink.CacheStatus.HIT,
+                        routeFingerprint);
             }
         }
         KeywordPlan generated =
                 Objects.requireNonNull(
-                        model.complete(prompt(normalizedQuery, language)),
+                        invocation.complete(prompt(normalizedQuery, language)),
                         "keyword plan");
         if (key != null) {
             cache(key, generated);
         }
         return new PlanningResult(
                 generated,
-                GraphRagEventSink.CacheStatus.MISS);
+                GraphRagEventSink.CacheStatus.MISS,
+                routeFingerprint);
     }
 
     private ModelInvocationCache.Key cacheKey(
             String normalizedQuery,
             UUID organizationId,
-            String strategy) {
+            String strategy,
+            String modelRouteFingerprint) {
         if (cachePolicy == null || organizationId == null) {
             return null;
         }
@@ -140,7 +151,9 @@ public final class LightRagKeywordPlanner {
                 normalizedQuery,
                 language,
                 strategy,
-                cachePolicy.modelRouteFingerprint(),
+                CanonicalCacheKeyHasher.requireSha256(
+                        modelRouteFingerprint,
+                        "modelRouteFingerprint"),
                 cachePolicy.profileFingerprint(language));
     }
 
@@ -251,16 +264,11 @@ public final class LightRagKeywordPlanner {
 
     public record CachePolicy(
             ModelInvocationCache cache,
-            String modelRouteFingerprint,
             Duration ttl,
             Clock clock) {
 
         public CachePolicy {
             Objects.requireNonNull(cache, "cache");
-            modelRouteFingerprint =
-                    CanonicalCacheKeyHasher.requireSha256(
-                            modelRouteFingerprint,
-                            "modelRouteFingerprint");
             Objects.requireNonNull(ttl, "ttl");
             if (ttl.isZero()
                     || ttl.isNegative()
@@ -282,17 +290,17 @@ public final class LightRagKeywordPlanner {
 
     public record PlanningResult(
             KeywordPlan plan,
-            GraphRagEventSink.CacheStatus cacheStatus) {
+            GraphRagEventSink.CacheStatus cacheStatus,
+            String modelRouteFingerprint) {
 
         public PlanningResult {
             Objects.requireNonNull(plan, "plan");
             Objects.requireNonNull(cacheStatus, "cacheStatus");
+            modelRouteFingerprint = modelRouteFingerprint == null
+                    ? null
+                    : CanonicalCacheKeyHasher.requireSha256(
+                            modelRouteFingerprint,
+                            "modelRouteFingerprint");
         }
-    }
-
-    public String modelRouteFingerprint() {
-        return cachePolicy == null
-                ? null
-                : cachePolicy.modelRouteFingerprint();
     }
 }

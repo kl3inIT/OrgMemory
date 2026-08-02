@@ -76,6 +76,7 @@ public class AiGatewayAdministrationService {
             AiGatewayProtocol protocol,
             String baseUrl,
             Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             SecretValue credential,
             UUID adminUserId) {
         String key = requireGatewayKey(gatewayKey);
@@ -108,6 +109,9 @@ public class AiGatewayAdministrationService {
                 requiredProtocol,
                 allowedBaseUrl,
                 requireTimeout(requestTimeoutSeconds),
+                requireReasoningCapability(
+                        requiredProtocol,
+                        supportsOpenAiReasoningEffort),
                 adminUserId));
         if (credential != null) {
             credentials.save(new AiGatewayCredential(
@@ -128,6 +132,31 @@ public class AiGatewayAdministrationService {
         return view(profile);
     }
 
+    public AiGatewayProfileView create(
+            UUID organizationId,
+            String gatewayKey,
+            String displayName,
+            AiGatewayPreset preset,
+            AiGatewayCategory category,
+            AiGatewayProtocol protocol,
+            String baseUrl,
+            Integer requestTimeoutSeconds,
+            SecretValue credential,
+            UUID adminUserId) {
+        return create(
+                organizationId,
+                gatewayKey,
+                displayName,
+                preset,
+                category,
+                protocol,
+                baseUrl,
+                requestTimeoutSeconds,
+                false,
+                credential,
+                adminUserId);
+    }
+
     @Transactional
     public AiGatewayProfileView update(
             UUID organizationId,
@@ -135,9 +164,41 @@ public class AiGatewayAdministrationService {
             String displayName,
             String baseUrl,
             Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             SecretValue credential,
             UUID adminUserId) {
         AiGatewayProfile profile = requireProfile(organizationId, profileId);
+        return updateProfile(
+                organizationId,
+                profileId,
+                displayName,
+                baseUrl,
+                requestTimeoutSeconds,
+                supportsOpenAiReasoningEffort,
+                credential,
+                adminUserId,
+                profile);
+    }
+
+    private AiGatewayProfileView updateProfile(
+            UUID organizationId,
+            UUID profileId,
+            String displayName,
+            String baseUrl,
+            Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
+            SecretValue credential,
+            UUID adminUserId,
+            AiGatewayProfile profile) {
+        if (profile.supportsOpenAiReasoningEffort()
+                && !supportsOpenAiReasoningEffort
+                && routes.existsByOrganizationIdAndGatewayProfileIdAndOpenAiReasoningEffortIsNotNull(
+                        organizationId,
+                        profileId)) {
+            throw new BusinessConflictException(
+                    "ai.openai-reasoning-in-use",
+                    "Clear explicit reasoning effort from this gateway's routes before disabling support");
+        }
         profile.update(
                 requireText(displayName, "display name", 120),
                 endpoints.requireAllowed(
@@ -145,6 +206,9 @@ public class AiGatewayAdministrationService {
                         profile.protocol(),
                         baseUrl),
                 requireTimeout(requestTimeoutSeconds),
+                requireReasoningCapability(
+                        profile.protocol(),
+                        supportsOpenAiReasoningEffort),
                 adminUserId);
         if (credential != null) {
             replaceCredential(
@@ -167,6 +231,28 @@ public class AiGatewayAdministrationService {
                 profileId.toString(),
                 "GATEWAY_UPDATED");
         return view(profile);
+    }
+
+    @Transactional
+    public AiGatewayProfileView update(
+            UUID organizationId,
+            UUID profileId,
+            String displayName,
+            String baseUrl,
+            Integer requestTimeoutSeconds,
+            SecretValue credential,
+            UUID adminUserId) {
+        AiGatewayProfile profile = requireProfile(organizationId, profileId);
+        return updateProfile(
+                organizationId,
+                profileId,
+                displayName,
+                baseUrl,
+                requestTimeoutSeconds,
+                profile.supportsOpenAiReasoningEffort(),
+                credential,
+                adminUserId,
+                profile);
     }
 
     @Transactional
@@ -222,6 +308,7 @@ public class AiGatewayAdministrationService {
             AiWorkload workload,
             UUID profileId,
             String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort,
             UUID adminUserId) {
         requireEditableWorkload(workload);
         AiGatewayProfile profile = requireProfile(organizationId, profileId);
@@ -242,6 +329,13 @@ public class AiGatewayAdministrationService {
                 modelId,
                 "model id",
                 MAX_MODEL_ID_LENGTH);
+        if (openAiReasoningEffort != null
+                && (profile.protocol() != AiGatewayProtocol.OPENAI_COMPATIBLE
+                        || !profile.supportsOpenAiReasoningEffort())) {
+            throw new BusinessValidationException(
+                    "ai.openai-reasoning-unsupported",
+                    "The selected AI gateway has not declared OpenAI reasoning effort support");
+        }
         Instant now = Instant.now();
         AiRouteOverride override = routes
                 .findByOrganizationIdAndWorkload(organizationId, workload)
@@ -250,9 +344,15 @@ public class AiGatewayAdministrationService {
                         workload,
                         profileId,
                         requiredModel,
+                        openAiReasoningEffort,
                         adminUserId,
                         now));
-        override.replace(profileId, requiredModel, adminUserId, now);
+        override.replace(
+                profileId,
+                requiredModel,
+                openAiReasoningEffort,
+                adminUserId,
+                now);
         override = routes.save(override);
         record(
                 organizationId,
@@ -261,6 +361,21 @@ public class AiGatewayAdministrationService {
                 workload.name(),
                 "ROUTE_SET");
         return routeView(override, profile);
+    }
+
+    public AiRouteOverrideView setRoute(
+            UUID organizationId,
+            AiWorkload workload,
+            UUID profileId,
+            String modelId,
+            UUID adminUserId) {
+        return setRoute(
+                organizationId,
+                workload,
+                profileId,
+                modelId,
+                null,
+                adminUserId);
     }
 
     @Transactional
@@ -320,6 +435,7 @@ public class AiGatewayAdministrationService {
                                 profile.getId(),
                                 profile.gatewayKey(),
                                 profile.protocol(),
+                                profile.supportsOpenAiReasoningEffort(),
                                 endpoints.requireAllowed(
                                         profile.preset(),
                                         profile.protocol(),
@@ -403,6 +519,7 @@ public class AiGatewayAdministrationService {
                 profile.preset(),
                 profile.category(),
                 profile.protocol(),
+                profile.supportsOpenAiReasoningEffort(),
                 profile.baseUrl(),
                 profile.requestTimeoutSeconds(),
                 profile.enabled(),
@@ -425,6 +542,7 @@ public class AiGatewayAdministrationService {
                 route.gatewayProfileId(),
                 profile.gatewayKey(),
                 route.modelId(),
+                route.openAiReasoningEffort(),
                 route.getVersion(),
                 route.setByUserId(),
                 route.setAt());
@@ -519,9 +637,22 @@ public class AiGatewayAdministrationService {
         }
     }
 
+    private static boolean requireReasoningCapability(
+            AiGatewayProtocol protocol,
+            boolean supportsOpenAiReasoningEffort) {
+        if (supportsOpenAiReasoningEffort
+                && protocol != AiGatewayProtocol.OPENAI_COMPATIBLE) {
+            throw new BusinessValidationException(
+                    "ai.openai-reasoning-protocol-invalid",
+                    "OpenAI reasoning effort requires an OpenAI-compatible gateway");
+        }
+        return supportsOpenAiReasoningEffort;
+    }
+
     private static void requireEditableWorkload(AiWorkload workload) {
         if (workload != AiWorkload.ASSISTANT_CHAT
-                && workload != AiWorkload.PROMPT_EXECUTION) {
+                && workload != AiWorkload.PROMPT_EXECUTION
+                && workload != AiWorkload.KEYWORD_PLANNING) {
             throw new BusinessValidationException(
                     "ai.route-not-editable",
                     "This AI workload is deployment-managed");

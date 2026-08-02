@@ -252,7 +252,9 @@ class SourceIngestionPipelineIntegrationTests {
         assertTrue(graphProfile.get("canonical_sha256").toString()
                 .matches("[0-9a-f]{64}"));
         assertTrue(graphProfile.get("canonical_form").toString()
-                .contains("schemaVersion=1"));
+                .contains("schemaVersion=2"));
+        assertTrue(graphProfile.get("canonical_form").toString()
+                .contains("extraction.openAiReasoningEffort="));
         assertEquals(
                 1,
                 jdbc.queryForObject(

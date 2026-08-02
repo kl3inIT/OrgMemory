@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "orgmemory.workload-routing-evaluation.v1",
+  "datasetId": "synthetic-governed-knowledge-v1",
+  "cases": [
+    {
+      "caseId": "employee-policy-en",
+      "language": "English",
+      "query": "What are Acme's probation and annual leave rules?",
+      "evidence": "Acme employs new staff on a 60-day probation period. The People Operations team grants each confirmed employee 18 days of annual leave per year.",
+      "requiredKeywordFragments": ["probation", "annual leave"],
+      "requiredEntityFragments": ["Acme", "People Operations"],
+      "minimumEntities": 2,
+      "minimumRelationships": 1
+    },
+    {
+      "caseId": "incident-response-en",
+      "language": "English",
+      "query": "Who owns Atlas and where are P1 incidents escalated?",
+      "evidence": "The Platform Engineering team owns the Atlas service. Atlas escalates every priority-one incident to the Network Operations Center.",
+      "requiredKeywordFragments": ["Atlas", "P1"],
+      "requiredEntityFragments": ["Atlas", "Platform Engineering"],
+      "minimumEntities": 3,
+      "minimumRelationships": 2
+    },
+    {
+      "caseId": "procurement-vi",
+      "language": "Vietnamese",
+      "query": "Quy trình phê duyệt mua sắm trên 50 triệu của Sao Việt là gì?",
+      "evidence": "Công ty Sao Việt yêu cầu Phòng Tài chính phê duyệt mọi đơn mua sắm có giá trị trên 50 triệu đồng. Trưởng bộ phận phải gửi đơn cho Phòng Tài chính trước khi ký hợp đồng.",
+      "requiredKeywordFragments": ["mua sắm", "Tài chính"],
+      "requiredEntityFragments": ["Sao Việt", "Phòng Tài chính"],
+      "minimumEntities": 2,
+      "minimumRelationships": 1
+    },
+    {
+      "caseId": "retention-vi",
+      "language": "Vietnamese",
+      "query": "Dự án Aurora lưu audit log ở đâu và trong bao lâu?",
+      "evidence": "Dự án Aurora lưu audit log trong kho Vault trong 90 ngày. Nhóm An toàn thông tin quản lý Vault.",
+      "requiredKeywordFragments": ["Aurora", "audit log"],
+      "requiredEntityFragments": ["Aurora", "Vault"],
+      "minimumEntities": 3,
+      "minimumRelationships": 2
+    }
+  ]
+}

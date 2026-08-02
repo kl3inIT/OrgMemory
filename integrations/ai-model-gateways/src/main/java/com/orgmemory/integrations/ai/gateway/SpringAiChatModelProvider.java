@@ -31,7 +31,7 @@ public final class SpringAiChatModelProvider {
         return resolve(null, workload, route);
     }
 
-    ChatModel resolve(
+    public ChatModel resolve(
             UUID organizationId,
             AiWorkload workload,
             AiRoute route) {
@@ -52,6 +52,7 @@ public final class SpringAiChatModelProvider {
                                 gateway.baseUrl(),
                                 gateway.credential(),
                                 route.modelId(),
+                                route.openAiReasoningEffort(),
                                 gateway.timeout())));
     }
 

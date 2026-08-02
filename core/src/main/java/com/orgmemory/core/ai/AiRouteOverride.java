@@ -26,6 +26,10 @@ class AiRouteOverride extends BaseEntity {
     @Column(name = "model_id", nullable = false, length = 200)
     private String modelId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "openai_reasoning_effort", length = 16)
+    private OpenAiReasoningEffort openAiReasoningEffort;
+
     @Column(name = "set_by_user_id", nullable = false)
     private UUID setByUserId;
 
@@ -40,21 +44,46 @@ class AiRouteOverride extends BaseEntity {
             AiWorkload workload,
             UUID gatewayProfileId,
             String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort,
             UUID setByUserId,
             Instant setAt) {
         super(UUID.randomUUID());
         this.organizationId = organizationId;
         this.workload = workload;
-        replace(gatewayProfileId, modelId, setByUserId, setAt);
+        replace(
+                gatewayProfileId,
+                modelId,
+                openAiReasoningEffort,
+                setByUserId,
+                setAt);
+    }
+
+    AiRouteOverride(
+            UUID organizationId,
+            AiWorkload workload,
+            UUID gatewayProfileId,
+            String modelId,
+            UUID setByUserId,
+            Instant setAt) {
+        this(
+                organizationId,
+                workload,
+                gatewayProfileId,
+                modelId,
+                null,
+                setByUserId,
+                setAt);
     }
 
     void replace(
             UUID gatewayProfileId,
             String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort,
             UUID setByUserId,
             Instant setAt) {
         this.gatewayProfileId = gatewayProfileId;
         this.modelId = modelId;
+        this.openAiReasoningEffort = openAiReasoningEffort;
         this.setByUserId = setByUserId;
         this.setAt = setAt;
     }
@@ -69,6 +98,10 @@ class AiRouteOverride extends BaseEntity {
 
     String modelId() {
         return modelId;
+    }
+
+    OpenAiReasoningEffort openAiReasoningEffort() {
+        return openAiReasoningEffort;
     }
 
     UUID setByUserId() {

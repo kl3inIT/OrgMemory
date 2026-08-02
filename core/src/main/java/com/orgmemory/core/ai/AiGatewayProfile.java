@@ -33,6 +33,9 @@ class AiGatewayProfile extends BaseEntity {
     @Column(nullable = false, length = 32)
     private AiGatewayProtocol protocol;
 
+    @Column(name = "supports_openai_reasoning_effort", nullable = false)
+    private boolean supportsOpenAiReasoningEffort;
+
     @Column(name = "base_url", nullable = false, length = 500)
     private String baseUrl;
 
@@ -63,6 +66,7 @@ class AiGatewayProfile extends BaseEntity {
             AiGatewayProtocol protocol,
             String baseUrl,
             int requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             UUID adminUserId) {
         super(UUID.randomUUID());
         this.organizationId = organizationId;
@@ -71,6 +75,7 @@ class AiGatewayProfile extends BaseEntity {
         this.preset = preset;
         this.category = category;
         this.protocol = protocol;
+        this.supportsOpenAiReasoningEffort = supportsOpenAiReasoningEffort;
         this.baseUrl = baseUrl;
         this.requestTimeoutSeconds = requestTimeoutSeconds;
         this.enabled = true;
@@ -83,10 +88,12 @@ class AiGatewayProfile extends BaseEntity {
             String displayName,
             String baseUrl,
             int requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             UUID adminUserId) {
         this.displayName = displayName;
         this.baseUrl = baseUrl;
         this.requestTimeoutSeconds = requestTimeoutSeconds;
+        this.supportsOpenAiReasoningEffort = supportsOpenAiReasoningEffort;
         this.updatedByUserId = adminUserId;
         this.runtimeRevision++;
     }
@@ -124,6 +131,10 @@ class AiGatewayProfile extends BaseEntity {
 
     AiGatewayProtocol protocol() {
         return protocol;
+    }
+
+    boolean supportsOpenAiReasoningEffort() {
+        return supportsOpenAiReasoningEffort;
     }
 
     String baseUrl() {

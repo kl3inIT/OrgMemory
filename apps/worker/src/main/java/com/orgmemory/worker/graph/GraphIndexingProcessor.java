@@ -166,7 +166,13 @@ class GraphIndexingProcessor {
                     processingProfile.extractionProfile();
             requireSupported(processingProfile);
             AiRoute extractionRoute = new AiRoute(
-                    extractionProfile.provider(), extractionProfile.model());
+                    extractionProfile.provider(),
+                    extractionProfile.model(),
+                    extractionProfile.openAiReasoningEffort() == null
+                            ? null
+                            : com.orgmemory.core.ai.OpenAiReasoningEffort.valueOf(
+                                    extractionProfile.openAiReasoningEffort()
+                                            .toUpperCase(java.util.Locale.ROOT)));
             EntityRelationExtractor extractor = extractors.create(extractionRoute);
             List<ExtractedChunk> extracted = observed(
                     claim,
@@ -240,9 +246,7 @@ class GraphIndexingProcessor {
     }
 
     private static void requireSupported(GraphProcessingProfile profile) {
-        GraphProcessingProfile supported = LightRagGraphProcessingProfiles.current(
-                profile.extractionProfile());
-        if (!supported.equals(profile)) {
+        if (!LightRagGraphProcessingProfiles.supports(profile)) {
             throw new GraphExtractionException(
                     "The pinned graph processing profile is not supported by this worker");
         }

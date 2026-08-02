@@ -13,6 +13,7 @@ import com.orgmemory.core.ai.AiGatewayConnection;
 import com.orgmemory.core.ai.AiGatewayProtocol;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.ai.OpenAiReasoningEffort;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.time.Duration;
 import java.util.List;
@@ -90,6 +91,31 @@ class AiGatewayPropertiesTests {
         assertThrows(
                 AiGatewayUnavailableException.class,
                 () -> registry.resolve(AiWorkload.QUERY_EMBEDDING));
+    }
+
+    @Test
+    void deploymentGatewayMustDeclareOpenAiReasoningSupport() {
+        var configured = new AiGatewayProperties(
+                Map.of("openai", new AiGatewayProperties.Gateway(
+                        "Compatible",
+                        "https://provider.example/v1",
+                        "top-secret-key",
+                        Set.of(AiGatewayCapability.CHAT),
+                        Duration.ofSeconds(60),
+                        false)),
+                new AiGatewayProperties.Routes(
+                        new AiGatewayProperties.Route(
+                                "openai",
+                                "gpt-5.6-luna",
+                                OpenAiReasoningEffort.NONE),
+                        null,
+                        null,
+                        null),
+                Set.of());
+
+        assertThrows(
+                AiGatewayUnavailableException.class,
+                () -> registry(configured).resolve(AiWorkload.ASSISTANT_CHAT));
     }
 
     @Test
