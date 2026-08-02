@@ -35,12 +35,14 @@
   before publication.
 - [x] Publish and verify `@orgmemory/cli@0.1.0` with registry integrity, SLSA
   provenance, exact-version execution, and a retry-safe post-publish gate.
+- [ ] Publish and verify current-main `@orgmemory/cli@0.1.1` after the integrity
+  guard correctly rejected rebuilding the immutable `0.1.0` bytes.
 
 ## 3. Product handoff and documentation
 
-- [ ] After registry proof, replace bare CLI handoffs with an exact pinned
-  `npx --yes @orgmemory/cli@<version>` command.
-- [ ] Update focused web unit/component/browser tests.
+- [x] Replace bare CLI handoffs with the exact pinned
+  `npx --yes @orgmemory/cli@0.1.1` command selected for registry proof.
+- [x] Update focused web unit/component/browser tests.
 - [x] Reconcile `ARCHITECTURE.md`, the Asset Registry spec and mirrored test
   matrix, CLI README, and bilingual public Product Guide.
 - [x] Add one product release entry.

@@ -11,7 +11,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (1030a77b)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
 
 ## Current Behavior
 
@@ -175,7 +175,9 @@ or a verified reinstall first.
 
 `@orgmemory/cli` owns an independent package SemVer. Consumer version `0.1.0`
 is public with registry integrity, repository-bound SLSA provenance, and an
-executable `orgmemory` binary. The dedicated manual npm workflow accepts only
+executable `orgmemory` binary. Source version `0.1.1` is the selected activation
+release, and browser and documentation handoffs pin its exact `npx` command.
+The dedicated manual npm workflow accepts only
 the exact current green `main` SHA and matching package version, runs Node 24
 frozen-package gates, inspects the tarball, and publishes through a protected
 environment with OIDC Trusted Publishing. It has no long-lived npm token or
@@ -183,8 +185,9 @@ dependency cache. A rerun may accept an existing immutable version only when
 its registry integrity equals the reviewed tarball, then polls until integrity
 and provenance are both visible before executing that exact registry version.
 The public package includes a proprietary license that permits only authorized,
-unmodified execution against accessible OrgMemory services. Product UI and
-public docs may render a pinned `0.1.0` command only after that live proof.
+unmodified execution against accessible OrgMemory services. A selected version
+is considered available only after the live registry, provenance, signature,
+and exact-version execution proof passes.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
