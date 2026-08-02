@@ -53,8 +53,9 @@
   matrix, including refreshed `Source:` and `Reconciled:` lines.
 - [x] Move this increment to `completed/`, mark the roadmap entry shipped, and
   retain active-plan history only as immutable evidence.
-- [ ] Commit logical steps without squashing, merge current `origin/main`, and
-  open a conventional PR below the repository reviewability ceiling.
+- [x] Commit logical steps without squashing, merge current `origin/main`, and
+  open conventional PR [#259](https://github.com/kl3inIT/OrgMemory/pull/259)
+  below the repository reviewability ceiling.
 - [ ] Resolve all actionable review findings and pass every required CI check.
 - [ ] Merge with a merge commit, verify post-merge CI/deployment impact, and
   update Northstar with evidence and remaining risks.
