@@ -3,13 +3,15 @@
 Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `core/src/main/java/com/orgmemory/core/knowledge/catalog`,
 `core/src/main/java/com/orgmemory/core/knowledge/search`,
+`core/src/main/java/com/orgmemory/core/knowledge/asset/KnowledgeAssetRetrievalQuery.java`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
-`apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`, and
+`apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`,
+`apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
 `apps/web/src/features/assets`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
 
 ## Current Behavior
 
@@ -43,6 +45,11 @@ route. Optional grounding crosses the parent `knowledge::search` interface into
 the canonical permission-aware retrieval path, and the run stores only citation
 identifiers plus a sanitized output digest by default. Raw sensitive variables
 and raw output are not retained.
+
+Catalog federation and permission-scope resolution read Asset existence,
+active authorization scopes, and current active version projections through an
+Asset-owned query. Retrieval cannot import Asset repositories or bypass the
+query's tenant and lifecycle predicates.
 
 Evaluation executes only the bounded cases embedded in a release. Release
 comparison reports the two exact evaluation results; it does not change a
@@ -166,16 +173,21 @@ tree to quarantine, commits receipt removal, then deletes the quarantine. It
 has no destructive `--force`; modified and legacy trees require manual cleanup
 or a verified reinstall first.
 
-`@orgmemory/cli` owns an independent package SemVer. The dedicated manual npm
-workflow accepts only the exact current green `main` SHA and matching package
-version, runs Node 24 frozen-package gates, inspects the tarball, publishes
-through a protected environment with OIDC Trusted Publishing and provenance,
-and verifies the registry package and executable. It has no long-lived npm
-token or dependency cache. The public package includes a proprietary license
-that permits only authorized, unmodified execution against accessible
-OrgMemory services. The initial registry bootstrap remains an explicit owner
-operation; product UI and public docs must not render a pinned `npx` command
-until that exact version has been verified live.
+`@orgmemory/cli` owns an independent package SemVer. Consumer version `0.1.0`
+is public with registry integrity, repository-bound SLSA provenance, and an
+executable `orgmemory` binary. Source version `0.1.1` is the selected activation
+release, and browser and documentation handoffs pin its exact `npx` command.
+The dedicated manual npm workflow accepts only
+the exact current green `main` SHA and matching package version, runs Node 24
+frozen-package gates, inspects the tarball, and publishes through a protected
+environment with OIDC Trusted Publishing. It has no long-lived npm token or
+dependency cache. A rerun may accept an existing immutable version only when
+its registry integrity equals the reviewed tarball, then polls until integrity
+and provenance are both visible before executing that exact registry version.
+The public package includes a proprietary license that permits only authorized,
+unmodified execution against accessible OrgMemory services. A selected version
+is considered available only after the live registry, provenance, signature,
+and exact-version execution proof passes.
 
 GitHub preview, private-connection discovery, and import are server-side
 operations gated by Skill-create permission on the selected Knowledge Space.
@@ -390,5 +402,4 @@ separate owner and support-agent sessions.
 
 - controlled SOP effectivity
 - runtime compatibility policy enforcement beyond deterministic installation
-- first public npm publication and registry activation of the prepared CLI
 - cross-company public marketplace, ratings, and social publishing

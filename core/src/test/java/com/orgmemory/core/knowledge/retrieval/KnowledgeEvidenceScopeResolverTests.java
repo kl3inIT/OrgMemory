@@ -1,7 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetAuthorizationScope;
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 import com.orgmemory.core.knowledge.acl.KnowledgeSpaceAclGenerationRef;
 import com.orgmemory.core.knowledge.acl.SourceAclQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,10 +12,9 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.AuthorizedResourceSetResult;
 import com.orgmemory.core.authorization.RelationshipAuthorizationSetPort;
 import com.orgmemory.core.authorization.ResourceRef;
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.KnowledgeAccessSubject;
+import com.orgmemory.core.organization.KnowledgeAccessSubjectQuery;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -40,23 +39,22 @@ class KnowledgeEvidenceScopeResolverTests {
 
     @Test
     void administratorUsesOpenFgaAssetVisibilityWithoutImplicitExecutiveAccess() {
-        AppUserRepository users = mock(AppUserRepository.class);
+        KnowledgeAccessSubjectQuery subjects = mock(KnowledgeAccessSubjectQuery.class);
         RelationshipAuthorizationSetPort authorization =
                 mock(RelationshipAuthorizationSetPort.class);
-        KnowledgeAssetRepository assets = mock(KnowledgeAssetRepository.class);
+        KnowledgeAssetRetrievalQuery assets = mock(KnowledgeAssetRetrievalQuery.class);
         SourceAclQuery aclQuery = mock(SourceAclQuery.class);
         SecureKnowledgeRetrievalStore canonical =
                 mock(SecureKnowledgeRetrievalStore.class);
         @SuppressWarnings("unchecked")
         ObjectProvider<Clock> clocks = mock(ObjectProvider.class);
 
-        AppUser administrator = new AppUser(
-                ORGANIZATION_ID,
-                null,
-                "Admin",
-                "admin@example.test",
-                UserRole.ADMIN);
-        when(users.findById(USER_ID)).thenReturn(Optional.of(administrator));
+        when(subjects.findActive(ORGANIZATION_ID, USER_ID))
+                .thenReturn(Optional.of(new KnowledgeAccessSubject(
+                        USER_ID,
+                        ORGANIZATION_ID,
+                        null,
+                        false)));
         when(authorization.listAuthorizedResources(any())).thenReturn(
                 AuthorizedResourceSetResult.resolved(
                         List.of(ResourceRef.of(
@@ -83,7 +81,7 @@ class KnowledgeEvidenceScopeResolverTests {
                 ZoneOffset.UTC));
 
         var resolver = new KnowledgeEvidenceScopeResolver(
-                users,
+                subjects,
                 authorization,
                 assets,
                 aclQuery,

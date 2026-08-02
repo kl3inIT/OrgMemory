@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-01-authorized-graph-traversal (e990852c)`.
+Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
 
 ## Current Contract
 
@@ -118,7 +118,12 @@ Reconciled: `2026-08-01-authorized-graph-traversal (e990852c)`.
   PostgreSQL transaction after a current-version recheck. Retries cannot expose
   a partial generation or move the projection head backwards.
 - The graph extraction route is independently configurable from Assistant chat;
-  the graph embedding route must still equal the Knowledge Asset version's
+  it defaults to `gpt-5.4-mini` unless an operator sets the dedicated
+  `ORGMEMORY_GRAPH_EXTRACTION_MODEL` override. A route change produces a new
+  hash-addressed processing profile only for newly enqueued or explicitly
+  rebuilt work; it does not reinterpret completed generations or trigger a
+  corpus-wide rebuild.
+- The graph embedding route must still equal the Knowledge Asset version's
   immutable embedding profile.
 
 ## Runtime Delivery

@@ -67,13 +67,12 @@ pnpm build
 pnpm link --global
 ```
 
-The package is prepared for public npm distribution, but a consumer command is
-not considered active until that exact version exists in the registry with
-verified provenance. The first publication follows
-`docs/guidelines/cli-publication.md`; later releases use the protected manual
-Trusted Publishing workflow. Once activated, consumers should use an exact
-package version rather than a mutable tag:
+Consumer version `0.1.0` established the verified npm integrity and provenance
+path. Version `0.1.1` is the selected exact activation release. Releases use the
+protected manual Trusted Publishing workflow documented in
+`docs/guidelines/cli-publication.md`; consumers pin a package version rather
+than a mutable tag:
 
 ```text
-npx --yes @orgmemory/cli@<cli-version> skill add people/employee-onboarding@1.0.0 --agent codex
+npx --yes @orgmemory/cli@0.1.1 skill add people/employee-onboarding@1.0.0 --agent codex
 ```

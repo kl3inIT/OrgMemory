@@ -1,12 +1,17 @@
 {
   "name": "@orgmemory/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "Authenticated OrgMemory Skill authoring and distribution CLI",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "bin": {
-    "orgmemory": "./dist/index.js"
+    "orgmemory": "dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kl3inIT/OrgMemory.git",
+    "directory": "apps/cli"
   },
   "files": [
     "dist",

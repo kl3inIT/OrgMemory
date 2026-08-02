@@ -15,7 +15,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-01
+lastReviewed: 2026-08-02
 ---
 
 Dùng hướng dẫn này khi bạn đã biết kết quả mình cần và muốn tìm, kiểm tra rồi sử
@@ -96,15 +96,16 @@ hành có thể sử dụng. Không cần truy cập repository hoặc setup dep
   **Verified package** nghĩa là CLI xác minh tính toàn vẹn của archive và từng
   file. **Install supported** nghĩa là có adapter cài đặt xác định cho target đã
   chọn. **Runtime behavior not certified** nghĩa là OrgMemory không tuyên bố
-  target đó sẽ diễn giải hoặc thực thi Skill như thế nào. Không cách nào tự cài
-  CLI hoặc cấp quyền rộng hơn.
+  target đó sẽ diễn giải hoặc thực thi Skill như thế nào. Lệnh `npx` được ghim
+  có thể tải đúng CLI vào npm cache, nhưng không cách nào cài CLI globally hoặc
+  cấp quyền rộng hơn.
 
   Sau khi cài, hãy quản lý bản local theo cách tường minh và có thể kiểm tra:
 
   ```bash
-  orgmemory skill verify <namespace>/<slug> --agent codex
-  orgmemory skill update <namespace>/<slug> --to <exact-version> --agent codex
-  orgmemory skill remove <namespace>/<slug> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill verify <namespace>/<slug> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill update <namespace>/<slug> --to <exact-version> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill remove <namespace>/<slug> --agent codex
   ```
 
   Bước verify chạy offline và kiểm tra toàn bộ cây file đã cài. Update xác thực

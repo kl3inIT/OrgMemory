@@ -4,6 +4,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { z } from "zod"
 
 import { FileOAuthClientProvider } from "./oauth.js"
+import { CLI_VERSION } from "./version.js"
 
 export class OrgMemoryMcpClient implements AsyncDisposable {
   private client: Client | undefined
@@ -55,7 +56,7 @@ export class OrgMemoryMcpClient implements AsyncDisposable {
 
   private async connectAttempt(allowAuthorization: boolean): Promise<void> {
     const client = new Client(
-      { name: "orgmemory-cli", version: "0.1.0" },
+      { name: "orgmemory-cli", version: CLI_VERSION },
       { capabilities: {} },
     )
     const transport = new StreamableHTTPClientTransport(this.serverUrl, {

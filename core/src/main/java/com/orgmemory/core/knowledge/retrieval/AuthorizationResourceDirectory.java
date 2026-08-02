@@ -2,12 +2,11 @@ package com.orgmemory.core.knowledge.retrieval;
 
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 
-import com.orgmemory.core.knowledge.asset.KnowledgeAssetRepository;
+import com.orgmemory.core.knowledge.asset.KnowledgeAssetRetrievalQuery;
 
 import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
-import com.orgmemory.core.organization.DepartmentRepository;
-import com.orgmemory.core.organization.OrganizationRepository;
+import com.orgmemory.core.organization.OrganizationResourceQuery;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -20,18 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthorizationResourceDirectory {
 
-    private final OrganizationRepository organizations;
-    private final DepartmentRepository departments;
+    private final OrganizationResourceQuery organizationResources;
     private final KnowledgeSpaceQuery spaces;
-    private final KnowledgeAssetRepository assets;
+    private final KnowledgeAssetRetrievalQuery assets;
 
     AuthorizationResourceDirectory(
-            OrganizationRepository organizations,
-            DepartmentRepository departments,
+            OrganizationResourceQuery organizationResources,
             KnowledgeSpaceQuery spaces,
-            KnowledgeAssetRepository assets) {
-        this.organizations = organizations;
-        this.departments = departments;
+            KnowledgeAssetRetrievalQuery assets) {
+        this.organizationResources = organizationResources;
         this.spaces = spaces;
         this.assets = assets;
     }
@@ -47,13 +43,13 @@ public class AuthorizationResourceDirectory {
         boolean exists = switch (type) {
             case "organization" ->
                     organizationId.equals(resourceId)
-                            && organizations.existsById(organizationId);
+                            && organizationResources.organizationExists(organizationId);
             case "organizational_unit" ->
-                    departments.existsByIdAndOrganizationId(resourceId, organizationId);
+                    organizationResources.departmentExists(organizationId, resourceId);
             case "knowledge_space" ->
                     spaces.exists(organizationId, resourceId);
             case "knowledge_asset" ->
-                    assets.existsByIdAndOrganizationId(resourceId, organizationId);
+                    assets.exists(organizationId, resourceId);
             default -> false;
         };
         if (!exists) {

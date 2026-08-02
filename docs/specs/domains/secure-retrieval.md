@@ -5,7 +5,8 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`.
+Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`, including
+`2026-08-01-spring-modulith-package-refactor (7cef296c)`.
 
 ## Current Behavior
 
@@ -32,6 +33,13 @@ secure result, and verified grounding through the exact `knowledge::search`
 named interface. Assistant and Asset Registry cross that interface; the open
 Retrieval nested module retains the concrete engines, authorization sequence,
 ranking, and persistence while its remaining adapter seams are closed.
+Asset existence, active authorization-scope, and current catalog reads cross
+one Asset-owned query that keeps tenant and lifecycle predicates behind the
+closed Asset module; Retrieval imports neither Asset repository.
+Retrieval also reloads the current active subject, department, and Executive
+state through Organization-owned queries before resolving evidence or source
+visibility. It does not trust those actor fields as authorization facts and
+imports no Organization entity, role, or repository.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob
@@ -39,6 +47,13 @@ integrity, and streams the original bytes through the authenticated API with
 `no-store` and `nosniff`. Missing and denied citation reads return the same
 generic `404`. A missing control-plane role or incomplete current actor is
 rejected at the request boundary with `403`.
+
+Source Ledger owns the tenant-scoped citation evidence query. It accepts the
+permission-verified revision and Asset identities, requires a ready matching
+revision plus a validated blob, and returns only immutable response and storage
+integrity metadata. Retrieval imports no Source Revision/Evidence Blob entity,
+repository, or lifecycle enum. Missing revision and unavailable blob outcomes
+remain distinct audit reasons even though both map to the same opaque `404`.
 
 Control-plane roles (`ADMIN`, `REVIEWER`, `CONTRIBUTOR`, `VIEWER`) are separate
 from knowledge roles (`EMPLOYEE`, `MANAGER`, `DIRECTOR`, `EXECUTIVE`). Admin does

@@ -6,7 +6,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-01-connector-polling-driver (fc6995cf)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (7cef296c)`.
 
 ## Current Behavior
 
@@ -17,6 +17,11 @@ OpenFGA `ListObjects(can_create_asset)`, and the mutation rechecks
 behind the provider-neutral object-storage contract. PostgreSQL persists canonical
 `SourceObject`, `SourceRevision`, `EvidenceBlob`, and leased durable ingestion
 jobs with the target Knowledge Space identity.
+
+Source Ledger also owns the citation evidence read boundary. It maps a
+tenant-scoped ready revision and validated evidence blob into immutable citation
+metadata, while revision/blob entities, repositories, and lifecycle enums remain
+internal to the closed module.
 
 The ingestion and graph-indexing schedulers process a bounded burst of queued
 jobs per fixed-delay tick — up to a configured per-queue job cap within a

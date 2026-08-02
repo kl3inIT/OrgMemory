@@ -1,14 +1,16 @@
 # Asset Registry Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
+`core/src/test/java/com/orgmemory/core/knowledge/asset/JpaKnowledgeAssetRetrievalQueryTests.java`,
 `core/src/test/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogServiceTests.java`,
 `core/src/test/java/com/orgmemory/core/ModulithVerificationTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
-`apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`, and
+`apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`,
+`scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
+Reconciled: `2026-08-01-skill-cli-distribution-lifecycle (fc0b9e0b)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -33,7 +35,8 @@ Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 | MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |
 | CLI installation verifies package and per-file digests, refuses unowned/colliding targets, promotes atomically, and writes a token-free schema-v2 complete-tree receipt | `install.test.ts` | covered |
 | CLI lifecycle serializes concurrent receipt mutations, distinguishes exited and live lock owners, refuses links and altered trees, recovers an interrupted promoted tree from its durable journal, reports offline verified/modified/missing/unverifiable states, permits exact same-coordinate update, and removes only verified v2 trees without force deletion | `install.test.ts` | covered |
-| Dedicated CLI publication remains manual and approval-gated, validates the exact current green main SHA and package version, uses Node 24 OIDC provenance without a token/cache, inspects the tarball, and verifies exact-version execution after registry publication | `npm-publish-workflow-policy.test.mjs`, `.github/workflows/publish-cli.yml` | covered; first live bootstrap pending |
+| Dedicated CLI publication remains manual and approval-gated, validates the exact current green main SHA and package version, uses Node 24 OIDC provenance without a token/cache, executes the real packed tarball before publication, accepts a retry only when immutable registry integrity matches that tarball, waits for attestation propagation, and verifies exact-version execution | `npm-publish-workflow-policy.test.mjs`, `.github/workflows/publish-cli.yml`, live `@orgmemory/cli@0.1.0` registry integrity/provenance/executable proof | covered |
+| Browser and bilingual documentation handoffs use the selected exact CLI version through `npx`, while the CLI reports the same package version in command, MCP, and OAuth identities | `version.test.ts`, `skill-agent-handoffs.test.ts`, `agent-handoff-panel.test.tsx`, `skill-consumer-installer.test.tsx`, `asset-registry-golden-poc.spec.ts`, bilingual Product Guide publication checks | covered |
 | CLI authoring validates a root Skill folder and produces deterministic bounded ZIP bytes before authentication | `skill-package.test.ts` | covered |
 | CLI Draft publication uses the same-origin companion route, separate write-scoped OAuth state, bounded errors, and no network access for dry-run | `publish.test.ts`, `FileOAuthClientProvider`, CLI command contract | covered |
 | CLI Draft publication returns an exact same-origin Governance URL for the created Asset | `publish.test.ts` | covered |
@@ -53,6 +56,7 @@ Reconciled: `2026-08-01-spring-modulith-package-refactor (13697ff9)`.
 | Denied Pack component metadata and count remain opaque | `CapabilityPackServiceTests` | covered |
 | Knowledge catalog and Prompt grounding use canonical authorization | `KnowledgeCatalogServiceTests`, `PromptExecutionServiceTests` | covered |
 | Prompt grounding crosses only the parent `knowledge::search` contract and never imports Retrieval implementation | `ModulithVerificationTests#topLevelSearchConsumersUseOnlyTheParentSearchInterface`, `#assistantAndAssetRegistryDoNotDependOnRetrievalImplementation` | covered |
+| Asset owns retrieval existence, active authorization-scope, and current catalog reads; Retrieval imports neither Asset repository | `JpaKnowledgeAssetRetrievalQueryTests`, `ModulithVerificationTests#retrievalDoesNotDependOnAssetRepositories`, `#retrievalAssetReadsUseOnlyTheOwnerQuery` | covered |
 | Version-only catalog lookup resolves authorization before persistence, keeps denied/missing results opaque, propagates indeterminacy, and maps every public field | `KnowledgeCatalogServiceTests` | covered |
 | Asset Registry catalog consumers cross only the exact parent `knowledge::catalog` surface and never import Asset internals | `ModulithVerificationTests#catalogIsAnExactExplicitKnowledgeInterface`, `ModulithVerificationTests#assetRegistryCatalogConsumersUseOnlyTheParentCatalogInterface`, `ModulithVerificationTests#assetRegistryDoesNotDependOnKnowledgeAssetInternals` | covered |
 | Catalog refactoring retains the committed `KnowledgeCatalogItem` OpenAPI component and wire contract | `OpenApiContractTests` | covered |
