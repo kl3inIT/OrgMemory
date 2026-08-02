@@ -98,7 +98,8 @@ class DefaultCanonicalHybridKnowledgeSearch
                     requestId,
                     normalizedQuery,
                     unavailable.reasonCode(),
-                    unavailable.policyVersion());
+                    unavailable.policyVersion(),
+                    unavailable);
         }
         Set<UUID> authorizedAssetIds = evidenceScope.allAssetIds();
         if (authorizedAssetIds.isEmpty()) {

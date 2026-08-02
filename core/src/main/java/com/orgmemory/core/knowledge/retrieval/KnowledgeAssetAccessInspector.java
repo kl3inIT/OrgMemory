@@ -5,7 +5,7 @@ import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Bounded adapter query for one already relationship-authorized Knowledge Asset. */
+/** Bounded adapter query that rechecks relationship and canonical access for one Knowledge Asset. */
 public interface KnowledgeAssetAccessInspector {
 
     AssetInspection inspectAsset(

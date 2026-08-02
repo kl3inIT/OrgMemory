@@ -411,6 +411,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         RecordingRecheckedStore canonical =
                 new RecordingRecheckedStore(List.of(
                         candidate(ENTITY_CHUNK_ID),
+                        candidate(ENTITY_CHUNK_ID),
                         candidate(RELATION_CHUNK_ID),
                         candidate(CHUNK_ID)));
         GraphRagEventSink events = mock(GraphRagEventSink.class);

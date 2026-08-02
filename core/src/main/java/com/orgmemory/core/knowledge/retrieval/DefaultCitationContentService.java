@@ -95,6 +95,24 @@ class DefaultCitationContentService implements CitationContentService {
                 || evidence.storedContentLength()
                         != content.metadata().contentLength()) {
             closeQuietly(content);
+            audit.record(new PermissionAuditCommand(
+                    actor.organizationId(),
+                    actor.userId(),
+                    "READ_CITATION",
+                    "KNOWLEDGE_CHUNK",
+                    chunkId.toString(),
+                    PermissionAuditDecision.DENY,
+                    "CITATION_BLOB_INTEGRITY_FAILED",
+                    authorizationModelId,
+                    normalizedRequestId,
+                    null,
+                    currentCandidate.ingestionAclSnapshotId(),
+                    currentCandidate.currentAclSnapshotId(),
+                    currentCandidate.authorizationModelId(),
+                    currentCandidate.sourceRevisionId(),
+                    currentCandidate.chunkId(),
+                    currentCandidate.embeddingProfileId(),
+                    currentCandidate.projectionGeneration()));
             throw new KnowledgeRetrievalUnavailableException(
                     "Citation evidence failed its integrity check");
         }

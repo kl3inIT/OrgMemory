@@ -100,7 +100,7 @@ class CitationContentServiceTests {
     }
 
     @Test
-    void storageIntegrityMismatchClosesContentBeforeAllowAudit() throws Exception {
+    void storageIntegrityMismatchClosesContentAndRecordsDenyAudit() throws Exception {
         Fixture fixture = new Fixture();
         fixture.authorizeCitation();
         fixture.citationEvidence();
@@ -121,7 +121,14 @@ class CitationContentServiceTests {
                 () -> fixture.service.open(ACTOR, CHUNK_ID, "request-1"));
 
         verify(stream).close();
-        verify(fixture.audit, never()).record(any());
+        ArgumentCaptor<com.orgmemory.core.permission.PermissionAuditCommand> audit =
+                ArgumentCaptor.forClass(
+                        com.orgmemory.core.permission.PermissionAuditCommand.class);
+        verify(fixture.audit).record(audit.capture());
+        assertEquals(
+                com.orgmemory.core.permission.PermissionAuditDecision.DENY,
+                audit.getValue().decision());
+        assertEquals("CITATION_BLOB_INTEGRITY_FAILED", audit.getValue().reasonCode());
     }
 
     private static void unavailableEvidenceRetainsItsOpaqueAuditReason(

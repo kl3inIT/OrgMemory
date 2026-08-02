@@ -206,8 +206,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             long startedAt,
             int outputCount,
             String failureCode) {
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     GraphRagEventSink.Stage.RETRIEVE,
@@ -220,9 +219,6 @@ class DefaultGraphRagKnowledgeRetrievalService
                     null,
                     failureCode,
                     Instant.now()));
-        } catch (RuntimeException ignoredTelemetryFailure) {
-            // Telemetry must never become a retrieval availability dependency.
-        }
     }
 
     private static String failureCode(RuntimeException failure) {
@@ -386,7 +382,9 @@ class DefaultGraphRagKnowledgeRetrievalService
         Map<UUID, SecureRetrievalCandidate> canonicalByChunk = verified.stream()
                 .collect(Collectors.toMap(
                         SecureRetrievalCandidate::chunkId,
-                        Function.identity()));
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new));
         Map<UUID, Double> scoreByChunk = consolidated.grounding()
                 .chunks()
                 .stream()
@@ -615,8 +613,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             long startedAt,
             int inputCount,
             int outputCount) {
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     stage,
@@ -631,9 +628,6 @@ class DefaultGraphRagKnowledgeRetrievalService
                     null,
                     null,
                     Instant.now()));
-        } catch (RuntimeException ignoredTelemetryFailure) {
-            // Telemetry must never become a retrieval availability dependency.
-        }
     }
 
     /**
@@ -651,8 +645,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             SecureContextBudget budget) {
         LightRagGrounding grounding = prepared.grounding();
         ContextTokenUsage usage = grounding.tokenUsage();
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     GraphRagEventSink.Stage.ASSEMBLE_CONTEXT,
@@ -677,9 +670,6 @@ class DefaultGraphRagKnowledgeRetrievalService
                             prepared.droppedContributions()),
                     null,
                     Instant.now()));
-        } catch (RuntimeException ignoredTelemetryFailure) {
-            // Telemetry must never become a retrieval availability dependency.
-        }
     }
 
     private void emitPreparedStage(
@@ -691,8 +681,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             int outputCount,
             String modelRouteFingerprint,
             GraphRagEventSink.CacheStatus cacheStatus) {
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     stage,
@@ -705,9 +694,6 @@ class DefaultGraphRagKnowledgeRetrievalService
                     cacheStatus,
                     null,
                     Instant.now()));
-        } catch (RuntimeException ignoredTelemetryFailure) {
-            // Telemetry must never become a retrieval availability dependency.
-        }
     }
 
     private void emitSnapshotStage(
@@ -726,8 +712,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                         namespace.workspace(),
                         "collection",
                         namespace.collection()));
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     GraphRagEventSink.Stage.RETRIEVE_SNAPSHOT,
@@ -740,9 +725,6 @@ class DefaultGraphRagKnowledgeRetrievalService
                     null,
                     null,
                     Instant.now()));
-        } catch (RuntimeException ignoredTelemetryFailure) {
-            // Telemetry must never become a retrieval availability dependency.
-        }
     }
 
     private record SnapshotQueryResult(
@@ -857,8 +839,7 @@ class DefaultGraphRagKnowledgeRetrievalService
         String routeFingerprint = CanonicalCacheKeyHasher.sha256(
                 "reranker-route",
                 Map.of("provider", policy.rerank().provider()));
-        try {
-            events.emit(new GraphRagEventSink.GraphRagEvent(
+        safeEmit(new GraphRagEventSink.GraphRagEvent(
                     operationId,
                     organizationId,
                     GraphRagEventSink.Stage.RERANK,
@@ -871,6 +852,11 @@ class DefaultGraphRagKnowledgeRetrievalService
                     null,
                     failureCode,
                     Instant.now()));
+    }
+
+    private void safeEmit(GraphRagEventSink.GraphRagEvent event) {
+        try {
+            events.emit(event);
         } catch (RuntimeException ignoredTelemetryFailure) {
             // Telemetry must never become a retrieval availability dependency.
         }

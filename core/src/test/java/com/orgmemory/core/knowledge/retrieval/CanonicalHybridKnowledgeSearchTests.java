@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.retrieval;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -98,13 +99,16 @@ class CanonicalHybridKnowledgeSearchTests {
 
     @Test
     void providerOutageFailsClosed() {
-        when(evidenceScopes.resolve(actor, MODEL_ID)).thenThrow(
-                new KnowledgeEvidenceScopeUnavailableException(
-                        "OPENFGA_TIMEOUT",
-                        MODEL_ID));
+        var cause = new KnowledgeEvidenceScopeUnavailableException(
+                "OPENFGA_TIMEOUT",
+                MODEL_ID);
+        when(evidenceScopes.resolve(actor, MODEL_ID)).thenThrow(cause);
 
-        assertThrows(KnowledgeRetrievalUnavailableException.class,
+        var mapped = assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
                 () -> service.search(actor, "leave policy", 10, "request-2"));
+
+        assertSame(cause, mapped.getCause());
     }
 
     @Test
