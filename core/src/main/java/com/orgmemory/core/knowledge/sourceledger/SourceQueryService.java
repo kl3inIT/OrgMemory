@@ -36,13 +36,12 @@ public class SourceQueryService {
     @Transactional(readOnly = true)
     public List<SourceSummary> listOwn(CurrentActor actor) {
         Objects.requireNonNull(actor, "actor");
-        Set<UUID> contentVisible = Set.copyOf(visibility.visibleSourceObjectIds(actor));
         return summaries(
                 actor.organizationId(),
                 sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
                         actor.organizationId(), actor.userId()),
-                contentVisible,
-                actions.deletableKnowledgeAssetIds(actor));
+                Set.of(),
+                Set.of());
     }
 
     @Transactional(readOnly = true)
@@ -99,7 +98,8 @@ public class SourceQueryService {
                             revision,
                             profile,
                             contentVisible.contains(source.getId()),
-                            deletableAssetIds.contains(revision.getKnowledgeAssetId()));
+                            revision.getKnowledgeAssetId() != null
+                                    && deletableAssetIds.contains(revision.getKnowledgeAssetId()));
                 })
                 .toList();
     }

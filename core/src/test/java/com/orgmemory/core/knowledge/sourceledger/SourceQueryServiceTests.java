@@ -5,6 +5,7 @@ import com.orgmemory.core.knowledge.acl.AclAuthority;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.organization.CurrentActor;
@@ -71,6 +72,27 @@ class SourceQueryServiceTests {
         assertEquals(List.of(false, true), result.stream().map(SourceSummary::deletionAllowed).toList());
         verify(visibility).visibleSourceObjectIds(ACTOR);
         verify(actions).deletableKnowledgeAssetIds(ACTOR);
+    }
+
+    @Test
+    void listOwnKeepsReceivedMetadataWithoutConsultingPublishedPermissions() {
+        UUID sourceId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        SourceObject source = source(sourceId, revisionId, "pending.txt");
+        SourceRevision revision = revision(revisionId, "pending.txt");
+        when(revision.getStatus()).thenReturn(SourceRevisionStatus.RECEIVED);
+        when(revisions.findAllById(List.of(revisionId))).thenReturn(List.of(revision));
+        when(sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
+                        ORGANIZATION_ID, USER_ID))
+                .thenReturn(List.of(source));
+
+        List<SourceSummary> result = service.listOwn(ACTOR);
+
+        assertEquals(1, result.size());
+        assertEquals(false, result.getFirst().contentAvailable());
+        assertEquals(false, result.getFirst().deletionAllowed());
+        verify(visibility, never()).visibleSourceObjectIds(ACTOR);
+        verify(actions, never()).deletableKnowledgeAssetIds(ACTOR);
     }
 
     private static SourceObject source(UUID sourceId, UUID revisionId, String title) {
