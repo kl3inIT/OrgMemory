@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
-import com.orgmemory.core.assetregistry.PromptExecutionService;
+import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.SkillDistributionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

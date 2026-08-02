@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.consumption;
 
 /**
  * Records whether an immutable release completed the review workflow or used

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,6 +16,13 @@ import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
+import com.orgmemory.core.assetregistry.AssetProfileValidationTests;
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
+import com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery;
+import com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
@@ -34,14 +41,14 @@ class PromptExecutionServiceTests {
     private static final CurrentActor ACTOR = new CurrentActor(
             USER_ID, ORGANIZATION_ID, null, "User", "user@example.test");
 
-    private final AssetRegistryService assets = mock(AssetRegistryService.class);
+    private final AssetReleaseUseQuery releases = mock(AssetReleaseUseQuery.class);
     private final PermissionAwareKnowledgeSearch knowledge =
             mock(PermissionAwareKnowledgeSearch.class);
     private final ChatModelPort chat = mock(ChatModelPort.class);
     private final AiRouteResolver routes = mock(AiRouteResolver.class);
     private final PromptRunCoordinator runs = mock(PromptRunCoordinator.class);
     private final PromptExecutionService service = new PromptExecutionService(
-            assets,
+            releases,
             new PromptTemplateRenderer(new PromptTemplateProfile()),
             knowledge,
             chat,
@@ -52,8 +59,7 @@ class PromptExecutionServiceTests {
     void exactReleaseDigestRouteAndSanitizedOutcomeAreRecorded() {
         AiRoute route = new AiRoute("openai", "demo-model");
         UUID runId = UUID.randomUUID();
-        when(assets.releaseForUse(
-                        ACTOR, ASSET_ID, RELEASE_ID, AssetType.PROMPT_TEMPLATE))
+        when(releases.promptTemplateForUse(ACTOR, ASSET_ID, RELEASE_ID))
                 .thenReturn(release());
         when(routes.resolve(ORGANIZATION_ID, AiWorkload.PROMPT_EXECUTION))
                 .thenReturn(route);
@@ -92,8 +98,7 @@ class PromptExecutionServiceTests {
     void invalidOutputContractFailsTheRunWithoutPersistingRawOutput() {
         AiRoute route = new AiRoute("openai", "demo-model");
         UUID runId = UUID.randomUUID();
-        when(assets.releaseForUse(
-                        ACTOR, ASSET_ID, RELEASE_ID, AssetType.PROMPT_TEMPLATE))
+        when(releases.promptTemplateForUse(ACTOR, ASSET_ID, RELEASE_ID))
                 .thenReturn(release());
         when(routes.resolve(ORGANIZATION_ID, AiWorkload.PROMPT_EXECUTION))
                 .thenReturn(route);
@@ -147,5 +152,25 @@ class PromptExecutionServiceTests {
                 "d".repeat(64),
                 AssetAvailability.AVAILABLE,
                 Instant.now());
+    }
+
+    @Test
+    void preparationAuthorizesTheExactReleaseAndProjectsOnlyFormMetadata() {
+        when(releases.promptTemplateForUse(ACTOR, ASSET_ID, RELEASE_ID))
+                .thenReturn(release());
+        PromptPreparationService preparation = new PromptPreparationService(
+                releases, new PromptTemplateRenderer(new PromptTemplateProfile()));
+
+        PromptPreparationResult result =
+                preparation.preparePrompt(ACTOR, ASSET_ID, RELEASE_ID);
+
+        verify(releases).promptTemplateForUse(ACTOR, ASSET_ID, RELEASE_ID);
+        assertEquals("d".repeat(64), result.releaseDigest());
+        assertEquals("Classify a support ticket", result.objective());
+        assertEquals("L1 support", result.audience());
+        assertEquals("ticket_text", result.variables().getFirst().name());
+        assertEquals("object", result.outputContract().get("type"));
+        assertEquals(java.util.List.of(), result.knowledgeRequirements());
+        assertEquals("", result.knownLimitations());
     }
 }

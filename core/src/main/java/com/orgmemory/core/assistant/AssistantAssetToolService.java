@@ -1,19 +1,18 @@
 package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
-import com.orgmemory.core.assetregistry.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.assetregistry.AssetRecommendation;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PackJourney;
-import com.orgmemory.core.assetregistry.PromptExecutionService;
-import com.orgmemory.core.assetregistry.PromptRenderResult;
-import com.orgmemory.core.assetregistry.PromptRunResult;
-import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
-import com.orgmemory.core.assetregistry.PromptTemplateSpec;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
+import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
+import com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
@@ -28,8 +27,7 @@ import java.util.UUID;
 public class AssistantAssetToolService {
 
     private final AssetRegistryService assets;
-    private final PromptExecutionService prompts;
-    private final PromptTemplateRenderer renderer;
+    private final PromptAssistantOperations prompts;
     private final WorkInstructionService instructions;
     private final CapabilityPackService packs;
     private final PermissionAwareKnowledgeSearch knowledge;
@@ -37,15 +35,13 @@ public class AssistantAssetToolService {
 
     public AssistantAssetToolService(
             AssetRegistryService assets,
-            PromptExecutionService prompts,
-            PromptTemplateRenderer renderer,
+            PromptAssistantOperations prompts,
             WorkInstructionService instructions,
             CapabilityPackService packs,
             PermissionAwareKnowledgeSearch knowledge,
             AssistantAssetTraceRecorder traces) {
         this.assets = assets;
         this.prompts = prompts;
-        this.renderer = renderer;
         this.instructions = instructions;
         this.packs = packs;
         this.knowledge = knowledge;
@@ -108,24 +104,29 @@ public class AssistantAssetToolService {
 
     public PromptFormResult preparePrompt(
             CurrentActor actor, UUID assetId, UUID releaseId) {
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.PROMPT_TEMPLATE);
-        PromptTemplateSpec spec = renderer.parse(release.payload());
-        UUID traceId = record(
+        PromptPreparationResult preparation =
+                prompts.preparePrompt(actor, assetId, releaseId);
+        AssistantReleaseRef release = new AssistantReleaseRef(
+                assetId,
+                releaseId,
+                preparation.releaseDigest());
+        UUID traceId = traces.record(
                 actor,
                 AssistantAssetAction.PREPARE_PROMPT,
-                release,
+                List.of(release),
+                List.of(),
                 Map.of(),
-                Map.of("variableCount", spec.variables().size()));
+                Map.of(),
+                Map.of("variableCount", preparation.variables().size()));
         return new PromptFormResult(
                 traceId,
-                ref(release),
-                spec.objective(),
-                spec.audience(),
-                spec.variables(),
-                spec.outputContract(),
-                spec.knowledgeRequirements(),
-                spec.knownLimitations());
+                release,
+                preparation.objective(),
+                preparation.audience(),
+                preparation.variables(),
+                preparation.outputContract(),
+                preparation.knowledgeRequirements(),
+                preparation.knownLimitations());
     }
 
     public PromptRenderToolResult renderPrompt(
@@ -134,7 +135,7 @@ public class AssistantAssetToolService {
             UUID releaseId,
             Map<String, Object> variables) {
         PromptRenderResult rendered =
-                prompts.render(actor, assetId, releaseId, variables);
+                prompts.renderPrompt(actor, assetId, releaseId, variables);
         UUID traceId = traces.record(
                 actor,
                 AssistantAssetAction.RENDER_PROMPT,
@@ -160,7 +161,7 @@ public class AssistantAssetToolService {
         requireConfirmation(
                 confirmedExternalProvider,
                 "Running a Prompt sends approved content to an external model provider");
-        PromptRunResult run = prompts.run(
+        PromptRunResult run = prompts.runPrompt(
                 actor, assetId, releaseId, variables, knowledgeQuery, requestId);
         List<Map<String, Object>> citations = run.citations().stream()
                 .map(citation -> Map.<String, Object>of(
@@ -380,7 +381,7 @@ public class AssistantAssetToolService {
             AssistantReleaseRef release,
             String objective,
             String audience,
-            List<PromptTemplateSpec.Variable> variables,
+            List<PromptPreparationResult.Variable> variables,
             Map<String, Object> outputContract,
             List<String> knowledgeRequirements,
             String knownLimitations) {

@@ -10,8 +10,8 @@ import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
-import com.orgmemory.core.assetregistry.AssetPublicationMode;
-import com.orgmemory.core.assetregistry.PromptExecutionService;
+import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
+import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.SkillDistributionService;
 import com.orgmemory.core.assetregistry.SkillInstallManifest;
 import com.orgmemory.core.assetregistry.SkillPackageContent;

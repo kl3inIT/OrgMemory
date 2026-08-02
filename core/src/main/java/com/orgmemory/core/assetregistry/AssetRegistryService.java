@@ -1,5 +1,9 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery;
+
 import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
 import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
@@ -25,7 +29,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AssetRegistryService {
+public class AssetRegistryService implements AssetReleaseUseQuery {
 
     private static final String ASSET_RESOURCE = "asset";
     private static final String SPACE_RESOURCE = "knowledge_space";
@@ -271,6 +275,7 @@ public class AssetRegistryService {
         return release;
     }
 
+    @Override
     public AssetConsumptionRelease releaseForUse(
             CurrentActor actor,
             UUID assetId,

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.shared.error.BusinessValidationException;
@@ -16,7 +16,7 @@ import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 @Component
-public class PromptTemplateRenderer {
+class PromptTemplateRenderer {
 
     private static final Pattern PLACEHOLDER =
             Pattern.compile("\\{\\{([a-z][a-z0-9_]{0,63})}}");
@@ -35,11 +35,11 @@ public class PromptTemplateRenderer {
         this.profile = profile;
     }
 
-    public PromptTemplateSpec parse(String payload) {
+    PromptTemplateSpec parse(String payload) {
         return profile.parse(payload);
     }
 
-    public RenderedTemplate render(String payload, Map<String, Object> suppliedVariables) {
+    RenderedTemplate render(String payload, Map<String, Object> suppliedVariables) {
         PromptTemplateSpec spec = profile.parse(payload);
         Map<String, Object> supplied = suppliedVariables == null
                 ? Map.of()
@@ -185,7 +185,7 @@ public class PromptTemplateRenderer {
                 Objects.requireNonNull(value, "value"));
     }
 
-    public record RenderedTemplate(
+    record RenderedTemplate(
             PromptTemplateSpec spec,
             ChatGenerationRequest request,
             List<String> sensitiveVariables,

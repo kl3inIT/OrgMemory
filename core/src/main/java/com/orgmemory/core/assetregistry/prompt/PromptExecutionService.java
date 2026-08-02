@@ -1,12 +1,15 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
-import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
@@ -31,7 +34,7 @@ public class PromptExecutionService {
     private static final int MAX_KNOWLEDGE_CHARACTERS = 24_000;
     private static final int MAX_OUTPUT_CHARACTERS = 100_000;
 
-    private final AssetRegistryService assets;
+    private final AssetReleaseUseQuery releases;
     private final PromptTemplateRenderer renderer;
     private final PermissionAwareKnowledgeSearch knowledge;
     private final ChatModelPort chat;
@@ -41,14 +44,14 @@ public class PromptExecutionService {
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             .build();
 
-    public PromptExecutionService(
-            AssetRegistryService assets,
+    PromptExecutionService(
+            AssetReleaseUseQuery releases,
             PromptTemplateRenderer renderer,
             PermissionAwareKnowledgeSearch knowledge,
             ChatModelPort chat,
             AiRouteResolver routes,
             PromptRunCoordinator runs) {
-        this.assets = assets;
+        this.releases = releases;
         this.renderer = renderer;
         this.knowledge = knowledge;
         this.chat = chat;
@@ -61,8 +64,8 @@ public class PromptExecutionService {
             UUID assetId,
             UUID releaseId,
             Map<String, Object> variables) {
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.PROMPT_TEMPLATE);
+        AssetConsumptionRelease release =
+                releases.promptTemplateForUse(actor, assetId, releaseId);
         PromptTemplateRenderer.RenderedTemplate rendered =
                 renderer.render(release.payload(), variables);
         return new PromptRenderResult(
@@ -82,8 +85,8 @@ public class PromptExecutionService {
             Map<String, Object> variables,
             String knowledgeQuery,
             String requestId) {
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.PROMPT_TEMPLATE);
+        AssetConsumptionRelease release =
+                releases.promptTemplateForUse(actor, assetId, releaseId);
         return run(actor, release, variables, knowledgeQuery, requestId);
     }
 
@@ -91,8 +94,8 @@ public class PromptExecutionService {
             CurrentActor actor,
             UUID assetId,
             UUID releaseId) {
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.PROMPT_TEMPLATE);
+        AssetConsumptionRelease release =
+                releases.promptTemplateForUse(actor, assetId, releaseId);
         PromptTemplateSpec spec = renderer.parse(release.payload());
         if (spec.evaluationCases().isEmpty()) {
             throw new BusinessConflictException(

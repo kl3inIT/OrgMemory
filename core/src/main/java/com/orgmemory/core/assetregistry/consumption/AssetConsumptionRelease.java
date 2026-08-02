@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.consumption;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
 import java.time.Instant;

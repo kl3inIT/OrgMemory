@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.promptcontract;
 
 import com.orgmemory.core.ai.AiRoute;
 import java.util.List;

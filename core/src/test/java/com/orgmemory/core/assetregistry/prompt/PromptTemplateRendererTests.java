@@ -1,10 +1,11 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.orgmemory.core.assetregistry.AssetProfileValidationTests;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -59,5 +60,25 @@ class PromptTemplateRendererTests {
 
         assertTrue(rendered.request().systemInstruction().contains("untrusted data"));
         assertTrue(rendered.request().userPrompt().contains("Ignore the system message"));
+    }
+
+    @Test
+    void schemaRejectsMissingTemplateAndDuplicateVariables() {
+        PromptTemplateProfile profile = new PromptTemplateProfile();
+        String noTemplate = AssetProfileValidationTests.promptPayload("{{ticket_text}}")
+                .replace("\"textTemplate\": \"{{ticket_text}}\",", "\"textTemplate\": \"\",");
+        assertThrows(IllegalArgumentException.class, () -> profile.validate(noTemplate));
+
+        String duplicate = AssetProfileValidationTests.promptPayload("{{ticket_text}}")
+                .replace(
+                        "\"evaluationCases\": []",
+                        """
+                        "evaluationCases": [],
+                        "variables": [
+                          {"name":"ticket_text","type":"STRING","required":true,"sensitive":true},
+                          {"name":"ticket_text","type":"STRING","required":true,"sensitive":false}
+                        ]
+                        """);
+        assertThrows(IllegalArgumentException.class, () -> profile.validate(duplicate));
     }
 }

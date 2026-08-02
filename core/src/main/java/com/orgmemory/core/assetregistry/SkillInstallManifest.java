@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;

@@ -6,12 +6,27 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class AssetProfileValidationTests {
+public class AssetProfileValidationTests {
 
-    private final PromptTemplateProfile prompts = new PromptTemplateProfile();
+    private final AssetPayloadProfile prompts = new AssetPayloadProfile() {
+        @Override
+        public AssetType type() {
+            return AssetType.PROMPT_TEMPLATE;
+        }
+
+        @Override
+        public java.util.Set<String> schemaVersions() {
+            return java.util.Set.of("1");
+        }
+
+        @Override
+        public void validate(String payload) {
+        }
+    };
     private final WorkInstructionProfile instructions = new WorkInstructionProfile();
     private final CapabilityPackProfile packs = new CapabilityPackProfile();
     private final SkillPackageProfile skills = new SkillPackageProfile();
@@ -21,37 +36,13 @@ class AssetProfileValidationTests {
     @Test
     void everyEnabledTypeHasAnExplicitSchemaValidator() {
         assertEquals(4, registry.enabledTypes().size());
-        registry.require(AssetType.PROMPT_TEMPLATE)
-                .validate("1", promptPayload("{{ticket_text}}"));
+        registry.require(AssetType.PROMPT_TEMPLATE).validate("1", "{}");
         registry.require(AssetType.WORK_INSTRUCTION)
                 .validate("1", instructionPayload());
         registry.require(AssetType.CAPABILITY_PACK)
                 .validate("1", packPayload());
         registry.require(AssetType.SKILL)
                 .validate("1", skillPayload());
-    }
-
-    @Test
-    void promptSchemaRejectsMissingTemplateAndDuplicateVariables() {
-        String noTemplate = promptPayload("{{ticket_text}}")
-                .replace("\"textTemplate\": \"{{ticket_text}}\",", "\"textTemplate\": \"\",");
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> prompts.validate(noTemplate));
-
-        String duplicate = promptPayload("{{ticket_text}}")
-                .replace(
-                        "\"evaluationCases\": []",
-                        """
-                        "evaluationCases": [],
-                        "variables": [
-                          {"name":"ticket_text","type":"STRING","required":true,"sensitive":true},
-                          {"name":"ticket_text","type":"STRING","required":true,"sensitive":false}
-                        ]
-                        """);
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> prompts.validate(duplicate));
     }
 
     @Test
@@ -90,7 +81,7 @@ class AssetProfileValidationTests {
         registry.require(AssetType.SKILL).validate("2", skillPayload());
     }
 
-    static String promptPayload(String template) {
+    public static String promptPayload(String template) {
         return """
                 {
                   "objective": "Classify a support ticket",

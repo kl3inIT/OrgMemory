@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;

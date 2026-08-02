@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.profile;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
 import java.util.Set;
