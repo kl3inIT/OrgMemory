@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
 
 ## Current Contract
 
@@ -174,6 +174,8 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (7772104d)`.
 - The complete selected entity/relation/chunk evidence closure is BatchChecked
   and re-read from the canonical ledger after ranking. Scope, OpenFGA model,
   ACL snapshot, source revision, and projection generation must still match.
+  Duplicate canonical rows for one chunk collapse deterministically to the
+  first verified candidate before evidence and audit assembly.
   That verified closure is the request authorization snapshot; the same
   pure-Java renderer creates the model prompt and citation numbering, and
   answer tokens stream without replaying the full authorization pipeline after

@@ -1333,3 +1333,18 @@ both exact deployable dependency guards, and API engine-selection tests passed
 again in 48s. The documentation check still passed across 506 Markdown files
 and 8 mirrored domain pairs, and all 41 release-policy tests passed again on
 Node 24.15.0.
+
+CodeRabbit raised six inline findings. Five valid findings are fixed: evidence-
+scope unavailability retains its cause, citation integrity mismatch records a
+deny audit, duplicate canonical chunk rows collapse deterministically, all six
+GraphRAG telemetry emitters share one fail-safe guard, and the bounded Asset
+inspector independently rechecks relationship authorization plus model identity
+before canonical SQL. Four characterization tests failed first on the unchanged
+implementation and passed after the fixes. The focused Retrieval tests, full
+Modulith verifier, API admin integration, and exact API/Worker dependency guards
+then passed sequentially. The remaining UPSERT suggestion is rejected because
+the repository uses PostgreSQL's default Read Committed isolation: the
+`ON CONFLICT DO NOTHING` command may observe a concurrent uniqueness conflict,
+and the following repository `SELECT` starts a new command snapshot that sees
+the committed row; a no-op update would add writes and lock/trigger semantics
+without closing a real visibility gap.
