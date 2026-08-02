@@ -54,11 +54,14 @@ Design: [design.md](design.md).
 
 ## Step 6 - Delivery
 
-- [ ] Commit coherent changes, open a PR, wait for required CI/review, address
+- [x] Commit coherent changes, open a PR, wait for required CI/review, address
   actionable findings, and merge only when green.
-- [ ] Deploy through the normal main-based production workflow and verify one
-  authorized view, one denied view, one retirement, and list/retrieval removal.
-- [ ] Record the verified checkpoint in Northstar without secrets or content.
+- [x] Deploy through the normal main-based production workflow. Verify an
+  authorized View and retirement/list removal in production; retain the
+  permission-denial and retrieval-removal proofs from the green API/browser
+  contract gates rather than using real restricted content for a live probe.
+- [x] Record the verified checkpoint in Northstar without secrets or customer
+  content.
 
 ## Deferred follow-up - Pre-publication cancellation
 
