@@ -107,10 +107,6 @@ class PostgresGraphRagAutoConfigurationTests {
                         org.mockito.ArgumentMatchers.eq(Boolean.class)))
                 .thenReturn(true);
         when(plainJdbc.queryForObject(
-                        org.mockito.ArgumentMatchers.contains("session_preload_libraries"),
-                        org.mockito.ArgumentMatchers.eq(String.class)))
-                .thenReturn("age");
-        when(plainJdbc.queryForObject(
                         org.mockito.ArgumentMatchers.contains("ag_catalog.ag_graph"),
                         org.mockito.ArgumentMatchers.eq(Long.class)))
                 .thenReturn(0L);
