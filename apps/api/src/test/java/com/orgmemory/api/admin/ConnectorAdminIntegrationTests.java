@@ -392,8 +392,10 @@ class ConnectorAdminIntegrationTests {
         insertUser(AN_USER, "an@connectortest.example", "EMPLOYEE");
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
-                    id, organization_id, department_id, space_key, name, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, 'connector-test-space', 'Connector Test Space', true, now(), now(), 0)
+                    id, organization_id, department_id, audience_mode, audience_version,
+                    space_key, name, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, 'DEPARTMENT', 1,
+                    'connector-test-space', 'Connector Test Space', true, now(), now(), 0)
                 """, SPACE, ORG, DEPT);
     }
 

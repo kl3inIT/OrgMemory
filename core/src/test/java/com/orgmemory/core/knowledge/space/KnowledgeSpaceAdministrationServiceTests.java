@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +42,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.dao.DataIntegrityViolationException;
 
 class KnowledgeSpaceAdministrationServiceTests {
@@ -56,6 +58,7 @@ class KnowledgeSpaceAdministrationServiceTests {
     private KnowledgeSpaceRepository spaces;
     private DepartmentRepository departments;
     private AppUserRepository users;
+    private KnowledgeSpaceCustomViewerGrantRepository customViewers;
     private RelationshipAuthorizationPort authorization;
     private RelationshipTupleWritePort writes;
     private RelationshipTupleReconciliationPort tuples;
@@ -66,6 +69,7 @@ class KnowledgeSpaceAdministrationServiceTests {
         spaces = mock(KnowledgeSpaceRepository.class);
         departments = mock(DepartmentRepository.class);
         users = mock(AppUserRepository.class);
+        customViewers = mock(KnowledgeSpaceCustomViewerGrantRepository.class);
         authorization = mock(RelationshipAuthorizationPort.class);
         writes = mock(RelationshipTupleWritePort.class);
         tuples = mock(RelationshipTupleReconciliationPort.class);
@@ -73,6 +77,7 @@ class KnowledgeSpaceAdministrationServiceTests {
                 spaces,
                 departments,
                 users,
+                customViewers,
                 authorization,
                 writes,
                 tuples,
@@ -93,7 +98,12 @@ class KnowledgeSpaceAdministrationServiceTests {
      */
     @Test
     void creatingASpaceWritesTheParentLinkAndMakesTheCreatorItsAdministrator() {
-        var created = service.create(ACTOR, "Sales Knowledge", null, "request-1");
+        var created = service.create(
+                ACTOR,
+                "Sales Knowledge",
+                KnowledgeSpaceAudienceMode.ORGANIZATION,
+                null,
+                "request-1");
 
         assertEquals("sales-knowledge", created.key());
         var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
@@ -101,6 +111,7 @@ class KnowledgeSpaceAdministrationServiceTests {
         assertEquals(
                 Set.of(
                         "organization:" + ORG + " organization",
+                        "organization:" + ORG + "#member viewer",
                         "user:" + ADMIN + " administrator"),
                 relations(captor.getValue()));
         assertTrue(captor.getValue().tuples().stream()
@@ -111,7 +122,12 @@ class KnowledgeSpaceAdministrationServiceTests {
     void aDepartmentScopedSpaceAlsoCarriesItsOrganizationalUnitLink() {
         when(departments.existsByIdAndOrganizationId(DEPT, ORG)).thenReturn(true);
 
-        var created = service.create(ACTOR, "Sales Knowledge", DEPT, "request-1");
+        var created = service.create(
+                ACTOR,
+                "Sales Knowledge",
+                KnowledgeSpaceAudienceMode.DEPARTMENT,
+                DEPT,
+                "request-1");
 
         var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
         verify(writes).write(captor.capture());
@@ -126,7 +142,12 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         assertThrows(
                 KnowledgeSpaceKeyConflictException.class,
-                () -> service.create(ACTOR, "  Sales   Knowledge  ", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        "  Sales   Knowledge  ",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
 
         verify(spaces, never()).saveAndFlush(any());
         verify(writes, never()).write(any());
@@ -143,7 +164,12 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         var failure = assertThrows(
                 KnowledgeSpaceUnavailableException.class,
-                () -> service.create(ACTOR, "Sales Knowledge", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        "Sales Knowledge",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
 
         assertTrue(failure.getMessage().contains("OPENFGA_WRITE_TIMEOUT"));
     }
@@ -160,7 +186,12 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         var conflict = assertThrows(
                 KnowledgeSpaceKeyConflictException.class,
-                () -> service.create(ACTOR, "Sales Knowledge", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        "Sales Knowledge",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
 
         assertTrue(conflict.getMessage().contains("sales-knowledge"));
         verify(writes, never()).write(any());
@@ -172,7 +203,12 @@ class KnowledgeSpaceAdministrationServiceTests {
      */
     @Test
     void aStoreThatKeepsHandingBackAnEmptyPageStillTerminates() {
-        KnowledgeSpace space = new KnowledgeSpace(ORG, null, "sales-knowledge", "Sales Knowledge");
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                null,
+                "sales-knowledge",
+                "Sales Knowledge");
         when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(anyString(), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.resolved(List.of(), "same-token-forever", POLICY));
@@ -187,10 +223,20 @@ class KnowledgeSpaceAdministrationServiceTests {
     void aNameWithNoLettersOrDigitsCannotDeriveAKey() {
         assertThrows(
                 BusinessValidationException.class,
-                () -> service.create(ACTOR, " --- ", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        " --- ",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
         assertThrows(
                 BusinessValidationException.class,
-                () -> service.create(ACTOR, "  ", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        "  ",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
     }
 
     @Test
@@ -200,7 +246,12 @@ class KnowledgeSpaceAdministrationServiceTests {
 
         assertThrows(
                 OrgMemoryAccessDeniedException.class,
-                () -> service.create(ACTOR, "Sales Knowledge", null, "request-1"));
+                () -> service.create(
+                        ACTOR,
+                        "Sales Knowledge",
+                        KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                        null,
+                        "request-1"));
 
         verify(spaces, never()).saveAndFlush(any());
     }
@@ -209,14 +260,22 @@ class KnowledgeSpaceAdministrationServiceTests {
     void grantingWritesOneTupleForTheNamedSubject() {
         UUID spaceId = givenSpace(null);
 
-        service.grant(ACTOR, spaceId, "viewer", KnowledgeSpaceSubject.organization(), "request-1");
+        when(departments.existsByIdAndOrganizationId(DEPT, ORG)).thenReturn(true);
+
+        service.grant(ACTOR, spaceId, "viewer", KnowledgeSpaceSubject.department(DEPT), "request-1");
 
         var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
         verify(writes).write(captor.capture());
         assertEquals(
                 List.of(RelationshipTuple.of(
-                        "organization:" + ORG + "#member", "viewer", "knowledge_space:" + spaceId)),
+                        "organizational_unit:" + DEPT + "#member",
+                        "viewer",
+                        "knowledge_space:" + spaceId)),
                 captor.getValue().tuples());
+
+        InOrder ordering = inOrder(customViewers, writes);
+        ordering.verify(customViewers).saveAndFlush(any());
+        ordering.verify(writes).write(any());
     }
 
     @Test
@@ -224,13 +283,52 @@ class KnowledgeSpaceAdministrationServiceTests {
         UUID spaceId = givenSpace(null);
         when(tuples.delete(any())).thenReturn(RelationshipTupleWriteResult.applied(POLICY));
 
-        service.revoke(ACTOR, spaceId, "reviewer", KnowledgeSpaceSubject.role("sales-lead"), "request-1");
+        service.revoke(
+                ACTOR,
+                spaceId,
+                "reviewer",
+                KnowledgeSpaceSubject.role("knowledge-reviewer"),
+                "request-1");
 
         var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
         verify(tuples).delete(captor.capture());
         assertEquals(
                 List.of(RelationshipTuple.of(
-                        "role:sales-lead#assignee", "reviewer", "knowledge_space:" + spaceId)),
+                        "organization:" + ORG + "#knowledge_reviewer",
+                        "reviewer",
+                        "knowledge_space:" + spaceId)),
+                captor.getValue().tuples());
+    }
+
+    @Test
+    void aManagedAudienceRejectsOrdinaryViewerMutationButAllowsDriftRemoval() {
+        UUID spaceId = givenSpace(DEPT);
+        when(departments.existsByIdAndOrganizationId(DEPT, ORG)).thenReturn(true);
+        when(tuples.delete(any())).thenReturn(RelationshipTupleWriteResult.applied(POLICY));
+
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.revoke(
+                        ACTOR,
+                        spaceId,
+                        "viewer",
+                        KnowledgeSpaceSubject.department(DEPT),
+                        "request-1"));
+
+        service.revoke(
+                ACTOR,
+                spaceId,
+                "viewer",
+                KnowledgeSpaceSubject.organization(),
+                "request-2");
+
+        var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
+        verify(tuples).delete(captor.capture());
+        assertEquals(
+                List.of(RelationshipTuple.of(
+                        "organization:" + ORG + "#member",
+                        "viewer",
+                        "knowledge_space:" + spaceId)),
                 captor.getValue().tuples());
     }
 
@@ -255,19 +353,48 @@ class KnowledgeSpaceAdministrationServiceTests {
 
     /**
      * These are the type restrictions in {@code model.fga}, asserted here so a grant that OpenFGA
-     * would reject is refused before it is attempted. The asymmetry is the point: reading is
-     * something a whole organization can be given and approving is not, and reviewing takes a
-     * unit's managers rather than its members.
+     * would reject is refused before it is attempted. Organization-wide reading is selected by
+     * the Space mode rather than authored as an ordinary grant, and reviewing takes a unit's
+     * managers rather than its members.
      */
     @Test
     void theGrantTableMatchesTheAuthorizationModelsTypeRestrictions() {
         assertEquals(
                 Map.of(
-                        "viewer", Set.of(Kind.ORGANIZATION, Kind.DEPARTMENT, Kind.ROLE, Kind.USER),
+                        "viewer", Set.of(Kind.DEPARTMENT, Kind.USER),
                         "contributor", Set.of(Kind.DEPARTMENT, Kind.ROLE, Kind.USER),
                         "reviewer", Set.of(Kind.DEPARTMENT_MANAGERS, Kind.ROLE, Kind.USER),
-                        "administrator", Set.of(Kind.ROLE, Kind.USER)),
+                        "administrator", Set.of(Kind.USER)),
                 service.grantOptions());
+    }
+
+    @Test
+    void roleGrantsProjectOnlyOrganizationRolesAcceptedByTheModel() {
+        UUID spaceId = givenSpace(null);
+
+        service.grant(
+                ACTOR,
+                spaceId,
+                "contributor",
+                KnowledgeSpaceSubject.role("knowledge-contributor"),
+                "request-1");
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.grant(
+                        ACTOR,
+                        spaceId,
+                        "contributor",
+                        KnowledgeSpaceSubject.role("organization-admin"),
+                        "request-2"));
+
+        var captor = ArgumentCaptor.forClass(RelationshipTupleWriteRequest.class);
+        verify(writes).write(captor.capture());
+        assertEquals(
+                List.of(RelationshipTuple.of(
+                        "organization:" + ORG + "#knowledge_contributor",
+                        "contributor",
+                        "knowledge_space:" + spaceId)),
+                captor.getValue().tuples());
     }
 
     @Test
@@ -357,7 +484,12 @@ class KnowledgeSpaceAdministrationServiceTests {
     /** A partial list of who has access must not read as the whole of it. */
     @Test
     void aGrantListingThatCouldNotBeReadReportsItselfIncomplete() {
-        KnowledgeSpace space = new KnowledgeSpace(ORG, null, "sales-knowledge", "Sales Knowledge");
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM,
+                null,
+                "sales-knowledge",
+                "Sales Knowledge");
         when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(anyString(), anyInt(), any()))
                 .thenReturn(RelationshipTuplePage.indeterminate("OPENFGA_READ_TIMEOUT", POLICY));
@@ -372,7 +504,12 @@ class KnowledgeSpaceAdministrationServiceTests {
     /** Structural links are not access, so a listing of who can read must not present them as such. */
     @Test
     void aListingReportsAclGrantsAndLeavesStructuralLinksOut() {
-        KnowledgeSpace space = new KnowledgeSpace(ORG, null, "sales-knowledge", "Sales Knowledge");
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.ORGANIZATION,
+                null,
+                "sales-knowledge",
+                "Sales Knowledge");
         String object = "knowledge_space:" + space.getId();
         when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
         when(tuples.readObject(eq(object), anyInt(), any()))
@@ -393,10 +530,49 @@ class KnowledgeSpaceAdministrationServiceTests {
                 grants.stream()
                         .map(grant -> grant.relation() + " " + grant.subject())
                         .collect(Collectors.toSet()));
+        assertTrue(grants.stream().allMatch(KnowledgeSpaceAdministration.Grant::effective));
+    }
+
+    @Test
+    void aViewerTupleOutsideTheManagedAudienceIsReportedAsIneffectiveDrift() {
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                KnowledgeSpaceAudienceMode.DEPARTMENT,
+                DEPT,
+                "sales-knowledge",
+                "Sales Knowledge");
+        String object = "knowledge_space:" + space.getId();
+        when(spaces.findByOrganizationIdOrderByName(ORG)).thenReturn(List.of(space));
+        when(tuples.readObject(eq(object), anyInt(), any()))
+                .thenReturn(RelationshipTuplePage.resolved(
+                        List.of(
+                                RelationshipTuple.of(
+                                        "organizational_unit:" + DEPT + "#member", "viewer", object),
+                                RelationshipTuple.of(
+                                        "organization:" + ORG + "#member", "viewer", object)),
+                        null,
+                        POLICY));
+
+        var grants = service.list(ACTOR).getFirst().grants();
+
+        assertEquals(2, grants.size());
+        assertTrue(grants.stream()
+                .filter(grant -> grant.subject().startsWith("organizational_unit:"))
+                .allMatch(KnowledgeSpaceAdministration.Grant::effective));
+        assertTrue(grants.stream()
+                .filter(grant -> grant.subject().startsWith("organization:"))
+                .noneMatch(KnowledgeSpaceAdministration.Grant::effective));
     }
 
     private UUID givenSpace(UUID departmentId) {
-        KnowledgeSpace space = new KnowledgeSpace(ORG, departmentId, "sales-knowledge", "Sales Knowledge");
+        KnowledgeSpace space = new KnowledgeSpace(
+                ORG,
+                departmentId == null
+                        ? KnowledgeSpaceAudienceMode.RESTRICTED_CUSTOM
+                        : KnowledgeSpaceAudienceMode.DEPARTMENT,
+                departmentId,
+                "sales-knowledge",
+                "Sales Knowledge");
         when(spaces.findByIdAndOrganizationIdAndActiveTrue(space.getId(), ORG))
                 .thenReturn(Optional.of(space));
         return space.getId();

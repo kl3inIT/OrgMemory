@@ -50,6 +50,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Typed Knowledge Space audiences](increments/active/2026-08-02-knowledge-space-audience-modes/plan.md) | active | implement persistence, policy enforcement, independent OpenFGA permissions, enterprise UI, and all verification gates |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |

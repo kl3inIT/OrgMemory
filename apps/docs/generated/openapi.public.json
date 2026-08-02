@@ -7410,6 +7410,14 @@
           "name": {
             "type": "string"
           },
+          "audienceMode": {
+            "type": "string",
+            "enum": [
+              "ORGANIZATION",
+              "DEPARTMENT",
+              "RESTRICTED_CUSTOM"
+            ]
+          },
           "departmentId": {
             "type": "string",
             "format": "uuid"
@@ -7428,6 +7436,18 @@
           },
           "name": {
             "type": "string"
+          },
+          "audienceMode": {
+            "type": "string",
+            "enum": [
+              "ORGANIZATION",
+              "DEPARTMENT",
+              "RESTRICTED_CUSTOM"
+            ]
+          },
+          "audienceVersion": {
+            "type": "integer",
+            "format": "int64"
           },
           "departmentId": {
             "type": "string",
@@ -7458,6 +7478,9 @@
           },
           "subject": {
             "type": "string"
+          },
+          "effective": {
+            "type": "boolean"
           }
         }
       },
@@ -9080,6 +9103,12 @@
                 "ROLE",
                 "USER"
               ]
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

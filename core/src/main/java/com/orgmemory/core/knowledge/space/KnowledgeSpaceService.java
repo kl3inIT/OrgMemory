@@ -80,6 +80,7 @@ public class KnowledgeSpaceService {
         return spaces.findByOrganizationIdAndIdInAndActiveTrueOrderByName(
                         actor.organizationId(), authorizedIds)
                 .stream()
+                .filter(space -> !CAN_VIEW.equals(permission) || space.admits(actor.departmentId()))
                 .map(KnowledgeSpaceService::target)
                 .toList();
     }

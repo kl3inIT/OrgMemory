@@ -99,7 +99,11 @@ public class SecureKnowledgeRetrievalStore {
             JOIN knowledge_asset_versions kav
               ON kav.id = kc.knowledge_asset_version_id
              AND kav.organization_id = kc.organization_id
-             AND kav.knowledge_asset_id = ka.id
+              AND kav.knowledge_asset_id = ka.id
+            JOIN knowledge_spaces ks
+              ON ks.id = ka.knowledge_space_id
+             AND ks.organization_id = ka.organization_id
+             AND ks.active
             JOIN source_objects so
               ON so.id = kc.source_object_id
              AND so.organization_id = kc.organization_id
@@ -142,6 +146,31 @@ public class SecureKnowledgeRetrievalStore {
              AND current_seal.organization_id = ka.organization_id
             WHERE kc.organization_id = :organizationId
               AND kc.knowledge_asset_id IN (:authorizedAssetIds)
+              AND (
+                  ks.audience_mode = 'ORGANIZATION'
+                  OR (
+                      ks.audience_mode = 'DEPARTMENT'
+                      AND CAST(:actorDepartmentId AS uuid) IS NOT NULL
+                      AND ks.department_id = CAST(:actorDepartmentId AS uuid)
+                  )
+                  OR (
+                      ks.audience_mode = 'RESTRICTED_CUSTOM'
+                      AND EXISTS (
+                          SELECT 1
+                          FROM knowledge_space_custom_viewer_grants kscvg
+                          WHERE kscvg.organization_id = ks.organization_id
+                            AND kscvg.knowledge_space_id = ks.id
+                            AND (
+                                (kscvg.subject_kind = 'USER' AND kscvg.user_id = :actorUserId)
+                                OR (
+                                    kscvg.subject_kind = 'DEPARTMENT'
+                                    AND CAST(:actorDepartmentId AS uuid) IS NOT NULL
+                                    AND kscvg.department_id = CAST(:actorDepartmentId AS uuid)
+                                )
+                            )
+                      )
+                  )
+              )
               AND kc.active
               AND kav.status = 'ACTIVE'
               AND so.status = 'ACTIVE'
