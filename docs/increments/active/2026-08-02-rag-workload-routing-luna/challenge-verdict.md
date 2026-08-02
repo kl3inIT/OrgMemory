@@ -1,7 +1,7 @@
 # Challenge Verdict - RAG Workload Routing And Luna
 
-Date: 2026-08-02  
-Commit reviewed: `da32eef9d6807ae97c4f1afd95e77b5688fedf28`  
+Date: 2026-08-02
+Commit reviewed: `da32eef9d6807ae97c4f1afd95e77b5688fedf28`
 Verdict: **accept with changes**
 
 The fresh reviewer worked read-only against the written brief, repository, and
