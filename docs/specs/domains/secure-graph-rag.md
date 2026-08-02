@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (pending merge synchronization)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
 
 ## Current Contract
 

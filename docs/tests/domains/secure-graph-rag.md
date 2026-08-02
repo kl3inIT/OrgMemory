@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (pending merge synchronization)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
 
 ## Automated
 
