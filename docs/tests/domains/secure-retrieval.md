@@ -5,8 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-02-effective-access-inspector (c57bea58)`, including
-`2026-08-01-spring-modulith-package-refactor (7cef296c)`.
+Reconciled: `2026-08-02-effective-access-inspector-main-sync (946feb7c)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
