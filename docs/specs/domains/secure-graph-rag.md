@@ -25,7 +25,9 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
   snapshot through Retrieval's `GraphEvidenceVerifier`. Only its immutable
   `VerifiedGraphEvidenceScope` crosses the module boundary. Retrieval alone
   resolves the scope and rechecks an exact governing chunk against the current
-  canonical organization, Asset, revision, and ACL identity.
+  canonical organization, Asset, revision, and ACL identity. Snapshot accessors
+  reject an unverified Knowledge Space, and the canonical recheck is narrowed
+  to the assets authorized for that exact Space.
 - `SECURE_MIX` is the product default. Strategy selection remains internal.
 - Query results preserve structured entity, relation, and chunk selections.
   Entity and relation descriptions retain their individual chunk evidence;

@@ -3,7 +3,6 @@ package com.orgmemory.core.knowledge.retrieval;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -51,45 +50,51 @@ public record VerifiedGraphEvidenceScope(
             UUID knowledgeSpaceId,
             UUID candidateOrganizationId,
             UUID candidateAssetId) {
-        return forKnowledgeSpace(knowledgeSpaceId)
-                .includes(candidateOrganizationId, candidateAssetId);
+        UUID spaceId = Objects.requireNonNull(
+                knowledgeSpaceId, "knowledgeSpaceId");
+        return organizationId.equals(candidateOrganizationId)
+                && assetIdsByKnowledgeSpace
+                        .getOrDefault(spaceId, Set.of())
+                        .contains(candidateAssetId);
     }
 
     public AuthorizedEvidenceScope forKnowledgeSpace(UUID knowledgeSpaceId) {
-        UUID spaceId = Objects.requireNonNull(
-                knowledgeSpaceId, "knowledgeSpaceId");
+        UUID spaceId = requireKnowledgeSpace(knowledgeSpaceId);
         return new AuthorizedEvidenceScope(
                 organizationId,
                 actorUserId,
                 actorDepartmentId,
                 actorExecutive,
-                assetIdsByKnowledgeSpace.getOrDefault(spaceId, Set.of()),
+                assetIdsByKnowledgeSpace.get(spaceId),
                 authorizationModelId,
                 authorizationGeneration(spaceId),
                 evaluatedAt);
     }
 
     public long authorizationGeneration(UUID knowledgeSpaceId) {
-        return aclGenerationByKnowledgeSpace.getOrDefault(
-                Objects.requireNonNull(knowledgeSpaceId, "knowledgeSpaceId"),
-                0L);
+        return aclGenerationByKnowledgeSpace.get(
+                requireKnowledgeSpace(knowledgeSpaceId));
     }
 
     public boolean hasSameAuthorizationFingerprint(
             VerifiedGraphEvidenceScope other,
             UUID knowledgeSpaceId) {
         Objects.requireNonNull(other, "other");
-        return forKnowledgeSpace(knowledgeSpaceId)
-                .authorizationFingerprint()
-                .equals(other.forKnowledgeSpace(knowledgeSpaceId)
-                        .authorizationFingerprint());
+        return includesKnowledgeSpace(knowledgeSpaceId)
+                && other.includesKnowledgeSpace(knowledgeSpaceId)
+                && forKnowledgeSpace(knowledgeSpaceId)
+                        .authorizationFingerprint()
+                        .equals(other.forKnowledgeSpace(knowledgeSpaceId)
+                                .authorizationFingerprint());
     }
 
     public boolean hasSameAssetsAndGeneration(
             VerifiedGraphEvidenceScope other,
             UUID knowledgeSpaceId) {
         Objects.requireNonNull(other, "other");
-        return forKnowledgeSpace(knowledgeSpaceId)
+        return includesKnowledgeSpace(knowledgeSpaceId)
+                && other.includesKnowledgeSpace(knowledgeSpaceId)
+                && forKnowledgeSpace(knowledgeSpaceId)
                         .authorizedAssetIds()
                         .equals(other.forKnowledgeSpace(knowledgeSpaceId)
                                 .authorizedAssetIds())
@@ -97,17 +102,37 @@ public record VerifiedGraphEvidenceScope(
                         == other.authorizationGeneration(knowledgeSpaceId);
     }
 
-    SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope() {
-        LinkedHashSet<UUID> assetIds = new LinkedHashSet<>();
-        assetIdsByKnowledgeSpace.values().forEach(assetIds::addAll);
+    public boolean hasSameSpaceScope(
+            VerifiedGraphEvidenceScope other,
+            UUID knowledgeSpaceId) {
+        Objects.requireNonNull(other, "other");
+        return authorizationModelId.equals(other.authorizationModelId())
+                && hasSameAssetsAndGeneration(other, knowledgeSpaceId);
+    }
+
+    SecureKnowledgeRetrievalStore.RetrievalScope toRetrievalScope(
+            UUID knowledgeSpaceId) {
+        UUID spaceId = requireKnowledgeSpace(knowledgeSpaceId);
         return new SecureKnowledgeRetrievalStore.RetrievalScope(
                 organizationId,
                 actorUserId,
                 actorDepartmentId,
                 actorExecutive,
-                assetIds.stream().sorted().toList(),
+                assetIdsByKnowledgeSpace.get(spaceId).stream()
+                        .sorted()
+                        .toList(),
                 authorizationModelId,
                 evaluatedAt);
+    }
+
+    private UUID requireKnowledgeSpace(UUID knowledgeSpaceId) {
+        UUID spaceId = Objects.requireNonNull(
+                knowledgeSpaceId, "knowledgeSpaceId");
+        if (!assetIdsByKnowledgeSpace.containsKey(spaceId)) {
+            throw new IllegalArgumentException(
+                    "Knowledge Space is not part of the verified scope");
+        }
+        return spaceId;
     }
 
     private static Map<UUID, Set<UUID>> immutableSets(

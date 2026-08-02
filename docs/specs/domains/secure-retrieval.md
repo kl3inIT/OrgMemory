@@ -45,7 +45,9 @@ Graph exploration, export, and curation cross the Retrieval-owned
 package-private implementation alone resolves canonical authorization state
 and rechecks governing evidence through the secure retrieval store. Graph
 imports neither the scope resolver, internal resolved scope, store, nor secure
-candidate representation.
+candidate representation. Unknown Knowledge Spaces are rejected rather than
+degrading to an empty/zero scope, and each governing-evidence recheck contains
+only the Asset IDs authorized for the requested Space.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob

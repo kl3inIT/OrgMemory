@@ -115,7 +115,7 @@ public class KnowledgeGraphExplorerService {
 
         VerifiedGraphEvidenceScope current =
                 resolve(actor, policyVersion);
-        if (!sameSpaceScope(initial, current, knowledgeSpaceId)) {
+        if (!initial.hasSameSpaceScope(current, knowledgeSpaceId)) {
             if (attempt == 0) {
                 return explore(
                         actor,
@@ -192,13 +192,11 @@ public class KnowledgeGraphExplorerService {
     private VerifiedGraphEvidenceScope resolve(
             CurrentActor actor,
             String policyVersion) {
-        try {
-            return evidenceVerifier.verifyScope(actor, policyVersion);
-        } catch (KnowledgeRetrievalUnavailableException unavailable) {
-            throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions are temporarily unavailable",
-                    unavailable);
-        }
+        return GraphEvidenceScopeAccess.verify(
+                evidenceVerifier,
+                actor,
+                policyVersion,
+                "Knowledge graph permissions are temporarily unavailable");
     }
 
     private KnowledgeGraphView empty(
@@ -403,13 +401,6 @@ public class KnowledgeGraphExplorerService {
 
     private static boolean contains(String value, String needle) {
         return value.toLowerCase(Locale.ROOT).contains(needle);
-    }
-
-    private static boolean sameSpaceScope(
-            VerifiedGraphEvidenceScope initial,
-            VerifiedGraphEvidenceScope current,
-            UUID knowledgeSpaceId) {
-        return initial.hasSameAuthorizationFingerprint(current, knowledgeSpaceId);
     }
 
     private String normalizeQuery(String query) {

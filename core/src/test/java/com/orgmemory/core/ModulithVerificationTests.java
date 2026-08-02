@@ -714,6 +714,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
                         "com.orgmemory.core.knowledge.graph.ClaimedGraphIndex",
+                        "com.orgmemory.core.knowledge.graph.GraphEvidenceScopeAccess",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration",

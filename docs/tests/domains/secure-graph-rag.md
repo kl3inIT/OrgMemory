@@ -22,8 +22,10 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
   adjacency, degree, weight, seed, replacement, and removal behavior.
 - Core verifier and Graph use-case tests prove immutable authorized snapshots,
   unavailable-scope translation, exact current governing-evidence identity,
-  before/after authorization checks, and no Graph dependency on Retrieval's
-  resolver, resolved scope, store, or candidate implementation types.
+  per-Space canonical recheck scope, rejection of unknown Spaces before export
+  or deactivation, before/after authorization checks, and no Graph dependency
+  on Retrieval's resolver, resolved scope, store, or candidate implementation
+  types.
 - Core traversal tests prove exact-snapshot validation before zero/empty
   returns, authorized seed normalization, multi-page completion, canonical UUID
   ordering, one global limit, cycles, disconnected nodes, seed permutations,

@@ -195,8 +195,9 @@ public class KnowledgeGraphCurationService {
                 requirePermission(actor, knowledgeSpaceId);
         VerifiedGraphEvidenceScope resolved =
                 resolve(actor, decision.policyVersion());
-        if (resolved.authorizationGeneration(knowledgeSpaceId)
-                != authorizationGeneration) {
+        if (!resolved.includesKnowledgeSpace(knowledgeSpaceId)
+                || resolved.authorizationGeneration(knowledgeSpaceId)
+                        != authorizationGeneration) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Knowledge graph authorization changed before curation");
         }
@@ -291,13 +292,11 @@ public class KnowledgeGraphCurationService {
     private VerifiedGraphEvidenceScope resolve(
             CurrentActor actor,
             String authorizationModelId) {
-        try {
-            return evidenceVerifier.verifyScope(actor, authorizationModelId);
-        } catch (KnowledgeRetrievalUnavailableException unavailable) {
-            throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions are temporarily unavailable",
-                    unavailable);
-        }
+        return GraphEvidenceScopeAccess.verify(
+                evidenceVerifier,
+                actor,
+                authorizationModelId,
+                "Knowledge graph permissions are temporarily unavailable");
     }
 
     private void requireUnchangedScope(

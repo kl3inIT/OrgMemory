@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.export.GraphExportDocument;
@@ -106,6 +107,28 @@ class KnowledgeGraphExportServiceTests {
 
         assertThrows(
                 KnowledgeRetrievalUnavailableException.class,
+                () -> service.export(
+                        actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
+
+        verify(reader, never()).read(any(), any());
+        verify(audit, never()).record(any());
+    }
+
+    @Test
+    void deniesBeforeReadingWhenTheVerifiedScopeDoesNotIncludeTheSpace() {
+        when(evidenceVerifier.verifyScope(actor, "model-v1")).thenReturn(
+                new VerifiedGraphEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(),
+                        Map.of()));
+
+        assertThrows(
+                OrgMemoryAccessDeniedException.class,
                 () -> service.export(
                         actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
 

@@ -1265,3 +1265,17 @@ missing release disposition in the PR event payload. The PR now explicitly
 skips an intermediate release because the project owner requested one release
 only after the full refactor goal; a new synchronize event is required because
 rerunning the original workflow retains its original PR payload.
+
+CodeRabbit then found a valid fail-closed gap: an absent Space could degrade to
+an empty asset set and generation zero, allowing export comparison or
+deactivation guards to treat two absent scopes as stable. The fix makes snapshot
+accessors reject unknown Spaces, explicitly denies export/deactivation before
+read or write, and narrows canonical evidence rechecks to the requested Space's
+assets. Candidate identity tests now vary organization, chunk, Asset, revision,
+and current ACL independently; curation tests cover stale evidence and absent
+Space deactivation. The duplicated Graph-side unavailable-scope translation and
+Space comparison rules were consolidated to avoid authorization drift. The new
+tests failed first against the permissive/default APIs; the corrected Graph,
+verifier, and full Modulith slice passed in 35s, followed by full Core in 1m43s.
+The terminating post-review `clean test` then passed all 99 tasks in 6m31s,
+including uncached API and Worker tests affected by the Core boundary change.

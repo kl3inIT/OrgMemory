@@ -1,6 +1,7 @@
 package com.orgmemory.core.knowledge.graph;
 
 import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
@@ -159,6 +160,59 @@ class KnowledgeGraphCurationServiceTests {
                                 "Denied",
                                 evidence())));
         verify(store, never()).append(any(), any());
+    }
+
+    @Test
+    void staleGoverningEvidenceFailsClosedBeforeTheLedger() {
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceVerifier.isCurrentGoverningEvidence(any(), any(), any()))
+                .thenReturn(false);
+
+        OrgMemoryAccessDeniedException thrown = assertThrows(
+                OrgMemoryAccessDeniedException.class,
+                () -> service.apply(
+                        actor,
+                        new KnowledgeGraphCurationCommand.CurateEntity(
+                                SPACE_ID,
+                                "curation-1",
+                                "attempt",
+                                7,
+                                ENTITY_ID,
+                                "Policy",
+                                "POLICY",
+                                "Stale",
+                                evidence())));
+
+        assertEquals("Governing evidence is stale or unavailable", thrown.getMessage());
+        verify(store, never()).append(any(), any());
+    }
+
+    @Test
+    void deactivateFailsClosedWhenTheVerifiedScopeDoesNotIncludeTheSpace() {
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
+                .thenReturn(new VerifiedGraphEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(),
+                        Map.of()));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.deactivate(
+                        actor,
+                        SPACE_ID,
+                        UUID.randomUUID(),
+                        0L,
+                        "withdraw"));
+
+        verify(store, never()).deactivate(any(), any(), any());
     }
 
     private static EvidenceReference evidence() {

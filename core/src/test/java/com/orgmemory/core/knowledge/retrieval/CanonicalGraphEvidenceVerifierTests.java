@@ -163,8 +163,15 @@ class CanonicalGraphEvidenceVerifierTests {
                                 CHUNK_ID,
                                 ASSET_ID,
                                 REVISION_ID,
-                                UUID.randomUUID())));
+                                UUID.randomUUID())),
+                        List.of(candidate(
+                                ORGANIZATION_ID,
+                                CHUNK_ID,
+                                UUID.randomUUID(),
+                                REVISION_ID,
+                                ACL_ID)));
 
+        assertFalse(verifier.isCurrentGoverningEvidence(scope, SPACE_ID, evidence));
         assertFalse(verifier.isCurrentGoverningEvidence(scope, SPACE_ID, evidence));
         assertFalse(verifier.isCurrentGoverningEvidence(scope, SPACE_ID, evidence));
         assertFalse(verifier.isCurrentGoverningEvidence(scope, SPACE_ID, evidence));
@@ -182,10 +189,20 @@ class CanonicalGraphEvidenceVerifierTests {
 
         assertTrue(initial.hasSameAuthorizationFingerprint(same, SPACE_ID));
         assertTrue(initial.hasSameAssetsAndGeneration(same, SPACE_ID));
+        assertTrue(initial.hasSameSpaceScope(same, SPACE_ID));
         assertFalse(initial.hasSameAuthorizationFingerprint(newGeneration, SPACE_ID));
         assertFalse(initial.hasSameAssetsAndGeneration(newGeneration, SPACE_ID));
         assertFalse(initial.hasSameAuthorizationFingerprint(newModel, SPACE_ID));
         assertTrue(initial.hasSameAssetsAndGeneration(newModel, SPACE_ID));
+        assertFalse(initial.hasSameSpaceScope(newModel, SPACE_ID));
+        UUID unknownSpaceId = UUID.randomUUID();
+        assertFalse(initial.hasSameSpaceScope(same, unknownSpaceId));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> initial.forKnowledgeSpace(unknownSpaceId));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> initial.authorizationGeneration(unknownSpaceId));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new VerifiedGraphEvidenceScope(
@@ -197,6 +214,29 @@ class CanonicalGraphEvidenceVerifierTests {
                         EVALUATED_AT,
                         Map.of(SPACE_ID, Set.of(ASSET_ID)),
                         Map.of()));
+    }
+
+    @Test
+    void canonicalRecheckScopeContainsOnlyAssetsFromTheRequestedSpace() {
+        UUID otherSpaceId = UUID.randomUUID();
+        UUID otherAssetId = UUID.randomUUID();
+        var scope = new VerifiedGraphEvidenceScope(
+                ORGANIZATION_ID,
+                USER_ID,
+                null,
+                false,
+                "model-v1",
+                EVALUATED_AT,
+                Map.of(
+                        SPACE_ID, Set.of(ASSET_ID),
+                        otherSpaceId, Set.of(otherAssetId)),
+                Map.of(
+                        SPACE_ID, 7L,
+                        otherSpaceId, 3L));
+
+        assertEquals(
+                List.of(ASSET_ID),
+                scope.toRetrievalScope(SPACE_ID).authorizedAssetIds());
     }
 
     private static ResolvedKnowledgeEvidenceScope resolvedScope() {

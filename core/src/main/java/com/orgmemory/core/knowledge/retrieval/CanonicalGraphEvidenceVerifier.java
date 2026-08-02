@@ -61,7 +61,7 @@ class CanonicalGraphEvidenceVerifier implements GraphEvidenceVerifier {
             return false;
         }
         var candidates = canonicalEvidence.recheck(
-                scope.toRetrievalScope(),
+                scope.toRetrievalScope(knowledgeSpaceId),
                 List.of(Objects.requireNonNull(
                         evidence.chunkId(), "governing evidence chunkId")));
         return candidates.size() == 1

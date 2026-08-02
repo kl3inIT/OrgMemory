@@ -167,7 +167,9 @@ consume that parent interface without importing Retrieval implementation types.
 Graph exploration, export, and curation obtain their immutable authorized
 evidence snapshot and exact current governing-evidence decision through the
 Retrieval-owned `GraphEvidenceVerifier`; Graph does not import Retrieval scope
-resolution, candidate, or store implementation types. Retrieval remains
+resolution, candidate, or store implementation types. Verified snapshots reject
+unknown Knowledge Spaces, and canonical evidence rechecks carry only the assets
+authorized for the requested Space. Retrieval remains
 explicitly open while its remaining sibling adapters are replaced by
 intentional APIs. The
 provider-neutral object-storage port is exposed as the
