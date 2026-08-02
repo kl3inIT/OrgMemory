@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,7 +61,7 @@ class AssetRegistryServiceTests {
                 .thenReturn(expected);
         AssetRegistryService service = new AssetRegistryService(
                 coordinator,
-                mock(AssetAuthorizationProjectionService.class),
+                mock(AssetAuthorizationProjectionCommand.class),
                 mock(RelationshipAuthorizationPort.class),
                 authorizationSets);
 
@@ -111,7 +113,7 @@ class AssetRegistryServiceTests {
         });
         AssetRegistryService service = new AssetRegistryService(
                 coordinator,
-                mock(AssetAuthorizationProjectionService.class),
+                mock(AssetAuthorizationProjectionCommand.class),
                 authorization,
                 mock(RelationshipAuthorizationSetPort.class));
 
@@ -156,7 +158,7 @@ class AssetRegistryServiceTests {
                 AuthorizationDecision.allow("model-v1"));
         AssetRegistryService service = new AssetRegistryService(
                 coordinator,
-                mock(AssetAuthorizationProjectionService.class),
+                mock(AssetAuthorizationProjectionCommand.class),
                 authorization,
                 mock(RelationshipAuthorizationSetPort.class));
 

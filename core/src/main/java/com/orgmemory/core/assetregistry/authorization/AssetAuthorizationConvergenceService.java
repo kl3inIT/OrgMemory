@@ -1,24 +1,26 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.authorization;
 
+import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch;
+import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class AssetAuthorizationConvergenceService {
 
-    private final AssetAuthorizationCoordinator coordinator;
+    private final AssetAuthorizationProjectionQueue queue;
     private final AssetAuthorizationProjectionService projection;
 
     AssetAuthorizationConvergenceService(
-            AssetAuthorizationCoordinator coordinator,
+            AssetAuthorizationProjectionQueue queue,
             AssetAuthorizationProjectionService projection) {
-        this.coordinator = coordinator;
+        this.queue = queue;
         this.projection = projection;
     }
 
     public AssetAuthorizationConvergenceReport reconcile(int limit) {
         List<AssetAuthorizationBatch> candidates =
-                coordinator.claimPendingBatches(limit);
+                queue.claimPending(limit);
         int applied = 0;
         int failed = 0;
         for (AssetAuthorizationBatch candidate : candidates) {

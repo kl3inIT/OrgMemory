@@ -1,9 +1,8 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.api;
 
-import com.orgmemory.core.assetregistry.api.AssetType;
 import java.util.UUID;
 
-record AssetAuthorizationTarget(
+public record AssetAuthorizationTarget(
         UUID organizationId,
         UUID assetId,
         UUID knowledgeSpaceId,

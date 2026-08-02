@@ -7,7 +7,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.api.AssetIdentity;
+import com.orgmemory.core.assetregistry.api.AssetIdentityQuery;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.organization.CurrentActor;
@@ -76,13 +79,11 @@ class SkillDistributionServiceTests {
     @Test
     void resolvesCoordinateAndVersionBeforeApplyingTheSameLiveUseCheck() {
         Fixture fixture = fixture();
-        Asset asset = mock(Asset.class);
+        AssetIdentity asset = assetIdentity();
         AssetRelease release = mock(AssetRelease.class);
-        when(asset.getId()).thenReturn(ASSET_ID);
-        when(asset.getType()).thenReturn(AssetType.SKILL);
         when(release.getId()).thenReturn(RELEASE_ID);
-        when(fixture.assetRepository
-                        .findByOrganizationIdAndNamespaceAndSlug(
+        when(fixture.identities
+                        .findByCoordinate(
                                 ORGANIZATION_ID,
                                 "support",
                                 "triage"))
@@ -106,10 +107,9 @@ class SkillDistributionServiceTests {
     @Test
     void keepsTheInvalidVersionCauseBehindTheOpaqueNotFoundError() {
         Fixture fixture = fixture();
-        Asset asset = mock(Asset.class);
-        when(asset.getType()).thenReturn(AssetType.SKILL);
-        when(fixture.assetRepository
-                        .findByOrganizationIdAndNamespaceAndSlug(
+        AssetIdentity asset = assetIdentity();
+        when(fixture.identities
+                        .findByCoordinate(
                                 ORGANIZATION_ID,
                                 "support",
                                 "triage"))
@@ -125,7 +125,7 @@ class SkillDistributionServiceTests {
 
     private static Fixture fixture() {
         AssetRegistryService assets = mock(AssetRegistryService.class);
-        AssetRepository assetRepository = mock(AssetRepository.class);
+        AssetIdentityQuery identities = mock(AssetIdentityQuery.class);
         AssetReleaseRepository releaseRepository =
                 mock(AssetReleaseRepository.class);
         AssetPayloadReferenceRepository references =
@@ -151,13 +151,13 @@ class SkillDistributionServiceTests {
         return new Fixture(
                 new SkillDistributionService(
                         assets,
-                        assetRepository,
+                        identities,
                         releaseRepository,
                         references,
                         specs,
                         storage),
                 assets,
-                assetRepository,
+                identities,
                 releaseRepository,
                 storage);
     }
@@ -182,6 +182,18 @@ class SkillDistributionServiceTests {
                 java.time.Instant.parse("2026-07-27T10:00:00Z"));
     }
 
+    private static AssetIdentity assetIdentity() {
+        return new AssetIdentity(
+                ORGANIZATION_ID,
+                ASSET_ID,
+                AssetType.SKILL,
+                "support",
+                "triage",
+                UUID.randomUUID(),
+                AssetPortfolioState.DRAFT_ONLY,
+                true);
+    }
+
     private static SkillPackageSpec spec() {
         return new SkillPackageSpec(
                 "triage",
@@ -204,7 +216,7 @@ class SkillDistributionServiceTests {
     private record Fixture(
             SkillDistributionService service,
             AssetRegistryService assets,
-            AssetRepository assetRepository,
+            AssetIdentityQuery identities,
             AssetReleaseRepository releaseRepository,
             SkillPackageStoragePort storage) {
     }

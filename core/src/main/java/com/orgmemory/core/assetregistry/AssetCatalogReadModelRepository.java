@@ -1,19 +1,16 @@
 package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
-import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-interface AssetRepository extends JpaRepository<Asset, UUID> {
+interface AssetCatalogReadModelRepository extends Repository<AssetDraft, UUID> {
 
     String CATALOG_FROM_AND_PREDICATES = """
             from Asset asset
@@ -108,22 +105,6 @@ interface AssetRepository extends JpaRepository<Asset, UUID> {
               case when :sort = 'RECENTLY_UPDATED' then asset.updatedAt end desc,
               asset.id asc
             """;
-
-    Optional<Asset> findByIdAndOrganizationId(UUID id, UUID organizationId);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select asset
-            from Asset asset
-            where asset.id = :id
-              and asset.organizationId = :organizationId
-            """)
-    Optional<Asset> findForUpdate(
-            @Param("id") UUID id,
-            @Param("organizationId") UUID organizationId);
-
-    Optional<Asset> findByOrganizationIdAndNamespaceAndSlug(
-            UUID organizationId, String namespace, String slug);
 
     @Query("""
             select new com.orgmemory.core.assetregistry.AssetSummary(

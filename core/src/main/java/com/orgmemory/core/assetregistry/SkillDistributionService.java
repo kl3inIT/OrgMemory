@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetIdentity;
+import com.orgmemory.core.assetregistry.api.AssetIdentityQuery;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
@@ -23,7 +25,7 @@ public class SkillDistributionService {
             Pattern.compile("[a-z0-9]+(?:[._-][a-z0-9]+)*");
 
     private final AssetRegistryService assets;
-    private final AssetRepository assetRepository;
+    private final AssetIdentityQuery identities;
     private final AssetReleaseRepository releaseRepository;
     private final AssetPayloadReferenceRepository references;
     private final SkillPackageSpecReader specs;
@@ -31,13 +33,13 @@ public class SkillDistributionService {
 
     SkillDistributionService(
             AssetRegistryService assets,
-            AssetRepository assetRepository,
+            AssetIdentityQuery identities,
             AssetReleaseRepository releaseRepository,
             AssetPayloadReferenceRepository references,
             SkillPackageSpecReader specs,
             SkillPackageStoragePort storage) {
         this.assets = assets;
-        this.assetRepository = assetRepository;
+        this.identities = identities;
         this.releaseRepository = releaseRepository;
         this.references = references;
         this.specs = specs;
@@ -59,12 +61,12 @@ public class SkillDistributionService {
             String slug,
             String version) {
         Objects.requireNonNull(actor, "actor");
-        Asset asset = assetRepository
-                .findByOrganizationIdAndNamespaceAndSlug(
+        AssetIdentity asset = identities
+                .findByCoordinate(
                         actor.organizationId(),
                         normalizeCoordinate(namespace, "namespace"),
                         normalizeCoordinate(slug, "slug"))
-                .filter(value -> value.getType() == AssetType.SKILL)
+                .filter(value -> value.type() == AssetType.SKILL)
                 .orElseThrow(AssetNotFoundException::new);
         String versionLabel;
         try {
@@ -74,11 +76,11 @@ public class SkillDistributionService {
         }
         AssetRelease release = releaseRepository
                 .findByAssetIdAndOrganizationIdAndVersionLabel(
-                        asset.getId(),
+                        asset.id(),
                         actor.organizationId(),
                         versionLabel)
                 .orElseThrow(AssetNotFoundException::new);
-        return manifest(actor, asset.getId(), release.getId());
+        return manifest(actor, asset.id(), release.getId());
     }
 
     public SkillPackageContent open(

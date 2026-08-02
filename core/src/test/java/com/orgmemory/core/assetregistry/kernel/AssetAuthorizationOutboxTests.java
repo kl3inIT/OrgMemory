@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.kernel;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

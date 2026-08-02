@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.authorization;
 
 public record AssetAuthorizationConvergenceReport(
         int candidates,

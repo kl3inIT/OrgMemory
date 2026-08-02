@@ -1164,7 +1164,83 @@ class ModulithVerificationTests {
                         AssetPortfolioState.class.getName(),
                         AssetRole.class.getName(),
                         AssetType.class.getName(),
-                        AssetUnavailableException.class.getName()),
+                        AssetUnavailableException.class.getName(),
+                        "com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand",
+                        "com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget",
+                        "com.orgmemory.core.assetregistry.api.AssetAuthorizationTargetQuery",
+                        "com.orgmemory.core.assetregistry.api.AssetIdentity",
+                        "com.orgmemory.core.assetregistry.api.AssetIdentityQuery",
+                        "com.orgmemory.core.assetregistry.api.AssetPortfolioCommand",
+                        "com.orgmemory.core.assetregistry.api.AssetRegistrationCommand",
+                        "com.orgmemory.core.assetregistry.api.AssetRegistrationCommand$NewAsset",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleCommand",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleCommand$Assignment",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleQuery",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleQuery$OwnershipHealth",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleQuery$RoleAssignment",
+                        "com.orgmemory.core.assetregistry.api.AssetRoleQuery$RoleHistory"),
                 exposedTypes);
+    }
+
+    @Test
+    void assetRegistryKernelIsAClosedNestedModule() {
+        var kernel = modules.getModuleByName("assetregistry.kernel").orElseThrow();
+        var allowedDependencies = kernel.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(kernel.isOpen());
+        assertEquals(
+                Set.of("assetregistry::api", "authorization", "shared"),
+                allowedDependencies);
+    }
+
+    @Test
+    void assetRegistryKernelExposesOnlyProjectionQueueContracts() {
+        var publicRootTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry.kernel")
+                .stream()
+                .filter(type -> type.getPackageName().equals(
+                        "com.orgmemory.core.assetregistry.kernel"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch",
+                        "com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue"),
+                publicRootTypes);
+    }
+
+    @Test
+    void assetRegistryKernelDoesNotDependOnParentPersistenceOrProjection() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry.kernel..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry.kernel"));
+    }
+
+    @Test
+    void assetRegistryAuthorizationIsAClosedProjectionModule() {
+        var authorization = modules.getModuleByName("assetregistry.authorization").orElseThrow();
+        var allowedDependencies = authorization.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(authorization.isOpen());
+        assertEquals(
+                Set.of("assetregistry.kernel", "assetregistry::api", "authorization"),
+                allowedDependencies);
     }
 }
