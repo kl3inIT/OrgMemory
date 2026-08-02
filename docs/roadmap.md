@@ -50,6 +50,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Explicit Apache AGE graph backend](increments/active/2026-08-02-apache-age-graph-backend/plan.md) | active | independent architecture challenge, characterization-first implementation, full CI, and merge |
 | [Document View and Delete](increments/completed/2026-08-02-document-view-delete/plan.md) | completed | none — merged and production-verified; no Reindex action |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
