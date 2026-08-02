@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-effective-access-inspector-main-sync (946feb7c)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
 
 ## Current Behavior
 
@@ -39,6 +39,15 @@ Retrieval also reloads the current active subject, department, and Executive
 state through Organization-owned queries before resolving evidence or source
 visibility. It does not trust those actor fields as authorization facts and
 imports no Organization entity, role, or repository.
+
+Graph exploration, export, and curation cross the Retrieval-owned
+`GraphEvidenceVerifier` and immutable `VerifiedGraphEvidenceScope`. The
+package-private implementation alone resolves canonical authorization state
+and rechecks governing evidence through the secure retrieval store. Graph
+imports neither the scope resolver, internal resolved scope, store, nor secure
+candidate representation. Unknown Knowledge Spaces are rejected rather than
+degrading to an empty/zero scope, and each governing-evidence recheck contains
+only the Asset IDs authorized for the requested Space.
 
 Citation URLs are opaque API routes, not object-storage URLs. Opening one reruns
 the current canonical evidence boundary once, validates the revision and blob

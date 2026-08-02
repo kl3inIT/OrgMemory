@@ -1,10 +1,9 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.authorization.RelationshipAuthorizationQuery;
@@ -35,7 +34,7 @@ public class KnowledgeGraphExportService {
 
     private final KnowledgeSpaceQuery spaces;
     private final RelationshipAuthorizationPort authorization;
-    private final KnowledgeEvidenceScopeResolver evidenceScopes;
+    private final GraphEvidenceVerifier evidenceVerifier;
     private final GraphExportReader reader;
     private final GraphExportFormatter formatter = new GraphExportFormatter();
     private final PermissionAuditService audit;
@@ -43,12 +42,12 @@ public class KnowledgeGraphExportService {
     KnowledgeGraphExportService(
             KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
-            KnowledgeEvidenceScopeResolver evidenceScopes,
+            GraphEvidenceVerifier evidenceVerifier,
             GraphExportReader reader,
             PermissionAuditService audit) {
         this.spaces = spaces;
         this.authorization = authorization;
-        this.evidenceScopes = evidenceScopes;
+        this.evidenceVerifier = evidenceVerifier;
         this.reader = reader;
         this.audit = audit;
     }
@@ -75,27 +74,19 @@ public class KnowledgeGraphExportService {
         if (!entry.allowed()) {
             throw accessDenied();
         }
-        ResolvedKnowledgeEvidenceScope resolved;
-        try {
-            resolved = evidenceScopes.resolve(actor, entry.policyVersion());
-        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
-            throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions changed while preparing the export",
-                    unavailable);
+        VerifiedGraphEvidenceScope resolved =
+                resolve(actor, entry.policyVersion());
+        if (!resolved.includesKnowledgeSpace(knowledgeSpaceId)) {
+            throw accessDenied();
         }
         ProjectionNamespace namespace = KnowledgeProjectionNamespaces.forSpace(
                 actor.organizationId(), knowledgeSpaceId);
         var document = reader.read(
                 resolved.forKnowledgeSpace(knowledgeSpaceId),
                 namespace);
-        ResolvedKnowledgeEvidenceScope current;
-        try {
-            current = evidenceScopes.resolve(actor, entry.policyVersion());
-        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
-            throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions changed while preparing the export");
-        }
-        if (!sameSpaceScope(resolved, current, knowledgeSpaceId)) {
+        VerifiedGraphEvidenceScope current =
+                resolve(actor, entry.policyVersion());
+        if (!resolved.hasSameSpaceScope(current, knowledgeSpaceId)) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Knowledge graph permissions changed while preparing the export");
         }
@@ -115,19 +106,14 @@ public class KnowledgeGraphExportService {
         return artifact;
     }
 
-    private static boolean sameSpaceScope(
-            ResolvedKnowledgeEvidenceScope first,
-            ResolvedKnowledgeEvidenceScope second,
-            UUID knowledgeSpaceId) {
-        return first.authorizationModelId().equals(second.authorizationModelId())
-                && first.forKnowledgeSpace(knowledgeSpaceId)
-                        .authorizedAssetIds()
-                        .equals(second.forKnowledgeSpace(knowledgeSpaceId)
-                                .authorizedAssetIds())
-                && first.aclGenerationByKnowledgeSpace()
-                        .getOrDefault(knowledgeSpaceId, 0L)
-                        .equals(second.aclGenerationByKnowledgeSpace()
-                                .getOrDefault(knowledgeSpaceId, 0L));
+    private VerifiedGraphEvidenceScope resolve(
+            CurrentActor actor,
+            String authorizationModelId) {
+        return GraphEvidenceScopeAccess.verify(
+                evidenceVerifier,
+                actor,
+                authorizationModelId,
+                "Knowledge graph permissions changed while preparing the export");
     }
 
     private static OrgMemoryAccessDeniedException accessDenied() {

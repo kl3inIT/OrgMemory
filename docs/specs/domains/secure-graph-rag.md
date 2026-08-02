@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (f2cf3c67)`.
 
 ## Current Contract
 
@@ -21,6 +21,13 @@ Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction ro
 - Every graph read requires an `AuthorizedEvidenceScope`; ranking, adjacency,
   degree, weight, aggregation, and citations can use only visible
   contributions.
+- Graph exploration, export, and curation obtain the canonical authorization
+  snapshot through Retrieval's `GraphEvidenceVerifier`. Only its immutable
+  `VerifiedGraphEvidenceScope` crosses the module boundary. Retrieval alone
+  resolves the scope and rechecks an exact governing chunk against the current
+  canonical organization, Asset, revision, and ACL identity. Snapshot accessors
+  reject an unverified Knowledge Space, and the canonical recheck is narrowed
+  to the assets authorized for that exact Space.
 - `SECURE_MIX` is the product default. Strategy selection remains internal.
 - Query results preserve structured entity, relation, and chunk selections.
   Entity and relation descriptions retain their individual chunk evidence;

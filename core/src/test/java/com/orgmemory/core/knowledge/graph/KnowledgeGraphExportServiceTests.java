@@ -1,9 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -16,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.export.GraphExportDocument;
@@ -44,8 +44,8 @@ class KnowledgeGraphExportServiceTests {
     private final KnowledgeSpaceQuery spaces = mock(KnowledgeSpaceQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final KnowledgeEvidenceScopeResolver evidenceScopes =
-            mock(KnowledgeEvidenceScopeResolver.class);
+    private final GraphEvidenceVerifier evidenceVerifier =
+            mock(GraphEvidenceVerifier.class);
     private final GraphExportReader reader = mock(GraphExportReader.class);
     private final PermissionAuditService audit =
             mock(PermissionAuditService.class);
@@ -55,7 +55,7 @@ class KnowledgeGraphExportServiceTests {
             new KnowledgeGraphExportService(
                     spaces,
                     authorization,
-                    evidenceScopes,
+                    evidenceVerifier,
                     reader,
                     audit);
 
@@ -65,8 +65,8 @@ class KnowledgeGraphExportServiceTests {
                 .thenReturn(true);
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
-        when(evidenceScopes.resolve(actor, "model-v1")).thenReturn(
-                new ResolvedKnowledgeEvidenceScope(
+        when(evidenceVerifier.verifyScope(actor, "model-v1")).thenReturn(
+                new VerifiedGraphEvidenceScope(
                         ORGANIZATION_ID,
                         USER_ID,
                         null,
@@ -101,13 +101,34 @@ class KnowledgeGraphExportServiceTests {
 
     @Test
     void reportsUnavailableForUnexpectedOpenFgaObjectTypesBeforeReadingGraphData() {
-        when(evidenceScopes.resolve(actor, "model-v1")).thenThrow(
-                new KnowledgeEvidenceScopeUnavailableException(
-                        "AUTHORIZED_OBJECT_SET_INVALID",
-                        "model-v1"));
+        when(evidenceVerifier.verifyScope(actor, "model-v1")).thenThrow(
+                new KnowledgeRetrievalUnavailableException(
+                        "Canonical Graph evidence scope is unavailable"));
 
         assertThrows(
                 KnowledgeRetrievalUnavailableException.class,
+                () -> service.export(
+                        actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
+
+        verify(reader, never()).read(any(), any());
+        verify(audit, never()).record(any());
+    }
+
+    @Test
+    void deniesBeforeReadingWhenTheVerifiedScopeDoesNotIncludeTheSpace() {
+        when(evidenceVerifier.verifyScope(actor, "model-v1")).thenReturn(
+                new VerifiedGraphEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(),
+                        Map.of()));
+
+        assertThrows(
+                OrgMemoryAccessDeniedException.class,
                 () -> service.export(
                         actor, SPACE_ID, GraphExportFormat.JSON, "request-1"));
 

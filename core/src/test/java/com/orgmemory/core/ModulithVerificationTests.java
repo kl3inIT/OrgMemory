@@ -400,12 +400,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedTypes);
     }
 
@@ -719,6 +716,7 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.connector.ConnectorReconciler",
                         "com.orgmemory.core.knowledge.connector.ConnectorSourceRevisionCoordinator",
                         "com.orgmemory.core.knowledge.graph.ClaimedGraphIndex",
+                        "com.orgmemory.core.knowledge.graph.GraphEvidenceScopeAccess",
                         "com.orgmemory.core.knowledge.graph.GraphIndexingCoordinator",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphCurationService",
                         "com.orgmemory.core.knowledge.graph.KnowledgeGraphExplorerConfiguration",
@@ -729,12 +727,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedInternalTypes);
     }
 

@@ -1,8 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -68,8 +68,8 @@ class KnowledgeGraphExplorerServiceTests {
     private final KnowledgeSpaceQuery spaces = mock(KnowledgeSpaceQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final KnowledgeEvidenceScopeResolver evidenceScopes =
-            mock(KnowledgeEvidenceScopeResolver.class);
+    private final GraphEvidenceVerifier evidenceVerifier =
+            mock(GraphEvidenceVerifier.class);
     private final GraphExportReader reader = mock(GraphExportReader.class);
     private final PermissionAuditService audit =
             mock(PermissionAuditService.class);
@@ -86,7 +86,7 @@ class KnowledgeGraphExplorerServiceTests {
             new KnowledgeGraphExplorerService(
                     spaces,
                     authorization,
-                    evidenceScopes,
+                    evidenceVerifier,
                     reader,
                     properties,
                     audit);
@@ -97,7 +97,7 @@ class KnowledgeGraphExplorerServiceTests {
                 .thenReturn(true);
         when(authorization.check(any()))
                 .thenReturn(AuthorizationDecision.allow("model-v1"));
-        when(evidenceScopes.resolve(actor, "model-v1"))
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
                 .thenReturn(scope(Set.of(ASSET_ID), 9L));
         when(reader.read(any(), any())).thenReturn(document());
     }
@@ -212,7 +212,7 @@ class KnowledgeGraphExplorerServiceTests {
 
     @Test
     void failsClosedWhenAuthorizationKeepsChangingDuringRead() {
-        when(evidenceScopes.resolve(actor, "model-v1"))
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
                 .thenReturn(
                         scope(Set.of(ASSET_ID), 9L),
                         scope(Set.of(ASSET_ID), 10L),
@@ -228,10 +228,10 @@ class KnowledgeGraphExplorerServiceTests {
         verify(audit, never()).record(any());
     }
 
-    private static ResolvedKnowledgeEvidenceScope scope(
+    private static VerifiedGraphEvidenceScope scope(
             Set<UUID> assetIds,
             long generation) {
-        return new ResolvedKnowledgeEvidenceScope(
+        return new VerifiedGraphEvidenceScope(
                 ORGANIZATION_ID,
                 USER_ID,
                 null,

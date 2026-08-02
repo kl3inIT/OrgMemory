@@ -1,10 +1,9 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
+import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
-import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
-import com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
@@ -28,7 +27,6 @@ import com.orgmemory.graphrag.curation.GraphCurationStore;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -51,10 +49,8 @@ class KnowledgeGraphCurationServiceTests {
             mock(KnowledgeAssetGraphQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final KnowledgeEvidenceScopeResolver evidenceScopes =
-            mock(KnowledgeEvidenceScopeResolver.class);
-    private final SecureKnowledgeRetrievalStore canonicalEvidence =
-            mock(SecureKnowledgeRetrievalStore.class);
+    private final GraphEvidenceVerifier evidenceVerifier =
+            mock(GraphEvidenceVerifier.class);
     private final GraphExportReader graphs = mock(GraphExportReader.class);
     private final GraphCurationStore store = mock(GraphCurationStore.class);
     private final ModelInvocationCache modelCache =
@@ -66,8 +62,7 @@ class KnowledgeGraphCurationServiceTests {
                     spaces,
                     assets,
                     authorization,
-                    evidenceScopes,
-                    canonicalEvidence,
+                    evidenceVerifier,
                     graphs,
                     store,
                     modelCache,
@@ -80,8 +75,8 @@ class KnowledgeGraphCurationServiceTests {
         when(spaces.isActive(ORGANIZATION_ID, SPACE_ID))
                 .thenReturn(true);
         when(store.append(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(evidenceScopes.resolve(actor, "model-v1"))
-                .thenReturn(new ResolvedKnowledgeEvidenceScope(
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
+                .thenReturn(new VerifiedGraphEvidenceScope(
                         ORGANIZATION_ID,
                         USER_ID,
                         null,
@@ -90,25 +85,8 @@ class KnowledgeGraphCurationServiceTests {
                         Instant.parse("2026-07-24T00:00:00Z"),
                         Map.of(SPACE_ID, Set.of(ASSET_ID)),
                         Map.of(SPACE_ID, 7L)));
-        when(canonicalEvidence.recheck(any(), any()))
-                .thenReturn(List.of(new SecureRetrievalCandidate(
-                        ORGANIZATION_ID,
-                        CHUNK_ID,
-                        ASSET_ID,
-                        UUID.randomUUID(),
-                        REVISION_ID,
-                        "Policy",
-                        "Approved policy",
-                        "source://policy",
-                        null,
-                        null,
-                        null,
-                        0,
-                        ACL_ID,
-                        ACL_ID,
-                        "model-v1",
-                        UUID.randomUUID(),
-                        1)));
+        when(evidenceVerifier.isCurrentGoverningEvidence(any(), any(), any()))
+                .thenReturn(true);
     }
 
     @Test
@@ -182,6 +160,59 @@ class KnowledgeGraphCurationServiceTests {
                                 "Denied",
                                 evidence())));
         verify(store, never()).append(any(), any());
+    }
+
+    @Test
+    void staleGoverningEvidenceFailsClosedBeforeTheLedger() {
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceVerifier.isCurrentGoverningEvidence(any(), any(), any()))
+                .thenReturn(false);
+
+        OrgMemoryAccessDeniedException thrown = assertThrows(
+                OrgMemoryAccessDeniedException.class,
+                () -> service.apply(
+                        actor,
+                        new KnowledgeGraphCurationCommand.CurateEntity(
+                                SPACE_ID,
+                                "curation-1",
+                                "attempt",
+                                7,
+                                ENTITY_ID,
+                                "Policy",
+                                "POLICY",
+                                "Stale",
+                                evidence())));
+
+        assertEquals("Governing evidence is stale or unavailable", thrown.getMessage());
+        verify(store, never()).append(any(), any());
+    }
+
+    @Test
+    void deactivateFailsClosedWhenTheVerifiedScopeDoesNotIncludeTheSpace() {
+        when(authorization.check(any()))
+                .thenReturn(AuthorizationDecision.allow("model-v1"));
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
+                .thenReturn(new VerifiedGraphEvidenceScope(
+                        ORGANIZATION_ID,
+                        USER_ID,
+                        null,
+                        false,
+                        "model-v1",
+                        Instant.parse("2026-07-24T00:00:00Z"),
+                        Map.of(),
+                        Map.of()));
+
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> service.deactivate(
+                        actor,
+                        SPACE_ID,
+                        UUID.randomUUID(),
+                        0L,
+                        "withdraw"));
+
+        verify(store, never()).deactivate(any(), any(), any());
     }
 
     private static EvidenceReference evidence() {
