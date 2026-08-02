@@ -7782,12 +7782,61 @@
           "provenance": {
             "$ref": "#/components/schemas/AclProvenanceResponse"
           },
+          "evaluationKind": {
+            "type": "string"
+          },
+          "relationshipState": {
+            "type": "string",
+            "enum": [
+              "ALLOWED",
+              "DENIED",
+              "UNKNOWN"
+            ]
+          },
+          "relationshipReasonCode": {
+            "type": "string"
+          },
+          "contentPolicyState": {
+            "type": "string",
+            "enum": [
+              "ALLOWED",
+              "DENIED",
+              "UNKNOWN"
+            ]
+          },
+          "contentPolicyReasonCode": {
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceSummaryResponse"
+          },
           "policyVersion": {
             "type": "string"
           },
           "evaluatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ResourceSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "contextLabel": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string"
           }
         }
       },

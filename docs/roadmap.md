@@ -51,6 +51,7 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
+| [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
@@ -94,11 +95,10 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
-- Finish the admin permission surface: reachable containers with ACL authority,
-  generation, and capture time; a permission audit event per role mutation;
-  resolved names and a resource picker instead of pasted UUIDs; and relabel
-  `app_users.role`, which is a business/classification attribute rather than an
-  OpenFGA grant.
+- Finish the remaining admin permission surface after the active effective
+  access inspector: reachable containers with ACL authority, generation, and
+  capture time; a permission audit event per role mutation; and a governed
+  resource picker whose metadata visibility contract is explicit.
 - Give a Knowledge Space a lifecycle. It can be created and granted at runtime
   but not retired, and asset movement needs an explicit retention and
   authorization contract.
