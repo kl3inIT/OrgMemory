@@ -1,10 +1,9 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeUnavailableException;
 import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.PermissionKey;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
@@ -41,7 +40,7 @@ public class KnowledgeGraphExplorerService {
 
     private final KnowledgeSpaceQuery spaces;
     private final RelationshipAuthorizationPort authorization;
-    private final KnowledgeEvidenceScopeResolver evidenceScopes;
+    private final GraphEvidenceVerifier evidenceVerifier;
     private final GraphExportReader graphs;
     private final GraphExplorerProperties properties;
     private final PermissionAuditService audit;
@@ -49,13 +48,13 @@ public class KnowledgeGraphExplorerService {
     public KnowledgeGraphExplorerService(
             KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
-            KnowledgeEvidenceScopeResolver evidenceScopes,
+            GraphEvidenceVerifier evidenceVerifier,
             GraphExportReader graphs,
             GraphExplorerProperties properties,
             PermissionAuditService audit) {
         this.spaces = spaces;
         this.authorization = authorization;
-        this.evidenceScopes = evidenceScopes;
+        this.evidenceVerifier = evidenceVerifier;
         this.graphs = graphs;
         this.properties = properties;
         this.audit = audit;
@@ -98,9 +97,9 @@ public class KnowledgeGraphExplorerService {
             String requestId,
             String policyVersion,
             int attempt) {
-        ResolvedKnowledgeEvidenceScope initial =
+        VerifiedGraphEvidenceScope initial =
                 resolve(actor, policyVersion);
-        if (!initial.knowledgeSpaceIds().contains(knowledgeSpaceId)) {
+        if (!initial.includesKnowledgeSpace(knowledgeSpaceId)) {
             return empty(
                     actor,
                     knowledgeSpaceId,
@@ -114,7 +113,7 @@ public class KnowledgeGraphExplorerService {
                 initial.forKnowledgeSpace(knowledgeSpaceId),
                 namespace);
 
-        ResolvedKnowledgeEvidenceScope current =
+        VerifiedGraphEvidenceScope current =
                 resolve(actor, policyVersion);
         if (!sameSpaceScope(initial, current, knowledgeSpaceId)) {
             if (attempt == 0) {
@@ -154,8 +153,7 @@ public class KnowledgeGraphExplorerService {
                 entityLimit,
                 properties.maximumRelationLimit(),
                 maximumDepth,
-                initial.aclGenerationByKnowledgeSpace()
-                        .getOrDefault(knowledgeSpaceId, 0L),
+                initial.authorizationGeneration(knowledgeSpaceId),
                 curationDecision.allowed());
         audit.record(new PermissionAuditCommand(
                 actor.organizationId(),
@@ -191,14 +189,15 @@ public class KnowledgeGraphExplorerService {
         return decision.policyVersion();
     }
 
-    private ResolvedKnowledgeEvidenceScope resolve(
+    private VerifiedGraphEvidenceScope resolve(
             CurrentActor actor,
             String policyVersion) {
         try {
-            return evidenceScopes.resolve(actor, policyVersion);
-        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
+            return evidenceVerifier.verifyScope(actor, policyVersion);
+        } catch (KnowledgeRetrievalUnavailableException unavailable) {
             throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions are temporarily unavailable");
+                    "Knowledge graph permissions are temporarily unavailable",
+                    unavailable);
         }
     }
 
@@ -407,15 +406,10 @@ public class KnowledgeGraphExplorerService {
     }
 
     private static boolean sameSpaceScope(
-            ResolvedKnowledgeEvidenceScope initial,
-            ResolvedKnowledgeEvidenceScope current,
+            VerifiedGraphEvidenceScope initial,
+            VerifiedGraphEvidenceScope current,
             UUID knowledgeSpaceId) {
-        return initial.authorizationModelId()
-                        .equals(current.authorizationModelId())
-                && initial.forKnowledgeSpace(knowledgeSpaceId)
-                        .authorizationFingerprint()
-                        .equals(current.forKnowledgeSpace(knowledgeSpaceId)
-                                .authorizationFingerprint());
+        return initial.hasSameAuthorizationFingerprint(current, knowledgeSpaceId);
     }
 
     private String normalizeQuery(String query) {

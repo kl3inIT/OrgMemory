@@ -1,6 +1,6 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.authorization.RelationshipAuthorizationPort;
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
 import com.orgmemory.core.permission.PermissionAuditService;
@@ -17,14 +17,14 @@ public class KnowledgeGraphExplorerConfiguration {
     KnowledgeGraphExplorerService knowledgeGraphExplorerService(
             KnowledgeSpaceQuery spaces,
             RelationshipAuthorizationPort authorization,
-            KnowledgeEvidenceScopeResolver evidenceScopes,
+            GraphEvidenceVerifier evidenceVerifier,
             GraphExportReader graphs,
             GraphExplorerProperties properties,
             PermissionAuditService audit) {
         return new KnowledgeGraphExplorerService(
                 spaces,
                 authorization,
-                evidenceScopes,
+                evidenceVerifier,
                 graphs,
                 properties,
                 audit);

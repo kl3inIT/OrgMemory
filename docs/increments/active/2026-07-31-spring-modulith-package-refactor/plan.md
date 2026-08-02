@@ -1171,7 +1171,7 @@ unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
 direct audit found no defect, review, inline comment, or review thread. Both the
 PR head `b5428d33` and merge commit are ancestors of current `origin/main`.
 
-## Current Pull Request Gates
+## Thirty-ninth Pull Request Evidence
 
 - Source Ledger owns one typed citation-evidence query that resolves a
   tenant-scoped ready revision, matching Knowledge Asset, and validated evidence
@@ -1207,3 +1207,49 @@ After merging current `origin/main` at `39281c33`, the Citation plus full
 Modulith slice passed again in 55s. The documentation check passed across the
 new base's 485 Markdown files and 8 mirrored domain pairs, and all 41
 release-policy tests passed again on Node 24.15.0.
+
+PR #258 merged as `6ed738c2` after Backend Java 25, documentation, evaluation,
+secret, impact, release-preview, release-policy, and aggregate CI checks passed;
+unaffected jobs skipped by surface detection. CodeRabbit was rate limited;
+direct audit against the architecture verdict found no defect, review, inline
+comment, or review thread. Both the PR head `815640cd` and merge commit are
+ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Retrieval owns one `GraphEvidenceVerifier` contract and immutable
+  `VerifiedGraphEvidenceScope`; its package-private implementation alone may use
+  `KnowledgeEvidenceScopeResolver`, `ResolvedKnowledgeEvidenceScope`,
+  `SecureKnowledgeRetrievalStore`, its retrieval scope, or
+  `SecureRetrievalCandidate`.
+- Graph exploration and export use verified per-Space evidence snapshots and
+  retain their existing before/after authorization comparison and retry/fail
+  behavior. Curation uses the verifier for governing chunk freshness and retains
+  its stricter authorized-asset plus ACL-generation comparison.
+- Graph imports no Retrieval resolver, resolved scope, store, store scope, or
+  candidate. Its remaining Retrieval dependencies are the verifier/snapshot,
+  existing retrieval-unavailable exception, and embedding profile contracts.
+- Current authorization remains resolved before Graph reads; governing evidence
+  must still match organization, Asset, revision, ACL snapshot, and chunk after a
+  canonical store recheck.
+- This code PR remains below 100 changed paths. Retrieval stays open for the
+  remaining API/Worker adapter interfaces and final closure.
+
+Local verification starts by changing the exact Graph-to-Retrieval dependency
+test to the intended verifier-only surface and observing it fail against the
+current resolver/store/candidate imports. The verifier, all three Graph use
+cases, and both exact Modulith guards then passed their focused slice. The first
+full Core run exposed the second temporary-open-boundary allowlist that still
+named the retired Graph dependencies; after aligning that guard, the two
+structural tests and full Core rerun passed. That first run also exhausted native
+JVM memory while two unrelated worktrees were running Gradle concurrently; the
+isolated sequential rerun passed in 2m10s. Full API and Worker reruns passed in
+5m and 2m36s, including deployable Spring wiring. The documentation
+operating-model check passed for 486 Markdown files and 8 mirrored domain pairs.
+Release policy passed all 41 tests on Node 24.15.0. The mechanical audit found
+20 changed paths, no migration, no empty changed file, no forbidden Graph import
+of Retrieval implementation types, and a clean whitespace diff. The terminating
+sequential `clean test` passed with 99 actionable tasks in 2m05s; after the
+verifier test was strengthened to cover organization and chunk mismatches, its
+focused rerun stayed green and a fresh terminating `clean test` passed all 99
+tasks again in 1m41s.

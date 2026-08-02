@@ -400,12 +400,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedTypes);
     }
 
@@ -727,12 +724,9 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
-                        "com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver",
+                        "com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier",
                         "com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException",
-                        "com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore",
-                        "com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore$RetrievalScope",
-                        "com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate"),
+                        "com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope"),
                 consumedInternalTypes);
     }
 

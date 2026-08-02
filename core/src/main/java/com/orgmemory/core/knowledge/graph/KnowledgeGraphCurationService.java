@@ -1,12 +1,10 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeUnavailableException;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeRetrievalUnavailableException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
-import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -45,8 +43,7 @@ public class KnowledgeGraphCurationService {
     private final KnowledgeSpaceQuery spaces;
     private final KnowledgeAssetGraphQuery assets;
     private final RelationshipAuthorizationPort authorization;
-    private final KnowledgeEvidenceScopeResolver evidenceScopes;
-    private final SecureKnowledgeRetrievalStore canonicalEvidence;
+    private final GraphEvidenceVerifier evidenceVerifier;
     private final GraphExportReader graphs;
     private final GraphCurationStore curations;
     private final ModelInvocationCache modelCache;
@@ -56,8 +53,7 @@ public class KnowledgeGraphCurationService {
             KnowledgeSpaceQuery spaces,
             KnowledgeAssetGraphQuery assets,
             RelationshipAuthorizationPort authorization,
-            KnowledgeEvidenceScopeResolver evidenceScopes,
-            SecureKnowledgeRetrievalStore canonicalEvidence,
+            GraphEvidenceVerifier evidenceVerifier,
             GraphExportReader graphs,
             GraphCurationStore curations,
             ModelInvocationCache modelCache,
@@ -65,8 +61,7 @@ public class KnowledgeGraphCurationService {
         this.spaces = spaces;
         this.assets = assets;
         this.authorization = authorization;
-        this.evidenceScopes = evidenceScopes;
-        this.canonicalEvidence = canonicalEvidence;
+        this.evidenceVerifier = evidenceVerifier;
         this.graphs = graphs;
         this.curations = curations;
         this.modelCache = modelCache;
@@ -83,7 +78,7 @@ public class KnowledgeGraphCurationService {
                 actor, command.knowledgeSpaceId());
         ProjectionNamespace namespace =
                 namespace(actor.organizationId(), command.knowledgeSpaceId());
-        ResolvedKnowledgeEvidenceScope resolved =
+        VerifiedGraphEvidenceScope resolved =
                 resolve(actor, decision.policyVersion());
         requireCurrentScope(command, resolved);
         CurationProvenance provenance = new CurationProvenance(
@@ -198,10 +193,9 @@ public class KnowledgeGraphCurationService {
         requireSpace(actor, knowledgeSpaceId);
         AuthorizationDecision decision =
                 requirePermission(actor, knowledgeSpaceId);
-        ResolvedKnowledgeEvidenceScope resolved =
+        VerifiedGraphEvidenceScope resolved =
                 resolve(actor, decision.policyVersion());
-        if (resolved.aclGenerationByKnowledgeSpace()
-                        .getOrDefault(knowledgeSpaceId, 0L)
+        if (resolved.authorizationGeneration(knowledgeSpaceId)
                 != authorizationGeneration) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Knowledge graph authorization changed before curation");
@@ -229,30 +223,20 @@ public class KnowledgeGraphCurationService {
             CurrentActor actor,
             UUID knowledgeSpaceId,
             com.orgmemory.graphrag.model.EvidenceReference evidence,
-            ResolvedKnowledgeEvidenceScope resolved) {
+            VerifiedGraphEvidenceScope resolved) {
         if (!actor.organizationId().equals(evidence.organizationId())) {
             throw new KnowledgeResourceNotFoundException();
         }
         assets.requireInSpace(
                 actor.organizationId(), evidence.knowledgeAssetId(), knowledgeSpaceId);
-        var spaceScope = resolved.forKnowledgeSpace(knowledgeSpaceId);
-        if (!spaceScope.includes(
+        if (!resolved.includes(
+                knowledgeSpaceId,
                 evidence.organizationId(), evidence.knowledgeAssetId())) {
             throw new OrgMemoryAccessDeniedException(
                     "Governing evidence is not visible to the current actor");
         }
-        var candidates = canonicalEvidence.recheck(
-                retrievalScope(resolved),
-                java.util.List.of(Objects.requireNonNull(
-                        evidence.chunkId(), "governing evidence chunkId")));
-        boolean current = candidates.size() == 1
-                && candidates.getFirst().knowledgeAssetId()
-                        .equals(evidence.knowledgeAssetId())
-                && candidates.getFirst().sourceRevisionId()
-                        .equals(evidence.sourceRevisionId())
-                && candidates.getFirst().currentAclSnapshotId()
-                        .equals(evidence.aclSnapshotId());
-        if (!current) {
+        if (!evidenceVerifier.isCurrentGoverningEvidence(
+                resolved, knowledgeSpaceId, evidence)) {
             throw new OrgMemoryAccessDeniedException(
                     "Governing evidence is stale or unavailable");
         }
@@ -260,11 +244,10 @@ public class KnowledgeGraphCurationService {
 
     private void requireCurrentScope(
             KnowledgeGraphCurationCommand command,
-            ResolvedKnowledgeEvidenceScope resolved) {
+            VerifiedGraphEvidenceScope resolved) {
         UUID spaceId = command.knowledgeSpaceId();
-        if (!resolved.knowledgeSpaceIds().contains(spaceId)
-                || resolved.aclGenerationByKnowledgeSpace()
-                                .getOrDefault(spaceId, 0L)
+        if (!resolved.includesKnowledgeSpace(spaceId)
+                || resolved.authorizationGeneration(spaceId)
                         != command.authorizationGeneration()) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Knowledge graph authorization changed before curation");
@@ -272,7 +255,7 @@ public class KnowledgeGraphCurationService {
     }
 
     private void requireVisibleEntity(
-            ResolvedKnowledgeEvidenceScope resolved,
+            VerifiedGraphEvidenceScope resolved,
             ProjectionNamespace namespace,
             UUID knowledgeSpaceId,
             UUID entityId) {
@@ -285,7 +268,7 @@ public class KnowledgeGraphCurationService {
     }
 
     private void requireVisibleIdentity(
-            ResolvedKnowledgeEvidenceScope resolved,
+            VerifiedGraphEvidenceScope resolved,
             ProjectionNamespace namespace,
             UUID knowledgeSpaceId,
             com.orgmemory.graphrag.curation.GraphIdentityKind kind,
@@ -305,14 +288,15 @@ public class KnowledgeGraphCurationService {
         }
     }
 
-    private ResolvedKnowledgeEvidenceScope resolve(
+    private VerifiedGraphEvidenceScope resolve(
             CurrentActor actor,
             String authorizationModelId) {
         try {
-            return evidenceScopes.resolve(actor, authorizationModelId);
-        } catch (KnowledgeEvidenceScopeUnavailableException unavailable) {
+            return evidenceVerifier.verifyScope(actor, authorizationModelId);
+        } catch (KnowledgeRetrievalUnavailableException unavailable) {
             throw new KnowledgeRetrievalUnavailableException(
-                    "Knowledge graph permissions are temporarily unavailable");
+                    "Knowledge graph permissions are temporarily unavailable",
+                    unavailable);
         }
     }
 
@@ -320,25 +304,13 @@ public class KnowledgeGraphCurationService {
             CurrentActor actor,
             UUID knowledgeSpaceId,
             String authorizationModelId,
-            ResolvedKnowledgeEvidenceScope initial) {
-        ResolvedKnowledgeEvidenceScope current =
+            VerifiedGraphEvidenceScope initial) {
+        VerifiedGraphEvidenceScope current =
                 resolve(actor, authorizationModelId);
-        if (!initial.forKnowledgeSpace(knowledgeSpaceId)
-                        .authorizedAssetIds()
-                        .equals(current.forKnowledgeSpace(knowledgeSpaceId)
-                                .authorizedAssetIds())
-                || initial.aclGenerationByKnowledgeSpace()
-                                .getOrDefault(knowledgeSpaceId, 0L)
-                        != current.aclGenerationByKnowledgeSpace()
-                                .getOrDefault(knowledgeSpaceId, 0L)) {
+        if (!initial.hasSameAssetsAndGeneration(current, knowledgeSpaceId)) {
             throw new KnowledgeRetrievalUnavailableException(
                     "Knowledge graph authorization changed during curation");
         }
-    }
-
-    private static SecureKnowledgeRetrievalStore.RetrievalScope retrievalScope(
-            ResolvedKnowledgeEvidenceScope scope) {
-        return scope.toRetrievalScope();
     }
 
     private void requireSpace(CurrentActor actor, UUID knowledgeSpaceId) {

@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (6ed738c2)`.
 
 ## Automated
 
@@ -20,6 +20,10 @@ Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
   explicitly overridable. Production Compose validation checks the same route.
 - Graph-testkit security tests prove permission-scoped contribution,
   adjacency, degree, weight, seed, replacement, and removal behavior.
+- Core verifier and Graph use-case tests prove immutable authorized snapshots,
+  unavailable-scope translation, exact current governing-evidence identity,
+  before/after authorization checks, and no Graph dependency on Retrieval's
+  resolver, resolved scope, store, or candidate implementation types.
 - Core traversal tests prove exact-snapshot validation before zero/empty
   returns, authorized seed normalization, multi-page completion, canonical UUID
   ordering, one global limit, cycles, disconnected nodes, seed permutations,

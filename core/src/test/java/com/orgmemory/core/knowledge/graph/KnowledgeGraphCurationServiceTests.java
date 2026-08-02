@@ -1,10 +1,8 @@
 package com.orgmemory.core.knowledge.graph;
 
-import com.orgmemory.core.knowledge.retrieval.KnowledgeEvidenceScopeResolver;
+import com.orgmemory.core.knowledge.retrieval.GraphEvidenceVerifier;
 import com.orgmemory.core.shared.error.KnowledgeResourceNotFoundException;
-import com.orgmemory.core.knowledge.retrieval.ResolvedKnowledgeEvidenceScope;
-import com.orgmemory.core.knowledge.retrieval.SecureKnowledgeRetrievalStore;
-import com.orgmemory.core.knowledge.retrieval.SecureRetrievalCandidate;
+import com.orgmemory.core.knowledge.retrieval.VerifiedGraphEvidenceScope;
 import com.orgmemory.core.knowledge.asset.KnowledgeAssetGraphQuery;
 
 import com.orgmemory.core.knowledge.space.KnowledgeSpaceQuery;
@@ -28,7 +26,6 @@ import com.orgmemory.graphrag.curation.GraphCurationStore;
 import com.orgmemory.graphrag.export.GraphExportReader;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -51,10 +48,8 @@ class KnowledgeGraphCurationServiceTests {
             mock(KnowledgeAssetGraphQuery.class);
     private final RelationshipAuthorizationPort authorization =
             mock(RelationshipAuthorizationPort.class);
-    private final KnowledgeEvidenceScopeResolver evidenceScopes =
-            mock(KnowledgeEvidenceScopeResolver.class);
-    private final SecureKnowledgeRetrievalStore canonicalEvidence =
-            mock(SecureKnowledgeRetrievalStore.class);
+    private final GraphEvidenceVerifier evidenceVerifier =
+            mock(GraphEvidenceVerifier.class);
     private final GraphExportReader graphs = mock(GraphExportReader.class);
     private final GraphCurationStore store = mock(GraphCurationStore.class);
     private final ModelInvocationCache modelCache =
@@ -66,8 +61,7 @@ class KnowledgeGraphCurationServiceTests {
                     spaces,
                     assets,
                     authorization,
-                    evidenceScopes,
-                    canonicalEvidence,
+                    evidenceVerifier,
                     graphs,
                     store,
                     modelCache,
@@ -80,8 +74,8 @@ class KnowledgeGraphCurationServiceTests {
         when(spaces.isActive(ORGANIZATION_ID, SPACE_ID))
                 .thenReturn(true);
         when(store.append(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(evidenceScopes.resolve(actor, "model-v1"))
-                .thenReturn(new ResolvedKnowledgeEvidenceScope(
+        when(evidenceVerifier.verifyScope(actor, "model-v1"))
+                .thenReturn(new VerifiedGraphEvidenceScope(
                         ORGANIZATION_ID,
                         USER_ID,
                         null,
@@ -90,25 +84,8 @@ class KnowledgeGraphCurationServiceTests {
                         Instant.parse("2026-07-24T00:00:00Z"),
                         Map.of(SPACE_ID, Set.of(ASSET_ID)),
                         Map.of(SPACE_ID, 7L)));
-        when(canonicalEvidence.recheck(any(), any()))
-                .thenReturn(List.of(new SecureRetrievalCandidate(
-                        ORGANIZATION_ID,
-                        CHUNK_ID,
-                        ASSET_ID,
-                        UUID.randomUUID(),
-                        REVISION_ID,
-                        "Policy",
-                        "Approved policy",
-                        "source://policy",
-                        null,
-                        null,
-                        null,
-                        0,
-                        ACL_ID,
-                        ACL_ID,
-                        "model-v1",
-                        UUID.randomUUID(),
-                        1)));
+        when(evidenceVerifier.isCurrentGoverningEvidence(any(), any(), any()))
+                .thenReturn(true);
     }
 
     @Test
