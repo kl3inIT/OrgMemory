@@ -253,8 +253,10 @@ of building an HA cutover:
 8. recreate only `zeromail-postgres` against
    `zero-mail_postgres_data`;
 9. verify every database, database owner, role connection limit, pgvector, AGE,
-   `pg_stat_statements`, the OrgMemory role's AGE session preload and
-   `ag_catalog.ag_graph` read privilege, and Northstar;
+   `pg_stat_statements`, the OrgMemory role's AGE session preload through
+   `orgmemory_runtime.age_session_preloaded()`, its `ag_catalog.ag_graph` read
+   privilege, and Northstar; do not grant `pg_read_all_settings` to the
+   application role;
 10. restore the prior image immediately if PostgreSQL does not become healthy.
 
 Never remove or rename `zero-mail_postgres_data` during the upgrade.
