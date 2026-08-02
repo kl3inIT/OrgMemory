@@ -1,7 +1,5 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
-import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,6 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -29,6 +29,30 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class AssetRegistryServiceTests {
+
+    @Test
+    void authorizationTargetRequiresCanonicalIdentityFields() {
+        UUID organizationId = UUID.randomUUID();
+        UUID assetId = UUID.randomUUID();
+        UUID knowledgeSpaceId = UUID.randomUUID();
+
+        assertThrows(
+                NullPointerException.class,
+                () -> new AssetAuthorizationTarget(
+                        null, assetId, knowledgeSpaceId, AssetType.SKILL, true));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AssetAuthorizationTarget(
+                        organizationId, null, knowledgeSpaceId, AssetType.SKILL, true));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AssetAuthorizationTarget(
+                        organizationId, assetId, null, AssetType.SKILL, true));
+        assertThrows(
+                NullPointerException.class,
+                () -> new AssetAuthorizationTarget(
+                        organizationId, assetId, knowledgeSpaceId, null, true));
+    }
 
     @Test
     void ownedWorkspaceResolvesVisibilityAndCanonicalOwnerAssignments() {

@@ -136,6 +136,14 @@ class AssetKernelServiceTests {
         assertPropagation(
                 AssetAuthorizationCoordinator.class.getMethod("claimPending", int.class),
                 Propagation.REQUIRES_NEW);
+        assertPropagation(
+                AssetAuthorizationCoordinator.class.getMethod(
+                        "complete", AssetAuthorizationBatch.class, String.class),
+                Propagation.REQUIRES_NEW);
+        assertPropagation(
+                AssetAuthorizationCoordinator.class.getMethod(
+                        "fail", AssetAuthorizationBatch.class, String.class, String.class),
+                Propagation.REQUIRES_NEW);
     }
 
     private static void assertPropagation(Method method, Propagation expected) {

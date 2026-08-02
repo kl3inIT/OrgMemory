@@ -123,6 +123,22 @@ class SkillDistributionServiceTests {
         assertTrue(failure.getCause() instanceof IllegalArgumentException);
     }
 
+    @Test
+    void rejectsACoordinateThatResolvesToANonSkillAsset() {
+        Fixture fixture = fixture();
+        when(fixture.identities
+                        .findByCoordinate(
+                                ORGANIZATION_ID,
+                                "support",
+                                "triage"))
+                .thenReturn(Optional.of(assetIdentity(AssetType.PROMPT_TEMPLATE)));
+
+        assertThrows(
+                AssetNotFoundException.class,
+                () -> fixture.service.manifest(
+                        ACTOR, "support", "triage", "1.2.0"));
+    }
+
     private static Fixture fixture() {
         AssetRegistryService assets = mock(AssetRegistryService.class);
         AssetIdentityQuery identities = mock(AssetIdentityQuery.class);
@@ -183,10 +199,14 @@ class SkillDistributionServiceTests {
     }
 
     private static AssetIdentity assetIdentity() {
+        return assetIdentity(AssetType.SKILL);
+    }
+
+    private static AssetIdentity assetIdentity(AssetType type) {
         return new AssetIdentity(
                 ORGANIZATION_ID,
                 ASSET_ID,
-                AssetType.SKILL,
+                type,
                 "support",
                 "triage",
                 UUID.randomUUID(),
