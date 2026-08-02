@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.postgres;
 import static com.orgmemory.graphrag.testkit.ProjectionPermitFixtures.commitPermit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,9 @@ import org.testcontainers.utility.DockerImageName;
 @Testcontainers
 class ApacheAgeGraphStoreIntegrationTests {
 
+    private static final String RUNTIME_USER = "age_runtime";
+    private static final String RUNTIME_PASSWORD = "age-runtime-test-password";
+
     private static final UUID ORGANIZATION_ID = id("age-store-organization");
     private static final UUID MARKER_ORGANIZATION_ID = id("age-marker-organization");
     private static final UUID ACTOR_ID = id("age-store-actor");
@@ -70,16 +74,16 @@ class ApacheAgeGraphStoreIntegrationTests {
 
     @BeforeAll
     static void migrate() {
-        DataSource dataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource(
+        DataSource adminDataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
-        database = new JdbcTemplate(dataSource);
+        database = new JdbcTemplate(adminDataSource);
         database.execute("ALTER ROLE "
                 + quote(postgres.getUsername())
                 + " IN DATABASE "
                 + quote(postgres.getDatabaseName())
                 + " SET session_preload_libraries = 'age'");
         Flyway.configure()
-                .dataSource(dataSource)
+                .dataSource(adminDataSource)
                 .locations("classpath:db/migration")
                 .load()
                 .migrate();
@@ -92,11 +96,58 @@ class ApacheAgeGraphStoreIntegrationTests {
                 ORGANIZATION_ID,
                 MARKER_ORGANIZATION_ID,
                 GraphStoreConformance.organizationId());
+        provisionRuntimeRole();
+        DataSource dataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource(
+                postgres.getJdbcUrl(), RUNTIME_USER, RUNTIME_PASSWORD);
         NamedParameterJdbcTemplate jdbc = new NamedParameterJdbcTemplate(dataSource);
         DataSourceTransactionManager transactions =
                 new DataSourceTransactionManager(dataSource);
         publications = new PostgresProjectionPublicationStore(jdbc, transactions);
         graph = new ApacheAgeGraphStore(jdbc, transactions, publications, 2);
+    }
+
+    private static void provisionRuntimeRole() {
+        database.execute("CREATE ROLE " + quote(RUNTIME_USER)
+                + " LOGIN PASSWORD '" + RUNTIME_PASSWORD + "'");
+        database.execute("GRANT CONNECT, CREATE ON DATABASE "
+                + quote(postgres.getDatabaseName()) + " TO " + quote(RUNTIME_USER));
+        database.execute("GRANT USAGE, CREATE ON SCHEMA public TO " + quote(RUNTIME_USER));
+        database.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "
+                + quote(RUNTIME_USER));
+        database.execute("GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "
+                + quote(RUNTIME_USER));
+        database.execute("GRANT USAGE ON SCHEMA ag_catalog TO " + quote(RUNTIME_USER));
+        database.execute("GRANT SELECT ON TABLE ag_catalog.ag_graph TO " + quote(RUNTIME_USER));
+        database.execute("ALTER ROLE " + quote(RUNTIME_USER)
+                + " IN DATABASE " + quote(postgres.getDatabaseName())
+                + " SET session_preload_libraries = 'age'");
+        database.execute("CREATE SCHEMA orgmemory_runtime");
+        database.execute("REVOKE ALL ON SCHEMA orgmemory_runtime FROM PUBLIC");
+        database.execute("GRANT USAGE ON SCHEMA orgmemory_runtime TO " + quote(RUNTIME_USER));
+        database.execute("""
+                CREATE FUNCTION orgmemory_runtime.age_session_preloaded()
+                RETURNS boolean
+                LANGUAGE sql
+                STABLE
+                SECURITY DEFINER
+                SET search_path = pg_catalog
+                AS $$
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM unnest(string_to_array(
+                            current_setting('session_preload_libraries'), ',')) AS library
+                        WHERE btrim(library) = 'age'
+                    )
+                $$
+                """);
+        database.execute("REVOKE ALL ON FUNCTION "
+                + "orgmemory_runtime.age_session_preloaded() FROM PUBLIC");
+        database.execute("GRANT EXECUTE ON FUNCTION "
+                + "orgmemory_runtime.age_session_preloaded() TO " + quote(RUNTIME_USER));
+        assertFalse(Boolean.TRUE.equals(database.queryForObject(
+                "SELECT pg_has_role(?, 'pg_read_all_settings', 'MEMBER')",
+                Boolean.class,
+                RUNTIME_USER)));
     }
 
     @Test

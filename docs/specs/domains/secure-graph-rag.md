@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (merge pending)`.
 
 ## Current Contract
 
@@ -103,7 +103,9 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
   `orgmemory.graph-rag.postgres.topology-backend=APACHE_AGE|RELATIONAL`.
   `APACHE_AGE` is the production default and fails startup when the extension,
   catalog, session preload, or privileges are unavailable. `RELATIONAL` is an
-  explicit reference/test backend; there is no optional runtime fallback.
+  explicit reference/test backend; there is no optional runtime fallback. The
+  application verifies preload through a bootstrap-owned boolean function and
+  is not granted PostgreSQL's broad `pg_read_all_settings` role.
 - With AGE selected, the relational target batch, fixed-size AGE topology, and
   exact ready marker stage in one transaction. Entity identity includes batch
   plus entity UUID; relation-contribution edges include batch, relation,
@@ -341,3 +343,4 @@ layout without changing graph authorization or query state.
 - [0012](../../decisions/0012-stable-knowledge-assets-and-immutable-versions.md)
 - [0013](../../decisions/0013-full-lightrag-semantic-port.md)
 - [0030](../../decisions/0030-explicit-apache-age-topology-backend.md)
+- [0031](../../decisions/0031-use-a-boolean-age-preload-probe.md)

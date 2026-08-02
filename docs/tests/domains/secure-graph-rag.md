@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (merge pending)`.
 
 ## Automated
 
@@ -75,7 +75,8 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (7d36a97d)`.
   and connector ingestion, and atomic contribution-plus-embedding publication
   rollback.
 - The pinned PostgreSQL 18 image test proves the selected AGE `GraphStore`
-  creates publication-batch topology, passes shared conformance, retains
+  constructs under a production-shaped non-superuser role without
+  `pg_read_all_settings`, creates publication-batch topology, passes shared conformance, retains
   historical snapshots, excludes denied edges before paging, stores no evidence
   text, and fails closed after exact ready-marker corruption. Auto-configuration
   tests prove `RELATIONAL` selection, real `APACHE_AGE` construction, missing-
