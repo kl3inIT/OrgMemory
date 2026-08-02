@@ -33,25 +33,30 @@ public record AiGatewayProperties(
                 route.openAiReasoningEffort());
     }
 
-    public record Gateway(
-            String displayName,
-            String baseUrl,
-            String apiKey,
-            Set<AiGatewayCapability> capabilities,
-            Duration timeout,
-            boolean supportsOpenAiReasoningEffort) {
+    public static final class Gateway {
 
-        public Gateway {
-            displayName = normalize(displayName, "OpenAI-compatible");
-            baseUrl = normalizeBaseUrl(baseUrl);
-            apiKey = apiKey == null ? "" : apiKey.strip();
-            capabilities = capabilities == null || capabilities.isEmpty()
-                    ? Set.of(AiGatewayCapability.CHAT)
-                    : Set.copyOf(capabilities);
-            timeout = timeout == null ? Duration.ofSeconds(60) : timeout;
-            if (timeout.isNegative() || timeout.isZero() || timeout.compareTo(Duration.ofMinutes(5)) > 0) {
-                throw new IllegalArgumentException("AI gateway timeout must be between 1 second and 5 minutes");
-            }
+        private String displayName = "OpenAI-compatible";
+        private String baseUrl = "";
+        private String apiKey = "";
+        private Set<AiGatewayCapability> capabilities = Set.of(AiGatewayCapability.CHAT);
+        private Duration timeout = Duration.ofSeconds(60);
+        private boolean supportsOpenAiReasoningEffort;
+
+        public Gateway() {}
+
+        public Gateway(
+                String displayName,
+                String baseUrl,
+                String apiKey,
+                Set<AiGatewayCapability> capabilities,
+                Duration timeout,
+                boolean supportsOpenAiReasoningEffort) {
+            setDisplayName(displayName);
+            setBaseUrl(baseUrl);
+            setApiKey(apiKey);
+            setCapabilities(capabilities);
+            setTimeout(timeout);
+            setSupportsOpenAiReasoningEffort(supportsOpenAiReasoningEffort);
         }
 
         public Gateway(
@@ -67,6 +72,63 @@ public record AiGatewayProperties(
                     capabilities,
                     timeout,
                     false);
+        }
+
+        public String displayName() {
+            return displayName;
+        }
+
+        public void setDisplayName(String displayName) {
+            this.displayName = normalize(displayName, "OpenAI-compatible");
+        }
+
+        public String baseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = normalizeBaseUrl(baseUrl);
+        }
+
+        public String apiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey == null ? "" : apiKey.strip();
+        }
+
+        public Set<AiGatewayCapability> capabilities() {
+            return capabilities;
+        }
+
+        public void setCapabilities(Set<AiGatewayCapability> capabilities) {
+            this.capabilities = capabilities == null || capabilities.isEmpty()
+                    ? Set.of(AiGatewayCapability.CHAT)
+                    : Set.copyOf(capabilities);
+        }
+
+        public Duration timeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            Duration normalized = timeout == null ? Duration.ofSeconds(60) : timeout;
+            if (normalized.isNegative()
+                    || normalized.isZero()
+                    || normalized.compareTo(Duration.ofMinutes(5)) > 0) {
+                throw new IllegalArgumentException(
+                        "AI gateway timeout must be between 1 second and 5 minutes");
+            }
+            this.timeout = normalized;
+        }
+
+        public boolean supportsOpenAiReasoningEffort() {
+            return supportsOpenAiReasoningEffort;
+        }
+
+        public void setSupportsOpenAiReasoningEffort(boolean supportsOpenAiReasoningEffort) {
+            this.supportsOpenAiReasoningEffort = supportsOpenAiReasoningEffort;
         }
 
         boolean configured() {
