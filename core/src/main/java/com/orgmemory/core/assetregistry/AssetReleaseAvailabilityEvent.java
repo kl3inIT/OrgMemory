@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+
 import com.orgmemory.core.shared.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

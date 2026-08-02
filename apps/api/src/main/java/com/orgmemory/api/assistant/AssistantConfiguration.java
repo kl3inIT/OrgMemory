@@ -1,6 +1,5 @@
 package com.orgmemory.api.assistant;
 
-import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
@@ -9,10 +8,8 @@ import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
-import com.orgmemory.core.assetregistry.PromptExecutionService;
-import com.orgmemory.core.assetregistry.PromptRunCoordinator;
-import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
@@ -108,22 +105,9 @@ class AssistantConfiguration {
     }
 
     @Bean
-    PromptExecutionService promptExecutionService(
-            AssetRegistryService assets,
-            PromptTemplateRenderer renderer,
-            PermissionAwareKnowledgeSearch retrieval,
-            ChatModelPort chat,
-            AiRouteResolver routes,
-            PromptRunCoordinator runs) {
-        return new PromptExecutionService(
-                assets, renderer, retrieval, chat, routes, runs);
-    }
-
-    @Bean
     AssistantAssetToolService assistantAssetToolService(
             AssetRegistryService assets,
-            PromptExecutionService prompts,
-            PromptTemplateRenderer renderer,
+            PromptAssistantOperations prompts,
             WorkInstructionService instructions,
             CapabilityPackService packs,
             PermissionAwareKnowledgeSearch retrieval,
@@ -131,7 +115,6 @@ class AssistantConfiguration {
         return new AssistantAssetToolService(
                 assets,
                 prompts,
-                renderer,
                 instructions,
                 packs,
                 retrieval,

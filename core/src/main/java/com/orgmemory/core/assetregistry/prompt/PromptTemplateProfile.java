@@ -1,6 +1,7 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;

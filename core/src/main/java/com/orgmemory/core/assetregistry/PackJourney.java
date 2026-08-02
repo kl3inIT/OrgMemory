@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

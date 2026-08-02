@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
+
 import com.orgmemory.core.assetregistry.api.AssetType;
 import java.util.Set;
 import org.springframework.stereotype.Component;

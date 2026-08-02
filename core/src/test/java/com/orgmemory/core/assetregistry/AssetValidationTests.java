@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
+
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;

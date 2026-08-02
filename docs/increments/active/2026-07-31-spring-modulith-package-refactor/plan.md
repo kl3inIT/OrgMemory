@@ -1413,7 +1413,7 @@ external OpenFGA projection edge only.
   changed paths.
 - [x] Run the focused Core/API/Worker gates, docs and release-policy checks,
   static analysis, and a terminating clean repository test for every slice.
-- [ ] Merge each code-bearing PR through CI and CodeRabbit before starting the
+- [x] Merge each code-bearing PR through CI and CodeRabbit before starting the
   next branch. Release only after all remaining Asset Registry slices and the
   full increment are complete.
 
@@ -1466,3 +1466,70 @@ refactor because the locked canonical Asset already serializes all Kernel role
 writes. All review threads were answered and resolved. Full Core passed 456
 tests with zero failures; the terminating sequential repository-wide
 `clean test` then passed all 99 tasks in 8m52s on the reviewed code head.
+
+PR #270 merged as `9b88c33356515612b4ccb9e51e7e66769ddc2dc9`
+after all required checks passed and every CodeRabbit thread was resolved. The
+Prompt profile is the next code-bearing Asset Registry slice; release remains
+deferred until every profile module and the full increment are complete.
+
+## Asset Registry Prompt Sequence
+
+- [x] Add failing-first tests for the exact `profile` and `consumption` named
+  interfaces, the closed Prompt allowlist and public surface, forbidden parent
+  dependencies, Assistant isolation, and the built-in profile set.
+- [x] Move the profile SPI and immutable release-use vocabulary to their exact
+  parent-owned named interfaces; make `AssetRegistryService` implement the
+  narrow query without changing the default parent API.
+- [x] Move the fourteen Prompt production types and focused tests, close the
+  module immediately, and internalize renderer, schema, profile implementation,
+  coordinator, entities, repositories, and status.
+- [x] Add the parent-owned Prompt operations/results contract and delegate Assistant's
+  existing metadata-only preparation flow without changing endpoint or wire
+  behavior.
+- [x] Pass focused Core/API/Worker, docs, release-policy, static-analysis, and
+  terminating clean repository gates; keep the code-bearing PR at or below 69
+  file entries, then merge through CI and CodeRabbit.
+
+Fable 5 returned blank zero-token responses twice at 98% weekly usage. The
+independent Orca fallback, counterattack, and factual amendment accepted the
+closed boundary with the corrections recorded in
+[the verdict](assetregistry-prompt-challenge-verdict.md). No release occurs at
+this intermediate checkpoint.
+
+The first implementation exposed two additional topology facts through
+`ApplicationModules.verify()`: Core Assistant cannot import a nested Prompt
+module directly, and Prompt's existing SPI, errors, entities, and digests
+require `assetregistry::api`, `shared::error`, and `shared`. The same
+independent Orca review session selected a parent-owned
+`assetregistry::prompt` operations interface implemented by a package-private
+Prompt adapter. The corrected nine-entry allowlist and parent contract then
+made the full 67-test structure gate pass.
+
+The first parent contract used interface projections. Although Modulith stayed
+green, the live OpenAPI contract rejected the empty generated `FormVariable`
+schema. The same reviewer selected the concrete-contract correction:
+preparation, render, and run result records moved to `assetregistry::prompt`;
+the adapter returns them unchanged. Both the focused structure gate and
+`OpenApiContractTests` then passed without modifying `contracts/openapi.json`.
+
+Prompt structure and behavior tests passed with the exact parent named
+interfaces, nine-entry closed-module allowlist, three-type nested public surface,
+Assistant isolation, metadata-only preparation, deterministic render/run, and
+built-in profile set. The full clean suites passed 474 Core, 182 API, and 65
+Worker tests with zero failures. The live OpenAPI model remained structurally
+identical without a contract rewrite; the Worker context also proved Prompt
+execution stays conditional on the API-side AI/search capabilities.
+
+CodeRabbit's completed review produced three findings. Preparation service
+visibility, exhaustive variable-type mapping, and recursive immutability of
+nested JSON contract values were all corrected with focused tests; the parent
+Prompt interface and OpenAPI shape remain unchanged.
+
+Documentation hygiene passed for 516 Markdown files and 8 mirrored domain
+pairs. Release policy passed 18 Tegami/product tests and 23 workflow/policy
+tests on exact Node 24.15.0. JetBrains semantic inspection remained
+unavailable, so the documented Gradle compilation, executable Modulith,
+package/import search, exact-public-surface, `git diff --check`, and clean-test
+fallback was used. The terminating repository-wide `clean test` passed all 99
+tasks in 7m05s. Rename-aware diff accounting is exactly 69 changed paths, and
+the Asset Registry root package decreased from 90 to 72 Java files.

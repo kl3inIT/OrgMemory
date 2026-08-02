@@ -1,6 +1,7 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import com.orgmemory.core.ai.AiRoute;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.UUID;
@@ -9,7 +10,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class PromptRunCoordinator {
+class PromptRunCoordinator {
 
     private final PromptRunRepository runs;
     private final PromptEvaluationRunRepository evaluations;

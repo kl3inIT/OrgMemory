@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.prompt;
 
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.shared.BaseEntity;

@@ -6,6 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;

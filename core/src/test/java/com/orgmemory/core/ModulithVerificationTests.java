@@ -1078,7 +1078,7 @@ class ModulithVerificationTests {
     @Test
     void topLevelSearchConsumersUseOnlyTheParentSearchInterface() {
         var searchConsumerTypes = Set.of(
-                "com.orgmemory.core.assetregistry.PromptExecutionService",
+                "com.orgmemory.core.assetregistry.prompt.PromptExecutionService",
                 "com.orgmemory.core.assistant.AssistantAssetToolService",
                 "com.orgmemory.core.assistant.AssistantCitation",
                 "com.orgmemory.core.assistant.AssistantPromptFactory",
@@ -1156,6 +1156,152 @@ class ModulithVerificationTests {
                 .resideInAPackage("com.orgmemory.core.knowledge.asset..")
                 .check(new ClassFileImporter()
                         .importPackages("com.orgmemory.core.assetregistry"));
+    }
+
+    @Test
+    void assetRegistryProfileIsAnExactExplicitNamedInterface() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+        var profile = assetRegistry.getNamedInterfaces().getByName("profile").orElseThrow();
+        var exposedTypes = profile.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of("com.orgmemory.core.assetregistry.profile.AssetPayloadProfile"),
+                exposedTypes);
+    }
+
+    @Test
+    void assetRegistryConsumptionIsAnExactExplicitNamedInterface() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+        var consumption = assetRegistry.getNamedInterfaces()
+                .getByName("consumption")
+                .orElseThrow();
+        var exposedTypes = consumption.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.consumption.AssetAvailability",
+                        "com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease",
+                        "com.orgmemory.core.assetregistry.consumption.AssetPublicationMode",
+                        "com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery"),
+                exposedTypes);
+    }
+
+    @Test
+    void assetRegistryPromptIsAClosedProfileModule() {
+        var prompt = modules.getModuleByName("assetregistry.prompt").orElseThrow();
+        var allowedDependencies = prompt.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(prompt.isOpen());
+        assertEquals(
+                Set.of(
+                        "ai",
+                        "assetregistry::api",
+                        "assetregistry::consumption",
+                        "assetregistry::profile",
+                        "assetregistry::prompt",
+                        "knowledge::search",
+                        "organization",
+                        "shared",
+                        "shared::error"),
+                allowedDependencies);
+    }
+
+    @Test
+    void assetRegistryPromptExposesOnlyItsFourTopLevelContracts() {
+        var publicTopLevelTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry.prompt")
+                .stream()
+                .filter(type -> type.getPackageName().equals(
+                        "com.orgmemory.core.assetregistry.prompt"))
+                .filter(type -> !type.getName().contains("$"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.prompt.PromptEvaluationComparison",
+                        "com.orgmemory.core.assetregistry.prompt.PromptEvaluationResult",
+                        "com.orgmemory.core.assetregistry.prompt.PromptExecutionService"),
+                publicTopLevelTypes);
+    }
+
+    @Test
+    void assetRegistryPromptDoesNotDependOnParentImplementation() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry.prompt..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..",
+                        "com.orgmemory.core.assetregistry.kernel..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry.prompt"));
+    }
+
+    @Test
+    void assistantDoesNotDependOnPromptInternals() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assistant..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.assetregistry.prompt..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assistant"));
+    }
+
+    @Test
+    void assetRegistryPromptContractIsAnExactExplicitNamedInterface() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+        var prompt = assetRegistry.getNamedInterfaces().getByName("prompt").orElseThrow();
+        var exposedTypes = prompt.asJavaClasses()
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult$Variable",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult$VariableType",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptRunResult",
+                        "com.orgmemory.core.assetregistry.promptcontract.PromptRunResult$PromptCitation"),
+                exposedTypes);
+    }
+
+    @Test
+    void assetPayloadProfilesRemainTheFourBuiltInFamilies() {
+        var profileImplementations = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry")
+                .stream()
+                .filter(type -> type.getRawInterfaces().stream()
+                        .anyMatch(contract -> contract.getName().equals(
+                                "com.orgmemory.core.assetregistry.profile.AssetPayloadProfile")))
+                .map(type -> type.getSimpleName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "CapabilityPackProfile",
+                        "PromptTemplateProfile",
+                        "SkillPackageProfile",
+                        "WorkInstructionProfile"),
+                profileImplementations);
     }
 
     @Test

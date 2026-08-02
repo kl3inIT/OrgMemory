@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;

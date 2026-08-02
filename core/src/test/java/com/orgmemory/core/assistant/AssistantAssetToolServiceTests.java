@@ -13,14 +13,14 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
-import com.orgmemory.core.assetregistry.AssetAvailability;
 import com.orgmemory.core.assetregistry.AssetRecommendation;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
-import com.orgmemory.core.assetregistry.PromptExecutionService;
-import com.orgmemory.core.assetregistry.PromptRunResult;
-import com.orgmemory.core.assetregistry.PromptTemplateRenderer;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
+import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
+import com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult;
+import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
@@ -35,8 +35,7 @@ import org.mockito.ArgumentCaptor;
 class AssistantAssetToolServiceTests {
 
     private final AssetRegistryService assets = mock(AssetRegistryService.class);
-    private final PromptExecutionService prompts = mock(PromptExecutionService.class);
-    private final PromptTemplateRenderer renderer = mock(PromptTemplateRenderer.class);
+    private final PromptAssistantOperations prompts = mock(PromptAssistantOperations.class);
     private final WorkInstructionService instructions = mock(WorkInstructionService.class);
     private final CapabilityPackService packs = mock(CapabilityPackService.class);
     private final PermissionAwareKnowledgeSearch knowledge =
@@ -56,7 +55,6 @@ class AssistantAssetToolServiceTests {
         service = new AssistantAssetToolService(
                 assets,
                 prompts,
-                renderer,
                 instructions,
                 packs,
                 knowledge,
@@ -118,7 +116,41 @@ class AssistantAssetToolServiceTests {
                         "request-1",
                         false));
 
-        verify(prompts, never()).run(any(), any(), any(), any(), any(), any());
+        verify(prompts, never()).runPrompt(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void promptPreparationDelegatesToTheParentContractAndKeepsTheReleaseDigest() {
+        UUID assetId = UUID.randomUUID();
+        UUID releaseId = UUID.randomUUID();
+        PromptPreparationResult preparation = new PromptPreparationResult(
+                assetId,
+                releaseId,
+                "c".repeat(64),
+                "Classify a ticket",
+                "Support",
+                List.of(),
+                Map.of("type", "object"),
+                List.of("Runbook"),
+                "English only");
+        when(prompts.preparePrompt(actor, assetId, releaseId)).thenReturn(preparation);
+
+        var result = service.preparePrompt(actor, assetId, releaseId);
+
+        assertEquals(assetId, result.release().assetId());
+        assertEquals(releaseId, result.release().releaseId());
+        assertEquals("c".repeat(64), result.release().releaseDigest());
+        assertEquals("Classify a ticket", result.objective());
+        assertEquals(List.of("Runbook"), result.knowledgeRequirements());
+        verify(prompts).preparePrompt(actor, assetId, releaseId);
+        verify(traces).record(
+                eq(actor),
+                eq(AssistantAssetAction.PREPARE_PROMPT),
+                eq(List.of(result.release())),
+                eq(List.of()),
+                eq(Map.of()),
+                eq(Map.of()),
+                eq(Map.of("variableCount", 0)));
     }
 
     @Test
@@ -134,7 +166,7 @@ class AssistantAssetToolServiceTests {
                 "SECRET GENERATED OUTPUT",
                 List.of(),
                 25);
-        when(prompts.run(
+        when(prompts.runPrompt(
                         eq(actor),
                         eq(assetId),
                         eq(releaseId),

@@ -431,6 +431,39 @@ lock handle, readiness mutator, or mixed database/OpenFGA facade is allowed. See
 for the Fable availability failure, fallback review, counterattack, exact
 ownership, transaction rules, comparable-source evidence, and binding gates.
 
+## Asset Registry Prompt Boundary
+
+The Prompt profile becomes a closed `assetregistry.prompt` nested module. Its
+public top-level surface is limited to execution and evaluation
+services/results; preparation, schema, renderer, profile implementation,
+coordinator, entities, repositories, and status remain internal. The immutable preparation,
+render, and run results live in the parent Prompt interface because both Core
+Assistant and the nested implementation consume those concrete wire contracts.
+
+The parent owns three exact named interfaces. `assetregistry::profile` contains
+only `AssetPayloadProfile`; `assetregistry::consumption` contains the narrow
+release-use query and immutable consumption vocabulary; and
+`assetregistry::prompt` contains one Assistant operations contract plus the
+three concrete immutable results it returns. `AssetRegistryService` stays in the parent default API,
+implements the query, and is not added to `assetregistry::api`. Prompt's exact
+dependencies are the three interfaces, `assetregistry::api`, AI, Knowledge
+Search, Organization, `shared`, and `shared::error`.
+
+Preparation remains a form-metadata operation. A Prompt-owned service resolves
+the exact immutable release, parses the schema internally, and projects the
+existing objective, audience, variables, output contract, knowledge
+requirements, and known limitations. It does not accept values, render, call a
+model, persist, or create a cross-call digest protocol. Assistant delegates to
+the parent Prompt contract, implemented by a package-private Prompt adapter
+that returns the services' exact result objects without translation,
+while rendering and execution retain their existing independent authorization
+behavior. This indirection is required because Spring Modulith rejects a
+top-level Core module's direct reference to a nested module.
+
+See [the Prompt challenge verdict](assetregistry-prompt-challenge-verdict.md)
+for the unavailable Fable 5 attempts, independent fallback, counterattack,
+corrected topology, rejected alternative, and executable gates.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

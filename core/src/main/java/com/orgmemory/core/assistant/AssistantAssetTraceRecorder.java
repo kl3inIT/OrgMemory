@@ -1,6 +1,6 @@
 package com.orgmemory.core.assistant;
 
-import com.orgmemory.core.assetregistry.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.List;
