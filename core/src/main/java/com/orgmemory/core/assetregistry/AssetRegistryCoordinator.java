@@ -1,12 +1,19 @@
 package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTargetQuery;
+import com.orgmemory.core.assetregistry.api.AssetIdentity;
+import com.orgmemory.core.assetregistry.api.AssetIdentityQuery;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
+import com.orgmemory.core.assetregistry.api.AssetPortfolioCommand;
+import com.orgmemory.core.assetregistry.api.AssetRegistrationCommand;
 import com.orgmemory.core.assetregistry.api.AssetRole;
+import com.orgmemory.core.assetregistry.api.AssetRoleCommand;
+import com.orgmemory.core.assetregistry.api.AssetRoleQuery;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.authorization.PrincipalRef;
-import com.orgmemory.core.authorization.RelationshipTuple;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Instant;
@@ -27,15 +34,19 @@ class AssetRegistryCoordinator {
 
     static final String REVIEW_POLICY_VERSION = "asset-review-v1";
 
-    private final AssetRepository assets;
+    private final AssetRegistrationCommand registrations;
+    private final AssetIdentityQuery identities;
+    private final AssetAuthorizationTargetQuery targets;
+    private final AssetRoleCommand roleCommands;
+    private final AssetRoleQuery roleQueries;
+    private final AssetPortfolioCommand portfolios;
+    private final AssetCatalogReadModelRepository catalog;
     private final AssetDraftRepository drafts;
     private final AssetRevisionRepository revisions;
     private final AssetReviewCaseRepository reviews;
     private final AssetReviewDecisionRepository decisions;
     private final AssetReleaseRepository releases;
     private final AssetReleaseAvailabilityRepository availability;
-    private final AssetRoleAssignmentRepository roles;
-    private final AssetAuthorizationOutboxRepository outbox;
     private final AssetAuditEventRepository audit;
     private final AssetPayloadReferenceRepository payloadReferences;
     private final SkillPackageSupersessionRepository packageSupersessions;
@@ -44,30 +55,38 @@ class AssetRegistryCoordinator {
     private final AssetPayloadDigester digester;
 
     AssetRegistryCoordinator(
-            AssetRepository assets,
+            AssetRegistrationCommand registrations,
+            AssetIdentityQuery identities,
+            AssetAuthorizationTargetQuery targets,
+            AssetRoleCommand roleCommands,
+            AssetRoleQuery roleQueries,
+            AssetPortfolioCommand portfolios,
+            AssetCatalogReadModelRepository catalog,
             AssetDraftRepository drafts,
             AssetRevisionRepository revisions,
             AssetReviewCaseRepository reviews,
             AssetReviewDecisionRepository decisions,
             AssetReleaseRepository releases,
             AssetReleaseAvailabilityRepository availability,
-            AssetRoleAssignmentRepository roles,
-            AssetAuthorizationOutboxRepository outbox,
             AssetAuditEventRepository audit,
             AssetPayloadReferenceRepository payloadReferences,
             SkillPackageSupersessionRepository packageSupersessions,
             AssetTypeProfileRegistry profiles,
             SkillPackageSpecReader skillPackages,
             AssetPayloadDigester digester) {
-        this.assets = assets;
+        this.registrations = registrations;
+        this.identities = identities;
+        this.targets = targets;
+        this.roleCommands = roleCommands;
+        this.roleQueries = roleQueries;
+        this.portfolios = portfolios;
+        this.catalog = catalog;
         this.drafts = drafts;
         this.revisions = revisions;
         this.reviews = reviews;
         this.decisions = decisions;
         this.releases = releases;
         this.availability = availability;
-        this.roles = roles;
-        this.outbox = outbox;
         this.audit = audit;
         this.payloadReferences = payloadReferences;
         this.packageSupersessions = packageSupersessions;
@@ -125,30 +144,25 @@ class AssetRegistryCoordinator {
         }
         AssetPayloadDigester.CanonicalAssetPayload canonical =
                 validateDraft(type, input);
-        Asset asset;
+        UUID assetId;
         try {
-            asset = new Asset(
+            assetId = registrations.register(new AssetRegistrationCommand.NewAsset(
                     actor.organizationId(),
                     type,
                     namespace,
                     slug,
-                    knowledgeSpaceId);
+                    knowledgeSpaceId,
+                    actor.principal(),
+                    actor.userId()));
         } catch (IllegalArgumentException invalidIdentity) {
             throw new BusinessValidationException(
                     "asset.identity-invalid",
                     "The Asset namespace, slug, type, or Knowledge Space is invalid",
                     invalidIdentity);
         }
-        try {
-            assets.saveAndFlush(asset);
-        } catch (DataIntegrityViolationException duplicate) {
-            throw new AssetConflictException(
-                    "An Asset already uses this namespace and slug, or the Space is unavailable",
-                    duplicate);
-        }
         AssetDraft draft = drafts.saveAndFlush(new AssetDraft(
                 actor.organizationId(),
-                asset.getId(),
+                assetId,
                 canonical.title(),
                 canonical.summary(),
                 canonical.classification(),
@@ -165,59 +179,19 @@ class AssetRegistryCoordinator {
             payloadReferences.saveAndFlush(
                     AssetPayloadReference.forDraft(draft, storedPackage));
         }
-        Instant now = Instant.now();
-        AssetRoleAssignment owner = roles.saveAndFlush(new AssetRoleAssignment(
-                actor.organizationId(),
-                asset.getId(),
-                actor.principal(),
-                AssetRole.OWNER,
-                actor.userId(),
-                now));
-        String object = "asset:" + asset.getId();
-        outbox.saveAllAndFlush(List.of(
-                new AssetAuthorizationOutbox(
-                        actor.organizationId(),
-                        asset.getId(),
-                        null,
-                        RelationshipTuple.of(
-                                "organization:" + actor.organizationId(),
-                                "organization",
-                                object)),
-                new AssetAuthorizationOutbox(
-                        actor.organizationId(),
-                        asset.getId(),
-                        null,
-                        RelationshipTuple.of(
-                                "knowledge_space:" + knowledgeSpaceId,
-                                "space",
-                                object)),
-                new AssetAuthorizationOutbox(
-                        actor.organizationId(),
-                        asset.getId(),
-                        owner.getId(),
-                        RelationshipTuple.of(
-                                actor.principal().openFgaUser(),
-                                AssetRole.OWNER.relation(),
-                                object))));
         recordAudit(
                 actor,
-                asset.getId(),
+                assetId,
                 "ASSET_CREATED",
                 "DRAFT",
                 draft.getId(),
                 "{\"permission\":\"can_create_asset\"}");
-        return asset.getId();
+        return assetId;
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     Optional<AssetAuthorizationTarget> target(UUID organizationId, UUID assetId) {
-        return assets.findByIdAndOrganizationId(assetId, organizationId)
-                .map(asset -> new AssetAuthorizationTarget(
-                        asset.getOrganizationId(),
-                        asset.getId(),
-                        asset.getKnowledgeSpaceId(),
-                        asset.getType(),
-                        asset.isAuthorizationReady()));
+        return targets.find(organizationId, assetId);
     }
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
@@ -230,7 +204,7 @@ class AssetRegistryCoordinator {
             return List.of();
         }
         String normalizedQuery = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        return assets.searchAuthorized(
+        return catalog.searchAuthorized(
                 organizationId,
                 ids,
                 normalizedQuery,
@@ -266,7 +240,7 @@ class AssetRegistryCoordinator {
         if (visibleIds.isEmpty()) {
             return AssetSummaryPage.empty(page, pageSize, sort);
         }
-        var ids = new java.util.LinkedHashSet<>(roles.findActiveAssetIdsForUserRole(
+        var ids = new java.util.LinkedHashSet<>(roleQueries.activeAssetIdsForUserRole(
                 organizationId,
                 userId.toString(),
                 AssetRole.OWNER,
@@ -277,7 +251,7 @@ class AssetRegistryCoordinator {
         }
         String normalizedQuery =
                 query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        Page<AssetSummary> result = assets.searchOwnedSummaries(
+        Page<AssetSummary> result = catalog.searchOwnedSummaries(
                 organizationId,
                 ids,
                 normalizedQuery,
@@ -307,7 +281,7 @@ class AssetRegistryCoordinator {
         }
         String normalizedQuery =
                 query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
-        Page<AssetRecommendation> result = assets.searchAuthorizedRecommendations(
+        Page<AssetRecommendation> result = catalog.searchAuthorizedRecommendations(
                 organizationId,
                 ids,
                 normalizedQuery,
@@ -369,7 +343,7 @@ class AssetRegistryCoordinator {
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     AssetView view(UUID organizationId, UUID assetId) {
-        Asset asset = requiredAsset(organizationId, assetId);
+        AssetIdentity asset = requiredAsset(organizationId, assetId);
         return view(asset);
     }
 
@@ -378,7 +352,7 @@ class AssetRegistryCoordinator {
             UUID organizationId,
             UUID assetId,
             UUID releaseId) {
-        Asset asset = requiredAsset(organizationId, assetId);
+        AssetIdentity asset = requiredAsset(organizationId, assetId);
         AssetRelease release = releases
                 .findByIdAndAssetIdAndOrganizationId(
                         releaseId, assetId, organizationId)
@@ -389,12 +363,12 @@ class AssetRegistryCoordinator {
                     "The requested Asset release is not available for new use");
         }
         return new AssetConsumptionRelease(
-                asset.getId(),
+                asset.id(),
                 release.getId(),
                 release.getRevisionId(),
-                asset.getType(),
-                asset.getNamespace(),
-                asset.getSlug(),
+                asset.type(),
+                asset.namespace(),
+                asset.slug(),
                 release.getVersionLabel(),
                 release.getPublicationMode(),
                 release.getTitle(),
@@ -410,7 +384,7 @@ class AssetRegistryCoordinator {
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     AssetConsumptionRelease latestConsumptionRelease(
             UUID organizationId, UUID assetId) {
-        Asset asset = requiredAsset(organizationId, assetId);
+        AssetIdentity asset = requiredAsset(organizationId, assetId);
         AssetRelease release = releases
                 .findLatestUsable(
                         assetId,
@@ -421,7 +395,7 @@ class AssetRegistryCoordinator {
                 .findFirst()
                 .orElseThrow(AssetNotFoundException::new);
         return consumptionRelease(
-                organizationId, asset.getId(), release.getId());
+                organizationId, asset.id(), release.getId());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -430,8 +404,8 @@ class AssetRegistryCoordinator {
             UUID assetId,
             long expectedLockVersion,
             AssetDraftInput input) {
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
-        if (asset.getType() == AssetType.SKILL) {
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
+        if (asset.type() == AssetType.SKILL) {
             throw new BusinessValidationException(
                     "skill.generic-edit-unsupported",
                     "Skill drafts cannot be changed through the generic payload endpoint");
@@ -442,7 +416,7 @@ class AssetRegistryCoordinator {
                     "The Asset draft changed; reload it before saving");
         }
         AssetPayloadDigester.CanonicalAssetPayload canonical =
-                validateDraft(asset.getType(), input);
+                validateDraft(asset.type(), input);
         draft.update(
                 canonical.title(),
                 canonical.summary(),
@@ -468,13 +442,13 @@ class AssetRegistryCoordinator {
             long expectedLockVersion,
             AssetDraftInput input,
             SkillPackageStoragePort.StoredSkillPackage storedPackage) {
-        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
-        if (asset.getType() != AssetType.SKILL) {
+        AssetDraft draft = requiredDraftForUpdate(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
+        if (asset.type() != AssetType.SKILL) {
             throw new BusinessValidationException(
                     "skill.package-replacement-unsupported",
                     "Only Skill drafts can replace a package");
         }
-        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
         if (draft.getVersion() != expectedLockVersion) {
             throw new AssetConflictException(
                     "The Skill draft changed; reload it before replacing the package");
@@ -524,13 +498,13 @@ class AssetRegistryCoordinator {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     AssetView submit(CurrentActor actor, UUID assetId, String changeNote) {
         String validatedChangeNote = requireChangeNote(changeNote);
-        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
+        AssetDraft draft = requiredDraftForUpdate(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
         if (reviews.existsByAssetIdAndOrganizationIdAndState(
                 assetId, actor.organizationId(), AssetReviewState.IN_REVIEW)) {
             throw new AssetConflictException("This Asset already has a revision in review");
         }
-        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
-        profiles.require(asset.getType()).requireSupported(draft.getSchemaVersion());
+        profiles.require(asset.type()).requireSupported(draft.getSchemaVersion());
         AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
                 draft.getTitle(),
                 draft.getSummary(),
@@ -555,7 +529,7 @@ class AssetRegistryCoordinator {
         }
         AssetReviewCase review = reviews.saveAndFlush(new AssetReviewCase(
                 revision, REVIEW_POLICY_VERSION, actor.userId()));
-        if (asset.getType() == AssetType.SKILL) {
+        if (asset.type() == AssetType.SKILL) {
             SkillPackageSpec spec = skillSpec(draft.getPayload());
             AssetPayloadReference draftReference = payloadReferences
                     .findByDraftIdAndOrganizationId(
@@ -573,7 +547,7 @@ class AssetRegistryCoordinator {
                 "REVIEW_CASE",
                 review.getId(),
                 "{\"digest\":\"" + revision.getDigest() + "\"}");
-        return view(asset);
+        return view(requiredAsset(actor.organizationId(), assetId));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -583,7 +557,7 @@ class AssetRegistryCoordinator {
             UUID reviewCaseId,
             AssetReviewDecisionType decision,
             String comment) {
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
         AssetReviewCase review = reviews.findByIdAndAssetIdAndOrganizationId(
                         reviewCaseId, assetId, actor.organizationId())
                 .orElseThrow(AssetNotFoundException::new);
@@ -707,7 +681,7 @@ class AssetRegistryCoordinator {
             UUID revisionId,
             String versionLabel) {
         String validatedVersionLabel = validatedVersionLabel(versionLabel);
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
         AssetRevision revision = revisions.findByIdAndAssetIdAndOrganizationId(
                         revisionId, assetId, actor.organizationId())
                 .orElseThrow(AssetNotFoundException::new);
@@ -748,7 +722,7 @@ class AssetRegistryCoordinator {
                 "RELEASE",
                 release.getId(),
                 "{\"digest\":\"" + release.getDigest() + "\"}");
-        return view(asset);
+        return view(requiredAsset(actor.organizationId(), assetId));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -757,8 +731,9 @@ class AssetRegistryCoordinator {
             UUID assetId,
             String versionLabel) {
         String validatedVersionLabel = validatedVersionLabel(versionLabel);
-        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
-        if (asset.getType() != AssetType.SKILL) {
+        AssetDraft draft = requiredDraftForUpdate(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
+        if (asset.type() != AssetType.SKILL) {
             throw new BusinessValidationException(
                     "skill.direct-publish-unsupported",
                     "Direct publication is available only for Skill Assets");
@@ -768,7 +743,6 @@ class AssetRegistryCoordinator {
             throw new AssetConflictException(
                     "This Skill already has a revision in review; finish or cancel it first");
         }
-        AssetDraft draft = requiredDraft(actor.organizationId(), assetId);
         profiles.require(AssetType.SKILL).requireSupported(draft.getSchemaVersion());
         AssetPayloadDigester.CanonicalAssetPayload canonical = digester.canonicalize(
                 draft.getTitle(),
@@ -819,12 +793,12 @@ class AssetRegistryCoordinator {
                 "{\"policy\":\"skill-direct-v1\","
                         + "\"permission\":\"can_publish_skill\","
                         + "\"digest\":\"" + release.getDigest() + "\"}");
-        return view(asset);
+        return view(requiredAsset(actor.organizationId(), assetId));
     }
 
     private AssetRelease createRelease(
             CurrentActor actor,
-            Asset asset,
+            AssetIdentity asset,
             AssetRevision revision,
             String versionLabel,
             AssetPublicationMode publicationMode,
@@ -834,7 +808,7 @@ class AssetRegistryCoordinator {
         try {
             release = releases.saveAndFlush(new AssetRelease(
                     revision,
-                    releases.maxSequence(asset.getId(), actor.organizationId()) + 1,
+                    releases.maxSequence(asset.id(), actor.organizationId()) + 1,
                     versionLabel,
                     publicationMode,
                     actor.userId(),
@@ -857,7 +831,7 @@ class AssetRegistryCoordinator {
                 availabilityReason,
                 actor.userId(),
                 now));
-        if (asset.getType() == AssetType.SKILL) {
+        if (asset.type() == AssetType.SKILL) {
             AssetPayloadReference revisionReference = payloadReferences
                     .findByRevisionIdAndOrganizationId(
                             revision.getId(), actor.organizationId())
@@ -868,8 +842,7 @@ class AssetRegistryCoordinator {
             payloadReferences.saveAndFlush(
                     AssetPayloadReference.forRelease(release, revisionReference));
         }
-        asset.activate();
-        assets.save(asset);
+        portfolios.activateAfterRelease(actor.organizationId(), asset.id());
         return release;
     }
 
@@ -883,7 +856,7 @@ class AssetRegistryCoordinator {
         if (next == AssetAvailability.AVAILABLE) {
             throw new IllegalArgumentException("A release cannot be made available again");
         }
-        Asset asset = requiredAsset(actor.organizationId(), assetId);
+        AssetIdentity asset = requiredAsset(actor.organizationId(), assetId);
         AssetRelease release = releases.findByIdAndAssetIdAndOrganizationId(
                         releaseId, assetId, actor.organizationId())
                 .orElseThrow(AssetNotFoundException::new);
@@ -896,12 +869,13 @@ class AssetRegistryCoordinator {
         Instant now = Instant.now();
         availability.saveAndFlush(new AssetReleaseAvailabilityEvent(
                 release, next, requireReason(reason), actor.userId(), now));
+        AssetIdentity updated;
         if (next == AssetAvailability.WITHDRAWN && allReleasesWithdrawn(asset, releaseId)) {
-            asset.retire();
+            updated = portfolios.retireAfterFinalWithdrawal(actor.organizationId(), assetId);
         } else {
-            asset.startSunsetting();
+            updated = portfolios.startSunsettingAfterReleaseChange(
+                    actor.organizationId(), assetId);
         }
-        assets.save(asset);
         recordAudit(
                 actor,
                 assetId,
@@ -909,7 +883,7 @@ class AssetRegistryCoordinator {
                 "RELEASE",
                 releaseId,
                 "{\"previous\":\"" + current + "\"}");
-        return view(asset);
+        return view(updated);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -918,45 +892,29 @@ class AssetRegistryCoordinator {
             UUID assetId,
             PrincipalRef principal,
             AssetRole role) {
-        Asset asset = requiredAssetForUpdate(actor.organizationId(), assetId);
-        if (roles.findByAssetIdAndPrincipalTypeAndPrincipalIdAndRoleAndValidUntilIsNull(
-                        assetId, principal.type(), principal.id(), role)
-                .isPresent()) {
-            throw new AssetConflictException("This active Asset role assignment already exists");
-        }
-        Instant now = Instant.now();
-        AssetRoleAssignment assignment = roles.saveAndFlush(new AssetRoleAssignment(
+        UUID assignmentId = roleCommands.assign(new AssetRoleCommand.Assignment(
                 actor.organizationId(),
                 assetId,
                 principal,
                 role,
-                actor.userId(),
-                now));
-        outbox.saveAndFlush(new AssetAuthorizationOutbox(
-                actor.organizationId(),
-                assetId,
-                assignment.getId(),
-                RelationshipTuple.of(
-                        principal.openFgaUser(),
-                        role.relation(),
-                        "asset:" + assetId)));
+                actor.userId()));
         recordAudit(
                 actor,
                 assetId,
                 "ROLE_ASSIGNED",
                 "ROLE_ASSIGNMENT",
-                assignment.getId(),
+                assignmentId,
                 "{\"role\":\"" + role + "\"}");
-        return asset.getId();
+        return assetId;
     }
 
-    private Asset requiredAsset(UUID organizationId, UUID assetId) {
-        return assets.findByIdAndOrganizationId(assetId, organizationId)
+    private AssetIdentity requiredAsset(UUID organizationId, UUID assetId) {
+        return identities.findById(organizationId, assetId)
                 .orElseThrow(AssetNotFoundException::new);
     }
 
-    private Asset requiredAssetForUpdate(UUID organizationId, UUID assetId) {
-        return assets.findForUpdate(assetId, organizationId)
+    private AssetDraft requiredDraftForUpdate(UUID organizationId, UUID assetId) {
+        return drafts.findForUpdate(assetId, organizationId)
                 .orElseThrow(AssetNotFoundException::new);
     }
 
@@ -965,9 +923,9 @@ class AssetRegistryCoordinator {
                 .orElseThrow(AssetNotFoundException::new);
     }
 
-    private boolean allReleasesWithdrawn(Asset asset, UUID releaseBeingWithdrawn) {
+    private boolean allReleasesWithdrawn(AssetIdentity asset, UUID releaseBeingWithdrawn) {
         return releases.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
-                        asset.getId(), asset.getOrganizationId())
+                        asset.id(), asset.organizationId())
                 .stream()
                 .allMatch(release -> release.getId().equals(releaseBeingWithdrawn)
                         || currentAvailability(release.getId()) == AssetAvailability.WITHDRAWN);
@@ -981,28 +939,28 @@ class AssetRegistryCoordinator {
                         "Asset release is missing availability history"));
     }
 
-    private AssetView view(Asset asset) {
-        AssetDraft draft = requiredDraft(asset.getOrganizationId(), asset.getId());
+    private AssetView view(AssetIdentity asset) {
+        AssetDraft draft = requiredDraft(asset.organizationId(), asset.id());
         List<AssetRevision> assetRevisions =
                 revisions.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
-                        asset.getId(), asset.getOrganizationId());
+                        asset.id(), asset.organizationId());
         List<AssetReviewCase> assetReviews =
                 reviews.findByAssetIdAndOrganizationIdOrderByCreatedAtDesc(
-                        asset.getId(), asset.getOrganizationId());
+                        asset.id(), asset.organizationId());
         List<AssetRelease> assetReleases =
                 releases.findByAssetIdAndOrganizationIdOrderBySequenceDesc(
-                        asset.getId(), asset.getOrganizationId());
-        List<AssetRoleAssignment> assignments =
-                roles.findByAssetIdOrderByValidFromAsc(asset.getId());
+                        asset.id(), asset.organizationId());
         Instant viewedAt = Instant.now();
+        AssetRoleQuery.RoleHistory roleHistory =
+                roleQueries.history(asset.organizationId(), asset.id(), viewedAt);
         return new AssetView(
-                asset.getId(),
-                asset.getType(),
-                asset.getNamespace(),
-                asset.getSlug(),
-                asset.getKnowledgeSpaceId(),
-                asset.getPortfolioState(),
-                asset.isAuthorizationReady(),
+                asset.id(),
+                asset.type(),
+                asset.namespace(),
+                asset.slug(),
+                asset.knowledgeSpaceId(),
+                asset.portfolioState(),
+                asset.authorizationReady(),
                 new AssetView.Draft(
                         draft.getId(),
                         draft.getVersion(),
@@ -1016,31 +974,19 @@ class AssetRegistryCoordinator {
                 assetRevisions.stream().map(AssetRegistryCoordinator::revisionView).toList(),
                 assetReviews.stream().map(this::reviewView).toList(),
                 assetReleases.stream().map(this::releaseView).toList(),
-                ownershipHealth(assignments, viewedAt),
-                assignments.stream().map(AssetRegistryCoordinator::roleView).toList());
+                ownershipHealth(roleHistory.ownershipHealth()),
+                roleHistory.assignments().stream()
+                        .map(AssetRegistryCoordinator::roleView)
+                        .toList());
     }
 
     private static AssetView.OwnershipHealth ownershipHealth(
-            List<AssetRoleAssignment> assignments, Instant viewedAt) {
-        boolean ownerPresent = hasActiveRole(
-                assignments, AssetRole.OWNER, viewedAt);
-        boolean backupOwnerPresent = hasActiveRole(
-                assignments, AssetRole.BACKUP_OWNER, viewedAt);
+            AssetRoleQuery.OwnershipHealth ownershipHealth) {
         return new AssetView.OwnershipHealth(
-                ownerPresent,
-                backupOwnerPresent,
-                !ownerPresent && !backupOwnerPresent,
-                !ownerPresent || !backupOwnerPresent);
-    }
-
-    private static boolean hasActiveRole(
-            List<AssetRoleAssignment> assignments,
-            AssetRole role,
-            Instant viewedAt) {
-        return assignments.stream().anyMatch(assignment ->
-                assignment.getRole() == role
-                        && (assignment.getValidUntil() == null
-                                || assignment.getValidUntil().isAfter(viewedAt)));
+                ownershipHealth.ownerPresent(),
+                ownershipHealth.backupOwnerPresent(),
+                ownershipHealth.orphaned(),
+                ownershipHealth.continuityAtRisk());
     }
 
     private AssetView.Review reviewView(AssetReviewCase review) {
@@ -1125,16 +1071,16 @@ class AssetRegistryCoordinator {
                 revision.getCreatedAt());
     }
 
-    private static AssetView.RoleAssignment roleView(AssetRoleAssignment assignment) {
+    private static AssetView.RoleAssignment roleView(AssetRoleQuery.RoleAssignment assignment) {
         return new AssetView.RoleAssignment(
-                assignment.getId(),
-                assignment.getPrincipalType(),
-                assignment.getPrincipalId(),
-                assignment.getRole(),
-                assignment.getValidFrom(),
-                assignment.getValidUntil(),
-                assignment.getAssignedByUserId(),
-                assignment.getProjectedAt());
+                assignment.id(),
+                assignment.principalType(),
+                assignment.principalId(),
+                assignment.role(),
+                assignment.validFrom(),
+                assignment.validUntil(),
+                assignment.assignedByUserId(),
+                assignment.projectedAt());
     }
 
     private static String requireReason(String reason) {

@@ -10,11 +10,13 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (fdf3cca4)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
-| The parent-owned `assetregistry::api` named interface exposes exactly the six cross-module vocabulary/error types, and the full module graph rejects invalid nested-module references | `ModulithVerificationTests#assetRegistryApiIsAnExactExplicitNamedInterface`, `ModulithVerificationTests#modulesAreWellFormed` | covered |
+| The parent-owned `assetregistry::api` named interface exposes exactly the shared vocabulary/errors plus immutable parent-facing contracts, and the full module graph rejects invalid nested-module references | `ModulithVerificationTests#assetRegistryApiIsAnExactExplicitNamedInterface`, `ModulithVerificationTests#modulesAreWellFormed` | covered |
+| Closed Kernel owns canonical Asset/role/outbox/readiness persistence with an exact allowlist and exposes only its opaque projection queue; closed Authorization owns the external edge with its exact allowlist | `ModulithVerificationTests#assetRegistryKernelIsAClosedNestedModule`, `#assetRegistryKernelExposesOnlyProjectionQueueContracts`, `#assetRegistryKernelDoesNotDependOnParentPersistenceOrProjection`, `#assetRegistryAuthorizationIsAClosedProjectionModule` | covered |
+| Registration writes Asset, OWNER, and three authorization intents atomically; duplicate roles emit no intent; lifecycle transitions stay on the locked canonical Asset; commands join the parent transaction, queue operations own short transactions, and OpenFGA projection rejects ambient transactions | `AssetKernelServiceTests`, `AssetAuthorizationOutboxTests`, `AssetAuthorizationProjectionServiceTests` | covered |
 | Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
 | Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
 | Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |

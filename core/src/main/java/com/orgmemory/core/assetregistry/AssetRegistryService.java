@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationTarget;
+import com.orgmemory.core.assetregistry.api.AssetAuthorizationProjectionCommand;
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetRole;
@@ -42,13 +44,13 @@ public class AssetRegistryService {
             PermissionKey.of("can_manage_roles");
 
     private final AssetRegistryCoordinator coordinator;
-    private final AssetAuthorizationProjectionService projection;
+    private final AssetAuthorizationProjectionCommand projection;
     private final RelationshipAuthorizationPort authorization;
     private final RelationshipAuthorizationSetPort authorizationSets;
 
     AssetRegistryService(
             AssetRegistryCoordinator coordinator,
-            AssetAuthorizationProjectionService projection,
+            AssetAuthorizationProjectionCommand projection,
             RelationshipAuthorizationPort authorization,
             RelationshipAuthorizationSetPort authorizationSets) {
         this.coordinator = coordinator;

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.kernel;
 
 import com.orgmemory.core.assetregistry.api.AssetRole;
 import java.time.Instant;

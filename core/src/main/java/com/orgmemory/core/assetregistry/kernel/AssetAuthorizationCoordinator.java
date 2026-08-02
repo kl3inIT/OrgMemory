@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.kernel;
 
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class AssetAuthorizationCoordinator {
+class AssetAuthorizationCoordinator implements AssetAuthorizationProjectionQueue {
 
     private static final Duration CLAIM_LEASE = Duration.ofMinutes(2);
 
@@ -34,20 +35,25 @@ class AssetAuthorizationCoordinator {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    AssetAuthorizationBatch startAttempt(UUID organizationId, UUID assetId) {
+    @Override
+    public Optional<AssetAuthorizationBatch> claimForAsset(
+            UUID organizationId, UUID assetId) {
         Asset asset = assets.findForUpdate(assetId, organizationId)
                 .orElseThrow(AssetNotFoundException::new);
         Instant now = Instant.now();
         List<AssetAuthorizationOutbox> claimable =
                 outbox.findClaimableForAsset(asset.getId(), now);
-        AssetAuthorizationBatch batch =
-                claimBatch(organizationId, assetId, claimable, now);
+        if (claimable.isEmpty()) {
+            return Optional.empty();
+        }
+        AssetAuthorizationBatch batch = claimBatch(organizationId, assetId, claimable, now);
         outbox.saveAllAndFlush(claimable);
-        return batch;
+        return Optional.of(batch);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    List<AssetAuthorizationBatch> claimPendingBatches(int limit) {
+    @Override
+    public List<AssetAuthorizationBatch> claimPending(int limit) {
         if (limit <= 0) {
             throw new IllegalArgumentException("Convergence limit must be positive");
         }
@@ -71,7 +77,8 @@ class AssetAuthorizationCoordinator {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    void complete(AssetAuthorizationBatch batch, String modelId) {
+    @Override
+    public void complete(AssetAuthorizationBatch batch, String modelId) {
         Asset asset = assets.findForUpdate(batch.assetId(), batch.organizationId())
                 .orElseThrow(AssetNotFoundException::new);
         Instant appliedAt = Instant.now();
@@ -79,17 +86,18 @@ class AssetAuthorizationCoordinator {
         if (records.size() != batch.outboxIds().size()) {
             throw new IllegalStateException("Asset authorization outbox batch is incomplete");
         }
+        requireBatchOwnership(batch, records);
         Set<UUID> roleIds = records.stream()
                 .map(AssetAuthorizationOutbox::getRoleAssignmentId)
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         records.forEach(
                 record -> record.markApplied(batch.claimToken(), modelId, appliedAt));
-        outbox.saveAll(records);
+        outbox.saveAllAndFlush(records);
         if (!roleIds.isEmpty()) {
             List<AssetRoleAssignment> assignments = roles.findAllById(roleIds);
             assignments.forEach(role -> role.markProjected(appliedAt));
-            roles.saveAll(assignments);
+            roles.saveAllAndFlush(assignments);
         }
         if (outbox.countUnresolved(batch.assetId()) == 0) {
             asset.markAuthorizationReady();
@@ -98,16 +106,29 @@ class AssetAuthorizationCoordinator {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    void recordFailure(AssetAuthorizationBatch batch, String code, String message) {
+    @Override
+    public void fail(AssetAuthorizationBatch batch, String code, String message) {
         List<AssetAuthorizationOutbox> records = outbox.findByIdIn(batch.outboxIds());
         if (records.size() != batch.outboxIds().size()) {
             throw new AssetConflictException(
                     "Asset authorization outbox batch is incomplete");
         }
+        requireBatchOwnership(batch, records);
         Instant failedAt = Instant.now();
         records.forEach(record -> record.recordFailure(
                 batch.claimToken(), code, message, failedAt));
-        outbox.saveAll(records);
+        outbox.saveAllAndFlush(records);
+    }
+
+    private static void requireBatchOwnership(
+            AssetAuthorizationBatch batch, List<AssetAuthorizationOutbox> records) {
+        boolean mismatched = records.stream().anyMatch(record ->
+                !record.getOrganizationId().equals(batch.organizationId())
+                        || !record.getAssetId().equals(batch.assetId()));
+        if (mismatched) {
+            throw new AssetConflictException(
+                    "Asset authorization outbox batch crosses an Asset boundary");
+        }
     }
 
     private static AssetAuthorizationBatch claimBatch(

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.kernel;
 
 import jakarta.persistence.LockModeType;
 import java.util.Collection;
@@ -19,10 +19,10 @@ interface AssetAuthorizationOutboxRepository
             from AssetAuthorizationOutbox outbox
             where outbox.assetId = :assetId
               and (
-                    (outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+                    (outbox.status = com.orgmemory.core.assetregistry.kernel.AssetAuthorizationStatus.PENDING
                      and outbox.nextAttemptAt <= :now)
                     or
-                    (outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.IN_FLIGHT
+                    (outbox.status = com.orgmemory.core.assetregistry.kernel.AssetAuthorizationStatus.IN_FLIGHT
                      and outbox.leaseUntil <= :now)
               )
             order by outbox.createdAt
@@ -36,11 +36,11 @@ interface AssetAuthorizationOutboxRepository
             select outbox
             from AssetAuthorizationOutbox outbox
             where (
-                    outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.PENDING
+                    outbox.status = com.orgmemory.core.assetregistry.kernel.AssetAuthorizationStatus.PENDING
                     and outbox.nextAttemptAt <= :now
                   )
                or (
-                    outbox.status = com.orgmemory.core.assetregistry.AssetAuthorizationStatus.IN_FLIGHT
+                    outbox.status = com.orgmemory.core.assetregistry.kernel.AssetAuthorizationStatus.IN_FLIGHT
                     and outbox.leaseUntil <= :now
                   )
             order by outbox.createdAt
@@ -53,7 +53,7 @@ interface AssetAuthorizationOutboxRepository
             select count(outbox)
             from AssetAuthorizationOutbox outbox
             where outbox.assetId = :assetId
-              and outbox.status <> com.orgmemory.core.assetregistry.AssetAuthorizationStatus.APPLIED
+              and outbox.status <> com.orgmemory.core.assetregistry.kernel.AssetAuthorizationStatus.APPLIED
             """)
     long countUnresolved(@Param("assetId") UUID assetId);
 
