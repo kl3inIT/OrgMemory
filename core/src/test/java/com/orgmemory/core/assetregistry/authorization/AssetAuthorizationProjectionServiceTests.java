@@ -72,10 +72,16 @@ class AssetAuthorizationProjectionServiceTests {
     @Test
     void externalProjectionExplicitlyRejectsAnAmbientDatabaseTransaction()
             throws NoSuchMethodException {
-        Method method = AssetAuthorizationProjectionService.class.getMethod(
+        Method projection = AssetAuthorizationProjectionService.class.getMethod(
                 "project", UUID.class, UUID.class);
-        Transactional transactional = method.getAnnotation(Transactional.class);
+        Method convergence = AssetAuthorizationConvergenceService.class.getMethod(
+                "reconcile", int.class);
 
-        assertEquals(Propagation.NEVER, transactional.propagation());
+        assertEquals(
+                Propagation.NEVER,
+                projection.getAnnotation(Transactional.class).propagation());
+        assertEquals(
+                Propagation.NEVER,
+                convergence.getAnnotation(Transactional.class).propagation());
     }
 }

@@ -4,6 +4,8 @@ import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationBatch;
 import com.orgmemory.core.assetregistry.kernel.AssetAuthorizationProjectionQueue;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AssetAuthorizationConvergenceService {
@@ -18,6 +20,7 @@ public class AssetAuthorizationConvergenceService {
         this.projection = projection;
     }
 
+    @Transactional(propagation = Propagation.NEVER)
     public AssetAuthorizationConvergenceReport reconcile(int limit) {
         List<AssetAuthorizationBatch> candidates =
                 queue.claimPending(limit);
