@@ -121,6 +121,7 @@ jobs:
           if published="$(
             npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null
           )"; then
+            # shellcheck disable=SC2016 -- interpolation belongs to Node below.
             PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node -e '
               const value = JSON.parse(process.env.PUBLISHED_JSON)
               const expectedVersion = process.env.PACKAGE_VERSION
