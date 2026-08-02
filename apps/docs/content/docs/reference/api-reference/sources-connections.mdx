@@ -65,6 +65,9 @@ _openapi:
       title: Compare-and-set SCIM connection state
       url: '#compare-and-set-scim-connection-state'
     - depth: 2
+      title: Stream permission-verified current source evidence
+      url: '#stream-permission-verified-current-source-evidence'
+    - depth: 2
       title: List observed principals and their mapping
       url: '#list-observed-principals-and-their-mapping'
     - depth: 2
@@ -85,6 +88,9 @@ _openapi:
     - depth: 2
       title: List the sources this deployment can ingest
       url: '#list-the-sources-this-deployment-can-ingest'
+    - depth: 2
+      title: Retire a ready manual-upload document
+      url: '#retire-a-ready-manual-upload-document'
     - depth: 2
       title: Immediately revoke a SCIM credential
       url: '#immediately-revoke-a-scim-credential'
@@ -124,6 +130,8 @@ _openapi:
         id: check-a-credential-without-storing-it
       - content: Compare-and-set SCIM connection state
         id: compare-and-set-scim-connection-state
+      - content: Stream permission-verified current source evidence
+        id: stream-permission-verified-current-source-evidence
       - content: List observed principals and their mapping
         id: list-observed-principals-and-their-mapping
       - content: List source groups with their sealed membership
@@ -138,6 +146,8 @@ _openapi:
         id: read-what-a-connection-has-crawled-and-what-went-wrong
       - content: List the sources this deployment can ingest
         id: list-the-sources-this-deployment-can-ingest
+      - content: Retire a ready manual-upload document
+        id: retire-a-ready-manual-upload-document
       - content: Immediately revoke a SCIM credential
         id: immediately-revoke-a-scim-credential
     contents: []
@@ -152,7 +162,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/source-principals/{principalId}/mapping","method":"delete"},{"path":"/api/admin/source-principals/{principalId}/mapping","method":"put"},{"path":"/api/admin/source-connections/identity-trust","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"put"},{"path":"/api/sources","method":"get"},{"path":"/api/sources","method":"post"},{"path":"/api/admin/provisioning/connections","method":"get"},{"path":"/api/admin/provisioning/connections","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}/rotate","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/test","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/crawl","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/test","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/state","method":"patch"},{"path":"/api/admin/source-principals","method":"get"},{"path":"/api/admin/source-groups","method":"get"},{"path":"/api/admin/source-connections","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/scopes","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/activity","method":"get"},{"path":"/api/admin/connectors/sources","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/source-principals/{principalId}/mapping","method":"delete"},{"path":"/api/admin/source-principals/{principalId}/mapping","method":"put"},{"path":"/api/admin/source-connections/identity-trust","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}","method":"put"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"delete"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/credential","method":"put"},{"path":"/api/sources","method":"get"},{"path":"/api/sources","method":"post"},{"path":"/api/admin/provisioning/connections","method":"get"},{"path":"/api/admin/provisioning/connections","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"get"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}/rotate","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/test","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/crawl","method":"post"},{"path":"/api/admin/connectors/{sourceSystem}/test","method":"post"},{"path":"/api/admin/provisioning/connections/{connectionId}/state","method":"patch"},{"path":"/api/sources/{sourceId}/content","method":"get"},{"path":"/api/admin/source-principals","method":"get"},{"path":"/api/admin/source-groups","method":"get"},{"path":"/api/admin/source-connections","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/scopes","method":"get"},{"path":"/api/admin/connectors/{sourceSystem}/{connectionKey}/activity","method":"get"},{"path":"/api/admin/connectors/sources","method":"get"},{"path":"/api/sources/{sourceId}","method":"delete"},{"path":"/api/admin/provisioning/connections/{connectionId}/credentials/{credentialId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }

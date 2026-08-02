@@ -30,11 +30,13 @@ class SourceQueryServiceTests {
     private final SourceRevisionRepository revisions = mock(SourceRevisionRepository.class);
     private final SourceEmbeddingProfileDirectory profiles = mock(SourceEmbeddingProfileDirectory.class);
     private final SourceVisibilityPort visibility = mock(SourceVisibilityPort.class);
+    private final SourceActionAuthorizationPort actions = mock(SourceActionAuthorizationPort.class);
     private final SourceQueryService service = new SourceQueryService(
             sources,
             revisions,
             profiles,
-            visibility);
+            visibility,
+            actions);
 
     @Test
     void listsOwnUploadsAndPermissionFilteredPublishedSources() {
@@ -46,11 +48,16 @@ class SourceQueryServiceTests {
         SourceObject sharedSource = source(sharedSourceId, sharedRevisionId, "shared.md");
         SourceRevision ownRevision = revision(ownRevisionId, "own.md");
         SourceRevision sharedRevision = revision(sharedRevisionId, "shared.md");
+        UUID ownAssetId = UUID.randomUUID();
+        UUID sharedAssetId = UUID.randomUUID();
+        when(ownRevision.getKnowledgeAssetId()).thenReturn(ownAssetId);
+        when(sharedRevision.getKnowledgeAssetId()).thenReturn(sharedAssetId);
 
         when(sources.findAllByOrganizationIdAndCreatedByUserIdOrderByUpdatedAtDesc(
                         ORGANIZATION_ID, USER_ID))
                 .thenReturn(List.of(ownSource));
         when(visibility.visibleSourceObjectIds(ACTOR)).thenReturn(List.of(sharedSourceId));
+        when(actions.deletableKnowledgeAssetIds(ACTOR)).thenReturn(Set.of(ownAssetId));
         when(sources.findAllByOrganizationIdAndIdInOrderByUpdatedAtDesc(
                         ORGANIZATION_ID, Set.of(ownSourceId, sharedSourceId)))
                 .thenReturn(List.of(sharedSource, ownSource));
@@ -60,7 +67,10 @@ class SourceQueryServiceTests {
         List<SourceSummary> result = service.listVisible(ACTOR);
 
         assertEquals(List.of(sharedSourceId, ownSourceId), result.stream().map(SourceSummary::id).toList());
+        assertEquals(List.of(true, false), result.stream().map(SourceSummary::contentAvailable).toList());
+        assertEquals(List.of(false, true), result.stream().map(SourceSummary::deletionAllowed).toList());
         verify(visibility).visibleSourceObjectIds(ACTOR);
+        verify(actions).deletableKnowledgeAssetIds(ACTOR);
     }
 
     private static SourceObject source(UUID sourceId, UUID revisionId, String title) {
@@ -72,6 +82,7 @@ class SourceQueryServiceTests {
         when(source.getSourceSystem()).thenReturn("upload");
         when(source.getAclAuthority()).thenReturn(AclAuthority.ORGMEMORY);
         when(source.getClassification()).thenReturn(KnowledgeClassification.INTERNAL);
+        when(source.getStatus()).thenReturn(SourceObjectStatus.ACTIVE);
         return source;
     }
 
