@@ -136,11 +136,12 @@ class PermissionsAdminIntegrationTests {
         jdbc.update("""
                 INSERT INTO ai_gateway_profiles (
                     id, organization_id, gateway_key, display_name, preset,
-                    category, protocol, base_url, request_timeout_seconds,
-                    enabled, runtime_revision, created_by_user_id,
+                        category, protocol, supports_openai_reasoning_effort,
+                        base_url, request_timeout_seconds, enabled,
+                        runtime_revision, created_by_user_id,
                     updated_by_user_id, created_at, updated_at, version)
                 VALUES (?, ?, 'tenant-safe', 'Tenant safe', 'OPENAI',
-                    'DIRECT_PROVIDER', 'OPENAI_COMPATIBLE',
+                    'DIRECT_PROVIDER', 'OPENAI_COMPATIBLE', false,
                     'https://api.openai.com/v1', 60, true, 1, ?, ?,
                     now(), now(), 0)
                 """,

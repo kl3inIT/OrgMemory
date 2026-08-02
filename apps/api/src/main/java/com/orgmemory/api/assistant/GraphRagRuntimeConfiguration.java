@@ -4,7 +4,6 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.knowledge.retrieval.GraphRagRetrievalPolicy;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
-import com.orgmemory.graphrag.cache.CanonicalCacheKeyHasher;
 import com.orgmemory.graphrag.cache.ModelInvocationCache;
 import com.orgmemory.graphrag.chunking.TextEmbeddingPort;
 import com.orgmemory.graphrag.processing.ProcessingComponentRef;
@@ -23,7 +22,6 @@ import com.orgmemory.integrations.graphrag.springai.SpringAiQueryAnswerModel;
 import com.orgmemory.integrations.graphrag.springai.SpringAiTextEmbeddingPort;
 import java.time.Clock;
 import java.util.List;
-import java.util.Map;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -67,27 +65,17 @@ class GraphRagRuntimeConfiguration {
                 content,
                 vectors,
                 graph);
-        var chatRoute = routes.resolve(AiWorkload.ASSISTANT_CHAT);
-        var chatModel = chatModels.resolve(AiWorkload.ASSISTANT_CHAT);
-        var keywordRoute = routes.resolve(AiWorkload.KEYWORD_PLANNING);
-        var keywordChatModel =
-                chatModels.resolve(AiWorkload.KEYWORD_PLANNING);
-        var keywordModel = new SpringAiKeywordPlanningModel(
-                keywordRoute.modelId(),
-                keywordChatModel);
-        String keywordRouteFingerprint = CanonicalCacheKeyHasher.sha256(
-                "orgmemory.ai.keyword-route.v1",
-                Map.of(
-                        "gatewayId", keywordRoute.gatewayId(),
-                        "modelId", keywordRoute.modelId()));
+        var keywordModel = new OrganizationAwareKeywordPlanningModel(
+                routes,
+                chatModels);
         TextEmbeddingPort embeddings = new SpringAiTextEmbeddingPort(
                 embeddingModel,
                 embedding.provider(),
                 embedding.model(),
                 properties.maximumEmbeddingBatchSize());
-        QueryAnswerModel answerModel = new SpringAiQueryAnswerModel(
-                chatRoute.modelId(),
-                chatModel);
+        QueryAnswerModel answerModel = new OrganizationAwareQueryAnswerModel(
+                routes,
+                chatModels);
         return new LightRagQueryEngine(
                 projection,
                 new LightRagKeywordPlanner(
@@ -95,7 +83,6 @@ class GraphRagRuntimeConfiguration {
                         properties.language(),
                         new LightRagKeywordPlanner.CachePolicy(
                                 modelInvocationCache,
-                                keywordRouteFingerprint,
                                 properties.keywordCacheTtl(),
                                 clocks.getIfAvailable(Clock::systemUTC))),
                 embeddings,

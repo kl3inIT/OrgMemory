@@ -8,6 +8,7 @@ import com.orgmemory.core.ai.AiGatewayProfileView;
 import com.orgmemory.core.ai.AiGatewayProtocol;
 import com.orgmemory.core.ai.AiRouteOverrideView;
 import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.ai.OpenAiReasoningEffort;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.shared.secret.SecretValue;
@@ -152,6 +153,7 @@ class AdminAiModelController {
                 request.protocol(),
                 request.baseUrl(),
                 request.requestTimeoutSeconds(),
+                request.supportsOpenAiReasoningEffort(),
                 secret(request.credential()),
                 actor.userId());
         return GatewayResponse.from(created);
@@ -173,6 +175,7 @@ class AdminAiModelController {
                 request.displayName(),
                 request.baseUrl(),
                 request.requestTimeoutSeconds(),
+                request.supportsOpenAiReasoningEffort(),
                 optionalSecret(request.credential()),
                 actor.userId()));
     }
@@ -293,6 +296,7 @@ class AdminAiModelController {
                 workload,
                 request.gatewayProfileId(),
                 request.modelId(),
+                request.openAiReasoningEffort(),
                 actor.userId());
         return RouteResponse.override(route);
     }
@@ -378,6 +382,7 @@ class AdminAiModelController {
             AiGatewayPreset preset,
             AiGatewayCategory category,
             AiGatewayProtocol protocol,
+            boolean supportsOpenAiReasoningEffort,
             String baseUrl,
             int requestTimeoutSeconds,
             boolean enabled,
@@ -394,6 +399,7 @@ class AdminAiModelController {
                     profile.preset(),
                     profile.category(),
                     profile.protocol(),
+                    profile.supportsOpenAiReasoningEffort(),
                     profile.baseUrl(),
                     profile.requestTimeoutSeconds(),
                     profile.enabled(),
@@ -412,11 +418,12 @@ class AdminAiModelController {
             AiGatewayProtocol protocol,
             String baseUrl,
             Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             String credential) {
 
         @Override
         public String toString() {
-            return "CreateGatewayRequest[gatewayKey=%s, displayName=%s, preset=%s, category=%s, protocol=%s, baseUrl=%s, requestTimeoutSeconds=%s, credential=<redacted>]"
+            return "CreateGatewayRequest[gatewayKey=%s, displayName=%s, preset=%s, category=%s, protocol=%s, baseUrl=%s, requestTimeoutSeconds=%s, supportsOpenAiReasoningEffort=%s, credential=<redacted>]"
                     .formatted(
                             gatewayKey,
                             displayName,
@@ -424,7 +431,8 @@ class AdminAiModelController {
                             category,
                             protocol,
                             baseUrl,
-                            requestTimeoutSeconds);
+                            requestTimeoutSeconds,
+                            supportsOpenAiReasoningEffort);
         }
     }
 
@@ -432,15 +440,17 @@ class AdminAiModelController {
             String displayName,
             String baseUrl,
             Integer requestTimeoutSeconds,
+            boolean supportsOpenAiReasoningEffort,
             String credential) {
 
         @Override
         public String toString() {
-            return "UpdateGatewayRequest[displayName=%s, baseUrl=%s, requestTimeoutSeconds=%s, credential=<redacted>]"
+            return "UpdateGatewayRequest[displayName=%s, baseUrl=%s, requestTimeoutSeconds=%s, supportsOpenAiReasoningEffort=%s, credential=<redacted>]"
                     .formatted(
                             displayName,
                             baseUrl,
-                            requestTimeoutSeconds);
+                            requestTimeoutSeconds,
+                            supportsOpenAiReasoningEffort);
         }
     }
 
@@ -487,7 +497,10 @@ class AdminAiModelController {
         }
     }
 
-    record SetRouteRequest(UUID gatewayProfileId, String modelId) {
+    record SetRouteRequest(
+            UUID gatewayProfileId,
+            String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort) {
     }
 
     record RouteResponse(
@@ -495,9 +508,11 @@ class AdminAiModelController {
             String gatewayKey,
             UUID gatewayProfileId,
             String modelId,
+            OpenAiReasoningEffort openAiReasoningEffort,
             String source,
             boolean editable,
-            long version) {
+            long version,
+            String lifecycleNote) {
 
         static RouteResponse override(AiRouteOverrideView route) {
             return new RouteResponse(
@@ -505,9 +520,11 @@ class AdminAiModelController {
                     route.gatewayKey(),
                     route.gatewayProfileId(),
                     route.modelId(),
+                    route.openAiReasoningEffort(),
                     "ORGANIZATION_OVERRIDE",
                     true,
-                    route.version());
+                    route.version(),
+                    lifecycleNote(route.workload()));
         }
 
         static RouteResponse deployment(
@@ -518,10 +535,24 @@ class AdminAiModelController {
                     route.gatewayId(),
                     null,
                     route.modelId(),
+                    route.openAiReasoningEffort(),
                     "DEPLOYMENT_DEFAULT",
                     workload == AiWorkload.ASSISTANT_CHAT
-                            || workload == AiWorkload.PROMPT_EXECUTION,
-                    0);
+                            || workload == AiWorkload.PROMPT_EXECUTION
+                            || workload == AiWorkload.KEYWORD_PLANNING,
+                    0,
+                    lifecycleNote(workload));
+        }
+
+        private static String lifecycleNote(AiWorkload workload) {
+            return switch (workload) {
+                case ASSISTANT_CHAT, PROMPT_EXECUTION, KEYWORD_PLANNING ->
+                        "Changes apply to subsequent requests.";
+                case GRAPH_EXTRACTION ->
+                        "Deployment-managed. Changes affect only newly enqueued graph jobs and do not trigger reindexing.";
+                case QUERY_EMBEDDING, DOCUMENT_EMBEDDING ->
+                        "Changing embedding geometry requires a versioned profile and reindex lifecycle.";
+            };
         }
     }
 

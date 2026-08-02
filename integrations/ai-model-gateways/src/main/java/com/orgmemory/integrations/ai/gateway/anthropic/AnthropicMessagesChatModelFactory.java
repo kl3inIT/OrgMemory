@@ -34,6 +34,10 @@ public final class AnthropicMessagesChatModelFactory
 
     @Override
     public ChatModel create(Request request) {
+        if (request.openAiReasoningEffort() != null) {
+            throw new IllegalArgumentException(
+                    "OpenAI reasoning effort is not supported by the Anthropic Messages protocol");
+        }
         return AnthropicChatModel.builder()
                 .options(AnthropicChatOptions.builder()
                         .baseUrl(request.baseUrl())

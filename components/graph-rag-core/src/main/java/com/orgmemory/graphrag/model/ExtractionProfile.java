@@ -13,6 +13,7 @@ import java.util.Objects;
 public record ExtractionProfile(
         String provider,
         String model,
+        String openAiReasoningEffort,
         String promptVersion,
         int maxEntities,
         int maxRelations,
@@ -40,6 +41,8 @@ public record ExtractionProfile(
     public ExtractionProfile {
         provider = requireText(provider, "provider");
         model = requireText(model, "model");
+        openAiReasoningEffort = normalizedOpenAiReasoningEffort(
+                openAiReasoningEffort);
         promptVersion = requireText(promptVersion, "promptVersion");
         if (maxEntities <= 0 || maxRelations <= 0) {
             throw new IllegalArgumentException("extraction limits must be positive");
@@ -72,10 +75,36 @@ public record ExtractionProfile(
             List<String> entityTypeGuidance,
             List<String> examples,
             int maxGleaningRounds,
+            int maxGleaningInputTokens,
+            int maxSectionContextTokens) {
+        this(
+                provider,
+                model,
+                null,
+                promptVersion,
+                maxEntities,
+                maxRelations,
+                entityTypeGuidance,
+                examples,
+                maxGleaningRounds,
+                maxGleaningInputTokens,
+                maxSectionContextTokens);
+    }
+
+    public ExtractionProfile(
+            String provider,
+            String model,
+            String promptVersion,
+            int maxEntities,
+            int maxRelations,
+            List<String> entityTypeGuidance,
+            List<String> examples,
+            int maxGleaningRounds,
             int maxGleaningInputTokens) {
         this(
                 provider,
                 model,
+                null,
                 promptVersion,
                 maxEntities,
                 maxRelations,
@@ -95,6 +124,7 @@ public record ExtractionProfile(
         this(
                 provider,
                 model,
+                null,
                 promptVersion,
                 maxEntities,
                 maxRelations,
@@ -117,6 +147,8 @@ public record ExtractionProfile(
         MessageDigest digest = sha256();
         update(digest, provider);
         update(digest, model);
+        update(digest, "openAiReasoningEffort");
+        update(digest, openAiReasoningEffort == null ? "" : openAiReasoningEffort);
         update(digest, promptVersion);
         update(digest, Integer.toString(maxEntities));
         update(digest, Integer.toString(maxRelations));
@@ -138,6 +170,19 @@ public record ExtractionProfile(
                 .map(value -> requireText(value, field + " value"))
                 .distinct()
                 .toList();
+    }
+
+    private static String normalizedOpenAiReasoningEffort(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.strip().toLowerCase(java.util.Locale.ROOT);
+        if (!List.of("none", "low", "medium", "high", "xhigh", "max")
+                .contains(normalized)) {
+            throw new IllegalArgumentException(
+                    "openAiReasoningEffort is not supported");
+        }
+        return normalized;
     }
 
     private static MessageDigest sha256() {

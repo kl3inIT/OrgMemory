@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "orgmemory.workload-routing-evaluation-result.v1",
+  "generatedAt": "2026-08-02T08:58:18.824848+00:00",
+  "fixtureSha256": "44119f6b7db5e908ddf59a80d3f25b0cdf3f3c211c4366868fd55f251ab3f7f1",
+  "caseCount": 4,
+  "repetitions": 3,
+  "routes": [
+    {
+      "role": "keyword",
+      "label": "baseline",
+      "model": "gpt-5.6-sol",
+      "reasoningEffort": null
+    },
+    {
+      "role": "keyword",
+      "label": "candidate",
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "none"
+    },
+    {
+      "role": "graph",
+      "label": "baseline",
+      "model": "gpt-5.4-mini",
+      "reasoningEffort": null
+    },
+    {
+      "role": "graph",
+      "label": "candidate",
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "none"
+    }
+  ],
+  "aggregates": {
+    "keyword": {
+      "baseline": {
+        "samples": 12,
+        "validResponses": 12,
+        "providerFailures": 0,
+        "meanRecall": 0.875,
+        "p95LatencyMs": 2611.9,
+        "meanEntities": 0.0,
+        "meanRelationships": 0.0,
+        "errorCodes": []
+      },
+      "candidate": {
+        "samples": 12,
+        "validResponses": 12,
+        "providerFailures": 0,
+        "meanRecall": 0.875,
+        "p95LatencyMs": 1423.9,
+        "meanEntities": 0.0,
+        "meanRelationships": 0.0,
+        "errorCodes": []
+      }
+    },
+    "graph": {
+      "baseline": {
+        "samples": 12,
+        "validResponses": 12,
+        "providerFailures": 0,
+        "meanRecall": 1.0,
+        "p95LatencyMs": 3233.2,
+        "meanEntities": 5.17,
+        "meanRelationships": 4.17,
+        "errorCodes": []
+      },
+      "candidate": {
+        "samples": 12,
+        "validResponses": 11,
+        "providerFailures": 0,
+        "meanRecall": 1.0,
+        "p95LatencyMs": 4124.2,
+        "meanEntities": 4.67,
+        "meanRelationships": 3.5,
+        "errorCodes": []
+      }
+    }
+  },
+  "activation": {
+    "keyword": true,
+    "graph": false
+  }
+}

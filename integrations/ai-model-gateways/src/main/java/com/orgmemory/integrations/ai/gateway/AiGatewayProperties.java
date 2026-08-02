@@ -27,7 +27,10 @@ public record AiGatewayProperties(
 
     public AiRoute route(AiWorkload workload) {
         Route route = routes.forWorkload(workload);
-        return new AiRoute(route.gatewayId(), route.modelId());
+        return new AiRoute(
+                route.gatewayId(),
+                route.modelId(),
+                route.openAiReasoningEffort());
     }
 
     public record Gateway(
@@ -35,7 +38,8 @@ public record AiGatewayProperties(
             String baseUrl,
             String apiKey,
             Set<AiGatewayCapability> capabilities,
-            Duration timeout) {
+            Duration timeout,
+            boolean supportsOpenAiReasoningEffort) {
 
         public Gateway {
             displayName = normalize(displayName, "OpenAI-compatible");
@@ -48,6 +52,21 @@ public record AiGatewayProperties(
             if (timeout.isNegative() || timeout.isZero() || timeout.compareTo(Duration.ofMinutes(5)) > 0) {
                 throw new IllegalArgumentException("AI gateway timeout must be between 1 second and 5 minutes");
             }
+        }
+
+        public Gateway(
+                String displayName,
+                String baseUrl,
+                String apiKey,
+                Set<AiGatewayCapability> capabilities,
+                Duration timeout) {
+            this(
+                    displayName,
+                    baseUrl,
+                    apiKey,
+                    capabilities,
+                    timeout,
+                    false);
         }
 
         boolean configured() {
@@ -83,7 +102,14 @@ public record AiGatewayProperties(
         }
     }
 
-    public record Route(String gatewayId, String modelId) {
+    public record Route(
+            String gatewayId,
+            String modelId,
+            com.orgmemory.core.ai.OpenAiReasoningEffort openAiReasoningEffort) {
+
+        public Route(String gatewayId, String modelId) {
+            this(gatewayId, modelId, null);
+        }
 
         public Route {
             gatewayId = normalize(gatewayId, "openai");

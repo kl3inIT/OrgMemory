@@ -18,4 +18,8 @@ interface AiRouteOverrideRepository
     boolean existsByOrganizationIdAndGatewayProfileId(
             UUID organizationId,
             UUID gatewayProfileId);
+
+    boolean existsByOrganizationIdAndGatewayProfileIdAndOpenAiReasoningEffortIsNotNull(
+            UUID organizationId,
+            UUID gatewayProfileId);
 }

@@ -29,7 +29,8 @@ class LightRagKeywordPlannerCacheTests {
     void exactQueryReusesCachedModelPlanWithinTheOrganization() {
         RecordingModel model = new RecordingModel();
         InMemoryCache cache = new InMemoryCache();
-        LightRagKeywordPlanner planner = planner(model, cache, "a".repeat(64));
+        model.routeFingerprint = "a".repeat(64);
+        LightRagKeywordPlanner planner = planner(model, cache);
 
         LightRagKeywordPlanner.PlanningResult first = planner.planWithTrace(
                 "What is the leave policy?",
@@ -53,26 +54,21 @@ class LightRagKeywordPlannerCacheTests {
     void organizationStrategyQueryAndRouteRemainIndependentCacheDimensions() {
         RecordingModel model = new RecordingModel();
         InMemoryCache cache = new InMemoryCache();
-        LightRagKeywordPlanner firstRoute =
-                planner(model, cache, "a".repeat(64));
-        LightRagKeywordPlanner secondRoute =
-                planner(model, cache, "b".repeat(64));
+        model.routeFingerprint = "a".repeat(64);
+        LightRagKeywordPlanner planner = planner(model, cache);
         LightRagKeywordPlanner secondLanguage =
-                planner(
-                        model,
-                        cache,
-                        "a".repeat(64),
-                        "English");
+                planner(model, cache, "English");
 
-        firstRoute.plan("leave policy", null, ORGANIZATION_ID, "MIX");
-        firstRoute.plan(
+        planner.plan("leave policy", null, ORGANIZATION_ID, "MIX");
+        planner.plan(
                 "leave policy",
                 null,
                 UUID.fromString("10000000-0000-4000-8000-000000000002"),
                 "MIX");
-        firstRoute.plan("leave policy", null, ORGANIZATION_ID, "LOCAL");
-        firstRoute.plan("expense policy", null, ORGANIZATION_ID, "MIX");
-        secondRoute.plan("leave policy", null, ORGANIZATION_ID, "MIX");
+        planner.plan("leave policy", null, ORGANIZATION_ID, "LOCAL");
+        planner.plan("expense policy", null, ORGANIZATION_ID, "MIX");
+        model.routeFingerprint = "b".repeat(64);
+        planner.plan("leave policy", null, ORGANIZATION_ID, "MIX");
         secondLanguage.plan(
                 "leave policy",
                 null,
@@ -87,7 +83,8 @@ class LightRagKeywordPlannerCacheTests {
     void trustedKeywordsBypassBothProviderAndCache() {
         RecordingModel model = new RecordingModel();
         InMemoryCache cache = new InMemoryCache();
-        LightRagKeywordPlanner planner = planner(model, cache, "a".repeat(64));
+        model.routeFingerprint = "a".repeat(64);
+        LightRagKeywordPlanner planner = planner(model, cache);
 
         KeywordPlan result = planner.plan(
                 "leave policy",
@@ -104,26 +101,19 @@ class LightRagKeywordPlannerCacheTests {
 
     private static LightRagKeywordPlanner planner(
             RecordingModel model,
-            InMemoryCache cache,
-            String routeFingerprint) {
-        return planner(
-                model,
-                cache,
-                routeFingerprint,
-                "Vietnamese");
+            InMemoryCache cache) {
+        return planner(model, cache, "Vietnamese");
     }
 
     private static LightRagKeywordPlanner planner(
             RecordingModel model,
             InMemoryCache cache,
-            String routeFingerprint,
             String language) {
         return new LightRagKeywordPlanner(
                 model,
                 language,
                 new LightRagKeywordPlanner.CachePolicy(
                         cache,
-                        routeFingerprint,
                         Duration.ofHours(24),
                         CLOCK));
     }
@@ -132,6 +122,7 @@ class LightRagKeywordPlannerCacheTests {
             implements KeywordPlanningModel {
 
         private int calls;
+        private String routeFingerprint;
 
         @Override
         public ProcessingComponentRef component() {
@@ -141,11 +132,21 @@ class LightRagKeywordPlannerCacheTests {
         }
 
         @Override
-        public KeywordPlan complete(String prompt) {
+        public String modelRouteFingerprint(UUID organizationId) {
+            return routeFingerprint;
+        }
+
+        @Override
+        public KeywordPlan complete(UUID organizationId, String prompt) {
             calls++;
             return KeywordPlan.model(
                     List.of("policy"),
                     List.of("leave"));
+        }
+
+        @Override
+        public KeywordPlan complete(String prompt) {
+            return complete(null, prompt);
         }
     }
 

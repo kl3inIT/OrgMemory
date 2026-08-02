@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.permission.PermissionAuditService;
+import com.orgmemory.core.shared.error.BusinessConflictException;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.shared.secret.EncryptedSecret;
@@ -41,6 +42,8 @@ class AiGatewayAdministrationServiceTests {
             new AtomicReference<>();
     private final AtomicReference<AiGatewayCredential> storedCredential =
             new AtomicReference<>();
+    private final AtomicReference<AiRouteOverride> storedRoute =
+            new AtomicReference<>();
     private final AiGatewayAdministrationService service =
             new AiGatewayAdministrationService(
                     profiles,
@@ -61,6 +64,11 @@ class AiGatewayAdministrationServiceTests {
             AiGatewayCredential credential = invocation.getArgument(0);
             storedCredential.set(credential);
             return credential;
+        });
+        when(routes.save(any())).thenAnswer(invocation -> {
+            AiRouteOverride route = invocation.getArgument(0);
+            storedRoute.set(route);
+            return route;
         });
         when(credentials.findByOrganizationIdAndGatewayProfileId(
                         any(),
@@ -258,5 +266,118 @@ class AiGatewayAdministrationServiceTests {
                         organizationId,
                         AiWorkload.GRAPH_EXTRACTION,
                         adminUserId));
+    }
+
+    @Test
+    void keywordPlanningCanSelectDeclaredOpenAiReasoningWithoutMakingGraphEditable() {
+        UUID organizationId = UUID.randomUUID();
+        UUID adminUserId = UUID.randomUUID();
+        AiGatewayProfileView profile = service.create(
+                organizationId,
+                "openai-main",
+                "OpenAI",
+                AiGatewayPreset.OPENAI,
+                AiGatewayCategory.DIRECT_PROVIDER,
+                AiGatewayProtocol.OPENAI_COMPATIBLE,
+                "https://api.openai.com/v1",
+                60,
+                true,
+                SecretValue.of("secret"),
+                adminUserId);
+        when(profiles.findByIdAndOrganizationId(profile.id(), organizationId))
+                .thenReturn(Optional.of(storedProfile.get()));
+        when(routes.findByOrganizationIdAndWorkload(
+                        organizationId,
+                        AiWorkload.KEYWORD_PLANNING))
+                .thenReturn(Optional.empty());
+
+        AiRouteOverrideView selected = service.setRoute(
+                organizationId,
+                AiWorkload.KEYWORD_PLANNING,
+                profile.id(),
+                "gpt-5.6-luna",
+                OpenAiReasoningEffort.NONE,
+                adminUserId);
+
+        assertEquals(OpenAiReasoningEffort.NONE, selected.openAiReasoningEffort());
+        assertEquals(OpenAiReasoningEffort.NONE, selected.route().openAiReasoningEffort());
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.setRoute(
+                        organizationId,
+                        AiWorkload.GRAPH_EXTRACTION,
+                        profile.id(),
+                        "gpt-5.6-luna",
+                        OpenAiReasoningEffort.NONE,
+                        adminUserId));
+    }
+
+    @Test
+    void anOpenAiCompatibleGatewayMustDeclareReasoningSupport() {
+        UUID organizationId = UUID.randomUUID();
+        UUID adminUserId = UUID.randomUUID();
+        AiGatewayProfileView profile = service.create(
+                organizationId,
+                "compatible",
+                "Compatible gateway",
+                AiGatewayPreset.OPENAI,
+                AiGatewayCategory.DIRECT_PROVIDER,
+                AiGatewayProtocol.OPENAI_COMPATIBLE,
+                "https://api.openai.com/v1",
+                60,
+                false,
+                SecretValue.of("secret"),
+                adminUserId);
+        when(profiles.findByIdAndOrganizationId(profile.id(), organizationId))
+                .thenReturn(Optional.of(storedProfile.get()));
+
+        assertThrows(
+                BusinessValidationException.class,
+                () -> service.setRoute(
+                        organizationId,
+                        AiWorkload.KEYWORD_PLANNING,
+                        profile.id(),
+                        "gpt-5.6-luna",
+                        OpenAiReasoningEffort.NONE,
+                        adminUserId));
+        verify(routes, never()).save(any());
+    }
+
+    @Test
+    void reasoningCapabilityCannotBeDisabledWhileAnExplicitRouteUsesIt() {
+        UUID organizationId = UUID.randomUUID();
+        UUID adminUserId = UUID.randomUUID();
+        AiGatewayProfileView profile = service.create(
+                organizationId,
+                "openai-main",
+                "OpenAI",
+                AiGatewayPreset.OPENAI,
+                AiGatewayCategory.DIRECT_PROVIDER,
+                AiGatewayProtocol.OPENAI_COMPATIBLE,
+                "https://api.openai.com/v1",
+                60,
+                true,
+                null,
+                adminUserId);
+        when(profiles.findByIdAndOrganizationId(profile.id(), organizationId))
+                .thenReturn(Optional.of(storedProfile.get()));
+        when(routes.existsByOrganizationIdAndGatewayProfileIdAndOpenAiReasoningEffortIsNotNull(
+                        organizationId,
+                        profile.id()))
+                .thenReturn(true);
+
+        assertThrows(
+                BusinessConflictException.class,
+                () -> service.update(
+                        organizationId,
+                        profile.id(),
+                        "OpenAI",
+                        "https://api.openai.com/v1",
+                        60,
+                        false,
+                        null,
+                        adminUserId));
+
+        assertTrue(storedProfile.get().supportsOpenAiReasoningEffort());
     }
 }

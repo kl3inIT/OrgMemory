@@ -27,6 +27,11 @@ test("admin connects providers and can restore the deployment model route", asyn
   await expect(page.getByText("Self-hosted & custom")).toBeVisible()
   await expect(page.getByText("9Router primary").first()).toBeVisible()
   await expect(page.getByText("Organization override", { exact: true })).toBeVisible()
+  await expect(page.getByText("RAG pipeline & prompt routes")).toBeVisible()
+  await expect(page.getByText("Keyword planning", { exact: true })).toBeVisible()
+  await expect(page.getByText("Graph extraction", { exact: true })).toBeVisible()
+  await expect(page.getByText(/newly enqueued graph jobs/)).toBeVisible()
+  await expect(page.getByRole("button", { name: /reindex/i })).toHaveCount(0)
   for (const slug of [
     "openai",
     "anthropic",
@@ -57,7 +62,7 @@ test("admin connects providers and can restore the deployment model route", asyn
 
   await page.getByRole("button", { name: "Use deployment default" }).first().click()
   await expect(page.getByText("Deployment default restored.")).toBeVisible()
-  await expect(page.getByText("Deployment default", { exact: true })).toHaveCount(2)
+  await expect(page.getByText("Deployment default", { exact: true })).toHaveCount(3)
 
   expect(requests).toContain("DELETE /api/admin/ai/routes/ASSISTANT_CHAT")
   expect(browserErrors).toEqual([])
@@ -184,6 +189,7 @@ async function modelSettingsHarness(
             preset: "NINE_ROUTER",
             category: "GATEWAY_ROUTER",
             protocol: "OPENAI_COMPATIBLE",
+            supportsOpenAiReasoningEffort: true,
             baseUrl: "http://localhost:20128/v1",
             requestTimeoutSeconds: 60,
             enabled: true,
@@ -238,6 +244,29 @@ async function modelSettingsHarness(
             source: "DEPLOYMENT_DEFAULT",
             editable: true,
             version: 0,
+            lifecycleNote: "Changes apply to subsequent requests.",
+          },
+          {
+            workload: "KEYWORD_PLANNING",
+            gatewayKey: "openai",
+            gatewayProfileId: null,
+            modelId: "gpt-5.6-sol",
+            openAiReasoningEffort: null,
+            source: "DEPLOYMENT_DEFAULT",
+            editable: true,
+            version: 0,
+            lifecycleNote: "Changes apply to subsequent requests.",
+          },
+          {
+            workload: "GRAPH_EXTRACTION",
+            gatewayKey: "openai",
+            gatewayProfileId: null,
+            modelId: "gpt-5.4-mini",
+            openAiReasoningEffort: null,
+            source: "DEPLOYMENT_DEFAULT",
+            editable: false,
+            version: 0,
+            lifecycleNote: "Deployment-managed. Changes affect only newly enqueued graph jobs and do not trigger reindexing.",
           },
         ]),
       })

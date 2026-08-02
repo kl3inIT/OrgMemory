@@ -45,6 +45,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { AdminPage } from "@/features/admin/components/admin-page"
 import { ProviderLogo } from "@/features/admin/components/provider-logo"
 import type {
@@ -90,14 +91,37 @@ const CATEGORY_COPY = {
 const WORKLOADS = [
   {
     value: "ASSISTANT_CHAT" as const,
-    title: "Default chat model",
-    description: "Used by organization conversations unless a governed asset pins another route.",
+    title: "Answer generation",
+    description: "Produces the final governed answer after retrieval and citation assembly.",
+  },
+  {
+    value: "KEYWORD_PLANNING" as const,
+    title: "Keyword planning",
+    description: "Creates bounded high- and low-level search keywords before retrieval.",
+  },
+  {
+    value: "GRAPH_EXTRACTION" as const,
+    title: "Graph extraction",
+    description: "Extracts entities and relations for newly enqueued indexing jobs.",
   },
   {
     value: "PROMPT_EXECUTION" as const,
     title: "Prompt execution",
     description: "Used when released prompt assets run against retrieved organization context.",
   },
+]
+
+type OpenAiReasoningEffort = NonNullable<RouteResponse["openAiReasoningEffort"]>
+type ReasoningSelection = OpenAiReasoningEffort | "PROVIDER_DEFAULT"
+
+const REASONING_OPTIONS: Array<{ value: ReasoningSelection; label: string }> = [
+  { value: "PROVIDER_DEFAULT", label: "Provider default" },
+  { value: "NONE", label: "None" },
+  { value: "LOW", label: "Low" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HIGH", label: "High" },
+  { value: "XHIGH", label: "Extra high" },
+  { value: "MAX", label: "Maximum" },
 ]
 
 function safeKey(preset: ProviderPresetResponse) {
@@ -259,17 +283,21 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
   const [selectedGateway, setSelectedGateway] = useState<Record<string, string>>({})
   const [models, setModels] = useState<Record<string, ModelRef[]>>({})
   const [modelIds, setModelIds] = useState<Record<string, string>>({})
+  const [reasoning, setReasoning] = useState<Record<string, ReasoningSelection>>({})
 
   useEffect(() => {
     const nextGateways: Record<string, string> = {}
     const nextModels: Record<string, string> = {}
+    const nextReasoning: Record<string, ReasoningSelection> = {}
     for (const workload of WORKLOADS) {
       const route = routes.find((candidate) => candidate.workload === workload.value)
       if (route?.gatewayProfileId) nextGateways[workload.value] = route.gatewayProfileId
       if (route?.modelId) nextModels[workload.value] = route.modelId
+      nextReasoning[workload.value] = route?.openAiReasoningEffort ?? "PROVIDER_DEFAULT"
     }
     setSelectedGateway(nextGateways)
     setModelIds(nextModels)
+    setReasoning(nextReasoning)
   }, [routes])
 
   const defaultRoute = routes.find((route) => route.workload === "ASSISTANT_CHAT")
@@ -302,9 +330,9 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
             <Sparkles className="size-4" aria-hidden="true" />
           </span>
           <div>
-            <CardTitle>Organization model routes</CardTitle>
+            <CardTitle>RAG pipeline & prompt routes</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Current default: {defaultRoute?.modelId ?? "Not configured"} · {defaultRoute?.source === "ORGANIZATION_OVERRIDE" ? "organization override" : "deployment default"}
+              Answer: {defaultRoute?.modelId ?? "Not configured"} · Keyword and answer changes apply to later requests; Graph changes apply only to later jobs.
             </p>
           </div>
         </div>
@@ -314,13 +342,33 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
           const route = routes.find((candidate) => candidate.workload === workload.value)
           const availableModels = models[workload.value] ?? []
           const profileId = selectedGateway[workload.value] ?? ""
+          const selectedProfile = gateways.find((gateway) => gateway.id === profileId)
+          const reasoningSupported = selectedProfile?.supportsOpenAiReasoningEffort === true
           const canSave = Boolean(profileId && modelIds[workload.value]?.trim())
+          if (route?.editable === false) {
+            return (
+              <div key={workload.value} className="grid gap-4 p-5 lg:grid-cols-[minmax(15rem,1fr)_repeat(3,minmax(10rem,0.7fr))] lg:items-center">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{workload.title}</p>
+                    <Badge variant="muted">Deployment managed</Badge>
+                  </div>
+                  <p className="mt-1 max-w-lg text-sm leading-5 text-muted-foreground">{workload.description}</p>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{route.lifecycleNote}</p>
+                </div>
+                <ReadOnlyRouteValue label="Gateway" value={route.gatewayKey} />
+                <ReadOnlyRouteValue label="Model" value={route.modelId} />
+                <ReadOnlyRouteValue label="OpenAI reasoning" value={route.openAiReasoningEffort?.toLowerCase() ?? "provider default"} />
+              </div>
+            )
+          }
           return (
-            <div key={workload.value} className="grid gap-4 p-5 2xl:grid-cols-[minmax(15rem,1fr)_minmax(16rem,0.9fr)_minmax(16rem,1fr)_auto] 2xl:items-end">
+            <div key={workload.value} className="grid gap-4 p-5 2xl:grid-cols-[minmax(14rem,1fr)_minmax(14rem,0.8fr)_minmax(14rem,0.9fr)_minmax(11rem,0.65fr)_auto] 2xl:items-end">
               <div className="self-center">
                 <p className="font-medium">{workload.title}</p>
                 <p className="mt-1 max-w-lg text-sm leading-5 text-muted-foreground">{workload.description}</p>
                 {route?.source === "DEPLOYMENT_DEFAULT" ? <Badge variant="muted" className="mt-2">Deployment default</Badge> : <Badge variant="success" className="mt-2">Organization override</Badge>}
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{route?.lifecycleNote}</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor={`${workload.value}-gateway`}>Gateway</Label>
@@ -365,13 +413,35 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
                   />
                 )}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${workload.value}-reasoning`}>OpenAI reasoning</Label>
+                <Select
+                  value={reasoning[workload.value] ?? "PROVIDER_DEFAULT"}
+                  disabled={!reasoningSupported}
+                  onValueChange={(value) => setReasoning((current) => ({ ...current, [workload.value]: value as ReasoningSelection }))}
+                >
+                  <SelectTrigger id={`${workload.value}-reasoning`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REASONING_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {!reasoningSupported ? <p className="text-xs text-muted-foreground">Select a gateway that declares this option; otherwise the provider default is used.</p> : null}
+              </div>
               <div className="flex gap-2 2xl:flex-col">
                 <Button
                   type="button"
                   disabled={!canSave || setRoute.isPending}
                   onClick={() => setRoute.mutate({
                     path: { workload: workload.value },
-                    body: { gatewayProfileId: profileId, modelId: modelIds[workload.value].trim() },
+                    body: {
+                      gatewayProfileId: profileId,
+                      modelId: modelIds[workload.value].trim(),
+                      openAiReasoningEffort: reasoningSupported && reasoning[workload.value] !== "PROVIDER_DEFAULT"
+                        ? reasoning[workload.value] as OpenAiReasoningEffort
+                        : undefined,
+                    },
                   })}
                 >
                   Save route
@@ -395,6 +465,15 @@ function RouteSettings({ gateways, routes }: { gateways: GatewayResponse[]; rout
   )
 }
 
+function ReadOnlyRouteValue({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="rounded-lg border border-border-subtle bg-surface-subtle px-3 py-2.5">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate font-mono text-sm">{value || "Not configured"}</p>
+    </div>
+  )
+}
+
 function ConnectGatewayDialog({
   provider,
   onOpenChange,
@@ -407,6 +486,7 @@ function ConnectGatewayDialog({
   const [baseUrl, setBaseUrl] = useState("")
   const [credential, setCredential] = useState("")
   const [timeout, setTimeoutValue] = useState("60")
+  const [supportsReasoning, setSupportsReasoning] = useState(false)
   const [result, setResult] = useState<{ authenticated: boolean; models: ModelRef[]; errorCode?: string }>()
   const test = useMutation(testAdminAiGatewayMutation())
   const create = useMutation(createAdminAiGatewayMutation())
@@ -417,6 +497,7 @@ function ConnectGatewayDialog({
     setBaseUrl(provider.defaultBaseUrl ?? "")
     setCredential("")
     setTimeoutValue("60")
+    setSupportsReasoning(false)
     setResult(undefined)
   }, [provider])
 
@@ -452,6 +533,7 @@ function ConnectGatewayDialog({
           protocol: provider.protocol,
           baseUrl,
           requestTimeoutSeconds: Number(timeout),
+          supportsOpenAiReasoningEffort: supportsReasoning,
           credential,
         },
       })
@@ -498,6 +580,17 @@ function ConnectGatewayDialog({
                   autoComplete="new-password"
                   required
                 />
+                {provider?.protocol === "OPENAI_COMPATIBLE" ? (
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-3">
+                    <div>
+                      <Label htmlFor="connect-openai-reasoning">OpenAI reasoning effort</Label>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Declare this only when the endpoint accepts the OpenAI reasoning_effort field. Undeclared endpoints fail closed.
+                      </p>
+                    </div>
+                    <Switch id="connect-openai-reasoning" checked={supportsReasoning} onCheckedChange={setSupportsReasoning} />
+                  </div>
+                ) : null}
                 <Field
                   label="Display name"
                   labelSuffix="Optional"
@@ -642,6 +735,7 @@ function GatewaySettingsDialog({
   const [baseUrl, setBaseUrl] = useState("")
   const [timeout, setTimeoutValue] = useState("60")
   const [credential, setCredential] = useState("")
+  const [supportsReasoning, setSupportsReasoning] = useState(false)
   const update = useMutation(updateAdminAiGatewayMutation())
   const test = useMutation(testStoredAdminAiGatewayMutation())
   const disable = useMutation(disableAdminAiGatewayMutation())
@@ -652,6 +746,7 @@ function GatewaySettingsDialog({
     setBaseUrl(gateway.baseUrl ?? "")
     setTimeoutValue(String(gateway.requestTimeoutSeconds ?? 60))
     setCredential("")
+    setSupportsReasoning(gateway.supportsOpenAiReasoningEffort ?? false)
   }, [gateway])
 
   async function submit(event: FormEvent) {
@@ -664,6 +759,7 @@ function GatewaySettingsDialog({
           displayName,
           baseUrl,
           requestTimeoutSeconds: Number(timeout),
+          supportsOpenAiReasoningEffort: supportsReasoning,
           credential: credential || undefined,
         },
       })
@@ -717,6 +813,17 @@ function GatewaySettingsDialog({
             <Field label="Base URL" value={baseUrl} onChange={setBaseUrl} required />
             <Field label="Request timeout (seconds)" type="number" value={timeout} onChange={setTimeoutValue} min="1" max="300" required />
             <Field label="New API key" type="password" value={credential} onChange={setCredential} autoComplete="new-password" placeholder="Leave blank to keep the current key" />
+            {gateway?.protocol === "OPENAI_COMPATIBLE" ? (
+              <div className="flex items-start justify-between gap-4 rounded-lg border border-border-subtle bg-surface-subtle px-4 py-3">
+                <div>
+                  <Label htmlFor="edit-openai-reasoning">OpenAI reasoning effort</Label>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Enable only if this endpoint accepts reasoning_effort. Routes with an explicit value fail closed otherwise.
+                  </p>
+                </div>
+                <Switch id="edit-openai-reasoning" checked={supportsReasoning} onCheckedChange={setSupportsReasoning} />
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
             <AlertDialog>

@@ -28,10 +28,12 @@ public record GraphProcessingProfile(
         String embeddingPayloadFormatVersion,
         String canonicalSha256) {
 
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
+    private static final int EARLIEST_SCHEMA_VERSION = 1;
 
     public GraphProcessingProfile {
-        if (schemaVersion != CURRENT_SCHEMA_VERSION) {
+        if (schemaVersion < EARLIEST_SCHEMA_VERSION
+                || schemaVersion > CURRENT_SCHEMA_VERSION) {
             throw new IllegalArgumentException(
                     "unsupported graph processing profile schema: " + schemaVersion);
         }
@@ -87,6 +89,9 @@ public record GraphProcessingProfile(
         String algorithmVersion = decoded(take(fields, "algorithmVersion"));
         String provider = decoded(take(fields, "extraction.provider"));
         String model = decoded(take(fields, "extraction.model"));
+        String openAiReasoningEffort = schemaVersion >= 2
+                ? decodedOptional(take(fields, "extraction.openAiReasoningEffort"))
+                : null;
         String promptVersion = decoded(take(fields, "extraction.promptVersion"));
         int maxEntities = integer(
                 take(fields, "extraction.maxEntities"), "extraction.maxEntities");
@@ -118,6 +123,7 @@ public record GraphProcessingProfile(
                 new ExtractionProfile(
                         provider,
                         model,
+                        openAiReasoningEffort,
                         promptVersion,
                         maxEntities,
                         maxRelations,
@@ -163,6 +169,11 @@ public record GraphProcessingProfile(
                 .append("extraction.model=")
                 .append(encoded(extractionProfile.model()))
                 .append('\n')
+                .append(schemaVersion >= 2
+                        ? "extraction.openAiReasoningEffort="
+                                + encodedOptional(extractionProfile.openAiReasoningEffort())
+                                + '\n'
+                        : "")
                 .append("extraction.promptVersion=")
                 .append(encoded(extractionProfile.promptVersion()))
                 .append('\n')
@@ -274,6 +285,14 @@ public record GraphProcessingProfile(
             throw new IllegalArgumentException(
                     "invalid graph processing profile encoding", exception);
         }
+    }
+
+    private static String encodedOptional(String value) {
+        return value == null ? "" : encoded(value);
+    }
+
+    private static String decodedOptional(String value) {
+        return value.isEmpty() ? null : decoded(value);
     }
 
     private static String requireSha256(String value) {

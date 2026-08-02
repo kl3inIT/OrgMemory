@@ -13,19 +13,42 @@ public record AiGatewayConnection(
         UUID profileId,
         String gatewayKey,
         AiGatewayProtocol protocol,
+        boolean supportsOpenAiReasoningEffort,
         String baseUrl,
         SecretValue credential,
         Duration timeout,
         long profileVersion) {
 
+    public AiGatewayConnection(
+            UUID organizationId,
+            UUID profileId,
+            String gatewayKey,
+            AiGatewayProtocol protocol,
+            String baseUrl,
+            SecretValue credential,
+            Duration timeout,
+            long profileVersion) {
+        this(
+                organizationId,
+                profileId,
+                gatewayKey,
+                protocol,
+                false,
+                baseUrl,
+                credential,
+                timeout,
+                profileVersion);
+    }
+
     @Override
     public String toString() {
-        return "AiGatewayConnection[organizationId=%s, profileId=%s, gatewayKey=%s, protocol=%s, baseUrl=%s, credential=<redacted>, timeout=%s, profileVersion=%d]"
+        return "AiGatewayConnection[organizationId=%s, profileId=%s, gatewayKey=%s, protocol=%s, supportsOpenAiReasoningEffort=%s, baseUrl=%s, credential=<redacted>, timeout=%s, profileVersion=%d]"
                 .formatted(
                         organizationId,
                         profileId,
                         gatewayKey,
                         protocol,
+                        supportsOpenAiReasoningEffort,
                         baseUrl,
                         timeout,
                         profileVersion);

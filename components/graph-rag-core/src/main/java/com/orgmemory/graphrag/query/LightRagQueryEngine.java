@@ -79,7 +79,8 @@ public final class LightRagQueryEngine {
                         request.options().mode().name())
                 : new LightRagKeywordPlanner.PlanningResult(
                         KeywordPlan.empty(KeywordPlan.Source.MODEL),
-                        GraphRagEventSink.CacheStatus.BYPASS);
+                        GraphRagEventSink.CacheStatus.BYPASS,
+                        null);
         Duration keywordDuration = Duration.ofNanos(Math.max(
                 0,
                 System.nanoTime() - keywordStartedAt));
@@ -106,7 +107,7 @@ public final class LightRagQueryEngine {
                 keywordDuration,
                 embeddingDuration,
                 keywordPlanning.cacheStatus(),
-                keywordPlanner.modelRouteFingerprint());
+                keywordPlanning.modelRouteFingerprint());
     }
 
     /**
@@ -207,6 +208,7 @@ public final class LightRagQueryEngine {
                 optionalInstruction(request.options().userInstruction()),
                 request.query());
         QueryAnswerModel.Response response = answerModel.answer(new QueryAnswerModel.Request(
+                request.scope().organizationId(),
                 request.query(),
                 prompt,
                 request.conversationHistory(),
@@ -641,6 +643,7 @@ public final class LightRagQueryEngine {
         LightRagQueryResult.Answer answer = switch (request.options().outputMode()) {
             case CONTEXT, PROMPT -> new LightRagQueryResult.NoAnswer();
             case ANSWER -> answer(answerModel.answer(new QueryAnswerModel.Request(
+                    request.scope().organizationId(),
                     request.query(),
                     prepared.systemPrompt(),
                     request.conversationHistory(),
