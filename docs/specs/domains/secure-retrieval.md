@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-knowledge-space-audience-main-sync (pending merge commit)`.
+Reconciled: `2026-08-02-knowledge-space-audience-main-sync (405fa212)`.
 
 ## Current Behavior
 

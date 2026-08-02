@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-02-knowledge-space-audience-main-sync (pending merge commit)`.
+Reconciled: `2026-08-02-knowledge-space-audience-main-sync (405fa212)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
