@@ -45,6 +45,8 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Typed Knowledge Space audiences | shipped | [completed verification](increments/completed/2026-08-02-knowledge-space-audience-modes/verification.md), [decision 0029](decisions/0029-typed-knowledge-space-audiences.md) |
 | Explicit Apache AGE graph backend | shipped | [completed verification](increments/completed/2026-08-02-apache-age-graph-backend/verification.md), [decision 0030](decisions/0030-explicit-apache-age-topology-backend.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
+| Document View and Delete | shipped | [completed plan](increments/completed/2026-08-02-document-view-delete/plan.md); no Reindex action |
+| Role-specific RAG routing and evaluated production model split | shipped | [routing verification](increments/completed/2026-08-02-rag-workload-routing-luna/verification.md), [Graph route verification](increments/completed/2026-08-02-graph-extraction-model-route/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
 
@@ -52,9 +54,6 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
-| [Document View and Delete](increments/completed/2026-08-02-document-view-delete/plan.md) | completed | none — merged and production-verified; no Reindex action |
-| [RAG workload routing and Luna evaluation](increments/active/2026-08-02-rag-workload-routing-luna/plan.md) | active | independent challenge, tests-first implementation, evaluation, CI, and production canary |
-| [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |

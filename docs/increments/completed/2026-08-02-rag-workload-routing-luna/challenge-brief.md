@@ -8,7 +8,7 @@ verdict.
 Read first:
 
 - `AGENTS.md` and `CLAUDE.md`
-- `docs/increments/active/2026-08-02-rag-workload-routing-luna/design.md`
+- `docs/increments/completed/2026-08-02-rag-workload-routing-luna/design.md`
 - `docs/specs/domains/ai-model-control-plane.md`
 - `docs/specs/domains/secure-graph-rag.md`
 - `docs/decisions/0006-ai-tasks-route-through-provider-adapters.md`

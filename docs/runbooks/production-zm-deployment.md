@@ -159,6 +159,20 @@ Use the manual `workflow_dispatch` input only for an intentional redeploy or
 rollback. Manual commits must still be ancestors of `main` with a successful
 `Build production images` run.
 
+The production route defaults approved by the 2026-08-02 bounded evaluation
+are:
+
+| Workload | Model | Reasoning | Lifecycle |
+| --- | --- | --- | --- |
+| Assistant Answer | `gpt-5.6-sol` | provider default | later requests |
+| Keyword Planning | `gpt-5.6-luna` | `none` | later requests |
+| Graph Extraction | `gpt-5.4-mini` | provider default | newly enqueued jobs |
+
+Changing the Graph route never starts a reindex and never changes the immutable
+profile pinned by an already queued or completed job. A future reindex is a
+separate explicit operation; the current Documents surface deliberately offers
+View and Delete only.
+
 The deployment:
 
 1. acquires a host lock;

@@ -18,11 +18,15 @@ Design: [design.md](design.md).
 
 - [x] Record the implemented default and the profile-aware UI boundary in the AI
   model control-plane and secure Graph RAG documentation.
-- [ ] Run focused JVM configuration tests, production Compose validation, and the
+- [x] Run focused JVM configuration tests, production Compose validation, and the
   terminating clean test gate.
 
 ## Step 4 - Delivery and production proof
 
-- Merge to `main`, deploy to ZM, and change the explicit production override.
-- Verify the worker environment and a new graph-indexing profile/job.
-- Record the production checkpoint in Northstar without secrets.
+- [x] Merge to `main`, deploy to ZM, and change the explicit production override.
+- [x] Verify the worker environment and successful bounded graph-indexing
+  canaries on `gpt-5.4-mini`; schema-v2 profile creation remains covered by the
+  terminating automated gate because no authorized browser session was
+  available for an additional production upload.
+- [x] Record the production checkpoint in Northstar without secrets as part of
+  the parent routing increment closeout.

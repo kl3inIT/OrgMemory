@@ -48,8 +48,10 @@ Design: [design.md](design.md).
 
 ## Step 6 - Delivery
 
-- [ ] Open one PR, wait for CI and review, fix findings, and merge only green.
-- [ ] Deploy the merged SHA and verify route values, worker health, one new
-  Graph profile/job, and query behavior without starting a reindex.
-- [ ] Archive this increment and the completed predecessor when their evidence
+- [x] Open one PR, wait for CI and review, fix findings, and merge only green.
+- [x] Deploy the merged SHA and verify route values, worker health, existing
+  graph canaries plus schema-v2 automated coverage, and query routing without
+  starting a reindex. The browser canary was not repeated because no authorized
+  production browser session was available; no user or credential was created.
+- [x] Archive this increment and the completed predecessor when their evidence
   is complete; update roadmap and Northstar with no secrets.
