@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,17 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
+import { DocumentDetailSheet } from "@/features/sources/components/document-detail-sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   ACTIVE_SOURCE_STATUSES,
   matchesSourceStatus,
@@ -26,7 +37,10 @@ import {
   listSourcesOptions,
   listSourcesQueryKey,
   uploadSourceMutation,
+  deleteSourceMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+import type { SourceResponse } from "@/lib/hey-api"
+import { apiErrorMessage } from "@/lib/api-error"
 
 const KnowledgeGraphPanel = lazy(() =>
   import("@/features/sources/components/knowledge-graph-panel").then((module) => ({
@@ -48,6 +62,8 @@ export function SourcesPage({
   const queryClient = useQueryClient()
   const statusFilter = useDocumentManagerStore((state) => state.statusFilter)
   const setStatusFilter = useDocumentManagerStore((state) => state.setStatusFilter)
+  const [viewing, setViewing] = useState<SourceResponse | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<SourceResponse | null>(null)
   const sources = useQuery({
     ...listSourcesOptions(),
     refetchInterval: (query) =>
@@ -62,6 +78,17 @@ export function SourcesPage({
       await queryClient.invalidateQueries({ queryKey: listSourcesQueryKey() })
       toast.success("Document uploaded. Ingestion has started.")
     },
+  })
+  const remove = useMutation({
+    ...deleteSourceMutation(),
+    onSuccess: async () => {
+      setDeleteCandidate(null)
+      setViewing(null)
+      await queryClient.invalidateQueries({ queryKey: listSourcesQueryKey() })
+      toast.success("Document deleted from active knowledge.")
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, "The document could not be deleted.")),
   })
 
   const documents = sources.data ?? []
@@ -201,7 +228,11 @@ export function SourcesPage({
             {sources.isError ? <SourcesError onRetry={() => sources.refetch()} /> : null}
             {sources.data?.length === 0 ? <SourcesEmpty /> : null}
             {sources.data && sources.data.length > 0 ? (
-              <SourcesTable sources={filteredDocuments} />
+              <SourcesTable
+                sources={filteredDocuments}
+                onView={setViewing}
+                onDelete={setDeleteCandidate}
+              />
             ) : null}
           </section>
         </TabsContent>
@@ -211,6 +242,41 @@ export function SourcesPage({
           </Suspense>
         </TabsContent>
       </Tabs>
+
+      <DocumentDetailSheet
+        source={viewing}
+        onOpenChange={(open) => !open && setViewing(null)}
+      />
+
+      <AlertDialog
+        open={deleteCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open && !remove.isPending) setDeleteCandidate(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{deleteCandidate?.title ?? deleteCandidate?.fileName ?? "This document"}” will
+              disappear from Documents, retrieval, and the knowledge graph. Retained evidence
+              continues to follow the organization retention policy.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Keep document</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deleteCandidate?.id || !deleteCandidate.deletionAllowed || remove.isPending}
+              onClick={() => {
+                if (!deleteCandidate?.id || !deleteCandidate.deletionAllowed) return
+                remove.mutate({ path: { sourceId: deleteCandidate.id } })
+              }}
+            >
+              Delete document
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout.Root>
   )
 }
