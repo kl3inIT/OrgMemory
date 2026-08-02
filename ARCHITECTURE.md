@@ -172,9 +172,10 @@ unknown Knowledge Spaces, and canonical evidence rechecks carry only the assets
 authorized for the requested Space. API and Worker inject interfaces for the
 canonical/GraphRAG engines, citation/source opening, authorization inspection,
 and embedding-profile resolution; full evidence-scope resolution plus the
-default and JDBC implementations are package-private. Retrieval remains explicitly open while
-its remaining concrete/persistence root types are internalized and its final
-dependency allowlist is proven. The
+default and JDBC implementations are package-private. Retrieval is a closed
+nested module with an exact outgoing dependency allowlist. Its embedding
+entity/repository, canonical store, resolved scope, candidate, catalog
+implementation, and scope-unavailable exception are non-public root types. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset

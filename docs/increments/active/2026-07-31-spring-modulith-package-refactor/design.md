@@ -254,6 +254,22 @@ See
 for reviewer availability, exact ownership, the counterattack, blocking
 conditions, PR sequence, and verification requirements.
 
+## Retrieval Closure
+
+The final Retrieval slice follows the already challenged closure decision: the
+module becomes closed with only its intentional public root contracts and an
+exact outgoing dependency allowlist. Persistence and runtime collaboration
+types that no external production consumer imports become package-private in
+the module base package. This preserves JPA/Spring wiring and test-package
+access without presenting those types as Modulith API or creating a mechanical
+internal subpackage whose public Java types could still be imported by an
+adapter.
+
+The canonical multi-table security read model remains Retrieval-owned, exactly
+as the challenge allowed. This closure therefore proves Java/domain/API
+encapsulation; it does not claim datastore autonomy or change authorization,
+ranking, persistence, endpoint, or provider behavior.
+
 ## First Cycle-Removal Slice
 
 The ACL/Connector cycle is cut at the ownership boundary instead of hidden by

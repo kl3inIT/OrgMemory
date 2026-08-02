@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class SecureKnowledgeRetrievalStore {
+class SecureKnowledgeRetrievalStore {
 
     private static final String PRINCIPAL_MATCH = """
             (
@@ -360,7 +360,7 @@ public class SecureKnowledgeRetrievalStore {
         return result.wasNull() ? null : value;
     }
 
-    public record RetrievalScope(
+    record RetrievalScope(
             UUID organizationId,
             UUID actorUserId,
             UUID actorDepartmentId,

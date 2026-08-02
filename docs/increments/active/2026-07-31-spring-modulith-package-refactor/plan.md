@@ -1291,7 +1291,7 @@ required CI checks passed. CodeRabbit's fail-closed findings were fixed at head
 answered and resolved. Both the reviewed head and merge commit are ancestors of
 current `origin/main`.
 
-## Current Pull Request Gates
+## Forty-first Pull Request Evidence
 
 - Canonical hybrid search, GraphRAG search, citation/source content,
   authorization-resource lookup, bounded Asset inspection, and embedding
@@ -1353,4 +1353,41 @@ After the review-fix commits, the terminating sequential repository-wide
 `clean test` passed all 99 tasks in 4m44s. The documentation operating-model
 check passed for 506 Markdown files and 8 mirrored domain pairs, and all 41
 release-policy tests passed again on exact Node 24.15.0. The PR diff remains 43
+changed paths.
+
+PR #266 merged as `fa226b0d676116292c662e204d30cf0ce326a1bc`
+after all required CI checks passed. Five valid CodeRabbit findings were fixed,
+the PostgreSQL UPSERT false positive was rejected with current Read Committed
+documentation, and all six inline threads were answered and resolved. Both the
+reviewed head `45518b1b940cbcb90e8b4611d06e4c456d75225a` and merge commit are
+ancestors of current `origin/main`.
+
+## Current Pull Request Gates
+
+- Retrieval is a closed nested module with an exact allowlist for AI,
+  authorization, its owner queries/named interfaces, Organization, Permission,
+  and shared contracts.
+- The public root API is pinned exactly. The embedding entity/repository,
+  catalog implementation, evidence-scope exception and value, canonical store
+  and retrieval scope, and secure candidate are package-private.
+- Existing adapter contracts and their default/JDBC implementations retain the
+  visibility established in PR #266; no endpoint, query, persistence, ranking,
+  or authorization behavior changes.
+- Failing-first structural tests prove both the previously open module and the
+  leaked public root types. `modules.verify()` enforces the closed boundary.
+- Focused registry, catalog, scope, hybrid, GraphRAG, content, verifier,
+  PostgreSQL external-principal, API admin/configuration/boundary, and Worker
+  boundary tests pass.
+- This code PR remains below 100 changed files and completes Retrieval closure
+  before the next Knowledge/Asset Registry slice begins.
+
+Local verification started with the closed-module and exact-public-root tests
+failing against the unchanged `Type.OPEN` module and seven leaked persistence/
+runtime types. After internalization, both tests and `modules.verify()` passed
+in 26s. The complete focused Core/API/Worker slice then passed in 4m06s,
+including Spring Data/Hibernate wiring for the package-private embedding entity
+and repository. The documentation operating-model check passed for 506
+Markdown files and 8 mirrored domain pairs, and all 41 release-policy tests
+passed on exact Node 24.15.0. The terminating sequential repository-wide
+`clean test` passed all 99 tasks in 2m10s. The pre-stage diff contains 14
 changed paths.

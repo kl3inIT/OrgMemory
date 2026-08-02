@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (d4495b45)`.
+Reconciled: `2026-08-02-spring-modulith-package-refactor (6a8e4224)`.
 
 ## Current Behavior
 
@@ -36,8 +36,10 @@ resolution. Full evidence-scope resolution and the default/JDBC implementations
 are package-private. The bounded inspector independently rechecks the Asset's
 relationship decision and authorization-model identity before canonical SQL,
 so it does not rely on a caller-supplied authorization precondition. The
-open Retrieval nested module retains authorization, ranking, and persistence
-while its remaining root implementation types are internalized before closure.
+closed Retrieval nested module retains authorization, ranking, and persistence
+behind an exact outgoing dependency allowlist. Its entity, repository,
+canonical store, resolved scope, candidate, catalog implementation, and
+scope-unavailable exception are not part of the public module API.
 Asset existence, active authorization-scope, and current catalog reads cross
 one Asset-owned query that keeps tenant and lifecycle predicates behind the
 closed Asset module; Retrieval imports neither Asset repository.
