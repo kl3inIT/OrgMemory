@@ -41,6 +41,7 @@ Statuses are `shipped`, `active`, `next`, or `later`.
 | Copy-forward coordination: durable ownership and bounded streaming | shipped | [completed plan](increments/completed/2026-08-01-copyforward-coordinator/plan.md), [decision 0025](decisions/0025-copyforward-durable-ownership.md) |
 | Connector polling coordination: shared lifecycle, client rotation, and failure admission | shipped | [completed plan](increments/completed/2026-08-01-connector-polling-driver/plan.md), [decision 0026](decisions/0026-connector-polling-lifecycle.md) |
 | Authorized graph traversal coordinator | shipped | [completed verification](increments/completed/2026-08-01-authorized-graph-traversal/verification.md), [decision 0027](decisions/0027-core-owned-authorized-graph-traversal.md) |
+| Durable cross-store publication lifecycle | shipped | [completed plan](increments/completed/2026-08-02-publication-lifecycle-coordinator/plan.md), [decision 0028](decisions/0028-durable-cross-store-publication-permits.md) |
 | MCP search reliability | shipped | [completed verification](increments/completed/2026-07-28-mcp-search-reliability/verification.md) |
 
 The table is a delivery index, not a second description of current behavior.
@@ -51,6 +52,7 @@ The table is a delivery index, not a second description of current behavior.
 | --- | --- | --- |
 | [Document View and Delete](increments/active/2026-08-02-document-view-delete/plan.md) | active | independent challenge, implementation, full verification, review, merge, and production proof; no Reindex action |
 | [Graph extraction model route](increments/active/2026-08-02-graph-extraction-model-route/plan.md) | active | full CI and review, merge, then bounded ZM production canary |
+| [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
 | [Shared ZM team development](increments/active/2026-07-31-shared-zm-team-development/plan.md) | active | guard one shared non-production dataset with protected-change detection, exclusive worker/maintenance leases, loopback local development, and deployment verification |
@@ -94,11 +96,10 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
-- Finish the admin permission surface: reachable containers with ACL authority,
-  generation, and capture time; a permission audit event per role mutation;
-  resolved names and a resource picker instead of pasted UUIDs; and relabel
-  `app_users.role`, which is a business/classification attribute rather than an
-  OpenFGA grant.
+- Finish the remaining admin permission surface after the active effective
+  access inspector: reachable containers with ACL authority, generation, and
+  capture time; a permission audit event per role mutation; and a governed
+  resource picker whose metadata visibility contract is explicit.
 - Give a Knowledge Space a lifecycle. It can be created and granted at runtime
   but not retired, and asset movement needs an explicit retention and
   authorization contract.

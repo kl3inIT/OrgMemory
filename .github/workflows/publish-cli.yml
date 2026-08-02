@@ -118,21 +118,20 @@ jobs:
           expected_integrity="$(
             node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/orgmemory-cli-pack.json', 'utf8'))[0].integrity"
           )"
-          published="$(
-            npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null || true
-          )"
-          if [[ -n "$published" ]]; then
-            PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node - <<'NODE'
-            const value = JSON.parse(process.env.PUBLISHED_JSON)
-            const expectedVersion = process.env.PACKAGE_VERSION
-            const expectedIntegrity = process.env.EXPECTED_INTEGRITY
-            if (value.version !== expectedVersion) {
-              throw new Error(`Registry returned ${value.version}, expected ${expectedVersion}`)
-            }
-            if (value.dist?.integrity !== expectedIntegrity) {
-              throw new Error('Existing package integrity does not match the reviewed tarball')
-            }
-            NODE
+          if published="$(
+            npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null
+          )"; then
+            PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node -e '
+              const value = JSON.parse(process.env.PUBLISHED_JSON)
+              const expectedVersion = process.env.PACKAGE_VERSION
+              const expectedIntegrity = process.env.EXPECTED_INTEGRITY
+              if (value.version !== expectedVersion) {
+                throw new Error(`Registry returned ${value.version}, expected ${expectedVersion}`)
+              }
+              if (value.dist?.integrity !== expectedIntegrity) {
+                throw new Error("Existing package integrity does not match the reviewed tarball")
+              }
+            '
             echo "Exact package already exists with matching integrity; continuing verification."
           else
             npm publish --access public --provenance
@@ -154,15 +153,15 @@ jobs:
               npm view "@orgmemory/cli@$PACKAGE_VERSION" --json --prefer-online 2>/dev/null || true
             )"
             if [[ -n "$published" ]] && \
-              PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node - <<'NODE'
-            const value = JSON.parse(process.env.PUBLISHED_JSON)
-            const expectedVersion = process.env.PACKAGE_VERSION
-            const expectedIntegrity = process.env.EXPECTED_INTEGRITY
-            const complete = value.version === expectedVersion &&
-              value.dist?.integrity === expectedIntegrity &&
-              Boolean(value.dist?.attestations?.url)
-            process.exit(complete ? 0 : 1)
-            NODE
+              PUBLISHED_JSON="$published" EXPECTED_INTEGRITY="$expected_integrity" node -e '
+                const value = JSON.parse(process.env.PUBLISHED_JSON)
+                const expectedVersion = process.env.PACKAGE_VERSION
+                const expectedIntegrity = process.env.EXPECTED_INTEGRITY
+                const complete = value.version === expectedVersion &&
+                  value.dist?.integrity === expectedIntegrity &&
+                  Boolean(value.dist?.attestations?.url)
+                process.exit(complete ? 0 : 1)
+              '
             then
               verified=true
               break

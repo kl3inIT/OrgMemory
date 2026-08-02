@@ -13,7 +13,7 @@ import org.opensearch.client.opensearch.core.bulk.BulkResponseItem;
 import org.opensearch.client.opensearch.indices.CreateIndexRequest;
 import org.opensearch.client.transport.httpclient5.ResponseException;
 
-final class OpenSearchOperations {
+class OpenSearchOperations {
 
     private final OpenSearchClient client;
     private final int bulkMaximumOperations;

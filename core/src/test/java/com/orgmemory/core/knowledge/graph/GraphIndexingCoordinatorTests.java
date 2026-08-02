@@ -24,10 +24,15 @@ import com.orgmemory.graphrag.extraction.LightRagExtractionPrompt;
 import com.orgmemory.graphrag.model.ExtractionProfile;
 import com.orgmemory.graphrag.model.FloatVector;
 import com.orgmemory.graphrag.processing.LightRagGraphProcessingProfiles;
+import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionKind;
+import com.orgmemory.graphrag.storage.ProjectionNamespace;
+import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -154,12 +159,77 @@ class GraphIndexingCoordinatorTests {
         assertEquals("Current chunk", claim.chunks().getFirst().content());
         assertEquals(1536, claim.chunks().getFirst().embedding().dimensions());
         assertEquals(GraphIndexJobStatus.PROCESSING, job.getStatus());
+        assertEquals(1, claim.claimEpoch());
 
         coordinator.fail(
                 job.getId(), "worker-a", "TRANSIENT_PROVIDER", "retry safely");
 
         assertEquals(GraphIndexJobStatus.PENDING, job.getStatus());
         assertEquals(1, job.getAttemptCount());
+    }
+
+    @Test
+    void durablePermitSurvivesAReclaimAndAuthorizesExactCompletion() {
+        ClaimedGraphIndex first = coordinator
+                .claimNext("worker-a", Duration.ofHours(1))
+                .orElseThrow();
+        ProjectionNamespace namespace =
+                new ProjectionNamespace(ORGANIZATION_ID, "default", SPACE_ID.toString());
+        ProjectionBatch batch = new ProjectionBatch(
+                UUID.randomUUID(),
+                namespace,
+                null,
+                0,
+                1,
+                first.idempotencyKey(),
+                "a".repeat(64),
+                Set.of(ProjectionKind.CONTENT),
+                first.claimEpoch(),
+                Instant.now());
+
+        var permit = coordinator.issueOrLoadPublicationPermit(
+                job.getId(), "worker-a", first.claimEpoch(), batch);
+        coordinator.fail(job.getId(), "worker-a", "CRASH_AFTER_PERMIT", "retry");
+        job.claim("worker-b", Instant.now(), Duration.ofHours(1));
+
+        assertEquals(
+                permit,
+                coordinator.issueOrLoadPublicationPermit(
+                        job.getId(), "worker-b", job.getClaimEpoch(), batch));
+        ProjectionSnapshot snapshot = new ProjectionSnapshot(
+                batch.id(),
+                namespace,
+                batch.generation(),
+                batch.manifestFingerprint(),
+                batch.requiredProjections(),
+                Instant.now());
+        coordinator.completePublished(
+                job.getId(), "worker-b", job.getClaimEpoch(), snapshot);
+
+        assertEquals(GraphIndexJobStatus.SUCCEEDED, job.getStatus());
+    }
+
+    @Test
+    void staleClaimEpochCannotIssueANewPermit() {
+        ClaimedGraphIndex claim = coordinator
+                .claimNext("worker-a", Duration.ofHours(1))
+                .orElseThrow();
+        ProjectionBatch batch = new ProjectionBatch(
+                UUID.randomUUID(),
+                new ProjectionNamespace(ORGANIZATION_ID, "default", SPACE_ID.toString()),
+                null,
+                0,
+                1,
+                claim.idempotencyKey(),
+                "b".repeat(64),
+                Set.of(ProjectionKind.CONTENT),
+                claim.claimEpoch(),
+                Instant.now());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.issueOrLoadPublicationPermit(
+                        job.getId(), "worker-a", claim.claimEpoch() - 1, batch));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.orgmemory.graphrag.opensearch;
 
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import com.orgmemory.graphrag.storage.VectorIndex;
@@ -199,8 +200,9 @@ public final class OpenSearchVectorIndex implements VectorIndex {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         discardDocuments(batch);
         operations.deleteIfExists(
                 indexes.control(),

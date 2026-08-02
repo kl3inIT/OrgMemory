@@ -230,11 +230,17 @@ final class OpenSearchProjectionCodec {
         Map<String, Object> document = namespace(batch.namespace());
         document.put("document_kind", "BATCH");
         document.put(BATCH_ID, batch.id().toString());
+        if (batch.expectedPreviousBatchId() != null) {
+            document.put(
+                    "expected_previous_batch_id",
+                    batch.expectedPreviousBatchId().toString());
+        }
         document.put("expected_previous_generation", batch.expectedPreviousGeneration());
         document.put(GENERATION, batch.generation());
         document.put("idempotency_key", batch.idempotencyKey());
         document.put("manifest_fingerprint", batch.manifestFingerprint());
         document.put("required_projections", kinds(batch.requiredProjections()));
+        document.put("claim_epoch", batch.claimEpoch());
         document.put("status", status);
         document.put("created_at", batch.createdAt().toString());
         return document;
@@ -244,11 +250,15 @@ final class OpenSearchProjectionCodec {
         return new ProjectionBatch(
                 uuid(document, BATCH_ID),
                 namespace(document),
+                nullableUuid(document.get("expected_previous_batch_id")),
                 number(document, "expected_previous_generation"),
                 number(document, GENERATION),
                 string(document, "idempotency_key"),
                 string(document, "manifest_fingerprint"),
                 kinds(document.get("required_projections")),
+                document.containsKey("claim_epoch")
+                        ? number(document, "claim_epoch")
+                        : 0,
                 Instant.parse(string(document, "created_at")));
     }
 

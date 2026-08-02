@@ -3,6 +3,7 @@ package com.orgmemory.graphrag.opensearch;
 import com.orgmemory.graphrag.authorization.AuthorizedEvidenceScope;
 import com.orgmemory.graphrag.storage.ContentStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.Collection;
@@ -88,7 +89,8 @@ public final class OpenSearchContentStore implements ContentStore {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         staged.discard(batch);
     }
 }

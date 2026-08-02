@@ -10,6 +10,7 @@ import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource;
 import com.orgmemory.graphrag.storage.AuthorizedGraphTraversalSource.IncidentRelationPage;
 import com.orgmemory.graphrag.storage.GraphStore;
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.util.ArrayList;
@@ -300,8 +301,9 @@ public final class OpenSearchGraphStore implements GraphStore {
     }
 
     @Override
-    public void discard(ProjectionBatch batch) {
+    public void discard(ProjectionBatch batch, ProjectionDiscardPermit permit) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         operations.deleteIndex(indexes.graphEntities(batch.id()));
         operations.deleteIndex(indexes.graphRelations(batch.id()));
         entities.discardMarker(batch);

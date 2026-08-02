@@ -115,6 +115,15 @@ class StoreBackedAuthorizedQueryProjectionTests {
                     Instant.parse("2026-07-25T00:01:00Z").plusSeconds(generation));
             snapshot = publications.publish(
                     batch,
+                    new com.orgmemory.graphrag.storage.ProjectionCommitPermit(
+                            UUID.nameUUIDFromBytes(
+                                    ("permit-" + batch.id())
+                                            .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                            batch.id(),
+                            batch.manifestFingerprint(),
+                            1,
+                            Instant.parse("2026-07-25T00:02:00Z")
+                                    .plusSeconds(generation)),
                     Instant.parse("2026-07-25T00:02:00Z").plusSeconds(generation));
         }
         return snapshot;

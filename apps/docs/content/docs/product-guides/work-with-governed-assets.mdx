@@ -15,7 +15,7 @@ sourceRefs:
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/cli/src/install.ts
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-08-01
+lastReviewed: 2026-08-02
 ---
 
 Use this guide when you know the outcome you need and want to find, inspect, and
@@ -94,15 +94,16 @@ usable release. No repository access or deployment setup is required.
   **Verified package** means the CLI verifies archive and file integrity.
   **Install supported** means a deterministic adapter exists for the selected
   target. **Runtime behavior not certified** means OrgMemory does not claim how
-  that target interprets or executes the Skill. Neither path installs the CLI
-  nor grants broader authorization.
+  that target interprets or executes the Skill. The pinned `npx` command may
+  download the exact CLI into npm's cache, but neither path installs it globally
+  or grants broader authorization.
 
   After installation, keep the local copy explicit and inspectable:
 
   ```bash
-  orgmemory skill verify <namespace>/<slug> --agent codex
-  orgmemory skill update <namespace>/<slug> --to <exact-version> --agent codex
-  orgmemory skill remove <namespace>/<slug> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill verify <namespace>/<slug> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill update <namespace>/<slug> --to <exact-version> --agent codex
+  npx --yes @orgmemory/cli@0.1.1 skill remove <namespace>/<slug> --agent codex
   ```
 
   Verification is offline and checks the entire installed file tree. Update

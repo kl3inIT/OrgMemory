@@ -8,7 +8,7 @@ payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`.
 
-Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
+Reconciled: `2026-08-02 integrated publication lifecycle and graph extraction route (e6b5d51d)`.
 
 ## Current Contract
 
@@ -58,9 +58,24 @@ Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
 - Content, lexical, vector, and graph records stage under one immutable batch
   id. A namespace publication CAS exposes all required projection kinds
   together; losing and aborted batches never enter read history.
+- A stable logical operation pins namespace, producer idempotency key, manifest,
+  and projection set. Each physical attempt additionally pins the exact
+  predecessor batch, target generation, and never-reused graph-job claim epoch.
+  Registration precedes staging; a higher epoch replaces only an unpermitted
+  abandoned attempt, never a live same-epoch or committing attempt.
 - New batches copy the exact published predecessor before applying mutations.
   Old winning batches remain readable, and discard removes unreachable staged
   data. Reads validate the complete snapshot identity before touching records.
+- PostgreSQL owns graph-job leases and exact commit permits. After every durable
+  preparation receipt, permit issuance atomically rechecks the claim epoch,
+  lease, cancellation, current Asset target, and manifest. PostgreSQL or
+  OpenSearch then binds the permit and owns its one local visibility-head CAS;
+  there is no distributed transaction or mandatory PostgreSQL projection head.
+- `PREPARING` advances monotonically through `COMMITTING` to `PUBLISHED`, or to
+  terminal safe abort. An exact current/history winner repairs its marker before
+  replay returns. Unknown or contradictory outcomes keep staging. Deletion is
+  possible only with a store-issued discard permit; a concurrent loser retires
+  the durable commit permit before projection cleanup and a fresh attempt.
 - Canonical identity, contributions, publication heads, and entity/relation
   embeddings are stored relationally. Every query applies organization and the
   pre-authorized Knowledge Asset set before aggregation, distance threshold, and
@@ -108,15 +123,23 @@ Reconciled: `2026-08-02-graph-extraction-model-route (aca7eede)`.
   hash-addressed graph-processing profile. A retry reuses those coordinates;
   an explicit rebuild resolves the current profile and enqueues a distinct job
   only when its profile hash differs.
+- Every claim increments a durable epoch. Attempt ids and copy-forward marker
+  ids include that fence, so an expired lower-epoch `COPYING` run cannot wedge,
+  overwrite, or clean up the selected higher-epoch staging run; a same-epoch
+  live run is never stolen.
 - Chunk extraction uses bounded virtual-thread concurrency and renews the lease
   between batches. Model output remains untrusted and must satisfy the
   structured extraction contract before assembly.
 - Unicode-normalized entity and relation keys create deterministic,
   organization-scoped identities. Descriptions and confidence remain separate
   per-chunk evidence contributions.
-- Contributions and their entity/relation embeddings publish through one
-  PostgreSQL transaction after a current-version recheck. Retries cannot expose
-  a partial generation or move the projection head backwards.
+- Contributions and their entity/relation embeddings publish through the
+  permit plus adapter-local head protocol after a current-version recheck.
+  A permit-acknowledgement ambiguity keeps staging and resumes without
+  restaging; head/marker ambiguity reconciles from exact current/history proof.
+  Cache invalidation precedes idempotent job completion, so a crash after the
+  visible head converges on replay. Retries cannot expose a partial generation
+  or move the projection head backwards.
 - The graph extraction route is independently configurable from Assistant chat;
   it defaults to `gpt-5.4-mini` unless an operator sets the dedicated
   `ORGMEMORY_GRAPH_EXTRACTION_MODEL` override. A route change produces a new

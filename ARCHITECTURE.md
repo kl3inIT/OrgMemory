@@ -45,9 +45,10 @@ CI, pnpm 11.9.0, Next.js 16.2.11, Fumadocs UI 16.13.0, and Fumadocs MDX
 by `release/product.json`; that product release does not publish Gradle or pnpm
 workspaces. `@orgmemory/cli` has a separate package-owned SemVer and a dedicated
 manual npm Trusted Publishing workflow. Public consumer version `0.1.0` has
-verified registry integrity and SLSA provenance. A later CLI version is
-consumer-visible only after its exact registry release and provenance have been
-verified.
+verified registry integrity and SLSA provenance. Source version `0.1.1` is the
+selected activation release and product handoffs pin that exact version; it is
+considered available only after the registry release, provenance, signature,
+and exact-version execution gates pass.
 
 Green `main` commits remain the executable delivery identity. Production and
 docs workflows publish immutable SHA-addressed images and manifests. Tegami
@@ -152,14 +153,19 @@ required for publication and the projection namespace identity; callers
 translate Retrieval's richer profile at the boundary. Retrieval resolves Asset
 existence, active authorization scopes, and current catalog projections through
 the Asset-owned `KnowledgeAssetRetrievalQuery`; it does not import Asset
-repositories. Asset has no direct dependency on Retrieval and is a closed
+repositories. Organization-owned queries reload persisted active department and
+Executive facts and resolve organization/department existence without exposing
+Organization persistence or roles. Source Ledger resolves tenant-scoped ready
+revision plus validated blob state through `SourceCitationEvidenceQuery`, so
+citation opening consumes immutable evidence rather than revision/blob
+persistence. Asset has no direct dependency on Retrieval and is a closed
 nested module with an exact outgoing dependency allowlist. Parent Knowledge
 exposes the stable permission-aware
 search contract, immutable evidence, secure result, and verified grounding as
 the exact `knowledge::search` named interface. Assistant and Asset Registry
 consume that parent interface without importing Retrieval implementation types.
-Retrieval remains explicitly open while its remaining sibling adapters and
-Asset persistence/orchestration seams are replaced by intentional APIs. The
+Retrieval remains explicitly open while its Graph verifier and remaining
+sibling adapters are replaced by intentional APIs. The
 provider-neutral object-storage port is exposed as the
 `knowledge::storage` named interface. Leased database jobs carry ingestion work
 across processes. A specific Knowledge Asset
@@ -396,10 +402,17 @@ The integration also implements the framework-neutral content, lexical,
 vector, graph, and publication contracts over one namespace snapshot. Staged
 records are keyed by publication batch, all required adapters leave durable
 preparation receipts, and a namespace-scoped publication lock exposes exactly
-one winning batch. Content, FTS, pgvector, and graph readers validate that batch
-and prefilter organization plus authorized Knowledge Asset IDs before scoring
-or traversal. Published predecessor batches remain addressable; losing or
-aborted staged records are never selected by a generation-only query.
+one winning batch. Each physical attempt pins the exact predecessor batch and a
+never-reused graph-job claim epoch. PostgreSQL issues one irrevocable exact
+commit permit after the current lease, target, cancellation state, and manifest
+are rechecked; the selected PostgreSQL or OpenSearch publication adapter binds
+that permit before its local head CAS. Ambiguous outcomes retain staging, while
+cleanup requires a store-issued discard permit and retires the durable commit
+permit before deleting staged records. Content, FTS, pgvector, and graph readers
+validate the winning batch and prefilter organization plus authorized Knowledge
+Asset IDs before scoring or traversal. Published predecessor batches remain
+addressable; losing or aborted staged records are never selected by a
+generation-only query.
 
 Vector indexes are rebuildable and operator-selectable: exact, HNSW,
 half-vector HNSW, IVFFlat, or VChordRQ. VChordRQ requires the separately
@@ -426,9 +439,13 @@ revision, active chunk generation, ACL snapshot/generation, embedding profile,
 and extraction route. Multi-replica workers claim jobs through leased
 `FOR UPDATE SKIP LOCKED` work, extract chunks with bounded concurrency, assemble
 deterministic evidence contributions, embed them with the immutable document
-embedding profile, and publish the complete graph generation together with the
-durable job outcome in one PostgreSQL transaction. A stale version is
-superseded and a failed publish leaves the previous generation intact.
+embedding profile, and prepare every retrieval projection before obtaining the
+exact commit permit. Projection publication and graph-job completion are
+separate durable convergence steps, not one cross-store transaction: replay
+repairs an exact `COMMITTING` marker, invalidates both graph caches, and then
+completes the job from the persisted publication proof even after the original
+lease expires. A stale version is superseded before permit issuance and a
+failed or concurrently lost publish leaves the previous generation intact.
 
 Assistant graph retrieval is the default runtime. The application verifies the
 complete entity/relation/chunk evidence closure before asking the core renderer
@@ -486,9 +503,15 @@ enforcement stays with the check ports. A verdict is `ALLOWED`, `DENIED`, or
 carries the authority, generation, and capture time it was decided from. The
 explanation path reads the relationship port directly so an unanswered check stays
 distinguishable from a refusal; `EffectiveAuthorizationService` continues to
-collapse the two for enforcement. Administrative tuple writes are confined to
-`organization` and `role` objects: Slack, Drive, and GitHub own the ACL for connected
-content, and a second writer would let the two diverge.
+collapse the two for enforcement. For `knowledge_asset#can_view`, the admin
+inspector additionally runs the one requested asset through the same canonical
+retrieval eligibility SQL and reports the OpenFGA relationship, canonical content
+policy, and final intersection separately. The endpoint requires `can_view_audit`
+before resolving the tenant-owned asset title or Space name; other resource and
+permission combinations are explicitly relationship-only. Administrative tuple
+writes are confined to `organization` and `role` objects: Slack, Drive, and
+GitHub own the ACL for connected content, and a second writer would let the two
+diverge.
 
 Configuration is environment/YAML driven. Provider keys remain server-side. API
 is the interactive delivery and migration owner; worker/MCP share and validate

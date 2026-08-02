@@ -4,6 +4,9 @@ import static com.orgmemory.graphrag.validation.TextValidation.requireText;
 import static com.orgmemory.graphrag.postgres.PostgresProjectionSupport.namespaceParameters;
 
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionAbortOutcome;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
+import com.orgmemory.graphrag.storage.ProjectionDiscardPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -49,6 +52,24 @@ public final class PostgresProjectionPublicationStore
         this.transactions =
                 new TransactionTemplate(
                         Objects.requireNonNull(transactionManager, "transactionManager"));
+    }
+
+    @Override
+    public ProjectionBatch begin(ProjectionBatch candidate) {
+        Objects.requireNonNull(candidate, "candidate");
+        return Objects.requireNonNull(
+                transactions.execute(ignored -> beginInTransaction(candidate)));
+    }
+
+    @Override
+    public boolean hasBoundCommitPermit(ProjectionBatch batch) {
+        Objects.requireNonNull(batch, "batch");
+        return registeredById(batch.id())
+                .filter(registered -> {
+                    requireSameBatch(batch, registered);
+                    return registered.commitPermitId() != null;
+                })
+                .isPresent();
     }
 
     @Override
@@ -141,11 +162,13 @@ public final class PostgresProjectionPublicationStore
     @Override
     public ProjectionSnapshot publish(
             ProjectionBatch batch,
+            ProjectionCommitPermit permit,
             Instant publishedAt) {
         Objects.requireNonNull(batch, "batch");
+        Objects.requireNonNull(permit, "permit").requireAuthorizes(batch);
         Objects.requireNonNull(publishedAt, "publishedAt");
         return Objects.requireNonNull(transactions.execute(ignored -> publishInTransaction(
-                batch, publishedAt)));
+                batch, permit, publishedAt)));
     }
 
     @Override
@@ -156,16 +179,37 @@ public final class PostgresProjectionPublicationStore
         Objects.requireNonNull(batch, "batch");
         String normalizedReason = requireText(reason, "reason");
         Objects.requireNonNull(abortedAt, "abortedAt");
-        transactions.executeWithoutResult(ignored -> {
+        ProjectionAbortOutcome outcome = abortIfUnreachable(
+                batch, normalizedReason, abortedAt);
+        if (outcome.status() != ProjectionAbortOutcome.Status.DISCARD_ALLOWED) {
+            throw new PublicationConflictException(
+                    "a published or ambiguous batch cannot be aborted");
+        }
+    }
+
+    @Override
+    public ProjectionAbortOutcome abortIfUnreachable(
+            ProjectionBatch batch,
+            String reason,
+            Instant abortedAt) {
+        Objects.requireNonNull(batch, "batch");
+        String normalizedReason = requireText(reason, "reason");
+        Objects.requireNonNull(abortedAt, "abortedAt");
+        return Objects.requireNonNull(transactions.execute(ignored -> {
+            Optional<ProjectionSnapshot> published = publicationByBatch(batch.id());
+            if (published.isPresent()) {
+                requireSamePublication(batch, published.orElseThrow());
+                return ProjectionAbortOutcome.published(published.orElseThrow());
+            }
             RegisteredBatch registered = ensureRegistered(batch);
             if ("PUBLISHED".equals(registered.status())) {
-                throw new PublicationConflictException(
-                        "a published batch cannot be aborted");
+                return ProjectionAbortOutcome.keepStaging();
             }
             if ("ABORTED".equals(registered.status())) {
-                return;
+                return ProjectionAbortOutcome.discardAllowed(
+                        discardPermit(batch, abortedAt));
             }
-            jdbc.update(
+            int changed = jdbc.update(
                     """
                     UPDATE projection_batches
                     SET status = 'ABORTED',
@@ -173,12 +217,17 @@ public final class PostgresProjectionPublicationStore
                         abort_reason = :reason
                     WHERE batch_id = :batchId
                       AND status = 'PREPARING'
+                      AND commit_permit_id IS NULL
                     """,
                     new MapSqlParameterSource()
                             .addValue("batchId", batch.id())
                             .addValue("abortedAt", Timestamp.from(abortedAt))
                             .addValue("reason", normalizedReason));
-        });
+            return changed == 1
+                    ? ProjectionAbortOutcome.discardAllowed(
+                            discardPermit(batch, abortedAt))
+                    : ProjectionAbortOutcome.keepStaging();
+        }));
     }
 
     void ensureBatch(ProjectionBatch batch) {
@@ -216,6 +265,7 @@ public final class PostgresProjectionPublicationStore
 
     private ProjectionSnapshot publishInTransaction(
             ProjectionBatch batch,
+            ProjectionCommitPermit permit,
             Instant publishedAt) {
         Optional<ProjectionSnapshot> batchReplay = publicationByBatch(batch.id());
         if (batchReplay.isPresent()) {
@@ -253,6 +303,7 @@ public final class PostgresProjectionPublicationStore
             throw new PublicationNotReadyException(
                     "every required projection must have a durable preparation receipt");
         }
+        bindCommitPermit(batch, permit, registered);
 
         long currentGeneration = current(batch.namespace())
                 .map(ProjectionSnapshot::generation)
@@ -263,6 +314,14 @@ public final class PostgresProjectionPublicationStore
                             + batch.expectedPreviousGeneration()
                             + " but current generation is "
                             + currentGeneration);
+        }
+        UUID currentBatchId = current(batch.namespace())
+                .map(ProjectionSnapshot::batchId)
+                .orElse(null);
+        if (batch.claimEpoch() > 0
+                && !Objects.equals(currentBatchId, batch.expectedPreviousBatchId())) {
+            throw new PublicationConflictException(
+                    "expected predecessor batch does not match the namespace head");
         }
 
         MapSqlParameterSource parameters = batchParameters(batch)
@@ -317,11 +376,13 @@ public final class PostgresProjectionPublicationStore
                     """
                     INSERT INTO projection_batches (
                         batch_id, organization_id, workspace, collection_name,
-                        expected_previous_generation, generation, idempotency_key,
+                        expected_previous_batch_id, expected_previous_generation,
+                        generation, idempotency_key, claim_epoch,
                         manifest_fingerprint, required_projections, status, created_at)
                     VALUES (
                         :batchId, :organizationId, :workspace, :collection,
-                        :expectedPreviousGeneration, :generation, :idempotencyKey,
+                        :expectedPreviousBatchId, :expectedPreviousGeneration,
+                        :generation, :idempotencyKey, :claimEpoch,
                         :manifestFingerprint, :requiredProjections, 'PREPARING', :createdAt)
                     """,
                     batchParameters(batch));
@@ -331,6 +392,104 @@ public final class PostgresProjectionPublicationStore
                     conflict);
         }
         return registeredById(batch.id()).orElseThrow();
+    }
+
+    private ProjectionBatch beginInTransaction(ProjectionBatch candidate) {
+        Optional<RegisteredBatch> exact = registeredById(candidate.id());
+        if (exact.isPresent()) {
+            requireSameBatch(candidate, exact.orElseThrow());
+            return exact.orElseThrow().batch();
+        }
+        Optional<RegisteredBatch> active = activeByIdempotency(candidate);
+        if (active.isEmpty()) {
+            return ensureRegistered(candidate).batch();
+        }
+        RegisteredBatch previousAttempt = active.orElseThrow();
+        requireSameOperation(candidate, previousAttempt);
+        if (previousAttempt.commitPermitId() != null) {
+            return previousAttempt.batch();
+        }
+        if (candidate.claimEpoch() <= 0
+                || candidate.claimEpoch() <= previousAttempt.claimEpoch()) {
+            throw new PublicationConflictException(
+                    "a live or unfenced publication attempt already owns the operation");
+        }
+        int aborted = jdbc.update(
+                """
+                UPDATE projection_batches
+                SET status = 'ABORTED',
+                    aborted_at = :abortedAt,
+                    abort_reason = 'SUPERSEDED_CLAIM_EPOCH'
+                WHERE batch_id = :batchId
+                  AND status = 'PREPARING'
+                  AND commit_permit_id IS NULL
+                  AND claim_epoch < :claimEpoch
+                """,
+                new MapSqlParameterSource()
+                        .addValue("batchId", previousAttempt.id())
+                        .addValue("claimEpoch", candidate.claimEpoch())
+                        .addValue("abortedAt", Timestamp.from(candidate.createdAt())));
+        if (aborted != 1) {
+            throw new PublicationConflictException(
+                    "publication attempt changed while rebasing to a newer claim epoch");
+        }
+        return ensureRegistered(candidate).batch();
+    }
+
+    private Optional<RegisteredBatch> activeByIdempotency(ProjectionBatch batch) {
+        return jdbc.query(
+                        """
+                        SELECT *
+                        FROM projection_batches
+                        WHERE organization_id = :organizationId
+                          AND workspace = :workspace
+                          AND collection_name = :collection
+                          AND idempotency_key = :idempotencyKey
+                          AND status <> 'ABORTED'
+                        """,
+                        namespaceParameters(batch.namespace())
+                                .addValue("idempotencyKey", batch.idempotencyKey()),
+                        (resultSet, rowNumber) -> registeredBatch(resultSet))
+                .stream()
+                .findFirst();
+    }
+
+    private void bindCommitPermit(
+            ProjectionBatch batch,
+            ProjectionCommitPermit permit,
+            RegisteredBatch registered) {
+        UUID existingPermit = registered.commitPermitId();
+        if (existingPermit != null) {
+            if (!existingPermit.equals(permit.id())
+                    || !Objects.equals(registered.commitPermitClaimEpoch(), permit.claimEpoch())) {
+                throw new PublicationConflictException(
+                        "publication attempt is bound to a different commit permit");
+            }
+            return;
+        }
+        int changed = jdbc.update(
+                """
+                UPDATE projection_batches
+                SET commit_permit_id = :permitId,
+                    commit_permit_claim_epoch = :claimEpoch,
+                    commit_permit_issued_at = :issuedAt
+                WHERE batch_id = :batchId
+                  AND commit_permit_id IS NULL
+                  AND status = 'PREPARING'
+                """,
+                new MapSqlParameterSource()
+                        .addValue("batchId", batch.id())
+                        .addValue("permitId", permit.id())
+                        .addValue("claimEpoch", permit.claimEpoch())
+                        .addValue("issuedAt", Timestamp.from(permit.issuedAt())));
+        if (changed != 1) {
+            RegisteredBatch latest = registeredById(batch.id()).orElseThrow();
+            if (!permit.id().equals(latest.commitPermitId())
+                    || !Objects.equals(permit.claimEpoch(), latest.commitPermitClaimEpoch())) {
+                throw new PublicationConflictException(
+                        "publication attempt could not bind the exact commit permit");
+            }
+        }
     }
 
     private Optional<RegisteredBatch> registeredById(UUID batchId) {
@@ -419,12 +578,20 @@ public final class PostgresProjectionPublicationStore
                         resultSet.getObject("organization_id", UUID.class),
                         resultSet.getString("workspace"),
                         resultSet.getString("collection_name")),
+                resultSet.getObject("expected_previous_batch_id", UUID.class),
                 resultSet.getLong("expected_previous_generation"),
                 resultSet.getLong("generation"),
                 resultSet.getString("idempotency_key"),
                 resultSet.getString("manifest_fingerprint"),
                 decodeKinds(resultSet.getString("required_projections")),
-                resultSet.getString("status"));
+                resultSet.getString("status"),
+                resultSet.getLong("claim_epoch"),
+                resultSet.getObject("commit_permit_id", UUID.class),
+                (Long) resultSet.getObject("commit_permit_claim_epoch"),
+                resultSet.getTimestamp("commit_permit_issued_at") == null
+                        ? null
+                        : resultSet.getTimestamp("commit_permit_issued_at").toInstant(),
+                resultSet.getTimestamp("created_at").toInstant());
     }
 
     private static void requireSameBatch(
@@ -434,12 +601,27 @@ public final class PostgresProjectionPublicationStore
                 || !batch.namespace().equals(registered.namespace())
                 || batch.expectedPreviousGeneration()
                         != registered.expectedPreviousGeneration()
+                || !Objects.equals(
+                        batch.expectedPreviousBatchId(),
+                        registered.expectedPreviousBatchId())
                 || batch.generation() != registered.generation()
                 || !batch.idempotencyKey().equals(registered.idempotencyKey())
                 || !batch.manifestFingerprint().equals(registered.manifestFingerprint())
-                || !batch.requiredProjections().equals(registered.requiredProjections())) {
+                || !batch.requiredProjections().equals(registered.requiredProjections())
+                || batch.claimEpoch() != registered.claimEpoch()) {
             throw new PublicationConflictException(
                     "a batch id cannot identify different publication content");
+        }
+    }
+
+    private static void requireSameOperation(
+            ProjectionBatch candidate, RegisteredBatch registered) {
+        if (!candidate.namespace().equals(registered.namespace())
+                || !candidate.idempotencyKey().equals(registered.idempotencyKey())
+                || !candidate.manifestFingerprint().equals(registered.manifestFingerprint())
+                || !candidate.requiredProjections().equals(registered.requiredProjections())) {
+            throw new PublicationConflictException(
+                    "an idempotency key cannot identify different publication content");
         }
     }
 
@@ -458,11 +640,13 @@ public final class PostgresProjectionPublicationStore
     private static MapSqlParameterSource batchParameters(ProjectionBatch batch) {
         return namespaceParameters(batch.namespace())
                 .addValue("batchId", batch.id())
+                .addValue("expectedPreviousBatchId", batch.expectedPreviousBatchId())
                 .addValue(
                         "expectedPreviousGeneration",
                         batch.expectedPreviousGeneration())
                 .addValue("generation", batch.generation())
                 .addValue("idempotencyKey", batch.idempotencyKey())
+                .addValue("claimEpoch", batch.claimEpoch())
                 .addValue("manifestFingerprint", batch.manifestFingerprint())
                 .addValue(
                         "requiredProjections",
@@ -489,10 +673,41 @@ public final class PostgresProjectionPublicationStore
     private record RegisteredBatch(
             UUID id,
             ProjectionNamespace namespace,
+            UUID expectedPreviousBatchId,
             long expectedPreviousGeneration,
             long generation,
             String idempotencyKey,
             String manifestFingerprint,
             Set<ProjectionKind> requiredProjections,
-            String status) {}
+            String status,
+            long claimEpoch,
+            UUID commitPermitId,
+            Long commitPermitClaimEpoch,
+            Instant commitPermitIssuedAt,
+            Instant createdAt) {
+
+        ProjectionBatch batch() {
+            return new ProjectionBatch(
+                    id,
+                    namespace,
+                    expectedPreviousBatchId,
+                    expectedPreviousGeneration,
+                    generation,
+                    idempotencyKey,
+                    manifestFingerprint,
+                    requiredProjections,
+                    claimEpoch,
+                    createdAt);
+        }
+    }
+
+    private static ProjectionDiscardPermit discardPermit(
+            ProjectionBatch batch,
+            Instant issuedAt) {
+        return new ProjectionDiscardPermit(
+                UUID.nameUUIDFromBytes(("discard:" + batch.id())
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                batch.id(),
+                issuedAt);
+    }
 }

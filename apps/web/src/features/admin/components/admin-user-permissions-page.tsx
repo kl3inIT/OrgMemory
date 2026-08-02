@@ -94,7 +94,7 @@ export function AdminUserPermissionsPage({
         description={
           user ? (
             <>
-              {user.email} · {user.role}
+              {user.email}
               {user.signInLinked ? null : " · cannot sign in yet"}
             </>
           ) : undefined
@@ -117,6 +117,8 @@ export function AdminUserPermissionsPage({
       />
 
       <PageLayout.Body>
+        <AccessInspector userId={userId} />
+
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
           <CardHeader>
@@ -236,7 +238,6 @@ export function AdminUserPermissionsPage({
           </Card>
         </div>
 
-        <AccessInspector userId={userId} />
       </PageLayout.Body>
     </PageLayout.Root>
   )

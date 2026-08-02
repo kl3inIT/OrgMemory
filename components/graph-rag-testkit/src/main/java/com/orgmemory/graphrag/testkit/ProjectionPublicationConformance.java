@@ -1,6 +1,7 @@
 package com.orgmemory.graphrag.testkit;
 
 import com.orgmemory.graphrag.storage.ProjectionBatch;
+import com.orgmemory.graphrag.storage.ProjectionCommitPermit;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -39,16 +40,16 @@ public final class ProjectionPublicationConformance {
                 "publication-1",
                 Set.of(ProjectionKind.CONTENT, ProjectionKind.VECTOR));
 
-        expect(PublicationNotReadyException.class, () -> store.publish(first, NOW));
+        expect(PublicationNotReadyException.class, () -> publish(store, first, NOW));
         store.markPrepared(first, ProjectionKind.CONTENT, NOW);
         store.markPrepared(first, ProjectionKind.CONTENT, NOW.plusSeconds(1));
-        expect(PublicationNotReadyException.class, () -> store.publish(first, NOW));
+        expect(PublicationNotReadyException.class, () -> publish(store, first, NOW));
         expect(
                 IllegalArgumentException.class,
                 () -> store.markPrepared(first, ProjectionKind.LEXICAL, NOW));
         store.markPrepared(first, ProjectionKind.VECTOR, NOW);
 
-        ProjectionSnapshot published = store.publish(first, NOW);
+        ProjectionSnapshot published = publish(store, first, NOW);
         require(published.generation() == 1, "first generation must publish");
         require(
                 store.published(NAMESPACE, 1).orElseThrow().equals(published),
@@ -59,7 +60,7 @@ public final class ProjectionPublicationConformance {
                         .equals(published),
                 "published idempotency lookup must find the winning snapshot");
         require(
-                store.publish(first, NOW.plusSeconds(1)).equals(published),
+                publish(store, first, NOW.plusSeconds(1)).equals(published),
                 "same-batch replay must return the original snapshot");
 
         ProjectionBatch idempotentReplay = batch(
@@ -70,7 +71,7 @@ public final class ProjectionPublicationConformance {
                 first.manifestFingerprint(),
                 first.requiredProjections());
         require(
-                store.publish(idempotentReplay, NOW.plusSeconds(2))
+                publish(store, idempotentReplay, NOW.plusSeconds(2))
                         .equals(published),
                 "same idempotency key must return the original snapshot");
 
@@ -97,14 +98,14 @@ public final class ProjectionPublicationConformance {
                 first.requiredProjections());
         expect(
                 PublicationConflictException.class,
-                () -> store.publish(conflictingIdempotentReplay, NOW));
+                () -> publish(store, conflictingIdempotentReplay, NOW));
 
         ProjectionBatch stale =
                 batch("stale", 0, 1, "stale-publication", Set.of(ProjectionKind.CONTENT));
         store.markPrepared(stale, ProjectionKind.CONTENT, NOW);
         expect(
                 PublicationConflictException.class,
-                () -> store.publish(stale, NOW));
+                () -> publish(store, stale, NOW));
 
         ProjectionBatch aborted =
                 batch("aborted", 1, 2, "aborted-publication", Set.of(ProjectionKind.CONTENT));
@@ -114,7 +115,7 @@ public final class ProjectionPublicationConformance {
                 () -> store.markPrepared(aborted, ProjectionKind.CONTENT, NOW));
         expect(
                 PublicationConflictException.class,
-                () -> store.publish(aborted, NOW));
+                () -> publish(store, aborted, NOW));
         require(
                 store.published(NAMESPACE, 2).isEmpty(),
                 "aborted generations must not enter publication history");
@@ -134,7 +135,7 @@ public final class ProjectionPublicationConformance {
                 ProjectionKind.CONTENT,
                 NOW.plusSeconds(2));
         ProjectionSnapshot retried =
-                store.publish(abortedRetry, NOW.plusSeconds(2));
+                publish(store, abortedRetry, NOW.plusSeconds(2));
         require(
                 retried.generation() == 2,
                 "a new batch may retry an idempotency key after an abort");
@@ -147,7 +148,7 @@ public final class ProjectionPublicationConformance {
                 first.manifestFingerprint(),
                 Set.of(ProjectionKind.CONTENT));
         store.markPrepared(second, ProjectionKind.CONTENT, NOW.plusSeconds(3));
-        ProjectionSnapshot secondPublished = store.publish(second, NOW.plusSeconds(3));
+        ProjectionSnapshot secondPublished = publish(store, second, NOW.plusSeconds(3));
         require(secondPublished.generation() == 3, "third generation must publish");
         require(
                 secondPublished.manifestFingerprint().equals(first.manifestFingerprint()),
@@ -158,6 +159,51 @@ public final class ProjectionPublicationConformance {
         require(
                 store.published(NAMESPACE, 1).orElseThrow().equals(published),
                 "old published snapshots must remain addressable after head advance");
+
+        ProjectionBatch abandoned = productionBatch(
+                "abandoned",
+                secondPublished.batchId(),
+                3,
+                4,
+                "claim-epoch-recovery",
+                "manifest-claim-epoch-recovery",
+                1);
+        require(
+                store.begin(abandoned).equals(abandoned),
+                "the first physical attempt must register before staging");
+        store.markPrepared(abandoned, ProjectionKind.CONTENT, NOW.plusSeconds(4));
+
+        ProjectionBatch liveCompetitor = productionBatch(
+                "live-competitor",
+                secondPublished.batchId(),
+                3,
+                4,
+                "claim-epoch-recovery",
+                abandoned.manifestFingerprint(),
+                1);
+        expect(PublicationConflictException.class, () -> store.begin(liveCompetitor));
+
+        ProjectionBatch recovered = productionBatch(
+                "recovered",
+                secondPublished.batchId(),
+                3,
+                4,
+                "claim-epoch-recovery",
+                abandoned.manifestFingerprint(),
+                2);
+        require(
+                store.begin(recovered).equals(recovered),
+                "a higher durable claim epoch must replace an unpermitted abandoned attempt");
+        expect(
+                PublicationConflictException.class,
+                () -> store.markPrepared(
+                        abandoned, ProjectionKind.CONTENT, NOW.plusSeconds(5)));
+        store.markPrepared(recovered, ProjectionKind.CONTENT, NOW.plusSeconds(5));
+        ProjectionSnapshot recoveredSnapshot = publish(
+                store, recovered, NOW.plusSeconds(5));
+        require(
+                recoveredSnapshot.batchId().equals(recovered.id()),
+                "the higher-epoch physical attempt must become the visible winner");
     }
 
     private static ProjectionBatch batch(
@@ -173,6 +219,41 @@ public final class ProjectionPublicationConformance {
                 idempotencyKey,
                 "manifest-" + id,
                 projections);
+    }
+
+    private static ProjectionBatch productionBatch(
+            String id,
+            UUID expectedPreviousBatchId,
+            long previous,
+            long generation,
+            String idempotencyKey,
+            String manifestFingerprint,
+            long claimEpoch) {
+        return new ProjectionBatch(
+                UUID.nameUUIDFromBytes(id.getBytes(StandardCharsets.UTF_8)),
+                NAMESPACE,
+                expectedPreviousBatchId,
+                previous,
+                generation,
+                idempotencyKey,
+                manifestFingerprint,
+                Set.of(ProjectionKind.CONTENT),
+                claimEpoch,
+                NOW);
+    }
+
+    private static ProjectionSnapshot publish(
+            ProjectionPublicationStore store,
+            ProjectionBatch batch,
+            Instant publishedAt) {
+        ProjectionCommitPermit permit = new ProjectionCommitPermit(
+                UUID.nameUUIDFromBytes(
+                        ("permit:" + batch.id()).getBytes(StandardCharsets.UTF_8)),
+                batch.id(),
+                batch.manifestFingerprint(),
+                batch.claimEpoch() == 0 ? 1 : batch.claimEpoch(),
+                publishedAt);
+        return store.publish(batch, permit, publishedAt);
     }
 
     private static ProjectionBatch batch(

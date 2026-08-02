@@ -2,12 +2,10 @@
 
 Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`,
-`apps/api/src/test/java/com/orgmemory/api/source`,
-`apps/web/src/features/sources`, `apps/web/test/e2e`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-02-document-view-delete (570b1fec)`.
+Reconciled: `2026-08-01-spring-modulith-package-refactor (7cef296c)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -23,28 +21,7 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 | Stale expected heads reject | `sourceRevisionAndAclRotationRejectStaleExpectedHeads` |
 | Refresh-window validity | `completeAclRejectsValidityBeyondRefreshWindow` |
 | Concurrent retries converge | `concurrentRetriesConvergeOnOneRawNormalizationAndAsset` |
-
-## Documents View And Retirement Coverage
-
-Evidence classes: `SourceQueryServiceTests`, `SourceContentServiceTests`,
-`SecureSourceActionAuthorizationAdapterTests`,
-`KnowledgeAssetLifecycleServiceTests`, `SourceLifecycleServiceTests`,
-`SourceContentWebMvcTests`, `source-preview.test.ts`, and
-`document-actions.spec.ts`.
-
-| Behavior | Automated evidence |
-| --- | --- |
-| List flags distinguish permission-visible content and deletable READY native uploads | `SourceQueryServiceTests` |
-| Content rechecks the canonical evidence scope and missing/denied sources share one opaque response | `streamsOnlyTheCurrentPermissionVisibleReadyRevision`, `deniedAndMissingSourcesShareTheOpaqueNotFoundContract`, `missingAndDeniedSourcesAreWireEquivalent` |
-| Integrity mismatch closes the stream, fails unavailable, and records an audit | `integrityFailureClosesTheObjectAndIsAudited` |
-| Markdown is delivered as plain text with `no-store`, `nosniff`, and inline disposition | `streamsMarkdownAsPlainTextWithClosedDeliveryHeaders` |
-| Delete resolves only a READY native upload, rechecks `can_delete`, retires both aggregates, and accepts a consistent retry | `deleteReadyUploadResolvesTheSourceThenRetiresBothAggregates`, `repeatedSourceDeleteReturnsTheExistingRetirementWithoutMutatingAgain`, `resolvesAndArchivesOnlyAReadyNativeUpload`, `rejectsConnectorAndNonReadySources` |
-| Preview allowlist keeps active types exact and every other type download-only | `source-preview.test.ts` |
-| Browser opens protected text, confirms/deletes an eligible row, and disables Delete for processing work | `document-actions.spec.ts` |
-
-Gaps: physical evidence/projection/tuple erasure is retention-policy work, not
-part of the Documents retirement command. Pre-publication cancellation remains
-unimplemented until publication fencing and stale-worker race tests exist.
+| Citation evidence read maps only a tenant-scoped ready matching revision plus validated blob into immutable metadata | `SourceCitationEvidenceQueryTests` |
 
 ## Connector Staging Coverage
 
