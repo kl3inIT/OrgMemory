@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (24c31aea)`.
+Reconciled: `fix/keyword-luna-default (d4deed72)`.
 
 ## Current Behavior
 
@@ -55,6 +55,10 @@ contribute only a managed credential while retaining the endpoint,
 capabilities, timeout, and feature flags defined in base configuration; API and
 worker verify this base-plus-profile binding against their real configuration
 files.
+Nested immutable route records that also expose convenience constructors mark
+their canonical constructor explicitly, so Spring Boot binds the independent
+Answer, Keyword Planning, Graph Extraction, and embedding deployment routes
+instead of falling back to the shared Java defaults.
 
 Fixed providers use fixed HTTPS endpoints. Custom endpoints require an exact
 origin in `ORGMEMORY_AI_ALLOWED_CUSTOM_ORIGINS`; redirects, response size,

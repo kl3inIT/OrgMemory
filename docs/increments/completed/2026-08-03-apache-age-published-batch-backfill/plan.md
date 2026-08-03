@@ -30,7 +30,7 @@
 
 ## 4. Delivery
 
-- [ ] Commit, publish a PR, and wait for required CI.
-- [ ] Deploy the green immutable image set.
-- [ ] Verify AGE markers, Graph explorer, Assistant citation, and production
+- [x] Commit, publish a PR, and wait for required CI.
+- [x] Deploy the green immutable image set.
+- [x] Verify AGE markers, Graph explorer, Assistant citation, and production
   telemetry with the authenticated browser flow.
