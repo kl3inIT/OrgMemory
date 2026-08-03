@@ -139,6 +139,24 @@ class SkillRegistryServiceTests {
                 eq(ACTOR), eq(ASSET_ID), eq(7L), any(SkillPackageUpload.class));
     }
 
+    @Test
+    void refusesUnauthorizedReplacementBeforeReadingPackageBytes() {
+        SkillPackageAssetCommand packages = mock(SkillPackageAssetCommand.class);
+        doThrow(new AssetNotFoundException())
+                .when(packages)
+                .requireEdit(ACTOR, ASSET_ID);
+        SkillRegistryService service = service(packages);
+
+        assertThrows(
+                AssetNotFoundException.class,
+                () -> service.replacePackage(
+                        ACTOR,
+                        ASSET_ID,
+                        7,
+                        1,
+                        new UnreadableInputStream()));
+    }
+
     private static SkillRegistryService service(
             SkillPackageAssetCommand packages) {
         return new SkillRegistryService(new SkillPackageInspector(), packages);

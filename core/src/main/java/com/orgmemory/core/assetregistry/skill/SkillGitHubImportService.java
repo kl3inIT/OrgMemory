@@ -137,7 +137,7 @@ class SkillGitHubImportService implements SkillGitHubOperations {
             }
             byte[] archive = candidate.archive();
             try {
-                UUID assetId = skills.importPackage(
+                UUID assetId = skills.importPreauthorizedPackage(
                         actor,
                         request.namespace(),
                         request.source().knowledgeSpaceId(),

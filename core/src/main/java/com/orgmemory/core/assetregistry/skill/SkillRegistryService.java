@@ -61,7 +61,9 @@ class SkillRegistryService implements SkillPackageOperations {
             KnowledgeClassification classification,
             long contentLength,
             InputStream content) {
-        return importPackage(
+        Objects.requireNonNull(actor, "actor");
+        packages.requireCreate(actor, knowledgeSpaceId);
+        return stageAndImport(
                 actor,
                 namespace,
                 knowledgeSpaceId,
@@ -71,7 +73,26 @@ class SkillRegistryService implements SkillPackageOperations {
                 null);
     }
 
-    UUID importPackage(
+    UUID importPreauthorizedPackage(
+            CurrentActor actor,
+            String namespace,
+            UUID knowledgeSpaceId,
+            KnowledgeClassification classification,
+            long contentLength,
+            InputStream content,
+            SkillPackageSpec.Origin origin) {
+        Objects.requireNonNull(origin, "origin");
+        return stageAndImport(
+                actor,
+                namespace,
+                knowledgeSpaceId,
+                classification,
+                contentLength,
+                content,
+                origin);
+    }
+
+    private UUID stageAndImport(
             CurrentActor actor,
             String namespace,
             UUID knowledgeSpaceId,
@@ -81,7 +102,6 @@ class SkillRegistryService implements SkillPackageOperations {
             SkillPackageSpec.Origin origin) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(classification, "classification");
-        packages.requireCreate(actor, knowledgeSpaceId);
         try (SkillPackageInspector.StagedSkillPackage staged =
                         inspector.inspect(content, contentLength);
                 InputStream packageContent = staged.open()) {

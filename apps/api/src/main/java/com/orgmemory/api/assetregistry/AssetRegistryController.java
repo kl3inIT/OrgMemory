@@ -16,7 +16,9 @@ import com.orgmemory.core.assetregistry.skill.SkillGitHubOperations;
 import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.assetregistry.skill.SkillPackageInspection;
 import com.orgmemory.core.assetregistry.skill.SkillPackageOperations;
+import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
+import com.orgmemory.core.shared.error.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,6 +27,8 @@ import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
@@ -43,6 +47,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/assets")
 class AssetRegistryController {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(AssetRegistryController.class);
 
     enum GenericAssetType {
         PROMPT_TEMPLATE,
@@ -272,15 +279,45 @@ class AssetRegistryController {
                 result.revision(),
                 result.visibility(),
                 result.skills().stream()
-                        .map(item -> new ImportItem(
-                                item.path(),
-                                item.imported(),
-                                item.imported()
-                                        ? assets.get(actor, item.assetId())
-                                        : null,
-                                item.errorCode(),
-                                item.errorMessage()))
+                        .map(item -> importItem(actor, item))
                         .toList());
+    }
+
+    private ImportItem importItem(
+            CurrentActor actor,
+            SkillGitHubOperations.ImportItem item) {
+        if (!item.imported()) {
+            return new ImportItem(
+                    item.path(), false, null, item.errorCode(), item.errorMessage());
+        }
+        try {
+            return new ImportItem(
+                    item.path(), true, assets.get(actor, item.assetId()), "", "");
+        } catch (BusinessException failure) {
+            LOG.warn(
+                    "Imported GitHub Skill is not readable yet path={} assetId={} code={}",
+                    item.path(),
+                    item.assetId(),
+                    failure.code());
+            return new ImportItem(
+                    item.path(),
+                    true,
+                    null,
+                    failure.code(),
+                    failure.getMessage());
+        } catch (RuntimeException failure) {
+            LOG.warn(
+                    "Unexpected GitHub Skill result resolution failure path={} assetId={}",
+                    item.path(),
+                    item.assetId(),
+                    failure);
+            return new ImportItem(
+                    item.path(),
+                    true,
+                    null,
+                    "skill.github-import-resolution-failed",
+                    "The Skill was imported but could not be read yet");
+        }
     }
 
     @PutMapping(

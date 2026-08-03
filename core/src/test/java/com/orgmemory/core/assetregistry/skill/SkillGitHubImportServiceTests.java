@@ -87,7 +87,7 @@ class SkillGitHubImportServiceTests {
                 SkillGitHubSourcePort.Visibility.PRIVATE,
                 List.of(valid(firstPath, 1), valid(secondPath, 2))));
         UUID importedId = UUID.randomUUID();
-        when(skills.importPackage(
+        when(skills.importPreauthorizedPackage(
                         eq(ACTOR),
                         eq("support"),
                         eq(SPACE_ID),
@@ -117,7 +117,7 @@ class SkillGitHubImportServiceTests {
         assertEquals("asset.conflict", result.skills().get(1).errorCode());
         ArgumentCaptor<SkillPackageSpec.Origin> origins =
                 ArgumentCaptor.forClass(SkillPackageSpec.Origin.class);
-        verify(skills, org.mockito.Mockito.times(2)).importPackage(
+        verify(skills, org.mockito.Mockito.times(2)).importPreauthorizedPackage(
                 eq(ACTOR),
                 eq("support"),
                 eq(SPACE_ID),
@@ -125,6 +125,7 @@ class SkillGitHubImportServiceTests {
                 anyLong(),
                 any(InputStream.class),
                 origins.capture());
+        verify(packages).requireCreate(ACTOR, SPACE_ID);
         assertEquals(List.of(firstPath, secondPath),
                 origins.getAllValues().stream().map(SkillPackageSpec.Origin::path).toList());
         assertEquals(SkillGitHubSourcePort.Visibility.PRIVATE,
@@ -194,7 +195,7 @@ class SkillGitHubImportServiceTests {
                 service.importSelected(ACTOR, request(SHA, List.of("removed/SKILL.md")));
 
         assertEquals("skill.github-path-not-found", result.skills().getFirst().errorCode());
-        verify(skills, never()).importPackage(
+        verify(skills, never()).importPreauthorizedPackage(
                 any(), any(), any(), any(), anyLong(), any(InputStream.class), any());
     }
 
