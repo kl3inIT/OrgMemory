@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackageAssetCommand;
@@ -17,22 +17,20 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 @Service
-public class SkillRegistryService {
+class SkillRegistryService implements SkillPackageOperations {
 
     private final SkillPackageInspector inspector;
     private final SkillPackageAssetCommand packages;
-    private final AssetRegistryService assets;
     private final ObjectMapper json = JsonMapper.builder().build();
 
     SkillRegistryService(
             SkillPackageInspector inspector,
-            SkillPackageAssetCommand packages,
-            AssetRegistryService assets) {
+            SkillPackageAssetCommand packages) {
         this.inspector = inspector;
         this.packages = packages;
-        this.assets = assets;
     }
 
+    @Override
     public SkillPackageInspection inspectPackage(
             CurrentActor actor, long contentLength, InputStream content) {
         Objects.requireNonNull(actor, "actor");
@@ -48,11 +46,15 @@ public class SkillRegistryService {
                     staged.metadata().instructions(),
                     staged.sha256(),
                     staged.contentLength(),
-                    staged.files());
+                    staged.files().stream()
+                            .map(file -> new SkillPackageInspection.FileEntry(
+                                    file.path(), file.size(), file.sha256()))
+                            .toList());
         }
     }
 
-    public AssetView importPackage(
+    @Override
+    public UUID importPackage(
             CurrentActor actor,
             String namespace,
             UUID knowledgeSpaceId,
@@ -69,7 +71,7 @@ public class SkillRegistryService {
                 null);
     }
 
-    AssetView importPackage(
+    UUID importPackage(
             CurrentActor actor,
             String namespace,
             UUID knowledgeSpaceId,
@@ -88,13 +90,12 @@ public class SkillRegistryService {
                     staged.contentLength(),
                     SkillPackageArtifact.ZIP_MEDIA_TYPE);
             SkillPackageSpec spec = specification(staged, artifact, origin);
-            UUID assetId = packages.importPackage(
+            return packages.importPackage(
                     actor,
                     namespace,
                     knowledgeSpaceId,
                     classification,
                     upload(spec, artifact, packageContent));
-            return assets.get(actor, assetId);
         } catch (IOException failure) {
             throw new BusinessUnavailableException(
                     "skill.package-staging-unavailable",
@@ -103,7 +104,8 @@ public class SkillRegistryService {
         }
     }
 
-    public AssetView replacePackage(
+    @Override
+    public UUID replacePackage(
             CurrentActor actor,
             UUID assetId,
             long expectedLockVersion,
@@ -120,12 +122,11 @@ public class SkillRegistryService {
                     staged.contentLength(),
                     SkillPackageArtifact.ZIP_MEDIA_TYPE);
             SkillPackageSpec spec = specification(staged, artifact, null);
-            UUID replacedId = packages.replacePackage(
+            return packages.replacePackage(
                     actor,
                     assetId,
                     expectedLockVersion,
                     upload(spec, artifact, packageContent));
-            return assets.get(actor, replacedId);
         } catch (IOException failure) {
             throw new BusinessUnavailableException(
                     "skill.package-staging-unavailable",

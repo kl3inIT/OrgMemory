@@ -12,9 +12,10 @@ import com.orgmemory.core.assetregistry.AssetReviewDecisionType;
 import com.orgmemory.core.assetregistry.AssetSummary;
 import com.orgmemory.core.assetregistry.AssetSummaryPage;
 import com.orgmemory.core.assetregistry.AssetView;
-import com.orgmemory.core.assetregistry.SkillGitHubImportService;
-import com.orgmemory.core.assetregistry.SkillPackageInspection;
-import com.orgmemory.core.assetregistry.SkillRegistryService;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubOperations;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
+import com.orgmemory.core.assetregistry.skill.SkillPackageInspection;
+import com.orgmemory.core.assetregistry.skill.SkillPackageOperations;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.constraints.NotBlank;
@@ -54,14 +55,14 @@ class AssetRegistryController {
     }
 
     private final AssetRegistryService assets;
-    private final SkillRegistryService skills;
-    private final SkillGitHubImportService skillGitHub;
+    private final SkillPackageOperations skills;
+    private final SkillGitHubOperations skillGitHub;
     private final CurrentActorProvider actors;
 
     AssetRegistryController(
             AssetRegistryService assets,
-            SkillRegistryService skills,
-            SkillGitHubImportService skillGitHub,
+            SkillPackageOperations skills,
+            SkillGitHubOperations skillGitHub,
             CurrentActorProvider actors) {
         this.assets = assets;
         this.skills = skills;
@@ -124,8 +125,8 @@ class AssetRegistryController {
             String connectionKey,
             @NotNull UUID knowledgeSpaceId) {
 
-        SkillGitHubImportService.SourceRequest source() {
-            return new SkillGitHubImportService.SourceRequest(
+        SkillGitHubOperations.SourceRequest source() {
+            return new SkillGitHubOperations.SourceRequest(
                     repository, revision, subpath, connectionKey, knowledgeSpaceId);
         }
     }
@@ -135,6 +136,21 @@ class AssetRegistryController {
             @NotNull @Size(min = 1, max = 20) List<@NotBlank String> paths,
             @NotBlank @Size(max = 128) String namespace,
             KnowledgeClassification classification) {
+    }
+
+    record ImportResult(
+            String repository,
+            String revision,
+            SkillGitHubSourcePort.Visibility visibility,
+            List<ImportItem> skills) {
+    }
+
+    record ImportItem(
+            String path,
+            boolean imported,
+            AssetView asset,
+            String errorCode,
+            String errorMessage) {
     }
 
     record AssetAvailabilityRequest(String reason) {
@@ -178,13 +194,15 @@ class AssetRegistryController {
                     KnowledgeClassification classification,
             Authentication authentication) {
         try (var content = file.getInputStream()) {
-            return skills.importPackage(
-                    actors.current(authentication),
+            var actor = actors.current(authentication);
+            UUID assetId = skills.importPackage(
+                    actor,
                     namespace,
                     knowledgeSpaceId,
                     classification,
                     file.getSize(),
                     content);
+            return assets.get(actor, assetId);
         } catch (IOException failure) {
             throw new ApiRequestException(
                     "The Skill package could not be read", failure);
@@ -213,7 +231,7 @@ class AssetRegistryController {
     @Operation(
             operationId = "previewGitHubSkills",
             summary = "Discover and validate Skills at one GitHub repository revision")
-    SkillGitHubImportService.Preview previewGitHubSkills(
+    SkillGitHubOperations.Preview previewGitHubSkills(
             @Valid @RequestBody GitHubSkillSourceRequest request,
             Authentication authentication) {
         return skillGitHub.preview(
@@ -224,7 +242,7 @@ class AssetRegistryController {
     @Operation(
             operationId = "listGitHubSkillConnections",
             summary = "List approved GitHub connections available for private Skill import")
-    List<com.orgmemory.core.assetregistry.SkillGitHubSourcePort.ConnectionOption>
+    List<SkillGitHubOperations.ConnectionOption>
             listGitHubSkillConnections(
                     @RequestParam UUID knowledgeSpaceId,
                     Authentication authentication) {
@@ -236,18 +254,33 @@ class AssetRegistryController {
     @Operation(
             operationId = "importGitHubSkills",
             summary = "Import selected Skills from an exact GitHub commit")
-    SkillGitHubImportService.ImportResult importGitHubSkills(
+    ImportResult importGitHubSkills(
             @Valid @RequestBody GitHubSkillImportRequest request,
             Authentication authentication) {
-        return skillGitHub.importSelected(
-                actors.current(authentication),
-                new SkillGitHubImportService.ImportRequest(
+        var actor = actors.current(authentication);
+        SkillGitHubOperations.ImportResult result = skillGitHub.importSelected(
+                actor,
+                new SkillGitHubOperations.ImportRequest(
                         request.source().source(),
                         request.paths(),
                         request.namespace(),
                         request.classification() == null
                                 ? KnowledgeClassification.INTERNAL
                                 : request.classification()));
+        return new ImportResult(
+                result.repository(),
+                result.revision(),
+                result.visibility(),
+                result.skills().stream()
+                        .map(item -> new ImportItem(
+                                item.path(),
+                                item.imported(),
+                                item.imported()
+                                        ? assets.get(actor, item.assetId())
+                                        : null,
+                                item.errorCode(),
+                                item.errorMessage()))
+                        .toList());
     }
 
     @PutMapping(
@@ -262,12 +295,14 @@ class AssetRegistryController {
             @RequestParam long expectedLockVersion,
             Authentication authentication) {
         try (var content = file.getInputStream()) {
-            return skills.replacePackage(
-                    actors.current(authentication),
+            var actor = actors.current(authentication);
+            UUID replacedId = skills.replacePackage(
+                    actor,
                     assetId,
                     expectedLockVersion,
                     file.getSize(),
                     content);
+            return assets.get(actor, replacedId);
         } catch (IOException failure) {
             throw new ApiRequestException(
                     "The Skill package could not be read", failure);

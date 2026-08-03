@@ -13,8 +13,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
-import com.orgmemory.core.assetregistry.SkillPackageSpec;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionConfiguration;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -79,7 +78,7 @@ class GitHubSkillSourceAdapterTests {
 
         SkillGitHubSourcePort.FetchResult result = adapter.fetch(request("main", ""));
 
-        assertEquals(SkillPackageSpec.Visibility.PUBLIC, result.visibility());
+        assertEquals(SkillGitHubSourcePort.Visibility.PUBLIC, result.visibility());
         assertEquals(SHA, result.revision());
         assertEquals("skills/triage/SKILL.md", result.packages().getFirst().path());
         verify(connections, org.mockito.Mockito.never()).resolveCredential(any(), any(), any());
@@ -139,7 +138,7 @@ class GitHubSkillSourceAdapterTests {
 
         SkillGitHubSourcePort.FetchResult result = adapter.fetch(request(SHA, "private-app"));
 
-        assertEquals(SkillPackageSpec.Visibility.PRIVATE, result.visibility());
+        assertEquals(SkillGitHubSourcePort.Visibility.PRIVATE, result.visibility());
         ArgumentCaptor<PermissionAuditCommand> command =
                 ArgumentCaptor.forClass(PermissionAuditCommand.class);
         verify(audit).record(command.capture());

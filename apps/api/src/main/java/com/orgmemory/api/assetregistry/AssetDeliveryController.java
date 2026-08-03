@@ -9,8 +9,8 @@ import com.orgmemory.core.assetregistry.AssetRelationResolution;
 import com.orgmemory.core.assetregistry.CapabilityPackDefinition;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult;
-import com.orgmemory.core.assetregistry.SkillDistributionService;
-import com.orgmemory.core.assetregistry.SkillInstallManifest;
+import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
+import com.orgmemory.core.assetregistry.skill.SkillInstallManifest;
 import io.swagger.v3.oas.annotations.Operation;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -45,13 +45,13 @@ class AssetDeliveryController {
 
     private final AssetDeliveryService delivery;
     private final PromptExecutionService prompts;
-    private final SkillDistributionService skills;
+    private final SkillDistributionOperations skills;
     private final CurrentActorProvider actors;
 
     AssetDeliveryController(
             AssetDeliveryService delivery,
             PromptExecutionService prompts,
-            SkillDistributionService skills,
+            SkillDistributionOperations skills,
             CurrentActorProvider actors) {
         this.delivery = delivery;
         this.prompts = prompts;

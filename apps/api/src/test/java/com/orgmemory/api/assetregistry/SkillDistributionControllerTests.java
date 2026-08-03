@@ -12,9 +12,9 @@ import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
-import com.orgmemory.core.assetregistry.SkillDistributionService;
-import com.orgmemory.core.assetregistry.SkillInstallManifest;
-import com.orgmemory.core.assetregistry.SkillPackageContent;
+import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
+import com.orgmemory.core.assetregistry.skill.SkillInstallManifest;
+import com.orgmemory.core.assetregistry.skill.SkillPackageContent;
 import com.orgmemory.core.organization.CurrentActor;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -46,8 +46,8 @@ class SkillDistributionControllerTests {
         TrackingInputStream stream =
                 new TrackingInputStream(bytes);
         SkillInstallManifest manifest = manifest(bytes.length);
-        SkillDistributionService skills =
-                mock(SkillDistributionService.class);
+        SkillDistributionOperations skills =
+                mock(SkillDistributionOperations.class);
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
         Authentication authentication = mock(Authentication.class);
         when(actors.current(authentication)).thenReturn(ACTOR);
@@ -87,8 +87,8 @@ class SkillDistributionControllerTests {
     void closesThePackageIfResponseMetadataCannotBeBuilt() {
         TrackingInputStream stream =
                 new TrackingInputStream(new byte[] {1});
-        SkillDistributionService skills =
-                mock(SkillDistributionService.class);
+        SkillDistributionOperations skills =
+                mock(SkillDistributionOperations.class);
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
         Authentication authentication = mock(Authentication.class);
         when(actors.current(authentication)).thenReturn(ACTOR);

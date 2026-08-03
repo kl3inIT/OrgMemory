@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import java.util.List;
 import java.util.Map;
@@ -13,10 +13,13 @@ public record SkillPackageInspection(
         String instructions,
         String sha256,
         long contentLength,
-        List<SkillPackageSpec.FileEntry> files) {
+        List<FileEntry> files) {
 
     public SkillPackageInspection {
         metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
         files = files == null ? List.of() : List.copyOf(files);
+    }
+
+    public record FileEntry(String path, long size, String sha256) {
     }
 }

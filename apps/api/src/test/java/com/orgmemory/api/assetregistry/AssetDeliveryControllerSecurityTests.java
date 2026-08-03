@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assetregistry.AssetDeliveryService;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
-import com.orgmemory.core.assetregistry.SkillDistributionService;
+import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -93,8 +93,8 @@ class AssetDeliveryControllerSecurityTests {
         }
 
         @Bean
-        SkillDistributionService skills() {
-            return mock(SkillDistributionService.class);
+        SkillDistributionOperations skills() {
+            return mock(SkillDistributionOperations.class);
         }
 
         @Bean
@@ -106,7 +106,7 @@ class AssetDeliveryControllerSecurityTests {
         AssetDeliveryController controller(
                 AssetDeliveryService delivery,
                 PromptExecutionService prompts,
-                SkillDistributionService skills,
+                SkillDistributionOperations skills,
                 CurrentActorProvider actors) {
             return new AssetDeliveryController(
                     delivery, prompts, skills, actors);

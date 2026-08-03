@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
@@ -44,6 +44,15 @@ class SkillPackageProfile implements
             throw new SkillPackageValidationException(
                     "The Skill package artifact does not match its canonical payload");
         }
+    }
+
+    @Override
+    public SkillPackageArtifact artifact(String canonicalPayload) {
+        SkillPackageSpec.Artifact artifact = read(canonicalPayload).artifact();
+        return new SkillPackageArtifact(
+                artifact.sha256(),
+                artifact.contentLength(),
+                artifact.mediaType());
     }
 
     @Override

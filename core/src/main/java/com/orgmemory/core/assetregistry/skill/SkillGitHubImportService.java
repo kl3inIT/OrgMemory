@@ -1,5 +1,6 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageAssetCommand;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.shared.error.BusinessException;
@@ -19,34 +20,38 @@ import org.springframework.stereotype.Service;
 
 /** Coordinates stateless GitHub preview and independent per-Skill imports. */
 @Service
-public class SkillGitHubImportService {
+class SkillGitHubImportService implements SkillGitHubOperations {
 
     private static final Logger LOG = LoggerFactory.getLogger(SkillGitHubImportService.class);
 
     private final SkillGitHubSourcePort source;
     private final SkillRegistryService skills;
-    private final AssetRegistryService assets;
+    private final SkillPackageAssetCommand packages;
 
     SkillGitHubImportService(
             SkillGitHubSourcePort source,
             SkillRegistryService skills,
-            AssetRegistryService assets) {
+            SkillPackageAssetCommand packages) {
         this.source = source;
         this.skills = skills;
-        this.assets = assets;
+        this.packages = packages;
     }
 
-    public List<SkillGitHubSourcePort.ConnectionOption> availableConnections(
+    @Override
+    public List<ConnectionOption> availableConnections(
             CurrentActor actor, UUID knowledgeSpaceId) {
         Objects.requireNonNull(actor, "actor");
-        assets.requireSkillCreate(actor, knowledgeSpaceId);
-        return source.availableConnections(actor.organizationId());
+        packages.requireCreate(actor, knowledgeSpaceId);
+        return source.availableConnections(actor.organizationId()).stream()
+                .map(option -> new ConnectionOption(option.key()))
+                .toList();
     }
 
+    @Override
     public Preview preview(CurrentActor actor, SourceRequest request) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(request, "request");
-        assets.requireSkillCreate(actor, request.knowledgeSpaceId());
+        packages.requireCreate(actor, request.knowledgeSpaceId());
         SkillGitHubSourcePort.FetchResult fetched = source.fetch(fetchRequest(actor, request));
         List<PreviewItem> items = new ArrayList<>();
         for (SkillGitHubSourcePort.FetchedPackage candidate : fetched.packages()) {
@@ -82,13 +87,14 @@ public class SkillGitHubImportService {
                 fetched.repository(), fetched.revision(), fetched.visibility(), items);
     }
 
+    @Override
     public ImportResult importSelected(CurrentActor actor, ImportRequest request) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(request.source(), "source");
         Objects.requireNonNull(request.source().knowledgeSpaceId(), "knowledgeSpaceId");
         Objects.requireNonNull(request.classification(), "classification");
-        assets.requireSkillCreate(actor, request.source().knowledgeSpaceId());
+        packages.requireCreate(actor, request.source().knowledgeSpaceId());
         Set<String> selected = normalizedSelection(request.paths());
         if (selected.isEmpty()
                 || selected.size() > SkillGitHubSourcePort.MAX_SKILLS_PER_IMPORT) {
@@ -131,7 +137,7 @@ public class SkillGitHubImportService {
             }
             byte[] archive = candidate.archive();
             try {
-                AssetView asset = skills.importPackage(
+                UUID assetId = skills.importPackage(
                         actor,
                         request.namespace(),
                         request.source().knowledgeSpaceId(),
@@ -143,7 +149,7 @@ public class SkillGitHubImportService {
                                 fetched.revision(),
                                 candidate.path(),
                                 fetched.visibility()));
-                results.add(ImportItem.imported(path, asset));
+                results.add(ImportItem.imported(path, assetId));
             } catch (BusinessException failure) {
                 results.add(ImportItem.failed(path, failure.code(), failure.getMessage()));
             } catch (RuntimeException failure) {
@@ -186,73 +192,4 @@ public class SkillGitHubImportService {
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
-    public record SourceRequest(
-            String repository,
-            String revision,
-            String subpath,
-            String connectionKey,
-            UUID knowledgeSpaceId) {
-    }
-
-    public record ImportRequest(
-            SourceRequest source,
-            List<String> paths,
-            String namespace,
-            KnowledgeClassification classification) {
-    }
-
-    public record Preview(
-            String repository,
-            String revision,
-            SkillPackageSpec.Visibility visibility,
-            List<PreviewItem> skills) {
-    }
-
-    public record PreviewItem(
-            String path,
-            boolean importable,
-            String name,
-            String description,
-            int fileCount,
-            String errorCode,
-            String errorMessage) {
-
-        static PreviewItem importable(String path, SkillPackageInspection inspection) {
-            return new PreviewItem(
-                    path,
-                    true,
-                    inspection.name(),
-                    inspection.description(),
-                    inspection.files().size(),
-                    "",
-                    "");
-        }
-
-        static PreviewItem invalid(String path, String code, String message) {
-            return new PreviewItem(path, false, "", "", 0, code, message);
-        }
-    }
-
-    public record ImportResult(
-            String repository,
-            String revision,
-            SkillPackageSpec.Visibility visibility,
-            List<ImportItem> skills) {
-    }
-
-    public record ImportItem(
-            String path,
-            boolean imported,
-            AssetView asset,
-            String errorCode,
-            String errorMessage) {
-
-        static ImportItem imported(String path, AssetView asset) {
-            return new ImportItem(path, true, asset, "", "");
-        }
-
-        static ImportItem failed(String path, String code, String message) {
-            return new ImportItem(path, false, null, code, message);
-        }
-    }
 }

@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackagePayloadPolicy;
 import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
 import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
@@ -56,7 +58,7 @@ class AssetRegistryCoordinator {
     private final AssetPayloadReferenceRepository payloadReferences;
     private final SkillPackageSupersessionRepository packageSupersessions;
     private final AssetTypeProfileRegistry profiles;
-    private final SkillPackageSpecReader skillPackages;
+    private final SkillPackagePayloadPolicy skillPackages;
     private final AssetPayloadDigester digester;
 
     AssetRegistryCoordinator(
@@ -77,7 +79,7 @@ class AssetRegistryCoordinator {
             AssetPayloadReferenceRepository payloadReferences,
             SkillPackageSupersessionRepository packageSupersessions,
             AssetTypeProfileRegistry profiles,
-            SkillPackageSpecReader skillPackages,
+            SkillPackagePayloadPolicy skillPackages,
             AssetPayloadDigester digester) {
         this.registrations = registrations;
         this.identities = identities;
@@ -179,8 +181,8 @@ class AssetRegistryCoordinator {
                 throw new IllegalArgumentException(
                         "Only Skill Assets may carry a package reference");
             }
-            SkillPackageSpec spec = skillSpec(canonical.payload());
-            requireMatchingPackage(spec.artifact(), storedPackage);
+            SkillPackageArtifact artifact = skillArtifact(canonical.payload());
+            requireMatchingPackage(artifact, storedPackage);
             payloadReferences.saveAndFlush(
                     AssetPayloadReference.forDraft(draft, storedPackage));
         }
@@ -460,8 +462,8 @@ class AssetRegistryCoordinator {
         }
         AssetPayloadDigester.CanonicalAssetPayload canonical =
                 validateDraft(AssetType.SKILL, input);
-        SkillPackageSpec spec = skillSpec(canonical.payload());
-        requireMatchingPackage(spec.artifact(), storedPackage);
+        SkillPackageArtifact artifact = skillArtifact(canonical.payload());
+        requireMatchingPackage(artifact, storedPackage);
         AssetPayloadReference previous = payloadReferences
                 .findByDraftIdAndOrganizationId(draft.getId(), actor.organizationId())
                 .orElseThrow(() -> new AssetConflictException(
@@ -535,13 +537,13 @@ class AssetRegistryCoordinator {
         AssetReviewCase review = reviews.saveAndFlush(new AssetReviewCase(
                 revision, REVIEW_POLICY_VERSION, actor.userId()));
         if (asset.type() == AssetType.SKILL) {
-            SkillPackageSpec spec = skillSpec(draft.getPayload());
+            SkillPackageArtifact artifact = skillArtifact(draft.getPayload());
             AssetPayloadReference draftReference = payloadReferences
                     .findByDraftIdAndOrganizationId(
                             draft.getId(), actor.organizationId())
                     .orElseThrow(() -> new AssetConflictException(
                             "The Skill draft is missing its package reference"));
-            requireMatchingPackage(spec.artifact(), draftReference);
+            requireMatchingPackage(artifact, draftReference);
             payloadReferences.saveAndFlush(
                     AssetPayloadReference.forRevision(revision, draftReference));
         }
@@ -760,8 +762,8 @@ class AssetRegistryCoordinator {
                         draft.getId(), actor.organizationId())
                 .orElseThrow(() -> new AssetConflictException(
                         "The Skill draft is missing its package reference"));
-        SkillPackageSpec spec = skillSpec(draft.getPayload());
-        requireMatchingPackage(spec.artifact(), draftReference);
+        SkillPackageArtifact artifact = skillArtifact(draft.getPayload());
+        requireMatchingPackage(artifact, draftReference);
 
         AssetRevision revision;
         try {
@@ -842,8 +844,8 @@ class AssetRegistryCoordinator {
                             revision.getId(), actor.organizationId())
                     .orElseThrow(() -> new AssetConflictException(
                             "The Skill revision is missing its package reference"));
-            SkillPackageSpec spec = skillSpec(revision.getPayload());
-            requireMatchingPackage(spec.artifact(), revisionReference);
+            SkillPackageArtifact artifact = skillArtifact(revision.getPayload());
+            requireMatchingPackage(artifact, revisionReference);
             payloadReferences.saveAndFlush(
                     AssetPayloadReference.forRelease(release, revisionReference));
         }
@@ -1154,12 +1156,12 @@ class AssetRegistryCoordinator {
         }
     }
 
-    private SkillPackageSpec skillSpec(String payload) {
-        return skillPackages.read(payload);
+    private SkillPackageArtifact skillArtifact(String payload) {
+        return skillPackages.artifact(payload);
     }
 
     private static void requireMatchingPackage(
-            SkillPackageSpec.Artifact artifact,
+            SkillPackageArtifact artifact,
             SkillPackageStoragePort.StoredSkillPackage stored) {
         if (!stored.sha256().equals(artifact.sha256())
                 || stored.contentLength() != artifact.contentLength()
@@ -1170,7 +1172,7 @@ class AssetRegistryCoordinator {
     }
 
     private static void requireMatchingPackage(
-            SkillPackageSpec.Artifact artifact,
+            SkillPackageArtifact artifact,
             AssetPayloadReference reference) {
         if (!reference.isBlobReference()
                 || reference.getDigest() == null

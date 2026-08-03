@@ -1245,18 +1245,20 @@ class ModulithVerificationTests {
     void assetRegistrySkillCapabilitiesHaveExactCoreConsumers() {
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.SkillDistributionService",
+                        "com.orgmemory.core.assetregistry.AssetRegistryCoordinator",
                         "com.orgmemory.core.assetregistry.SkillPackageAssetService",
-                        "com.orgmemory.core.assetregistry.SkillPackageProfile",
-                        "com.orgmemory.core.assetregistry.SkillRegistryService",
                         "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService",
+                        "com.orgmemory.core.assetregistry.skill.SkillDistributionService",
+                        "com.orgmemory.core.assetregistry.skill.SkillGitHubImportService",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageProfile",
+                        "com.orgmemory.core.assetregistry.skill.SkillRegistryService",
                         "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor"),
                 directConsumersOf(
                         "com.orgmemory.core.assetregistry.skillpackage"));
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.SkillDistributionService",
-                        "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService"),
+                        "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService",
+                        "com.orgmemory.core.assetregistry.skill.SkillDistributionService"),
                 directConsumersOf(
                         "com.orgmemory.core.assetregistry.skilldelivery"));
         assertEquals(
@@ -1284,6 +1286,85 @@ class ModulithVerificationTests {
             assertFalse(Modifier.isPublic(
                     loadClass(implementation).getModifiers()));
         }
+    }
+
+    @Test
+    void assetRegistrySkillIsAClosedSemanticsModule() {
+        var skill = modules.getModuleByName("assetregistry.skill").orElseThrow();
+        var allowedDependencies = skill.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(skill.isOpen());
+        assertEquals(
+                Set.of(
+                        "assetregistry::api",
+                        "assetregistry::consumption",
+                        "assetregistry::profile",
+                        "assetregistry::skill-delivery",
+                        "assetregistry::skill-package",
+                        "organization",
+                        "permission",
+                        "shared::error"),
+                allowedDependencies);
+    }
+
+    @Test
+    void assetRegistrySkillExposesOnlyItsSevenTopLevelContracts() {
+        var publicTopLevelTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry.skill")
+                .stream()
+                .filter(type -> !type.getName().contains("$"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skill.SkillDistributionOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillGitHubOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort",
+                        "com.orgmemory.core.assetregistry.skill.SkillInstallManifest",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageContent",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageInspection",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations"),
+                publicTopLevelTypes);
+    }
+
+    @Test
+    void assetRegistrySkillDoesNotDependOnParentImplementationOrStorage() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry.skill..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..",
+                        "com.orgmemory.core.assetregistry.kernel..",
+                        "com.orgmemory.core.assetregistry.skillcleanup..",
+                        "com.orgmemory.core.assetregistry.skillstorage..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry.skill"));
+    }
+
+    @Test
+    void assetRegistryParentDoesNotDependOnSkillSemantics() {
+        noClasses()
+                .that()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..",
+                        "com.orgmemory.core.assetregistry.kernel..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.assetregistry.skill..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry"));
     }
 
     private static Class<?> loadClass(String name) {
