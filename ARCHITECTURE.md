@@ -370,6 +370,9 @@ extraction defaults to `gpt-5.4-mini`; the
 `ORGMEMORY_GRAPH_EXTRACTION_MODEL` deployment override is independent from the
 Assistant model. New Graph jobs pin reasoning effort in schema-v2 processing
 profiles while persisted schema-v1 bytes and hashes remain executable.
+The verified ZM production route uses `gpt-5.6-sol` for Answer,
+`gpt-5.6-luna` with reasoning `none` for Keyword Planning, and
+`gpt-5.4-mini` with provider-default reasoning for Graph Extraction.
 Immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit

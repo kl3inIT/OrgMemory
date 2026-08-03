@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-02-prod-ai-gateway-binding (0781ba3c)`.
+Reconciled: `2026-08-02-rag-workload-routing-luna (24c31aea)`.
 
 ## Current Behavior
 
@@ -73,8 +73,10 @@ enqueued jobs; it neither starts reindexing nor changes queued/completed jobs.
 
 The fixed live evaluation approved `gpt-5.6-luna` with reasoning `none` for
 Keyword Planning but rejected it for Graph Extraction. Graph therefore retains
-`gpt-5.4-mini`; Answer retains `gpt-5.6-sol`. Deployment defaults remain
-unchanged until the separately controlled production configuration activation.
+`gpt-5.4-mini`; Answer retains `gpt-5.6-sol`. ZM production and the production
+Compose defaults now use that evaluated split. The general development
+configuration remains capability-off by default because an arbitrary custom
+OpenAI-compatible endpoint has not proved `reasoning_effort` support.
 
 Index Settings is a separate read-only surface. The embedding provider, model,
 dimensions, and cosine metric cannot be mutated through the chat control plane;

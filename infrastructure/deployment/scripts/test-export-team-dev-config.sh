@@ -19,6 +19,9 @@ ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY=minio-key
 ORGMEMORY_OBJECT_STORAGE_SECRET_KEY=minio-secret
 ORGMEMORY_SECRETS_KEY=encryption-key
 ORGMEMORY_SECRETS_SALT=encryption-salt
+ORGMEMORY_OPENAI_REASONING_EFFORT_SUPPORTED=true
+ORGMEMORY_KEYWORD_OPENAI_REASONING_EFFORT=none
+ORGMEMORY_GRAPH_EXTRACTION_OPENAI_REASONING_EFFORT=
 EOF
 chmod 0600 "$environment_file"
 printf 'services: {}\n' > "$temporary_root/compose.yaml"
@@ -60,6 +63,9 @@ assert payload["postgresTarget"] == "172.20.0.2:5432"
 assert payload["openfgaTarget"] == "172.20.0.3:8080"
 assert payload["minioTarget"] == "172.20.0.4:9000"
 assert payload["ORGMEMORY_DB_PASSWORD"] == "db-secret"
+assert payload["ORGMEMORY_OPENAI_REASONING_EFFORT_SUPPORTED"] == "true"
+assert payload["ORGMEMORY_KEYWORD_OPENAI_REASONING_EFFORT"] == "none"
+assert payload["ORGMEMORY_GRAPH_EXTRACTION_OPENAI_REASONING_EFFORT"] == ""
 assert "SHARED_POSTGRES_ADMIN_PASSWORD" not in payload
 PY
 
