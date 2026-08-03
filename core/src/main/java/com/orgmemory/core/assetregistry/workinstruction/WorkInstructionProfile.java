@@ -1,12 +1,12 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.workinstruction;
 
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
 import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionSpec;
 import java.util.Set;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
 class WorkInstructionProfile implements AssetPayloadProfile {

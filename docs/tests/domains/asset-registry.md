@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (9dcbb005)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -62,6 +62,9 @@ Reconciled: `2026-08-03-spring-modulith-package-refactor (9dcbb005)`.
 | Work Instruction operations and relation resolution use two exact parent-owned named interfaces with pinned Core/API consumers | `ModulithVerificationTests#assetRegistryWorkInstructionInterfacesAreExact`, `#assetRegistryWorkInstructionContractsHaveExactCoreConsumers`, `WorkInstructionBoundaryTests` | covered |
 | Work Instruction relation traversal preserves reference order, resolves only visible targets, collapses denial into one opaque access gap, and generic delivery authorizes the source once before delegation | `WorkInstructionRelationServiceTests`, `AssetDeliveryServiceWorkInstructionTests` | covered |
 | Interface-based Work Instruction wiring retains an active Spring proxy with read-only `follow`, read-write `acknowledge`, and default `REQUIRED` propagation | `AssetRegistryIntegrationTests#workInstructionContractRetainsTheServiceTransactionBoundary` | covered |
+| Closed Work Instruction owns profile, operations, acknowledgement persistence, and relation semantics with the exact allowlist, zero public implementation types, no parent/child implementation edge, and exact consumption-method callers | `ModulithVerificationTests#assetRegistryWorkInstructionIsAClosedNestedModule`, `#assetRegistryWorkInstructionHasNoPublicTopLevelTypes`, `#assetRegistryWorkInstructionDoesNotDependOnParentImplementation`, `#assetRegistryParentDoesNotDependOnWorkInstructionChild`, `#workInstructionUseMethodsHaveExactCallers` | covered |
+| Concurrent acknowledgement is idempotent per actor/release while distinct actors retain independent evidence | `AssetRegistryIntegrationTests#concurrentWorkInstructionAcknowledgementsRemainActorScopedAndIdempotent` | covered |
+| Work Instruction denial and wrong-type checks remain opaque and happen before profile parsing or acknowledgement persistence | `WorkInstructionAuthorizationOrderingTests` | covered |
 | Pack items preserve order and exact release/version pins | `CapabilityPackServiceTests`, `AssetRegistryIntegrationTests` | covered |
 | Every Pack component is authorized independently | `CapabilityPackServiceTests` | covered |
 | Denied Pack component metadata and count remain opaque | `CapabilityPackServiceTests` | covered |

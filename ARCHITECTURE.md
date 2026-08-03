@@ -225,6 +225,16 @@ all implementations and package semantics remain package-private. The child
 consumes the parent only through `assetregistry::skill-package` and
 `assetregistry::skill-delivery`, while the parent never depends on the child.
 
+The closed `core.assetregistry.workinstruction` nested module owns Work
+Instruction payload parsing, follow/acknowledge orchestration, actor-scoped
+acknowledgement persistence, and relation traversal. Its implementation,
+profile, entity, and repository types are all package-private. Top-level REST,
+Assistant, and generic delivery consumers depend only on the parent-owned
+`assetregistry::work-instruction` and
+`assetregistry::work-instruction-relations` named interfaces. The child resolves
+Asset and Knowledge targets through authorized parent/catalog contracts; the
+parent never imports the child.
+
 The browser reaches that same lifecycle through Scratch authoring, bounded
 `SKILL.md`/ZIP/folder upload, or GitHub import; each path ends at an ordinary
 private Draft in the Assets Governance workspace. GitHub preview and eligible
