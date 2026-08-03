@@ -1,7 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,7 +28,21 @@ public class AssetProfileValidationTests {
     };
     private final WorkInstructionProfile instructions = new WorkInstructionProfile();
     private final CapabilityPackProfile packs = new CapabilityPackProfile();
-    private final SkillPackageProfile skills = new SkillPackageProfile();
+    private final AssetPayloadProfile skills = new AssetPayloadProfile() {
+        @Override
+        public AssetType type() {
+            return AssetType.SKILL;
+        }
+
+        @Override
+        public java.util.Set<String> schemaVersions() {
+            return java.util.Set.of("1", "2");
+        }
+
+        @Override
+        public void validate(String payload) {
+        }
+    };
     private final AssetTypeProfileRegistry registry =
             new AssetTypeProfileRegistry(List.of(prompts, instructions, packs, skills));
 
@@ -57,28 +70,6 @@ public class AssetProfileValidationTests {
                 IllegalArgumentException.class,
                 () -> packs.validate(packPayload().replace(
                         "\"items\": [{", "\"items\": [] , \"unused\": [{")));
-    }
-
-    @Test
-    void skillSchemaRejectsInvalidPackageDigests() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> skills.validate(
-                        skillPayload().replace(
-                                "\"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"",
-                                "\"sha256\": \"not-a-sha256\"")));
-    }
-
-    @Test
-    void skillSchemaReadsLegacyAndCurrentPayloadsWithoutOrigin() {
-        SkillPackageSpec legacy = skills.read(skillPayload());
-        SkillPackageSpec current = skills.read(skillPayload().replace(
-                "\"artifact\": {", "\"origin\": null, \"artifact\": {"));
-
-        assertNull(legacy.origin());
-        assertNull(current.origin());
-        registry.require(AssetType.SKILL).validate("1", skillPayload());
-        registry.require(AssetType.SKILL).validate("2", skillPayload());
     }
 
     public static String promptPayload(String template) {
@@ -158,7 +149,7 @@ public class AssetProfileValidationTests {
                 """;
     }
 
-    static String skillPayload() {
+    public static String skillPayload() {
         return """
                 {
                   "name": "support-triage",

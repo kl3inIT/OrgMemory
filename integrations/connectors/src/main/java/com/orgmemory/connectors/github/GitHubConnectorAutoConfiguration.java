@@ -1,6 +1,6 @@
 package com.orgmemory.connectors.github;
 
-import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbe;

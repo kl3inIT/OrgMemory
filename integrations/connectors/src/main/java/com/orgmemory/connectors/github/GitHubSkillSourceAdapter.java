@@ -1,7 +1,6 @@
 package com.orgmemory.connectors.github;
 
-import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
-import com.orgmemory.core.assetregistry.SkillPackageSpec;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionConfiguration;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.permission.PermissionAuditCommand;
@@ -97,7 +96,7 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
             access = new Access(
                     anonymousClient,
                     "",
-                    SkillPackageSpec.Visibility.PUBLIC,
+                    SkillGitHubSourcePort.Visibility.PUBLIC,
                     metadata.path("id").asString(""));
         } else if (isRateLimited(publicRepository)) {
             throw new BusinessUnavailableException(
@@ -122,7 +121,7 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                     "skill.github-response-invalid",
                     "GitHub returned an invalid commit revision");
         }
-        byte[] archive = access.visibility() == SkillPackageSpec.Visibility.PUBLIC
+        byte[] archive = access.visibility() == SkillGitHubSourcePort.Visibility.PUBLIC
                 ? publicArchive(repository, revision)
                 : privateArchive(access, repository, revision);
         List<FetchedPackage> packages = GitHubSkillArchiveReader.read(archive, subpath);
@@ -198,9 +197,9 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
                 "PRIVATE_REPOSITORY_ACCESS");
         if (!metadata.path("private").asBoolean(false)) {
             return new Access(
-                    authenticated, token, SkillPackageSpec.Visibility.PUBLIC, repositoryId);
+                    authenticated, token, SkillGitHubSourcePort.Visibility.PUBLIC, repositoryId);
         }
-        return new Access(authenticated, token, SkillPackageSpec.Visibility.PRIVATE, repositoryId);
+        return new Access(authenticated, token, SkillGitHubSourcePort.Visibility.PRIVATE, repositoryId);
     }
 
     private byte[] publicArchive(Repository repository, String revision) {
@@ -436,7 +435,7 @@ final class GitHubSkillSourceAdapter implements SkillGitHubSourcePort {
     private record Access(
             RestClient client,
             String token,
-            SkillPackageSpec.Visibility visibility,
+            SkillGitHubSourcePort.Visibility visibility,
             String repositoryId) {
     }
 

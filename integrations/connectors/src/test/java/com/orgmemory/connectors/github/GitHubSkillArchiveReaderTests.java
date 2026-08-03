@@ -3,7 +3,7 @@ package com.orgmemory.connectors.github;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;

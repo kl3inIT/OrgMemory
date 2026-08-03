@@ -14,8 +14,8 @@ import com.orgmemory.core.assetregistry.prompt.PromptEvaluationResult;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
-import com.orgmemory.core.assetregistry.SkillDistributionService;
-import com.orgmemory.core.assetregistry.SkillInstallManifest;
+import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
+import com.orgmemory.core.assetregistry.skill.SkillInstallManifest;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,7 +46,7 @@ class AssetConsumptionController {
     private final PromptExecutionService prompts;
     private final WorkInstructionService instructions;
     private final CapabilityPackService packs;
-    private final SkillDistributionService skills;
+    private final SkillDistributionOperations skills;
 
     AssetConsumptionController(
             CurrentActorProvider actors,
@@ -54,7 +54,7 @@ class AssetConsumptionController {
             PromptExecutionService prompts,
             WorkInstructionService instructions,
             CapabilityPackService packs,
-            SkillDistributionService skills) {
+            SkillDistributionOperations skills) {
         this.actors = actors;
         this.assets = assets;
         this.prompts = prompts;

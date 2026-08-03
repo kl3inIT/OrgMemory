@@ -1558,8 +1558,8 @@ slice and starts with an independent boundary challenge.
 - [x] PR 1: pass focused Core/API/OpenAPI/Worker/connector/MinIO/integration
   gates, docs and release policy, static analysis fallback, and a terminating
   clean repository test.
-- [ ] PR 1: merge through CI and CodeRabbit without releasing.
-- [ ] PR 2: add failing-first closed-module, exact-public-surface,
+- [x] PR 1: merge through CI and CodeRabbit without releasing.
+- [x] PR 2: add failing-first closed-module, exact-public-surface,
   forbidden-parent-import, and external-consumer guards, then move and
   immediately close `assetregistry.skill` below 70 changed paths.
 - [ ] PR 2: pass all focused and terminating gates, merge through CI and
@@ -1604,3 +1604,40 @@ Skill slug grammar than delivery resolution. API exception translation was
 also confirmed to serialize only the stable top-level business message, never
 the storage cause. The PR remains below the 100-file cap and release remains
 deferred.
+
+PR #282 merged as `d3509d6d` after all required checks and CodeRabbit threads
+were resolved. PR 2 then began with the expected failing closed-module probe
+and commit `4c7a8bf2` closed `assetregistry.skill` in 42 rename-aware paths.
+The child now exposes exactly three operation interfaces, one GitHub source
+port, and three immutable results; all implementations and semantics remain
+package-private. It consumes only the parent package and delivery capabilities,
+never storage, cleanup, parent implementation, or an object key, while the
+parent has no dependency on the child. API response mapping preserves the
+existing Asset view and GitHub import wire shapes, and the nested inspection
+entry retains the existing OpenAPI schema name. Focused Core, API, connector,
+OpenAPI, Asset Registry integration, and Modulith gates are green. Worker and
+MinIO consumer suites also passed, and the terminating repository-wide
+`clean test` completed all 99 tasks with 1,265 tests and zero failure, error,
+or skip. Documentation hygiene passed for 534 Markdown files and 8 mirrored
+domain pairs; release policy passed 18 Tegami/product and 23 workflow/policy
+tests on exact Node 24.15.0. The mechanical fallback found 47 total changed
+paths, zero missing package declarations, zero changed zero-byte files, zero
+forbidden Skill imports, and a clean diff. The PR review loop remains before
+merge, and release remains deferred.
+
+CodeRabbit's completed PR 2 review raised two inline findings and one
+outside-diff authorization suggestion. Commit `5f7faa70` fixes the valid
+failure-isolation gap: API resolution of each imported Asset is now independent,
+so a projection/read failure preserves every sibling result and reports a safe
+per-item code without changing the wire shape. It also adds the missing
+replacement pre-authorization regression and removes only the redundant middle
+preflight check from the already-authorized GitHub path. Removing the direct
+import or replacement pre-authorization was rejected because those checks
+prevent unauthorized ZIP reads; the parent command still rechecks authority
+immediately before mutation. Eliminating the bounded maximum-20 full-view reads
+would require a new parent projection capability outside the challenged
+boundary, so that performance redesign remains separate from this correctness
+fix. Focused tests went red before the fix, then 686 full Core/API tests passed
+with zero failure, error, or skip. The follow-up repository-wide `clean test`
+passed all 99 tasks and 1,267 tests; docs hygiene, release policy, and diff
+checks also remained green. The PR now changes 48 paths, still below the cap.

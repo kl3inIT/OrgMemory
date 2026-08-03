@@ -1,13 +1,20 @@
 package com.orgmemory.core.assetregistry;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackagePayloadPolicy;
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackageUpload;
@@ -74,6 +81,89 @@ class SkillPackageAssetServiceTests {
         verifyNoInteractions(fixture.storage);
     }
 
+    @Test
+    void deletesStoredBytesWhenAssetIdentityCreationFails() {
+        Fixture fixture = fixture();
+        when(fixture.storage.put(any(), any())).thenReturn(stored());
+        when(fixture.assets.createValidatedSkillIdentity(
+                        eq(ACTOR),
+                        eq("support"),
+                        eq("support-triage"),
+                        eq(SPACE_ID),
+                        any(),
+                        any()))
+                .thenThrow(new AssetConflictException("Duplicate"));
+
+        assertThrows(
+                AssetConflictException.class,
+                () -> fixture.service.importPackage(
+                        ACTOR,
+                        "support",
+                        SPACE_ID,
+                        KnowledgeClassification.INTERNAL,
+                        upload()));
+
+        verify(fixture.storage).delete("assets/skills/package.zip");
+    }
+
+    @Test
+    void retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry() {
+        Fixture fixture = fixture();
+        when(fixture.storage.put(any(), any())).thenReturn(stored());
+        when(fixture.assets.createValidatedSkillIdentity(
+                        any(), any(), any(), any(), any(), any()))
+                .thenReturn(ASSET_ID);
+        when(fixture.assets.projectCreated(ACTOR, ASSET_ID))
+                .thenThrow(new AssetUnavailableException("Projection pending"));
+
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.importPackage(
+                        ACTOR,
+                        "support",
+                        SPACE_ID,
+                        KnowledgeClassification.INTERNAL,
+                        upload()));
+
+        verify(fixture.storage, never()).delete(any());
+    }
+
+    @Test
+    void replacementCleansTheDurableSupersessionAfterTheSwap() {
+        Fixture fixture = fixture();
+        UUID supersessionId = UUID.randomUUID();
+        when(fixture.assets.get(ACTOR, ASSET_ID)).thenReturn(skillView());
+        when(fixture.storage.put(any(), any())).thenReturn(stored());
+        when(fixture.assets.replaceValidatedSkillDraft(
+                        eq(ACTOR), eq(ASSET_ID), eq(4L), any(), any()))
+                .thenReturn(new SkillDraftReplacement(skillView(), supersessionId));
+
+        UUID replacedId = fixture.service.replacePackage(
+                ACTOR, ASSET_ID, 4, upload());
+
+        org.junit.jupiter.api.Assertions.assertEquals(ASSET_ID, replacedId);
+        verify(fixture.assets, times(1)).requireSkillEdit(ACTOR, ASSET_ID);
+        verify(fixture.cleanup).cleanup(supersessionId);
+        verify(fixture.storage, never()).delete(any());
+    }
+
+    @Test
+    void replacementDeletesTheNewObjectWhenTheDatabaseSwapFails() {
+        Fixture fixture = fixture();
+        when(fixture.assets.get(ACTOR, ASSET_ID)).thenReturn(skillView());
+        when(fixture.storage.put(any(), any())).thenReturn(stored());
+        when(fixture.assets.replaceValidatedSkillDraft(
+                        eq(ACTOR), eq(ASSET_ID), eq(4L), any(), any()))
+                .thenThrow(new AssetConflictException("Changed"));
+
+        assertThrows(
+                AssetConflictException.class,
+                () -> fixture.service.replacePackage(
+                        ACTOR, ASSET_ID, 4, upload()));
+
+        verify(fixture.storage).delete("assets/skills/package.zip");
+    }
+
     private static Fixture fixture() {
         SkillPackageStoragePort storage = mock(SkillPackageStoragePort.class);
         SkillPackagePayloadPolicy policy = mock(SkillPackagePayloadPolicy.class);
@@ -84,7 +174,8 @@ class SkillPackageAssetServiceTests {
                 new SkillPackageAssetService(storage, policy, assets, cleanup),
                 storage,
                 policy,
-                assets);
+                assets,
+                cleanup);
     }
 
     private static void rejectPayload(SkillPackagePayloadPolicy policy) {
@@ -132,10 +223,19 @@ class SkillPackageAssetServiceTests {
                 List.of());
     }
 
+    private static SkillPackageStoragePort.StoredSkillPackage stored() {
+        return new SkillPackageStoragePort.StoredSkillPackage(
+                "assets/skills/package.zip",
+                ARTIFACT.contentLength(),
+                ARTIFACT.mediaType(),
+                ARTIFACT.sha256());
+    }
+
     private record Fixture(
             SkillPackageAssetService service,
             SkillPackageStoragePort storage,
             SkillPackagePayloadPolicy policy,
-            AssetRegistryService assets) {
+            AssetRegistryService assets,
+            SkillPackageSupersessionCleanupService cleanup) {
     }
 }
