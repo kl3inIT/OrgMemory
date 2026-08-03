@@ -1638,4 +1638,6 @@ immediately before mutation. Eliminating the bounded maximum-20 full-view reads
 would require a new parent projection capability outside the challenged
 boundary, so that performance redesign remains separate from this correctness
 fix. Focused tests went red before the fix, then 686 full Core/API tests passed
-with zero failure, error, or skip.
+with zero failure, error, or skip. The follow-up repository-wide `clean test`
+passed all 99 tasks and 1,267 tests; docs hygiene, release policy, and diff
+checks also remained green. The PR now changes 48 paths, still below the cap.
