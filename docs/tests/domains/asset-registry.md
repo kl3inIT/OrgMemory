@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (4c7a8bf2)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -31,6 +31,7 @@ Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
 | Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
 | Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
 | The four parent-owned Skill capabilities expose exact type sets and exact Core/API/Worker/MinIO consumer sets; storage locators do not enter API or Worker dependencies | `ModulithVerificationTests#assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces`, `#assetRegistrySkillCapabilitiesHaveExactCoreConsumers`, `SkillCapabilityBoundaryTests`, `MinioSkillPackageStorageAdapterTests#adapterExposesOnlyTheParentStorageCapability` | covered |
+| Closed Skill owns package semantics, GitHub orchestration, API-facing operations, and manifest construction with an exact seven-type public surface; it imports only parent package/delivery capabilities, never parent implementation/storage/cleanup, and the parent never imports the child | `ModulithVerificationTests#assetRegistrySkillIsAClosedSemanticsModule`, `#assetRegistrySkillExposesOnlyItsExactPublicContracts`, `#assetRegistrySkillDoesNotDependOnParentImplementationOrStorage`, `#assetRegistryParentDoesNotDependOnSkill`, `SkillCapabilityBoundaryTests`, `GitHubConnectorAutoConfigurationTests` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |

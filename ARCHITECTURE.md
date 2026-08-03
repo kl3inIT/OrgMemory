@@ -215,6 +215,16 @@ compensation, reference persistence, supersession retry state, cleanup, and
 storage opening. Skill package semantics never receive or publish the stored
 object key.
 
+The closed `core.assetregistry.skill` nested module owns bounded package
+inspection and validation, GitHub acquisition orchestration, API-facing Skill
+operations, and install-manifest construction. Its exact public top-level
+surface is `SkillPackageOperations`, `SkillGitHubOperations`,
+`SkillDistributionOperations`, `SkillGitHubSourcePort`,
+`SkillPackageInspection`, `SkillInstallManifest`, and `SkillPackageContent`;
+all implementations and package semantics remain package-private. The child
+consumes the parent only through `assetregistry::skill-package` and
+`assetregistry::skill-delivery`, while the parent never depends on the child.
+
 The browser reaches that same lifecycle through Scratch authoring, bounded
 `SKILL.md`/ZIP/folder upload, or GitHub import; each path ends at an ordinary
 private Draft in the Assets Governance workspace. GitHub preview and eligible

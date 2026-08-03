@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (4c7a8bf2)`.
 
 ## Current Behavior
 
@@ -261,6 +261,19 @@ persistence/delivery/cleanup classes plus MinIO may import `skill-storage`.
 The parent owns the entire storage and supersession saga. Package semantics,
 API results, manifests, audit values, logs, and exceptions do not receive the
 persisted object key.
+
+The closed `assetregistry.skill` nested module owns bounded package inspection
+and validation, GitHub acquisition orchestration, API-facing Skill operations,
+and install-manifest construction. Its exact public top-level surface is
+`SkillPackageOperations`, `SkillGitHubOperations`,
+`SkillDistributionOperations`, `SkillGitHubSourcePort`,
+`SkillPackageInspection`, `SkillInstallManifest`, and `SkillPackageContent`.
+Implementations, the package profile and specification, the inspector, and the
+validation exception remain package-private. The child imports only the
+parent's `skill-package` and `skill-delivery` capabilities; it never imports
+parent implementation, storage, cleanup, or a persisted object key. The API
+and GitHub connector depend only on the child's operation/source contracts,
+and the parent never depends on the child.
 
 ### Federated Knowledge
 

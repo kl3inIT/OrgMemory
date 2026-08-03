@@ -487,8 +487,8 @@ trigger, and `skill-storage` for exact parent persistence/cleanup classes plus
 MinIO. `assetregistry.skill` may consume only the first two. It never receives
 an object key and never orchestrates supersession cleanup.
 
-When introduced, the closed Skill module exposes exactly four operation/source
-interfaces and three immutable results. Its implementations, package
+The closed Skill module exposes exactly four operation/source interfaces and
+three immutable results. Its implementations, package
 specification, inspector, profile, parser, and validation exception remain
 package-private. See
 [the Skill challenge verdict](assetregistry-skill-challenge-verdict.md) for the

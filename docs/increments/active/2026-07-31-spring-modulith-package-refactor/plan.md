@@ -1558,8 +1558,8 @@ slice and starts with an independent boundary challenge.
 - [x] PR 1: pass focused Core/API/OpenAPI/Worker/connector/MinIO/integration
   gates, docs and release policy, static analysis fallback, and a terminating
   clean repository test.
-- [ ] PR 1: merge through CI and CodeRabbit without releasing.
-- [ ] PR 2: add failing-first closed-module, exact-public-surface,
+- [x] PR 1: merge through CI and CodeRabbit without releasing.
+- [x] PR 2: add failing-first closed-module, exact-public-surface,
   forbidden-parent-import, and external-consumer guards, then move and
   immediately close `assetregistry.skill` below 70 changed paths.
 - [ ] PR 2: pass all focused and terminating gates, merge through CI and
@@ -1604,3 +1604,17 @@ Skill slug grammar than delivery resolution. API exception translation was
 also confirmed to serialize only the stable top-level business message, never
 the storage cause. The PR remains below the 100-file cap and release remains
 deferred.
+
+PR #282 merged as `d3509d6d` after all required checks and CodeRabbit threads
+were resolved. PR 2 then began with the expected failing closed-module probe
+and commit `4c7a8bf2` closed `assetregistry.skill` in 42 rename-aware paths.
+The child now exposes exactly three operation interfaces, one GitHub source
+port, and three immutable results; all implementations and semantics remain
+package-private. It consumes only the parent package and delivery capabilities,
+never storage, cleanup, parent implementation, or an object key, while the
+parent has no dependency on the child. API response mapping preserves the
+existing Asset view and GitHub import wire shapes, and the nested inspection
+entry retains the existing OpenAPI schema name. Focused Core, API, connector,
+OpenAPI, Asset Registry integration, and Modulith gates are green; terminating
+repository verification and the PR review loop remain before merge. Release
+remains deferred.
