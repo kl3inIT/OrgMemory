@@ -47,6 +47,8 @@ class ApacheAgeGraphStoreIntegrationTests {
 
     private static final UUID ORGANIZATION_ID = id("age-store-organization");
     private static final UUID MARKER_ORGANIZATION_ID = id("age-marker-organization");
+    private static final UUID BACKFILL_ORGANIZATION_ID = id("age-backfill-organization");
+    private static final UUID LIMIT_ORGANIZATION_ID = id("age-limit-organization");
     private static final UUID ACTOR_ID = id("age-store-actor");
     private static final UUID ASSET_ID = id("age-store-asset");
     private static final UUID REVISION_ID = id("age-store-revision");
@@ -69,6 +71,8 @@ class ApacheAgeGraphStoreIntegrationTests {
     static PostgreSQLContainer postgres = new PostgreSQLContainer(IMAGE);
 
     private static ApacheAgeGraphStore graph;
+    private static PostgresGraphStore relationalGraph;
+    private static ApacheAgePublishedBatchReconciler reconciler;
     private static PostgresProjectionPublicationStore publications;
     private static JdbcTemplate database;
 
@@ -91,10 +95,14 @@ class ApacheAgeGraphStoreIntegrationTests {
                 INSERT INTO organizations (id, name, created_at, updated_at, version)
                 VALUES (?, 'AGE selected backend', now(), now(), 0),
                        (?, 'AGE marker failure', now(), now(), 0),
+                       (?, 'AGE backfill', now(), now(), 0),
+                       (?, 'AGE limit', now(), now(), 0),
                        (?, 'AGE conformance', now(), now(), 0)
                 """,
                 ORGANIZATION_ID,
                 MARKER_ORGANIZATION_ID,
+                BACKFILL_ORGANIZATION_ID,
+                LIMIT_ORGANIZATION_ID,
                 GraphStoreConformance.organizationId());
         provisionRuntimeRole();
         DataSource dataSource = new org.springframework.jdbc.datasource.DriverManagerDataSource(
@@ -104,6 +112,11 @@ class ApacheAgeGraphStoreIntegrationTests {
                 new DataSourceTransactionManager(dataSource);
         publications = new PostgresProjectionPublicationStore(jdbc, transactions);
         graph = new ApacheAgeGraphStore(jdbc, transactions, publications, 2);
+        relationalGraph = new PostgresGraphStore(jdbc, transactions, publications, 2);
+        reconciler = new ApacheAgePublishedBatchReconciler(
+                publications,
+                new ApacheAgeBatchTopology(jdbc, 2),
+                transactions);
     }
 
     private static void provisionRuntimeRole() {
@@ -268,6 +281,72 @@ class ApacheAgeGraphStoreIntegrationTests {
                 IllegalStateException.class,
                 () -> graph.validateSnapshot(
                         scope(MARKER_ORGANIZATION_ID, Set.of(ASSET_ID)), snapshot));
+    }
+
+    @Test
+    void reconcilesRetainedRelationalPublicationsAndSkipsExactMarkersOnReplay() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                BACKFILL_ORGANIZATION_ID, "backfill", "knowledge");
+        ProjectionBatch batch = batch(namespace, "relational-cutover", 0);
+        relationalGraph.stageReplaceRevision(
+                batch,
+                revision(BACKFILL_ORGANIZATION_ID, batch.generation()));
+        publications.markPrepared(batch, ProjectionKind.GRAPH, NOW.plusSeconds(3));
+        ProjectionSnapshot snapshot = publications.publish(
+                batch,
+                commitPermit(batch, NOW.plusSeconds(3)),
+                NOW.plusSeconds(3));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> graph.validateSnapshot(
+                        scope(BACKFILL_ORGANIZATION_ID, Set.of(ASSET_ID)), snapshot));
+
+        PostgresGraphRagProperties properties = reconciliationProperties();
+        ApacheAgePublishedBatchReconciler.Result first = reconciler.reconcile(properties);
+
+        assertTrue(first.repaired() >= 1);
+        graph.validateSnapshot(
+                scope(BACKFILL_ORGANIZATION_ID, Set.of(ASSET_ID)), snapshot);
+        ApacheAgePublishedBatchReconciler.Result replay = reconciler.reconcile(properties);
+        assertEquals(0, replay.repaired());
+        assertEquals(replay.candidates(), replay.skipped());
+    }
+
+    @Test
+    void failsAllPreflightLimitsBeforeCreatingAnyTenantGraph() {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                LIMIT_ORGANIZATION_ID, "limit", "knowledge");
+        ProjectionBatch batch = batch(namespace, "limit-cutover", 0);
+        relationalGraph.stageReplaceRevision(
+                batch,
+                revision(LIMIT_ORGANIZATION_ID, batch.generation()));
+        publications.markPrepared(batch, ProjectionKind.GRAPH, NOW.plusSeconds(4));
+        publications.publish(
+                batch,
+                commitPermit(batch, NOW.plusSeconds(4)),
+                NOW.plusSeconds(4));
+
+        PostgresGraphRagProperties properties = reconciliationProperties();
+        properties.setReconciliationMaximumEntities(1);
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> reconciler.reconcile(properties));
+        assertTrue(failure.getMessage().contains("measurement=entities"));
+        assertEquals(0L, database.queryForObject(
+                "SELECT count(*) FROM ag_catalog.ag_graph WHERE name = ?",
+                Long.class,
+                "orgmemory_" + LIMIT_ORGANIZATION_ID.toString().replace("-", "")));
+    }
+
+    private static PostgresGraphRagProperties reconciliationProperties() {
+        PostgresGraphRagProperties properties = new PostgresGraphRagProperties();
+        properties.setReconciliationPageSize(1);
+        properties.setReconciliationMaximumBatches(100);
+        properties.setReconciliationMaximumEntities(10_000);
+        properties.setReconciliationMaximumRelationContributions(10_000);
+        return properties;
     }
 
     private static ProjectionBatch batch(String key, long previousGeneration) {

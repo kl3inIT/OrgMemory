@@ -31,7 +31,14 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 })
 public class OrgMemoryApiApplication {
 
+    private static final String RECONCILIATION_MODE =
+            "orgmemory.graph-rag.postgres.reconcile-published-batches";
+
     static void main(String[] args) {
-        SpringApplication.run(OrgMemoryApiApplication.class, args);
+        var context = SpringApplication.run(OrgMemoryApiApplication.class, args);
+        if (context.getEnvironment().getProperty(
+                RECONCILIATION_MODE, Boolean.class, false)) {
+            context.close();
+        }
     }
 }

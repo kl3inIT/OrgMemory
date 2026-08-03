@@ -152,6 +152,25 @@ assert_model_configuration() {
     "$environment_file"
 }
 
+assert_age_reconciliation_order() {
+  local stop_line
+  local reconcile_line
+  local application_up_line
+  stop_line="$(grep -n -- 'stop --timeout 45 worker api' "$docker_log" | head -1 | cut -d: -f1)"
+  reconcile_line="$(grep -n -- '--profile ops run --rm --no-deps age-reconcile' "$docker_log" | head -1 | cut -d: -f1)"
+  application_up_line="$(
+    grep -n -- 'up -d --wait --wait-timeout 240 --remove-orphans' "$docker_log" \
+      | head -1 \
+      | cut -d: -f1
+  )"
+  if [[ -z "$stop_line" || -z "$reconcile_line" || -z "$application_up_line" ]] || \
+     [[ "$stop_line" -ge "$reconcile_line" ]] || \
+     [[ "$reconcile_line" -ge "$application_up_line" ]]; then
+    printf 'AGE reconciliation did not quiesce worker/API before the application start.\n' >&2
+    exit 1
+  fi
+}
+
 release_model_sha256="$(sha256sum "$model_file" | awk '{ print $1 }')"
 
 # First-store bootstrap records one coherent store/model/digest tuple.
@@ -192,6 +211,7 @@ grep -Fxq "$candidate_sha" "$upgrade_root/current-commit"
 grep -q 'openfga-model-write' "$docker_log"
 grep -Fq "acquire maintenance deploy-$candidate_sha deployment deployment-host $candidate_sha 1800" "$coordination_log"
 grep -Fq "release maintenance deploy-$candidate_sha" "$coordination_log"
+assert_age_reconciliation_order
 
 model_write_line="$(grep -n 'openfga-model-write' "$docker_log" | head -1 | cut -d: -f1)"
 application_up_line="$(
@@ -232,6 +252,7 @@ if [[ -s "$coordination_log" ]]; then
   printf 'A release without schema/model changes acquired maintenance.\n' >&2
   exit 1
 fi
+assert_age_reconciliation_order
 
 # A failed canary after a changed model write must restore the previous image,
 # model ID, and digest. The newly written immutable model remains inert.

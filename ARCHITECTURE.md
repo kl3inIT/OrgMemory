@@ -447,8 +447,16 @@ that permit before its local head CAS. Ambiguous outcomes retain staging, while
 cleanup requires a store-issued discard permit and retires the durable commit
 permit before deleting staged records. For the selected AGE backend, relational
 graph staging, exact-batch AGE rebuild, and the ready marker commit in one
-transaction before the graph preparation receipt becomes durable; permit-
-authorized discard removes the same AGE and relational staging atomically.
+transaction before the graph preparation receipt becomes durable. Rebuilds
+reject unresolved relation identities or endpoints and require exact AGE
+entity/edge counts before writing the marker. A production backend cutover uses
+the `age-reconcile` operations-profile one-shot from the API image: deployment
+stops the previous worker and API, preflights every retained published `GRAPH`
+batch against configured batch/entity/relation ceilings, repairs only missing,
+duplicate, or mismatched exact-batch topology, and starts normal services only
+after success. AGE/catalog unavailability remains fatal, and normal reads or
+service startup never repair data. Permit-authorized discard removes the same
+AGE and relational staging atomically.
 Content, FTS, pgvector, and graph readers
 validate the winning batch and prefilter organization plus authorized Knowledge
 Asset IDs before scoring or traversal. Published predecessor batches remain

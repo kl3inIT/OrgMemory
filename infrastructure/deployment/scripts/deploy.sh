@@ -258,6 +258,13 @@ fi
 
 install -m 0600 "$environment_file" "$release_environment"
 
+# The published-batch AGE repair is an explicit one-shot operation. Stop the
+# previous writer before its preflight and keep the normal API down until the
+# repair exits successfully; service dependencies only order new containers and
+# cannot fence a worker from the previous release.
+"${compose[@]}" stop --timeout 45 worker api
+"${compose[@]}" --profile ops run --rm --no-deps age-reconcile
+
 "${compose[@]}" up \
   -d \
   --wait \

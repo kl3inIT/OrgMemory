@@ -105,6 +105,38 @@ public class PostgresGraphRagAutoConfiguration {
 
     @Bean
     @DependsOnDatabaseInitialization
+    @ConditionalOnProperty(
+            prefix = "orgmemory.graph-rag.postgres",
+            name = "reconcile-published-batches",
+            havingValue = "true")
+    ApacheAgePublishedBatchReconciler apacheAgePublishedBatchReconciler(
+            NamedParameterJdbcTemplate jdbc,
+            PlatformTransactionManager transactionManager,
+            PostgresProjectionPublicationStore publications,
+            PostgresGraphRagProperties properties) {
+        if (properties.getTopologyBackend() != PostgresGraphTopologyBackend.APACHE_AGE) {
+            throw new IllegalStateException(
+                    "Published-batch reconciliation requires topology-backend=APACHE_AGE");
+        }
+        return new ApacheAgePublishedBatchReconciler(
+                publications,
+                new ApacheAgeBatchTopology(jdbc, properties.getWriteBatchSize()),
+                transactionManager);
+    }
+
+    @Bean
+    @ConditionalOnProperty(
+            prefix = "orgmemory.graph-rag.postgres",
+            name = "reconcile-published-batches",
+            havingValue = "true")
+    ApplicationRunner apacheAgePublishedBatchReconciliationRunner(
+            ApacheAgePublishedBatchReconciler reconciler,
+            PostgresGraphRagProperties properties) {
+        return arguments -> reconciler.reconcile(properties);
+    }
+
+    @Bean
+    @DependsOnDatabaseInitialization
     @ConditionalOnMissingBean(ModelInvocationCache.class)
     ModelInvocationCache postgresModelInvocationCache(
             NamedParameterJdbcTemplate jdbc,

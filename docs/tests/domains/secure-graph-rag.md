@@ -7,9 +7,9 @@ Source: `components/graph-rag-core/src/test`,
 `apps/api/src/test/java/com/orgmemory/api/observability`,
 `apps/worker/src/test/java/com/orgmemory/worker/observability`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
-`apps/web/test/e2e`.
+`apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (059faf08)`.
+Reconciled: `2026-08-03-apache-age-published-batch-backfill (pending)`.
 
 ## Automated
 
@@ -81,7 +81,12 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (059faf08)`.
   text, and fails closed after exact ready-marker corruption. Auto-configuration
   tests prove `RELATIONAL` selection, real `APACHE_AGE` construction, missing-
   dependency startup failure, the production default, and rejection of the
-  obsolete `apache-age-mode` key.
+  obsolete `apache-age-mode` key. AGE reconciliation tests additionally start
+  from an already-published relational-only graph batch, keyset through
+  retained history, prove bounded preflight fails before tenant-graph creation,
+  rebuild and count-verify exact topology, and skip exact markers on replay.
+  Deployment contract validation pins worker/API quiescence before the one-shot
+  and application startup after its success.
 - LightRAG runtime conformance tests prove contribution-level references,
   complete evidence closure, one final input-token budget, disabled reranker
   non-invocation, threshold behavior, bounded provider fallback, and one

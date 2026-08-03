@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Apache AGE published-batch backfill](increments/active/2026-08-03-apache-age-published-batch-backfill/plan.md) | active | independent architecture challenge, implementation, CI, and production proof |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |
 | [Spring Modulith package refactor](increments/active/2026-07-31-spring-modulith-package-refactor/plan.md) | active | move coherent Knowledge and Asset Registry slices in code PRs below 100 files, repair their edges, then close every nested module |
