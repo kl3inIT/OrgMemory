@@ -6,9 +6,11 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `apps/web/src/features/knowledge`, `integrations/observability`, and — for the
 payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
-`apps/worker/src/main/resources/application*.yml`.
+`apps/worker/src/main/resources/application*.yml`, plus
+`infrastructure/deployment/compose.production.yaml` and
+`infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (059faf08)`.
+Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
 
 ## Current Contract
 
@@ -107,7 +109,17 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (059faf08)`.
   application verifies preload through a bootstrap-owned boolean function and
   is not granted PostgreSQL's broad `pg_read_all_settings` role.
 - With AGE selected, the relational target batch, fixed-size AGE topology, and
-  exact ready marker stage in one transaction. Entity identity includes batch
+  exact ready marker stage in one transaction. Copied AGE entity and relation
+  counts must exactly match complete relational topology before the ready
+  marker is written. Existing retained relational publications are repaired
+  only through the explicit operations-profile one-shot. It keyset-enumerates
+  exact published `GRAPH` batches, preflights batch/entity/relation ceilings and
+  relational endpoint integrity before its first AGE mutation, repairs marker
+  drift under the tenant lock, and never changes publication heads, jobs,
+  source evidence, embeddings, or model routes. Deployment quiesces the old
+  worker and API before the one-shot and starts normal services only after a
+  zero exit status; normal startup and reads never trigger repair. Entity
+  identity includes batch
   plus entity UUID; relation-contribution edges include batch, relation,
   contribution, Knowledge Asset, endpoints, and orientation. AGE contains no
   descriptions, keywords, prompts, ACL payload, or model output. Exact-batch

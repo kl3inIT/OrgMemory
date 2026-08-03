@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -261,6 +262,106 @@ public final class PostgresProjectionPublicationStore
             throw new PublicationConflictException(
                     "snapshot does not contain projection " + kind);
         }
+    }
+
+    List<PublishedGraphBatch> publishedGraphBatchPage(
+            Instant afterPublishedAt,
+            UUID afterBatchId,
+            int limit) {
+        if ((afterPublishedAt == null) != (afterBatchId == null)) {
+            throw new IllegalArgumentException(
+                    "publication cursor requires both timestamp and batch id");
+        }
+        if (limit < 1 || limit > 500) {
+            throw new IllegalArgumentException("limit must be between 1 and 500");
+        }
+        MapSqlParameterSource parameters = new MapSqlParameterSource("limit", limit);
+        String cursor = "";
+        if (afterPublishedAt != null) {
+            cursor = """
+                      AND (publication.published_at, publication.batch_id)
+                          > (:afterPublishedAt, :afterBatchId)
+                    """;
+            parameters
+                    .addValue("afterPublishedAt", Timestamp.from(afterPublishedAt))
+                    .addValue("afterBatchId", afterBatchId);
+        }
+        List<PublishedGraphBatch> page = jdbc.query("""
+                SELECT batch.*,
+                       publication.batch_id AS published_batch_id,
+                       publication.organization_id AS published_organization_id,
+                       publication.workspace AS published_workspace,
+                       publication.collection_name AS published_collection_name,
+                       publication.generation AS published_generation,
+                       publication.manifest_fingerprint AS published_manifest_fingerprint,
+                       publication.projections AS published_projections,
+                       publication.published_at AS publication_published_at,
+                       (SELECT count(*)
+                          FROM projection_graph_entities entity
+                         WHERE entity.batch_id = batch.batch_id) AS entity_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                         WHERE contribution.batch_id = batch.batch_id)
+                           AS relation_contribution_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                          LEFT JOIN projection_graph_relations relation
+                            ON relation.batch_id = contribution.batch_id
+                           AND relation.relation_id = contribution.relation_id
+                         WHERE contribution.batch_id = batch.batch_id
+                           AND relation.relation_id IS NULL) AS unresolved_relation_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                          JOIN projection_graph_relations relation
+                            ON relation.batch_id = contribution.batch_id
+                           AND relation.relation_id = contribution.relation_id
+                          LEFT JOIN projection_graph_entities source_entity
+                            ON source_entity.batch_id = relation.batch_id
+                           AND source_entity.entity_id = relation.source_entity_id
+                          LEFT JOIN projection_graph_entities target_entity
+                            ON target_entity.batch_id = relation.batch_id
+                           AND target_entity.entity_id = relation.target_entity_id
+                         WHERE contribution.batch_id = batch.batch_id
+                           AND (source_entity.entity_id IS NULL
+                                OR target_entity.entity_id IS NULL)) AS unresolved_endpoint_count
+                  FROM projection_publications publication
+                  JOIN projection_batches batch
+                    ON batch.batch_id = publication.batch_id
+                  JOIN projection_batch_receipts graph_receipt
+                    ON graph_receipt.batch_id = publication.batch_id
+                   AND graph_receipt.projection_kind = 'GRAPH'
+                 WHERE batch.status = 'PUBLISHED'
+                   AND ',' || publication.projections || ',' LIKE '%,GRAPH,%'
+                """ + cursor + """
+                 ORDER BY publication.published_at, publication.batch_id
+                 LIMIT :limit
+                """, parameters, (resultSet, rowNumber) -> {
+            RegisteredBatch registered = registeredBatch(resultSet);
+            ProjectionSnapshot snapshot = new ProjectionSnapshot(
+                    resultSet.getObject("published_batch_id", UUID.class),
+                    new ProjectionNamespace(
+                            resultSet.getObject("published_organization_id", UUID.class),
+                            resultSet.getString("published_workspace"),
+                            resultSet.getString("published_collection_name")),
+                    resultSet.getLong("published_generation"),
+                    resultSet.getString("published_manifest_fingerprint"),
+                    decodeKinds(resultSet.getString("published_projections")),
+                    resultSet.getTimestamp("publication_published_at").toInstant());
+            ProjectionBatch batch = registered.batch();
+            if (!batch.id().equals(snapshot.batchId())) {
+                throw new PublicationConflictException(
+                        "published graph batch does not match its publication row");
+            }
+            requireSamePublication(batch, snapshot);
+            return new PublishedGraphBatch(
+                    batch,
+                    snapshot,
+                    resultSet.getLong("entity_count"),
+                    resultSet.getLong("relation_contribution_count"),
+                    resultSet.getLong("unresolved_relation_count"),
+                    resultSet.getLong("unresolved_endpoint_count"));
+        });
+        return List.copyOf(page);
     }
 
     private ProjectionSnapshot publishInTransaction(

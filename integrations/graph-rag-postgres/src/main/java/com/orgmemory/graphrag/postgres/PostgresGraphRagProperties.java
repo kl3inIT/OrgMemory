@@ -11,6 +11,11 @@ public class PostgresGraphRagProperties {
 
     private boolean enabled = true;
     private boolean provisionIndexes = true;
+    private boolean reconcilePublishedBatches = false;
+    private int reconciliationPageSize = 100;
+    private int reconciliationMaximumBatches = 1000;
+    private long reconciliationMaximumEntities = 1_000_000;
+    private long reconciliationMaximumRelationContributions = 1_000_000;
     private PostgresGraphTopologyBackend topologyBackend =
             PostgresGraphTopologyBackend.APACHE_AGE;
     private PostgresVectorIndexStrategy vectorIndexStrategy =
@@ -46,6 +51,64 @@ public class PostgresGraphRagProperties {
 
     public void setProvisionIndexes(boolean provisionIndexes) {
         this.provisionIndexes = provisionIndexes;
+    }
+
+    public boolean isReconcilePublishedBatches() {
+        return reconcilePublishedBatches;
+    }
+
+    public void setReconcilePublishedBatches(boolean reconcilePublishedBatches) {
+        this.reconcilePublishedBatches = reconcilePublishedBatches;
+    }
+
+    public int getReconciliationPageSize() {
+        return reconciliationPageSize;
+    }
+
+    public void setReconciliationPageSize(int reconciliationPageSize) {
+        if (reconciliationPageSize < 1 || reconciliationPageSize > 500) {
+            throw new IllegalArgumentException(
+                    "reconciliationPageSize must be between 1 and 500");
+        }
+        this.reconciliationPageSize = reconciliationPageSize;
+    }
+
+    public int getReconciliationMaximumBatches() {
+        return reconciliationMaximumBatches;
+    }
+
+    public void setReconciliationMaximumBatches(int reconciliationMaximumBatches) {
+        if (reconciliationMaximumBatches < 1 || reconciliationMaximumBatches > 10_000) {
+            throw new IllegalArgumentException(
+                    "reconciliationMaximumBatches must be between 1 and 10000");
+        }
+        this.reconciliationMaximumBatches = reconciliationMaximumBatches;
+    }
+
+    public long getReconciliationMaximumEntities() {
+        return reconciliationMaximumEntities;
+    }
+
+    public void setReconciliationMaximumEntities(long reconciliationMaximumEntities) {
+        if (reconciliationMaximumEntities < 1) {
+            throw new IllegalArgumentException(
+                    "reconciliationMaximumEntities must be positive");
+        }
+        this.reconciliationMaximumEntities = reconciliationMaximumEntities;
+    }
+
+    public long getReconciliationMaximumRelationContributions() {
+        return reconciliationMaximumRelationContributions;
+    }
+
+    public void setReconciliationMaximumRelationContributions(
+            long reconciliationMaximumRelationContributions) {
+        if (reconciliationMaximumRelationContributions < 1) {
+            throw new IllegalArgumentException(
+                    "reconciliationMaximumRelationContributions must be positive");
+        }
+        this.reconciliationMaximumRelationContributions =
+                reconciliationMaximumRelationContributions;
     }
 
     public PostgresGraphTopologyBackend getTopologyBackend() {

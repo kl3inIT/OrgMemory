@@ -54,9 +54,11 @@ final class ApacheAgeBatchTopology {
                     "Apache AGE graph was not prepared for organization "
                             + batch.namespace().organizationId());
         }
+        TopologyCounts expected = requireCompleteRelationalTopology(batch.id());
         deleteBatch(graphName, batch.id());
         copyEntities(graphName, batch.id());
         copyRelations(graphName, batch.id());
+        requireExactAgeCounts(graphName, batch.id(), expected);
         createReadyMarker(graphName, batch);
     }
 
@@ -72,36 +74,148 @@ final class ApacheAgeBatchTopology {
 
     void requireReady(ProjectionSnapshot snapshot) {
         Objects.requireNonNull(snapshot, "snapshot");
-        configureSession();
-        String graphName = graphName(snapshot.namespace().organizationId());
-        if (!graphExists(graphName)) {
-            throw new IllegalStateException(
-                    "Apache AGE graph is unavailable for published batch "
-                            + snapshot.batchId());
+        MarkerInspection inspection = inspectReadyMarker(snapshot);
+        MarkerState state = inspection.state();
+        if (state == MarkerState.READY_EXACT) {
+            return;
         }
-        String cypher = """
-                MATCH (marker:batch_marker {batch_id: %s})
-                RETURN marker.manifest_fingerprint AS manifest_fingerprint,
-                       marker.generation AS generation
-                """.formatted(cypherString(snapshot.batchId().toString()));
-        List<ReadyMarker> markers = jdbc.getJdbcTemplate().query(
-                cypherSql(graphName, cypher,
-                        "manifest_fingerprint ag_catalog.agtype, generation ag_catalog.agtype"),
-                (resultSet, rowNumber) -> new ReadyMarker(
-                        parseAgtypeString(resultSet.getString("manifest_fingerprint")),
-                        parseAgtypeLong(resultSet.getString("generation"))));
-        if (markers.size() != 1) {
-            throw new IllegalStateException(
-                    "Apache AGE ready marker is missing or duplicated for published batch "
+        throw switch (state) {
+            case MISSING -> new IllegalStateException(
+                    "Apache AGE ready marker is missing for published batch "
                             + snapshot.batchId());
-        }
-        ReadyMarker marker = markers.getFirst();
-        if (!snapshot.manifestFingerprint().equals(marker.manifestFingerprint())
-                || snapshot.generation() != marker.generation()) {
-            throw new IllegalStateException(
+            case DUPLICATE -> new IllegalStateException(
+                    "Apache AGE ready marker is duplicated for published batch "
+                            + snapshot.batchId());
+            case MISMATCH -> new IllegalStateException(
                     "Apache AGE ready marker does not match published batch "
                             + snapshot.batchId());
+            case AGE_UNAVAILABLE -> new IllegalStateException(
+                    "Apache AGE is unavailable while validating published batch "
+                            + snapshot.batchId(),
+                    inspection.failure());
+            case READY_EXACT -> new IllegalStateException("unreachable marker state");
+        };
+    }
+
+    MarkerInspection inspectReadyMarker(ProjectionSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        String graphName = graphName(snapshot.namespace().organizationId());
+        try {
+            configureSession();
+            if (!graphExists(graphName)) {
+                return MarkerInspection.of(MarkerState.MISSING);
+            }
+            String cypher = """
+                    MATCH (marker:batch_marker {batch_id: %s})
+                    RETURN marker.manifest_fingerprint AS manifest_fingerprint,
+                           marker.generation AS generation
+                    """.formatted(cypherString(snapshot.batchId().toString()));
+            List<ReadyMarker> markers = jdbc.getJdbcTemplate().query(
+                    cypherSql(graphName, cypher,
+                            "manifest_fingerprint ag_catalog.agtype, generation ag_catalog.agtype"),
+                    (resultSet, rowNumber) -> new ReadyMarker(
+                            parseAgtypeString(resultSet.getString("manifest_fingerprint")),
+                            parseAgtypeLong(resultSet.getString("generation"))));
+            if (markers.isEmpty()) {
+                return MarkerInspection.of(MarkerState.MISSING);
+            }
+            if (markers.size() > 1) {
+                return MarkerInspection.of(MarkerState.DUPLICATE);
+            }
+            ReadyMarker marker = markers.getFirst();
+            return MarkerInspection.of(
+                    snapshot.manifestFingerprint().equals(marker.manifestFingerprint())
+                            && snapshot.generation() == marker.generation()
+                    ? MarkerState.READY_EXACT
+                    : MarkerState.MISMATCH);
+        } catch (DataAccessException exception) {
+            return MarkerInspection.unavailable(exception);
         }
+    }
+
+    private TopologyCounts requireCompleteRelationalTopology(UUID batchId) {
+        TopologyCounts counts = jdbc.queryForObject("""
+                SELECT (SELECT count(*)
+                          FROM projection_graph_entities entity
+                         WHERE entity.batch_id = :batchId) AS entity_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                         WHERE contribution.batch_id = :batchId) AS relation_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                          LEFT JOIN projection_graph_relations relation
+                            ON relation.batch_id = contribution.batch_id
+                           AND relation.relation_id = contribution.relation_id
+                         WHERE contribution.batch_id = :batchId
+                           AND relation.relation_id IS NULL) AS unresolved_relation_count,
+                       (SELECT count(*)
+                          FROM projection_graph_relation_contributions contribution
+                          JOIN projection_graph_relations relation
+                            ON relation.batch_id = contribution.batch_id
+                           AND relation.relation_id = contribution.relation_id
+                          LEFT JOIN projection_graph_entities source_entity
+                            ON source_entity.batch_id = relation.batch_id
+                           AND source_entity.entity_id = relation.source_entity_id
+                          LEFT JOIN projection_graph_entities target_entity
+                            ON target_entity.batch_id = relation.batch_id
+                           AND target_entity.entity_id = relation.target_entity_id
+                         WHERE contribution.batch_id = :batchId
+                           AND (source_entity.entity_id IS NULL
+                                OR target_entity.entity_id IS NULL)) AS unresolved_endpoint_count
+                """, new MapSqlParameterSource("batchId", batchId),
+                (resultSet, rowNumber) -> new TopologyCounts(
+                        resultSet.getLong("entity_count"),
+                        resultSet.getLong("relation_count"),
+                        resultSet.getLong("unresolved_relation_count"),
+                        resultSet.getLong("unresolved_endpoint_count")));
+        if (counts == null
+                || counts.unresolvedRelationCount() != 0
+                || counts.unresolvedEndpointCount() != 0) {
+            throw new IllegalStateException(
+                    "Relational graph topology is incomplete for published batch "
+                            + batchId
+                            + ": unresolvedRelations="
+                            + (counts == null ? "unknown" : counts.unresolvedRelationCount())
+                            + ", unresolvedEndpoints="
+                            + (counts == null ? "unknown" : counts.unresolvedEndpointCount()));
+        }
+        return counts;
+    }
+
+    private void requireExactAgeCounts(
+            String graphName,
+            UUID batchId,
+            TopologyCounts expected) {
+        String id = cypherString(batchId.toString());
+        long entities = singleCypherCount(graphName, """
+                MATCH (entity:base {batch_id: %s})
+                RETURN count(entity) AS item_count
+                """.formatted(id));
+        long relations = singleCypherCount(graphName, """
+                MATCH ()-[relation:DIRECTED {batch_id: %s}]->()
+                RETURN count(relation) AS item_count
+                """.formatted(id));
+        if (entities != expected.entityCount()
+                || relations != expected.relationCount()) {
+            throw new IllegalStateException(
+                    "Apache AGE topology count mismatch for published batch "
+                            + batchId
+                            + ": expectedEntities=" + expected.entityCount()
+                            + ", actualEntities=" + entities
+                            + ", expectedRelations=" + expected.relationCount()
+                            + ", actualRelations=" + relations);
+        }
+    }
+
+    private long singleCypherCount(String graphName, String cypher) {
+        List<Long> counts = jdbc.getJdbcTemplate().query(
+                cypherSql(graphName, cypher, "item_count ag_catalog.agtype"),
+                (resultSet, rowNumber) -> parseAgtypeLong(
+                        resultSet.getString("item_count")));
+        if (counts.size() != 1) {
+            throw new IllegalStateException("Apache AGE returned an invalid count result");
+        }
+        return counts.getFirst();
     }
 
     IncidentRelationPage loadIncidentRelationPage(
@@ -550,6 +664,40 @@ final class ApacheAgeBatchTopology {
     }
 
     private record ReadyMarker(String manifestFingerprint, long generation) {}
+
+    enum MarkerState {
+        READY_EXACT,
+        MISSING,
+        DUPLICATE,
+        MISMATCH,
+        AGE_UNAVAILABLE
+    }
+
+    record MarkerInspection(MarkerState state, DataAccessException failure) {
+        MarkerInspection {
+            Objects.requireNonNull(state, "state");
+            if ((state == MarkerState.AGE_UNAVAILABLE) != (failure != null)) {
+                throw new IllegalArgumentException(
+                        "only AGE_UNAVAILABLE carries a data-access failure");
+            }
+        }
+
+        static MarkerInspection of(MarkerState state) {
+            return new MarkerInspection(state, null);
+        }
+
+        static MarkerInspection unavailable(DataAccessException failure) {
+            return new MarkerInspection(
+                    MarkerState.AGE_UNAVAILABLE,
+                    Objects.requireNonNull(failure, "failure"));
+        }
+    }
+
+    private record TopologyCounts(
+            long entityCount,
+            long relationCount,
+            long unresolvedRelationCount,
+            long unresolvedEndpointCount) {}
 
     private record TopologyRelation(
             UUID contributionId,

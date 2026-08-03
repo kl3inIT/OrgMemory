@@ -137,6 +137,38 @@ class PostgresGraphRagAutoConfigurationTests {
     }
 
     @Test
+    void rejectsReconciliationAgainstTheRelationalBackend() {
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.reconcile-published-batches=true")
+                .run(context -> {
+                    Throwable failure = context.getStartupFailure();
+                    assertTrue(failure != null);
+                    assertTrue(rootCause(failure)
+                            .getMessage()
+                            .contains("requires topology-backend=APACHE_AGE"));
+                });
+    }
+
+    @Test
+    void bindsBoundedReconciliationLimits() {
+        runner.withPropertyValues(
+                        "orgmemory.graph-rag.postgres.reconciliation-page-size=17",
+                        "orgmemory.graph-rag.postgres.reconciliation-maximum-batches=23",
+                        "orgmemory.graph-rag.postgres.reconciliation-maximum-entities=29",
+                        "orgmemory.graph-rag.postgres.reconciliation-maximum-relation-contributions=31")
+                .run(context -> {
+                    PostgresGraphRagProperties properties =
+                            context.getBean(PostgresGraphRagProperties.class);
+                    assertEquals(17, properties.getReconciliationPageSize());
+                    assertEquals(23, properties.getReconciliationMaximumBatches());
+                    assertEquals(29, properties.getReconciliationMaximumEntities());
+                    assertEquals(
+                            31,
+                            properties.getReconciliationMaximumRelationContributions());
+                });
+    }
+
+    @Test
     void leavesEveryPortUnclaimedWhenTurnedOff() {
         runner.withPropertyValues("orgmemory.graph-rag.postgres.enabled=false")
                 .run(context -> CANONICAL_PORTS.forEach(port -> assertTrue(

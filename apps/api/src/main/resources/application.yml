@@ -121,6 +121,13 @@ orgmemory:
       model: ${ORGMEMORY_OPENAI_EMBEDDING_MODEL:text-embedding-3-large}
       dimensions: ${ORGMEMORY_OPENAI_EMBEDDING_DIMENSIONS:1536}
   graph-rag:
+    postgres:
+      reconcile-published-batches: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILE_PUBLISHED_BATCHES:false}
+      reconciliation-page-size: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILIATION_PAGE_SIZE:100}
+      reconciliation-maximum-batches: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILIATION_MAXIMUM_BATCHES:1000}
+      reconciliation-maximum-entities: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILIATION_MAXIMUM_ENTITIES:1000000}
+      reconciliation-maximum-relation-contributions: ${ORGMEMORY_GRAPH_RAG_POSTGRES_RECONCILIATION_MAXIMUM_RELATION_CONTRIBUTIONS:1000000}
+      provision-indexes: ${ORGMEMORY_GRAPH_RAG_POSTGRES_PROVISION_INDEXES:true}
     processing:
       maximum-entities-per-chunk: ${ORGMEMORY_GRAPH_MAX_ENTITIES_PER_CHUNK:40}
       maximum-relations-per-chunk: ${ORGMEMORY_GRAPH_MAX_RELATIONS_PER_CHUNK:60}
