@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (4a158882)`.
 
 ## Current Behavior
 

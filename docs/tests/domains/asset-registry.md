@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (4a158882)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
