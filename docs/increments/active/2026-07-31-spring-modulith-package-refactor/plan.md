@@ -1662,12 +1662,13 @@ remains deferred.
 - [x] PR 1: pass focused Core/API/Assistant/Modulith/OpenAPI/integration gates,
   docs and release policy, static-analysis fallback, and a terminating clean
   repository test.
-- [ ] PR 1: merge through CI and CodeRabbit without releasing.
-- [ ] PR 2: move semantics, acknowledgement persistence, and relation resolver;
+- [x] PR 1: merge through CI and CodeRabbit without releasing.
+- [x] PR 2: move semantics, acknowledgement persistence, and relation resolver;
   immediately close `assetregistry.workinstruction` with zero public
   implementation types and the exact eight-entry allowlist.
-- [ ] PR 2: pass all focused and terminating gates, merge through CI and
-  CodeRabbit, then continue to Capability Pack without releasing early.
+- [x] PR 2: pass all focused and terminating gates.
+- [ ] PR 2: merge through CI and CodeRabbit, then continue to Capability Pack
+  without releasing early.
 
 Commit `9dcbb005` establishes both exact parent interfaces, preserves the
 concrete Work Instruction records and OpenAPI shape, routes follow/acknowledge
@@ -1686,3 +1687,27 @@ exact Node 24.15.0. JetBrains inspection remained unavailable, so Gradle
 compilation, executable Modulith and consumer tests, zero-byte/package/import
 checks, and `git diff --check` supplied the documented fallback. Release
 remains deferred.
+
+PR #286 merged as `4abcf19ea59fee7716495bd8d15965b463b94054`
+after every required CI check passed. CodeRabbit could not start a review due
+to its plan rate limit and produced no findings or threads; the independent
+architecture challenge, local gates, and required CI supplied the recorded
+fallback. No release was created.
+
+Commit `cf939c61` moves Work Instruction parsing, service orchestration,
+acknowledgement entity/repository, and relation traversal into the immediately
+closed child. All implementations are package-private; exact ArchUnit and
+Modulith gates prove the parent imports no child type, the child imports no
+parent implementation, and the two consumption methods have only their
+designated callers. The root Asset Registry package now contains 56 Java files.
+
+Full suites passed 510 Core and 194 API tests. PostgreSQL concurrency coverage
+proves same-actor calls produce one row and the same persisted timestamp while
+two actors retain two rows. The terminating repository-wide `clean test`
+passed 108 tasks and 1,290 tests with zero failure, error, or skip.
+Documentation hygiene passed for 543 Markdown files and 8 mirrored domain
+pairs; release policy passed 18 Tegami/product and 23 workflow/policy tests on
+exact Node 24.15.0. The mechanical fallback found 17 changed paths before
+reconciliation, zero missing/empty Java files, zero parent imports of child
+implementations, zero `Type.OPEN`, no migration/OpenAPI change, and a clean
+diff. Release remains deferred.

@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (9dcbb005)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
 
 ## Current Behavior
 
@@ -93,6 +93,13 @@ the concrete Work Instruction wire/value records. A separate parent-owned
 delegate profile-specific relation traversal without importing its
 implementation. Relation targets are authorized independently; inaccessible
 targets collapse into one opaque access-gap flag.
+
+The closed `assetregistry.workinstruction` nested module owns parsing,
+follow/acknowledge orchestration, actor-scoped acknowledgement persistence, and
+relation traversal. It exposes no public top-level implementation type and
+depends only on the exact Asset API/consumption/profile/Work Instruction
+contracts, Knowledge catalog, Organization, and Shared entity base. Its move
+changes neither the acknowledgement table nor its transaction boundary.
 
 ### Capability Pack
 
