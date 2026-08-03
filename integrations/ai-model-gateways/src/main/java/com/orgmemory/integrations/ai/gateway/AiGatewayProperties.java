@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 @ConfigurationProperties("orgmemory.ai")
 public record AiGatewayProperties(
@@ -173,6 +174,7 @@ public record AiGatewayProperties(
             this(gatewayId, modelId, null);
         }
 
+        @ConstructorBinding
         public Route {
             gatewayId = normalize(gatewayId, "openai");
             modelId = normalize(modelId, "");
@@ -185,6 +187,7 @@ public record AiGatewayProperties(
             Route graphExtraction,
             Route embedding) {
 
+        @ConstructorBinding
         public Routes {
             assistantChat = assistantChat == null
                     ? new Route("openai", "gpt-5.6-sol") : assistantChat;
