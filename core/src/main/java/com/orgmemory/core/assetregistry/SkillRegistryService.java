@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -156,13 +157,22 @@ public class SkillRegistryService {
             SkillPackageSpec spec,
             SkillPackageArtifact artifact,
             InputStream content) {
+        String payload;
+        try {
+            payload = json.writeValueAsString(spec);
+        } catch (JacksonException failure) {
+            throw new BusinessUnavailableException(
+                    "skill.package-staging-unavailable",
+                    "The Skill package could not be staged",
+                    failure);
+        }
         return new SkillPackageUpload(
                 UUID.randomUUID(),
                 spec.name(),
                 spec.name(),
                 spec.description(),
                 SkillPackageProfile.SCHEMA_VERSION,
-                json.writeValueAsString(spec),
+                payload,
                 artifact,
                 Map.of("skill-name", spec.name()),
                 content);

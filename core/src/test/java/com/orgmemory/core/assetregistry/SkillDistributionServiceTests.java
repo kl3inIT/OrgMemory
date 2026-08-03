@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.assetregistry.api.AssetIdentity;
@@ -78,6 +79,60 @@ class SkillDistributionServiceTests {
                 () -> fixture.service.open(ACTOR, ASSET_ID, RELEASE_ID));
 
         assertTrue(stream.closed);
+    }
+
+    @Test
+    void closesContentWhenTheCanonicalPayloadDoesNotMatchThePinnedReference() {
+        Fixture fixture = fixture();
+        TrackingInputStream stream = storedContent(fixture);
+        when(fixture.specs.read("{\"profile\":\"skill\"}"))
+                .thenReturn(spec("b".repeat(64)));
+
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.open(ACTOR, ASSET_ID, RELEASE_ID));
+
+        assertTrue(stream.closed);
+    }
+
+    @Test
+    void closesContentWhenTheCanonicalPayloadCannotBeRead() {
+        Fixture fixture = fixture();
+        TrackingInputStream stream = storedContent(fixture);
+        when(fixture.specs.read("{\"profile\":\"skill\"}"))
+                .thenThrow(new IllegalArgumentException("invalid payload"));
+
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.open(ACTOR, ASSET_ID, RELEASE_ID));
+
+        assertTrue(stream.closed);
+    }
+
+    @Test
+    void rejectsAReleaseWhosePackageReferenceIsMissing() {
+        Fixture fixture = fixture();
+        when(fixture.references.findByReleaseIdAndOrganizationId(
+                        RELEASE_ID, ORGANIZATION_ID))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.manifest(ACTOR, ASSET_ID, RELEASE_ID));
+
+        verifyNoInteractions(fixture.storage);
+    }
+
+    @Test
+    void rejectsAReleaseWhosePackageReferenceIsNotABlob() {
+        Fixture fixture = fixture();
+        when(fixture.reference.isBlobReference()).thenReturn(false);
+
+        assertThrows(
+                AssetUnavailableException.class,
+                () -> fixture.service.manifest(ACTOR, ASSET_ID, RELEASE_ID));
+
+        verifyNoInteractions(fixture.storage);
     }
 
     @Test
@@ -179,6 +234,9 @@ class SkillDistributionServiceTests {
                 assets,
                 identities,
                 releaseRepository,
+                references,
+                reference,
+                specs,
                 storage);
     }
 
@@ -219,6 +277,10 @@ class SkillDistributionServiceTests {
     }
 
     private static SkillPackageSpec spec() {
+        return spec(PACKAGE_DIGEST);
+    }
+
+    private static SkillPackageSpec spec(String packageDigest) {
         return new SkillPackageSpec(
                 "triage",
                 "Triage customer issues",
@@ -228,7 +290,7 @@ class SkillDistributionServiceTests {
                 Map.of("owner", "support"),
                 null,
                 new SkillPackageSpec.Artifact(
-                        PACKAGE_DIGEST,
+                        packageDigest,
                         7,
                         "application/zip"),
                 List.of(new SkillPackageSpec.FileEntry(
@@ -242,7 +304,23 @@ class SkillDistributionServiceTests {
             AssetRegistryService assets,
             AssetIdentityQuery identities,
             AssetReleaseRepository releaseRepository,
+            AssetPayloadReferenceRepository references,
+            AssetPayloadReference reference,
+            SkillPackageSpecReader specs,
             SkillPackageStoragePort storage) {
+    }
+
+    private static TrackingInputStream storedContent(Fixture fixture) {
+        TrackingInputStream stream = new TrackingInputStream();
+        when(fixture.storage.open("private/skill.zip"))
+                .thenReturn(new SkillPackageStoragePort.StoredSkillPackageContent(
+                        stream,
+                        new SkillPackageStoragePort.StoredSkillPackage(
+                                "private/skill.zip",
+                                7,
+                                "application/zip",
+                                PACKAGE_DIGEST)));
+        return stream;
     }
 
     private static final class TrackingInputStream

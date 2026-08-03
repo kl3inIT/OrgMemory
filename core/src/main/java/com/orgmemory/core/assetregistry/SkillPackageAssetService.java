@@ -65,13 +65,13 @@ class SkillPackageAssetService implements SkillPackageAssetCommand {
         Objects.requireNonNull(classification, "classification");
         Objects.requireNonNull(upload, "upload");
         requireCreate(actor, knowledgeSpaceId);
+        payloadPolicy.validate(upload.payload(), upload.artifact());
         SkillPackageStoragePort.StoredSkillPackage stored = null;
         UUID assetId = null;
         try {
             stored = store(actor, upload);
             SkillPackageArtifact artifact = artifact(stored);
             requireMatchingArtifact(upload.artifact(), artifact);
-            payloadPolicy.validate(upload.payload(), artifact);
             assetId = assets.createValidatedSkillIdentity(
                     actor,
                     namespace,
@@ -99,13 +99,13 @@ class SkillPackageAssetService implements SkillPackageAssetCommand {
         Objects.requireNonNull(assetId, "assetId");
         Objects.requireNonNull(upload, "upload");
         KnowledgeClassification classification = requireEdit(actor, assetId);
+        payloadPolicy.validate(upload.payload(), upload.artifact());
         SkillPackageStoragePort.StoredSkillPackage stored = null;
         SkillDraftReplacement replacement = null;
         try {
             stored = store(actor, upload);
             SkillPackageArtifact artifact = artifact(stored);
             requireMatchingArtifact(upload.artifact(), artifact);
-            payloadPolicy.validate(upload.payload(), artifact);
             replacement = assets.replaceValidatedSkillDraft(
                     actor,
                     assetId,
