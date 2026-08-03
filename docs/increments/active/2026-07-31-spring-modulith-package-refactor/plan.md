@@ -1654,12 +1654,12 @@ remains deferred.
   was unavailable at 100% weekly usage; the independent read-only fallback
   accepted the boundary with binding corrections recorded in
   [the verdict](assetregistry-work-instruction-challenge-verdict.md).
-- [ ] PR 1: add failing-first exact-interface, consumer, operations-contract,
+- [x] PR 1: add failing-first exact-interface, consumer, operations-contract,
   and delivery-delegation tests.
-- [ ] PR 1: add parent-owned `work-instruction` and
+- [x] PR 1: add parent-owned `work-instruction` and
   `work-instruction-relations` capabilities; preserve concrete record/OpenAPI
   shapes and route current parent implementations through the seams.
-- [ ] PR 1: pass focused Core/API/Assistant/Modulith/OpenAPI/integration gates,
+- [x] PR 1: pass focused Core/API/Assistant/Modulith/OpenAPI/integration gates,
   docs and release policy, static-analysis fallback, and a terminating clean
   repository test.
 - [ ] PR 1: merge through CI and CodeRabbit without releasing.
@@ -1668,3 +1668,21 @@ remains deferred.
   implementation types and the exact eight-entry allowlist.
 - [ ] PR 2: pass all focused and terminating gates, merge through CI and
   CodeRabbit, then continue to Capability Pack without releasing early.
+
+Commit `9dcbb005` establishes both exact parent interfaces, preserves the
+concrete Work Instruction records and OpenAPI shape, routes follow/acknowledge
+through the existing consumption capability, and delegates relation traversal
+without changing parent delivery audit. The interface bean retains its Spring
+transaction proxy: `follow` is read-only and `acknowledge` is read-write
+`REQUIRED`.
+
+The change is 27 rename-aware paths, below the reviewed 55-path target and the
+hard 100-file cap. Full suites passed 503 Core and 191 API tests, including 22
+PostgreSQL Asset Registry integration tests. The terminating repository-wide
+`clean test` passed 99 tasks and 1,276 tests with zero failure, error, or skip.
+Documentation hygiene passed for 536 Markdown files and 8 mirrored domain
+pairs; release policy passed 18 Tegami/product and 23 workflow/policy tests on
+exact Node 24.15.0. JetBrains inspection remained unavailable, so Gradle
+compilation, executable Modulith and consumer tests, zero-byte/package/import
+checks, and `git diff --check` supplied the documented fallback. Release
+remains deferred.

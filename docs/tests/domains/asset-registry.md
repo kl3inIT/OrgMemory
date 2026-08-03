@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (5f7faa70)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (9dcbb005)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -59,6 +59,9 @@ Reconciled: `2026-08-03-spring-modulith-package-refactor (5f7faa70)`.
 | Withdrawn Prompt releases cannot start new runs | `AssetRegistryIntegrationTests` | covered |
 | Prompt provider tests run without network access | `PromptExecutionServiceTests` | covered |
 | Work Instruction acknowledgement is actor-derived and idempotent | `AssetRegistryIntegrationTests` | covered |
+| Work Instruction operations and relation resolution use two exact parent-owned named interfaces with pinned Core/API consumers | `ModulithVerificationTests#assetRegistryWorkInstructionInterfacesAreExact`, `#assetRegistryWorkInstructionContractsHaveExactCoreConsumers`, `WorkInstructionBoundaryTests` | covered |
+| Work Instruction relation traversal preserves reference order, resolves only visible targets, collapses denial into one opaque access gap, and generic delivery authorizes the source once before delegation | `WorkInstructionRelationServiceTests`, `AssetDeliveryServiceWorkInstructionTests` | covered |
+| Interface-based Work Instruction wiring retains an active Spring proxy with read-only `follow`, read-write `acknowledge`, and default `REQUIRED` propagation | `AssetRegistryIntegrationTests#workInstructionContractRetainsTheServiceTransactionBoundary` | covered |
 | Pack items preserve order and exact release/version pins | `CapabilityPackServiceTests`, `AssetRegistryIntegrationTests` | covered |
 | Every Pack component is authorized independently | `CapabilityPackServiceTests` | covered |
 | Denied Pack component metadata and count remain opaque | `CapabilityPackServiceTests` | covered |
