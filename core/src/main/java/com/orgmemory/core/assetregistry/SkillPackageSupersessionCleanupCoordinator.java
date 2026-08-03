@@ -1,5 +1,6 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;

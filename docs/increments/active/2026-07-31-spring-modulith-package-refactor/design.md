@@ -464,6 +464,38 @@ See [the Prompt challenge verdict](assetregistry-prompt-challenge-verdict.md)
 for the unavailable Fable 5 attempts, independent fallback, counterattack,
 corrected topology, rejected alternative, and executable gates.
 
+## Asset Registry Skill Boundary
+
+The Skill family is delivered in two code-bearing PRs. The first establishes
+four exact parent-owned capabilities without creating a child module. The
+second moves package semantics and immediately closes `assetregistry.skill`.
+This sequence keeps every PR below 100 changed paths without an intermediate
+open module.
+
+The parent Asset Registry owns the complete artifact persistence saga:
+authorization, storage write and compensation, Draft/revision/release and
+payload-reference persistence, supersession locking and retry state, immediate
+and scheduled cleanup, exact-release resolution, and storage opening. The
+child owns bounded package inspection, Skill specification and validation,
+GitHub acquisition, API-facing Skill operations, and install-manifest
+construction.
+
+The parent exposes four exact capability interfaces: `skill-package` for a
+validated upload entering the Asset lifecycle, `skill-delivery` for authorized
+release facts and content without a locator, `skill-cleanup` for the Worker
+trigger, and `skill-storage` for exact parent persistence/cleanup classes plus
+MinIO. `assetregistry.skill` may consume only the first two. It never receives
+an object key and never orchestrates supersession cleanup.
+
+When introduced, the closed Skill module exposes exactly four operation/source
+interfaces and three immutable results. Its implementations, package
+specification, inspector, profile, parser, and validation exception remain
+package-private. See
+[the Skill challenge verdict](assetregistry-skill-challenge-verdict.md) for the
+Fable 5 availability failure, independent fallback, counterattack corrections,
+exact contracts and consumer sets, storage-reference constraint, and binding
+two-PR sequence.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

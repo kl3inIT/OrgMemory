@@ -1191,6 +1191,124 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact",
+                        "com.orgmemory.core.assetregistry.skillpackage.SkillPackageAssetCommand",
+                        "com.orgmemory.core.assetregistry.skillpackage.SkillPackagePayloadPolicy",
+                        "com.orgmemory.core.assetregistry.skillpackage.SkillPackageUpload"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("skill-package")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseContent",
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDeliveryQuery",
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("skill-delivery")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupOperations",
+                        "com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupSummary"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("skill-cleanup")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort",
+                        "com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort$SkillPackageWriteRequest",
+                        "com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort$StoredSkillPackage",
+                        "com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort$StoredSkillPackageContent"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("skill-storage")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+    }
+
+    @Test
+    void assetRegistrySkillCapabilitiesHaveExactCoreConsumers() {
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.SkillDistributionService",
+                        "com.orgmemory.core.assetregistry.SkillPackageAssetService",
+                        "com.orgmemory.core.assetregistry.SkillPackageProfile",
+                        "com.orgmemory.core.assetregistry.SkillRegistryService",
+                        "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService",
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.skillpackage"));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.SkillDistributionService",
+                        "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.skilldelivery"));
+        assertEquals(
+                Set.of("com.orgmemory.core.assetregistry.SkillPackageSupersessionCleanupService"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.skillcleanup"));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.AssetPayloadReference",
+                        "com.orgmemory.core.assetregistry.AssetRegistryCoordinator",
+                        "com.orgmemory.core.assetregistry.AssetRegistryService",
+                        "com.orgmemory.core.assetregistry.SkillPackageAssetService",
+                        "com.orgmemory.core.assetregistry.SkillPackageSupersessionCleanupCoordinator",
+                        "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.skillstorage"));
+    }
+
+    @Test
+    void assetRegistrySkillCapabilityImplementationsRemainInternal() {
+        for (String implementation : Set.of(
+                "com.orgmemory.core.assetregistry.SkillPackageAssetService",
+                "com.orgmemory.core.assetregistry.SkillPackageSupersessionCleanupService",
+                "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService")) {
+            assertFalse(Modifier.isPublic(
+                    loadClass(implementation).getModifiers()));
+        }
+    }
+
+    private static Class<?> loadClass(String name) {
+        try {
+            return Class.forName(name);
+        } catch (ClassNotFoundException missing) {
+            throw new AssertionError(missing);
+        }
+    }
+
+    private static Set<String> directConsumersOf(String targetPackage) {
+        return new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core")
+                .stream()
+                .filter(type -> !type.getPackageName().equals(targetPackage))
+                .filter(type -> type.getDirectDependenciesFromSelf().stream()
+                        .anyMatch(dependency -> dependency.getTargetClass()
+                                .getPackageName()
+                                .equals(targetPackage)))
+                .map(type -> type.getName().replaceFirst("\\$.*$", ""))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+    }
+
+    @Test
     void assetRegistryPromptIsAClosedProfileModule() {
         var prompt = modules.getModuleByName("assetregistry.prompt").orElseThrow();
         var allowedDependencies = prompt.getAllowedDependencies(modules).stream()

@@ -1,8 +1,7 @@
 package com.orgmemory.worker.assetregistry;
 
-import com.orgmemory.core.assetregistry.SkillPackageCleanupOutcome;
-import com.orgmemory.core.assetregistry.SkillPackageSupersessionCleanupService;
-import java.util.Map;
+import com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupOperations;
+import com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,10 +13,10 @@ class SkillPackageSupersessionCleanupScheduler {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(SkillPackageSupersessionCleanupScheduler.class);
 
-    private final SkillPackageSupersessionCleanupService cleanup;
+    private final SkillPackageCleanupOperations cleanup;
 
     SkillPackageSupersessionCleanupScheduler(
-            SkillPackageSupersessionCleanupService cleanup) {
+            SkillPackageCleanupOperations cleanup) {
         this.cleanup = cleanup;
     }
 
@@ -25,9 +24,9 @@ class SkillPackageSupersessionCleanupScheduler {
             fixedDelayString =
                     "${orgmemory.asset-registry.skill-package-cleanup-interval:1m}")
     void cleanup() {
-        Map<SkillPackageCleanupOutcome, Integer> outcomes = cleanup.cleanupPending(25);
-        if (!outcomes.isEmpty()) {
-            LOGGER.info("Skill package supersession cleanup outcomes={}", outcomes);
+        SkillPackageCleanupSummary summary = cleanup.cleanupPending(25);
+        if (!summary.isEmpty()) {
+            LOGGER.info("Skill package supersession cleanup summary={}", summary);
         }
     }
 }

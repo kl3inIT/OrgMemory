@@ -1,15 +1,19 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
-
 import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.profile.AssetPayloadProfile;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackagePayloadPolicy;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
-class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader {
+class SkillPackageProfile implements
+        AssetPayloadProfile,
+        SkillPackageSpecReader,
+        SkillPackagePayloadPolicy {
 
     static final String SCHEMA_VERSION = "2";
 
@@ -28,6 +32,18 @@ class SkillPackageProfile implements AssetPayloadProfile, SkillPackageSpecReader
     @Override
     public void validate(String payload) {
         read(payload);
+    }
+
+    @Override
+    public void validate(
+            String canonicalPayload, SkillPackageArtifact artifact) {
+        SkillPackageSpec spec = read(canonicalPayload);
+        if (!spec.artifact().sha256().equals(artifact.sha256())
+                || spec.artifact().contentLength() != artifact.contentLength()
+                || !spec.artifact().mediaType().equals(artifact.mediaType())) {
+            throw new SkillPackageValidationException(
+                    "The Skill package artifact does not match its canonical payload");
+        }
     }
 
     @Override

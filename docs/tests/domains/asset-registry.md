@@ -6,11 +6,14 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `core/src/test/java/com/orgmemory/core/ModulithVerificationTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
+`apps/api/src/test/java/com/orgmemory/api/SkillCapabilityBoundaryTests.java`,
+`apps/worker/src/test/java/com/orgmemory/worker/SkillCapabilityBoundaryTests.java`,
+`integrations/object-storage-minio/src/test/java`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -19,7 +22,7 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 | Registration writes Asset, OWNER, and three authorization intents atomically; duplicate roles emit no intent; lifecycle transitions stay on the locked canonical Asset; commands join the parent transaction, queue operations own short transactions, and OpenFGA projection rejects ambient transactions | `AssetKernelServiceTests`, `AssetAuthorizationOutboxTests`, `AssetAuthorizationProjectionServiceTests` | covered |
 | Prompt, Work Instruction, Pack, and Skill schemas reject invalid payloads | `AssetProfileValidationTests` | covered |
 | Skill ZIP inspection rejects traversal, case collisions, symlinks, invalid frontmatter, invalid UTF-8, and bounded-size violations without extraction | `SkillPackageInspectorTests` | covered |
-| Unauthorized Skill import is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests` | covered |
+| Unauthorized or payload-inconsistent Skill import/replacement is rejected before object storage and pre-identity failures clean up staged objects | `SkillRegistryServiceTests`, `SkillPackageAssetServiceTests` | covered |
 | Stateless Skill inspection returns canonical bounded metadata without storage; Scratch, raw `SKILL.md`, ZIP, and folder packaging converge on the same server validator | `SkillRegistryServiceTests#inspectionIsStatelessAndReturnsOnlyValidatedPackageFacts`, `skill-package-browser.test.ts`, `asset-registry-golden-poc.spec.ts` | covered |
 | GitHub Skill preview and private-connection discovery require Skill-create permission on the selected Knowledge Space, pin a full commit SHA, discover nearest bounded `SKILL.md` roots, reject unsafe/link/colliding archives, and keep invalid candidates independently visible | `GitHubSkillArchiveReaderTests`, `GitHubSkillSourceAdapterTests`, `SkillGitHubImportServiceTests`, `asset-registry-golden-poc.spec.ts#GitHub Skill import pins preview, supports private access, and reports partial results` | covered |
 | Private GitHub import requires an administrator opt-in and selected GitHub App repository, fails closed on missing repository identifiers, audits allow/deny credential use, distinguishes rate limits from private repositories, applies HTTP timeouts, disables generic redirects, validates the single codeload redirect, strips Authorization before archive download, and enforces archive-size bounds | `GitHubSkillSourceAdapterTests`, `connector-github.test.ts` | covered |
@@ -27,12 +30,13 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 | Skill Draft replacement requires live edit authorization plus the expected Draft version, compensates fresh storage on transaction failure, and never mutates an immutable package reference | `SkillRegistryServiceTests`, `AssetRegistryIntegrationTests#replacingAReleasedSkillDraftKeepsTheImmutablePackageAndClearsTheCleanupRow`, `AssetRegistryIntegrationTests#replacingAnUnreleasedSkillDraftDeletesItsUnreferencedOldPackage` | covered |
 | Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
 | Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
+| The four parent-owned Skill capabilities expose exact type sets and exact Core/API/Worker/MinIO consumer sets; storage locators do not enter API or Worker dependencies | `ModulithVerificationTests#assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces`, `#assetRegistrySkillCapabilitiesHaveExactCoreConsumers`, `SkillCapabilityBoundaryTests`, `MinioSkillPackageStorageAdapterTests#adapterExposesOnlyTheParentStorageCapability` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |
 | An active Skill review blocks direct publication rather than becoming an approval bypass | `AssetRegistryIntegrationTests#directSkillPublicationDoesNotBypassAnActiveReview` | covered |
 | The direct command rejects every non-Skill Asset profile | `AssetRegistryIntegrationTests#directSkillPublicationRejectsEveryOtherAssetProfile` | covered |
-| Exact Skill manifests omit storage keys and package streaming rejects payload, release-reference, and stored-object mismatches | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
+| Exact Skill manifests omit storage keys; package streaming rejects missing/non-blob references plus payload, release-reference, and stored-object mismatches and closes opened content on manifest failure | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
 | Browser Skill detail reads the exact manifest through an OIDC-session-only endpoint without weakening bearer `assets:read` admission | `AssetConsumptionControllerTests`, `asset-registry-golden-poc.spec.ts` | covered |
 | Method-level authorization denial returns a stable opaque HTTP 403 instead of an internal HTTP 500 | `ApiExceptionHandlerTests#methodAuthorizationDenialUsesTheStableForbiddenContract` | covered |
 | MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |

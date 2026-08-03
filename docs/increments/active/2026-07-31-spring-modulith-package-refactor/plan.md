@@ -1533,3 +1533,74 @@ package/import search, exact-public-surface, `git diff --check`, and clean-test
 fallback was used. The terminating repository-wide `clean test` passed all 99
 tasks in 7m05s. Rename-aware diff accounting is exactly 69 changed paths, and
 the Asset Registry root package decreased from 90 to 72 Java files.
+
+PR #274 merged as `6b36e1282dab70e4b224c17d4069e8749ad3edb7`
+after every required CI check passed. CodeRabbit's completed full review found
+three valid issues; all were fixed and all three threads were resolved. The
+reviewed head `3fe3183e` passed the terminating 99-task clean repository test
+in 8m01s. Release remains deferred. The Skill family is the next code-bearing
+slice and starts with an independent boundary challenge.
+
+## Asset Registry Skill Sequence
+
+- [x] Challenge the exact Skill ownership, parent contract, supersession, and
+  delivery boundary. Fable 5 returned blank zero-token responses twice; the
+  independent Orca fallback and counterattack selected one Skill semantics
+  module but rejected both the catch-all parent interface and split cleanup
+  ownership. The binding result is recorded in
+  [the verdict](assetregistry-skill-challenge-verdict.md).
+- [x] PR 1: add failing-first exact-interface and importer guards, then
+  establish parent-owned `skill-package`, `skill-delivery`, `skill-cleanup`,
+  and `skill-storage` capabilities below 60 changed paths.
+- [x] PR 1: route current parent-package Skill flows through those capabilities
+  without a nested module, storage-key exposure, transaction change, schema
+  change, or wire-contract change.
+- [x] PR 1: pass focused Core/API/OpenAPI/Worker/connector/MinIO/integration
+  gates, docs and release policy, static analysis fallback, and a terminating
+  clean repository test.
+- [ ] PR 1: merge through CI and CodeRabbit without releasing.
+- [ ] PR 2: add failing-first closed-module, exact-public-surface,
+  forbidden-parent-import, and external-consumer guards, then move and
+  immediately close `assetregistry.skill` below 70 changed paths.
+- [ ] PR 2: pass all focused and terminating gates, merge through CI and
+  CodeRabbit, then continue to the next Asset Registry profile family without
+  releasing early.
+
+The failing-first named-interface characterization produced the expected
+`NoSuchElementException` before any capability package existed. Commit
+`4a158882` then established the four exact parent interfaces and importer
+guards, moved storage/compensation/reference lookup/storage opening behind
+parent implementations, retained the complete supersession aggregate in the
+parent, and reduced Worker cleanup visibility to an immutable summary. The
+Skill semantics layer receives no object key and imports neither storage nor
+cleanup capability.
+
+The implementation changes 43 rename-aware paths, below both the reviewed
+60-path target and the hard 100-file PR cap. Full suites passed 485 Core, 186
+API, 67 Worker, 120 connector, and 6 MinIO tests with zero failure, error, or
+skip in 7m49s. OpenAPI and PostgreSQL Asset Registry integration tests passed
+without a contract or schema rewrite. The documentation operating-model check
+passed for 531 Markdown files and 8 mirrored domain pairs. Release policy
+passed 18 Tegami/product and 23 workflow/policy tests on exact Node 24.15.0.
+JetBrains inspection remained unavailable, so Gradle compilation, executable
+Modulith and exact-consumer tests, zero-byte/package/migration checks, and
+`git diff --check` supplied the documented fallback. The terminating
+repository-wide `clean test` passed all 108 tasks in 7m15s. Release remains
+deferred.
+
+PR #282's first CodeRabbit pass completed after every required CI job was
+green and raised three inline findings plus two outside-diff test/exception
+suggestions. Commit `518e0277` implements the valid subset: payload/artifact
+consistency now fails before storage I/O for both import and replacement,
+Jackson 3 serialization failure is translated to the stable staging-unavailable
+contract, and six focused tests cover pre-storage rejection, missing/non-blob
+references, and stream closure when manifest construction fails. The full Core
+suite then passed 491 tests with zero failures. Restricting the parent artifact
+value to only `application/zip` was rejected because readable legacy Skill
+schema intentionally permits `application/octet-stream`; duplicating coordinate
+validation in the lifecycle service was rejected because Kernel already
+normalizes and validates both coordinates before persistence, with a stricter
+Skill slug grammar than delivery resolution. API exception translation was
+also confirmed to serialize only the stable top-level business message, never
+the storage cause. The PR remains below the 100-file cap and release remains
+deferred.

@@ -1,5 +1,6 @@
 package com.orgmemory.integrations.storage.minio;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,7 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
@@ -18,6 +19,13 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class MinioSkillPackageStorageAdapterTests {
+
+    @Test
+    void adapterExposesOnlyTheParentStorageCapability() {
+        assertArrayEquals(
+                new Class<?>[] {SkillPackageStoragePort.class},
+                MinioSkillPackageStorageAdapter.class.getInterfaces());
+    }
 
     @Test
     void writesAnOrganizationScopedKeyAndReturnsTheVerifiedDigest() {
