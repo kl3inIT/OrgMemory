@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (4c7a8bf2)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (5f7faa70)`.
 
 ## Current Behavior
 
@@ -238,6 +238,10 @@ back through the canonical Skill ZIP inspector. Authorization is checked before
 the batch. Each selected Skill then creates its own Asset in an independent
 `REQUIRES_NEW` transaction, so duplicate or invalid items return stable per-item
 failures without rolling back successful Drafts.
+After import, the API resolves each successful Asset view independently. A
+temporarily unavailable projection therefore leaves the persisted item marked
+as imported with its path and stable read error while preserving every sibling
+result, rather than failing the whole batch response.
 
 An actor with live `can_edit` may replace the package attached to a mutable
 Skill Draft. Core inspects and stores a fresh object before the transaction,

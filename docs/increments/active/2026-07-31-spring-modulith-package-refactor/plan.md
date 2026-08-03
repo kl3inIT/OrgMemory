@@ -1624,3 +1624,18 @@ tests on exact Node 24.15.0. The mechanical fallback found 47 total changed
 paths, zero missing package declarations, zero changed zero-byte files, zero
 forbidden Skill imports, and a clean diff. The PR review loop remains before
 merge, and release remains deferred.
+
+CodeRabbit's completed PR 2 review raised two inline findings and one
+outside-diff authorization suggestion. Commit `5f7faa70` fixes the valid
+failure-isolation gap: API resolution of each imported Asset is now independent,
+so a projection/read failure preserves every sibling result and reports a safe
+per-item code without changing the wire shape. It also adds the missing
+replacement pre-authorization regression and removes only the redundant middle
+preflight check from the already-authorized GitHub path. Removing the direct
+import or replacement pre-authorization was rejected because those checks
+prevent unauthorized ZIP reads; the parent command still rechecks authority
+immediately before mutation. Eliminating the bounded maximum-20 full-view reads
+would require a new parent projection capability outside the challenged
+boundary, so that performance redesign remains separate from this correctness
+fix. Focused tests went red before the fix, then 686 full Core/API tests passed
+with zero failure, error, or skip.
