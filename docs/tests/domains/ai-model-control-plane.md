@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (24c31aea)`.
+Reconciled: `fix/keyword-luna-default (d4deed72)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -33,5 +33,5 @@ Reconciled: `2026-08-02-rag-workload-routing-luna (24c31aea)`.
 | Read-only Index Settings compiles as a production route | web lint, typecheck, and build | covered |
 | Keyword is editable, Graph is visible/read-only with future-jobs-only copy, and the backend rejects Graph mutation | `admin-language-models.spec.ts`, `AiGatewayAdministrationServiceTests` | covered |
 | Fixed bilingual live evaluation records validity, recall/yield, failures, and p95 without raw prompts/evidence; Keyword Luna passes and Graph Luna fails independently | `evaluation/tests/test_workload_routing_runner.py`, increment `evaluation-result.json` | covered |
-| Production defaults and the shared-ZM export preserve the approved Answer/Keyword/Graph split and explicit Keyword reasoning | production Compose validation, `test-export-team-dev-config.sh`, ZM runtime environment inspection | covered and operator verified |
+| Production defaults and the shared-ZM export preserve the approved Answer/Keyword/Graph split and explicit Keyword reasoning through the bound API/worker runtime properties | API/worker `ProductionAiGatewayConfigurationBindingTests`, production Compose validation, `test-export-team-dev-config.sh`, ZM runtime environment inspection | covered and operator verified |
 | Live provider credentials/model responses | no deterministic CI credential | operator verification required |
