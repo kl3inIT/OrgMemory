@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (pending)`.
+Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
 
 ## Automated
 

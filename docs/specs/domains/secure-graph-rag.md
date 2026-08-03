@@ -10,7 +10,7 @@ payload-boundary configuration this document states —
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (pending)`.
+Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
 
 ## Current Contract
 
