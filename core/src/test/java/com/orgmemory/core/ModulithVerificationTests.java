@@ -1223,18 +1223,113 @@ class ModulithVerificationTests {
     void assetRegistryWorkInstructionContractsHaveExactCoreConsumers() {
         assertEquals(
                 Set.of(
-                        "com.orgmemory.core.assetregistry.WorkInstructionProfile",
-                        "com.orgmemory.core.assetregistry.WorkInstructionService",
-                        "com.orgmemory.core.assetregistry.WorkInstructionRelationService",
+                        "com.orgmemory.core.assetregistry.workinstruction.WorkInstructionProfile",
+                        "com.orgmemory.core.assetregistry.workinstruction.WorkInstructionService",
+                        "com.orgmemory.core.assetregistry.workinstruction.WorkInstructionRelationService",
                         "com.orgmemory.core.assistant.AssistantAssetToolService"),
                 directConsumersOf(
                         "com.orgmemory.core.assetregistry.workinstructioncontract"));
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.assetregistry.AssetDeliveryService",
-                        "com.orgmemory.core.assetregistry.WorkInstructionRelationService"),
+                        "com.orgmemory.core.assetregistry.workinstruction.WorkInstructionRelationService"),
                 directConsumersOf(
                         "com.orgmemory.core.assetregistry.workinstructionrelationcontract"));
+    }
+
+    @Test
+    void assetRegistryWorkInstructionIsAClosedNestedModule() {
+        var workInstruction = modules.getModuleByName(
+                "assetregistry.workinstruction").orElseThrow();
+        var allowedDependencies = workInstruction.getAllowedDependencies(modules).stream()
+                .map(Object::toString)
+                .map(dependency -> dependency.replace(" :: ", "::"))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertFalse(workInstruction.isOpen());
+        assertEquals(
+                Set.of(
+                        "assetregistry::api",
+                        "assetregistry::consumption",
+                        "assetregistry::profile",
+                        "assetregistry::work-instruction",
+                        "assetregistry::work-instruction-relations",
+                        "knowledge::catalog",
+                        "organization",
+                        "shared"),
+                allowedDependencies);
+    }
+
+    @Test
+    void assetRegistryWorkInstructionHasNoPublicTopLevelTypes() {
+        var publicTopLevelTypes = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry.workinstruction")
+                .stream()
+                .filter(type -> !type.getName().contains("$"))
+                .filter(type -> type.getModifiers().contains(JavaModifier.PUBLIC))
+                .map(type -> type.getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(Set.of(), publicTopLevelTypes);
+    }
+
+    @Test
+    void assetRegistryWorkInstructionDoesNotDependOnParentImplementation() {
+        noClasses()
+                .that()
+                .resideInAPackage("com.orgmemory.core.assetregistry.workinstruction..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..",
+                        "com.orgmemory.core.assetregistry.kernel..",
+                        "com.orgmemory.core.knowledge.asset..",
+                        "com.orgmemory.core.knowledge.retrieval..",
+                        "com.orgmemory.core.assistant..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry.workinstruction"));
+    }
+
+    @Test
+    void assetRegistryParentDoesNotDependOnWorkInstructionChild() {
+        noClasses()
+                .that()
+                .resideInAnyPackage(
+                        "com.orgmemory.core.assetregistry",
+                        "com.orgmemory.core.assetregistry.authorization..",
+                        "com.orgmemory.core.assetregistry.kernel..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAPackage("com.orgmemory.core.assetregistry.workinstruction..")
+                .check(new ClassFileImporter()
+                        .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                        .importPackages("com.orgmemory.core.assetregistry"));
+    }
+
+    @Test
+    void workInstructionUseMethodsHaveExactCallers() {
+        var calls = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.core.assetregistry")
+                .stream()
+                .flatMap(type -> type.getMethodCallsFromSelf().stream())
+                .filter(call -> call.getTargetOwner().getName().equals(
+                        "com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery"))
+                .filter(call -> Set.of("workInstructionForUse", "latestReleaseForUse")
+                        .contains(call.getTarget().getName()))
+                .map(call -> call.getTarget().getName()
+                        + "->"
+                        + call.getOriginOwner().getName())
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "workInstructionForUse->com.orgmemory.core.assetregistry.workinstruction.WorkInstructionService",
+                        "latestReleaseForUse->com.orgmemory.core.assetregistry.workinstruction.WorkInstructionRelationService"),
+                calls);
     }
 
     @Test

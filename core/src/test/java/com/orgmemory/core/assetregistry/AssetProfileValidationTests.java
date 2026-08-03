@@ -26,7 +26,21 @@ public class AssetProfileValidationTests {
         public void validate(String payload) {
         }
     };
-    private final WorkInstructionProfile instructions = new WorkInstructionProfile();
+    private final AssetPayloadProfile instructions = new AssetPayloadProfile() {
+        @Override
+        public AssetType type() {
+            return AssetType.WORK_INSTRUCTION;
+        }
+
+        @Override
+        public java.util.Set<String> schemaVersions() {
+            return java.util.Set.of("1");
+        }
+
+        @Override
+        public void validate(String payload) {
+        }
+    };
     private final CapabilityPackProfile packs = new CapabilityPackProfile();
     private final AssetPayloadProfile skills = new AssetPayloadProfile() {
         @Override

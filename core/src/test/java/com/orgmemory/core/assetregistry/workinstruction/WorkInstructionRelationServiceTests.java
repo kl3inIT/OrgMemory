@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.workinstruction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -67,7 +67,8 @@ class WorkInstructionRelationServiceTests {
         assertEquals(RELATED_RELEASE_ID, result.relations().get(0).pinnedVersionId());
         assertEquals("KNOWLEDGE", result.relations().get(1).kind());
         assertEquals(KNOWLEDGE_VERSION_ID, result.relations().get(1).pinnedVersionId());
-        assertTrue(result.relations().stream().noneMatch(WorkInstructionRelations.Relation::required));
+        assertTrue(result.relations().stream()
+                .noneMatch(WorkInstructionRelations.Relation::required));
     }
 
     @Test

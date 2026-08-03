@@ -72,6 +72,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.BeforeEach;
@@ -709,6 +712,67 @@ class AssetRegistryIntegrationTests {
         assertEquals(
                 promptRelease.id(),
                 unchanged.items().getFirst().pinnedVersionId());
+    }
+
+    @Test
+    void concurrentWorkInstructionAcknowledgementsRemainActorScopedAndIdempotent()
+            throws Exception {
+        AssetView instruction = createApprovedRelease(
+                AssetType.WORK_INSTRUCTION,
+                "concurrent-instruction",
+                workInstructionPayload(),
+                "1.0.0");
+        UUID releaseId = instruction.releases().getFirst().id();
+        CyclicBarrier sameActorStart = new CyclicBarrier(2);
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> {
+                sameActorStart.await();
+                return instructions.acknowledge(AUTHOR, instruction.id(), releaseId);
+            });
+            var second = executor.submit(() -> {
+                sameActorStart.await();
+                return instructions.acknowledge(AUTHOR, instruction.id(), releaseId);
+            });
+
+            WorkInstructionView firstView = first.get(30, TimeUnit.SECONDS);
+            WorkInstructionView secondView = second.get(30, TimeUnit.SECONDS);
+            assertEquals(firstView.acknowledgedAt(), secondView.acknowledgedAt());
+        }
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "select count(*) from work_instruction_acknowledgements where release_id = ?",
+                        Integer.class,
+                        releaseId));
+
+        AssetView actorScopedInstruction = createApprovedRelease(
+                AssetType.WORK_INSTRUCTION,
+                "actor-scoped-instruction",
+                workInstructionPayload(),
+                "1.0.0");
+        UUID actorScopedReleaseId = actorScopedInstruction.releases().getFirst().id();
+        CyclicBarrier actorScopedStart = new CyclicBarrier(2);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var author = executor.submit(() -> {
+                actorScopedStart.await();
+                return instructions.acknowledge(
+                        AUTHOR, actorScopedInstruction.id(), actorScopedReleaseId);
+            });
+            var reviewer = executor.submit(() -> {
+                actorScopedStart.await();
+                return instructions.acknowledge(
+                        REVIEWER, actorScopedInstruction.id(), actorScopedReleaseId);
+            });
+            assertTrue(author.get(30, TimeUnit.SECONDS).acknowledged());
+            assertTrue(reviewer.get(30, TimeUnit.SECONDS).acknowledged());
+        }
+        assertEquals(
+                2,
+                jdbc.queryForObject(
+                        "select count(*) from work_instruction_acknowledgements where release_id = ?",
+                        Integer.class,
+                        actorScopedReleaseId));
     }
 
     @Test

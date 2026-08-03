@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.workinstruction;
 
 import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class WorkInstructionService implements WorkInstructionOperations {
+class WorkInstructionService implements WorkInstructionOperations {
 
     private final AssetReleaseUseQuery assets;
     private final WorkInstructionProfile profile;
