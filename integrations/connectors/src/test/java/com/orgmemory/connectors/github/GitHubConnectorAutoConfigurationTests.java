@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.orgmemory.core.assetregistry.SkillGitHubSourcePort;
+import com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort;
 import com.orgmemory.core.knowledge.connector.ConnectorBatchSource;
 import com.orgmemory.core.knowledge.connector.ConnectorConnectionDirectory;
 import com.orgmemory.core.knowledge.connector.ConnectorCredentialProbe;
@@ -51,6 +51,13 @@ class GitHubConnectorAutoConfigurationTests {
             assertEquals(1, context.getBeansOfType(ConnectorBatchSource.class).size());
             assertEquals(1, context.getBeansOfType(SkillGitHubSourcePort.class).size());
         });
+    }
+
+    @Test
+    void consumesOnlyTheSkillSourcePort() {
+        assertEquals(
+                "com.orgmemory.core.assetregistry.skill",
+                SkillGitHubSourcePort.class.getPackageName());
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import java.util.Arrays;
 import java.util.List;
@@ -42,7 +42,7 @@ public interface SkillGitHubSourcePort {
     record FetchResult(
             String repository,
             String revision,
-            SkillPackageSpec.Visibility visibility,
+            Visibility visibility,
             List<FetchedPackage> packages) {
 
         public FetchResult {
@@ -51,6 +51,11 @@ public interface SkillGitHubSourcePort {
             visibility = Objects.requireNonNull(visibility, "visibility");
             packages = List.copyOf(packages);
         }
+    }
+
+    enum Visibility {
+        PUBLIC,
+        PRIVATE
     }
 
     record FetchedPackage(

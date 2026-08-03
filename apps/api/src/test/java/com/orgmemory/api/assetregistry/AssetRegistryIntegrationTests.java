@@ -41,7 +41,7 @@ import com.orgmemory.core.assetregistry.prompt.PromptEvaluationResult;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
-import com.orgmemory.core.assetregistry.SkillRegistryService;
+import com.orgmemory.core.assetregistry.skill.SkillPackageOperations;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
@@ -149,7 +149,7 @@ class AssetRegistryIntegrationTests {
     AssetRegistryService assets;
 
     @Autowired
-    SkillRegistryService skills;
+    SkillPackageOperations skills;
 
     @Autowired
     AssetDeliveryService delivery;
@@ -1016,13 +1016,7 @@ class AssetRegistryIntegrationTests {
         byte[] archive = skillArchive(
                 "reference-guard",
                 "Prove mutable Draft pointers do not weaken immutable package pins.");
-        AssetView created = skills.importPackage(
-                AUTHOR,
-                "support",
-                SPACE_ID,
-                KnowledgeClassification.INTERNAL,
-                archive.length,
-                new ByteArrayInputStream(archive));
+        AssetView created = importSkill(archive);
         assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0");
 
         UUID draftReferenceId = jdbc.queryForObject(
@@ -1063,13 +1057,7 @@ class AssetRegistryIntegrationTests {
         byte[] original = skillArchive(
                 "replacement-history",
                 "The original Skill package remains pinned by its release.");
-        AssetView created = skills.importPackage(
-                AUTHOR,
-                "support",
-                SPACE_ID,
-                KnowledgeClassification.INTERNAL,
-                original.length,
-                new ByteArrayInputStream(original));
+        AssetView created = importSkill(original);
         AssetView published = assets.publishSkillDraft(AUTHOR, created.id(), "1.0.0");
         String originalKey = jdbc.queryForObject(
                 "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
@@ -1078,12 +1066,13 @@ class AssetRegistryIntegrationTests {
                 "replacement-history",
                 "The mutable Draft now points at a separately validated package.");
 
-        AssetView replaced = skills.replacePackage(
+        UUID replacedId = skills.replacePackage(
                 AUTHOR,
                 created.id(),
                 published.draft().lockVersion(),
                 replacement.length,
                 new ByteArrayInputStream(replacement));
+        AssetView replaced = assets.get(AUTHOR, replacedId);
 
         String replacementKey = jdbc.queryForObject(
                 "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
@@ -1112,13 +1101,7 @@ class AssetRegistryIntegrationTests {
         byte[] original = skillArchive(
                 "replacement-cleanup",
                 "The original package has no immutable consumers.");
-        AssetView created = skills.importPackage(
-                AUTHOR,
-                "support",
-                SPACE_ID,
-                KnowledgeClassification.INTERNAL,
-                original.length,
-                new ByteArrayInputStream(original));
+        AssetView created = importSkill(original);
         String originalKey = jdbc.queryForObject(
                 "SELECT reference_value FROM asset_payload_references WHERE owner_kind = 'DRAFT'",
                 String.class);
@@ -1146,13 +1129,7 @@ class AssetRegistryIntegrationTests {
         byte[] archive = skillArchive(
                 "support-triage",
                 "Triage a support ticket using the approved company workflow.");
-        AssetView created = skills.importPackage(
-                AUTHOR,
-                "support",
-                SPACE_ID,
-                KnowledgeClassification.INTERNAL,
-                archive.length,
-                new ByteArrayInputStream(archive));
+        AssetView created = importSkill(archive);
         assertEquals(AssetType.SKILL, created.type());
         assertEquals("support-triage", created.slug());
         assertFalse(created.draft().payload().contains("assets/skills/"));
@@ -1233,13 +1210,7 @@ class AssetRegistryIntegrationTests {
         byte[] archive = skillArchive(
                 "reviewed-skill",
                 "A Skill whose author explicitly selected the reviewed path.");
-        AssetView created = skills.importPackage(
-                AUTHOR,
-                "support",
-                SPACE_ID,
-                KnowledgeClassification.INTERNAL,
-                archive.length,
-                new ByteArrayInputStream(archive));
+        AssetView created = importSkill(archive);
         AssetView submitted =
                 assets.submit(AUTHOR, created.id(), "Request independent review");
 
@@ -1656,6 +1627,17 @@ class AssetRegistryIntegrationTests {
                   "knownLimitations": "Integration fixture"
                 }
                 """.formatted(escapedPayload));
+    }
+
+    private AssetView importSkill(byte[] archive) {
+        UUID assetId = skills.importPackage(
+                AUTHOR,
+                "support",
+                SPACE_ID,
+                KnowledgeClassification.INTERNAL,
+                archive.length,
+                new ByteArrayInputStream(archive));
+        return assets.get(AUTHOR, assetId);
     }
 
     private static byte[] skillArchive(String name, String description)

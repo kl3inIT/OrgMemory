@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import java.util.List;
 import java.util.Map;
@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-public record SkillPackageSpec(
+record SkillPackageSpec(
         String name,
         String description,
         String license,
@@ -56,7 +56,7 @@ public record SkillPackageSpec(
             String repository,
             String revision,
             String path,
-            Visibility visibility) {
+            SkillGitHubSourcePort.Visibility visibility) {
 
         public Origin {
             repository = required(repository, "origin.repository", 256);
@@ -74,11 +74,6 @@ public record SkillPackageSpec(
             }
             visibility = Objects.requireNonNull(visibility, "origin.visibility");
         }
-    }
-
-    public enum Visibility {
-        PUBLIC,
-        PRIVATE
     }
 
     public record Artifact(

@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 
 /** Canonical authenticated Skill distribution boundary. */
 @Service
-public class SkillDistributionService {
+class SkillDistributionService implements SkillDistributionOperations {
 
     private static final Logger log =
             LoggerFactory.getLogger(SkillDistributionService.class);
@@ -29,6 +29,7 @@ public class SkillDistributionService {
         this.specs = specs;
     }
 
+    @Override
     public SkillInstallManifest manifest(
             CurrentActor actor, UUID assetId, UUID releaseId) {
         SkillReleaseDescriptor descriptor =
@@ -38,6 +39,7 @@ public class SkillDistributionService {
         return manifest;
     }
 
+    @Override
     public SkillInstallManifest manifest(
             CurrentActor actor,
             String namespace,
@@ -54,6 +56,7 @@ public class SkillDistributionService {
         return manifest;
     }
 
+    @Override
     public SkillPackageContent open(
             CurrentActor actor, UUID assetId, UUID releaseId) {
         SkillReleaseContent content = deliveries.open(actor, assetId, releaseId);

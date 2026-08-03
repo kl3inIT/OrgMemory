@@ -13,8 +13,8 @@ import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
-import com.orgmemory.core.assetregistry.SkillDistributionService;
-import com.orgmemory.core.assetregistry.SkillInstallManifest;
+import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
+import com.orgmemory.core.assetregistry.skill.SkillInstallManifest;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
@@ -46,8 +46,8 @@ class AssetConsumptionControllerTests {
     @Test
     void browserSessionReadsTheExactSkillInstallContract() {
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
-        SkillDistributionService skills =
-                mock(SkillDistributionService.class);
+        SkillDistributionOperations skills =
+                mock(SkillDistributionOperations.class);
         OAuth2AuthenticationToken authentication = browserSession();
         SkillInstallManifest manifest = manifest();
         when(actors.current(authentication)).thenReturn(ACTOR);
@@ -69,8 +69,8 @@ class AssetConsumptionControllerTests {
     @Test
     void bearerTokenCannotBypassDeliveryScopeThroughTheBrowserEndpoint() {
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
-        SkillDistributionService skills =
-                mock(SkillDistributionService.class);
+        SkillDistributionOperations skills =
+                mock(SkillDistributionOperations.class);
         AssetConsumptionController controller =
                 controller(actors, skills);
         var authentication = new TestingAuthenticationToken(
@@ -88,7 +88,7 @@ class AssetConsumptionControllerTests {
 
     private static AssetConsumptionController controller(
             CurrentActorProvider actors,
-            SkillDistributionService skills) {
+            SkillDistributionOperations skills) {
         return new AssetConsumptionController(
                 actors,
                 mock(AssetRegistryService.class),

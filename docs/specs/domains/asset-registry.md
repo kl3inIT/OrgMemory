@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (5f7faa70)`.
 
 ## Current Behavior
 
@@ -238,6 +238,10 @@ back through the canonical Skill ZIP inspector. Authorization is checked before
 the batch. Each selected Skill then creates its own Asset in an independent
 `REQUIRES_NEW` transaction, so duplicate or invalid items return stable per-item
 failures without rolling back successful Drafts.
+After import, the API resolves each successful Asset view independently. A
+temporarily unavailable projection therefore leaves the persisted item marked
+as imported with its path and stable read error while preserving every sibling
+result, rather than failing the whole batch response.
 
 An actor with live `can_edit` may replace the package attached to a mutable
 Skill Draft. Core inspects and stores a fresh object before the transaction,
@@ -261,6 +265,19 @@ persistence/delivery/cleanup classes plus MinIO may import `skill-storage`.
 The parent owns the entire storage and supersession saga. Package semantics,
 API results, manifests, audit values, logs, and exceptions do not receive the
 persisted object key.
+
+The closed `assetregistry.skill` nested module owns bounded package inspection
+and validation, GitHub acquisition orchestration, API-facing Skill operations,
+and install-manifest construction. Its exact public top-level surface is
+`SkillPackageOperations`, `SkillGitHubOperations`,
+`SkillDistributionOperations`, `SkillGitHubSourcePort`,
+`SkillPackageInspection`, `SkillInstallManifest`, and `SkillPackageContent`.
+Implementations, the package profile and specification, the inspector, and the
+validation exception remain package-private. The child imports only the
+parent's `skill-package` and `skill-delivery` capabilities; it never imports
+parent implementation, storage, cleanup, or a persisted object key. The API
+and GitHub connector depend only on the child's operation/source contracts,
+and the parent never depends on the child.
 
 ### Federated Knowledge
 

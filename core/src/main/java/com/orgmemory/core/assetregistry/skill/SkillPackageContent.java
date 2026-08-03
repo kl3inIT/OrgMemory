@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.skill;
 
 import java.io.IOException;
 import java.io.InputStream;

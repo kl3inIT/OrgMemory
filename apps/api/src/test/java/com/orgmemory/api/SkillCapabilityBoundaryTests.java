@@ -30,4 +30,29 @@ class SkillCapabilityBoundaryTests {
 
         assertEquals(Set.of(), dependencies);
     }
+
+    @Test
+    void apiImportsOnlyTheSkillApplicationSurface() {
+        var dependencies = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("com.orgmemory.api")
+                .stream()
+                .flatMap(type -> type.getDirectDependenciesFromSelf().stream())
+                .map(dependency -> dependency.getTargetClass().getName())
+                .filter(name -> name.startsWith(
+                        "com.orgmemory.core.assetregistry.skill."))
+                .map(name -> name.replaceFirst("\\$.*$", ""))
+                .collect(TreeSet::new, Set::add, Set::addAll);
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.skill.SkillDistributionOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillGitHubOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillGitHubSourcePort",
+                        "com.orgmemory.core.assetregistry.skill.SkillInstallManifest",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageContent",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageInspection",
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations"),
+                dependencies);
+    }
 }
