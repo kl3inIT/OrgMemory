@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (4a158882)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (518e0277)`.
 
 ## Current Behavior
 
@@ -119,6 +119,9 @@ Skill metadata, SHA-256, size, media type, and file manifest form a
 server-generated draft payload. Payload schema 2 may also carry server-derived
 GitHub origin repository, full 40-character commit SHA, `SKILL.md` path, and
 public/private visibility; schema 1 remains readable for existing releases.
+The parent validates the canonical payload against the inspected artifact
+before performing any storage write, then separately verifies the metadata
+reported by storage before changing the Asset ledger.
 The storage object key remains only in the
 internal payload-reference ledger. The draft reference is created atomically
 with the Asset. An accountable owner-class actor may publish that Draft

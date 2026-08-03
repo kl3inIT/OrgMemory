@@ -1587,3 +1587,20 @@ Modulith and exact-consumer tests, zero-byte/package/migration checks, and
 `git diff --check` supplied the documented fallback. The terminating
 repository-wide `clean test` passed all 108 tasks in 7m15s. Release remains
 deferred.
+
+PR #282's first CodeRabbit pass completed after every required CI job was
+green and raised three inline findings plus two outside-diff test/exception
+suggestions. Commit `518e0277` implements the valid subset: payload/artifact
+consistency now fails before storage I/O for both import and replacement,
+Jackson 3 serialization failure is translated to the stable staging-unavailable
+contract, and six focused tests cover pre-storage rejection, missing/non-blob
+references, and stream closure when manifest construction fails. The full Core
+suite then passed 491 tests with zero failures. Restricting the parent artifact
+value to only `application/zip` was rejected because readable legacy Skill
+schema intentionally permits `application/octet-stream`; duplicating coordinate
+validation in the lifecycle service was rejected because Kernel already
+normalizes and validates both coordinates before persistence, with a stricter
+Skill slug grammar than delivery resolution. API exception translation was
+also confirmed to serialize only the stable top-level business message, never
+the storage cause. The PR remains below the 100-file cap and release remains
+deferred.
