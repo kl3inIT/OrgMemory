@@ -40,7 +40,7 @@ import com.orgmemory.core.assetregistry.PackJourney;
 import com.orgmemory.core.assetregistry.prompt.PromptEvaluationResult;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
-import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.assetregistry.SkillRegistryService;
 import com.orgmemory.core.assetregistry.WorkInstructionService;
 import com.orgmemory.core.assetregistry.WorkInstructionView;

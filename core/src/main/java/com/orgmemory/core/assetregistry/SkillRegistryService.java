@@ -1,41 +1,35 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
-import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageAssetCommand;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageUpload;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import com.orgmemory.core.shared.error.BusinessUnavailableException;
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Service
 public class SkillRegistryService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SkillRegistryService.class);
-
     private final SkillPackageInspector inspector;
-    private final SkillPackageStoragePort storage;
+    private final SkillPackageAssetCommand packages;
     private final AssetRegistryService assets;
-    private final SkillPackageSupersessionCleanupService cleanup;
     private final ObjectMapper json = JsonMapper.builder().build();
 
     SkillRegistryService(
             SkillPackageInspector inspector,
-            SkillPackageStoragePort storage,
-            AssetRegistryService assets,
-            SkillPackageSupersessionCleanupService cleanup) {
+            SkillPackageAssetCommand packages,
+            AssetRegistryService assets) {
         this.inspector = inspector;
-        this.storage = storage;
+        this.packages = packages;
         this.assets = assets;
-        this.cleanup = cleanup;
     }
 
     public SkillPackageInspection inspectPackage(
@@ -84,39 +78,23 @@ public class SkillRegistryService {
             SkillPackageSpec.Origin origin) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(classification, "classification");
-        assets.requireSkillCreate(actor, knowledgeSpaceId);
-        UUID packageId = UUID.randomUUID();
-        SkillPackageStoragePort.StoredSkillPackage stored = null;
-        UUID assetId = null;
+        packages.requireCreate(actor, knowledgeSpaceId);
         try (SkillPackageInspector.StagedSkillPackage staged =
-                inspector.inspect(content, contentLength)) {
-            try (InputStream packageContent = staged.open()) {
-                stored = storage.put(
-                        new SkillPackageStoragePort.SkillPackageWriteRequest(
-                                actor.organizationId(),
-                                packageId,
-                                staged.contentLength(),
-                                staged.sha256(),
-                                Map.of("skill-name", staged.metadata().name())),
-                        packageContent);
-            }
-            SkillPackageSpec spec = specification(staged, stored, origin);
-            AssetDraftInput draft = draft(spec, classification);
-            assetId = assets.createValidatedSkillIdentity(
+                        inspector.inspect(content, contentLength);
+                InputStream packageContent = staged.open()) {
+            SkillPackageArtifact artifact = new SkillPackageArtifact(
+                    staged.sha256(),
+                    staged.contentLength(),
+                    SkillPackageArtifact.ZIP_MEDIA_TYPE);
+            SkillPackageSpec spec = specification(staged, artifact, origin);
+            UUID assetId = packages.importPackage(
                     actor,
                     namespace,
-                    spec.name(),
                     knowledgeSpaceId,
-                    draft,
-                    stored);
-            return assets.projectCreated(actor, assetId);
-        } catch (RuntimeException failure) {
-            if (assetId == null) {
-                deleteIfStored(stored, failure);
-            }
-            throw failure;
+                    classification,
+                    upload(spec, artifact, packageContent));
+            return assets.get(actor, assetId);
         } catch (IOException failure) {
-            deleteIfStored(stored, failure);
             throw new BusinessUnavailableException(
                     "skill.package-staging-unavailable",
                     "The Skill package could not be staged",
@@ -132,53 +110,32 @@ public class SkillRegistryService {
             InputStream content) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(assetId, "assetId");
-        assets.requireSkillEdit(actor, assetId);
-        AssetView current = assets.get(actor, assetId);
-        if (current.type() != AssetType.SKILL || current.draft() == null) {
-            throw new AssetNotFoundException();
-        }
-        KnowledgeClassification classification = KnowledgeClassification.valueOf(
-                current.draft().classification());
-        SkillPackageStoragePort.StoredSkillPackage stored = null;
-        SkillDraftReplacement replacement = null;
+        packages.requireEdit(actor, assetId);
         try (SkillPackageInspector.StagedSkillPackage staged =
-                inspector.inspect(content, contentLength)) {
-            try (InputStream packageContent = staged.open()) {
-                stored = storage.put(
-                        new SkillPackageStoragePort.SkillPackageWriteRequest(
-                                actor.organizationId(),
-                                UUID.randomUUID(),
-                                staged.contentLength(),
-                                staged.sha256(),
-                                Map.of("skill-name", staged.metadata().name())),
-                        packageContent);
-            }
-            SkillPackageSpec spec = specification(staged, stored, null);
-            replacement = assets.replaceValidatedSkillDraft(
+                        inspector.inspect(content, contentLength);
+                InputStream packageContent = staged.open()) {
+            SkillPackageArtifact artifact = new SkillPackageArtifact(
+                    staged.sha256(),
+                    staged.contentLength(),
+                    SkillPackageArtifact.ZIP_MEDIA_TYPE);
+            SkillPackageSpec spec = specification(staged, artifact, null);
+            UUID replacedId = packages.replacePackage(
                     actor,
                     assetId,
                     expectedLockVersion,
-                    draft(spec, classification),
-                    stored);
-        } catch (RuntimeException failure) {
-            if (replacement == null) {
-                deleteIfStored(stored, failure);
-            }
-            throw failure;
+                    upload(spec, artifact, packageContent));
+            return assets.get(actor, replacedId);
         } catch (IOException failure) {
-            deleteIfStored(stored, failure);
             throw new BusinessUnavailableException(
                     "skill.package-staging-unavailable",
                     "The Skill package could not be staged",
                     failure);
         }
-        cleanupAfterCommit(replacement.supersessionId());
-        return replacement.asset();
     }
 
     private SkillPackageSpec specification(
             SkillPackageInspector.StagedSkillPackage staged,
-            SkillPackageStoragePort.StoredSkillPackage stored,
+            SkillPackageArtifact artifact,
             SkillPackageSpec.Origin origin) {
         return new SkillPackageSpec(
                 staged.metadata().name(),
@@ -189,40 +146,25 @@ public class SkillRegistryService {
                 staged.metadata().metadata(),
                 origin,
                 new SkillPackageSpec.Artifact(
-                        stored.sha256(), stored.contentLength(), stored.mediaType()),
+                        artifact.sha256(),
+                        artifact.contentLength(),
+                        artifact.mediaType()),
                 staged.files());
     }
 
-    private AssetDraftInput draft(
-            SkillPackageSpec spec, KnowledgeClassification classification) {
-        return new AssetDraftInput(
+    private SkillPackageUpload upload(
+            SkillPackageSpec spec,
+            SkillPackageArtifact artifact,
+            InputStream content) {
+        return new SkillPackageUpload(
+                UUID.randomUUID(),
+                spec.name(),
                 spec.name(),
                 spec.description(),
-                classification.name(),
                 SkillPackageProfile.SCHEMA_VERSION,
-                json.writeValueAsString(spec));
-    }
-
-    private void cleanupAfterCommit(UUID supersessionId) {
-        try {
-            cleanup.cleanup(supersessionId);
-        } catch (RuntimeException failure) {
-            LOGGER.warn(
-                    "Skill package supersession cleanup remains pending for {} ({})",
-                    supersessionId,
-                    failure.getClass().getSimpleName());
-        }
-    }
-
-    private void deleteIfStored(
-            SkillPackageStoragePort.StoredSkillPackage stored, Throwable failure) {
-        if (stored == null) {
-            return;
-        }
-        try {
-            storage.delete(stored.objectKey());
-        } catch (RuntimeException cleanupFailure) {
-            failure.addSuppressed(cleanupFailure);
-        }
+                json.writeValueAsString(spec),
+                artifact,
+                Map.of("skill-name", spec.name()),
+                content);
     }
 }

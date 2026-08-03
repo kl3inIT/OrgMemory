@@ -1,5 +1,7 @@
 package com.orgmemory.core.assetregistry;
 
+import com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupOperations;
+import com.orgmemory.core.assetregistry.skillcleanup.SkillPackageCleanupSummary;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.Map;
@@ -8,7 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 @Service
-public class SkillPackageSupersessionCleanupService {
+class SkillPackageSupersessionCleanupService
+        implements SkillPackageCleanupOperations {
 
     private final SkillPackageSupersessionRepository supersessions;
     private final SkillPackageSupersessionCleanupCoordinator coordinator;
@@ -20,11 +23,12 @@ public class SkillPackageSupersessionCleanupService {
         this.coordinator = coordinator;
     }
 
-    public SkillPackageCleanupOutcome cleanup(UUID supersessionId) {
+    SkillPackageCleanupOutcome cleanup(UUID supersessionId) {
         return coordinator.cleanup(supersessionId);
     }
 
-    public Map<SkillPackageCleanupOutcome, Integer> cleanupPending(int limit) {
+    @Override
+    public SkillPackageCleanupSummary cleanupPending(int limit) {
         int boundedLimit = Math.min(Math.max(limit, 1), 100);
         Map<SkillPackageCleanupOutcome, Integer> outcomes =
                 new EnumMap<>(SkillPackageCleanupOutcome.class);
@@ -33,6 +37,14 @@ public class SkillPackageSupersessionCleanupService {
                 PageRequest.of(0, boundedLimit))) {
             outcomes.merge(coordinator.cleanup(id), 1, Integer::sum);
         }
-        return Map.copyOf(outcomes);
+        return new SkillPackageCleanupSummary(
+                outcomes.getOrDefault(SkillPackageCleanupOutcome.DELETED, 0),
+                outcomes.getOrDefault(
+                        SkillPackageCleanupOutcome.RETAINED_BY_IMMUTABLE_REFERENCE,
+                        0),
+                outcomes.getOrDefault(
+                        SkillPackageCleanupOutcome.RETRY_SCHEDULED, 0),
+                outcomes.getOrDefault(
+                        SkillPackageCleanupOutcome.ALREADY_RESOLVED, 0));
     }
 }

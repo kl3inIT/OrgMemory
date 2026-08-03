@@ -7,9 +7,11 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `core/src/main/java/com/orgmemory/core/knowledge/retrieval/KnowledgeCatalogService.java`,
 `apps/api/src/main/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`,
+`apps/worker/src/main/java/com/orgmemory/worker/assetregistry`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, `apps/cli/src`,
-`apps/cli/package.json`, `.github/workflows/publish-cli.yml`, and
-`apps/web/src/features/assets`.
+`apps/cli/package.json`, `.github/workflows/publish-cli.yml`,
+`apps/web/src/features/assets`, and
+`integrations/object-storage-minio/src/main/java`.
 
 Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 
@@ -246,6 +248,16 @@ exact organization/reference query proves that no Draft, Revision, or Release
 still references it. Otherwise it is retained; transient storage failures stay
 in the bounded retry queue. A published Revision or Release therefore keeps
 its exact original bytes when the working Draft changes.
+
+The parent exposes four exact Skill capabilities rather than one broad Skill
+interface. Package creation/replacement receives a canonical upload through
+`skill-package`; exact release delivery returns immutable release and artifact
+facts plus content through `skill-delivery`; Worker sees only the bounded
+`skill-cleanup` batch operation and summary; and only exact parent
+persistence/delivery/cleanup classes plus MinIO may import `skill-storage`.
+The parent owns the entire storage and supersession saga. Package semantics,
+API results, manifests, audit values, logs, and exceptions do not receive the
+persisted object key.
 
 ### Federated Knowledge
 

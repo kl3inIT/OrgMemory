@@ -204,6 +204,17 @@ cannot be updated or deleted. A durable supersession row drives post-commit
 cleanup, and object storage bytes are deleted only after an exact
 organization/reference query proves that no persisted owner still pins them.
 
+Four exact parent-owned capabilities isolate the Skill artifact lifecycle.
+`assetregistry::skill-package` accepts canonical validated uploads;
+`assetregistry::skill-delivery` returns authorized release facts and content
+without a storage locator; `assetregistry::skill-cleanup` exposes only the
+Worker batch trigger and immutable summary; and
+`assetregistry::skill-storage` is limited to exact parent persistence,
+delivery, cleanup, and MinIO consumers. The parent owns storage writes,
+compensation, reference persistence, supersession retry state, cleanup, and
+storage opening. Skill package semantics never receive or publish the stored
+object key.
+
 The browser reaches that same lifecycle through Scratch authoring, bounded
 `SKILL.md`/ZIP/folder upload, or GitHub import; each path ends at an ordinary
 private Draft in the Assets Governance workspace. GitHub preview and eligible

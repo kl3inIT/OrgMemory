@@ -1,6 +1,6 @@
 package com.orgmemory.integrations.storage.minio;
 
-import com.orgmemory.core.assetregistry.SkillPackageStoragePort;
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.knowledge.storage.ObjectStoragePort;
 import io.minio.MinioClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

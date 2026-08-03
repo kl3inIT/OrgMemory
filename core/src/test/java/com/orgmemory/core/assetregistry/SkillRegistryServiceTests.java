@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,8 @@ import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetPortfolioState;
 import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
+import com.orgmemory.core.assetregistry.skillpackage.SkillPackageAssetCommand;
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.permission.KnowledgeClassification;
@@ -46,12 +49,10 @@ class SkillRegistryServiceTests {
         doThrow(new OrgMemoryAccessDeniedException("Denied"))
                 .when(assets)
                 .requireSkillCreate(ACTOR, SPACE_ID);
-        SkillRegistryService service =
-                new SkillRegistryService(
-                        new SkillPackageInspector(),
-                        storage,
-                        assets,
-                        mock(SkillPackageSupersessionCleanupService.class));
+        SkillRegistryService service = service(
+                storage,
+                assets,
+                mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 OrgMemoryAccessDeniedException.class,
@@ -85,12 +86,10 @@ class SkillRegistryServiceTests {
                         any(),
                         any()))
                 .thenThrow(new AssetConflictException("Duplicate"));
-        SkillRegistryService service =
-                new SkillRegistryService(
-                        new SkillPackageInspector(),
-                        storage,
-                        assets,
-                        mock(SkillPackageSupersessionCleanupService.class));
+        SkillRegistryService service = service(
+                storage,
+                assets,
+                mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 AssetConflictException.class,
@@ -116,12 +115,10 @@ class SkillRegistryServiceTests {
                 .thenReturn(assetId);
         when(assets.projectCreated(ACTOR, assetId))
                 .thenThrow(new AssetUnavailableException("Projection pending"));
-        SkillRegistryService service =
-                new SkillRegistryService(
-                        new SkillPackageInspector(),
-                        storage,
-                        assets,
-                        mock(SkillPackageSupersessionCleanupService.class));
+        SkillRegistryService service = service(
+                storage,
+                assets,
+                mock(SkillPackageSupersessionCleanupService.class));
 
         assertThrows(
                 AssetUnavailableException.class,
@@ -133,12 +130,11 @@ class SkillRegistryServiceTests {
     @Test
     void inspectionIsStatelessAndReturnsOnlyValidatedPackageFacts() throws Exception {
         byte[] archive = archive();
-        SkillPackageStoragePort storage = mock(SkillPackageStoragePort.class);
+        SkillPackageAssetCommand packages = mock(SkillPackageAssetCommand.class);
         SkillRegistryService service = new SkillRegistryService(
                 new SkillPackageInspector(),
-                storage,
-                mock(AssetRegistryService.class),
-                mock(SkillPackageSupersessionCleanupService.class));
+                packages,
+                mock(AssetRegistryService.class));
 
         SkillPackageInspection inspection = service.inspectPackage(
                 ACTOR, archive.length, new ByteArrayInputStream(archive));
@@ -146,7 +142,7 @@ class SkillRegistryServiceTests {
         assertEquals("support-triage", inspection.name());
         assertEquals(1, inspection.files().size());
         assertEquals("# Support triage", inspection.instructions());
-        verify(storage, never()).put(any(), any());
+        verify(packages, never()).importPackage(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -170,8 +166,7 @@ class SkillRegistryServiceTests {
         when(assets.replaceValidatedSkillDraft(
                         eq(ACTOR), eq(assetId), eq(7L), any(), any()))
                 .thenReturn(new SkillDraftReplacement(current, supersessionId));
-        SkillRegistryService service = new SkillRegistryService(
-                new SkillPackageInspector(), storage, assets, cleanup);
+        SkillRegistryService service = service(storage, assets, cleanup);
 
         AssetView replaced = service.replacePackage(
                 ACTOR,
@@ -181,7 +176,7 @@ class SkillRegistryServiceTests {
                 new ByteArrayInputStream(archive));
 
         assertEquals(assetId, replaced.id());
-        verify(assets).requireSkillEdit(ACTOR, assetId);
+        verify(assets, times(2)).requireSkillEdit(ACTOR, assetId);
         verify(cleanup).cleanup(supersessionId);
         verify(storage, never()).delete(any());
     }
@@ -201,8 +196,7 @@ class SkillRegistryServiceTests {
         });
         when(assets.replaceValidatedSkillDraft(any(), any(), any(Long.class), any(), any()))
                 .thenThrow(new AssetConflictException("Changed"));
-        SkillRegistryService service = new SkillRegistryService(
-                new SkillPackageInspector(),
+        SkillRegistryService service = service(
                 storage,
                 assets,
                 mock(SkillPackageSupersessionCleanupService.class));
@@ -228,6 +222,16 @@ class SkillRegistryServiceTests {
                 KnowledgeClassification.INTERNAL,
                 archive.length,
                 new ByteArrayInputStream(archive));
+    }
+
+    private static SkillRegistryService service(
+            SkillPackageStoragePort storage,
+            AssetRegistryService assets,
+            SkillPackageSupersessionCleanupService cleanup) {
+        SkillPackageAssetCommand command = new SkillPackageAssetService(
+                storage, new SkillPackageProfile(), assets, cleanup);
+        return new SkillRegistryService(
+                new SkillPackageInspector(), command, assets);
     }
 
     private static SkillPackageStoragePort.StoredSkillPackage stored(

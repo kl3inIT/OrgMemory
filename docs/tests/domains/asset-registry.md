@@ -6,6 +6,9 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `core/src/test/java/com/orgmemory/core/ModulithVerificationTests.java`,
 `apps/api/src/test/java/com/orgmemory/api/assetregistry`,
 `apps/api/src/test/java/com/orgmemory/api/OpenApiContractTests.java`,
+`apps/api/src/test/java/com/orgmemory/api/SkillCapabilityBoundaryTests.java`,
+`apps/worker/src/test/java/com/orgmemory/worker/SkillCapabilityBoundaryTests.java`,
+`integrations/object-storage-minio/src/test/java`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, `apps/cli/src/*.test.ts`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
@@ -27,6 +30,7 @@ Reconciled: `2026-08-02-spring-modulith-package-refactor (573c1d1f)`.
 | Skill Draft replacement requires live edit authorization plus the expected Draft version, compensates fresh storage on transaction failure, and never mutates an immutable package reference | `SkillRegistryServiceTests`, `AssetRegistryIntegrationTests#replacingAReleasedSkillDraftKeepsTheImmutablePackageAndClearsTheCleanupRow`, `AssetRegistryIntegrationTests#replacingAnUnreleasedSkillDraftDeletesItsUnreferencedOldPackage` | covered |
 | Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
 | Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
+| The four parent-owned Skill capabilities expose exact type sets and exact Core/API/Worker/MinIO consumer sets; storage locators do not enter API or Worker dependencies | `ModulithVerificationTests#assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces`, `#assetRegistrySkillCapabilitiesHaveExactCoreConsumers`, `SkillCapabilityBoundaryTests`, `MinioSkillPackageStorageAdapterTests#adapterExposesOnlyTheParentStorageCapability` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |

@@ -16,6 +16,7 @@ import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
 import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
 import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
+import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
 import java.io.ByteArrayInputStream;
 import java.util.List;
@@ -167,14 +168,14 @@ class SkillDistributionServiceTests {
         when(reference.getDigest()).thenReturn(PACKAGE_DIGEST);
         when(reference.getContentLength()).thenReturn(7L);
         when(reference.getMediaType()).thenReturn("application/zip");
+        SkillReleaseDeliveryService deliveries = new SkillReleaseDeliveryService(
+                assets,
+                identities,
+                releaseRepository,
+                references,
+                storage);
         return new Fixture(
-                new SkillDistributionService(
-                        assets,
-                        identities,
-                        releaseRepository,
-                        references,
-                        specs,
-                        storage),
+                new SkillDistributionService(deliveries, specs),
                 assets,
                 identities,
                 releaseRepository,
