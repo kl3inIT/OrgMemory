@@ -1,8 +1,9 @@
 package com.orgmemory.core.assetregistry;
 
 import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
-
-import com.orgmemory.core.assetregistry.api.AssetType;
+import com.orgmemory.core.assetregistry.consumption.AssetReleaseUseQuery;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionView;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.Objects;
@@ -11,14 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class WorkInstructionService {
+public class WorkInstructionService implements WorkInstructionOperations {
 
-    private final AssetRegistryService assets;
+    private final AssetReleaseUseQuery assets;
     private final WorkInstructionProfile profile;
     private final WorkInstructionAcknowledgementRepository acknowledgements;
 
     WorkInstructionService(
-            AssetRegistryService assets,
+            AssetReleaseUseQuery assets,
             WorkInstructionProfile profile,
             WorkInstructionAcknowledgementRepository acknowledgements) {
         this.assets = assets;
@@ -27,12 +28,13 @@ public class WorkInstructionService {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public WorkInstructionView follow(
             CurrentActor actor,
             UUID assetId,
             UUID releaseId) {
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.WORK_INSTRUCTION);
+        AssetConsumptionRelease release = assets.workInstructionForUse(
+                actor, assetId, releaseId);
         WorkInstructionAcknowledgement acknowledgement = acknowledgements
                 .findByOrganizationIdAndReleaseIdAndActorUserId(
                         actor.organizationId(), releaseId, actor.userId())
@@ -41,13 +43,14 @@ public class WorkInstructionService {
     }
 
     @Transactional
+    @Override
     public WorkInstructionView acknowledge(
             CurrentActor actor,
             UUID assetId,
             UUID releaseId) {
         Objects.requireNonNull(actor, "actor");
-        AssetConsumptionRelease release = assets.releaseForUse(
-                actor, assetId, releaseId, AssetType.WORK_INSTRUCTION);
+        AssetConsumptionRelease release = assets.workInstructionForUse(
+                actor, assetId, releaseId);
         WorkInstructionAcknowledgement acknowledgement = acknowledgements
                 .findByOrganizationIdAndReleaseIdAndActorUserId(
                         actor.organizationId(), releaseId, actor.userId())

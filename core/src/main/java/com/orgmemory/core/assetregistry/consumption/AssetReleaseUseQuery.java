@@ -19,4 +19,16 @@ public interface AssetReleaseUseQuery {
         }
         return release;
     }
+
+    default AssetConsumptionRelease workInstructionForUse(
+            CurrentActor actor, UUID assetId, UUID releaseId) {
+        AssetConsumptionRelease release = releaseForUse(actor, assetId, releaseId);
+        if (release.type() != AssetType.WORK_INSTRUCTION) {
+            throw new AssetNotFoundException();
+        }
+        return release;
+    }
+
+    AssetConsumptionRelease latestReleaseForUse(
+            CurrentActor actor, UUID assetId);
 }

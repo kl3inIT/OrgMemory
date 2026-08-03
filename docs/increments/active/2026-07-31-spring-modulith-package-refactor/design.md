@@ -496,6 +496,28 @@ Fable 5 availability failure, independent fallback, counterattack corrections,
 exact contracts and consumer sets, storage-reference constraint, and binding
 two-PR sequence.
 
+## Asset Registry Work Instruction Boundary
+
+The Work Instruction family is delivered in two code-bearing PRs. The first
+adds parent-owned operation and relation contracts and routes the existing
+parent implementation through them. The second moves Work Instruction
+semantics and acknowledgement persistence and immediately closes
+`assetregistry.workinstruction`; no intermediate open module is allowed.
+
+The parent retains Asset authorization and release persistence, generic
+delivery dispatch/audit, and the concrete `WorkInstructionSpec` and
+`WorkInstructionView` wire records. The child owns profile parsing,
+follow/acknowledge orchestration and its existing transaction, acknowledgement
+persistence, and relation traversal. Separate `work-instruction` and
+`work-instruction-relations` named interfaces keep mutation consumers distinct
+from read-only delivery consumers. The existing consumption query gains typed
+exact and latest usable release methods; no parallel Work Instruction query is
+introduced.
+
+See [the Work Instruction challenge verdict](assetregistry-work-instruction-challenge-verdict.md)
+for reviewer availability, exact ownership, consumer sets, transaction rules,
+allowlist, binding gates, and the two-PR sequence.
+
 ## Strongest Counterargument
 
 Ordinary internal subpackages would reduce directory size immediately and

@@ -1562,7 +1562,7 @@ slice and starts with an independent boundary challenge.
 - [x] PR 2: add failing-first closed-module, exact-public-surface,
   forbidden-parent-import, and external-consumer guards, then move and
   immediately close `assetregistry.skill` below 70 changed paths.
-- [ ] PR 2: pass all focused and terminating gates, merge through CI and
+- [x] PR 2: pass all focused and terminating gates, merge through CI and
   CodeRabbit, then continue to the next Asset Registry profile family without
   releasing early.
 
@@ -1641,3 +1641,30 @@ fix. Focused tests went red before the fix, then 686 full Core/API tests passed
 with zero failure, error, or skip. The follow-up repository-wide `clean test`
 passed all 99 tasks and 1,267 tests; docs hygiene, release policy, and diff
 checks also remained green. The PR now changes 48 paths, still below the cap.
+
+PR #283 merged as `ad794dfbc20083a8bb812c1a244f733e414fe40d`
+after all required CI checks passed, both inline review findings were fixed and
+resolved, and the terminating repository gate passed 1,267 tests. Release
+remains deferred.
+
+## Asset Registry Work Instruction Sequence
+
+- [x] Challenge the ownership, acknowledgement transaction, relation resolver,
+  consumption query, exact consumer sets, and closed-module topology. Fable 5
+  was unavailable at 100% weekly usage; the independent read-only fallback
+  accepted the boundary with binding corrections recorded in
+  [the verdict](assetregistry-work-instruction-challenge-verdict.md).
+- [ ] PR 1: add failing-first exact-interface, consumer, operations-contract,
+  and delivery-delegation tests.
+- [ ] PR 1: add parent-owned `work-instruction` and
+  `work-instruction-relations` capabilities; preserve concrete record/OpenAPI
+  shapes and route current parent implementations through the seams.
+- [ ] PR 1: pass focused Core/API/Assistant/Modulith/OpenAPI/integration gates,
+  docs and release policy, static-analysis fallback, and a terminating clean
+  repository test.
+- [ ] PR 1: merge through CI and CodeRabbit without releasing.
+- [ ] PR 2: move semantics, acknowledgement persistence, and relation resolver;
+  immediately close `assetregistry.workinstruction` with zero public
+  implementation types and the exact eight-entry allowlist.
+- [ ] PR 2: pass all focused and terminating gates, merge through CI and
+  CodeRabbit, then continue to Capability Pack without releasing early.

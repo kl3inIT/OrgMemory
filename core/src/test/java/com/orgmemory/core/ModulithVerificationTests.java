@@ -1191,6 +1191,53 @@ class ModulithVerificationTests {
     }
 
     @Test
+    void assetRegistryWorkInstructionInterfacesAreExact() {
+        var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
+
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations",
+                        "com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionSpec",
+                        "com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionSpec$Step",
+                        "com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionView"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("work-instruction")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.workinstructionrelationcontract.WorkInstructionRelationResolver",
+                        "com.orgmemory.core.assetregistry.workinstructionrelationcontract.WorkInstructionRelations",
+                        "com.orgmemory.core.assetregistry.workinstructionrelationcontract.WorkInstructionRelations$Relation"),
+                assetRegistry.getNamedInterfaces()
+                        .getByName("work-instruction-relations")
+                        .orElseThrow()
+                        .asJavaClasses()
+                        .map(type -> type.getName())
+                        .collect(TreeSet::new, Set::add, Set::addAll));
+    }
+
+    @Test
+    void assetRegistryWorkInstructionContractsHaveExactCoreConsumers() {
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.WorkInstructionProfile",
+                        "com.orgmemory.core.assetregistry.WorkInstructionService",
+                        "com.orgmemory.core.assetregistry.WorkInstructionRelationService",
+                        "com.orgmemory.core.assistant.AssistantAssetToolService"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.workinstructioncontract"));
+        assertEquals(
+                Set.of(
+                        "com.orgmemory.core.assetregistry.AssetDeliveryService",
+                        "com.orgmemory.core.assetregistry.WorkInstructionRelationService"),
+                directConsumersOf(
+                        "com.orgmemory.core.assetregistry.workinstructionrelationcontract"));
+    }
+
+    @Test
     void assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces() {
         var assetRegistry = modules.getModuleByName("assetregistry").orElseThrow();
 
