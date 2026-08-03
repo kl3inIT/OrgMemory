@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (5f7faa70)`.
+Reconciled: `2026-08-03-spring-modulith-package-refactor (9dcbb005)`.
 
 ## Current Behavior
 
@@ -86,7 +86,13 @@ expected result, check, optional escalation, prohibited actions, and bounded
 Asset or Knowledge references.
 
 Following and acknowledging always use an exact authorized release.
-Acknowledgement is actor-derived and idempotent.
+Acknowledgement is actor-derived and idempotent. The parent-owned
+`assetregistry::work-instruction` interface carries the operations contract and
+the concrete Work Instruction wire/value records. A separate parent-owned
+`assetregistry::work-instruction-relations` interface lets generic delivery
+delegate profile-specific relation traversal without importing its
+implementation. Relation targets are authorized independently; inaccessible
+targets collapse into one opaque access-gap flag.
 
 ### Capability Pack
 

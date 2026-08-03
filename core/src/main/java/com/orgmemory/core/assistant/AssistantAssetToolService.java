@@ -7,8 +7,8 @@ import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.AssetView;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.PackJourney;
-import com.orgmemory.core.assetregistry.WorkInstructionService;
-import com.orgmemory.core.assetregistry.WorkInstructionView;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionView;
 import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
 import com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRenderResult;
@@ -28,7 +28,7 @@ public class AssistantAssetToolService {
 
     private final AssetRegistryService assets;
     private final PromptAssistantOperations prompts;
-    private final WorkInstructionService instructions;
+    private final WorkInstructionOperations instructions;
     private final CapabilityPackService packs;
     private final PermissionAwareKnowledgeSearch knowledge;
     private final AssistantAssetTraceRecorder traces;
@@ -36,7 +36,7 @@ public class AssistantAssetToolService {
     public AssistantAssetToolService(
             AssetRegistryService assets,
             PromptAssistantOperations prompts,
-            WorkInstructionService instructions,
+            WorkInstructionOperations instructions,
             CapabilityPackService packs,
             PermissionAwareKnowledgeSearch knowledge,
             AssistantAssetTraceRecorder traces) {

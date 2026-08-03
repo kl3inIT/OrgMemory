@@ -15,7 +15,9 @@ import com.orgmemory.core.assetregistry.CapabilityPackService;
 import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.skill.SkillDistributionOperations;
 import com.orgmemory.core.assetregistry.skill.SkillInstallManifest;
-import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionSpec;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionView;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Instant;
 import java.util.List;
@@ -86,6 +88,32 @@ class AssetConsumptionControllerTests {
         verifyNoInteractions(actors, skills);
     }
 
+    @Test
+    void routesFollowAndAcknowledgementThroughTheOperationsContract() {
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        WorkInstructionOperations instructions = mock(WorkInstructionOperations.class);
+        OAuth2AuthenticationToken authentication = browserSession();
+        WorkInstructionView followed = instructionView(false);
+        WorkInstructionView acknowledged = instructionView(true);
+        when(actors.current(authentication)).thenReturn(ACTOR);
+        when(instructions.follow(ACTOR, ASSET_ID, RELEASE_ID)).thenReturn(followed);
+        when(instructions.acknowledge(ACTOR, ASSET_ID, RELEASE_ID)).thenReturn(acknowledged);
+        AssetConsumptionController controller = new AssetConsumptionController(
+                actors,
+                mock(AssetRegistryService.class),
+                mock(PromptExecutionService.class),
+                instructions,
+                mock(CapabilityPackService.class),
+                mock(SkillDistributionOperations.class));
+
+        assertSame(followed, controller.followInstruction(
+                ASSET_ID, RELEASE_ID, authentication));
+        assertSame(acknowledged, controller.acknowledgeInstruction(
+                ASSET_ID, RELEASE_ID, authentication));
+        verify(instructions).follow(ACTOR, ASSET_ID, RELEASE_ID);
+        verify(instructions).acknowledge(ACTOR, ASSET_ID, RELEASE_ID);
+    }
+
     private static AssetConsumptionController controller(
             CurrentActorProvider actors,
             SkillDistributionOperations skills) {
@@ -93,7 +121,7 @@ class AssetConsumptionControllerTests {
                 actors,
                 mock(AssetRegistryService.class),
                 mock(PromptExecutionService.class),
-                mock(WorkInstructionService.class),
+                mock(WorkInstructionOperations.class),
                 mock(CapabilityPackService.class),
                 skills);
     }
@@ -112,6 +140,33 @@ class AssetConsumptionControllerTests {
         var user = new DefaultOidcUser(authorities, idToken);
         return new OAuth2AuthenticationToken(
                 user, authorities, "keycloak");
+    }
+
+    private static WorkInstructionView instructionView(boolean acknowledged) {
+        return new WorkInstructionView(
+                ASSET_ID,
+                RELEASE_ID,
+                "a".repeat(64),
+                "Triage ticket",
+                "1.0.0",
+                new WorkInstructionSpec(
+                        "Respond safely",
+                        "L1 support",
+                        List.of("Assigned ticket"),
+                        "Customer receives a response",
+                        "Support agent",
+                        List.of(new WorkInstructionSpec.Step(
+                                "triage",
+                                "Triage",
+                                "Read the ticket",
+                                "Category selected",
+                                "Category is approved",
+                                "Escalate legal threats",
+                                List.of(),
+                                List.of(),
+                                List.of()))),
+                acknowledged,
+                acknowledged ? Instant.now() : null);
     }
 
     private static SkillInstallManifest manifest() {

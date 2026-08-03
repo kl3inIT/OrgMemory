@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.workinstructioncontract;
 
 import java.time.Instant;
 import java.util.UUID;

@@ -8,7 +8,7 @@ import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
-import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
 import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
@@ -108,7 +108,7 @@ class AssistantConfiguration {
     AssistantAssetToolService assistantAssetToolService(
             AssetRegistryService assets,
             PromptAssistantOperations prompts,
-            WorkInstructionService instructions,
+            WorkInstructionOperations instructions,
             CapabilityPackService packs,
             PermissionAwareKnowledgeSearch retrieval,
             AssistantAssetTraceRecorder traces) {

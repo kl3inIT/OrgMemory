@@ -16,7 +16,7 @@ import com.orgmemory.core.assetregistry.api.AssetType;
 import com.orgmemory.core.assetregistry.AssetRecommendation;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
 import com.orgmemory.core.assetregistry.CapabilityPackService;
-import com.orgmemory.core.assetregistry.WorkInstructionService;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
 import com.orgmemory.core.assetregistry.consumption.AssetAvailability;
 import com.orgmemory.core.assetregistry.promptcontract.PromptAssistantOperations;
 import com.orgmemory.core.assetregistry.promptcontract.PromptPreparationResult;
@@ -36,7 +36,7 @@ class AssistantAssetToolServiceTests {
 
     private final AssetRegistryService assets = mock(AssetRegistryService.class);
     private final PromptAssistantOperations prompts = mock(PromptAssistantOperations.class);
-    private final WorkInstructionService instructions = mock(WorkInstructionService.class);
+    private final WorkInstructionOperations instructions = mock(WorkInstructionOperations.class);
     private final CapabilityPackService packs = mock(CapabilityPackService.class);
     private final PermissionAwareKnowledgeSearch knowledge =
             mock(PermissionAwareKnowledgeSearch.class);

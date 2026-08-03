@@ -1,13 +1,9 @@
 package com.orgmemory.core.assetregistry;
 
-import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
-
-import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetType;
-import com.orgmemory.core.assetregistry.api.AssetUnavailableException;
-import com.orgmemory.core.knowledge.catalog.KnowledgeCatalogQuery;
+import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
+import com.orgmemory.core.assetregistry.workinstructionrelationcontract.WorkInstructionRelationResolver;
 import com.orgmemory.core.organization.CurrentActor;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -25,18 +21,15 @@ public class AssetDeliveryService {
 
     private final AssetRegistryService assets;
     private final CapabilityPackService packs;
-    private final WorkInstructionProfile workInstructions;
-    private final KnowledgeCatalogQuery knowledge;
+    private final WorkInstructionRelationResolver workInstructions;
 
     AssetDeliveryService(
             AssetRegistryService assets,
             CapabilityPackService packs,
-            WorkInstructionProfile workInstructions,
-            KnowledgeCatalogQuery knowledge) {
+            WorkInstructionRelationResolver workInstructions) {
         this.assets = assets;
         this.packs = packs;
         this.workInstructions = workInstructions;
-        this.knowledge = knowledge;
     }
 
     public List<AssetRecommendation> search(
@@ -112,46 +105,21 @@ public class AssetDeliveryService {
             return result;
         }
 
-        WorkInstructionSpec spec = workInstructions.parse(release.payload());
-        List<AssetRelationResolution.Relation> visible = new ArrayList<>();
-        boolean accessGap = false;
-        for (WorkInstructionSpec.Step step : spec.steps()) {
-            for (UUID relatedAssetId : step.relatedAssetIds()) {
-                try {
-                    AssetConsumptionRelease related =
-                            assets.latestReleaseForUse(actor, relatedAssetId);
-                    visible.add(new AssetRelationResolution.Relation(
-                            step.key(),
-                            "REGISTRY_RELEASE",
-                            related.assetId(),
-                            related.releaseId(),
-                            related.title(),
-                            related.versionLabel(),
-                            false));
-                } catch (AssetNotFoundException | AssetUnavailableException denied) {
-                    accessGap = true;
-                }
-            }
-            for (UUID knowledgeVersionId : step.relatedKnowledgeVersionIds()) {
-                var related = knowledge.findVersionVisible(
-                        actor, knowledgeVersionId);
-                if (related.isPresent()) {
-                    var value = related.get();
-                    visible.add(new AssetRelationResolution.Relation(
-                            step.key(),
-                            "KNOWLEDGE",
-                            value.knowledgeAssetId(),
-                            value.knowledgeVersionId(),
-                            value.title(),
-                            Long.toString(value.versionNumber()),
-                            false));
-                } else {
-                    accessGap = true;
-                }
-            }
-        }
+        var resolution = workInstructions.resolveRelations(actor, release);
         AssetRelationResolution result = new AssetRelationResolution(
-                assetId, releaseId, accessGap, visible);
+                assetId,
+                releaseId,
+                resolution.accessGap(),
+                resolution.relations().stream()
+                        .map(relation -> new AssetRelationResolution.Relation(
+                                relation.key(),
+                                relation.kind(),
+                                relation.resourceId(),
+                                relation.pinnedVersionId(),
+                                relation.title(),
+                                relation.versionLabel(),
+                                relation.required()))
+                        .toList());
         audit(actor, "resolve_asset_relations", assetId, releaseId);
         return result;
     }

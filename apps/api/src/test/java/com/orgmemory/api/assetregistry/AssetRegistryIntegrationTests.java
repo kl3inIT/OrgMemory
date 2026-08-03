@@ -3,6 +3,7 @@ package com.orgmemory.api.assetregistry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,8 +43,8 @@ import com.orgmemory.core.assetregistry.prompt.PromptExecutionService;
 import com.orgmemory.core.assetregistry.promptcontract.PromptRunResult;
 import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.assetregistry.skill.SkillPackageOperations;
-import com.orgmemory.core.assetregistry.WorkInstructionService;
-import com.orgmemory.core.assetregistry.WorkInstructionView;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionOperations;
+import com.orgmemory.core.assetregistry.workinstructioncontract.WorkInstructionView;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.authorization.AuthorizationDecision;
 import com.orgmemory.core.authorization.AuthorizedResourceQuery;
@@ -75,6 +76,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -86,6 +88,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.interceptor.TransactionAttributeSource;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -164,7 +168,10 @@ class AssetRegistryIntegrationTests {
     PromptExecutionService prompts;
 
     @Autowired
-    WorkInstructionService instructions;
+    WorkInstructionOperations instructions;
+
+    @Autowired
+    TransactionAttributeSource transactionAttributes;
 
     @Autowired
     CapabilityPackService packs;
@@ -578,6 +585,32 @@ class AssetRegistryIntegrationTests {
                         Map.of("ticket_text", "New ticket"),
                         null,
                         "withdrawn-run"));
+    }
+
+    @Test
+    void workInstructionContractRetainsTheServiceTransactionBoundary()
+            throws NoSuchMethodException {
+        assertTrue(AopUtils.isAopProxy(instructions));
+        Class<?> targetClass = AopUtils.getTargetClass(instructions);
+        var follow = transactionAttributes.getTransactionAttribute(
+                WorkInstructionOperations.class.getMethod(
+                        "follow", CurrentActor.class, UUID.class, UUID.class),
+                targetClass);
+        var acknowledge = transactionAttributes.getTransactionAttribute(
+                WorkInstructionOperations.class.getMethod(
+                        "acknowledge", CurrentActor.class, UUID.class, UUID.class),
+                targetClass);
+
+        assertNotNull(follow);
+        assertTrue(follow.isReadOnly());
+        assertEquals(
+                TransactionDefinition.PROPAGATION_REQUIRED,
+                follow.getPropagationBehavior());
+        assertNotNull(acknowledge);
+        assertFalse(acknowledge.isReadOnly());
+        assertEquals(
+                TransactionDefinition.PROPAGATION_REQUIRED,
+                acknowledge.getPropagationBehavior());
     }
 
     @Test

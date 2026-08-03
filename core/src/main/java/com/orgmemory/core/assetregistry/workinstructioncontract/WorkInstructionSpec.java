@@ -1,4 +1,4 @@
-package com.orgmemory.core.assetregistry;
+package com.orgmemory.core.assetregistry.workinstructioncontract;
 
 import java.util.HashSet;
 import java.util.List;

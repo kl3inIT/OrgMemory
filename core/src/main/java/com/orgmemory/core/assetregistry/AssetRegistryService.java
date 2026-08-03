@@ -286,6 +286,7 @@ public class AssetRegistryService implements AssetReleaseUseQuery {
                 actor.organizationId(), assetId, releaseId);
     }
 
+    @Override
     public AssetConsumptionRelease latestReleaseForUse(
             CurrentActor actor, UUID assetId) {
         require(actor, assetId, CAN_USE);
