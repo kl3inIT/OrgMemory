@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-04-assistant-citation-evidence-continuity (working tree)`.
+Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

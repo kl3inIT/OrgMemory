@@ -5,7 +5,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/api/src/test/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga/src/test`.
 
-Reconciled: `2026-08-04-assistant-citation-evidence-continuity (working tree)`.
+Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
 
 Primary evidence: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeRetrievalIntegrationTests.java` and `core/src/test/java/com/orgmemory/core/permission/KnowledgePermissionPolicyTests.java`.
 
