@@ -3,6 +3,17 @@ import { expect, test, type Page, type Route } from "@playwright/test"
 const FIRST_CHUNK_ID = "43000000-0000-0000-0000-000000000003"
 const SECOND_CHUNK_ID = "43000000-0000-0000-0000-000000000004"
 const THIRD_CHUNK_ID = "43000000-0000-0000-0000-000000000005"
+const CONVERSATION_ID = "44000000-0000-4000-8000-000000000001"
+const ANSWER_MESSAGE_ID = "44000000-0000-4000-8000-000000000002"
+
+interface HistoryMessage {
+  id: string
+  role: "USER" | "ASSISTANT"
+  content: string
+  sequence: number
+  occurredAt: string
+  feedback?: "HELPFUL" | "NOT_HELPFUL"
+}
 
 interface AssistantHarnessOptions {
   chatFrames?: string[]
@@ -11,12 +22,15 @@ interface AssistantHarnessOptions {
     { status: number; contentType?: string; body?: string | Buffer }
   >
   holdChat?: boolean
+  history?: HistoryMessage[]
 }
 
 async function assistantHarness(page: Page, options: AssistantHarnessOptions = {}) {
   const requests: string[] = []
   const unexpectedRequests: string[] = []
   const browserErrors: string[] = []
+  const chatBodies: Array<Record<string, unknown>> = []
+  const feedbackBodies: Array<Record<string, unknown>> = []
   let releaseChat: (() => void) | undefined
   const chatRelease = new Promise<void>((resolve) => {
     releaseChat = resolve
@@ -71,13 +85,70 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
       return
     }
 
+    if (
+      request.method() === "GET" &&
+      url.pathname === "/api/assistant/starters"
+    ) {
+      await json(route, [
+        {
+          id: "people-policy",
+          label: "People policy",
+          prompt: "What is the probation policy?",
+        },
+        {
+          id: "travel-expense",
+          label: "Travel expenses",
+          prompt: "How do I submit a travel expense claim?",
+        },
+      ])
+      return
+    }
+
+    if (
+      request.method() === "GET" &&
+      url.pathname === `/api/assistant/conversations/${CONVERSATION_ID}/messages`
+    ) {
+      await json(route, options.history ?? [])
+      return
+    }
+
+    if (url.pathname === `/api/assistant/messages/${ANSWER_MESSAGE_ID}/feedback`) {
+      if (request.method() === "PUT") {
+        const body = request.postDataJSON() as Record<string, unknown>
+        feedbackBodies.push(body)
+        await json(route, {
+          messageId: ANSWER_MESSAGE_ID,
+          sentiment: body.sentiment,
+          updatedAt: "2026-08-04T10:00:00Z",
+        })
+        return
+      }
+      if (request.method() === "DELETE") {
+        await route.fulfill({ status: 204 })
+        return
+      }
+    }
+
     if (url.pathname === "/api/assistant/chat") {
+      chatBodies.push(request.postDataJSON() as Record<string, unknown>)
       if (options.holdChat) await chatRelease
+      const responseFrames = (options.chatFrames ?? citedAnswerFrames()).map(
+        (value, index) =>
+          index === 0
+            ? value.replace(
+                /"messageId":"[^"]+"/,
+                `"messageId":"${answerMessageId(chatBodies.length)}"`,
+              )
+            : value,
+      )
       await route.fulfill({
         status: 200,
         contentType: "text/event-stream",
-        headers: { "x-vercel-ai-ui-message-stream": "v1" },
-        body: sse(options.chatFrames ?? citedAnswerFrames()),
+        headers: {
+          "x-conversation-id": CONVERSATION_ID,
+          "x-vercel-ai-ui-message-stream": "v1",
+        },
+        body: sse(responseFrames),
       })
       return
     }
@@ -100,6 +171,8 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
     requests,
     unexpectedRequests,
     browserErrors,
+    chatBodies,
+    feedbackBodies,
     releaseChat: () => releaseChat?.(),
   }
 }
@@ -241,19 +314,120 @@ test("stop aborts one in-flight assistant request", async ({ page }) => {
   expect(harness.browserErrors).toEqual([])
 })
 
+test("loads server-owned starters and restores a session-scoped draft with focus", async ({ page }) => {
+  const harness = await assistantHarness(page)
+  await page.goto("/")
+
+  const composer = page.getByPlaceholder("Ask OrgMemory…")
+  await expect
+    .poll(() =>
+      harness.requests.includes("GET /api/assistant/starters"),
+    )
+    .toBe(true)
+  await expect(page.getByRole("button", { name: "What is the probation policy?" })).toBeVisible()
+  await expect(composer).toBeFocused()
+  await composer.fill("Unsent policy question")
+  await page.reload()
+
+  await expect(page.getByPlaceholder("Ask OrgMemory…")).toHaveValue(
+    "Unsent policy question",
+  )
+  await expect(page.getByPlaceholder("Ask OrgMemory…")).toBeFocused()
+  expect(harness.unexpectedRequests).toEqual([])
+})
+
+test("retries a completed answer as one fresh turn and preserves the composer draft", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    chatFrames: textOnlyFrames("The probation period is 60 days."),
+  })
+  await page.goto("/")
+  await submit(page, "What is the probation policy?")
+  await expect(page.getByText("The probation period is 60 days.")).toBeVisible()
+
+  const composer = page.getByPlaceholder("Ask OrgMemory…")
+  await composer.fill("Keep this separate draft")
+  await page.getByRole("button", { name: "Retry answer with fresh evidence" }).click()
+
+  await expect.poll(() => harness.chatBodies.length).toBe(2)
+  expect(harness.chatBodies[1]).toMatchObject({
+    conversationId: CONVERSATION_ID,
+    message: "What is the probation policy?",
+  })
+  await expect(composer).toHaveValue("Keep this separate draft")
+  expect(harness.unexpectedRequests).toEqual([])
+})
+
+test("creates, replaces, removes, and replays answer feedback", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    history: [
+      historyMessage(1, "USER", "What is the probation policy?"),
+      {
+        ...historyMessage(2, "ASSISTANT", "The probation period is 60 days."),
+        id: ANSWER_MESSAGE_ID,
+        feedback: "HELPFUL",
+      },
+    ],
+  })
+  await page.goto(`/?chat=${CONVERSATION_ID}`)
+
+  const helpful = page.getByRole("button", { name: "Mark answer helpful" })
+  const notHelpful = page.getByRole("button", { name: "Mark answer not helpful" })
+  await expect(helpful).toHaveAttribute("aria-pressed", "true")
+  await notHelpful.click()
+  await expect(notHelpful).toHaveAttribute("aria-pressed", "true")
+  expect(harness.feedbackBodies).toEqual([{ sentiment: "NOT_HELPFUL" }])
+
+  await notHelpful.click()
+  await expect(notHelpful).toHaveAttribute("aria-pressed", "false")
+  expect(
+    harness.requests.filter(
+      (request) => request === `DELETE /api/assistant/messages/${ANSWER_MESSAGE_ID}/feedback`,
+    ),
+  ).toHaveLength(1)
+  expect(harness.unexpectedRequests).toEqual([])
+})
+
+test("reveals scroll recovery after the reader leaves the bottom", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 620 })
+  const history = Array.from({ length: 30 }, (_, index) =>
+    historyMessage(
+      index + 1,
+      index % 2 === 0 ? "USER" : "ASSISTANT",
+      `Message ${index + 1}: ${"long governed answer ".repeat(8)}`,
+    ),
+  )
+  const harness = await assistantHarness(page, { history })
+  await page.goto(`/?chat=${CONVERSATION_ID}`)
+  await expect(page.getByText("Message 30:", { exact: false })).toBeVisible()
+
+  const conversation = page.getByRole("log")
+  await conversation.evaluate((element) => {
+    const scroller = element.firstElementChild as HTMLElement
+    scroller.scrollTop = 0
+    scroller.dispatchEvent(new Event("scroll"))
+  })
+  const recovery = page.getByRole("button", { name: "Scroll to bottom" })
+  await expect(recovery).toBeVisible()
+  await recovery.click()
+  await expect(recovery).toBeHidden()
+  expect(harness.unexpectedRequests).toEqual([])
+})
+
 async function submit(page: Page, message: string, awaitDispatch = true) {
   const composer = page.getByPlaceholder("Ask OrgMemory…")
   await composer.waitFor({ state: "visible" })
   await composer.fill(message)
   await composer.press("Enter")
   if (awaitDispatch) {
-    await expect(page.getByText(message, { exact: true })).toBeVisible()
+    await expect(
+      page.locator("#main-content").getByText(message, { exact: true }),
+    ).toBeVisible()
   }
 }
 
 function citedAnswerFrames() {
   return [
-    frame({ type: "start", messageId: "assistant-cited" }),
+    frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
     frame({ type: "start-step" }),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     sourceFrame(2, SECOND_CHUNK_ID, "Expense Policy"),
@@ -287,7 +461,7 @@ function singleSourceFrames() {
 
 function textOnlyFrames(text: string) {
   return [
-    frame({ type: "start", messageId: "assistant-empty" }),
+    frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
     frame({ type: "start-step" }),
     frame({ type: "text-start", id: "answer" }),
     frame({ type: "text-delta", id: "answer", delta: text }),
@@ -296,6 +470,24 @@ function textOnlyFrames(text: string) {
     frame({ type: "finish", finishReason: "stop" }),
     "data: [DONE]",
   ]
+}
+
+function historyMessage(
+  sequence: number,
+  role: "USER" | "ASSISTANT",
+  content: string,
+): HistoryMessage {
+  return {
+    id: `44000000-0000-4000-8000-${sequence.toString().padStart(12, "0")}`,
+    role,
+    content,
+    sequence,
+    occurredAt: `2026-08-04T10:${sequence.toString().padStart(2, "0")}:00Z`,
+  }
+}
+
+function answerMessageId(turn: number) {
+  return `44000000-0000-4000-8000-${(turn + 1).toString().padStart(12, "0")}`
 }
 
 function sourceFrame(number: number, chunkId: string, title: string) {

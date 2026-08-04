@@ -8,5 +8,6 @@ public record AssistantConversationMessageView(
         AssistantConversationRole role,
         String content,
         long sequence,
-        Instant occurredAt) {
+        Instant occurredAt,
+        AssistantAnswerSentiment feedback) {
 }

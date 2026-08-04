@@ -30,6 +30,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { clearAssistantDraft } from "@/features/assistant/assistant-draft-storage"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
 import {
   deleteAssistantConversationMutation,
@@ -74,6 +75,7 @@ export function AssistantConversationList({
     ...deleteAssistantConversationMutation(),
     onSuccess: async (_, variables) => {
       setDeleteCandidate(null)
+      clearAssistantDraft(actorKey, variables.path.conversationId)
       queryClient.setQueryData(
         conversationQueryKey,
         (current = []) =>

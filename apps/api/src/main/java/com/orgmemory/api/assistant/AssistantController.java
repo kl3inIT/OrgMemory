@@ -1,6 +1,8 @@
 package com.orgmemory.api.assistant;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
+import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantConversationMessageView;
 import com.orgmemory.core.assistant.AssistantConversationService;
@@ -11,6 +13,7 @@ import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -39,6 +43,19 @@ class AssistantController {
 
     private static final String UI_MESSAGE_STREAM_HEADER = "x-vercel-ai-ui-message-stream";
     private static final String TEXT_PART_ID = "answer";
+    private static final List<AssistantStarterPrompt> STARTERS = List.of(
+            new AssistantStarterPrompt(
+                    "people-policy",
+                    "People policy",
+                    "What is the probation policy?"),
+            new AssistantStarterPrompt(
+                    "travel-expense",
+                    "Travel expenses",
+                    "How do I submit a travel expense claim?"),
+            new AssistantStarterPrompt(
+                    "release-process",
+                    "Release process",
+                    "What is the product release process?"));
 
     private final AssistantService assistant;
     private final AssistantConversationService conversations;
@@ -71,6 +88,7 @@ class AssistantController {
         CurrentActor actor = actors.current(authentication);
         UUID conversationId = conversations.beginTurn(
                 actor, request.conversationId(), request.message());
+        UUID assistantMessageId = UUID.randomUUID();
         AssistantTurn turn = assistant.startTurn(
                 actor,
                 request.message(),
@@ -85,7 +103,10 @@ class AssistantController {
                     }
                 })
                 .doOnComplete(() -> conversations.completeTurn(
-                        actor, conversationId, completedAnswer.toString()));
+                        actor,
+                        conversationId,
+                        assistantMessageId,
+                        completedAnswer.toString()));
         return ResponseEntity.ok()
                 .header("X-Request-ID", turn.requestId())
                 .header("X-Conversation-ID", conversationId.toString())
@@ -95,6 +116,7 @@ class AssistantController {
                 .header("X-Accel-Buffering", "no")
                 .body(UiMessageStream.encode(
                         parts,
+                        assistantMessageId,
                         json,
                         properties.heartbeatInterval(),
                         properties.turnTimeout()));
@@ -102,6 +124,44 @@ class AssistantController {
 
     record RenameConversationRequest(
             @NotBlank @Size(max = 120) String title) {
+    }
+
+    record AnswerFeedbackRequest(@NotNull AssistantAnswerSentiment sentiment) {
+    }
+
+    record AssistantStarterPrompt(String id, String label, String prompt) {
+    }
+
+    @GetMapping("/starters")
+    @Operation(
+            operationId = "listAssistantStarters",
+            summary = "List supported prompts for starting an Assistant conversation")
+    List<AssistantStarterPrompt> starters() {
+        return STARTERS;
+    }
+
+    @PutMapping("/messages/{messageId}/feedback")
+    @Operation(
+            operationId = "setAssistantAnswerFeedback",
+            summary = "Create or replace feedback on an owned Assistant answer")
+    AssistantAnswerFeedbackView setFeedback(
+            @PathVariable UUID messageId,
+            @Valid @RequestBody AnswerFeedbackRequest request,
+            Authentication authentication) {
+        return conversations.setAnswerFeedback(
+                actors.current(authentication), messageId, request.sentiment());
+    }
+
+    @DeleteMapping("/messages/{messageId}/feedback")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            operationId = "deleteAssistantAnswerFeedback",
+            summary = "Remove feedback from an owned Assistant answer")
+    void deleteFeedback(
+            @PathVariable UUID messageId,
+            Authentication authentication) {
+        conversations.deleteAnswerFeedback(
+                actors.current(authentication), messageId);
     }
 
     @GetMapping("/conversations")

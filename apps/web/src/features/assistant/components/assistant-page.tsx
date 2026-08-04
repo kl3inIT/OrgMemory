@@ -1,8 +1,16 @@
 import { useChat } from "@ai-sdk/react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
-import { Copy, LoaderCircle, RotateCcw, ShieldCheck } from "lucide-react"
+import {
+  Copy,
+  LoaderCircle,
+  RotateCcw,
+  ShieldCheck,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
   Conversation,
@@ -34,23 +42,23 @@ import {
   type AssistantSourceRef,
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
+import { useAssistantDraft } from "@/features/assistant/hooks/use-assistant-draft"
 import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
 import { copyWithToast } from "@/lib/copy"
 import {
+  deleteAssistantAnswerFeedbackMutation,
   getAssistantConversationHistoryOptions,
+  listAssistantStartersOptions,
   listAssistantConversationsQueryKey,
+  setAssistantAnswerFeedbackMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssistantConversationMessageView,
   AssistantConversationSummary,
 } from "@/lib/hey-api"
 
-const SUGGESTIONS = [
-  "What is the probation policy?",
-  "How do I submit a travel expense claim?",
-  "What is the product release process?",
-]
+type AnswerSentiment = "HELPFUL" | "NOT_HELPFUL"
 
 function textFor(message: UIMessage) {
   return message.parts
@@ -210,7 +218,13 @@ export function AssistantPage({
       }),
     [conversationListQueryKey, queryClient],
   )
-  const [text, setText] = useState("")
+  const { text, setText, clear: clearDraft } = useAssistantDraft(
+    actorKey,
+    conversationId,
+  )
+  const [feedbackByMessage, setFeedbackByMessage] = useState<
+    Record<string, AnswerSentiment | undefined>
+  >({})
   const [sourcePanel, setSourcePanel] = useState<{
     messageId: string
     sources: AssistantSourceRef[]
@@ -260,6 +274,31 @@ export function AssistantPage({
     queryKey: scopeActorQueryKey(historyOptions.queryKey, actorKey),
     enabled: Boolean(conversationId),
   })
+  const starterOptions = listAssistantStartersOptions()
+  const starters = useQuery({
+    ...starterOptions,
+    queryKey: scopeActorQueryKey(starterOptions.queryKey, actorKey),
+  })
+  const saveFeedback = useMutation({
+    ...setAssistantAnswerFeedbackMutation(),
+    onSuccess: (_, variables) => {
+      setFeedbackByMessage((current) => ({
+        ...current,
+        [variables.path.messageId]: variables.body.sentiment,
+      }))
+    },
+    onError: () => toast.error("Answer feedback could not be saved"),
+  })
+  const removeFeedback = useMutation({
+    ...deleteAssistantAnswerFeedbackMutation(),
+    onSuccess: (_, variables) => {
+      setFeedbackByMessage((current) => ({
+        ...current,
+        [variables.path.messageId]: undefined,
+      }))
+    },
+    onError: () => toast.error("Answer feedback could not be removed"),
+  })
 
   useEffect(() => {
     if (conversationIdRef.current === conversationId) return
@@ -267,6 +306,7 @@ export function AssistantPage({
     conversationIdRef.current = conversationId
     locallyCreatedConversationRef.current = undefined
     setSourcePanel(null)
+    setFeedbackByMessage({})
     setMessages([])
   }, [conversationId, setMessages, stop])
 
@@ -281,6 +321,18 @@ export function AssistantPage({
     setMessages(
       history.data.map((message, index) =>
         historyMessage(conversationId, message, index),
+      ),
+    )
+    setFeedbackByMessage(
+      Object.fromEntries(
+        history.data
+          .filter(
+            (message) =>
+              message.id &&
+              (message.feedback === "HELPFUL" ||
+                message.feedback === "NOT_HELPFUL"),
+          )
+          .map((message) => [message.id as string, message.feedback as AnswerSentiment]),
       ),
     )
   }, [conversationId, history.data, setMessages])
@@ -313,7 +365,7 @@ export function AssistantPage({
     [],
   )
 
-  function send(rawMessage: string) {
+  function send(rawMessage: string, clearComposer = true) {
     const message = rawMessage.trim()
     if (!message || busy || submitLock.current) return
 
@@ -322,7 +374,7 @@ export function AssistantPage({
       message.length <= 80 ? message : `${message.slice(0, 77)}...`
     clearError()
     const turn = sendMessage({ text: message })
-    setText("")
+    if (clearComposer) clearDraft()
     const release = () => {
       submitLock.current = false
     }
@@ -332,6 +384,18 @@ export function AssistantPage({
 
   function submit(message: PromptInputMessage) {
     return send(message.text)
+  }
+
+  function toggleFeedback(messageId: string, sentiment: AnswerSentiment) {
+    if (busy || saveFeedback.isPending || removeFeedback.isPending) return
+    if (feedbackByMessage[messageId] === sentiment) {
+      removeFeedback.mutate({ path: { messageId } })
+      return
+    }
+    saveFeedback.mutate({
+      path: { messageId },
+      body: { sentiment },
+    })
   }
 
   const composer = (
@@ -345,6 +409,7 @@ export function AssistantPage({
           onChange={(event) => setText(event.currentTarget.value)}
           placeholder="Ask OrgMemory…"
           autoFocus
+          maxLength={4_000}
           className="min-h-12"
         />
       </PromptInputBody>
@@ -412,10 +477,10 @@ export function AssistantPage({
         <h1 className="text-page-title text-content-primary">{greeting()}</h1>
         <div className="w-full max-w-2xl">{composer}</div>
         <Suggestions className="mx-auto max-w-2xl flex-wrap justify-center whitespace-normal">
-          {SUGGESTIONS.map((suggestion) => (
+          {(starters.data ?? []).map((starter) => (
             <Suggestion
-              key={suggestion}
-              suggestion={suggestion}
+              key={starter.id}
+              suggestion={starter.prompt ?? ""}
               className="bg-transparent text-foreground"
               onClick={(value) => {
                 void send(value)?.catch(() => undefined)
@@ -432,10 +497,19 @@ export function AssistantPage({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const content = textFor(message)
               const sources = sourcesFor(message)
               const citedSources = citedSourcesFor(content, sources)
+              const precedingUserMessage = messages[index - 1]
+              const retryPrompt =
+                message.role === "assistant" &&
+                precedingUserMessage?.role === "user"
+                  ? textFor(precedingUserMessage)
+                  : ""
+              const selectedFeedback = feedbackByMessage[message.id]
+              const feedbackPending =
+                saveFeedback.isPending || removeFeedback.isPending
               if (!content.trim() && sources.length === 0) return null
 
               return (
@@ -484,6 +558,40 @@ export function AssistantPage({
                       >
                         <Copy className="size-4" />
                       </MessageAction>
+                      {message.role === "assistant" ? (
+                        <>
+                          <MessageAction
+                            label="Retry answer with fresh evidence"
+                            tooltip="Retry with fresh evidence"
+                            disabled={!retryPrompt || busy}
+                            onClick={() => {
+                              void send(retryPrompt, false)?.catch(() => undefined)
+                            }}
+                          >
+                            <RotateCcw className="size-4" />
+                          </MessageAction>
+                          <MessageAction
+                            label="Mark answer helpful"
+                            tooltip="Helpful"
+                            aria-pressed={selectedFeedback === "HELPFUL"}
+                            variant={selectedFeedback === "HELPFUL" ? "secondary" : "ghost"}
+                            disabled={busy || feedbackPending}
+                            onClick={() => toggleFeedback(message.id, "HELPFUL")}
+                          >
+                            <ThumbsUp className="size-4" />
+                          </MessageAction>
+                          <MessageAction
+                            label="Mark answer not helpful"
+                            tooltip="Not helpful"
+                            aria-pressed={selectedFeedback === "NOT_HELPFUL"}
+                            variant={selectedFeedback === "NOT_HELPFUL" ? "secondary" : "ghost"}
+                            disabled={busy || feedbackPending}
+                            onClick={() => toggleFeedback(message.id, "NOT_HELPFUL")}
+                          >
+                            <ThumbsDown className="size-4" />
+                          </MessageAction>
+                        </>
+                      ) : null}
                     </MessageActions>
                   ) : null}
                 </Message>
@@ -509,7 +617,7 @@ export function AssistantPage({
                   size="sm"
                   disabled={!retryMessage || busy}
                   onClick={() => {
-                    void send(retryMessage)?.catch(() => undefined)
+                    void send(retryMessage, false)?.catch(() => undefined)
                   }}
                 >
                   <RotateCcw className="size-4" aria-hidden="true" />
