@@ -35,6 +35,7 @@
   .assistant-thinking-text {
     animation: none;
     background: none;
+    -webkit-text-fill-color: currentColor;
     color: var(--content-muted);
   }
 }

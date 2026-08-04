@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.retrieval.CitationContent;
 import com.orgmemory.core.knowledge.retrieval.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import com.orgmemory.core.knowledge.storage.ObjectContent;
 import com.orgmemory.core.knowledge.storage.ObjectKey;
 import com.orgmemory.core.knowledge.storage.StoredObject;
@@ -63,7 +64,10 @@ class CitationContentControllerTests {
                 .thenReturn(citation);
 
         var response =
-                new CitationContentController(citations, actors)
+                new CitationContentController(
+                                citations,
+                                mock(CitationEvidenceService.class),
+                                actors)
                         .content(CHUNK_ID, authentication);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         response.getBody().writeTo(output);
@@ -105,7 +109,10 @@ class CitationContentControllerTests {
                 .thenReturn(citation);
 
         var response =
-                new CitationContentController(citations, actors)
+                new CitationContentController(
+                                citations,
+                                mock(CitationEvidenceService.class),
+                                actors)
                         .content(CHUNK_ID, authentication);
 
         assertEquals(
@@ -135,7 +142,10 @@ class CitationContentControllerTests {
                 .thenReturn(citation);
 
         var response =
-                new CitationContentController(citations, actors)
+                new CitationContentController(
+                                citations,
+                                mock(CitationEvidenceService.class),
+                                actors)
                         .content(CHUNK_ID, authentication);
 
         assertEquals(

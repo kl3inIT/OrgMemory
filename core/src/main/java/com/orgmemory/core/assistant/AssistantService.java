@@ -79,14 +79,33 @@ public class AssistantService {
             String requestId,
             String conversationId,
             AssistantModelRouteAuthority routeAuthority) {
+        return startTurn(
+                actor,
+                question,
+                requestedLimit,
+                requestId,
+                conversationId,
+                routeAuthority,
+                System.nanoTime());
+    }
+
+    public AssistantTurn startTurn(
+            CurrentActor actor,
+            String question,
+            Integer requestedLimit,
+            String requestId,
+            String conversationId,
+            AssistantModelRouteAuthority routeAuthority,
+            long startedAtNanos) {
         AssistantTurnObservationContext context = new AssistantTurnObservationContext(
-                actor.organizationId(), engine, System.nanoTime());
+                actor.organizationId(), engine, startedAtNanos);
         Observation observation = AssistantTurnObservationDocumentation.TURN
                 .observation(null, DEFAULT_CONVENTION, () -> context, observations)
                 .start();
 
         try {
             var search = retrieval.search(actor, question, requestedLimit, requestId);
+            context.retrievalCompletedAt(System.nanoTime());
             if (search.evidence().isEmpty()) {
                 context.foundNoEvidence(System.nanoTime());
                 observation.stop();

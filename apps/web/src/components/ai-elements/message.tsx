@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import type { UIMessage } from "ai"
 import type { ComponentProps, HTMLAttributes } from "react"
 
-export type MessageProps = HTMLAttributes<HTMLDivElement> & {
+export type MessageProps = ComponentProps<"div"> & {
   from: UIMessage["role"]
 }
 

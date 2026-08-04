@@ -39,20 +39,24 @@ export type InlineCitationCardTriggerProps = ComponentProps<typeof Badge> & {
   label?: ReactNode
 }
 
-export const InlineCitationCardTrigger = ({
+export const InlineCitationTrigger = ({
   sources,
   label,
   className,
   ...props
 }: InlineCitationCardTriggerProps) => (
+  <Badge
+    className={cn("ml-1 cursor-pointer rounded-full", className)}
+    variant="secondary"
+    {...props}
+  >
+    {label ?? sourceLabel(sources[0], sources.length)}
+  </Badge>
+)
+
+export const InlineCitationCardTrigger = (props: InlineCitationCardTriggerProps) => (
   <HoverCardTrigger asChild>
-    <Badge
-      className={cn("ml-1 cursor-pointer rounded-full", className)}
-      variant="secondary"
-      {...props}
-    >
-      {label ?? sourceLabel(sources[0], sources.length)}
-    </Badge>
+    <InlineCitationTrigger {...props} />
   </HoverCardTrigger>
 )
 

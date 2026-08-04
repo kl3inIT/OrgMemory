@@ -71,6 +71,9 @@ _openapi:
       title: List server-governed Assistant model choices for the current route
       url: '#list-server-governed-assistant-model-choices-for-the-current-route'
     - depth: 2
+      title: Hydrate currently authorized citations for one owned Assistant answer
+      url: '#hydrate-currently-authorized-citations-for-one-owned-assistant-answer'
+    - depth: 2
       title: List the current actor's conversations by recent activity
       url: '#list-the-current-actors-conversations-by-recent-activity'
     - depth: 2
@@ -118,6 +121,8 @@ _openapi:
         id: list-supported-prompts-for-starting-an-assistant-conversation
       - content: List server-governed Assistant model choices for the current route
         id: list-server-governed-assistant-model-choices-for-the-current-route
+      - content: Hydrate currently authorized citations for one owned Assistant answer
+        id: hydrate-currently-authorized-citations-for-one-owned-assistant-answer
       - content: List the current actor's conversations by recent activity
         id: list-the-current-actors-conversations-by-recent-activity
       - content: Replay a tenant- and actor-scoped full conversation transcript
@@ -134,7 +139,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/conversations/{conversationId}/model","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/model-options","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/conversations/{conversationId}/model","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/model-options","method":"get"},{"path":"/api/assistant/messages/{messageId}/citations","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"}]} showTitle showDescription />
     </>
   );
 }

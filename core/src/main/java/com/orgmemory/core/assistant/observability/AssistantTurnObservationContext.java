@@ -26,6 +26,7 @@ public final class AssistantTurnObservationContext extends Observation.Context {
     private final long startedAtNanos;
 
     private Long firstTokenAtNanos;
+    private Long retrievalCompletedAtNanos;
     private Long completedAtNanos;
     private AssistantTurnEvent.Outcome outcome = AssistantTurnEvent.Outcome.UNAVAILABLE;
     private String failureCode = "not_recorded";
@@ -48,6 +49,12 @@ public final class AssistantTurnObservationContext extends Observation.Context {
     public void firstTokenAt(long nanos) {
         if (firstTokenAtNanos == null) {
             firstTokenAtNanos = nanos;
+        }
+    }
+
+    public void retrievalCompletedAt(long nanos) {
+        if (retrievalCompletedAtNanos == null) {
+            retrievalCompletedAtNanos = nanos;
         }
     }
 
@@ -78,10 +85,12 @@ public final class AssistantTurnObservationContext extends Observation.Context {
 
     public AssistantTurnEvent toEvent() {
         long end = completedAtNanos == null ? System.nanoTime() : completedAtNanos;
+        long retrievalEnd = retrievalCompletedAtNanos == null ? end : retrievalCompletedAtNanos;
         return new AssistantTurnEvent(
                 organizationId,
                 engine,
                 outcome,
+                Duration.ofNanos(Math.max(0L, retrievalEnd - startedAtNanos)),
                 firstTokenAtNanos == null
                         ? null
                         : Duration.ofNanos(firstTokenAtNanos - startedAtNanos),

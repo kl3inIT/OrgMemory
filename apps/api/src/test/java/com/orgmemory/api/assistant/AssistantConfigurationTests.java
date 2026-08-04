@@ -56,7 +56,13 @@ class AssistantConfigurationTests {
     }
 
     private static AssistantProperties properties(AssistantProperties.RetrievalEngine engine) {
-        return new AssistantProperties(Duration.ofSeconds(15), Duration.ofMinutes(2), engine);
+        return new AssistantProperties(
+                Duration.ofSeconds(15),
+                Duration.ofMinutes(2),
+                engine,
+                8,
+                32,
+                Duration.ofSeconds(5));
     }
 
     @SuppressWarnings("unchecked")

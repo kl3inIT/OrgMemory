@@ -87,6 +87,9 @@ orgmemory:
     heartbeat-interval: ${ORGMEMORY_ASSISTANT_HEARTBEAT_INTERVAL:15s}
     turn-timeout: ${ORGMEMORY_ASSISTANT_TURN_TIMEOUT:2m}
     retrieval-engine: ${ORGMEMORY_ASSISTANT_RETRIEVAL_ENGINE:GRAPH_RAG}
+    retrieval-maximum-concurrency: ${ORGMEMORY_ASSISTANT_RETRIEVAL_MAXIMUM_CONCURRENCY:8}
+    retrieval-queue-capacity: ${ORGMEMORY_ASSISTANT_RETRIEVAL_QUEUE_CAPACITY:32}
+    retrieval-shutdown-timeout: ${ORGMEMORY_ASSISTANT_RETRIEVAL_SHUTDOWN_TIMEOUT:5s}
   ai:
     gateways:
       openai:

@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/api/src/main/java/com/orgmemory/api/knowledge`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-02-knowledge-space-audience-main-sync (405fa212)`.
+Reconciled: `2026-08-04-assistant-citation-evidence-continuity (working tree)`.
 
 ## Current Behavior
 
@@ -26,6 +26,11 @@ Only evidence that fits the model-context budget is exposed as a citation, and
 answer tokens stream without a post-generation authorization replay. A
 revocation applies to every new turn; an already-started turn may finish under
 its request snapshot and is bounded by the configured two-minute turn timeout.
+Assistant replay hydration is a third explicit policy: it resolves the current
+scope once, deduplicates at most 100 chunk references, checks OpenFGA in fixed
+batches of at most 20, and returns the determinate visible subset. Any
+indeterminate, incomplete, or model-mismatched batch makes hydration unavailable
+rather than turning an authorization outage into an empty denied set.
 
 The same canonical SQL intersects OpenFGA eligibility with the Space's
 persisted audience mode. Organization mode admits organization members;
@@ -72,6 +77,12 @@ integrity, and streams the original bytes through the authenticated API with
 `no-store` and `nosniff`. Missing and denied citation reads return the same
 generic `404`. A missing control-plane role or incomplete current actor is
 rejected at the request boundary with `403`.
+The citation excerpt route performs the same current evidence check plus a
+Source Ledger availability read, records its own final allow/deny audit, and
+returns at most 4,000 Unicode code points with safe title, heading, page range,
+truncation, and a closed presentation kind. It exposes no chunk ID, URI, object
+key, or stored MIME; missing, denied, stale, empty, and unavailable evidence all
+use the same opaque `404`, `no-store`, and `nosniff` response boundary.
 
 Source Ledger owns the tenant-scoped citation evidence query. It accepts the
 permission-verified revision and Asset identities, requires a ready matching

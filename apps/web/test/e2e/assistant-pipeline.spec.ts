@@ -22,6 +22,8 @@ interface AssistantHarnessOptions {
     string,
     { status: number; contentType?: string; body?: string | Buffer }
   >
+  citationExcerptResponses?: Record<string, { status: number; body?: Record<string, unknown> }>
+  messageCitations?: Record<string, Array<Record<string, unknown>>>
   holdChat?: boolean
   holdHistoryAfterActorSwitch?: boolean
   history?: HistoryMessage[]
@@ -92,6 +94,15 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
       url.pathname === "/api/assistant/conversations"
     ) {
       await json(route, [])
+      return
+    }
+
+    if (
+      request.method() === "GET" &&
+      /^\/api\/assistant\/messages\/[^/]+\/citations$/.test(url.pathname)
+    ) {
+      const messageId = url.pathname.split("/").at(-2) ?? ""
+      await json(route, options.messageCitations?.[messageId] ?? [])
       return
     }
 
@@ -207,6 +218,35 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
       return
     }
 
+    const excerpt = options.citationExcerptResponses?.[url.pathname]
+    if (excerpt) {
+      await json(route, excerpt.body ?? {}, excerpt.status)
+      return
+    }
+
+    const excerptMatch = /^\/api\/citations\/([^/]+)\/excerpt$/.exec(url.pathname)
+    if (excerptMatch?.[1]) {
+      const contentPath = `/api/citations/${excerptMatch[1]}/content`
+      const configured = options.citationResponses?.[contentPath]
+      if (configured?.status && configured.status !== 200) {
+        await json(route, { message: "Source unavailable" }, configured.status)
+        return
+      }
+      const mediaType = configured?.contentType ?? "text/plain"
+      await json(route, {
+        title: "Permission-verified source",
+        excerpt: "Permission-verified evidence used for this answer.",
+        truncated: false,
+        presentationKind:
+          mediaType === "application/pdf"
+            ? "PDF"
+            : mediaType.startsWith("image/")
+              ? "IMAGE"
+              : "PLAIN_TEXT",
+      })
+      return
+    }
+
     const citation = options.citationResponses?.[url.pathname]
     if (citation) {
       await route.fulfill({
@@ -268,7 +308,11 @@ test("anchors only server-declared citations and opens the matching source", asy
   await expect(page.getByText("Used 2 sources")).toBeVisible()
   await expect(page.getByText("Used 3 sources")).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Open source 2: Expense Policy" }).first().click()
+  const inlineCitation = page.getByRole("button", { name: "Open source 2: Expense Policy" }).first()
+  await inlineCitation.hover()
+  await expect(page.getByText("OrgMemory document")).toHaveCount(0)
+  await expect(page.getByText("Permission-verified evidence used for this answer.")).toHaveCount(0)
+  await inlineCitation.click()
   await expect(page.getByRole("complementary", { name: "Answer sources" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Cited sources" })).toBeVisible()
   await expect(page.getByRole("region", { name: "More" })).toBeVisible()
@@ -328,6 +372,198 @@ test("previews an authorized PDF through the protected citation endpoint", async
   expect(harness.browserErrors).toEqual([])
 })
 
+test("previews an authorized image selected by the server presentation kind", async ({ page }) => {
+  const firstPath = `/api/citations/${FIRST_CHUNK_ID}/content`
+  const firstExcerptPath = `/api/citations/${FIRST_CHUNK_ID}/excerpt`
+  const harness = await assistantHarness(page, {
+    chatFrames: singleSourceFrames(),
+    citationExcerptResponses: {
+      [firstExcerptPath]: {
+        status: 200,
+        body: {
+          title: "Employee Handbook",
+          excerpt: "Permission-verified image evidence.",
+          truncated: false,
+          presentationKind: "IMAGE",
+        },
+      },
+    },
+    citationResponses: {
+      [firstPath]: {
+        status: 200,
+        contentType: "image/png",
+        body: onePixelPng(),
+      },
+    },
+  })
+  await page.goto("/")
+  await submit(page, "What is the probation policy?")
+
+  await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
+  await expect(page.getByRole("dialog").getByRole("img", { name: "Employee Handbook" }))
+    .toBeVisible()
+  expect(harness.requests.filter((request) => request === `GET ${firstPath}`)).toHaveLength(1)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("keeps Office evidence excerpt-first and download-only", async ({ page }) => {
+  const firstPath = `/api/citations/${FIRST_CHUNK_ID}/content`
+  const firstExcerptPath = `/api/citations/${FIRST_CHUNK_ID}/excerpt`
+  const harness = await assistantHarness(page, {
+    chatFrames: singleSourceFrames(),
+    citationExcerptResponses: {
+      [firstExcerptPath]: {
+        status: 200,
+        body: {
+          title: "Employee Handbook",
+          excerpt: "The approved form is attached to the handbook.",
+          truncated: false,
+          presentationKind: "DOWNLOAD",
+        },
+      },
+    },
+  })
+  await page.goto("/")
+  await submit(page, "What is the probation policy?")
+
+  await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
+  const dialog = page.getByRole("dialog")
+  await expect(dialog.getByText("The approved form is attached to the handbook.")).toBeVisible()
+  await expect(dialog.getByRole("link", { name: "Download original" })).toHaveAttribute(
+    "href",
+    firstPath,
+  )
+  expect(harness.requests.filter((request) => request === `GET ${firstPath}`)).toHaveLength(0)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("renders governed Markdown without active HTML or remote resource loads", async ({ page }) => {
+  const firstPath = `/api/citations/${FIRST_CHUNK_ID}/content`
+  const firstExcerptPath = `/api/citations/${FIRST_CHUNK_ID}/excerpt`
+  const remoteRequests: string[] = []
+  await page.route("https://attacker.example/**", async (route) => {
+    remoteRequests.push(route.request().url())
+    await route.abort()
+  })
+  const markdown = [
+    "# Leave policy",
+    "",
+    "- Submit the approved form.",
+    "",
+    "<script>window.__orgmemoryInjected = true</script>",
+    "![Private chart](https://attacker.example/chart.png)",
+    "![Inline SVG](data:image/svg+xml,<svg onload=alert('x')></svg>)",
+    "[Unsafe](javascript:alert('x'))",
+    "",
+    "```mermaid",
+    "graph TD; A-->B",
+    "```",
+  ].join("\n")
+  const harness = await assistantHarness(page, {
+    chatFrames: singleSourceFrames(),
+    citationExcerptResponses: {
+      [firstExcerptPath]: {
+        status: 200,
+        body: {
+          title: "Employee Handbook",
+          excerpt: "Submit the approved form.",
+          truncated: false,
+          presentationKind: "MARKDOWN",
+        },
+      },
+    },
+    citationResponses: {
+      [firstPath]: {
+        status: 200,
+        contentType: "text/markdown",
+        body: markdown,
+      },
+    },
+  })
+  await page.goto("/")
+  await submit(page, "What is the probation policy?")
+
+  await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
+  const dialog = page.getByRole("dialog")
+  const restricted = dialog.getByTestId("restricted-source-markdown")
+  await expect(page.getByRole("heading", { name: "Leave policy" })).toBeVisible()
+  await expect(page.getByText("Submit the approved form.", { exact: true })).toBeVisible()
+  await expect(restricted.locator("script, img[src], svg[onload], svg script")).toHaveCount(0)
+  await expect(dialog.getByText("Unsafe", { exact: false })).toBeVisible()
+  await expect(dialog.locator('a[href^="javascript:"]')).toHaveCount(0)
+  await expect(restricted.getByText("graph TD; A-->B", { exact: false })).toBeVisible()
+  expect(remoteRequests).toEqual([])
+  expect(await page.evaluate(() => (window as Window & { __orgmemoryInjected?: boolean }).__orgmemoryInjected))
+    .toBeUndefined()
+
+  await page.getByRole("button", { name: "Raw" }).click()
+  await expect(page.getByText("# Leave policy", { exact: false })).toBeVisible()
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("rehydrates currently authorized citations after transcript reload", async ({ page }) => {
+  const firstPath = `/api/citations/${FIRST_CHUNK_ID}/content`
+  const firstExcerptPath = `/api/citations/${FIRST_CHUNK_ID}/excerpt`
+  const harness = await assistantHarness(page, {
+    history: [
+      historyMessage(1, "USER", "What is the probation policy?"),
+      {
+        ...historyMessage(2, "ASSISTANT", "The probation period is 60 days [1]."),
+        id: ANSWER_MESSAGE_ID,
+      },
+    ],
+    messageCitations: {
+      [ANSWER_MESSAGE_ID]: [
+        {
+          citationNumber: 1,
+          sourceId: `urn:orgmemory:citation:1:${FIRST_CHUNK_ID}`,
+          title: "Employee Handbook",
+          excerptUrl: firstExcerptPath,
+          contentUrl: firstPath,
+        },
+      ],
+    },
+    citationExcerptResponses: {
+      [firstExcerptPath]: {
+        status: 200,
+        body: {
+          title: "Employee Handbook",
+          excerpt: "The probation period is 60 days.",
+          truncated: false,
+          presentationKind: "PLAIN_TEXT",
+        },
+      },
+    },
+    citationResponses: {
+      [firstPath]: {
+        status: 200,
+        contentType: "text/plain",
+        body: "The probation period is 60 days.",
+      },
+    },
+  })
+  await page.goto(`/?chat=${CONVERSATION_ID}`)
+
+  const citation = page.getByRole("button", { name: "Open source 1: Employee Handbook" })
+  await expect(citation).toBeVisible()
+  await citation.click()
+  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
+  await expect(page.getByText("The probation period is 60 days.", { exact: true })).toBeVisible()
+  expect(
+    harness.requests.filter(
+      (request) => request === `GET /api/assistant/messages/${ANSWER_MESSAGE_ID}/citations`,
+    ),
+  ).toHaveLength(1)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 test("renders a safe answer without source UI when no evidence is available", async ({ page }) => {
   const harness = await assistantHarness(page, {
     chatFrames: textOnlyFrames(
@@ -374,6 +610,11 @@ test("stop aborts one in-flight assistant request", async ({ page }) => {
   await page.goto("/")
   await submit(page, "What is the probation policy?", false)
 
+  const retrievalStatus = page.getByRole("log").getByRole("status", {
+    name: "Connecting to the Assistant…",
+  })
+  await expect(retrievalStatus).toContainText("Connecting to the Assistant…")
+  await expect(retrievalStatus.locator("svg")).toHaveCount(0)
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible()
   await page.getByRole("button", { name: "Stop" }).click()
   await expect(page.getByRole("button", { name: "Submit" })).toBeVisible()
@@ -560,6 +801,9 @@ function citedAnswerFrames() {
   return [
     frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
     frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 3),
+    activityFrame("GENERATION", "ACTIVE"),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     sourceFrame(2, SECOND_CHUNK_ID, "Expense Policy"),
     sourceFrame(3, THIRD_CHUNK_ID, "Security Policy"),
@@ -580,6 +824,9 @@ function singleSourceFrames() {
   return [
     frame({ type: "start", messageId: "assistant-revoked" }),
     frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 1),
+    activityFrame("GENERATION", "ACTIVE"),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     frame({ type: "text-start", id: "answer" }),
     frame({ type: "text-delta", id: "answer", delta: "The probation period is 60 days [1]." }),
@@ -594,6 +841,8 @@ function textOnlyFrames(text: string) {
   return [
     frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
     frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 0),
     frame({ type: "text-start", id: "answer" }),
     frame({ type: "text-delta", id: "answer", delta: text }),
     frame({ type: "text-end", id: "answer" }),
@@ -601,6 +850,18 @@ function textOnlyFrames(text: string) {
     frame({ type: "finish", finishReason: "stop" }),
     "data: [DONE]",
   ]
+}
+
+function activityFrame(
+  phase: "RETRIEVAL" | "GENERATION",
+  state: "ACTIVE" | "COMPLETE",
+  evidenceCount?: number,
+) {
+  return frame({
+    type: "data-assistantActivity",
+    data: { phase, state, evidenceCount },
+    transient: true,
+  })
 }
 
 function historyMessage(
@@ -679,4 +940,11 @@ function minimalPdf() {
   pdf += `trailer\n<< /Root 1 0 R /Size ${objects.length + 1} >>\n`
   pdf += `startxref\n${xrefOffset}\n%%EOF\n`
   return Buffer.from(pdf, "ascii")
+}
+
+function onePixelPng() {
+  return Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64",
+  )
 }

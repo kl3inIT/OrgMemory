@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Assistant evidence continuity and live activity](increments/active/2026-08-04-assistant-citation-evidence-continuity/plan.md) | active | deliver direct evidence, safe Markdown, bounded replay hydration, and truthful pre-token retrieval/generation activity |
 | [Assistant composer and conversation model picker](increments/completed/2026-08-04-assistant-composer-model-picker/plan.md) | shipped | delivered administrator-bound model authority, conversation selection, and composer polish |
 | [Assistant interaction foundation](increments/completed/2026-08-04-assistant-interaction-foundation/plan.md) | shipped | delivered server-owned starters, scoped drafts, answer feedback, fresh retry, and interaction recovery |
 | [Apache AGE published-batch backfill](increments/completed/2026-08-03-apache-age-published-batch-backfill/verification.md) | shipped | challenged one-shot repair, 49/49 production reconciliation, Graph explorer, and cited Assistant proof |

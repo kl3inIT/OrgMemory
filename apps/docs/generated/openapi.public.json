@@ -3668,6 +3668,38 @@
         }
       }
     },
+    "/api/citations/{chunkId}/excerpt": {
+      "get": {
+        "tags": [
+          "Search and catalog"
+        ],
+        "summary": "Read a bounded permission-verified citation excerpt",
+        "operationId": "readCitationExcerpt",
+        "parameters": [
+          {
+            "name": "chunkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CitationEvidenceExcerpt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/citations/{chunkId}/content": {
       "get": {
         "tags": [
@@ -3876,6 +3908,41 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/AssistantModelOptionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assistant/messages/{messageId}/citations": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Hydrate currently authorized citations for one owned Assistant answer",
+        "operationId": "getAssistantMessageCitations",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantCitationResponse"
+                  }
                 }
               }
             }
@@ -8709,6 +8776,41 @@
           }
         }
       },
+      "CitationEvidenceExcerpt": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "startPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "presentationKind": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "MARKDOWN",
+              "PLAIN_TEXT",
+              "IMAGE",
+              "DOWNLOAD"
+            ]
+          }
+        }
+      },
       "WorkInstructionToolResult": {
         "type": "object",
         "properties": {
@@ -8938,6 +9040,38 @@
             "items": {
               "$ref": "#/components/schemas/AssistantModelOptionResponse"
             }
+          }
+        }
+      },
+      "AssistantCitationResponse": {
+        "type": "object",
+        "properties": {
+          "citationNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "heading": {
+            "type": "string"
+          },
+          "startPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "endPage": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "excerptUrl": {
+            "type": "string"
+          },
+          "contentUrl": {
+            "type": "string"
           }
         }
       },

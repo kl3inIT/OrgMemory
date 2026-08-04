@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class CanonicalEvidenceAuthorizationService {
 
+    private static final int HYDRATION_BATCH_SIZE = 20;
     private static final PermissionKey CAN_VIEW = PermissionKey.of("can_view");
     private static final String RESOURCE_TYPE = "knowledge_asset";
     private static final OpenFgaBatchRecheck.ReasonRule RESULT_REASON =
@@ -96,6 +97,102 @@ class CanonicalEvidenceAuthorizationService {
         return new Verification(
                 authorizationModelId,
                 currentCandidates);
+    }
+
+    @Transactional(readOnly = true)
+    Verification filterVisible(
+            CurrentActor actor,
+            String requestId,
+            String auditQuery,
+            Collection<UUID> chunkIds) {
+        Objects.requireNonNull(actor, "actor");
+        String normalizedRequestId = required(requestId, "requestId");
+        String normalizedAuditQuery = required(auditQuery, "auditQuery");
+        List<UUID> expected = List.copyOf(Objects.requireNonNull(chunkIds, "chunkIds"));
+        if (expected.isEmpty()) {
+            return new Verification("none", List.of());
+        }
+        if (expected.size() > 100
+                || expected.stream().anyMatch(Objects::isNull)
+                || expected.stream().distinct().count() != expected.size()) {
+            throw new IllegalArgumentException(
+                    "chunkIds must contain at most 100 unique non-null values");
+        }
+
+        String authorizationModelId = searchAuthorization.require(
+                actor, normalizedRequestId, normalizedAuditQuery);
+        ResolvedKnowledgeEvidenceScope current = resolve(
+                actor,
+                authorizationModelId,
+                normalizedRequestId,
+                normalizedAuditQuery);
+        if (current.allAssetIds().isEmpty()) {
+            return new Verification(authorizationModelId, List.of());
+        }
+
+        Map<UUID, SecureRetrievalCandidate> candidateByChunk;
+        try {
+            candidateByChunk = canonicalEvidence.recheck(
+                            retrievalScope(current), expected)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            SecureRetrievalCandidate::chunkId,
+                            candidate -> candidate,
+                            (left, right) -> {
+                                throw new IllegalStateException(
+                                        "Canonical citation hydration returned duplicate chunks");
+                            },
+                            LinkedHashMap::new));
+        } catch (IllegalStateException invalid) {
+            throw searchAuthorization.unavailable(
+                    actor,
+                    normalizedRequestId,
+                    normalizedAuditQuery,
+                    "CITATION_HYDRATION_INVALID",
+                    authorizationModelId,
+                    invalid);
+        }
+
+        List<SecureRetrievalCandidate> canonical = expected.stream()
+                .map(candidateByChunk::get)
+                .filter(Objects::nonNull)
+                .toList();
+        List<ResourceRef> resources = canonical.stream()
+                .map(candidate -> ResourceRef.of(
+                        actor.organizationId(),
+                        RESOURCE_TYPE,
+                        candidate.knowledgeAssetId()))
+                .distinct()
+                .toList();
+        java.util.Set<String> allowedAssets = new java.util.LinkedHashSet<>();
+        for (int offset = 0; offset < resources.size(); offset += HYDRATION_BATCH_SIZE) {
+            List<ResourceRef> batch = resources.subList(
+                    offset, Math.min(offset + HYDRATION_BATCH_SIZE, resources.size()));
+            var rechecked = batchRecheck.recheck(
+                    new BatchAuthorizationQuery(
+                            actor.organizationId(), actor.principal(), CAN_VIEW, batch),
+                    authorizationModelId,
+                    OpenFgaBatchRecheck.ResultPolicy.FILTER_DENIED,
+                    RECHECK_REASONS);
+            if (!rechecked.succeeded()) {
+                var failure = rechecked.failure();
+                throw searchAuthorization.unavailable(
+                        actor,
+                        normalizedRequestId,
+                        normalizedAuditQuery,
+                        failure.reasonCode(),
+                        failure.policyVersion());
+            }
+            rechecked.allowedResources().stream()
+                    .map(ResourceRef::id)
+                    .forEach(allowedAssets::add);
+        }
+        return new Verification(
+                authorizationModelId,
+                canonical.stream()
+                        .filter(candidate -> allowedAssets.contains(
+                                candidate.knowledgeAssetId().toString()))
+                        .toList());
     }
 
     private ResolvedKnowledgeEvidenceScope resolve(

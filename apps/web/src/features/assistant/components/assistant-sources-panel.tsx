@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { copyWithToast } from "@/lib/copy"
-import { readCitationContent } from "@/lib/hey-api"
+import { RestrictedSourceMarkdown } from "@/features/assistant/components/restricted-source-markdown"
+import { readCitationContent, readCitationExcerpt } from "@/lib/hey-api"
+import type { CitationEvidenceExcerpt } from "@/lib/hey-api"
 import { formatBytes } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +41,7 @@ export interface AssistantSourceRef {
   citationNumber: number
   title: string
   url: string
+  excerptUrl?: string
 }
 
 interface PreviewPayload {
@@ -100,11 +103,41 @@ function SourcesPanelContent({
     .filter((source): source is AssistantSourceRef => source !== undefined)
   const otherSources = sources.filter((source) => !citedIds.has(source.id))
   const selected = sources.find((source) => source.id === selectedSourceId) ?? sources[0] ?? null
-  const selectedCitationId = selected ? citationChunkId(selected.url) : undefined
+  const selectedContentCitationId = selected
+    ? citationChunkId(selected.url, "content")
+    : undefined
+  const selectedExcerptCitationId = selected?.excerptUrl
+    ? citationChunkId(selected.excerptUrl, "excerpt")
+    : selectedContentCitationId
+  const selectedCitationId =
+    selectedContentCitationId === selectedExcerptCitationId
+      ? selectedContentCitationId
+      : undefined
   const canPreview = selectedCitationId !== undefined
+  const excerptQuery = useQuery({
+    queryKey: ["assistant-citation-excerpt", selectedCitationId],
+    enabled: selectedCitationId !== undefined && previewOpen,
+    queryFn: async (): Promise<CitationEvidenceExcerpt> => {
+      if (!selectedCitationId) throw new Error("Citation is unavailable")
+      const { data } = await readCitationExcerpt({
+        path: { chunkId: selectedCitationId },
+        throwOnError: true,
+      })
+      return data
+    },
+    gcTime: 0,
+    staleTime: 0,
+    retry: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
+  })
   const previewQuery = useQuery({
     queryKey: ["assistant-citation-preview", selectedCitationId],
-    enabled: selectedCitationId !== undefined && previewOpen,
+    enabled:
+      selectedCitationId !== undefined &&
+      previewOpen &&
+      excerptQuery.isSuccess &&
+      excerptQuery.data.presentationKind !== "DOWNLOAD",
     queryFn: async (): Promise<PreviewPayload> => {
       if (!selectedCitationId) throw new Error("Citation is unavailable")
       const { data } = await readCitationContent({
@@ -189,13 +222,21 @@ function SourcesPanelContent({
         onOpenChange={setPreviewOpen}
         source={selected}
         canPreview={canPreview}
+        excerpt={excerptQuery.data ?? null}
         preview={ready}
         loading={
           Boolean(selected && canPreview) &&
+          !excerptQuery.isError &&
+          (excerptQuery.isPending || excerptQuery.isFetching)
+        }
+        error={excerptQuery.isError}
+        originalLoading={
+          excerptQuery.isSuccess &&
+          excerptQuery.data.presentationKind !== "DOWNLOAD" &&
           !previewQuery.isError &&
           (previewQuery.isPending || previewQuery.isFetching || !blobUrl)
         }
-        error={previewQuery.isError}
+        originalError={previewQuery.isError}
       />
     </div>
   )
@@ -276,17 +317,23 @@ function CitationPreviewDialog({
   onOpenChange,
   source,
   canPreview,
+  excerpt,
   preview,
   loading,
   error,
+  originalLoading,
+  originalError,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   source: AssistantSourceRef | null
   canPreview: boolean
+  excerpt: CitationEvidenceExcerpt | null
   preview: (PreviewPayload & { blobUrl: string }) | null
   loading: boolean
   error: boolean
+  originalLoading: boolean
+  originalError: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const metadata = preview ? previewMetadata(preview) : ""
@@ -324,20 +371,35 @@ function CitationPreviewDialog({
           {source && canPreview && error ? (
             <EmptyPreview message="The source changed or you no longer have access." />
           ) : null}
-          {preview && source ? <CitationPreviewContent preview={preview} title={source.title} /> : null}
+          {excerpt && source && !preview ? (
+            <CitationExcerptContent
+              excerpt={excerpt}
+              originalLoading={originalLoading}
+              originalError={originalError}
+            />
+          ) : null}
+          {preview && source && excerpt ? (
+            <CitationPreviewContent
+              preview={preview}
+              title={source.title}
+              presentationKind={excerpt.presentationKind}
+            />
+          ) : null}
         </div>
 
-        {preview && source ? (
+        {excerpt && source ? (
           <DialogFooter className="shrink-0 flex-row items-center justify-between border-t border-border-subtle px-4 py-3 sm:justify-between">
-            <span className="text-xs text-muted-foreground">{metadata}</span>
+            <span className="text-xs text-muted-foreground">
+              {metadata || excerptMetadata(excerpt)}
+            </span>
             <div className="flex items-center gap-2">
-              {preview.text !== undefined ? (
+              {excerpt.excerpt ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Copy source content"
                   onClick={() =>
-                    void copyWithToast(preview.text ?? "", "Source content").then((didCopy) => {
+                    void copyWithToast(excerpt.excerpt ?? "", "Evidence excerpt").then((didCopy) => {
                       if (!didCopy) return
                       setCopied(true)
                       window.setTimeout(() => setCopied(false), 1_500)
@@ -348,9 +410,12 @@ function CitationPreviewDialog({
                 </Button>
               ) : null}
               <Button variant="outline" size="sm" asChild>
-                <a href={preview.blobUrl} download={source.title}>
+                <a
+                  href={preview?.blobUrl ?? source.url}
+                  download={source.title}
+                >
                   <Download className="size-4" aria-hidden="true" />
-                  Download
+                  Download original
                 </a>
               </Button>
             </div>
@@ -364,19 +429,24 @@ function CitationPreviewDialog({
 function CitationPreviewContent({
   preview,
   title,
+  presentationKind,
 }: {
   preview: PreviewPayload & { blobUrl: string }
   title: string
+  presentationKind: CitationEvidenceExcerpt["presentationKind"]
 }) {
-  if (preview.mediaType === "application/pdf") {
+  if (presentationKind === "PDF") {
     return <iframe title={title} src={preview.blobUrl} className="h-full w-full bg-white" />
   }
-  if (preview.mediaType.startsWith("image/")) {
+  if (presentationKind === "IMAGE") {
     return (
       <div className="flex h-full items-center justify-center overflow-auto p-4">
         <img src={preview.blobUrl} alt={title} className="max-h-full max-w-full object-contain" />
       </div>
     )
+  }
+  if (presentationKind === "MARKDOWN" && preview.text !== undefined) {
+    return <MarkdownPreview content={preview.text} />
   }
   if (preview.text !== undefined) {
     return (
@@ -386,6 +456,75 @@ function CitationPreviewContent({
     )
   }
   return <EmptyPreview message="Preview is unavailable for this file type. Download the original file." />
+}
+
+function CitationExcerptContent({
+  excerpt,
+  originalLoading,
+  originalError,
+}: {
+  excerpt: CitationEvidenceExcerpt
+  originalLoading: boolean
+  originalError: boolean
+}) {
+  return (
+    <div className="h-full overflow-auto p-6">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-border-subtle bg-background p-5">
+        <p className="text-metadata font-medium uppercase tracking-wide text-content-muted">
+          Evidence excerpt
+        </p>
+        {excerpt.heading ? (
+          <h3 className="mt-2 text-section-title text-content-primary">{excerpt.heading}</h3>
+        ) : null}
+        <p className="mt-3 whitespace-pre-wrap text-body leading-7 text-content-primary">
+          {excerpt.excerpt}
+          {excerpt.truncated ? "…" : ""}
+        </p>
+        {originalLoading ? (
+          <p className="mt-4 flex items-center gap-2 text-supporting text-content-muted">
+            <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />
+            Loading the original preview…
+          </p>
+        ) : null}
+        {originalError ? (
+          <p className="mt-4 text-supporting text-content-muted">
+            The excerpt is available, but the original preview could not be loaded.
+          </p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function MarkdownPreview({ content }: { content: string }) {
+  const [view, setView] = useState<"rendered" | "raw">("rendered")
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-4 py-2">
+        {(["rendered", "raw"] as const).map((option) => (
+          <Button
+            key={option}
+            type="button"
+            size="sm"
+            variant={view === option ? "secondary" : "ghost"}
+            aria-pressed={view === option}
+            onClick={() => setView(option)}
+          >
+            {option === "rendered" ? "Rendered" : "Raw"}
+          </Button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {view === "rendered" ? (
+          <RestrictedSourceMarkdown content={content} />
+        ) : (
+          <pre className="min-h-full whitespace-pre-wrap p-6 font-mono text-sm leading-relaxed text-foreground">
+            {content}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function EmptyPreview({ message }: { message: string }) {
@@ -407,8 +546,11 @@ function isTextPreview(mediaType: string) {
   )
 }
 
-function citationChunkId(url: string): string | undefined {
-  const match = /^\/api\/citations\/([^/]+)\/content$/.exec(url)
+function citationChunkId(
+  url: string,
+  representation: "content" | "excerpt",
+): string | undefined {
+  const match = new RegExp(`^/api/citations/([^/]+)/${representation}$`).exec(url)
   return match?.[1] ? decodeURIComponent(match[1]) : undefined
 }
 
@@ -422,6 +564,17 @@ function previewMetadata(preview: PreviewPayload) {
   }
   parts.push(formatBytes(preview.blob.size))
   return parts.join(" · ")
+}
+
+function excerptMetadata(excerpt: CitationEvidenceExcerpt) {
+  const pages = excerpt.startPage
+    ? excerpt.endPage && excerpt.endPage !== excerpt.startPage
+      ? `pages ${excerpt.startPage}–${excerpt.endPage}`
+      : `page ${excerpt.startPage}`
+    : undefined
+  return [pages, excerpt.presentationKind?.replace("_", " ")]
+    .filter(Boolean)
+    .join(" · ")
 }
 
 function sourceOrigin(source: AssistantSourceRef) {

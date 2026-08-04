@@ -8,6 +8,22 @@ sealed interface AssistantStreamPart {
     record FinishStep() implements AssistantStreamPart {
     }
 
+    record Activity(
+            Phase phase,
+            State state,
+            Integer evidenceCount) implements AssistantStreamPart {
+
+        enum Phase {
+            RETRIEVAL,
+            GENERATION
+        }
+
+        enum State {
+            ACTIVE,
+            COMPLETE
+        }
+    }
+
     record TextStart(String id) implements AssistantStreamPart {
     }
 

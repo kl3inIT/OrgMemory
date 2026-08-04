@@ -24,6 +24,13 @@ interface AssistantConversationMessageRepository
                     UUID actorUserId,
                     AssistantConversationRole role);
 
+    Optional<AssistantConversationMessage>
+            findOneByIdAndOrganizationIdAndActorUserIdAndRole(
+                    UUID id,
+                    UUID organizationId,
+                    UUID actorUserId,
+                    AssistantConversationRole role);
+
     @Query("""
             select message.conversationId as conversationId, count(message.id) as messageCount
             from AssistantConversationMessage message

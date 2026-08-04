@@ -13,6 +13,8 @@ import com.orgmemory.core.ai.AssistantModelAuthorityService;
 import com.orgmemory.core.ai.AssistantModelChoice;
 import com.orgmemory.core.ai.AssistantModelRouteAuthority;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -20,7 +22,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -68,6 +73,8 @@ class AssistantController {
     private final CurrentActorProvider actors;
     private final AssistantProperties properties;
     private final AssistantModelAuthorityService modelAuthority;
+    private final CitationEvidenceService citationEvidence;
+    private final AssistantRetrievalScheduler retrievalScheduler;
     private final ObjectMapper json;
 
     AssistantController(
@@ -77,6 +84,8 @@ class AssistantController {
             CurrentActorProvider actors,
             AssistantProperties properties,
             AssistantModelAuthorityService modelAuthority,
+            CitationEvidenceService citationEvidence,
+            AssistantRetrievalScheduler retrievalScheduler,
             ObjectMapper json) {
         this.assistant = assistant;
         this.conversations = conversations;
@@ -84,6 +93,8 @@ class AssistantController {
         this.actors = actors;
         this.properties = properties;
         this.modelAuthority = modelAuthority;
+        this.citationEvidence = citationEvidence;
+        this.retrievalScheduler = retrievalScheduler;
         this.json = json;
     }
 
@@ -105,27 +116,31 @@ class AssistantController {
                 request.message(),
                 modelSelection);
         UUID assistantMessageId = UUID.randomUUID();
-        AssistantTurn turn = assistant.startTurn(
-                actor,
-                request.message(),
-                request.limit(),
-                requestId,
-                conversationId.toString(),
-                routeAuthority);
-        StringBuilder completedAnswer = new StringBuilder();
-        Flux<AssistantStreamPart> parts = parts(turn)
-                .doOnNext(part -> {
-                    if (part instanceof AssistantStreamPart.TextDelta delta) {
-                        completedAnswer.append(delta.delta());
-                    }
-                })
-                .doOnComplete(() -> conversations.completeTurn(
-                        actor,
-                        conversationId,
-                        assistantMessageId,
-                        completedAnswer.toString()));
+        Flux<AssistantStreamPart> parts = Flux.defer(() -> {
+            long turnStartedAtNanos = System.nanoTime();
+            return Flux.concat(
+                    Flux.just(
+                            new AssistantStreamPart.StartStep(),
+                            new AssistantStreamPart.Activity(
+                                    AssistantStreamPart.Activity.Phase.RETRIEVAL,
+                                    AssistantStreamPart.Activity.State.ACTIVE,
+                                    null)),
+                    retrievalScheduler.schedule(() -> assistant.startTurn(
+                                    actor,
+                                    request.message(),
+                                    request.limit(),
+                                    requestId,
+                                    conversationId.toString(),
+                                    routeAuthority,
+                                    turnStartedAtNanos))
+                            .flatMapMany(turn -> completedTurnParts(
+                                    actor,
+                                    conversationId,
+                                    assistantMessageId,
+                                    turn)));
+        });
         return ResponseEntity.ok()
-                .header("X-Request-ID", turn.requestId())
+                .header("X-Request-ID", requestId)
                 .header("X-Conversation-ID", conversationId.toString())
                 .header(UI_MESSAGE_STREAM_HEADER, "v1")
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-transform")
@@ -174,6 +189,17 @@ class AssistantController {
     }
 
     record SelectAssistantModelRequest(UUID modelActivationId) {
+    }
+
+    record AssistantCitationResponse(
+            int citationNumber,
+            String sourceId,
+            String title,
+            String heading,
+            Integer startPage,
+            Integer endPage,
+            String excerptUrl,
+            String contentUrl) {
     }
 
     @GetMapping("/starters")
@@ -268,6 +294,65 @@ class AssistantController {
                 actors.current(authentication), conversationId);
     }
 
+    @GetMapping("/messages/{messageId}/citations")
+    @Operation(
+            operationId = "getAssistantMessageCitations",
+            summary = "Hydrate currently authorized citations for one owned Assistant answer")
+    ResponseEntity<List<AssistantCitationResponse>> citations(
+            @PathVariable UUID messageId,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        var stored = conversations.citationReferences(actor, messageId);
+        if (stored.isEmpty()) {
+            return citationHydrationResponse(List.of(), UUID.randomUUID().toString());
+        }
+        String requestId = UUID.randomUUID().toString();
+        Map<UUID, CitationEvidenceReference> visible = citationEvidence.hydrate(
+                        actor,
+                        stored.stream()
+                                .map(com.orgmemory.core.assistant.AssistantCitationReference::chunkId)
+                                .distinct()
+                                .toList(),
+                        requestId)
+                .stream()
+                .collect(Collectors.toMap(
+                        CitationEvidenceReference::chunkId,
+                        Function.identity()));
+        List<AssistantCitationResponse> response = stored.stream()
+                .map(reference -> {
+                    CitationEvidenceReference evidence = visible.get(reference.chunkId());
+                    if (evidence == null) {
+                        return null;
+                    }
+                    String chunkId = evidence.chunkId().toString();
+                    return new AssistantCitationResponse(
+                            reference.citationNumber(),
+                            "urn:orgmemory:citation:"
+                                    + reference.citationNumber()
+                                    + ":"
+                                    + chunkId,
+                            evidence.title(),
+                            evidence.heading(),
+                            evidence.startPage(),
+                            evidence.endPage(),
+                            "/api/citations/" + chunkId + "/excerpt",
+                            "/api/citations/" + chunkId + "/content");
+                })
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return citationHydrationResponse(response, requestId);
+    }
+
+    private static ResponseEntity<List<AssistantCitationResponse>> citationHydrationResponse(
+            List<AssistantCitationResponse> citations,
+            String requestId) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("X-Request-ID", requestId)
+                .body(citations);
+    }
+
     @PatchMapping("/conversations/{conversationId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
@@ -309,12 +394,42 @@ class AssistantController {
                                         Flux.just(new AssistantStreamPart
                                                 .TextEnd(TEXT_PART_ID)))
                                 : streamedTokens);
+        Flux<AssistantStreamPart> generation = turn.citations().isEmpty()
+                ? Flux.empty()
+                : Flux.just(new AssistantStreamPart.Activity(
+                        AssistantStreamPart.Activity.Phase.GENERATION,
+                        AssistantStreamPart.Activity.State.ACTIVE,
+                        null));
         return Flux.concat(
-                Flux.just(new AssistantStreamPart.StartStep()),
+                Flux.just(new AssistantStreamPart.Activity(
+                        AssistantStreamPart.Activity.Phase.RETRIEVAL,
+                        AssistantStreamPart.Activity.State.COMPLETE,
+                        turn.citations().size())),
+                generation,
                 Flux.fromIterable(turn.citations())
                         .map(AssistantController::sourcePart),
                 text,
                 Flux.just(new AssistantStreamPart.FinishStep()));
+    }
+
+    private Flux<AssistantStreamPart> completedTurnParts(
+            CurrentActor actor,
+            UUID conversationId,
+            UUID assistantMessageId,
+            AssistantTurn turn) {
+        StringBuilder completedAnswer = new StringBuilder();
+        return parts(turn)
+                .doOnNext(part -> {
+                    if (part instanceof AssistantStreamPart.TextDelta delta) {
+                        completedAnswer.append(delta.delta());
+                    }
+                })
+                .doOnComplete(() -> conversations.completeTurn(
+                        actor,
+                        conversationId,
+                        assistantMessageId,
+                        completedAnswer.toString(),
+                        turn.citations()));
     }
 
     private static AssistantStreamPart sourcePart(AssistantCitation citation) {

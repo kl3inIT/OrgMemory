@@ -28,6 +28,7 @@ public record AssistantTurnEvent(
         UUID organizationId,
         RetrievalEngine engine,
         Outcome outcome,
+        Duration retrieval,
         Duration timeToFirstToken,
         Duration total,
         int evidenceCount,
@@ -58,9 +59,14 @@ public record AssistantTurnEvent(
         Objects.requireNonNull(organizationId, "organizationId");
         Objects.requireNonNull(engine, "engine");
         Objects.requireNonNull(outcome, "outcome");
+        Objects.requireNonNull(retrieval, "retrieval");
         Objects.requireNonNull(total, "total");
-        if (total.isNegative()) {
-            throw new IllegalArgumentException("total must not be negative");
+        if (retrieval.isNegative() || total.isNegative()) {
+            throw new IllegalArgumentException("durations must not be negative");
+        }
+        if (retrieval.compareTo(total) > 0) {
+            throw new IllegalArgumentException(
+                    "retrieval must not exceed the turn it is measured within");
         }
         if (timeToFirstToken != null) {
             if (timeToFirstToken.isNegative()) {

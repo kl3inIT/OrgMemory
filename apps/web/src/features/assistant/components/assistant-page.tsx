@@ -11,6 +11,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react"
+import type { ReactNode, RefObject } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -58,12 +59,12 @@ import {
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
 import { useAssistantDraft } from "@/features/assistant/hooks/use-assistant-draft"
-import { useAssistantThinkingVisibility } from "@/features/assistant/hooks/use-assistant-thinking-visibility"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
 import { copyWithToast } from "@/lib/copy"
 import {
   deleteAssistantAnswerFeedbackMutation,
   getAssistantConversationHistoryOptions,
+  getAssistantMessageCitationsOptions,
   getAssistantModelOptionsOptions,
   listAssistantStartersOptions,
   listAssistantConversationsQueryKey,
@@ -73,10 +74,17 @@ import {
 import type {
   AssistantConversationMessageView,
   AssistantConversationSummary,
+  AssistantCitationResponse,
   AssistantModelOptionResponse,
 } from "@/lib/hey-api"
 
 type AnswerSentiment = "HELPFUL" | "NOT_HELPFUL"
+
+interface AssistantActivity {
+  phase: "RETRIEVAL" | "GENERATION"
+  state: "ACTIVE" | "COMPLETE"
+  evidenceCount?: number | null
+}
 
 function textFor(message: UIMessage) {
   return message.parts
@@ -108,6 +116,7 @@ function sourcesFor(message: UIMessage) {
       citationNumber,
       title: part.title ?? "Company knowledge",
       url,
+      excerptUrl: url.replace(/\/content$/, "/excerpt"),
     })
   }
   return sources.sort((left, right) => left.citationNumber - right.citationNumber)
@@ -158,6 +167,134 @@ function citationUrl(rawUrl: string) {
     return null
   }
   return null
+}
+
+function citationExcerptUrl(rawUrl: string) {
+  try {
+    const baseUrl = new URL("https://orgmemory.invalid")
+    const sourceUrl = new URL(rawUrl, baseUrl)
+    if (
+      sourceUrl.origin === baseUrl.origin &&
+      /^\/api\/citations\/[0-9a-f-]{36}\/excerpt$/i.test(sourceUrl.pathname) &&
+      sourceUrl.search === "" &&
+      sourceUrl.hash === ""
+    ) {
+      return sourceUrl.pathname
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function hydratedSources(citations: AssistantCitationResponse[] | undefined) {
+  const sources: AssistantSourceRef[] = []
+  const seen = new Set<number>()
+  for (const citation of citations ?? []) {
+    const citationNumber = citation.citationNumber
+    const url = citation.contentUrl ? citationUrl(citation.contentUrl) : null
+    const excerptUrl = citation.excerptUrl
+      ? citationExcerptUrl(citation.excerptUrl)
+      : null
+    if (
+      !citation.sourceId ||
+      !citationNumber ||
+      !Number.isSafeInteger(citationNumber) ||
+      seen.has(citationNumber) ||
+      !url ||
+      !excerptUrl
+    ) {
+      continue
+    }
+    seen.add(citationNumber)
+    sources.push({
+      id: citation.sourceId,
+      citationNumber,
+      title: citation.title?.trim() || "Company knowledge",
+      url,
+      excerptUrl,
+    })
+  }
+  return sources.sort((left, right) => left.citationNumber - right.citationNumber)
+}
+
+function isAssistantActivity(value: unknown): value is AssistantActivity {
+  if (!value || typeof value !== "object") return false
+  const activity = value as Record<string, unknown>
+  return (
+    (activity.phase === "RETRIEVAL" || activity.phase === "GENERATION") &&
+    (activity.state === "ACTIVE" || activity.state === "COMPLETE") &&
+    (activity.evidenceCount === undefined ||
+      activity.evidenceCount === null ||
+      (typeof activity.evidenceCount === "number" &&
+        Number.isSafeInteger(activity.evidenceCount) &&
+        activity.evidenceCount >= 0))
+  )
+}
+
+function activityLabel(activity: AssistantActivity | null) {
+  if (!activity) return "Connecting to the Assistant…"
+  if (activity.phase === "RETRIEVAL" && activity.state === "ACTIVE") {
+    return "Searching permitted knowledge…"
+  }
+  if (activity.phase === "RETRIEVAL") {
+    const count = activity.evidenceCount ?? 0
+    return count === 1 ? "Found 1 permitted source" : `Found ${count} permitted sources`
+  }
+  return "Preparing the grounded answer…"
+}
+
+function CitationHydration({
+  message,
+  actorKey,
+  children,
+}: {
+  message: UIMessage
+  actorKey: string
+  children: (value: {
+    sources: AssistantSourceRef[]
+    unavailable: boolean
+    anchorRef: RefObject<HTMLDivElement | null>
+  }) => ReactNode
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const liveSources = sourcesFor(message)
+  const needsHydration =
+    message.role === "assistant" &&
+    liveSources.length === 0 &&
+    /\[\d{1,3}]/.test(textFor(message))
+  const [nearViewport, setNearViewport] = useState(false)
+
+  useEffect(() => {
+    if (!needsHydration) return
+    const target = anchorRef.current
+    if (!target || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => entry?.isIntersecting && setNearViewport(true),
+      { rootMargin: "240px" },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [needsHydration])
+
+  const definition = getAssistantMessageCitationsOptions({
+    path: { messageId: message.id },
+  })
+  const query = useQuery({
+    ...definition,
+    queryKey: scopeActorQueryKey(definition.queryKey, actorKey),
+    enabled: needsHydration && nearViewport,
+    retry: false,
+    staleTime: 0,
+  })
+  return children({
+    sources: liveSources.length > 0 ? liveSources : hydratedSources(query.data),
+    unavailable: needsHydration && query.isError,
+    anchorRef,
+  })
 }
 
 function greeting() {
@@ -345,18 +482,24 @@ export function AssistantPage({
     citedSourceIds: string[]
     selectedSourceId: string
   } | null>(null)
+  const [activity, setActivity] = useState<AssistantActivity | null>(null)
   const submitLock = useRef(false)
   const {
     messages,
     sendMessage,
     setMessages,
     status,
-    stop,
+    stop: stopChat,
     error,
     clearError,
   } = useChat({
     transport,
+    onData: (part) => {
+      if (part.type !== "data-assistantActivity" || !isAssistantActivity(part.data)) return
+      setActivity(part.data)
+    },
     onFinish: () => {
+      setActivity(null)
       const invalidations = [
         queryClient.invalidateQueries({
           queryKey: conversationListQueryKey,
@@ -380,6 +523,10 @@ export function AssistantPage({
       void Promise.all(invalidations)
     },
   })
+  const stop = useCallback(() => {
+    setActivity(null)
+    stopChat()
+  }, [stopChat])
   const historyOptions = getAssistantConversationHistoryOptions({
     path: { conversationId: conversationId ?? "00000000-0000-0000-0000-000000000000" },
   })
@@ -440,6 +587,7 @@ export function AssistantPage({
     setSelectedModelActivationId(undefined)
     setSourcePanel(null)
     setFeedbackByMessage({})
+    setActivity(null)
     setMessages([])
   }, [actorKey, conversationId, setMessages, stop])
 
@@ -487,7 +635,7 @@ export function AssistantPage({
     (latestMessage === undefined ||
       latestMessage.role === "user" ||
       !hasVisibleOutput(latestMessage))
-  const showThinking = useAssistantThinkingVisibility(showWaiting)
+  const showThinking = showWaiting
   const openSources = useCallback(
     (
       messageId: string,
@@ -519,6 +667,7 @@ export function AssistantPage({
     nextTitleRef.current =
       message.length <= 80 ? message : `${message.slice(0, 77)}...`
     clearError()
+    setActivity(null)
     const turn = sendMessage({ text: message })
     if (clearComposer) clearDraft()
     const release = () => {
@@ -668,9 +817,10 @@ export function AssistantPage({
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
-            {messages.map((message, index) => {
+            {messages.map((message, index) => (
+              <CitationHydration key={message.id} message={message} actorKey={actorKey}>
+                {({ sources, unavailable, anchorRef }) => {
               const content = textFor(message)
-              const sources = sourcesFor(message)
               const citedSources = citedSourcesFor(content, sources)
               const precedingUserMessage = messages[index - 1]
               const retryPrompt =
@@ -684,7 +834,7 @@ export function AssistantPage({
               if (!content.trim() && sources.length === 0) return null
 
               return (
-                <Message from={message.role} key={message.id}>
+                <Message from={message.role} ref={anchorRef}>
                   {content.trim() ? (
                     <MessageContent className="text-body">
                       <AssistantAnswer
@@ -719,6 +869,11 @@ export function AssistantPage({
                         ))}
                       </SourcesContent>
                     </Sources>
+                  ) : null}
+                  {unavailable ? (
+                    <p role="status" className="text-supporting text-content-muted">
+                      Sources are temporarily unavailable. The saved answer is unchanged.
+                    </p>
                   ) : null}
                   {content.trim() ? (
                     <MessageActions className={message.role === "user" ? "justify-end" : undefined}>
@@ -767,11 +922,13 @@ export function AssistantPage({
                   ) : null}
                 </Message>
               )
-            })}
+                }}
+              </CitationHydration>
+            ))}
             {showThinking ? (
               <Message from="assistant">
                 <MessageContent>
-                  <AssistantThinkingIndicator />
+                  <AssistantThinkingIndicator label={activityLabel(activity)} />
                 </MessageContent>
               </Message>
             ) : null}

@@ -98,6 +98,13 @@ final class UiMessageStream {
             return switch (part) {
                 case AssistantStreamPart.StartStep ignored -> fields("type", "start-step");
                 case AssistantStreamPart.FinishStep ignored -> fields("type", "finish-step");
+                case AssistantStreamPart.Activity activity -> fields(
+                        "type", "data-assistantActivity",
+                        "data", fields(
+                                "phase", activity.phase().name(),
+                                "state", activity.state().name(),
+                                "evidenceCount", activity.evidenceCount()),
+                        "transient", true);
                 case AssistantStreamPart.TextStart text -> fields("type", "text-start", "id", text.id());
                 case AssistantStreamPart.TextDelta text -> fields(
                         "type", "text-delta", "id", text.id(), "delta", text.delta());
