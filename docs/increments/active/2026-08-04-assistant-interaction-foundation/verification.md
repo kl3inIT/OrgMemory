@@ -25,6 +25,7 @@ composite database ownership, cascade deletion, and draft lifecycle cleanup.
 | Product OpenAPI contract generation | passed against live Spring context |
 | Public OpenAPI projection generation and docs checks | passed; 120 paths and 7 groups |
 | `pnpm --filter @orgmemory/docs build` | passed; 147 static pages |
+| `pnpm release:check` and PR release preview | passed; valid `orgmemory` minor entry |
 | `git diff --check` | passed |
 
 The available runtime used Node `23.11.1` while the workspace declares Node 24
