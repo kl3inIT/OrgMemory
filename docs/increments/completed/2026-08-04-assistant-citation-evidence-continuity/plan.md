@@ -22,5 +22,5 @@
   retrieval versus model-TTFT measurement.
 - [x] Add focused service, controller, persistence, frontend, accessibility,
   browser-format, reload, revocation, and cross-user negative coverage.
-- [ ] Reconcile Assistant and secure-retrieval specs/test matrices, run the
+- [x] Reconcile Assistant and secure-retrieval specs/test matrices, run the
   completion gates, and drive the PR/CI/review loop through merge.
