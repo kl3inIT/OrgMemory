@@ -8,7 +8,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
+Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
 
 ## Current Behavior
 
@@ -41,6 +41,16 @@ than the mutable context, so it cannot publish a prompt or a completion. There i
 no request or conversation identifier on it; correlation to retrieval and to the
 model call is by trace context.
 
+Blocking permission-scoped retrieval runs on an Assistant-owned fixed scheduler
+with configured concurrency, a finite queue, sanitized overload rejection, and
+bounded shutdown. The server begins the UI message stream before scheduling
+retrieval and emits only transient closed activity values for retrieval active,
+retrieval complete with an already-authorized evidence count, and generation
+active. These events contain no question, source identity, arbitrary prose, or
+reasoning and are not persisted. Browser-owned copy replaces the activity on
+phase changes and removes it at the first model text token, abort, error, actor
+change, or completion; the waiting UI has no leading product icon.
+
 Time to first token is recorded as its own distribution,
 `orgmemory.assistant.time_to_first_token`, tagged only by engine and measured
 from the arriving question rather than from the model call, because
@@ -48,7 +58,11 @@ permission-scoped retrieval runs while the user waits. Spring AI's
 `gen_ai.client.operation` separately reports generation duration, per-call token
 usage and finish reason; it observes inside `ChatModel`, below `ChatModelPort`,
 and starts after retrieval, so the two measurements answer different questions.
-No meter carries an organization, request or conversation identifier.
+No meter carries an organization, request or conversation identifier. The
+separate `orgmemory.assistant.retrieval.duration` distribution measures the
+permission-scoped retrieval interval, including bounded scheduler queue wait,
+while TTFT still ends only on the first model text token rather than an activity
+event.
 
 Those two meters are load-bearing because the trace does not cover the turn. The
 streamed generation runs on a thread the request's trace context does not reach,
@@ -70,9 +84,13 @@ encrypted gateway profile, model id, and optional OpenAI reasoning effort;
 absence means the read-only deployment default. An explicit override is
 fail-closed, so provider failure does not silently send organization prompts to
 a different provider. Graph extraction and embedding remain deployment-managed.
-The citation response derives its media type from a closed extension allowlist,
-never from upload metadata. Text, PDF, and known raster images may render
-inline; Office and unknown formats are forced to download as binary content.
+The citation response derives its presentation from a closed filename allowlist,
+never from upload metadata, blob MIME, or display title. Text, Markdown, PDF,
+and PNG/JPEG/GIF/WebP may render inline; Office and unknown formats are forced
+to download. The citation-specific Markdown composition strips raw HTML, has no
+Mermaid or other active renderer, never loads remote resources automatically,
+blocks dangerous URLs, confirms outbound navigation, retains a raw view, and
+falls back to raw text if rendering fails.
 
 The Assistant composer exposes the current Answer model and any additional
 models an administrator activated on that same organization gateway. The
@@ -88,7 +106,12 @@ explicit reasoning effort, and no provider failure falls back to another model.
 The effective gateway/model identity is audited without prompt or completion
 content.
 
-The source panel treats citation content as server state. It deduplicates an
+The source panel treats citation content as server state. Selecting a citation
+opens its source directly rather than a metadata-only hover carousel. It first
+loads a separately audited, currently authorized excerpt capped at 4,000 Unicode
+code points, then loads the original only for a server-declared preview kind.
+The excerpt remains readable if original preview loading fails, and preview and
+download are separate actions. The panel deduplicates an
 in-flight open, does not retry an authorization failure, does not show stale
 content during a recheck, and discards the cached blob when the panel releases
 the source. Text, image, and PDF previews use browser-local object URLs; the
@@ -104,6 +127,17 @@ evidence. Every new turn performs a fresh authorized retrieval. Historical
 answers remain a snapshot of what the user received at that time, while opening
 a citation still rechecks current access. A future purge-on-revocation rule is a
 separate retention policy, not a prerequisite for ordinary multi-turn chat.
+Each completed Assistant message also owns only its ordered citation number to
+canonical chunk-ID mappings; it stores no excerpt, source bytes, title, URI, or
+object key. Answer and mapping rows commit atomically under a composite
+message/organization/actor foreign key, and conversation deletion cascades the
+mappings. Replay always returns the actor-owned transcript independently of
+live authorization. Near-viewport Assistant messages hydrate at most 100
+stored mappings through a separate no-store request, deduplicate chunks, and
+recheck current visibility in fixed batches of at most 20. Determinate denied,
+missing, stale, or revised sources simply leave their historical marker inert;
+an indeterminate authorization result fails citation hydration without hiding
+the saved answer.
 Each conversation also stores its optional model activation together with the
 organization route override identity and version observed at selection. Picker
 changes and turn creation lock the owned conversation row. Disabled catalog

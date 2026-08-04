@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
+Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -29,7 +29,8 @@ Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 | Assistant uses the already-verified LightRAG prompt instead of rebuilding chunk context | `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
 | Bounded model memory receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |
 | Only server-declared citation markers become interactive | `assistant-pipeline.spec.ts#anchors only server-declared citations and opens the matching source` | covered |
-| Text and PDF sources are fetched once through the protected endpoint | `assistant-pipeline.spec.ts` text and PDF preview scenarios | covered |
+| Text, PDF, image, and Office download-only presentation follows the server kind and uses protected endpoints | `assistant-pipeline.spec.ts` text, PDF, image, and Office scenarios; `CitationEvidenceServiceTests` | covered |
+| Markdown strips active HTML, blocks remote/data resources and dangerous URLs, renders Mermaid as inert code, and retains raw view | `assistant-pipeline.spec.ts#renders governed Markdown without active HTML or remote resource loads` | covered |
 | Revoked citations produce one opaque 404 without leaking the backend detail | `assistant-pipeline.spec.ts#shows an opaque citation error after access is revoked`, `CitationContentWebMvcTests` | covered |
 | Hostile upload media types cannot make citation content execute inline | `SourceUploadServiceTests#derivesTheStoredMediaTypeFromTheAllowlistedExtension`, `CitationContentControllerTests` | covered |
 | Empty evidence, provider retry, and user abort are browser-tested | `assistant-pipeline.spec.ts` | covered |
@@ -46,6 +47,9 @@ Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 | Asset tool traces contain exact release refs without raw Prompt secrets/output | `AssistantAssetToolServiceTests#promptTraceStoresShapeAndDigestButNoRawSecretOrOutput` | covered |
 | Asset Assistant has no approval/publication/withdrawal/permission/arbitrary-execution action | `AssistantAssetToolServiceTests#assistantActionRegistryHasNoGovernanceOrArbitraryExecutionPath` | covered |
 | Full transcript is actor-owned, replayed in order, and rejects another actor before writing | `AssistantConversationServiceTests` | covered |
+| Completed answers atomically persist ordered citation mappings with composite ownership, uniqueness, and cascade deletion | `AssistantConversationServiceTests#persistsServerDeclaredCitationReferencesWithTheCompletedAnswer`, `AssistantMessageCitationMigrationTests` | covered |
+| Citation hydration is transcript-independent, reloadable, actor-owned, bounded to 100, deduplicated, and current-authorization filtered | `AssistantConversationServiceTests` citation-reference scenarios, `CanonicalEvidenceAuthorizationServiceTests`, `CitationEvidenceServiceTests`, `assistant-pipeline.spec.ts#rehydrates currently authorized citations after transcript reload` | covered |
+| Excerpts reauthorize current evidence, cap Unicode content, audit allow/deny, and keep missing/revoked/stale outcomes opaque | `CitationEvidenceServiceTests`, `CitationContentControllerTests`, `CitationContentWebMvcTests`, `assistant-pipeline.spec.ts` revocation scenario | covered |
 | One server-owned answer UUID is shared by the stream and persisted transcript | `AssistantControllerStreamingTests#usesOneServerOwnedIdentityForTheStreamAndPersistedAnswer`, `AssistantConversationServiceTests#persistsTheServerAllocatedAssistantMessageIdentity`, `UiMessageStreamTests` | covered |
 | Answer feedback creates, replaces, removes, and replays only against an owned assistant message | `AssistantConversationServiceTests`, `AssistantControllerStreamingTests#delegatesFeedbackThroughTheAuthenticatedActor`, `assistant-pipeline.spec.ts#creates, replaces, removes, and replays answer feedback` | covered |
 | Feedback ownership and deletion are database-enforced across the message tenant/actor tuple | `AssistantAnswerFeedbackMigrationTests` | covered |
@@ -57,6 +61,9 @@ Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 | Empty-state hierarchy removes decorative permission copy and the searchable model dialog sends only an opaque activation UUID | `assistant-pipeline.spec.ts#chooses a governed model in the composer and sends only its opaque activation` | covered |
 | An in-place actor change hides and clears the prior actor's transcript, feedback, and source state before new history renders | `assistant-pipeline.spec.ts#clears conversation state before rendering a different actor's history` | covered |
 | Time to first token counts the permission-scoped retrieval the user waits through | `AssistantTurnObservationTests#countsTheWaitBeforeTheModelIsEvenAsked` | covered |
+| Retrieval has its own latency distribution, while transient activity does not become TTFT | `AssistantTurnObservationTests#recordsPermissionScopedRetrievalSeparatelyFromModelLatency`, `UiMessageStreamTests` | covered |
+| Stream start and retrieval-active reach the client while blocking retrieval is still running | `AssistantControllerStreamingTests#emitsStreamStartAndRetrievalActivityWhileRetrievalIsStillBlocked` | covered |
+| Blocking retrieval uses a bounded scheduler whose overload is sanitized and whose cancellation interrupts active work | `AssistantRetrievalSchedulerTests` | covered |
 | Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
 | A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
 | Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |

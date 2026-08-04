@@ -19,6 +19,9 @@ _openapi:
       title: List current permission-verified Knowledge versions for composition
       url: '#list-current-permission-verified-knowledge-versions-for-composition'
     - depth: 2
+      title: Read a bounded permission-verified citation excerpt
+      url: '#read-a-bounded-permission-verified-citation-excerpt'
+    - depth: 2
       title: Stream permission-verified source evidence
       url: '#stream-permission-verified-source-evidence'
   structuredData:
@@ -27,6 +30,8 @@ _openapi:
         id: search-permission-verified-knowledge-evidence
       - content: List current permission-verified Knowledge versions for composition
         id: list-current-permission-verified-knowledge-versions-for-composition
+      - content: Read a bounded permission-verified citation excerpt
+        id: read-a-bounded-permission-verified-citation-excerpt
       - content: Stream permission-verified source evidence
         id: stream-permission-verified-source-evidence
     contents: []
@@ -41,7 +46,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/knowledge/search","method":"get"},{"path":"/api/knowledge/catalog","method":"get"},{"path":"/api/citations/{chunkId}/content","method":"get"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/knowledge/search","method":"get"},{"path":"/api/knowledge/catalog","method":"get"},{"path":"/api/citations/{chunkId}/excerpt","method":"get"},{"path":"/api/citations/{chunkId}/content","method":"get"}]} showTitle showDescription />
     </>
   );
 }

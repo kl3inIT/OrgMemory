@@ -19,16 +19,19 @@ public class AssistantConversationService {
 
     private final AssistantConversationRepository conversations;
     private final AssistantConversationMessageRepository messages;
+    private final AssistantMessageCitationRepository citations;
     private final AssistantAnswerFeedbackRepository answerFeedback;
     private final Clock clock;
 
     AssistantConversationService(
             AssistantConversationRepository conversations,
             AssistantConversationMessageRepository messages,
+            AssistantMessageCitationRepository citations,
             AssistantAnswerFeedbackRepository answerFeedback,
             Clock clock) {
         this.conversations = conversations;
         this.messages = messages;
+        this.citations = citations;
         this.answerFeedback = answerFeedback;
         this.clock = clock;
     }
@@ -91,9 +94,20 @@ public class AssistantConversationService {
             UUID conversationId,
             UUID assistantMessageId,
             String assistantMessage) {
+        completeTurn(actor, conversationId, assistantMessageId, assistantMessage, List.of());
+    }
+
+    @Transactional
+    public void completeTurn(
+            CurrentActor actor,
+            UUID conversationId,
+            UUID assistantMessageId,
+            String assistantMessage,
+            List<AssistantCitation> answerCitations) {
         if (assistantMessage == null || assistantMessage.isBlank()) {
             return;
         }
+        List<AssistantCitation> persistedCitations = validateCitations(answerCitations);
         AssistantConversation conversation = requireOwned(actor, conversationId);
         Instant now = clock.instant();
         messages.save(new AssistantConversationMessage(
@@ -104,7 +118,36 @@ public class AssistantConversationService {
                 AssistantConversationRole.ASSISTANT,
                 assistantMessage,
                 now));
+        citations.saveAll(persistedCitations.stream()
+                .map(citation -> new AssistantMessageCitation(
+                        UUID.randomUUID(),
+                        assistantMessageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        citation.number(),
+                        citation.evidence().chunkId()))
+                .toList());
         conversation.touch(now);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssistantCitationReference> citationReferences(
+            CurrentActor actor, UUID messageId) {
+        messages.findOneByIdAndOrganizationIdAndActorUserIdAndRole(
+                        messageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        AssistantConversationRole.ASSISTANT)
+                .orElseThrow(() -> new BusinessNotFoundException(
+                        "assistant.answer-not-found",
+                        "Assistant answer not found",
+                        BusinessErrorExposure.OPAQUE_RESOURCE));
+        List<AssistantMessageCitation> stored =
+                citations.findAllByMessageIdOrderByCitationNumber(messageId);
+        if (stored.size() > 100) {
+            throw new IllegalStateException("Assistant citation reference limit exceeded");
+        }
+        return stored.stream().map(AssistantMessageCitation::view).toList();
     }
 
     @Transactional(readOnly = true)
@@ -225,6 +268,22 @@ public class AssistantConversationService {
     private static String firstTitle(String message) {
         String normalized = message.strip().replaceAll("\\s+", " ");
         return normalized.length() <= 80 ? normalized : normalized.substring(0, 77) + "...";
+    }
+
+    private static List<AssistantCitation> validateCitations(
+            List<AssistantCitation> answerCitations) {
+        List<AssistantCitation> values = List.copyOf(
+                answerCitations == null ? List.of() : answerCitations);
+        if (values.size() > 100) {
+            throw new IllegalArgumentException("At most 100 citations may be persisted per answer");
+        }
+        for (int index = 0; index < values.size(); index++) {
+            if (values.get(index).number() != index + 1) {
+                throw new IllegalArgumentException(
+                        "Citation numbers must be consecutive and ordered");
+            }
+        }
+        return values;
     }
 
     private static String requireUserMessage(String value) {

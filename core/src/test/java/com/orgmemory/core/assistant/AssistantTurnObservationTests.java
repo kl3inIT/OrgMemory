@@ -176,6 +176,23 @@ class AssistantTurnObservationTests {
     }
 
     @Test
+    void recordsPermissionScopedRetrievalSeparatelyFromModelLatency() {
+        whenSearchTakes(SLOW_ENOUGH_TO_MEASURE);
+        whenModelStreams(Flux.just("Sixty days."));
+
+        drain(startTurn());
+
+        Timer retrievalTimer = meters.find(
+                        AssistantTurnMeterObservationHandler.RETRIEVAL_DURATION)
+                .timer();
+        assertTrue(retrievalTimer != null, "the handler recorded no retrieval duration");
+        assertTrue(
+                retrievalTimer.totalTime(TimeUnit.NANOSECONDS)
+                        >= SLOW_ENOUGH_TO_MEASURE.toNanos(),
+                "permission-scoped retrieval needs its own latency distribution");
+    }
+
+    @Test
     void attributesPromptAssemblyAndRetrievalToFirstTokenAboveRetrieval() {
         whenSearchTakes(Duration.ZERO);
         whenModelStreams(Flux.just("Sixty days."));

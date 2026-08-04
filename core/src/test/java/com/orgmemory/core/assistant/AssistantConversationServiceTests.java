@@ -3,6 +3,7 @@ package com.orgmemory.core.assistant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
+import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import java.time.Clock;
@@ -30,6 +32,8 @@ class AssistantConversationServiceTests {
             mock(AssistantConversationRepository.class);
     private final AssistantConversationMessageRepository messages =
             mock(AssistantConversationMessageRepository.class);
+    private final AssistantMessageCitationRepository citations =
+            mock(AssistantMessageCitationRepository.class);
     private final AssistantAnswerFeedbackRepository answerFeedback =
             mock(AssistantAnswerFeedbackRepository.class);
     private final CurrentActor actor = new CurrentActor(
@@ -45,6 +49,7 @@ class AssistantConversationServiceTests {
         service = new AssistantConversationService(
                 conversations,
                 messages,
+                citations,
                 answerFeedback,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         when(conversations.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -150,6 +155,91 @@ class AssistantConversationServiceTests {
         assertEquals(
                 AssistantConversationRole.ASSISTANT,
                 saved.getValue().view().role());
+    }
+
+    @Test
+    void persistsServerDeclaredCitationReferencesWithTheCompletedAnswer() {
+        UUID conversationId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        UUID chunkId = UUID.randomUUID();
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(ownedConversation(conversationId)));
+        RetrievedKnowledgeEvidence evidence = mock(RetrievedKnowledgeEvidence.class);
+        when(evidence.chunkId()).thenReturn(chunkId);
+
+        service.completeTurn(
+                actor,
+                conversationId,
+                messageId,
+                "The probation period is 60 days. [1]",
+                List.of(new AssistantCitation(1, evidence)));
+
+        @SuppressWarnings("rawtypes")
+        ArgumentCaptor<Iterable> saved = ArgumentCaptor.forClass(Iterable.class);
+        verify(citations).saveAll(saved.capture());
+        AssistantMessageCitation citation =
+                (AssistantMessageCitation) saved.getValue().iterator().next();
+        assertEquals(new AssistantCitationReference(1, chunkId), citation.view());
+    }
+
+    @Test
+    void readsCitationReferencesOnlyThroughNonLockingActorOwnedAssistantLookup() {
+        UUID conversationId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        UUID chunkId = UUID.randomUUID();
+        AssistantConversationMessage answer = new AssistantConversationMessage(
+                messageId,
+                conversationId,
+                actor.organizationId(),
+                actor.userId(),
+                AssistantConversationRole.ASSISTANT,
+                "Sixty days. [1]",
+                NOW);
+        when(messages.findOneByIdAndOrganizationIdAndActorUserIdAndRole(
+                        messageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        AssistantConversationRole.ASSISTANT))
+                .thenReturn(Optional.of(answer));
+        AssistantMessageCitation citation = new AssistantMessageCitation(
+                UUID.randomUUID(),
+                messageId,
+                actor.organizationId(),
+                actor.userId(),
+                1,
+                chunkId);
+        when(citations.findAllByMessageIdOrderByCitationNumber(messageId))
+                .thenReturn(List.of(citation));
+
+        assertEquals(
+                List.of(new AssistantCitationReference(1, chunkId)),
+                service.citationReferences(actor, messageId));
+        verify(messages, never()).findByIdAndOrganizationIdAndActorUserIdAndRole(
+                eq(messageId),
+                eq(actor.organizationId()),
+                eq(actor.userId()),
+                eq(AssistantConversationRole.ASSISTANT));
+    }
+
+    @Test
+    void disclosesNoStoredCitationIdsForAnotherActorsMessage() {
+        UUID messageId = UUID.randomUUID();
+        when(messages.findOneByIdAndOrganizationIdAndActorUserIdAndRole(
+                        messageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        AssistantConversationRole.ASSISTANT))
+                .thenReturn(Optional.empty());
+
+        BusinessNotFoundException failure = assertThrows(
+                BusinessNotFoundException.class,
+                () -> service.citationReferences(actor, messageId));
+
+        assertEquals("assistant.answer-not-found", failure.code());
+        verify(citations, never()).findAllByMessageIdOrderByCitationNumber(eq(messageId));
     }
 
     @Test

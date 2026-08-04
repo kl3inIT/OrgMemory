@@ -533,10 +533,15 @@ projection snapshot. Graph curation and export remain curator/admin operations;
 the explorer does not create a second ACL or expose globally merged
 descriptions.
 
-Assistant citations use API-owned opaque URLs. The API rechecks the canonical
-evidence boundary, streams original bytes from object storage, and exposes no
-MinIO key or presigned storage URL. The web client opens the authenticated
-response as a short-lived browser blob for PDF, image, and text preview.
+Assistant citations use API-owned opaque URLs. Completed answers atomically
+persist only ordered citation-to-chunk mappings, and replay hydrates currently
+visible citation affordances separately from the actor-owned transcript. The
+API rechecks the canonical evidence boundary for a bounded audited excerpt and
+again before streaming original bytes from object storage; it exposes no MinIO
+key or presigned storage URL. The web client shows the excerpt first, uses a
+closed server presentation kind, renders Markdown through a restricted profile,
+and opens authenticated PDF, image, and text responses as short-lived browser
+blobs. Office and unknown formats remain download-only.
 
 ## Current Security And Operations
 

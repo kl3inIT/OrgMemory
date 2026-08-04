@@ -2,6 +2,8 @@ package com.orgmemory.api.knowledge;
 
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.knowledge.retrieval.CitationContentService;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceExcerpt;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
 import com.orgmemory.core.knowledge.sourceledger.KnowledgeContentType;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.UUID;
@@ -22,13 +24,33 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 class CitationContentController {
 
     private final CitationContentService citations;
+    private final CitationEvidenceService evidence;
     private final CurrentActorProvider actors;
 
     CitationContentController(
             CitationContentService citations,
+            CitationEvidenceService evidence,
             CurrentActorProvider actors) {
         this.citations = citations;
+        this.evidence = evidence;
         this.actors = actors;
+    }
+
+    @GetMapping("/{chunkId}/excerpt")
+    @Operation(
+            operationId = "readCitationExcerpt",
+            summary = "Read a bounded permission-verified citation excerpt")
+    ResponseEntity<CitationEvidenceExcerpt> excerpt(
+            @PathVariable UUID chunkId,
+            Authentication authentication) {
+        String requestId = UUID.randomUUID().toString();
+        CitationEvidenceExcerpt excerpt = evidence.excerpt(
+                actors.current(authentication), chunkId, requestId);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("X-Request-ID", requestId)
+                .header("X-Content-Type-Options", "nosniff")
+                .body(excerpt);
     }
 
     @GetMapping("/{chunkId}/content")

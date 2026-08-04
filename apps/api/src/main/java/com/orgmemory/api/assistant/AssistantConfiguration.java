@@ -37,6 +37,15 @@ class AssistantConfiguration {
         return Clock.systemUTC();
     }
 
+    @Bean(destroyMethod = "close")
+    AssistantRetrievalScheduler assistantRetrievalScheduler(
+            AssistantProperties properties) {
+        return new AssistantRetrievalScheduler(
+                properties.retrievalMaximumConcurrency(),
+                properties.retrievalQueueCapacity(),
+                properties.retrievalShutdownTimeout());
+    }
+
     @Bean
     ChatMemory assistantChatMemory(
             ChatMemoryRepository repository,

@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.authorization.AuthorizationDecision;
@@ -267,6 +269,74 @@ class CanonicalEvidenceAuthorizationServiceTests {
             verify(fixture.audit).record(audit.capture());
             assertEquals(result.reasonCode(), audit.getValue().reasonCode());
         }
+    }
+
+    @Test
+    void replayHydrationFiltersDeniedEvidenceWithoutSuppressingAllowedEvidence() {
+        Fixture fixture = new Fixture();
+        when(fixture.scopes.resolve(ACTOR, MODEL_ID))
+                .thenReturn(scope(Set.of(ASSET_ID, SECOND_ASSET_ID)));
+        when(fixture.canonical.recheck(any(), any()))
+                .thenReturn(List.of(
+                        candidate(CHUNK_ID, ASSET_ID),
+                        candidate(SECOND_CHUNK_ID, SECOND_ASSET_ID)));
+        when(fixture.authorization.batchCheck(any()))
+                .thenReturn(BatchAuthorizationResult.resolved(
+                        Map.of(
+                                resource(ASSET_ID), AuthorizationDecision.allow(MODEL_ID),
+                                resource(SECOND_ASSET_ID), AuthorizationDecision.deny(
+                                        "RELATIONSHIP_DENIED", MODEL_ID)),
+                        MODEL_ID));
+
+        var hydrated = fixture.service.filterVisible(
+                ACTOR,
+                "request-replay",
+                "citation-hydration",
+                List.of(CHUNK_ID, SECOND_CHUNK_ID));
+
+        assertEquals(List.of(CHUNK_ID), hydrated.candidates().stream()
+                .map(SecureRetrievalCandidate::chunkId)
+                .toList());
+    }
+
+    @Test
+    void replayHydrationUsesFixedAuthorizationBatchesAndFailsOnIndeterminateResults() {
+        Fixture fixture = new Fixture();
+        List<UUID> assets = java.util.stream.IntStream.range(0, 21)
+                .mapToObj(ignored -> UUID.randomUUID())
+                .toList();
+        List<UUID> chunks = java.util.stream.IntStream.range(0, 21)
+                .mapToObj(ignored -> UUID.randomUUID())
+                .toList();
+        when(fixture.scopes.resolve(ACTOR, MODEL_ID))
+                .thenReturn(scope(Set.copyOf(assets)));
+        when(fixture.canonical.recheck(any(), any()))
+                .thenReturn(java.util.stream.IntStream.range(0, 21)
+                        .mapToObj(index -> candidate(chunks.get(index), assets.get(index)))
+                        .toList());
+        when(fixture.authorization.batchCheck(any()))
+                .thenAnswer(invocation -> {
+                    BatchAuthorizationQuery query = invocation.getArgument(0);
+                    return BatchAuthorizationResult.resolved(
+                            query.resources().stream().collect(java.util.stream.Collectors.toMap(
+                                    resource -> resource,
+                                    ignored -> AuthorizationDecision.allow(MODEL_ID))),
+                            MODEL_ID);
+                });
+
+        assertEquals(21, fixture.service.filterVisible(
+                        ACTOR, "request-batches", "citation-hydration", chunks)
+                .candidates().size());
+        verify(fixture.authorization, times(2)).batchCheck(any());
+
+        doReturn(BatchAuthorizationResult.indeterminate(
+                        "OPENFGA_TIMEOUT", MODEL_ID))
+                .when(fixture.authorization)
+                .batchCheck(any());
+        assertThrows(
+                KnowledgeRetrievalUnavailableException.class,
+                () -> fixture.service.filterVisible(
+                        ACTOR, "request-timeout", "citation-hydration", chunks));
     }
 
     private static ResolvedKnowledgeEvidenceScope scope() {

@@ -4,15 +4,7 @@ import { defaultRemarkPlugins } from "streamdown"
 
 import {
   InlineCitation,
-  InlineCitationCard,
-  InlineCitationCardBody,
-  InlineCitationCardTrigger,
-  InlineCitationCarousel,
-  InlineCitationCarouselContent,
-  InlineCitationCarouselHeader,
-  InlineCitationCarouselIndex,
-  InlineCitationCarouselItem,
-  InlineCitationSource,
+  InlineCitationTrigger,
 } from "@/components/ai-elements/inline-citation"
 import { MessageResponse } from "@/components/ai-elements/message-response"
 import type { AssistantSourceRef } from "@/features/assistant/components/assistant-sources-panel"
@@ -67,38 +59,20 @@ export function AssistantAnswer({
 
         return (
           <InlineCitation>
-            <InlineCitationCard>
-              <InlineCitationCardTrigger
-                sources={[source.url]}
-                label={`OrgMemory ${citationNumber}`}
-                role="button"
-                tabIndex={0}
-                aria-label={`Open source ${citationNumber}: ${source.title}`}
-                onClick={() => onOpenSource(source.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault()
-                    onOpenSource(source.id)
-                  }
-                }}
-              />
-              <InlineCitationCardBody>
-                <InlineCitationCarousel>
-                  <InlineCitationCarouselHeader>
-                    <InlineCitationCarouselIndex />
-                  </InlineCitationCarouselHeader>
-                  <InlineCitationCarouselContent>
-                    <InlineCitationCarouselItem>
-                      <InlineCitationSource
-                        title={source.title}
-                        url="OrgMemory document"
-                        description="Permission-verified evidence used for this answer."
-                      />
-                    </InlineCitationCarouselItem>
-                  </InlineCitationCarouselContent>
-                </InlineCitationCarousel>
-              </InlineCitationCardBody>
-            </InlineCitationCard>
+            <InlineCitationTrigger
+              sources={[source.url]}
+              label={`[${citationNumber}]`}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open source ${citationNumber}: ${source.title}`}
+              onClick={() => onOpenSource(source.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  onOpenSource(source.id)
+                }
+              }}
+            />
           </InlineCitation>
         )
       },

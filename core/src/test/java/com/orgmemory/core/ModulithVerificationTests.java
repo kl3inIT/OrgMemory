@@ -781,7 +781,11 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearchConfiguration",
                         "com.orgmemory.core.knowledge.retrieval.CitationContent",
                         "com.orgmemory.core.knowledge.retrieval.CitationContentService",
+                        "com.orgmemory.core.knowledge.retrieval.CitationEvidenceExcerpt",
+                        "com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference",
+                        "com.orgmemory.core.knowledge.retrieval.CitationEvidenceService",
                         "com.orgmemory.core.knowledge.retrieval.CitationNotFoundException",
+                        "com.orgmemory.core.knowledge.retrieval.CitationPresentationKind",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRef",
                         "com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry",
@@ -1019,7 +1023,7 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void citationContentUsesTheSourceLedgerOwnerQuery() {
+    void citationRepresentationsUseTheSourceLedgerOwnerQuery() {
         var consumers = modules.stream()
                 .flatMap(module -> module.getDirectDependencies(modules).stream())
                 .filter(dependency -> dependency.getTargetType()
@@ -1031,7 +1035,9 @@ class ModulithVerificationTests {
                 .collect(TreeSet::new, Set::add, Set::addAll);
 
         assertEquals(
-                Set.of("com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService"),
+                Set.of(
+                        "com.orgmemory.core.knowledge.retrieval.DefaultCitationContentService",
+                        "com.orgmemory.core.knowledge.retrieval.DefaultCitationEvidenceService"),
                 consumers);
     }
 

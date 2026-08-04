@@ -2,7 +2,9 @@ package com.orgmemory.api.assistant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
@@ -17,21 +19,29 @@ import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantCitation;
+import com.orgmemory.core.assistant.AssistantCitationReference;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceService;
+import com.orgmemory.core.knowledge.retrieval.CitationEvidenceReference;
 import com.orgmemory.core.organization.CurrentActor;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import tools.jackson.databind.ObjectMapper;
 
@@ -80,6 +90,8 @@ class AssistantControllerStreamingTests {
                 actors,
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                mock(AssistantRetrievalScheduler.class),
                 mock(ObjectMapper.class));
 
         AssistantAnswerFeedbackView actual = controller.setFeedback(
@@ -138,6 +150,8 @@ class AssistantControllerStreamingTests {
                 actors,
                 mock(AssistantProperties.class),
                 authority,
+                mock(CitationEvidenceService.class),
+                mock(AssistantRetrievalScheduler.class),
                 mock(ObjectMapper.class));
 
         AssistantController.AssistantModelOptionsResponse response =
@@ -153,6 +167,47 @@ class AssistantControllerStreamingTests {
                 .toList());
         verify(authority).authorize(actor.organizationId(), activationId);
         verify(conversations).selectModel(actor, conversationId, stored);
+    }
+
+    @Test
+    void hydratesOnlyCurrentlyVisibleCitationsWithoutCachingTheAuthorizationResult() {
+        AssistantConversationService conversations = mock(AssistantConversationService.class);
+        CitationEvidenceService evidenceService = mock(CitationEvidenceService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Laura",
+                "laura@example.test");
+        UUID messageId = UUID.randomUUID();
+        UUID chunkId = UUID.randomUUID();
+        when(actors.current(authentication)).thenReturn(actor);
+        when(conversations.citationReferences(actor, messageId))
+                .thenReturn(List.of(new AssistantCitationReference(1, chunkId)));
+        when(evidenceService.hydrate(eq(actor), eq(List.of(chunkId)), anyString()))
+                .thenReturn(List.of(new CitationEvidenceReference(
+                        chunkId, "Employee Handbook", "Probation", 2, 2)));
+        AssistantController controller = new AssistantController(
+                mock(AssistantService.class),
+                conversations,
+                mock(ChatMemory.class),
+                actors,
+                mock(AssistantProperties.class),
+                mock(AssistantModelAuthorityService.class),
+                evidenceService,
+                mock(AssistantRetrievalScheduler.class),
+                mock(ObjectMapper.class));
+
+        var response = controller.citations(messageId, authentication);
+
+        assertEquals("no-store", response.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
+        assertEquals("nosniff", response.getHeaders().getFirst("X-Content-Type-Options"));
+        assertEquals("Employee Handbook", response.getBody().getFirst().title());
+        assertEquals(
+                "/api/citations/" + chunkId + "/excerpt",
+                response.getBody().getFirst().excerptUrl());
     }
 
     @Test
@@ -179,11 +234,13 @@ class AssistantControllerStreamingTests {
                         eq(5),
                         anyString(),
                         eq(conversationId.toString()),
-                        isNull()))
+                        isNull(),
+                        anyLong()))
                 .thenReturn(new AssistantTurn(
                         "request-1", List.of(), reactor.core.publisher.Flux.just("Answer")));
         when(properties.heartbeatInterval()).thenReturn(Duration.ofHours(1));
         when(properties.turnTimeout()).thenReturn(Duration.ofMinutes(1));
+        AssistantRetrievalScheduler scheduler = immediateScheduler();
         AssistantController controller = new AssistantController(
                 assistant,
                 conversations,
@@ -191,6 +248,8 @@ class AssistantControllerStreamingTests {
                 actors,
                 properties,
                 mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                scheduler,
                 new ObjectMapper());
 
         List<String> frames = controller.chat(
@@ -202,12 +261,93 @@ class AssistantControllerStreamingTests {
 
         ArgumentCaptor<UUID> messageId = ArgumentCaptor.forClass(UUID.class);
         verify(conversations).completeTurn(
-                eq(actor), eq(conversationId), messageId.capture(), eq("Answer"));
+                eq(actor),
+                eq(conversationId),
+                messageId.capture(),
+                eq("Answer"),
+                eq(List.of()));
         assertEquals(
                 "{\"type\":\"start\",\"messageId\":\""
                         + messageId.getValue()
                         + "\"}",
                 frames.getFirst());
+    }
+
+    @Test
+    void emitsStreamStartAndRetrievalActivityWhileRetrievalIsStillBlocked()
+            throws InterruptedException {
+        AssistantService assistant = mock(AssistantService.class);
+        AssistantConversationService conversations = mock(AssistantConversationService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        AssistantProperties properties = mock(AssistantProperties.class);
+        Authentication authentication = mock(Authentication.class);
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Laura",
+                "laura@example.test");
+        UUID conversationId = UUID.randomUUID();
+        CountDownLatch retrievalEntered = new CountDownLatch(1);
+        CountDownLatch releaseRetrieval = new CountDownLatch(1);
+        AtomicBoolean retrievalCompleted = new AtomicBoolean();
+        when(actors.current(authentication)).thenReturn(actor);
+        when(conversations.beginTurn(actor, null, "Question", null))
+                .thenReturn(conversationId);
+        when(assistant.startTurn(
+                        eq(actor),
+                        eq("Question"),
+                        eq(5),
+                        anyString(),
+                        eq(conversationId.toString()),
+                        isNull(),
+                        anyLong()))
+                .thenAnswer(invocation -> {
+                    retrievalEntered.countDown();
+                    releaseRetrieval.await();
+                    retrievalCompleted.set(true);
+                    return new AssistantTurn(
+                            "request-1", List.of(), reactor.core.publisher.Flux.just("Answer"));
+                });
+        when(properties.heartbeatInterval()).thenReturn(Duration.ofHours(1));
+        when(properties.turnTimeout()).thenReturn(Duration.ofMinutes(1));
+        AssistantRetrievalScheduler scheduler =
+                new AssistantRetrievalScheduler(1, 1, Duration.ofSeconds(1));
+        AssistantController controller = new AssistantController(
+                assistant,
+                conversations,
+                mock(ChatMemory.class),
+                actors,
+                properties,
+                mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                scheduler,
+                new ObjectMapper());
+
+        try {
+            StepVerifier.create(controller.chat(
+                                    new AssistantChatRequest("Question", 5, null, null),
+                                    authentication)
+                            .getBody())
+                    .assertNext(event -> assertTrue(event.data().contains("\"type\":\"start\"")))
+                    .assertNext(event -> assertEquals(
+                            "{\"type\":\"start-step\"}", event.data()))
+                    .assertNext(event -> {
+                        assertTrue(event.data().contains("data-assistantActivity"));
+                        assertTrue(event.data().contains("\"phase\":\"RETRIEVAL\""));
+                        assertTrue(event.data().contains("\"state\":\"ACTIVE\""));
+                    })
+                    .then(() -> {
+                        assertTrue(await(retrievalEntered));
+                        assertTrue(!retrievalCompleted.get());
+                        releaseRetrieval.countDown();
+                    })
+                    .thenConsumeWhile(ignored -> true)
+                    .verifyComplete();
+        } finally {
+            releaseRetrieval.countDown();
+            scheduler.close();
+        }
     }
 
     @Test
@@ -221,9 +361,21 @@ class AssistantControllerStreamingTests {
                 model.asFlux());
 
         StepVerifier.create(controller().parts(turn))
-                .assertNext(part -> assertInstanceOf(
-                        AssistantStreamPart.StartStep.class,
-                        part))
+                .assertNext(part -> {
+                    var activity = assertInstanceOf(
+                            AssistantStreamPart.Activity.class,
+                            part);
+                    assertEquals(AssistantStreamPart.Activity.Phase.RETRIEVAL, activity.phase());
+                    assertEquals(AssistantStreamPart.Activity.State.COMPLETE, activity.state());
+                    assertEquals(1, activity.evidenceCount());
+                })
+                .assertNext(part -> {
+                    var activity = assertInstanceOf(
+                            AssistantStreamPart.Activity.class,
+                            part);
+                    assertEquals(AssistantStreamPart.Activity.Phase.GENERATION, activity.phase());
+                    assertEquals(AssistantStreamPart.Activity.State.ACTIVE, activity.state());
+                })
                 .assertNext(part -> {
                     var source = assertInstanceOf(
                             AssistantStreamPart.SourceUrl.class,
@@ -277,6 +429,8 @@ class AssistantControllerStreamingTests {
                 actors,
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                mock(AssistantRetrievalScheduler.class),
                 mock(ObjectMapper.class));
 
         controller.delete(conversationId, authentication);
@@ -294,7 +448,26 @@ class AssistantControllerStreamingTests {
                 mock(CurrentActorProvider.class),
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
+                mock(CitationEvidenceService.class),
+                mock(AssistantRetrievalScheduler.class),
                 mock(ObjectMapper.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static AssistantRetrievalScheduler immediateScheduler() {
+        AssistantRetrievalScheduler scheduler = mock(AssistantRetrievalScheduler.class);
+        when(scheduler.schedule(org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> Mono.fromCallable(invocation.getArgument(0)));
+        return scheduler;
+    }
+
+    private static boolean await(CountDownLatch latch) {
+        try {
+            return latch.await(2, TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     private static RetrievedKnowledgeEvidence evidence() {

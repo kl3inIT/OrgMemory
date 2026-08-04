@@ -30,6 +30,7 @@ public class AssistantTurnMeterObservationHandler
         implements ObservationHandler<AssistantTurnObservationContext> {
 
     public static final String TIME_TO_FIRST_TOKEN = "orgmemory.assistant.time_to_first_token";
+    public static final String RETRIEVAL_DURATION = "orgmemory.assistant.retrieval.duration";
 
     private final MeterRegistry registry;
 
@@ -40,6 +41,13 @@ public class AssistantTurnMeterObservationHandler
     @Override
     public void onStop(AssistantTurnObservationContext context) {
         AssistantTurnEvent event = context.toEvent();
+        Timer.builder(RETRIEVAL_DURATION)
+                .description("Time from an assistant question to permission-scoped retrieval completion")
+                .tag(
+                        AssistantTurnObservationDocumentation.LowCardinality.ENGINE.asString(),
+                        event.engine().name().toLowerCase(Locale.ROOT))
+                .register(registry)
+                .record(event.retrieval());
         if (!event.started()) {
             return;
         }
