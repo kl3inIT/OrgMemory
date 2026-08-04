@@ -65,6 +65,71 @@
         }
       }
     },
+    "/api/assistant/messages/{messageId}/feedback": {
+      "put": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Create or replace feedback on an owned Assistant answer",
+        "operationId": "setAssistantAnswerFeedback",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerFeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantAnswerFeedbackView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Remove feedback from an owned Assistant answer",
+        "operationId": "deleteAssistantAnswerFeedback",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/skill-draft": {
       "put": {
         "tags": [
@@ -3682,6 +3747,30 @@
         }
       }
     },
+    "/api/assistant/starters": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "List supported prompts for starting an Assistant conversation",
+        "operationId": "listAssistantStarters",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantStarterPrompt"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assistant/conversations": {
       "get": {
         "tags": [
@@ -5218,6 +5307,41 @@
           },
           "journey": {
             "$ref": "#/components/schemas/PackJourney"
+          }
+        }
+      },
+      "AnswerFeedbackRequest": {
+        "type": "object",
+        "properties": {
+          "sentiment": {
+            "type": "string",
+            "enum": [
+              "HELPFUL",
+              "NOT_HELPFUL"
+            ]
+          }
+        },
+        "required": [
+          "sentiment"
+        ]
+      },
+      "AssistantAnswerFeedbackView": {
+        "type": "object",
+        "properties": {
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sentiment": {
+            "type": "string",
+            "enum": [
+              "HELPFUL",
+              "NOT_HELPFUL"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -8596,6 +8720,20 @@
           }
         }
       },
+      "AssistantStarterPrompt": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          }
+        }
+      },
       "AssistantConversationSummary": {
         "type": "object",
         "properties": {
@@ -8640,6 +8778,13 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "feedback": {
+            "type": "string",
+            "enum": [
+              "HELPFUL",
+              "NOT_HELPFUL"
+            ]
           }
         }
       },
