@@ -23,7 +23,19 @@ class GraphRagQueryRuntimePropertiesTests {
         assertEquals("none", policy.rerank().provider());
         assertEquals(2_000, policy.maximumEvidenceClosure());
         assertEquals(4, policy.maximumConcurrentSpaces());
+        assertEquals(4, policy.retrievalAdmissionPermits());
+        assertEquals(40, policy.topK());
         assertEquals(Duration.ofHours(24), properties.keywordCacheTtl());
+    }
+
+    @Test
+    void supersededMaximumConcurrentSpacesRemainsValidated() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> propertiesWithConcurrency(0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> propertiesWithConcurrency(21));
     }
 
     @Test
@@ -65,9 +77,32 @@ class GraphRagQueryRuntimePropertiesTests {
                 null,
                 null,
                 null,
+                null,
                 rerankEnabled,
                 rerankProvider,
                 minimumRerankScore,
+                null);
+    }
+
+    private static GraphRagQueryRuntimeProperties propertiesWithConcurrency(
+            Integer maximumConcurrentSpaces) {
+        return new GraphRagQueryRuntimeProperties(
+                null,
+                null,
+                null,
+                20,
+                maximumConcurrentSpaces,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null);
     }
 }

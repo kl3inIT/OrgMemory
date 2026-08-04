@@ -3,6 +3,7 @@ package com.orgmemory.core.knowledge.retrieval;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -28,6 +29,7 @@ import com.orgmemory.core.permission.PermissionAuditCommand;
 import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
+import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
 import com.orgmemory.graphrag.query.ContextTokenUsage;
 import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.LightRagGrounding;
@@ -35,6 +37,7 @@ import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
 import com.orgmemory.graphrag.query.LightRagPreparedQuery;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
+import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
@@ -79,6 +82,10 @@ class GraphRagKnowledgeRetrievalServiceTests {
             UUID.fromString("40000000-0000-0000-0000-000000000011");
     private static final UUID SECOND_ASSET_ID =
             UUID.fromString("40000000-0000-0000-0000-000000000012");
+    private static final UUID THIRD_SPACE_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000013");
+    private static final UUID THIRD_ASSET_ID =
+            UUID.fromString("40000000-0000-0000-0000-000000000014");
     private static final String MODEL_ID = "model-v1";
     private static final Instant NOW =
             Instant.parse("2026-07-24T00:00:00Z");
@@ -166,6 +173,157 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals(2, snapshotStages.size());
         assertTrue(snapshotStages.stream()
                 .allMatch(event -> event.scopeFingerprint() != null));
+    }
+
+    @Test
+    void acquiresAdmissionPermitBeforeExecutingTheSnapshotStoreQuery() {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(scope(Set.of(ASSET_ID), 1L));
+        RetrievalAdmissionControl admission =
+                new RetrievalAdmissionControl(1);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery prepared = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(prepared);
+        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+            assertEquals(
+                    0,
+                    admission.availablePermits(),
+                    "the storage-query boundary must not be entered before admission");
+            return noResults();
+        });
+
+        service(
+                        scopes,
+                        mock(RelationshipAuthorizationSetPort.class),
+                        mock(SecureKnowledgeRetrievalStore.class),
+                        engine,
+                        policy(4, 1),
+                        audit,
+                        mock(GraphRagEventSink.class),
+                        admission)
+                .search(
+                        actor,
+                        "What is the leave policy?",
+                        10,
+                        "request-admission-before-checkout");
+
+        verify(engine).executePrepared(any(), any());
+        assertEquals(1, admission.availablePermits());
+    }
+
+    @Test
+    void continuousAdmissionDoesNotWaitForAnEarlierSnapshotBatch()
+            throws InterruptedException {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(threeSpaceScope());
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery prepared = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(prepared);
+        CountDownLatch firstStarted = new CountDownLatch(1);
+        CountDownLatch releaseFirst = new CountDownLatch(1);
+        CountDownLatch thirdStarted = new CountDownLatch(1);
+        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+            LightRagQueryRequest request = invocation.getArgument(0);
+            Set<UUID> assets = request.scope().authorizedAssetIds();
+            if (assets.contains(ASSET_ID)) {
+                firstStarted.countDown();
+                assertTrue(releaseFirst.await(2, TimeUnit.SECONDS));
+            } else if (assets.contains(THIRD_ASSET_ID)) {
+                thirdStarted.countDown();
+            }
+            return noResults();
+        });
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                mock(RelationshipAuthorizationSetPort.class),
+                mock(SecureKnowledgeRetrievalStore.class),
+                engine,
+                policy(2, 2),
+                audit,
+                mock(GraphRagEventSink.class));
+
+        var result = java.util.concurrent.CompletableFuture.supplyAsync(() ->
+                service.search(
+                        actor,
+                        "What is the leave policy?",
+                        10,
+                        "request-continuous-admission"));
+
+        try {
+            assertTrue(firstStarted.await(2, TimeUnit.SECONDS));
+            assertTrue(
+                    thirdStarted.await(2, TimeUnit.SECONDS),
+                    "the next space should enter as soon as a permit is free");
+        } finally {
+            releaseFirst.countDown();
+        }
+        assertEquals(List.of(), result.join().evidence());
+    }
+
+    @Test
+    void snapshotFailureCancelsOutstandingContinuouslyAdmittedTasks()
+            throws InterruptedException {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes =
+                mock(KnowledgeEvidenceScopeResolver.class);
+        when(scopes.resolve(actor, MODEL_ID))
+                .thenReturn(threeSpaceScope());
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery prepared = preparedQueryPlan();
+        when(engine.prepare(any())).thenReturn(prepared);
+        CountDownLatch blockersStarted = new CountDownLatch(2);
+        CountDownLatch neverReleased = new CountDownLatch(1);
+        CountDownLatch interrupted = new CountDownLatch(2);
+        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+            LightRagQueryRequest request = invocation.getArgument(0);
+            if (request.scope().authorizedAssetIds().contains(SECOND_ASSET_ID)) {
+                assertTrue(blockersStarted.await(2, TimeUnit.SECONDS));
+                throw new IllegalStateException("snapshot failed");
+            }
+            blockersStarted.countDown();
+            try {
+                neverReleased.await();
+                return noResults();
+            } catch (InterruptedException cancelled) {
+                interrupted.countDown();
+                throw cancelled;
+            }
+        });
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                mock(RelationshipAuthorizationSetPort.class),
+                mock(SecureKnowledgeRetrievalStore.class),
+                engine,
+                policy(2, 3),
+                audit,
+                mock(GraphRagEventSink.class));
+
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(3),
+                () -> assertThrows(
+                        IllegalStateException.class,
+                        () -> service.search(
+                                actor,
+                                "What is the leave policy?",
+                                10,
+                                "request-fail-closed-cancellation")));
+        assertTrue(
+                interrupted.await(2, TimeUnit.SECONDS),
+                "every outstanding snapshot task must be interrupted");
+    }
+
+    @Test
+    void retrievalAdmissionControlUsesFairQueueing() {
+        assertTrue(new RetrievalAdmissionControl(4).fair());
     }
 
     @Test
@@ -901,6 +1059,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         return new GraphRagRetrievalPolicy(
                 defaults.maximumKnowledgeSpaces(),
                 defaults.maximumConcurrentSpaces(),
+                defaults.retrievalAdmissionPermits(),
                 defaults.topK(),
                 defaults.chunkTopK(),
                 defaults.relatedChunkNumber(),
@@ -923,6 +1082,27 @@ class GraphRagKnowledgeRetrievalServiceTests {
             GraphRagRetrievalPolicy policy,
             PermissionAuditService audit,
             GraphRagEventSink events) {
+        return service(
+                scopes,
+                finalAuthorization,
+                canonical,
+                engine,
+                policy,
+                audit,
+                events,
+                new RetrievalAdmissionControl(
+                        policy.retrievalAdmissionPermits()));
+    }
+
+    private static GraphRagKnowledgeRetrievalService service(
+            KnowledgeEvidenceScopeResolver scopes,
+            RelationshipAuthorizationSetPort finalAuthorization,
+            SecureKnowledgeRetrievalStore canonical,
+            LightRagQueryEngine engine,
+            GraphRagRetrievalPolicy policy,
+            PermissionAuditService audit,
+            GraphRagEventSink events,
+            RetrievalAdmissionControl admission) {
         RelationshipAuthorizationPort entry =
                 mock(RelationshipAuthorizationPort.class);
         when(entry.check(any()))
@@ -961,7 +1141,47 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         5,
                         5_000,
                         1_000),
-                events);
+                events,
+                GraphRagTaskDecorator.NONE,
+                admission);
+    }
+
+    private static GraphRagRetrievalPolicy policy(
+            int maximumConcurrentSpaces,
+            int admissionPermits) {
+        GraphRagRetrievalPolicy defaults =
+                GraphRagRetrievalPolicy.defaults();
+        return new GraphRagRetrievalPolicy(
+                defaults.maximumKnowledgeSpaces(),
+                maximumConcurrentSpaces,
+                admissionPermits,
+                defaults.topK(),
+                defaults.chunkTopK(),
+                defaults.relatedChunkNumber(),
+                defaults.maximumGraphDepth(),
+                defaults.maximumEvidenceClosure(),
+                defaults.minimumVectorSimilarity(),
+                defaults.includeHeadings(),
+                defaults.rerank(),
+                defaults.contextBudget());
+    }
+
+    private static ResolvedKnowledgeEvidenceScope threeSpaceScope() {
+        return new ResolvedKnowledgeEvidenceScope(
+                ORGANIZATION_ID,
+                USER_ID,
+                null,
+                false,
+                MODEL_ID,
+                NOW,
+                Map.of(
+                        SPACE_ID, Set.of(ASSET_ID),
+                        SECOND_SPACE_ID, Set.of(SECOND_ASSET_ID),
+                        THIRD_SPACE_ID, Set.of(THIRD_ASSET_ID)),
+                Map.of(
+                        SPACE_ID, 1L,
+                        SECOND_SPACE_ID, 1L,
+                        THIRD_SPACE_ID, 1L));
     }
 
     private static LightRagGrounding grounding() {

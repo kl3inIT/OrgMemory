@@ -12,6 +12,7 @@ record GraphRagQueryRuntimeProperties(
         Integer maximumEmbeddingBatchSize,
         Integer maximumKnowledgeSpaces,
         Integer maximumConcurrentSpaces,
+        Integer retrievalAdmissionPermits,
         Integer topK,
         Integer chunkTopK,
         Integer relatedChunkNumber,
@@ -45,7 +46,11 @@ record GraphRagQueryRuntimeProperties(
             throw new IllegalArgumentException(
                     "maximumConcurrentSpaces must not exceed maximumKnowledgeSpaces");
         }
-        topK = positive(topK, 60, "topK");
+        retrievalAdmissionPermits = positive(
+                retrievalAdmissionPermits,
+                4,
+                "retrievalAdmissionPermits");
+        topK = positive(topK, 40, "topK");
         chunkTopK = positive(chunkTopK, 20, "chunkTopK");
         relatedChunkNumber = positive(
                 relatedChunkNumber,
@@ -98,6 +103,7 @@ record GraphRagQueryRuntimeProperties(
         return new GraphRagRetrievalPolicy(
                 maximumKnowledgeSpaces,
                 maximumConcurrentSpaces,
+                retrievalAdmissionPermits,
                 topK,
                 chunkTopK,
                 relatedChunkNumber,
