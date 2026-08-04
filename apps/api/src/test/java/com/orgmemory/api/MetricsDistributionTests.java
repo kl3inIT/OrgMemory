@@ -45,6 +45,7 @@ class MetricsDistributionTests {
                 "jvm.gc.pause",
                 "orgmemory.assistant.turn",
                 "orgmemory.assistant.time_to_first_token",
+                "orgmemory.assistant.stage",
                 "orgmemory.graph_rag.stage",
                 "gen_ai.client.operation"
             })
@@ -63,6 +64,7 @@ class MetricsDistributionTests {
             strings = {
                 "http.server.requests",
                 "orgmemory.assistant.turn",
+                "orgmemory.assistant.stage",
                 "orgmemory.graph_rag.stage",
                 "gen_ai.client.operation"
             })

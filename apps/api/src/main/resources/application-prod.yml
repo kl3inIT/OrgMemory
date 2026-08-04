@@ -7,8 +7,8 @@ spring:
     password: ${ORGMEMORY_DB_PASSWORD}
     hikari:
       pool-name: orgmemory-api
-      maximum-pool-size: ${ORGMEMORY_API_DB_POOL_MAXIMUM_SIZE:12}
-      minimum-idle: ${ORGMEMORY_API_DB_POOL_MINIMUM_IDLE:2}
+      maximum-pool-size: ${ORGMEMORY_API_DB_POOL_MAXIMUM_SIZE:8}
+      minimum-idle: ${ORGMEMORY_API_DB_POOL_MINIMUM_IDLE:8}
       connection-timeout: ${ORGMEMORY_DB_CONNECTION_TIMEOUT_MS:10000}
       validation-timeout: ${ORGMEMORY_DB_VALIDATION_TIMEOUT_MS:5000}
       max-lifetime: ${ORGMEMORY_DB_MAX_LIFETIME_MS:1800000}

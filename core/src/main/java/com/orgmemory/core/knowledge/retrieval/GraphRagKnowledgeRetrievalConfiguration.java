@@ -16,6 +16,13 @@ import org.springframework.context.annotation.Configuration;
 class GraphRagKnowledgeRetrievalConfiguration {
 
     @Bean
+    RetrievalAdmissionControl graphRagRetrievalAdmissionControl(
+            GraphRagRetrievalPolicy policy) {
+        return new RetrievalAdmissionControl(
+                policy.retrievalAdmissionPermits());
+    }
+
+    @Bean
     GraphRagKnowledgeRetrievalService graphRagKnowledgeRetrievalService(
             KnowledgeSearchAuthorizationService searchAuthorization,
             KnowledgeEvidenceScopeResolver evidenceScopes,
@@ -28,6 +35,7 @@ class GraphRagKnowledgeRetrievalConfiguration {
             GraphRagRetrievalPolicy policy,
             PermissionAuditService audit,
             KnowledgeRetrievalProperties retrievalProperties,
+            RetrievalAdmissionControl admission,
             ObjectProvider<GraphRagEventSink> eventSinks,
             ObjectProvider<GraphRagTaskDecorator> taskDecorators) {
         return new DefaultGraphRagKnowledgeRetrievalService(
@@ -44,6 +52,7 @@ class GraphRagKnowledgeRetrievalConfiguration {
                 retrievalProperties,
                 GraphRagEventSink.failureTolerant(
                         GraphRagEventSink.composite(eventSinks.orderedStream().toList())),
-                taskDecorators.getIfAvailable(() -> GraphRagTaskDecorator.NONE));
+                taskDecorators.getIfAvailable(() -> GraphRagTaskDecorator.NONE),
+                admission);
     }
 }

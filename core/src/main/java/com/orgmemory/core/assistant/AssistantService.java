@@ -4,6 +4,8 @@ import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.ai.AssistantModelRouteAuthority;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink.AssistantStageEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnObservationContext;
 import com.orgmemory.core.assistant.observability.AssistantTurnObservationDocumentation;
@@ -13,6 +15,8 @@ import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import reactor.core.publisher.Flux;
@@ -29,6 +33,7 @@ public class AssistantService {
     private final ChatModelPort chat;
     private final ObservationRegistry observations;
     private final AssistantTurnEvent.RetrievalEngine engine;
+    private final AssistantStageEventSink stages;
 
     /**
      * @param engine which retrieval implementation was wired in. Passed rather than asked of
@@ -41,10 +46,25 @@ public class AssistantService {
             ChatModelPort chat,
             ObservationRegistry observations,
             AssistantTurnEvent.RetrievalEngine engine) {
+        this(
+                retrieval,
+                chat,
+                observations,
+                engine,
+                AssistantStageEventSink.NO_OP);
+    }
+
+    public AssistantService(
+            PermissionAwareKnowledgeSearch retrieval,
+            ChatModelPort chat,
+            ObservationRegistry observations,
+            AssistantTurnEvent.RetrievalEngine engine,
+            AssistantStageEventSink stages) {
         this.retrieval = retrieval;
         this.chat = chat;
         this.observations = observations;
         this.engine = engine;
+        this.stages = stages;
     }
 
     /**
@@ -93,28 +113,46 @@ public class AssistantService {
                 return new AssistantTurn(search.requestId(), List.of(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
             }
 
-            PreparedTurn prepared = search.grounding()
-                    .map(grounding -> new PreparedTurn(
-                            AssistantPromptFactory.addUserContext(
-                                    grounding.generationRequest(),
-                                    actor),
-                            numbered(grounding.citations())))
-                    .orElseGet(() -> {
-                        AssistantPromptFactory.PreparedPrompt prompt =
-                                AssistantPromptFactory.create(
-                                        question,
-                                        search.evidence(),
-                                        actor);
-                        return new PreparedTurn(
-                                prompt.request(),
-                                prompt.citations());
-                    });
+            long retrievalCompletedAt = System.nanoTime();
+            PreparedTurn prepared;
+            try {
+                prepared = search.grounding()
+                        .map(grounding -> new PreparedTurn(
+                                AssistantPromptFactory.addUserContext(
+                                        grounding.generationRequest(),
+                                        actor),
+                                numbered(grounding.citations())))
+                        .orElseGet(() -> {
+                            AssistantPromptFactory.PreparedPrompt prompt =
+                                    AssistantPromptFactory.create(
+                                            question,
+                                            search.evidence(),
+                                            actor);
+                            return new PreparedTurn(
+                                    prompt.request(),
+                                    prompt.citations());
+                        });
+                emitStage(
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Outcome.SUCCEEDED,
+                        retrievalCompletedAt,
+                        null);
+            } catch (RuntimeException failure) {
+                emitStage(
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Outcome.FAILED,
+                        retrievalCompletedAt,
+                        "prompt_assembly_failed");
+                throw failure;
+            }
 
             int evidenceCount = search.evidence().size();
             int citationCount = prepared.citations().size();
             // A returned Flux is cold and could be subscribed more than once; Micrometer's
             // stop is not idempotent, so the second terminal signal must not reach it.
             java.util.concurrent.atomic.AtomicBoolean stopped =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            java.util.concurrent.atomic.AtomicBoolean firstTokenStageEmitted =
                     new java.util.concurrent.atomic.AtomicBoolean();
             Flux<String> generated = routeAuthority == null
                     ? chat.stream(
@@ -137,7 +175,20 @@ public class AssistantService {
                             error -> new AssistantUnavailableException("The assistant is unavailable", error))
                     // Before the error mapping's terminal signal, so the moment the caller
                     // could first see something is recorded even on a stream that later fails.
-                    .doOnNext(token -> context.firstTokenAt(System.nanoTime()))
+                    .doOnNext(token -> {
+                        long firstTokenAt = System.nanoTime();
+                        context.firstTokenAt(firstTokenAt);
+                        if (firstTokenStageEmitted.compareAndSet(
+                                false,
+                                true)) {
+                            emitStage(
+                                    AssistantStageEventSink.Stage
+                                            .RETRIEVAL_TO_FIRST_TOKEN,
+                                    AssistantStageEventSink.Outcome.SUCCEEDED,
+                                    retrievalCompletedAt,
+                                    null);
+                        }
+                    })
                     .doOnError(error -> {
                         context.unavailable(System.nanoTime(), "assistant_stream_failed");
                         observation.error(error);
@@ -159,6 +210,22 @@ public class AssistantService {
         } catch (RuntimeException exception) {
             throw failed(observation, context, exception);
         }
+    }
+
+    private void emitStage(
+            AssistantStageEventSink.Stage stage,
+            AssistantStageEventSink.Outcome outcome,
+            long startedAt,
+            String failureCode) {
+        stages.emit(new AssistantStageEvent(
+                engine,
+                stage,
+                outcome,
+                Duration.ofNanos(Math.max(
+                        0L,
+                        System.nanoTime() - startedAt)),
+                failureCode,
+                Instant.now()));
     }
 
     /**

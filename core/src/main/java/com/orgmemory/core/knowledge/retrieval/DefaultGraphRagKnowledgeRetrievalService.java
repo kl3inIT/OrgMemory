@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -87,6 +88,7 @@ class DefaultGraphRagKnowledgeRetrievalService
     private final KnowledgeRetrievalProperties retrievalProperties;
     private final GraphRagEventSink events;
     private final GraphRagTaskDecorator tasks;
+    private final RetrievalAdmissionControl admission;
 
     DefaultGraphRagKnowledgeRetrievalService(
             KnowledgeSearchAuthorizationService searchAuthorization,
@@ -114,7 +116,9 @@ class DefaultGraphRagKnowledgeRetrievalService
                 audit,
                 retrievalProperties,
                 events,
-                GraphRagTaskDecorator.NONE);
+                GraphRagTaskDecorator.NONE,
+                new RetrievalAdmissionControl(
+                        policy.retrievalAdmissionPermits()));
     }
 
     DefaultGraphRagKnowledgeRetrievalService(
@@ -131,6 +135,39 @@ class DefaultGraphRagKnowledgeRetrievalService
             KnowledgeRetrievalProperties retrievalProperties,
             GraphRagEventSink events,
             GraphRagTaskDecorator tasks) {
+        this(
+                searchAuthorization,
+                evidenceScopes,
+                authorization,
+                canonicalEvidence,
+                embeddingProfiles,
+                embedding,
+                publications,
+                engine,
+                policy,
+                audit,
+                retrievalProperties,
+                events,
+                tasks,
+                new RetrievalAdmissionControl(
+                        policy.retrievalAdmissionPermits()));
+    }
+
+    DefaultGraphRagKnowledgeRetrievalService(
+            KnowledgeSearchAuthorizationService searchAuthorization,
+            KnowledgeEvidenceScopeResolver evidenceScopes,
+            RelationshipAuthorizationSetPort authorization,
+            SecureKnowledgeRetrievalStore canonicalEvidence,
+            EmbeddingProfileRegistry embeddingProfiles,
+            KnowledgeEmbeddingProperties embedding,
+            ProjectionPublicationStore publications,
+            LightRagQueryEngine engine,
+            GraphRagRetrievalPolicy policy,
+            PermissionAuditService audit,
+            KnowledgeRetrievalProperties retrievalProperties,
+            GraphRagEventSink events,
+            GraphRagTaskDecorator tasks,
+            RetrievalAdmissionControl admission) {
         this.searchAuthorization = searchAuthorization;
         this.evidenceScopes = evidenceScopes;
         this.batchRecheck = new OpenFgaBatchRecheck(authorization);
@@ -144,6 +181,7 @@ class DefaultGraphRagKnowledgeRetrievalService
         this.retrievalProperties = retrievalProperties;
         this.events = Objects.requireNonNull(events, "events");
         this.tasks = Objects.requireNonNull(tasks, "tasks");
+        this.admission = Objects.requireNonNull(admission, "admission");
     }
 
     @Override
@@ -499,45 +537,52 @@ class DefaultGraphRagKnowledgeRetrievalService
         List<LightRagGrounding> groundings = new ArrayList<>();
         try (ExecutorService executor =
                 Executors.newVirtualThreadPerTaskExecutor()) {
-            for (int offset = 0;
-                    offset < requests.size();
-                    offset += policy.maximumConcurrentSpaces()) {
-                int end = Math.min(
-                        requests.size(),
-                        offset + policy.maximumConcurrentSpaces());
-                List<Future<SnapshotQueryResult>> futures =
-                        requests.subList(offset, end)
-                                .stream()
-                                .map(request -> executor.submit(tasks.decorate(() ->
-                                        queryPublishedSpace(request, prepared))))
-                                .toList();
-                try {
-                    for (Future<SnapshotQueryResult> future : futures) {
-                        SnapshotQueryResult snapshotResult = future.get();
-                        emitSnapshotStage(
-                                operationId,
-                                scope.organizationId(),
-                                snapshotResult.duration(),
-                                snapshotResult.inputCount(),
-                                snapshotResult.result()
-                                        .grounding()
-                                        .chunks()
-                                        .size(),
-                                snapshotResult.namespace());
-                        emitRerank(
-                                operationId,
-                                scope.organizationId(),
-                                snapshotResult.result());
-                        LightRagGrounding grounding =
-                                snapshotResult.result().grounding();
-                        if (!grounding.empty()) {
-                            groundings.add(grounding);
-                        }
-                    }
-                } catch (ExecutionException | InterruptedException
-                        | RuntimeException failure) {
-                    futures.forEach(future -> future.cancel(true));
-                    throw retrievalFailure(failure);
+            var completed = new ExecutorCompletionService<IndexedSnapshotQueryResult>(
+                    executor);
+            List<Future<IndexedSnapshotQueryResult>> futures =
+                    new ArrayList<>(requests.size());
+            for (int index = 0; index < requests.size(); index++) {
+                int resultIndex = index;
+                LightRagQueryRequest request = requests.get(index);
+                futures.add(completed.submit(tasks.decorate(() ->
+                        new IndexedSnapshotQueryResult(
+                                resultIndex,
+                                queryPublishedSpace(request, prepared)))));
+            }
+            SnapshotQueryResult[] ordered =
+                    new SnapshotQueryResult[requests.size()];
+            try {
+                for (int completedCount = 0;
+                        completedCount < requests.size();
+                        completedCount++) {
+                    IndexedSnapshotQueryResult result =
+                            completed.take().get();
+                    ordered[result.index()] = result.result();
+                }
+            } catch (ExecutionException | InterruptedException
+                    | RuntimeException failure) {
+                futures.forEach(future -> future.cancel(true));
+                throw retrievalFailure(failure);
+            }
+            for (SnapshotQueryResult snapshotResult : ordered) {
+                emitSnapshotStage(
+                        operationId,
+                        scope.organizationId(),
+                        snapshotResult.duration(),
+                        snapshotResult.inputCount(),
+                        snapshotResult.result()
+                                .grounding()
+                                .chunks()
+                                .size(),
+                        snapshotResult.namespace());
+                emitRerank(
+                        operationId,
+                        scope.organizationId(),
+                        snapshotResult.result());
+                LightRagGrounding grounding =
+                        snapshotResult.result().grounding();
+                if (!grounding.empty()) {
+                    groundings.add(grounding);
                 }
             }
         }
@@ -546,10 +591,11 @@ class DefaultGraphRagKnowledgeRetrievalService
 
     private SnapshotQueryResult queryPublishedSpace(
             LightRagQueryRequest request,
-            LightRagPreparedQuery prepared) {
+            LightRagPreparedQuery prepared) throws Exception {
         long startedAt = System.nanoTime();
         LightRagQueryResult result =
-                engine.executePrepared(request, prepared);
+                admission.execute(() ->
+                        engine.executePrepared(request, prepared));
         return new SnapshotQueryResult(
                 result,
                 Duration.ofNanos(Math.max(
@@ -557,6 +603,11 @@ class DefaultGraphRagKnowledgeRetrievalService
                         System.nanoTime() - startedAt)),
                 request.scope().authorizedAssetIds().size(),
                 request.snapshot().namespace());
+    }
+
+    private record IndexedSnapshotQueryResult(
+            int index,
+            SnapshotQueryResult result) {
     }
 
     private static RuntimeException retrievalFailure(Exception failure) {
