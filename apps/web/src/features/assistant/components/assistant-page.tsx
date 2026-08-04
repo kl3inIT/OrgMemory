@@ -175,6 +175,7 @@ export function AssistantPage({
     () => scopeActorQueryKey(listAssistantConversationsQueryKey(), actorKey),
     [actorKey],
   )
+  const actorKeyRef = useRef(actorKey)
   const conversationIdRef = useRef(conversationId)
   const locallyCreatedConversationRef = useRef<string | undefined>(undefined)
   const nextTitleRef = useRef("New conversation")
@@ -301,14 +302,16 @@ export function AssistantPage({
   })
 
   useEffect(() => {
-    if (conversationIdRef.current === conversationId) return
+    const actorChanged = actorKeyRef.current !== actorKey
+    if (!actorChanged && conversationIdRef.current === conversationId) return
     stop()
+    actorKeyRef.current = actorKey
     conversationIdRef.current = conversationId
     locallyCreatedConversationRef.current = undefined
     setSourcePanel(null)
     setFeedbackByMessage({})
     setMessages([])
-  }, [conversationId, setMessages, stop])
+  }, [actorKey, conversationId, setMessages, stop])
 
   useEffect(() => {
     if (
@@ -430,12 +433,13 @@ export function AssistantPage({
     </PromptInput>
   )
 
-  const isSwitchingConversation =
-    conversationId !== undefined && conversationIdRef.current !== conversationId
+  const isSwitchingScope =
+    actorKeyRef.current !== actorKey ||
+    (conversationId !== undefined && conversationIdRef.current !== conversationId)
 
   if (
     conversationId &&
-    (isSwitchingConversation || (history.isPending && messages.length === 0))
+    (isSwitchingScope || (history.isPending && messages.length === 0))
   ) {
     return (
       <div
@@ -451,7 +455,7 @@ export function AssistantPage({
 
   if (
     conversationId &&
-    !isSwitchingConversation &&
+    !isSwitchingScope &&
     history.isError &&
     messages.length === 0
   ) {

@@ -22,7 +22,9 @@ interface AssistantHarnessOptions {
     { status: number; contentType?: string; body?: string | Buffer }
   >
   holdChat?: boolean
+  holdHistoryAfterActorSwitch?: boolean
   history?: HistoryMessage[]
+  switchedActorHistory?: HistoryMessage[]
 }
 
 async function assistantHarness(page: Page, options: AssistantHarnessOptions = {}) {
@@ -32,8 +34,13 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
   const chatBodies: Array<Record<string, unknown>> = []
   const feedbackBodies: Array<Record<string, unknown>> = []
   let releaseChat: (() => void) | undefined
+  let releaseHistory: (() => void) | undefined
+  let actorIndex = 1
   const chatRelease = new Promise<void>((resolve) => {
     releaseChat = resolve
+  })
+  const historyRelease = new Promise<void>((resolve) => {
+    releaseHistory = resolve
   })
 
   page.on("pageerror", (error) => browserErrors.push(error.message))
@@ -53,9 +60,9 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
     if (url.pathname === "/api/session") {
       await json(route, {
         authenticated: true,
-        name: "Playwright User",
-        email: "playwright@example.test",
-        userId: "41000000-0000-0000-0000-000000000001",
+        name: `Playwright User ${actorIndex}`,
+        email: `playwright-${actorIndex}@example.test`,
+        userId: `41000000-0000-0000-0000-${actorIndex.toString().padStart(12, "0")}`,
         organizationId: "41000000-0000-0000-0000-000000000002",
         departmentId: "41000000-0000-0000-0000-000000000003",
         role: "EMPLOYEE",
@@ -108,7 +115,15 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
       request.method() === "GET" &&
       url.pathname === `/api/assistant/conversations/${CONVERSATION_ID}/messages`
     ) {
-      await json(route, options.history ?? [])
+      if (actorIndex > 1 && options.holdHistoryAfterActorSwitch) {
+        await historyRelease
+      }
+      await json(
+        route,
+        actorIndex > 1
+          ? (options.switchedActorHistory ?? [])
+          : (options.history ?? []),
+      )
       return
     }
 
@@ -174,6 +189,20 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
     chatBodies,
     feedbackBodies,
     releaseChat: () => releaseChat?.(),
+    releaseHistory: () => releaseHistory?.(),
+    switchActor: async () => {
+      actorIndex += 1
+      await page.evaluate(async () => {
+        const [{ queryClient }, { router }, { getBrowserSessionQueryKey }] =
+          await Promise.all([
+            import("/src/lib/query-client.ts"),
+            import("/src/router.tsx"),
+            import("/src/lib/hey-api/@tanstack/react-query.gen.ts"),
+          ])
+        queryClient.removeQueries({ queryKey: getBrowserSessionQueryKey() })
+        await router.invalidate()
+      })
+    },
   }
 }
 
@@ -385,6 +414,26 @@ test("creates, replaces, removes, and replays answer feedback", async ({ page })
     ),
   ).toHaveLength(1)
   expect(harness.unexpectedRequests).toEqual([])
+})
+
+test("clears conversation state before rendering a different actor's history", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    history: [
+      historyMessage(1, "USER", "Actor one private question"),
+      historyMessage(2, "ASSISTANT", "Actor one private answer"),
+    ],
+    holdHistoryAfterActorSwitch: true,
+  })
+  await page.goto(`/?chat=${CONVERSATION_ID}`)
+  await expect(page.getByText("Actor one private answer")).toBeVisible()
+
+  await harness.switchActor()
+
+  await expect(page.getByText("Actor one private answer")).toHaveCount(0)
+  await expect(page.getByRole("status")).toContainText("Loading conversation")
+  harness.releaseHistory()
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
 })
 
 test("reveals scroll recovery after the reader leaves the bottom", async ({ page }) => {
