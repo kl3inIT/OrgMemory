@@ -1,6 +1,8 @@
 package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.shared.error.BusinessErrorExposure;
+import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,14 +18,17 @@ public class AssistantConversationService {
 
     private final AssistantConversationRepository conversations;
     private final AssistantConversationMessageRepository messages;
+    private final AssistantAnswerFeedbackRepository answerFeedback;
     private final Clock clock;
 
     AssistantConversationService(
             AssistantConversationRepository conversations,
             AssistantConversationMessageRepository messages,
+            AssistantAnswerFeedbackRepository answerFeedback,
             Clock clock) {
         this.conversations = conversations;
         this.messages = messages;
+        this.answerFeedback = answerFeedback;
         this.clock = clock;
     }
 
@@ -44,6 +49,7 @@ public class AssistantConversationService {
             conversation.touch(now);
         }
         messages.save(new AssistantConversationMessage(
+                UUID.randomUUID(),
                 conversation.getId(),
                 actor.organizationId(),
                 actor.userId(),
@@ -54,13 +60,18 @@ public class AssistantConversationService {
     }
 
     @Transactional
-    public void completeTurn(CurrentActor actor, UUID conversationId, String assistantMessage) {
+    public void completeTurn(
+            CurrentActor actor,
+            UUID conversationId,
+            UUID assistantMessageId,
+            String assistantMessage) {
         if (assistantMessage == null || assistantMessage.isBlank()) {
             return;
         }
         AssistantConversation conversation = requireOwned(actor, conversationId);
         Instant now = clock.instant();
         messages.save(new AssistantConversationMessage(
+                assistantMessageId,
                 conversationId,
                 actor.organizationId(),
                 actor.userId(),
@@ -99,10 +110,49 @@ public class AssistantConversationService {
     public List<AssistantConversationMessageView> history(
             CurrentActor actor, UUID conversationId) {
         requireOwned(actor, conversationId);
-        return messages.findAllByConversationIdOrderBySequenceId(conversationId)
+        List<AssistantConversationMessage> transcript =
+                messages.findAllByConversationIdOrderBySequenceId(conversationId);
+        if (transcript.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, AssistantAnswerSentiment> feedbackByMessage = answerFeedback
+                .findAllByMessageIdIn(transcript.stream()
+                        .map(AssistantConversationMessage::getId)
+                        .toList())
                 .stream()
-                .map(AssistantConversationMessage::view)
+                .collect(Collectors.toMap(
+                        feedback -> feedback.view().messageId(),
+                        AssistantAnswerFeedback::sentiment));
+        return transcript.stream()
+                .map(message -> message.view(feedbackByMessage.get(message.getId())))
                 .toList();
+    }
+
+    @Transactional
+    public AssistantAnswerFeedbackView setAnswerFeedback(
+            CurrentActor actor,
+            UUID messageId,
+            AssistantAnswerSentiment sentiment) {
+        requireOwnedAssistantMessage(actor, messageId);
+        Instant now = clock.instant();
+        AssistantAnswerFeedback feedback = answerFeedback.findById(messageId)
+                .map(current -> {
+                    current.update(sentiment, now);
+                    return current;
+                })
+                .orElseGet(() -> new AssistantAnswerFeedback(
+                        messageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        sentiment,
+                        now));
+        return answerFeedback.save(feedback).view();
+    }
+
+    @Transactional
+    public void deleteAnswerFeedback(CurrentActor actor, UUID messageId) {
+        requireOwnedAssistantMessage(actor, messageId);
+        answerFeedback.findById(messageId).ifPresent(answerFeedback::delete);
     }
 
     @Transactional
@@ -120,6 +170,19 @@ public class AssistantConversationService {
                 .findByIdAndOrganizationIdAndActorUserId(
                         conversationId, actor.organizationId(), actor.userId())
                 .orElseThrow(() -> new AssistantConversationNotFoundException(conversationId));
+    }
+
+    private AssistantConversationMessage requireOwnedAssistantMessage(
+            CurrentActor actor, UUID messageId) {
+        return messages.findByIdAndOrganizationIdAndActorUserIdAndRole(
+                        messageId,
+                        actor.organizationId(),
+                        actor.userId(),
+                        AssistantConversationRole.ASSISTANT)
+                .orElseThrow(() -> new BusinessNotFoundException(
+                        "assistant.answer-not-found",
+                        "Assistant answer not found",
+                        BusinessErrorExposure.OPAQUE_RESOURCE));
     }
 
     private static String firstTitle(String message) {

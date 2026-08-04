@@ -17,11 +17,12 @@ final class UiMessageStream {
 
     static Flux<ServerSentEvent<String>> encode(
             Flux<AssistantStreamPart> source,
+            UUID messageId,
             ObjectMapper json,
             Duration heartbeatInterval,
             Duration turnTimeout) {
         return Flux.defer(() -> {
-            Encoder encoder = new Encoder(json);
+            Encoder encoder = new Encoder(json, messageId);
             Flux<ServerSentEvent<String>> live = withHeartbeat(
                     limitDuration(source, turnTimeout).map(encoder::part),
                     heartbeatInterval);
@@ -61,10 +62,11 @@ final class UiMessageStream {
     private static final class Encoder {
 
         private final ObjectMapper json;
-        private final String messageId = UUID.randomUUID().toString();
+        private final String messageId;
 
-        private Encoder(ObjectMapper json) {
+        private Encoder(ObjectMapper json, UUID messageId) {
             this.json = json;
+            this.messageId = messageId.toString();
         }
 
         ServerSentEvent<String> start() {

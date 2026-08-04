@@ -40,13 +40,14 @@ class AssistantConversationMessage extends BaseEntity {
     }
 
     AssistantConversationMessage(
+            UUID id,
             UUID conversationId,
             UUID organizationId,
             UUID actorUserId,
             AssistantConversationRole role,
             String content,
             Instant occurredAt) {
-        super(UUID.randomUUID());
+        super(Objects.requireNonNull(id, "id"));
         this.conversationId = Objects.requireNonNull(conversationId, "conversationId");
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.actorUserId = Objects.requireNonNull(actorUserId, "actorUserId");
@@ -57,7 +58,12 @@ class AssistantConversationMessage extends BaseEntity {
 
     AssistantConversationMessageView view() {
         return new AssistantConversationMessageView(
-                getId(), role, content, sequenceId, occurredAt);
+                getId(), role, content, sequenceId, occurredAt, null);
+    }
+
+    AssistantConversationMessageView view(AssistantAnswerSentiment feedback) {
+        return new AssistantConversationMessageView(
+                getId(), role, content, sequenceId, occurredAt, feedback);
     }
 
     private static String requireContent(String value) {

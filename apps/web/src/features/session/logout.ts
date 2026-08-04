@@ -20,5 +20,10 @@ export async function submitBrowserLogout() {
   form.append(csrf)
 
   document.body.append(form)
+  try {
+    sessionStorage.clear()
+  } catch {
+    // Logout still proceeds when browser storage is unavailable.
+  }
   form.submit()
 }

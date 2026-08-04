@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Assistant interaction foundation](increments/completed/2026-08-04-assistant-interaction-foundation/plan.md) | shipped | delivered server-owned starters, scoped drafts, answer feedback, fresh retry, and interaction recovery |
 | [Apache AGE published-batch backfill](increments/completed/2026-08-03-apache-age-published-batch-backfill/verification.md) | shipped | challenged one-shot repair, 49/49 production reconciliation, Graph explorer, and cited Assistant proof |
 | [Effective access inspector](increments/active/2026-08-02-effective-access-inspector/plan.md) | active | complete browser interaction and reference-image comparison |
 | [Skill CLI distribution and local lifecycle](increments/active/2026-08-01-skill-cli-distribution-lifecycle/plan.md) | active | merge the verified lifecycle and publication boundary, bootstrap the first npm version under owner control, then activate the pinned `npx` handoff in a second PR |

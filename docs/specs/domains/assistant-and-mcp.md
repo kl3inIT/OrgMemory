@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`.
 
-Reconciled: `2026-08-02-rag-workload-routing-luna (2dafc797)`.
+Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
 
 ## Current Behavior
 
@@ -87,6 +87,32 @@ evidence. Every new turn performs a fresh authorized retrieval. Historical
 answers remain a snapshot of what the user received at that time, while opening
 a citation still rechecks current access. A future purge-on-revocation rule is a
 separate retention policy, not a prerequisite for ordinary multi-turn chat.
+
+The API allocates one server-owned assistant message UUID before streaming and
+uses it both in the AI SDK start frame and in the completed transcript row.
+Successful stream completion follows transcript persistence; failed, aborted,
+and empty turns may consume an UUID but create no feedback target. Completed
+answers accept one mutable `HELPFUL` or `NOT_HELPFUL` rating in a separate
+message-linked table. Service lookup requires the exact current organization,
+actor, and assistant role, while a composite database foreign key repeats the
+tenant/actor boundary and conversation deletion cascades the rating. Missing,
+cross-actor, cross-tenant, and user-message targets share one opaque not-found
+surface. Conversation replay includes the current rating without copying the
+question, answer, evidence, or provider output into feedback storage. Feedback
+mutations take a pessimistic lock on that owned assistant-message row, which
+serializes concurrent set/set and set/delete requests for one answer.
+
+The empty Assistant publishes a small ordered starter list from the API; these
+prompts are closed application data and do not infer inaccessible resources or
+call a model. The composer keeps at most 4,000 characters per actor and
+conversation in browser `sessionStorage`, including a separate new-conversation
+draft. Submit, actor change, conversation deletion, and logout clear the
+applicable draft state. Drafts are neither server state nor telemetry. Retrying
+a completed answer resubmits its immediately preceding user message as a new
+linear turn in the same conversation, so retrieval and authorization always run
+fresh; it does not overwrite or branch history. If the effective actor changes
+without a page reload, the browser hides and clears the previous actor's
+messages, feedback selection, and open source panel before loading new history.
 
 The in-app Asset Assistant boundary is a separate, closed action allowlist. It
 can recommend authorized exact releases, search canonical Knowledge, prepare,
