@@ -2,10 +2,12 @@ import { useChat } from "@ai-sdk/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SourceUrlUIPart, type UIMessage } from "ai"
 import {
+  Bot,
+  Check,
+  ChevronsUpDown,
   Copy,
   LoaderCircle,
   RotateCcw,
-  ShieldCheck,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react"
@@ -24,6 +26,18 @@ import {
   MessageContent,
 } from "@/components/ai-elements/message"
 import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorLogo,
+  ModelSelectorName,
+  ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector"
+import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
@@ -35,6 +49,7 @@ import {
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources"
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
+import { InputGroupButton } from "@/components/ui/input-group"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
 import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
@@ -49,13 +64,16 @@ import { copyWithToast } from "@/lib/copy"
 import {
   deleteAssistantAnswerFeedbackMutation,
   getAssistantConversationHistoryOptions,
+  getAssistantModelOptionsOptions,
   listAssistantStartersOptions,
   listAssistantConversationsQueryKey,
+  selectAssistantConversationModelMutation,
   setAssistantAnswerFeedbackMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type {
   AssistantConversationMessageView,
   AssistantConversationSummary,
+  AssistantModelOptionResponse,
 } from "@/lib/hey-api"
 
 type AnswerSentiment = "HELPFUL" | "NOT_HELPFUL"
@@ -161,6 +179,98 @@ function historyMessage(
   }
 }
 
+function AssistantModelPicker({
+  options,
+  selectedId,
+  disabled,
+  loading,
+  onSelect,
+}: {
+  options: AssistantModelOptionResponse[]
+  selectedId?: string
+  disabled: boolean
+  loading: boolean
+  onSelect: (model: AssistantModelOptionResponse) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected =
+    options.find((option) => option.id === selectedId) ??
+    options.find((option) => option.defaultChoice)
+  const groups = Object.entries(
+    options.reduce<Record<string, AssistantModelOptionResponse[]>>((current, option) => {
+      const gateway = option.gatewayLabel ?? "Organization models"
+      current[gateway] = [...(current[gateway] ?? []), option]
+      return current
+    }, {}),
+  )
+
+  return (
+    <ModelSelector open={open} onOpenChange={setOpen}>
+      <ModelSelectorTrigger asChild>
+        <InputGroupButton
+          type="button"
+          size="sm"
+          disabled={disabled || loading || options.length === 0}
+          aria-label={`Choose model${selected?.displayName ? `, current model ${selected.displayName}` : ""}`}
+          className="max-w-48 rounded-full px-2.5 text-content-secondary hover:text-content-primary"
+        >
+          {selected?.provider && selected.provider !== "custom" ? (
+            <ModelSelectorLogo provider={selected.provider} className="size-4" />
+          ) : (
+            <Bot className="size-4" aria-hidden="true" />
+          )}
+          <span className="truncate">
+            {loading ? "Loading models…" : selected?.displayName ?? "Organization default"}
+          </span>
+          <ChevronsUpDown className="size-3.5 opacity-60" aria-hidden="true" />
+        </InputGroupButton>
+      </ModelSelectorTrigger>
+      <ModelSelectorContent title="Choose an Assistant model">
+        <ModelSelectorInput placeholder="Search models…" />
+        <ModelSelectorList>
+          <ModelSelectorEmpty>No available model matches.</ModelSelectorEmpty>
+          {groups.map(([gateway, models]) => (
+            <ModelSelectorGroup key={gateway} heading={gateway}>
+              {(models ?? []).map((model) => {
+                const active = model.defaultChoice ? !selectedId : model.id === selectedId
+                return (
+                  <ModelSelectorItem
+                    key={model.id ?? "organization-default"}
+                    value={`${model.displayName ?? model.modelId ?? "model"} ${model.modelId ?? ""} ${gateway}`}
+                    aria-checked={active}
+                    onSelect={() => {
+                      onSelect(model)
+                      setOpen(false)
+                    }}
+                  >
+                    {model.provider && model.provider !== "custom" ? (
+                      <ModelSelectorLogo provider={model.provider} className="size-4" />
+                    ) : (
+                      <Bot className="size-4 text-muted-foreground" aria-hidden="true" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <ModelSelectorName className="block font-medium">
+                        {model.displayName ?? model.modelId}
+                      </ModelSelectorName>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {model.defaultChoice ? "Organization default" : model.modelId}
+                      </span>
+                    </span>
+                    <Check
+                      className={`size-4 ${active ? "opacity-100" : "opacity-0"}`}
+                      aria-hidden="true"
+                    />
+                  </ModelSelectorItem>
+                )
+              })}
+            </ModelSelectorGroup>
+          ))}
+        </ModelSelectorList>
+      </ModelSelectorContent>
+    </ModelSelector>
+  )
+}
+
 export function AssistantPage({
   conversationId,
   actorKey,
@@ -177,6 +287,8 @@ export function AssistantPage({
   )
   const actorKeyRef = useRef(actorKey)
   const conversationIdRef = useRef(conversationId)
+  const modelActivationIdRef = useRef<string | undefined>(undefined)
+  const [selectedModelActivationId, setSelectedModelActivationId] = useState<string>()
   const locallyCreatedConversationRef = useRef<string | undefined>(undefined)
   const nextTitleRef = useRef("New conversation")
   const onConversationIdChangeRef = useRef(onConversationIdChange)
@@ -187,6 +299,7 @@ export function AssistantPage({
     () =>
       createAssistantTransport({
         conversationId: () => conversationIdRef.current,
+        modelActivationId: () => modelActivationIdRef.current,
         onConversationId: (nextConversationId) => {
           if (!conversationIdRef.current) {
             locallyCreatedConversationRef.current = nextConversationId
@@ -280,6 +393,21 @@ export function AssistantPage({
     ...starterOptions,
     queryKey: scopeActorQueryKey(starterOptions.queryKey, actorKey),
   })
+  const modelOptionsDefinition = getAssistantModelOptionsOptions({
+    query: { conversationId },
+  })
+  const modelOptions = useQuery({
+    ...modelOptionsDefinition,
+    queryKey: scopeActorQueryKey(modelOptionsDefinition.queryKey, actorKey),
+  })
+  const selectModel = useMutation({
+    ...selectAssistantConversationModelMutation(),
+    onError: () => {
+      setSelectedModelActivationId(modelOptions.data?.selectedModelActivationId)
+      modelActivationIdRef.current = modelOptions.data?.selectedModelActivationId
+      toast.error("The model selection could not be saved")
+    },
+  })
   const saveFeedback = useMutation({
     ...setAssistantAnswerFeedbackMutation(),
     onSuccess: (_, variables) => {
@@ -307,11 +435,20 @@ export function AssistantPage({
     stop()
     actorKeyRef.current = actorKey
     conversationIdRef.current = conversationId
+    modelActivationIdRef.current = undefined
     locallyCreatedConversationRef.current = undefined
+    setSelectedModelActivationId(undefined)
     setSourcePanel(null)
     setFeedbackByMessage({})
     setMessages([])
   }, [actorKey, conversationId, setMessages, stop])
+
+  useEffect(() => {
+    if (!modelOptions.data) return
+    const selected = modelOptions.data.selectedModelActivationId
+    setSelectedModelActivationId(selected)
+    modelActivationIdRef.current = selected
+  }, [modelOptions.data])
 
   useEffect(() => {
     if (
@@ -370,7 +507,13 @@ export function AssistantPage({
 
   function send(rawMessage: string, clearComposer = true) {
     const message = rawMessage.trim()
-    if (!message || busy || submitLock.current) return
+    if (
+      !message ||
+      busy ||
+      modelOptions.isPending ||
+      selectModel.isPending ||
+      submitLock.current
+    ) return
 
     submitLock.current = true
     nextTitleRef.current =
@@ -401,6 +544,19 @@ export function AssistantPage({
     })
   }
 
+  function chooseModel(model: AssistantModelOptionResponse) {
+    if (busy || selectModel.isPending) return
+    const next = model.defaultChoice ? undefined : model.id
+    setSelectedModelActivationId(next)
+    modelActivationIdRef.current = next
+    const activeConversationId = conversationIdRef.current
+    if (!activeConversationId) return
+    selectModel.mutate({
+      path: { conversationId: activeConversationId },
+      body: { modelActivationId: next },
+    })
+  }
+
   const composer = (
     <PromptInput
       onSubmit={submit}
@@ -418,15 +574,18 @@ export function AssistantPage({
       </PromptInputBody>
       <PromptInputFooter>
         <PromptInputTools>
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck className="size-3.5" aria-hidden="true" />
-            Permission-aware
-          </span>
+          <AssistantModelPicker
+            options={modelOptions.data?.options ?? []}
+            selectedId={selectedModelActivationId}
+            disabled={busy || selectModel.isPending}
+            loading={modelOptions.isPending}
+            onSelect={chooseModel}
+          />
         </PromptInputTools>
         <PromptInputSubmit
           status={status}
           onStop={stop}
-          disabled={!busy && !text.trim()}
+          disabled={!busy && (!text.trim() || modelOptions.isPending || selectModel.isPending)}
           className="rounded-full"
         />
       </PromptInputFooter>
@@ -477,21 +636,29 @@ export function AssistantPage({
 
   if (messages.length === 0) {
     return (
-      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-5 pb-12">
-        <h1 className="text-page-title text-content-primary">{greeting()}</h1>
-        <div className="w-full max-w-2xl">{composer}</div>
-        <Suggestions className="mx-auto max-w-2xl flex-wrap justify-center whitespace-normal">
+      <div className="flex min-w-0 flex-1 overflow-y-auto px-5">
+        <div className="mx-auto flex w-full max-w-2xl flex-col justify-center py-16 sm:py-24">
+          <div className="mb-7 max-w-xl">
+            <p className="mb-2 text-sm font-medium text-content-secondary">{greeting()}</p>
+            <h1 className="text-page-title text-content-primary">What can we help you move forward?</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Ask about company knowledge, policies, or the next step in a process.
+            </p>
+          </div>
+          {composer}
+          <Suggestions className="mt-4 flex-wrap justify-start gap-2 whitespace-normal">
           {(starters.data ?? []).map((starter) => (
             <Suggestion
               key={starter.id}
               suggestion={starter.prompt ?? ""}
-              className="bg-transparent text-foreground"
+              className="border-border-subtle bg-transparent text-content-secondary hover:bg-surface-subtle hover:text-content-primary"
               onClick={(value) => {
                 void send(value)?.catch(() => undefined)
               }}
             />
           ))}
-        </Suggestions>
+          </Suggestions>
+        </div>
       </div>
     )
   }

@@ -3,6 +3,7 @@ package com.orgmemory.core.assistant;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.ai.AssistantModelRouteAuthority;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnObservationContext;
 import com.orgmemory.core.assistant.observability.AssistantTurnObservationDocumentation;
@@ -62,6 +63,22 @@ public class AssistantService {
             Integer requestedLimit,
             String requestId,
             String conversationId) {
+        return startTurn(
+                actor,
+                question,
+                requestedLimit,
+                requestId,
+                conversationId,
+                null);
+    }
+
+    public AssistantTurn startTurn(
+            CurrentActor actor,
+            String question,
+            Integer requestedLimit,
+            String requestId,
+            String conversationId,
+            AssistantModelRouteAuthority routeAuthority) {
         AssistantTurnObservationContext context = new AssistantTurnObservationContext(
                 actor.organizationId(), engine, System.nanoTime());
         Observation observation = AssistantTurnObservationDocumentation.TURN
@@ -99,11 +116,19 @@ public class AssistantService {
             // stop is not idempotent, so the second terminal signal must not reach it.
             java.util.concurrent.atomic.AtomicBoolean stopped =
                     new java.util.concurrent.atomic.AtomicBoolean();
-            Flux<String> content = chat.stream(
+            Flux<String> generated = routeAuthority == null
+                    ? chat.stream(
                             actor.organizationId(),
                             AiWorkload.ASSISTANT_CHAT,
                             prepared.request(),
                             conversationId)
+                    : chat.stream(
+                            routeAuthority,
+                            prepared.request(),
+                            conversationId,
+                            actor.userId(),
+                            requestId);
+            Flux<String> content = generated
                     .filter(token -> token != null && !token.isEmpty())
                     .switchIfEmpty(Flux.error(new AssistantUnavailableException(
                             "The assistant returned no answer")))

@@ -1,6 +1,7 @@
 package com.orgmemory.core.assistant;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.shared.error.BusinessErrorExposure;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
@@ -34,6 +35,15 @@ public class AssistantConversationService {
 
     @Transactional
     public UUID beginTurn(CurrentActor actor, UUID requestedId, String userMessage) {
+        return beginTurn(actor, requestedId, userMessage, null);
+    }
+
+    @Transactional
+    public UUID beginTurn(
+            CurrentActor actor,
+            UUID requestedId,
+            String userMessage,
+            AssistantModelSelectionRef modelSelection) {
         String validUserMessage = requireUserMessage(userMessage);
         Instant now = clock.instant();
         AssistantConversation conversation;
@@ -45,9 +55,10 @@ public class AssistantConversationService {
                     firstTitle(validUserMessage),
                     now));
         } else {
-            conversation = requireOwned(actor, requestedId);
+            conversation = requireOwnedForUpdate(actor, requestedId);
             conversation.touch(now);
         }
+        conversation.selectModel(modelSelection);
         messages.save(new AssistantConversationMessage(
                 UUID.randomUUID(),
                 conversation.getId(),
@@ -57,6 +68,21 @@ public class AssistantConversationService {
                 validUserMessage,
                 now));
         return conversation.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public AssistantModelSelectionRef modelSelection(
+            CurrentActor actor,
+            UUID conversationId) {
+        return requireOwned(actor, conversationId).modelSelection();
+    }
+
+    @Transactional
+    public void selectModel(
+            CurrentActor actor,
+            UUID conversationId,
+            AssistantModelSelectionRef modelSelection) {
+        requireOwnedForUpdate(actor, conversationId).selectModel(modelSelection);
     }
 
     @Transactional
@@ -169,6 +195,17 @@ public class AssistantConversationService {
         return conversations
                 .findByIdAndOrganizationIdAndActorUserId(
                         conversationId, actor.organizationId(), actor.userId())
+                .orElseThrow(() -> new AssistantConversationNotFoundException(conversationId));
+    }
+
+    private AssistantConversation requireOwnedForUpdate(
+            CurrentActor actor,
+            UUID conversationId) {
+        return conversations
+                .findForUpdateByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId())
                 .orElseThrow(() -> new AssistantConversationNotFoundException(conversationId));
     }
 

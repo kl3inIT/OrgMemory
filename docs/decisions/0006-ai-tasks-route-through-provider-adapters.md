@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted on 2026-07-20.
+Accepted on 2026-07-20. Per-user selection deferral superseded by decision
+0032 on 2026-08-04; all other routing rules remain active.
 
 ## Context
 

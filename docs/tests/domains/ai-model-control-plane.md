@@ -18,6 +18,8 @@ Reconciled: `fix/keyword-luna-default (d4deed72)`.
 | Cross-tenant profile IDs are opaque and cannot rotate credentials | `AiGatewayAdministrationServiceTests#aProfileIdFromAnotherOrganizationIsOpaqueAndCannotRotateASecret` | covered |
 | Profile, credential, and route actor FKs cannot cross tenant boundaries | `PermissionsAdminIntegrationTests#aiControlPlaneActorReferencesCannotCrossTenantBoundaries` | covered |
 | Credential rotation invalidates runtime model caches | `AiGatewayAdministrationServiceTests#credentialRotationAlwaysAdvancesTheRuntimeCacheRevision` | covered |
+| Assistant catalog replacement soft-disables old authority and re-enable receives a new UUID | `AiGatewayAdministrationServiceTests#assistantCatalogSoftDisablesAndReenableCreatesANewOpaqueActivation`, `AssistantModelSelectionMigrationTests#activeModelIdentityIsUniqueButARevokedIdentityCanBeReplaced` | covered |
+| Route identity can be authorized without requiring provider availability, while generation resolution still fails closed | `AiGatewayPropertiesTests#routeReferenceCanBeAuthorizedBeforeProviderAvailabilityIsNeeded`, `#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | Chat model dispatch selects the factory matching the route protocol and fails closed for missing or duplicate factories | `SpringAiChatModelFactoriesTests` | covered |
 | Updating metadata and rotating a credential is one service transaction | `AiGatewayAdministrationServiceTests#metadataAndCredentialUpdateShareOneServiceTransaction` | covered |
 | Preset/category/protocol combinations cannot be relabeled | `AiGatewayAdministrationServiceTests#providerPresetCannotBeRelabeledAsAnotherProtocolOrCategory` | covered |
@@ -30,6 +32,7 @@ Reconciled: `fix/keyword-luna-default (d4deed72)`.
 | Graph Extraction defaults independently to `gpt-5.4-mini` in API, worker, and shared Java configuration; its explicit override still wins | API/worker `AiRouteDefaultsTests`, `AiGatewayPropertiesTests#defaultChatRoutesKeepGraphExtractionIndependent`, production Compose validation | covered |
 | OpenAPI and generated TypeScript client match the controller | `OpenApiContractTests`, web generated API drift gate | covered |
 | Language Models renders verified provider marks, opens the structured setup flow, discovers live models, and can restore a deployment route | `provider-logo.test.tsx`, `admin-language-models.spec.ts` | covered |
+| Active Answer gateway settings publish a bounded explicit Assistant model catalog; inactive and reasoning-pinned routes remain unavailable | `AiGatewayAdministrationServiceTests`, admin web typecheck/build | covered |
 | Read-only Index Settings compiles as a production route | web lint, typecheck, and build | covered |
 | Keyword is editable, Graph is visible/read-only with future-jobs-only copy, and the backend rejects Graph mutation | `admin-language-models.spec.ts`, `AiGatewayAdministrationServiceTests` | covered |
 | Fixed bilingual live evaluation records validity, recall/yield, failures, and p95 without raw prompts/evidence; Keyword Luna passes and Graph Luna fails independently | `evaluation/tests/test_workload_routing_runner.py`, increment `evaluation-result.json` | covered |

@@ -4,12 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
+import com.orgmemory.core.ai.AssistantModelAuthorityService;
+import com.orgmemory.core.ai.AssistantModelChoice;
+import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantCitation;
@@ -75,6 +79,7 @@ class AssistantControllerStreamingTests {
                 mock(ChatMemory.class),
                 actors,
                 mock(AssistantProperties.class),
+                mock(AssistantModelAuthorityService.class),
                 mock(ObjectMapper.class));
 
         AssistantAnswerFeedbackView actual = controller.setFeedback(
@@ -86,6 +91,68 @@ class AssistantControllerStreamingTests {
 
         assertEquals(expected, actual);
         verify(conversations).deleteAnswerFeedback(actor, messageId);
+    }
+
+    @Test
+    void exposesSafeModelChoicesAndPersistsOnlyAnAuthorizedSelectionReference() {
+        AssistantConversationService conversations =
+                mock(AssistantConversationService.class);
+        AssistantModelAuthorityService authority =
+                mock(AssistantModelAuthorityService.class);
+        CurrentActorProvider actors = mock(CurrentActorProvider.class);
+        Authentication authentication = mock(Authentication.class);
+        CurrentActor actor = new CurrentActor(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Laura",
+                "laura@example.test");
+        UUID conversationId = UUID.randomUUID();
+        UUID activationId = UUID.randomUUID();
+        AssistantModelSelectionRef stored = new AssistantModelSelectionRef(
+                activationId, UUID.randomUUID(), 9);
+        when(actors.current(authentication)).thenReturn(actor);
+        when(conversations.modelSelection(actor, conversationId)).thenReturn(stored);
+        when(authority.resolveSelectedActivation(actor.organizationId(), stored))
+                .thenReturn(activationId);
+        when(authority.choices(actor.organizationId())).thenReturn(List.of(
+                new AssistantModelChoice(
+                        null,
+                        "Organization AI",
+                        "openai",
+                        "gpt-default",
+                        "Organization default",
+                        true),
+                new AssistantModelChoice(
+                        activationId,
+                        "Organization AI",
+                        "openai",
+                        "gpt-fast",
+                        "Fast",
+                        false)));
+        when(authority.selectionRef(null)).thenReturn(stored);
+        AssistantController controller = new AssistantController(
+                mock(AssistantService.class),
+                conversations,
+                mock(ChatMemory.class),
+                actors,
+                mock(AssistantProperties.class),
+                authority,
+                mock(ObjectMapper.class));
+
+        AssistantController.AssistantModelOptionsResponse response =
+                controller.modelOptions(conversationId, authentication);
+        controller.selectModel(
+                conversationId,
+                new AssistantController.SelectAssistantModelRequest(activationId),
+                authentication);
+
+        assertEquals(activationId, response.selectedModelActivationId());
+        assertEquals(List.of("gpt-default", "gpt-fast"), response.options().stream()
+                .map(AssistantController.AssistantModelOptionResponse::modelId)
+                .toList());
+        verify(authority).authorize(actor.organizationId(), activationId);
+        verify(conversations).selectModel(actor, conversationId, stored);
     }
 
     @Test
@@ -104,14 +171,15 @@ class AssistantControllerStreamingTests {
                 "laura@example.test");
         UUID conversationId = UUID.randomUUID();
         when(actors.current(authentication)).thenReturn(actor);
-        when(conversations.beginTurn(actor, null, "Question"))
+        when(conversations.beginTurn(actor, null, "Question", null))
                 .thenReturn(conversationId);
         when(assistant.startTurn(
                         eq(actor),
                         eq("Question"),
                         eq(5),
                         anyString(),
-                        eq(conversationId.toString())))
+                        eq(conversationId.toString()),
+                        isNull()))
                 .thenReturn(new AssistantTurn(
                         "request-1", List.of(), reactor.core.publisher.Flux.just("Answer")));
         when(properties.heartbeatInterval()).thenReturn(Duration.ofHours(1));
@@ -122,10 +190,11 @@ class AssistantControllerStreamingTests {
                 mock(ChatMemory.class),
                 actors,
                 properties,
+                mock(AssistantModelAuthorityService.class),
                 new ObjectMapper());
 
         List<String> frames = controller.chat(
-                        new AssistantChatRequest("Question", 5, null), authentication)
+                        new AssistantChatRequest("Question", 5, null, null), authentication)
                 .getBody()
                 .map(event -> event.data())
                 .collectList()
@@ -207,6 +276,7 @@ class AssistantControllerStreamingTests {
                 memory,
                 actors,
                 mock(AssistantProperties.class),
+                mock(AssistantModelAuthorityService.class),
                 mock(ObjectMapper.class));
 
         controller.delete(conversationId, authentication);
@@ -223,6 +293,7 @@ class AssistantControllerStreamingTests {
                 mock(ChatMemory.class),
                 mock(CurrentActorProvider.class),
                 mock(AssistantProperties.class),
+                mock(AssistantModelAuthorityService.class),
                 mock(ObjectMapper.class));
     }
 

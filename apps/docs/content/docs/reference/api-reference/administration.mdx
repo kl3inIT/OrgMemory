@@ -29,6 +29,9 @@ _openapi:
       title: Set or rotate an organization AI gateway credential
       url: '#set-or-rotate-an-organization-ai-gateway-credential'
     - depth: 2
+      title: Replace additional chat models allowed on the active Assistant gateway
+      url: '#replace-additional-chat-models-allowed-on-the-active-assistant-gateway'
+    - depth: 2
       title: Assign a user to a role
       url: '#assign-a-user-to-a-role'
     - depth: 2
@@ -108,6 +111,8 @@ _openapi:
         id: update-an-organization-ai-gateway
       - content: Set or rotate an organization AI gateway credential
         id: set-or-rotate-an-organization-ai-gateway-credential
+      - content: Replace additional chat models allowed on the active Assistant gateway
+        id: replace-additional-chat-models-allowed-on-the-active-assistant-gateway
       - content: Assign a user to a role
         id: assign-a-user-to-a-role
       - content: List Knowledge Spaces and the grants stored against them
@@ -166,7 +171,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/ai/routes/{workload}","method":"delete"},{"path":"/api/admin/ai/routes/{workload}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}","method":"delete"},{"path":"/api/admin/ai/gateways/{profileId}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/credential","method":"put"},{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/ai/gateways","method":"get"},{"path":"/api/admin/ai/gateways","method":"post"},{"path":"/api/admin/ai/gateways/{profileId}/test","method":"post"},{"path":"/api/admin/ai/gateways/test","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/ai/routes","method":"get"},{"path":"/api/admin/ai/providers","method":"get"},{"path":"/api/admin/ai/index-settings","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/admin/ai/routes/{workload}","method":"delete"},{"path":"/api/admin/ai/routes/{workload}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}","method":"delete"},{"path":"/api/admin/ai/gateways/{profileId}","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/credential","method":"put"},{"path":"/api/admin/ai/gateways/{profileId}/assistant-models","method":"put"},{"path":"/api/admin/roles/{role}/members","method":"post"},{"path":"/api/admin/knowledge-spaces","method":"get"},{"path":"/api/admin/knowledge-spaces","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"post"},{"path":"/api/admin/knowledge-spaces/{knowledgeSpaceId}/grants","method":"delete"},{"path":"/api/admin/invitations","method":"get"},{"path":"/api/admin/invitations","method":"post"},{"path":"/api/admin/ai/gateways","method":"get"},{"path":"/api/admin/ai/gateways","method":"post"},{"path":"/api/admin/ai/gateways/{profileId}/test","method":"post"},{"path":"/api/admin/ai/gateways/test","method":"post"},{"path":"/api/admin/access/explain","method":"post"},{"path":"/api/admin/users/{userId}","method":"patch"},{"path":"/api/admin/users","method":"get"},{"path":"/api/admin/users/{userId}/permissions","method":"get"},{"path":"/api/admin/roles","method":"get"},{"path":"/api/admin/knowledge-spaces/grant-options","method":"get"},{"path":"/api/admin/ai/routes","method":"get"},{"path":"/api/admin/ai/providers","method":"get"},{"path":"/api/admin/ai/index-settings","method":"get"},{"path":"/api/admin/roles/{role}/members/{userId}","method":"delete"},{"path":"/api/admin/invitations/{invitationId}","method":"delete"}]} showTitle showDescription />
     </>
   );
 }

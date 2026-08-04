@@ -9,6 +9,10 @@ import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantConversationSummary;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
+import com.orgmemory.core.ai.AssistantModelAuthorityService;
+import com.orgmemory.core.ai.AssistantModelChoice;
+import com.orgmemory.core.ai.AssistantModelRouteAuthority;
+import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.organization.CurrentActor;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
@@ -62,6 +67,7 @@ class AssistantController {
     private final ChatMemory memory;
     private final CurrentActorProvider actors;
     private final AssistantProperties properties;
+    private final AssistantModelAuthorityService modelAuthority;
     private final ObjectMapper json;
 
     AssistantController(
@@ -70,12 +76,14 @@ class AssistantController {
             ChatMemory memory,
             CurrentActorProvider actors,
             AssistantProperties properties,
+            AssistantModelAuthorityService modelAuthority,
             ObjectMapper json) {
         this.assistant = assistant;
         this.conversations = conversations;
         this.memory = memory;
         this.actors = actors;
         this.properties = properties;
+        this.modelAuthority = modelAuthority;
         this.json = json;
     }
 
@@ -86,15 +94,24 @@ class AssistantController {
             Authentication authentication) {
         String requestId = UUID.randomUUID().toString();
         CurrentActor actor = actors.current(authentication);
+        AssistantModelRouteAuthority routeAuthority = modelAuthority.authorize(
+                actor.organizationId(),
+                request.modelActivationId());
+        AssistantModelSelectionRef modelSelection = modelAuthority.selectionRef(
+                routeAuthority);
         UUID conversationId = conversations.beginTurn(
-                actor, request.conversationId(), request.message());
+                actor,
+                request.conversationId(),
+                request.message(),
+                modelSelection);
         UUID assistantMessageId = UUID.randomUUID();
         AssistantTurn turn = assistant.startTurn(
                 actor,
                 request.message(),
                 request.limit(),
                 requestId,
-                conversationId.toString());
+                conversationId.toString(),
+                routeAuthority);
         StringBuilder completedAnswer = new StringBuilder();
         Flux<AssistantStreamPart> parts = parts(turn)
                 .doOnNext(part -> {
@@ -132,12 +149,80 @@ class AssistantController {
     record AssistantStarterPrompt(String id, String label, String prompt) {
     }
 
+    record AssistantModelOptionResponse(
+            UUID id,
+            String gatewayLabel,
+            String provider,
+            String modelId,
+            String displayName,
+            boolean defaultChoice) {
+
+        static AssistantModelOptionResponse from(AssistantModelChoice choice) {
+            return new AssistantModelOptionResponse(
+                    choice.activationId(),
+                    choice.gatewayLabel(),
+                    choice.provider(),
+                    choice.modelId(),
+                    choice.displayName(),
+                    choice.defaultChoice());
+        }
+    }
+
+    record AssistantModelOptionsResponse(
+            UUID selectedModelActivationId,
+            List<AssistantModelOptionResponse> options) {
+    }
+
+    record SelectAssistantModelRequest(UUID modelActivationId) {
+    }
+
     @GetMapping("/starters")
     @Operation(
             operationId = "listAssistantStarters",
             summary = "List supported prompts for starting an Assistant conversation")
     List<AssistantStarterPrompt> starters() {
         return STARTERS;
+    }
+
+    @GetMapping("/model-options")
+    @Operation(
+            operationId = "getAssistantModelOptions",
+            summary = "List server-governed Assistant model choices for the current route")
+    AssistantModelOptionsResponse modelOptions(
+            @RequestParam(required = false) UUID conversationId,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        AssistantModelSelectionRef selected = conversationId == null
+                ? null
+                : conversations.modelSelection(actor, conversationId);
+        UUID selectedActivationId = modelAuthority.resolveSelectedActivation(
+                actor.organizationId(),
+                selected);
+        return new AssistantModelOptionsResponse(
+                selectedActivationId,
+                modelAuthority.choices(actor.organizationId()).stream()
+                        .map(AssistantModelOptionResponse::from)
+                        .toList());
+    }
+
+    @PutMapping("/conversations/{conversationId}/model")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            operationId = "selectAssistantConversationModel",
+            summary = "Select one allowed model for an owned Assistant conversation")
+    void selectModel(
+            @PathVariable UUID conversationId,
+            @RequestBody SelectAssistantModelRequest request,
+            Authentication authentication) {
+        CurrentActor actor = actors.current(authentication);
+        UUID activationId = request == null ? null : request.modelActivationId();
+        AssistantModelRouteAuthority authority = modelAuthority.authorize(
+                actor.organizationId(),
+                activationId);
+        conversations.selectModel(
+                actor,
+                conversationId,
+                modelAuthority.selectionRef(authority));
     }
 
     @PutMapping("/messages/{messageId}/feedback")

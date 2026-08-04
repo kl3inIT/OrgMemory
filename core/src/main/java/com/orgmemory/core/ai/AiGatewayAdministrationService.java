@@ -27,11 +27,13 @@ public class AiGatewayAdministrationService {
     private static final int MIN_TIMEOUT_SECONDS = 1;
     private static final int MAX_TIMEOUT_SECONDS = 300;
     private static final int MAX_MODEL_ID_LENGTH = 200;
+    private static final int MAX_ASSISTANT_MODELS = 50;
     private static final String POLICY_VERSION = "ai-control-plane-v1";
 
     private final AiGatewayProfileRepository profiles;
     private final AiGatewayCredentialRepository credentials;
     private final AiRouteOverrideRepository routes;
+    private final AiAssistantModelActivationRepository assistantModels;
     private final AiGatewayEndpointPolicy endpoints;
     private final SecretCipher cipher;
     private final PermissionAuditService audit;
@@ -40,12 +42,14 @@ public class AiGatewayAdministrationService {
             AiGatewayProfileRepository profiles,
             AiGatewayCredentialRepository credentials,
             AiRouteOverrideRepository routes,
+            AiAssistantModelActivationRepository assistantModels,
             AiGatewayEndpointPolicy endpoints,
             SecretCipher cipher,
             PermissionAuditService audit) {
         this.profiles = profiles;
         this.credentials = credentials;
         this.routes = routes;
+        this.assistantModels = assistantModels;
         this.endpoints = endpoints;
         this.cipher = cipher;
         this.audit = audit;
@@ -419,6 +423,94 @@ public class AiGatewayAdministrationService {
     }
 
     @Transactional(readOnly = true)
+    public List<AiAssistantModelActivationView> assistantModels(
+            UUID organizationId,
+            UUID profileId) {
+        requireProfile(organizationId, profileId);
+        return assistantModels
+                .findAllByOrganizationIdAndGatewayProfileIdAndEnabledTrueOrderByDisplayNameAscModelIdAsc(
+                        organizationId,
+                        profileId)
+                .stream()
+                .map(AiAssistantModelActivation::view)
+                .toList();
+    }
+
+    @Transactional
+    public List<AiAssistantModelActivationView> replaceAssistantModels(
+            UUID organizationId,
+            UUID profileId,
+            List<AiAssistantModelDefinition> requestedModels,
+            UUID adminUserId) {
+        AiGatewayProfile profile = profiles
+                .findByIdAndOrganizationIdAndEnabledTrue(profileId, organizationId)
+                .orElseThrow(() -> new BusinessNotFoundException(
+                        "ai.gateway-not-found",
+                        "AI gateway not found",
+                        BusinessErrorExposure.OPAQUE_RESOURCE));
+        AiRouteOverride route = routes
+                .findByOrganizationIdAndWorkload(
+                        organizationId,
+                        AiWorkload.ASSISTANT_CHAT)
+                .orElseThrow(() -> new BusinessConflictException(
+                        "ai.assistant-model-route-required",
+                        "Set an organization Assistant route before enabling additional models"));
+        if (!route.gatewayProfileId().equals(profileId)) {
+            throw new BusinessConflictException(
+                    "ai.assistant-model-gateway-inactive",
+                    "Additional Assistant models must belong to the active Assistant gateway");
+        }
+        if (route.openAiReasoningEffort() != null) {
+            throw new BusinessConflictException(
+                    "ai.assistant-model-options-incompatible",
+                    "Additional Assistant models require provider-default reasoning options");
+        }
+
+        List<AiAssistantModelDefinition> normalized = normalizeAssistantModels(
+                requestedModels,
+                route.modelId());
+        List<AiAssistantModelActivation> active = assistantModels
+                .findAllByOrganizationIdAndGatewayProfileIdAndEnabledTrue(
+                        organizationId,
+                        profileId);
+        java.util.Map<String, AiAssistantModelDefinition> requestedByModel = normalized.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        AiAssistantModelDefinition::modelId,
+                        model -> model));
+        Instant now = Instant.now();
+        active.stream()
+                .filter(model -> {
+                    AiAssistantModelDefinition requested = requestedByModel.get(model.modelId());
+                    return requested == null
+                            || !requested.displayName().equals(model.view().displayName());
+                })
+                .forEach(model -> model.disable(adminUserId, now));
+        assistantModels.flush();
+        java.util.Set<String> unchanged = active.stream()
+                .filter(AiAssistantModelActivation::enabled)
+                .map(AiAssistantModelActivation::modelId)
+                .collect(java.util.stream.Collectors.toSet());
+        normalized.stream()
+                .filter(model -> !unchanged.contains(model.modelId()))
+                .map(model -> new AiAssistantModelActivation(
+                        organizationId,
+                        profile.getId(),
+                        model.modelId(),
+                        model.displayName(),
+                        adminUserId))
+                .forEach(assistantModels::save);
+        record(
+                organizationId,
+                adminUserId,
+                "AI_ASSISTANT_MODEL_CATALOG",
+                profileId.toString(),
+                "CATALOG_REPLACED");
+        return assistantModels(
+                organizationId,
+                profileId);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<AiGatewayConnection> connection(
             UUID organizationId,
             String gatewayKey) {
@@ -577,6 +669,45 @@ public class AiGatewayAdministrationService {
                     "Gateway key must contain lowercase letters, numbers, or hyphens");
         }
         return normalized;
+    }
+
+    private static List<AiAssistantModelDefinition> normalizeAssistantModels(
+            List<AiAssistantModelDefinition> requestedModels,
+            String defaultModelId) {
+        List<AiAssistantModelDefinition> supplied = requestedModels == null
+                ? List.of()
+                : requestedModels;
+        if (supplied.size() > MAX_ASSISTANT_MODELS) {
+            throw new BusinessValidationException(
+                    "ai.assistant-model-limit",
+                    "At most 50 additional Assistant models may be enabled");
+        }
+        java.util.LinkedHashMap<String, AiAssistantModelDefinition> normalized =
+                new java.util.LinkedHashMap<>();
+        for (AiAssistantModelDefinition model : supplied) {
+            if (model == null) {
+                throw new BusinessValidationException(
+                        "ai.assistant-model-invalid",
+                        "Assistant model entries must be complete");
+            }
+            String modelId = requireText(
+                    model.modelId(),
+                    "Assistant model id",
+                    MAX_MODEL_ID_LENGTH);
+            if (modelId.equals(defaultModelId)) {
+                continue;
+            }
+            String displayName = requireText(
+                    model.displayName() == null || model.displayName().isBlank()
+                            ? modelId
+                            : model.displayName(),
+                    "Assistant model display name",
+                    MAX_MODEL_ID_LENGTH);
+            normalized.putIfAbsent(
+                    modelId,
+                    new AiAssistantModelDefinition(modelId, displayName));
+        }
+        return List.copyOf(normalized.values());
     }
 
     private static int requireTimeout(Integer value) {

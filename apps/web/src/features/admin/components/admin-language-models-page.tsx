@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { AdminPage } from "@/features/admin/components/admin-page"
 import { ProviderLogo } from "@/features/admin/components/provider-logo"
 import type {
@@ -63,6 +64,7 @@ import {
   listAdminAiProviderPresetsOptions,
   listAdminAiRoutesOptions,
   listAdminAiRoutesQueryKey,
+  replaceAdminAssistantModelsMutation,
   setAdminAiRouteMutation,
   testAdminAiGatewayMutation,
   testStoredAdminAiGatewayMutation,
@@ -256,7 +258,11 @@ export function AdminLanguageModelsPage() {
       </section>
 
       <ConnectGatewayDialog provider={connecting} onOpenChange={(open) => !open && setConnecting(undefined)} />
-      <GatewaySettingsDialog gateway={editing} onOpenChange={(open) => !open && setEditing(undefined)} />
+      <GatewaySettingsDialog
+        gateway={editing}
+        assistantRoute={effectiveRoutes.find((route) => route.workload === "ASSISTANT_CHAT")}
+        onOpenChange={(open) => !open && setEditing(undefined)}
+      />
     </AdminPage>
   )
 }
@@ -725,9 +731,11 @@ function ConnectGatewayDialog({
 
 function GatewaySettingsDialog({
   gateway,
+  assistantRoute,
   onOpenChange,
 }: {
   gateway?: GatewayResponse
+  assistantRoute?: RouteResponse
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
@@ -736,7 +744,10 @@ function GatewaySettingsDialog({
   const [timeout, setTimeoutValue] = useState("60")
   const [credential, setCredential] = useState("")
   const [supportsReasoning, setSupportsReasoning] = useState(false)
+  const [assistantModels, setAssistantModels] = useState("")
+  const [discoveredModels, setDiscoveredModels] = useState<ModelRef[]>([])
   const update = useMutation(updateAdminAiGatewayMutation())
+  const replaceAssistantModels = useMutation(replaceAdminAssistantModelsMutation())
   const test = useMutation(testStoredAdminAiGatewayMutation())
   const disable = useMutation(disableAdminAiGatewayMutation())
 
@@ -747,7 +758,33 @@ function GatewaySettingsDialog({
     setTimeoutValue(String(gateway.requestTimeoutSeconds ?? 60))
     setCredential("")
     setSupportsReasoning(gateway.supportsOpenAiReasoningEffort ?? false)
+    setAssistantModels(
+      (gateway.assistantModels ?? [])
+        .map((model) => `${model.modelId ?? ""}${model.displayName && model.displayName !== model.modelId ? ` | ${model.displayName}` : ""}`)
+        .join("\n"),
+    )
+    setDiscoveredModels([])
   }, [gateway])
+
+  const isAssistantGateway =
+    Boolean(gateway?.id) && assistantRoute?.gatewayProfileId === gateway?.id
+  const supportsAssistantChoices =
+    isAssistantGateway && !assistantRoute?.openAiReasoningEffort
+
+  function parsedAssistantModels() {
+    return assistantModels
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [modelId, ...displayNameParts] = line.split("|")
+        const displayName = displayNameParts.join("|").trim()
+        return {
+          modelId: modelId.trim(),
+          displayName: displayName || modelId.trim(),
+        }
+      })
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -763,6 +800,12 @@ function GatewaySettingsDialog({
           credential: credential || undefined,
         },
       })
+      if (supportsAssistantChoices) {
+        await replaceAssistantModels.mutateAsync({
+          path: { profileId: gateway.id },
+          body: { models: parsedAssistantModels() },
+        })
+      }
       await queryClient.invalidateQueries({ queryKey: listAdminAiGatewaysQueryKey() })
       toast.success("Gateway settings updated.")
       onOpenChange(false)
@@ -776,6 +819,7 @@ function GatewaySettingsDialog({
     try {
       const response = await test.mutateAsync({ path: { profileId: gateway.id } })
       if (response.authenticated) {
+        setDiscoveredModels(response.models ?? [])
         toast.success(response.models?.length ? `${response.models.length} models discovered.` : "Connection verified.")
       } else {
         toast.error(`Connection failed: ${response.errorCode ?? "provider_unavailable"}`)
@@ -799,7 +843,7 @@ function GatewaySettingsDialog({
 
   return (
     <Dialog open={Boolean(gateway)} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[min(92vh,54rem)] overflow-y-auto sm:max-w-xl">
         <form onSubmit={submit} className="contents">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -824,6 +868,51 @@ function GatewaySettingsDialog({
                 <Switch id="edit-openai-reasoning" checked={supportsReasoning} onCheckedChange={setSupportsReasoning} />
               </div>
             ) : null}
+            <div className="space-y-2 rounded-xl border border-border-subtle bg-surface-subtle p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Label htmlFor="assistant-model-catalog">Assistant model choices</Label>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    One model per line. Use <span className="font-mono">model-id | Display name</span>. The active answer model remains the organization default.
+                  </p>
+                </div>
+                <Badge variant={supportsAssistantChoices ? "success" : "muted"}>
+                  {supportsAssistantChoices ? "Available" : "Route required"}
+                </Badge>
+              </div>
+              <Textarea
+                id="assistant-model-catalog"
+                value={assistantModels}
+                disabled={!supportsAssistantChoices}
+                onChange={(event) => setAssistantModels(event.target.value)}
+                placeholder={"gpt-5-mini | Fast\ngpt-5 | Deep reasoning"}
+                className="min-h-28 bg-background font-mono text-xs"
+              />
+              {!isAssistantGateway ? (
+                <p className="text-xs text-muted-foreground">
+                  Set this gateway as the Answer generation route before publishing choices to users.
+                </p>
+              ) : assistantRoute?.openAiReasoningEffort ? (
+                <p className="text-xs text-muted-foreground">
+                  Alternate choices are unavailable while the answer route pins a reasoning effort.
+                </p>
+              ) : discoveredModels.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setAssistantModels(
+                      discoveredModels
+                        .map((model) => `${model.id ?? ""}${model.displayName && model.displayName !== model.id ? ` | ${model.displayName}` : ""}`)
+                        .join("\n"),
+                    )
+                  }
+                >
+                  Use {discoveredModels.length} discovered models
+                </Button>
+              ) : null}
+            </div>
           </div>
           <DialogFooter>
             <AlertDialog>
@@ -854,7 +943,10 @@ function GatewaySettingsDialog({
             <Button type="button" variant="outline" disabled={test.isPending || !gateway?.credentialSet} onClick={testStored}>
               {test.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />} Test stored key
             </Button>
-            <Button type="submit" disabled={update.isPending || !displayName || !baseUrl}>
+            <Button
+              type="submit"
+              disabled={update.isPending || replaceAssistantModels.isPending || !displayName || !baseUrl}
+            >
               Save changes
             </Button>
           </DialogFooter>

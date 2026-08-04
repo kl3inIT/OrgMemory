@@ -35,17 +35,24 @@ final class AiGatewayRegistry implements AiRouteResolver {
 
     @Override
     public AiRoute resolve(UUID organizationId, AiWorkload workload) {
-        Optional<com.orgmemory.core.ai.AiRouteOverrideView> override =
-                administration.route(organizationId, workload);
-        AiRoute route = override
-                .map(com.orgmemory.core.ai.AiRouteOverrideView::route)
-                .orElseGet(() -> properties.route(workload));
+        AiRoute route = reference(organizationId, workload);
+        boolean organizationOverride = administration.route(organizationId, workload)
+                .isPresent();
         definition(
                 organizationId,
                 workload,
                 route,
-                override.isPresent());
+                organizationOverride);
         return route;
+    }
+
+    @Override
+    public AiRoute reference(UUID organizationId, AiWorkload workload) {
+        Optional<com.orgmemory.core.ai.AiRouteOverrideView> override =
+                administration.route(organizationId, workload);
+        return override
+                .map(com.orgmemory.core.ai.AiRouteOverrideView::route)
+                .orElseGet(() -> properties.route(workload));
     }
 
     ResolvedGateway definition(
@@ -67,6 +74,20 @@ final class AiGatewayRegistry implements AiRouteResolver {
         return definition(
                 organizationId,
                 workload,
+                route,
+                organizationOverride);
+    }
+
+    ResolvedGateway assistantDefinition(
+            UUID organizationId,
+            AiRoute route) {
+        boolean organizationOverride = administration.route(
+                        organizationId,
+                        AiWorkload.ASSISTANT_CHAT)
+                .isPresent();
+        return definition(
+                organizationId,
+                AiWorkload.ASSISTANT_CHAT,
                 route,
                 organizationOverride);
     }

@@ -22,6 +22,9 @@ _openapi:
       title: Create or replace feedback on an owned Assistant answer
       url: '#create-or-replace-feedback-on-an-owned-assistant-answer'
     - depth: 2
+      title: Select one allowed model for an owned Assistant conversation
+      url: '#select-one-allowed-model-for-an-owned-assistant-conversation'
+    - depth: 2
       title: Search canonical permission-aware Knowledge and return citation
         references
       url: '#search-canonical-permission-aware-knowledge-and-return-citation-references'
@@ -65,6 +68,9 @@ _openapi:
       title: List supported prompts for starting an Assistant conversation
       url: '#list-supported-prompts-for-starting-an-assistant-conversation'
     - depth: 2
+      title: List server-governed Assistant model choices for the current route
+      url: '#list-server-governed-assistant-model-choices-for-the-current-route'
+    - depth: 2
       title: List the current actor's conversations by recent activity
       url: '#list-the-current-actors-conversations-by-recent-activity'
     - depth: 2
@@ -78,6 +84,8 @@ _openapi:
         id: remove-feedback-from-an-owned-assistant-answer
       - content: Create or replace feedback on an owned Assistant answer
         id: create-or-replace-feedback-on-an-owned-assistant-answer
+      - content: Select one allowed model for an owned Assistant conversation
+        id: select-one-allowed-model-for-an-owned-assistant-conversation
       - content: Search canonical permission-aware Knowledge and return citation
           references
         id: search-canonical-permission-aware-knowledge-and-return-citation-references
@@ -108,6 +116,8 @@ _openapi:
         id: recommend-exact-usable-asset-releases-without-leaking-denied-candidates
       - content: List supported prompts for starting an Assistant conversation
         id: list-supported-prompts-for-starting-an-assistant-conversation
+      - content: List server-governed Assistant model choices for the current route
+        id: list-server-governed-assistant-model-choices-for-the-current-route
       - content: List the current actor's conversations by recent activity
         id: list-the-current-actors-conversations-by-recent-activity
       - content: Replay a tenant- and actor-scoped full conversation transcript
@@ -124,7 +134,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"}]} showTitle showDescription />
+      <Comp document="orgmemory-public" webhooks={[]} operations={[{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack/{itemKey}","method":"put"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"delete"},{"path":"/api/assistant/messages/{messageId}/feedback","method":"put"},{"path":"/api/assistant/conversations/{conversationId}/model","method":"put"},{"path":"/api/assistant/tools/knowledge-search","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-run","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-render","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/pack","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/fork","method":"post"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/feedback","method":"post"},{"path":"/api/assistant/chat","method":"post"},{"path":"/api/assistant/conversations/{conversationId}","method":"patch"},{"path":"/api/assistant/conversations/{conversationId}","method":"delete"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/work-instruction","method":"get"},{"path":"/api/assistant/tools/assets/{assetId}/releases/{releaseId}/prompt-form","method":"get"},{"path":"/api/assistant/tools/asset-recommendations","method":"get"},{"path":"/api/assistant/starters","method":"get"},{"path":"/api/assistant/model-options","method":"get"},{"path":"/api/assistant/conversations","method":"get"},{"path":"/api/assistant/conversations/{conversationId}/messages","method":"get"}]} showTitle showDescription />
     </>
   );
 }

@@ -407,8 +407,13 @@ The verified ZM production route uses `gpt-5.6-sol` for Answer,
 Immutable Knowledge Asset embedding
 profiles still pin the provider/model used by derived indexes. The default
 `GRAPH_RAG` runtime requires its configured provider routes and has no implicit
-local retrieval fallback. A persistent agent conversation model does not exist
-yet.
+local retrieval fallback. Assistant conversations may select an additional
+administrator-activated model on the current organization Answer gateway. The
+browser submits only the activation UUID; the server binds it to the active
+route identity and version, revalidates it inside the cold generation stream,
+and retains the ordinary bounded conversation-memory advisor. Deployment
+defaults remain synthetic and read-only, and other AI workloads cannot enter
+this Assistant-only exact-route authority path.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,

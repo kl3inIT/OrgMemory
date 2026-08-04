@@ -43,4 +43,19 @@ public interface ChatModelPort {
             ChatGenerationRequest request) {
         return stream(workload, route, request);
     }
+
+    /**
+     * Streams one Assistant turn through an exact server-authorized route while retaining
+     * bounded conversation memory. Implementations must fail closed rather than discard the
+     * authority or conversation identity.
+     */
+    default Flux<String> stream(
+            AssistantModelRouteAuthority authority,
+            ChatGenerationRequest request,
+            String conversationId,
+            UUID actorUserId,
+            String requestId) {
+        return Flux.error(new UnsupportedOperationException(
+                "Exact Assistant route authority is not supported"));
+    }
 }
