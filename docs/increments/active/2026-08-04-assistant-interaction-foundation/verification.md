@@ -10,6 +10,9 @@ Packs, custom agents, tool execution, uploads, branching, or deep research.
 The independent architecture challenge returned `ACCEPT WITH MUST-FIXES`.
 Implementation includes its required commit ordering, opaque target lookup,
 composite database ownership, cascade deletion, and draft lifecycle cleanup.
+The PR review findings are also closed: feedback mutations now serialize on the
+owned answer row, and an in-place actor change clears the prior local transcript,
+feedback, and source-panel state before replacement history can render.
 
 ## Evidence
 
@@ -17,11 +20,12 @@ composite database ownership, cascade deletion, and draft lifecycle cleanup.
 | --- | --- |
 | `./gradlew.bat --no-daemon :core:compileJava :apps:api:compileJava` | passed |
 | Focused conversation, stream, controller, and migration tests | passed |
+| PostgreSQL feedback set/set and set/delete concurrency integration tests | passed |
 | `./gradlew.bat --no-daemon clean test` | passed; 108 tasks in 8m10s |
 | Web lint, TypeScript, and 65 unit tests | passed |
 | `pnpm --filter @orgmemory/web build` | passed |
 | `pnpm --filter @orgmemory/web check:api` | passed |
-| `playwright test test/e2e/assistant-pipeline.spec.ts` | passed; 10 scenarios |
+| `playwright test test/e2e/assistant-pipeline.spec.ts --workers=1` | passed; 11 scenarios |
 | Product OpenAPI contract generation | passed against live Spring context |
 | Public OpenAPI projection generation and docs checks | passed; 120 paths and 7 groups |
 | `pnpm --filter @orgmemory/docs build` | passed; 147 static pages |
@@ -44,6 +48,8 @@ The Assistant Playwright harness verifies:
   while preserving an unrelated composer draft;
 - helpful/not-helpful state replays, replaces, and removes through generated
   REST calls;
+- an actor change on the same conversation URL hides and clears the previous
+  actor's local state while replacement history is still pending;
 - leaving the bottom reveals a keyboard-reachable scroll recovery action;
 - the existing citation, revoked-access, PDF, no-evidence, failure-retry, and
   stop behaviors remain intact.

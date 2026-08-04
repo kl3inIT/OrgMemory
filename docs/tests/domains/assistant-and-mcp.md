@@ -6,7 +6,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-04-assistant-interaction-foundation (e141e840)`.
+Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -43,10 +43,12 @@ Reconciled: `2026-08-04-assistant-interaction-foundation (e141e840)`.
 | One server-owned answer UUID is shared by the stream and persisted transcript | `AssistantControllerStreamingTests#usesOneServerOwnedIdentityForTheStreamAndPersistedAnswer`, `AssistantConversationServiceTests#persistsTheServerAllocatedAssistantMessageIdentity`, `UiMessageStreamTests` | covered |
 | Answer feedback creates, replaces, removes, and replays only against an owned assistant message | `AssistantConversationServiceTests`, `AssistantControllerStreamingTests#delegatesFeedbackThroughTheAuthenticatedActor`, `assistant-pipeline.spec.ts#creates, replaces, removes, and replays answer feedback` | covered |
 | Feedback ownership and deletion are database-enforced across the message tenant/actor tuple | `AssistantAnswerFeedbackMigrationTests` | covered |
+| Concurrent feedback set/set and set/delete mutations serialize on the owned assistant message | `AssistantAnswerFeedbackConcurrencyIntegrationTests` against PostgreSQL | covered |
 | Starter prompts come from the server rather than a browser constant | `AssistantControllerStreamingTests#publishesClosedServerOwnedStarters`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
 | Drafts are actor/conversation scoped, capped, restored in-session, and cleared through their lifecycle | `assistant-draft-storage.test.ts`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
 | Completed-answer retry starts exactly one fresh turn without consuming the current composer draft | `assistant-pipeline.spec.ts#retries a completed answer as one fresh turn and preserves the composer draft` | covered |
 | Composer focus and leave-bottom scroll recovery remain keyboard/browser reachable | `assistant-pipeline.spec.ts` focus and scroll-recovery scenarios | covered |
+| An in-place actor change hides and clears the prior actor's transcript, feedback, and source state before new history renders | `assistant-pipeline.spec.ts#clears conversation state before rendering a different actor's history` | covered |
 | Time to first token counts the permission-scoped retrieval the user waits through | `AssistantTurnObservationTests#countsTheWaitBeforeTheModelIsEvenAsked` | covered |
 | Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
 | A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
