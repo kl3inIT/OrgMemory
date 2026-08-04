@@ -54,7 +54,8 @@ The Assistant Playwright harness verifies:
 - the existing citation, revoked-access, PDF, no-evidence, failure-retry, and
   stop behaviors remain intact.
 
-## Remaining Gate
+## Pull Request Gate
 
-Merge current `origin/main`, rerun affected gates if the merge changes relevant
-paths, then complete CI and review on the pull request.
+PR #289 completed its code-bearing CI and review loop. All required checks were
+green; the actionable review thread was addressed, regression-tested, replied
+to, and resolved. The final increment-close commit changes documentation only.

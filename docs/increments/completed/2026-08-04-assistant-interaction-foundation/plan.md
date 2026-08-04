@@ -9,5 +9,5 @@
 - [x] Add retry and feedback actions using local AI Elements message actions.
 - [x] Protect service, controller, migration, component, focus, scroll, retry,
   and two-user negative behavior with focused tests.
-- [ ] Reconcile the Assistant spec and coverage matrix, then run completion
+- [x] Reconcile the Assistant spec and coverage matrix, then run completion
   gates and the PR/CI/review loop.
