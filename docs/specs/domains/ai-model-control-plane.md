@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `fix/keyword-luna-default (d4deed72)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 ## Current Behavior
 

@@ -12,5 +12,5 @@
   starter presentation from verified reference patterns.
 - [x] Add focused backend, frontend, accessibility, and browser interaction
   coverage.
-- [ ] Reconcile the Assistant spec and coverage matrix, run completion gates,
+- [x] Reconcile the Assistant spec and coverage matrix, run completion gates,
   and drive the PR/CI/review loop through merge.

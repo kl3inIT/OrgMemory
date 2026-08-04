@@ -8,7 +8,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 ## Current Behavior
 

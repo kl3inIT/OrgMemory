@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

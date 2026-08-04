@@ -1,5 +1,7 @@
 # Assistant Composer And Conversation Model Picker Challenge Brief
 
+Increment status: completed 2026-08-04.
+
 ## Adversarial Review Mandate
 
 Attack this proposal rather than validating it. Verify every material claim in

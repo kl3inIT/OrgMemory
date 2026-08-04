@@ -1,5 +1,7 @@
 # Assistant Composer And Model Picker Reference Study
 
+Increment status: completed 2026-08-04.
+
 ## Pins
 
 - Onyx: `D:/OrgMemory/tmp/onyx` at

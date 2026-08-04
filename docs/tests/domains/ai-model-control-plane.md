@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `fix/keyword-luna-default (d4deed72)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

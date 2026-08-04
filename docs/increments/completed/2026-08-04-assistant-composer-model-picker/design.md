@@ -1,5 +1,7 @@
 # Assistant Composer And Conversation Model Picker
 
+Status: completed 2026-08-04.
+
 ## Intent
 
 Make the Assistant composer communicate a useful choice instead of a static
