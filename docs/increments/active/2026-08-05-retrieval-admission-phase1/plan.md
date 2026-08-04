@@ -48,3 +48,13 @@ Design: [design.md](design.md). Decision: ADR 0020 conditions 1 and 7.
   surviving path before any further latency work.
 - Consolidate: spec/test matrix refresh for the retrieval domain, roadmap
   update, move to completed.
+
+## Deferred review finding (PR #292, CodeRabbit)
+
+The turn timeout does not interrupt a turn blocked in admission or in an
+in-flight snapshot query; an abandoned turn consumes its permit and one
+storage query after the timeout fires (bounded zombie work; permits always
+release). Pre-existing in part — the timeout never interrupted the
+synchronous search path. Deferred to the Phase 2 compound-query port, whose
+design must include deadline-aware admission and cooperative cancellation
+between the turn stream and the retrieval future.
