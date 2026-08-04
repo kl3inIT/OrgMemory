@@ -10,6 +10,5 @@ subject: Close the Knowledge ACL module boundary
 
 Knowledge ACL now enforces a closed public API with an explicit dependency
 allowlist limited to `organization`, `permission`, `shared`, and
-`shared::error`. This completes the ACL closure required by the existing
-[Claude Fable 5 architecture verdict](../docs/increments/active/2026-07-31-spring-modulith-package-refactor/challenge-verdict.md)
-after its sibling implementation edges were replaced with owned APIs.
+`shared::error`. This completes the independently reviewed ACL closure after
+its sibling implementation edges were replaced with owned APIs.
