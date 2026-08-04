@@ -8,6 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
@@ -15,6 +17,7 @@ import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
 import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
 import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
@@ -32,6 +35,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import reactor.core.publisher.Flux;
 
 /**
@@ -53,6 +57,8 @@ class AssistantTurnObservationTests {
     private final ChatModelPort chat = mock(ChatModelPort.class);
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final ObservationRegistry observations = observationRegistry();
+    private final AssistantStageEventSink stages =
+            mock(AssistantStageEventSink.class);
     private final CurrentActor actor = new CurrentActor(
             UUID.randomUUID(),
             UUID.randomUUID(),
@@ -186,13 +192,40 @@ class AssistantTurnObservationTests {
                 "permission-scoped retrieval needs its own latency distribution");
     }
 
+    @Test
+    void attributesPromptAssemblyAndRetrievalToFirstTokenAboveRetrieval() {
+        whenSearchTakes(Duration.ZERO);
+        whenModelStreams(Flux.just("Sixty days."));
+
+        drain(startTurn());
+
+        ArgumentCaptor<AssistantStageEventSink.AssistantStageEvent> captured =
+                ArgumentCaptor.forClass(
+                        AssistantStageEventSink.AssistantStageEvent.class);
+        verify(stages, times(2)).emit(captured.capture());
+        assertEquals(
+                Set.of(
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Stage.RETRIEVAL_TO_FIRST_TOKEN),
+                captured.getAllValues().stream()
+                        .map(AssistantStageEventSink.AssistantStageEvent::stage)
+                        .collect(java.util.stream.Collectors.toSet()));
+        assertTrue(captured.getAllValues().stream().allMatch(event ->
+                !event.duration().isNegative()
+                        && event.failureCode() == null));
+    }
+
     private AssistantTurn startTurn() {
         return service().startTurn(actor, "What is the probation policy?", 5, "request-1", CONVERSATION_ID);
     }
 
     private AssistantService service() {
         return new AssistantService(
-                retrieval, chat, observations, AssistantTurnEvent.RetrievalEngine.GRAPH_RAG);
+                retrieval,
+                chat,
+                observations,
+                AssistantTurnEvent.RetrievalEngine.GRAPH_RAG,
+                stages);
     }
 
     private static void drain(AssistantTurn turn) {

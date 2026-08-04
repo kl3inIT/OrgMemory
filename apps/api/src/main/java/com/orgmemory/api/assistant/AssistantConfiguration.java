@@ -4,6 +4,7 @@ import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
 import com.orgmemory.core.assistant.AssistantService;
+import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
 import com.orgmemory.core.assistant.observability.AssistantTurnEvent;
 import com.orgmemory.core.assistant.observability.AssistantTurnMeterObservationHandler;
 import com.orgmemory.core.assetregistry.AssetRegistryService;
@@ -15,7 +16,9 @@ import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Clock;
+import java.util.List;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
@@ -44,11 +47,18 @@ class AssistantConfiguration {
     }
 
     @Bean
-    ChatMemory assistantChatMemory(ChatMemoryRepository repository) {
-        return MessageWindowChatMemory.builder()
+    ChatMemory assistantChatMemory(
+            ChatMemoryRepository repository,
+            AssistantStageEventSink stages,
+            AssistantProperties properties) {
+        ChatMemory memory = MessageWindowChatMemory.builder()
                 .chatMemoryRepository(repository)
                 .maxMessages(20)
                 .build();
+        return new ObservedChatMemory(
+                memory,
+                stages,
+                observedEngine(properties));
     }
 
     @Bean
@@ -71,9 +81,26 @@ class AssistantConfiguration {
             PermissionAwareKnowledgeSearch retrieval,
             ChatModelPort chat,
             ObservationRegistry observations,
-            AssistantProperties properties) {
+            AssistantProperties properties,
+            AssistantStageEventSink stages) {
         return new AssistantService(
-                retrieval, chat, observations, observedEngine(properties));
+                retrieval,
+                chat,
+                observations,
+                observedEngine(properties),
+                stages);
+    }
+
+    @Bean
+    AssistantStageEventSink assistantStageEventSink(
+            OpenTelemetry openTelemetry,
+            MeterRegistry meters) {
+        return AssistantStageEventSink.composite(List.of(
+                AssistantStageEventSink.failureTolerant(
+                        new OpenTelemetryAssistantStageEventSink(
+                                openTelemetry)),
+                AssistantStageEventSink.failureTolerant(
+                        new MicrometerAssistantStageEventSink(meters))));
     }
 
     /**

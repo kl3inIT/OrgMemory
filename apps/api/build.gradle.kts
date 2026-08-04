@@ -42,6 +42,7 @@ dependencies {
     // not have.
     testImplementation("io.micrometer:micrometer-registry-otlp")
     testImplementation("io.opentelemetry:opentelemetry-sdk")
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

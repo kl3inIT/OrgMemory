@@ -153,7 +153,8 @@ orgmemory:
       keyword-cache-ttl: ${ORGMEMORY_GRAPH_QUERY_KEYWORD_CACHE_TTL:24h}
       maximum-knowledge-spaces: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_SPACES:20}
       maximum-concurrent-spaces: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_CONCURRENT_SPACES:4}
-      top-k: ${ORGMEMORY_GRAPH_QUERY_TOP_K:60}
+      retrieval-admission-permits: ${ORGMEMORY_GRAPH_QUERY_ADMISSION_PERMITS:4}
+      top-k: ${ORGMEMORY_GRAPH_QUERY_TOP_K:40}
       chunk-top-k: ${ORGMEMORY_GRAPH_QUERY_CHUNK_TOP_K:20}
       related-chunk-number: ${ORGMEMORY_GRAPH_QUERY_RELATED_CHUNKS:5}
       maximum-graph-depth: ${ORGMEMORY_GRAPH_QUERY_MAXIMUM_DEPTH:1}

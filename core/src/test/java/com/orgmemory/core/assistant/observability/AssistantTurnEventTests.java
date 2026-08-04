@@ -19,6 +19,19 @@ import org.junit.jupiter.api.Test;
  */
 class AssistantTurnEventTests {
 
+    @Test
+    void assistantStageEventRejectsFreeTextFailureCodes() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new AssistantStageEventSink.AssistantStageEvent(
+                        AssistantTurnEvent.RetrievalEngine.GRAPH_RAG,
+                        AssistantStageEventSink.Stage.GROUNDING_TO_PROMPT,
+                        AssistantStageEventSink.Outcome.FAILED,
+                        Duration.ofMillis(1),
+                        "private prompt text is forbidden",
+                        java.time.Instant.EPOCH));
+    }
+
     private static final UUID ORGANIZATION = UUID.randomUUID();
 
     @Test
