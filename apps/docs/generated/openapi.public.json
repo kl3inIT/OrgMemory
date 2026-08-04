@@ -130,6 +130,41 @@
         }
       }
     },
+    "/api/assistant/conversations/{conversationId}/model": {
+      "put": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Select one allowed model for an owned Assistant conversation",
+        "operationId": "selectAssistantConversationModel",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectAssistantModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/skill-draft": {
       "put": {
         "tags": [
@@ -689,6 +724,51 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/ai/gateways/{profileId}/assistant-models": {
+      "put": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Replace additional chat models allowed on the active Assistant gateway",
+        "operationId": "replaceAdminAssistantModels",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantModelsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantModelResponse"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -3771,6 +3851,38 @@
         }
       }
     },
+    "/api/assistant/model-options": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "List server-governed Assistant model choices for the current route",
+        "operationId": "getAssistantModelOptions",
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantModelOptionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assistant/conversations": {
       "get": {
         "tags": [
@@ -5345,6 +5457,15 @@
           }
         }
       },
+      "SelectAssistantModelRequest": {
+        "type": "object",
+        "properties": {
+          "modelActivationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "AssetView": {
         "type": "object",
         "properties": {
@@ -6078,6 +6199,21 @@
           }
         }
       },
+      "AssistantModelResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
       "GatewayResponse": {
         "type": "object",
         "properties": {
@@ -6145,6 +6281,12 @@
           "credentialSetAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "assistantModels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantModelResponse"
+            }
           }
         }
       },
@@ -6153,6 +6295,28 @@
         "properties": {
           "credential": {
             "type": "string"
+          }
+        }
+      },
+      "AssistantModelDefinitionRequest": {
+        "type": "object",
+        "properties": {
+          "modelId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "AssistantModelsRequest": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantModelDefinitionRequest"
+            }
           }
         }
       },
@@ -6983,6 +7147,10 @@
             "format": "int32"
           },
           "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "modelActivationId": {
             "type": "string",
             "format": "uuid"
           }
@@ -8731,6 +8899,45 @@
           },
           "prompt": {
             "type": "string"
+          }
+        }
+      },
+      "AssistantModelOptionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gatewayLabel": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "defaultChoice": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AssistantModelOptionsResponse": {
+        "type": "object",
+        "properties": {
+          "selectedModelActivationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantModelOptionResponse"
+            }
           }
         }
       },

@@ -5,6 +5,7 @@ const SECOND_CHUNK_ID = "43000000-0000-0000-0000-000000000004"
 const THIRD_CHUNK_ID = "43000000-0000-0000-0000-000000000005"
 const CONVERSATION_ID = "44000000-0000-4000-8000-000000000001"
 const ANSWER_MESSAGE_ID = "44000000-0000-4000-8000-000000000002"
+const MODEL_ACTIVATION_ID = "45000000-0000-4000-8000-000000000001"
 
 interface HistoryMessage {
   id: string
@@ -25,6 +26,7 @@ interface AssistantHarnessOptions {
   holdHistoryAfterActorSwitch?: boolean
   history?: HistoryMessage[]
   switchedActorHistory?: HistoryMessage[]
+  selectedModelActivationId?: string
 }
 
 async function assistantHarness(page: Page, options: AssistantHarnessOptions = {}) {
@@ -33,6 +35,7 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
   const browserErrors: string[] = []
   const chatBodies: Array<Record<string, unknown>> = []
   const feedbackBodies: Array<Record<string, unknown>> = []
+  const modelSelectionBodies: Array<Record<string, unknown>> = []
   let releaseChat: (() => void) | undefined
   let releaseHistory: (() => void) | undefined
   let actorIndex = 1
@@ -113,6 +116,42 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
 
     if (
       request.method() === "GET" &&
+      url.pathname === "/api/assistant/model-options"
+    ) {
+      await json(route, {
+        selectedModelActivationId: options.selectedModelActivationId,
+        options: [
+          {
+            gatewayLabel: "Organization AI",
+            provider: "custom",
+            modelId: "company-default",
+            displayName: "Organization default",
+            defaultChoice: true,
+          },
+          {
+            id: MODEL_ACTIVATION_ID,
+            gatewayLabel: "Organization AI",
+            provider: "custom",
+            modelId: "claude-sonnet-4-5",
+            displayName: "Claude Sonnet",
+            defaultChoice: false,
+          },
+        ],
+      })
+      return
+    }
+
+    if (
+      request.method() === "PUT" &&
+      url.pathname === `/api/assistant/conversations/${CONVERSATION_ID}/model`
+    ) {
+      modelSelectionBodies.push(request.postDataJSON() as Record<string, unknown>)
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (
+      request.method() === "GET" &&
       url.pathname === `/api/assistant/conversations/${CONVERSATION_ID}/messages`
     ) {
       if (actorIndex > 1 && options.holdHistoryAfterActorSwitch) {
@@ -188,6 +227,7 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
     browserErrors,
     chatBodies,
     feedbackBodies,
+    modelSelectionBodies,
     releaseChat: () => releaseChat?.(),
     releaseHistory: () => releaseHistory?.(),
     switchActor: async () => {
@@ -363,6 +403,48 @@ test("loads server-owned starters and restores a session-scoped draft with focus
   )
   await expect(page.getByPlaceholder("Ask OrgMemory…")).toBeFocused()
   expect(harness.unexpectedRequests).toEqual([])
+})
+
+test("chooses a governed model in the composer and sends only its opaque activation", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    chatFrames: textOnlyFrames("The selected model answered."),
+  })
+  await page.goto("/")
+
+  await expect(page.getByText("What can we help you move forward?")).toBeVisible()
+  await expect(page.getByText("Permission-aware")).toHaveCount(0)
+  await page.getByRole("button", { name: /Choose model, current model Organization default/ }).click()
+  await expect(page.getByPlaceholder("Search models…")).toBeVisible()
+  await page.getByRole("option", { name: /Claude Sonnet/ }).click()
+  await expect(page.getByRole("button", { name: /current model Claude Sonnet/ })).toBeVisible()
+
+  await submit(page, "Which model is answering?")
+  await expect.poll(() => harness.chatBodies.length).toBe(1)
+  expect(harness.chatBodies[0]).toMatchObject({
+    message: "Which model is answering?",
+    modelActivationId: MODEL_ACTIVATION_ID,
+  })
+  expect(harness.chatBodies[0]).not.toHaveProperty("modelId")
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
+test("persists a governed model change for an existing owned conversation", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    history: [historyMessage(1, "USER", "Existing conversation")],
+  })
+  await page.goto(`/?chat=${CONVERSATION_ID}`)
+  await expect(page.getByText("Existing conversation")).toBeVisible()
+
+  await page.getByRole("button", { name: /Choose model, current model Organization default/ }).click()
+  await page.getByRole("option", { name: /Claude Sonnet/ }).click()
+
+  await expect.poll(() => harness.modelSelectionBodies.length).toBe(1)
+  expect(harness.modelSelectionBodies).toEqual([
+    { modelActivationId: MODEL_ACTIVATION_ID },
+  ])
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
 })
 
 test("retries a completed answer as one fresh turn and preserves the composer draft", async ({ page }) => {

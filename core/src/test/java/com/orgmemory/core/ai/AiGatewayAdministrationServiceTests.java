@@ -20,6 +20,8 @@ import com.orgmemory.core.shared.secret.EncryptedSecret;
 import com.orgmemory.core.shared.secret.SecretCipher;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +35,8 @@ class AiGatewayAdministrationServiceTests {
             mock(AiGatewayCredentialRepository.class);
     private final AiRouteOverrideRepository routes =
             mock(AiRouteOverrideRepository.class);
+    private final AiAssistantModelActivationRepository assistantModels =
+            mock(AiAssistantModelActivationRepository.class);
     private final AiGatewayEndpointPolicy endpoints =
             mock(AiGatewayEndpointPolicy.class);
     private final SecretCipher cipher = mock(SecretCipher.class);
@@ -49,6 +53,7 @@ class AiGatewayAdministrationServiceTests {
                     profiles,
                     credentials,
                     routes,
+                    assistantModels,
                     endpoints,
                     cipher,
                     audit);
@@ -379,5 +384,81 @@ class AiGatewayAdministrationServiceTests {
                         adminUserId));
 
         assertTrue(storedProfile.get().supportsOpenAiReasoningEffort());
+    }
+
+    @Test
+    void assistantCatalogSoftDisablesAndReenableCreatesANewOpaqueActivation() {
+        UUID organizationId = UUID.randomUUID();
+        UUID adminUserId = UUID.randomUUID();
+        AiGatewayProfile profile = new AiGatewayProfile(
+                organizationId,
+                "openai-main",
+                "OpenAI",
+                AiGatewayPreset.OPENAI,
+                AiGatewayCategory.DIRECT_PROVIDER,
+                AiGatewayProtocol.OPENAI_COMPATIBLE,
+                "https://api.openai.com/v1",
+                60,
+                true,
+                adminUserId);
+        AiRouteOverride route = new AiRouteOverride(
+                organizationId,
+                AiWorkload.ASSISTANT_CHAT,
+                profile.getId(),
+                "gpt-default",
+                adminUserId,
+                java.time.Instant.now());
+        List<AiAssistantModelActivation> stored = new ArrayList<>();
+        when(profiles.findByIdAndOrganizationIdAndEnabledTrue(
+                        profile.getId(), organizationId))
+                .thenReturn(Optional.of(profile));
+        when(profiles.findByIdAndOrganizationId(profile.getId(), organizationId))
+                .thenReturn(Optional.of(profile));
+        when(routes.findByOrganizationIdAndWorkload(
+                        organizationId, AiWorkload.ASSISTANT_CHAT))
+                .thenReturn(Optional.of(route));
+        when(assistantModels.findAllByOrganizationIdAndGatewayProfileIdAndEnabledTrue(
+                        organizationId, profile.getId()))
+                .thenAnswer(ignored -> stored.stream()
+                        .filter(AiAssistantModelActivation::enabled)
+                        .toList());
+        when(assistantModels
+                        .findAllByOrganizationIdAndGatewayProfileIdAndEnabledTrueOrderByDisplayNameAscModelIdAsc(
+                                organizationId, profile.getId()))
+                .thenAnswer(ignored -> stored.stream()
+                        .filter(AiAssistantModelActivation::enabled)
+                        .toList());
+        when(assistantModels.save(any())).thenAnswer(invocation -> {
+            AiAssistantModelActivation activation = invocation.getArgument(0);
+            stored.add(activation);
+            return activation;
+        });
+
+        UUID firstId = service.replaceAssistantModels(
+                        organizationId,
+                        profile.getId(),
+                        List.of(new AiAssistantModelDefinition(
+                                "gpt-fast", "Fast")),
+                        adminUserId)
+                .getFirst()
+                .id();
+        service.replaceAssistantModels(
+                organizationId,
+                profile.getId(),
+                List.of(),
+                adminUserId);
+        UUID reenabledId = service.replaceAssistantModels(
+                        organizationId,
+                        profile.getId(),
+                        List.of(new AiAssistantModelDefinition(
+                                "gpt-fast", "Fast")),
+                        adminUserId)
+                .getFirst()
+                .id();
+
+        assertNotEquals(firstId, reenabledId);
+        assertFalse(stored.getFirst().enabled());
+        assertTrue(stored.getLast().enabled());
+        verify(assistantModels, org.mockito.Mockito.times(3)).flush();
     }
 }

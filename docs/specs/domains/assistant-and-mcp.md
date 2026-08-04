@@ -1,11 +1,14 @@
 # Assistant And MCP Spec
 
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
+`core/src/main/java/com/orgmemory/core/ai`,
+`integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
-`apps/web/src/features/assistant`.
+`apps/web/src/features/assistant`, and
+`apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 ## Current Behavior
 
@@ -71,6 +74,20 @@ The citation response derives its media type from a closed extension allowlist,
 never from upload metadata. Text, PDF, and known raster images may render
 inline; Office and unknown formats are forced to download as binary content.
 
+The Assistant composer exposes the current Answer model and any additional
+models an administrator activated on that same organization gateway. The
+ordinary-user response contains only a safe activation UUID, gateway/provider
+label, model identifier, display name, and default marker; it omits profile,
+endpoint, credential, and route-generation data. The browser submits the opaque
+activation UUID or `null` for the current default. Core converts it to a sealed
+Assistant-only route authority, and the gateway adapter revalidates the active
+profile, activation, route identity, and route version inside the cold stream
+before model-client construction. Generic workload routing cannot consume this
+authority. Alternate models are unavailable while the default route pins an
+explicit reasoning effort, and no provider failure falls back to another model.
+The effective gateway/model identity is audited without prompt or completion
+content.
+
 The source panel treats citation content as server state. It deduplicates an
 in-flight open, does not retry an authorization failure, does not show stale
 content during a recheck, and discards the cached blob when the panel releases
@@ -87,6 +104,13 @@ evidence. Every new turn performs a fresh authorized retrieval. Historical
 answers remain a snapshot of what the user received at that time, while opening
 a citation still rechecks current access. A future purge-on-revocation rule is a
 separate retention policy, not a prerequisite for ordinary multi-turn chat.
+Each conversation also stores its optional model activation together with the
+organization route override identity and version observed at selection. Picker
+changes and turn creation lock the owned conversation row. Disabled catalog
+activations remain as immutable historical identities; re-enabling the same
+model creates a new UUID, and stale selections collapse to the current default.
+This prevents an Answer route change followed by a return to the old text route
+from reviving earlier authority.
 
 The API allocates one server-owned assistant message UUID before streaming and
 uses it both in the AI SDK start frame and in the completed transcript row.
@@ -102,9 +126,13 @@ question, answer, evidence, or provider output into feedback storage. Feedback
 mutations take a pessimistic lock on that owned assistant-message row, which
 serializes concurrent set/set and set/delete requests for one answer.
 
-The empty Assistant publishes a small ordered starter list from the API; these
-prompts are closed application data and do not infer inaccessible resources or
-call a model. The composer keeps at most 4,000 characters per actor and
+The empty Assistant uses an outcome-oriented, left-aligned welcome and publishes
+a small ordered starter list from the API; these prompts are closed application
+data and do not infer inaccessible resources or call a model. Its AI Elements
+composer places a compact searchable, keyboard-navigable model selector in the
+footer and keeps provider grouping and selection detail in the dialog. The
+decorative `Permission-aware` label is absent; authorization remains a server
+invariant. The composer keeps at most 4,000 characters per actor and
 conversation in browser `sessionStorage`, including a separate new-conversation
 draft. Submit, actor change, conversation deletion, and logout clear the
 applicable draft state. Drafts are neither server state nor telemetry. Retrying
@@ -169,3 +197,4 @@ than filtered per actor. General chat-turn idempotency remains unimplemented.
 
 - [0006](../../decisions/0006-ai-tasks-route-through-provider-adapters.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
+- [0032](../../decisions/0032-conversation-model-selection-is-bound-to-admin-route-authority.md)

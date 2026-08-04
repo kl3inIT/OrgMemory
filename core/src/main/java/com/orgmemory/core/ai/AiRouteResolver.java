@@ -9,4 +9,9 @@ public interface AiRouteResolver {
     default AiRoute resolve(UUID organizationId, AiWorkload workload) {
         return resolve(workload);
     }
+
+    /** Returns the selected route identity without requiring provider availability. */
+    default AiRoute reference(UUID organizationId, AiWorkload workload) {
+        return resolve(organizationId, workload);
+    }
 }

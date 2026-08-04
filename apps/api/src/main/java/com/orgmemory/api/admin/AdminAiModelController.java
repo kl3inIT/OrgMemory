@@ -2,6 +2,8 @@ package com.orgmemory.api.admin;
 
 import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.ai.AiGatewayAdministrationService;
+import com.orgmemory.core.ai.AiAssistantModelActivationView;
+import com.orgmemory.core.ai.AiAssistantModelDefinition;
 import com.orgmemory.core.ai.AiGatewayCategory;
 import com.orgmemory.core.ai.AiGatewayPreset;
 import com.orgmemory.core.ai.AiGatewayProfileView;
@@ -130,7 +132,11 @@ class AdminAiModelController {
     List<GatewayResponse> gateways(Authentication authentication) {
         CurrentActor actor = guard.requireAiAdministrator(authentication);
         return gateways.list(actor.organizationId()).stream()
-                .map(GatewayResponse::from)
+                .map(profile -> GatewayResponse.from(
+                        profile,
+                        gateways.assistantModels(
+                                actor.organizationId(),
+                                profile.id())))
                 .toList();
     }
 
@@ -156,7 +162,7 @@ class AdminAiModelController {
                 request.supportsOpenAiReasoningEffort(),
                 secret(request.credential()),
                 actor.userId());
-        return GatewayResponse.from(created);
+        return GatewayResponse.from(created, List.of());
     }
 
     @PutMapping("/gateways/{profileId}")
@@ -169,7 +175,7 @@ class AdminAiModelController {
             Authentication authentication) {
         CurrentActor actor = guard.requireAiAdministrator(authentication);
         require(request, "AI gateway settings are required");
-        return GatewayResponse.from(gateways.update(
+        AiGatewayProfileView updated = gateways.update(
                 actor.organizationId(),
                 profileId,
                 request.displayName(),
@@ -177,7 +183,37 @@ class AdminAiModelController {
                 request.requestTimeoutSeconds(),
                 request.supportsOpenAiReasoningEffort(),
                 optionalSecret(request.credential()),
-                actor.userId()));
+                actor.userId());
+        return GatewayResponse.from(
+                updated,
+                gateways.assistantModels(actor.organizationId(), profileId));
+    }
+
+    @PutMapping("/gateways/{profileId}/assistant-models")
+    @Operation(
+            operationId = "replaceAdminAssistantModels",
+            summary = "Replace additional chat models allowed on the active Assistant gateway")
+    List<AssistantModelResponse> replaceAssistantModels(
+            @PathVariable UUID profileId,
+            @RequestBody AssistantModelsRequest request,
+            Authentication authentication) {
+        CurrentActor actor = guard.requireAiAdministrator(authentication);
+        List<AssistantModelDefinitionRequest> models = request == null
+                || request.models() == null
+                ? List.of()
+                : request.models();
+        return gateways.replaceAssistantModels(
+                        actor.organizationId(),
+                        profileId,
+                        models.stream()
+                                .map(model -> new AiAssistantModelDefinition(
+                                        model.modelId(),
+                                        model.displayName()))
+                                .toList(),
+                        actor.userId())
+                .stream()
+                .map(AssistantModelResponse::from)
+                .toList();
     }
 
     @DeleteMapping("/gateways/{profileId}")
@@ -389,9 +425,12 @@ class AdminAiModelController {
             long version,
             boolean credentialSet,
             UUID credentialSetByUserId,
-            java.time.Instant credentialSetAt) {
+            java.time.Instant credentialSetAt,
+            List<AssistantModelResponse> assistantModels) {
 
-        static GatewayResponse from(AiGatewayProfileView profile) {
+        static GatewayResponse from(
+                AiGatewayProfileView profile,
+                List<AiAssistantModelActivationView> assistantModels) {
             return new GatewayResponse(
                     profile.id(),
                     profile.gatewayKey(),
@@ -406,7 +445,32 @@ class AdminAiModelController {
                     profile.version(),
                     profile.credentialSet(),
                     profile.credentialSetByUserId(),
-                    profile.credentialSetAt());
+                    profile.credentialSetAt(),
+                    assistantModels.stream()
+                            .map(AssistantModelResponse::from)
+                            .toList());
+        }
+    }
+
+    record AssistantModelDefinitionRequest(
+            String modelId,
+            String displayName) {
+    }
+
+    record AssistantModelsRequest(
+            List<AssistantModelDefinitionRequest> models) {
+    }
+
+    record AssistantModelResponse(
+            UUID id,
+            String modelId,
+            String displayName) {
+
+        static AssistantModelResponse from(AiAssistantModelActivationView model) {
+            return new AssistantModelResponse(
+                    model.id(),
+                    model.modelId(),
+                    model.displayName());
         }
     }
 

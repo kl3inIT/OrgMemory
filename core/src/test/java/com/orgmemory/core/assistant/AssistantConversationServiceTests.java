@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import java.time.Clock;
@@ -79,7 +80,7 @@ class AssistantConversationServiceTests {
     @Test
     void rejectsAnotherActorsConversationWithoutWritingAUserTurn() {
         UUID conversationId = UUID.randomUUID();
-        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
                         conversationId,
                         actor.organizationId(),
                         actor.userId()))
@@ -100,6 +101,30 @@ class AssistantConversationServiceTests {
 
         verify(conversations, never()).save(any());
         verify(messages, never()).save(any());
+    }
+
+    @Test
+    void storesAndReplacesOnlyServerAuthorizedConversationModelReferences() {
+        UUID conversationId = UUID.randomUUID();
+        AssistantConversation conversation = ownedConversation(conversationId);
+        AssistantModelSelectionRef first = new AssistantModelSelectionRef(
+                UUID.randomUUID(), UUID.randomUUID(), 4);
+        when(conversations.findForUpdateByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(conversation));
+        when(conversations.findByIdAndOrganizationIdAndActorUserId(
+                        conversationId,
+                        actor.organizationId(),
+                        actor.userId()))
+                .thenReturn(Optional.of(conversation));
+
+        service.beginTurn(actor, conversationId, "Use the selected model", first);
+        assertEquals(first, service.modelSelection(actor, conversationId));
+
+        service.selectModel(actor, conversationId, null);
+        assertEquals(null, service.modelSelection(actor, conversationId));
     }
 
     @Test

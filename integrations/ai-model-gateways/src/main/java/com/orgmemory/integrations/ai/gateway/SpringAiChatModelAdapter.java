@@ -3,8 +3,13 @@ package com.orgmemory.integrations.ai.gateway;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiRoute;
 import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.ai.AssistantModelAuthorityService;
+import com.orgmemory.core.ai.AssistantModelRouteAuthority;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.permission.PermissionAuditCommand;
+import com.orgmemory.core.permission.PermissionAuditDecision;
+import com.orgmemory.core.permission.PermissionAuditService;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +29,8 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
     private final SpringAiChatModelProvider chatModels;
     private final ObjectProvider<ChatMemory> memory;
     private final ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer;
+    private final AssistantModelAuthorityService assistantRoutes;
+    private final PermissionAuditService audit;
     private final Map<ModelKey, ChatClient> clients = new ConcurrentHashMap<>();
     private final Map<ModelKey, ChatClient> memoryClients = new ConcurrentHashMap<>();
 
@@ -31,11 +38,15 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
             AiGatewayRegistry gateways,
             SpringAiChatModelProvider chatModels,
             ObjectProvider<ChatMemory> memory,
-            ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer) {
+            ObjectProvider<ChatClientBuilderConfigurer> clientConfigurer,
+            AssistantModelAuthorityService assistantRoutes,
+            PermissionAuditService audit) {
         this.gateways = gateways;
         this.chatModels = chatModels;
         this.memory = memory;
         this.clientConfigurer = clientConfigurer;
+        this.assistantRoutes = assistantRoutes;
+        this.audit = audit;
     }
 
     @Override
@@ -129,6 +140,50 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
         });
     }
 
+    @Override
+    public Flux<String> stream(
+            AssistantModelRouteAuthority authority,
+            ChatGenerationRequest request,
+            String conversationId,
+            UUID actorUserId,
+            String requestId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return Flux.error(new IllegalArgumentException(
+                    "Assistant conversation identity is required"));
+        }
+        return Flux.defer(() -> {
+            AiRoute route = assistantRoutes.revalidate(authority);
+            audit.record(new PermissionAuditCommand(
+                    authority.organizationId(),
+                    actorUserId,
+                    "ASSISTANT_MODEL_GENERATION",
+                    "AI_MODEL_ROUTE",
+                    route.gatewayId() + ":" + route.modelId(),
+                    PermissionAuditDecision.ALLOW,
+                    "EFFECTIVE_ROUTE_AUTHORIZED",
+                    "assistant-model-authority-v1",
+                    requestId,
+                    null));
+            AiGatewayRegistry.ResolvedGateway gateway = gateways.assistantDefinition(
+                    authority.organizationId(),
+                    route);
+            return assistantMemoryClient(
+                            authority.organizationId(),
+                            route,
+                            gateway)
+                    .prompt()
+                    .system(request.systemInstruction())
+                    .user(request.userPrompt())
+                    .advisors(advisors ->
+                            advisors.param(ChatMemory.CONVERSATION_ID, conversationId))
+                    .stream()
+                    .content();
+        }).onErrorMap(
+                error -> !(error instanceof AiGatewayUnavailableException),
+                error -> new AiGatewayUnavailableException(
+                        "The selected Assistant model is unavailable", error));
+    }
+
     private ChatClient client(
             UUID organizationId,
             AiWorkload workload,
@@ -163,6 +218,32 @@ final class SpringAiChatModelAdapter implements ChatModelPort {
                             organizationId,
                             workload,
                             route))
+                    .defaultAdvisors(
+                            MessageChatMemoryAdvisor.builder(chatMemory).build())
+                    .build();
+        });
+    }
+
+    private ChatClient assistantMemoryClient(
+            UUID organizationId,
+            AiRoute route,
+            AiGatewayRegistry.ResolvedGateway gateway) {
+        ModelKey key = key(
+                organizationId,
+                AiWorkload.ASSISTANT_CHAT,
+                route,
+                gateway);
+        evictSuperseded(key);
+        return memoryClients.computeIfAbsent(key, ignored -> {
+            ChatMemory chatMemory = memory.getIfAvailable();
+            if (chatMemory == null) {
+                throw new IllegalStateException(
+                        "Conversation memory is not configured for assistant chat");
+            }
+            return configuredBuilder(chatModels.resolveAssistant(
+                            organizationId,
+                            route,
+                            gateway))
                     .defaultAdvisors(
                             MessageChatMemoryAdvisor.builder(chatMemory).build())
                     .build();

@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `fix/keyword-luna-default (d4deed72)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 ## Current Behavior
 
@@ -22,8 +22,9 @@ The administration UI gives each named provider its verified brand mark and
 uses a neutral endpoint mark for the unbranded OpenAI-compatible preset. The
 setup dialog groups encrypted credentials, endpoint policy, connection testing,
 discovered models, and the read-only organization governance boundary. Model
-discovery reflects the live provider response; it does not imply a persisted
-model allowlist or let a user bypass explicit workload routes.
+discovery reflects the live provider response and can seed an administrator's
+explicit Assistant catalog; discovery alone grants nothing and never lets a
+user bypass explicit workload routes.
 
 Credentials are accepted only as redacted request values, encrypted with the
 shared AES-GCM `SecretCipher`, and never returned. Every profile and route is
@@ -49,6 +50,16 @@ organization overrides.
 Administrators can restore the deployment default by clearing an override.
 Gateway-key collisions never substitute an organization credential for a
 deployment route.
+
+The active organization Assistant gateway may own up to 50 additional chat
+model activations. Catalog replacement takes a pessimistic profile lock,
+excludes the default route model, soft-disables removed or renamed entries, and
+creates a new immutable activation UUID when a model is later re-enabled. Each
+row repeats organization ownership in its profile and actor foreign keys; only
+one active row may exist for an organization/profile/model tuple. Catalog
+mutation is unavailable on deployment defaults, inactive gateways, or Answer
+routes with explicit reasoning effort. Catalog changes are audited without
+model prompts, output, endpoints, or credentials.
 
 Deployment gateways use binder-safe nested objects. A production profile may
 contribute only a managed credential while retaining the endpoint,
@@ -104,3 +115,4 @@ the previous model ID with its previous image set.
 - [0006](../../decisions/0006-ai-tasks-route-through-provider-adapters.md)
 - [0008](../../decisions/0008-worker-owns-ingestion-and-derived-indexes.md)
 - [0017](../../decisions/0017-pin-openfga-models-to-product-releases.md)
+- [0032](../../decisions/0032-conversation-model-selection-is-bound-to-admin-route-authority.md)

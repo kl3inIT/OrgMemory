@@ -7,6 +7,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import com.orgmemory.core.ai.AssistantModelSelectionRef;
 
 @Entity
 @Table(name = "assistant_conversations")
@@ -23,6 +24,15 @@ class AssistantConversation extends BaseEntity {
 
     @Column(name = "last_activity_at", nullable = false)
     private Instant lastActivityAt;
+
+    @Column(name = "selected_model_activation_id")
+    private UUID selectedModelActivationId;
+
+    @Column(name = "selected_route_override_id")
+    private UUID selectedRouteOverrideId;
+
+    @Column(name = "selected_route_override_version")
+    private Long selectedRouteOverrideVersion;
 
     protected AssistantConversation() {
     }
@@ -46,6 +56,28 @@ class AssistantConversation extends BaseEntity {
 
     void touch(Instant timestamp) {
         lastActivityAt = Objects.requireNonNull(timestamp, "timestamp");
+    }
+
+    void selectModel(AssistantModelSelectionRef selection) {
+        if (selection == null) {
+            selectedModelActivationId = null;
+            selectedRouteOverrideId = null;
+            selectedRouteOverrideVersion = null;
+            return;
+        }
+        selectedModelActivationId = selection.activationId();
+        selectedRouteOverrideId = selection.routeOverrideId();
+        selectedRouteOverrideVersion = selection.routeOverrideVersion();
+    }
+
+    AssistantModelSelectionRef modelSelection() {
+        if (selectedModelActivationId == null) {
+            return null;
+        }
+        return new AssistantModelSelectionRef(
+                selectedModelActivationId,
+                selectedRouteOverrideId,
+                selectedRouteOverrideVersion);
     }
 
     UUID organizationId() {

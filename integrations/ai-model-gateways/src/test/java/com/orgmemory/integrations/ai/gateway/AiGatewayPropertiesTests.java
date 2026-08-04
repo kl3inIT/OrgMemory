@@ -181,6 +181,35 @@ class AiGatewayPropertiesTests {
     }
 
     @Test
+    void routeReferenceCanBeAuthorizedBeforeProviderAvailabilityIsNeeded() {
+        var administration = mock(AiGatewayAdministrationService.class);
+        var organizationId = UUID.randomUUID();
+        var selected = new com.orgmemory.core.ai.AiRouteOverrideView(
+                UUID.randomUUID(),
+                AiWorkload.ASSISTANT_CHAT,
+                UUID.randomUUID(),
+                "private-gateway",
+                "private-model",
+                1,
+                UUID.randomUUID(),
+                java.time.Instant.now());
+        when(administration.route(organizationId, AiWorkload.ASSISTANT_CHAT))
+                .thenReturn(Optional.of(selected));
+        when(administration.connection(organizationId, "private-gateway"))
+                .thenReturn(Optional.empty());
+        var registry = new AiGatewayRegistry(
+                properties(Set.of(AiGatewayCapability.CHAT)),
+                administration);
+
+        assertEquals(
+                selected.route(),
+                registry.reference(organizationId, AiWorkload.ASSISTANT_CHAT));
+        assertThrows(
+                AiGatewayUnavailableException.class,
+                () -> registry.resolve(organizationId, AiWorkload.ASSISTANT_CHAT));
+    }
+
+    @Test
     void aCollidingOrganizationGatewayKeyDoesNotReplaceTheDeploymentDefault() {
         var administration = mock(AiGatewayAdministrationService.class);
         var organizationId = UUID.randomUUID();

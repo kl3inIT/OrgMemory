@@ -1,12 +1,14 @@
 # Assistant And MCP Coverage
 
 Source: `core/src/test/java/com/orgmemory/core/assistant`,
+`core/src/test/java/com/orgmemory/core/ai`,
+`integrations/ai-model-gateways/src/test`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
+Reconciled: `2026-08-04-assistant-composer-model-picker (2e5907b1)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -16,6 +18,10 @@ Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
 | Empty authorized retrieval does not call the model | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Provider failure is surfaced as unavailable | `AssistantServiceTests#asynchronousProviderFailureIsReportedAsUnavailable` | covered |
 | Assistant and Prompt calls carry organization identity into route resolution | `AssistantServiceTests`, `PromptExecutionServiceTests` org-scoped model-port assertions | covered |
+| Ordinary users receive only server-governed model options and selection writes an authorized opaque conversation reference | `AssistantControllerStreamingTests#exposesSafeModelChoicesAndPersistsOnlyAnAuthorizedSelectionReference`, `assistant-pipeline.spec.ts` governed-model scenarios | covered |
+| Deployment default is synthetic; catalog authority binds exact route identity/version and rejects explicit-reasoning alternates | `AssistantModelAuthorityServiceTests` | covered |
+| Disabled catalog activations cannot revive through concurrent disable, select, or turn races | `AssistantModelSelectionConcurrencyIntegrationTests#concurrentDisableSelectAndTurnNeverRevivesTheDisabledActivation` | covered |
+| Conversation selection is complete and tenant-safe at the database boundary | `AssistantModelSelectionMigrationTests#conversationSelectionRequiresACompleteSameTenantActivationTuple` | covered |
 | Direct LightRAG answer and Keyword planning resolve independent organization routes at request time, including changes within one process | `OrganizationAwareQueryAnswerModelTests`, `OrganizationAwareKeywordPlanningModelTests` | covered |
 | Keyword cache identity changes with the organization route and explicit reasoning effort | `LightRagKeywordPlannerCacheTests`, `OrganizationAwareKeywordPlanningModelTests` | covered |
 | An explicit organization route never silently falls back to the deployment provider | `AiGatewayPropertiesTests#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
@@ -48,6 +54,7 @@ Reconciled: `2026-08-04-assistant-interaction-foundation (cb05dfc5)`.
 | Drafts are actor/conversation scoped, capped, restored in-session, and cleared through their lifecycle | `assistant-draft-storage.test.ts`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
 | Completed-answer retry starts exactly one fresh turn without consuming the current composer draft | `assistant-pipeline.spec.ts#retries a completed answer as one fresh turn and preserves the composer draft` | covered |
 | Composer focus and leave-bottom scroll recovery remain keyboard/browser reachable | `assistant-pipeline.spec.ts` focus and scroll-recovery scenarios | covered |
+| Empty-state hierarchy removes decorative permission copy and the searchable model dialog sends only an opaque activation UUID | `assistant-pipeline.spec.ts#chooses a governed model in the composer and sends only its opaque activation` | covered |
 | An in-place actor change hides and clears the prior actor's transcript, feedback, and source state before new history renders | `assistant-pipeline.spec.ts#clears conversation state before rendering a different actor's history` | covered |
 | Time to first token counts the permission-scoped retrieval the user waits through | `AssistantTurnObservationTests#countsTheWaitBeforeTheModelIsEvenAsked` | covered |
 | Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
