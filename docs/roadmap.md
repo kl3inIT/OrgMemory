@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Knowledge workspace and document reader](increments/active/2026-08-05-knowledge-workspace-document-reader/plan.md) | active | complete the governed right-side reader, safe Markdown presentation, truthful access copy, and cross-format browser coverage |
 | [Knowledge Graph responsive header](increments/completed/2026-08-05-knowledge-graph-responsive-layout/verification.md) | shipped | verified the shared title/action shrink contract at the reported production viewport with unit and browser regression coverage |
 | [Assistant evidence continuity and live activity](increments/completed/2026-08-04-assistant-citation-evidence-continuity/plan.md) | shipped | delivered direct evidence, safe Markdown, bounded replay hydration, and truthful pre-token retrieval/generation activity |
 | [Multi-snapshot query prototype and evaluation harness](increments/active/2026-08-05-multi-snapshot-query-prototype/plan.md) | active | prove or falsify ADR 0020 gates 2-3: compound-query p95 <= 500 ms at 1x/10x/100x with shadow equivalence, and bypass recall@40 parity |

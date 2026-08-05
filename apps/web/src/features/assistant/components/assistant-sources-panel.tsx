@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/sheet"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { copyWithToast } from "@/lib/copy"
-import { RestrictedSourceMarkdown } from "@/features/assistant/components/restricted-source-markdown"
+import { RestrictedMarkdown } from "@/components/patterns/restricted-markdown"
 import { readCitationContent, readCitationExcerpt } from "@/lib/hey-api"
 import type { CitationEvidenceExcerpt } from "@/lib/hey-api"
 import { formatBytes } from "@/lib/format"
@@ -516,7 +516,7 @@ function MarkdownPreview({ content }: { content: string }) {
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         {view === "rendered" ? (
-          <RestrictedSourceMarkdown content={content} />
+          <RestrictedMarkdown content={content} />
         ) : (
           <pre className="min-h-full whitespace-pre-wrap p-6 font-mono text-sm leading-relaxed text-foreground">
             {content}

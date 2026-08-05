@@ -38,7 +38,7 @@ function ConfirmedLink({ href, children }: ComponentProps<"a"> & { node?: unknow
   )
 }
 
-export function RestrictedSourceMarkdown({ content }: { content: string }) {
+export function RestrictedMarkdown({ content }: { content: string }) {
   return (
     <div data-testid="restricted-source-markdown" className="size-full">
       <ErrorBoundary
@@ -55,13 +55,11 @@ export function RestrictedSourceMarkdown({ content }: { content: string }) {
           urlTransform={safeUrlTransform}
           components={{
             a: ConfirmedLink,
-            img: ({ alt }: ComponentProps<"img"> & { node?: unknown }) => {
-              return (
-                <span role="img" aria-label={alt}>
-                  [Remote image blocked]
-                </span>
-              )
-            },
+            img: ({ alt }: ComponentProps<"img"> & { node?: unknown }) => (
+              <span role="img" aria-label={alt}>
+                [Remote image blocked]
+              </span>
+            ),
           }}
         >
           {content}

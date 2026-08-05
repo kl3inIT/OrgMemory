@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
+import { sourceFormatLabel } from "@/features/sources/source-preview"
 import {
   ACTIVE_SOURCE_STATUSES,
   sourceProgress,
@@ -19,20 +20,6 @@ import {
 } from "@/features/sources/source-status"
 import type { SourceResponse } from "@/lib/hey-api"
 import { formatBytes, formatDate } from "@/lib/format"
-
-function accessScope(classification?: string) {
-  switch (classification) {
-    case "PUBLIC":
-    case "INTERNAL":
-      return "All employees"
-    case "CONFIDENTIAL":
-      return "Your department"
-    case "RESTRICTED":
-      return "Executive only"
-    default:
-      return "Policy controlled"
-  }
-}
 
 export function SourcesTable({
   sources,
@@ -66,7 +53,8 @@ export function SourcesTable({
                   {source.title ?? source.fileName}
                 </button>
                 <div className="mt-0.5 max-w-28 truncate text-xs text-muted-foreground sm:max-w-none">
-                  {formatBytes(source.contentLength)} · {source.mediaType ?? "Document"}
+                  {formatBytes(source.contentLength)} ·{" "}
+                  {sourceFormatLabel(source.mediaType, source.fileName)}
                 </div>
               </div>
             </div>
@@ -86,7 +74,7 @@ export function SourcesTable({
                 {source.classification ? titleCase(source.classification) : "Policy controlled"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {accessScope(source.classification)}
+                Knowledge Space policy
               </div>
             </div>
           )
@@ -95,7 +83,7 @@ export function SourcesTable({
       {
         id: "pipeline",
         accessorFn: (source) => source.status ?? "UNKNOWN",
-        header: "Pipeline",
+        header: "Status",
         enableSorting: true,
         meta: {
           headerClassName: "hidden md:table-cell",
@@ -115,29 +103,6 @@ export function SourcesTable({
                 />
               ) : null}
             </div>
-          )
-        },
-      },
-      {
-        id: "indexProfile",
-        accessorFn: (source) => source.embeddingModel ?? "",
-        header: "Index profile",
-        enableSorting: true,
-        meta: {
-          headerClassName: "hidden lg:table-cell",
-          cellClassName: "hidden lg:table-cell",
-        },
-        cell: ({ row }) => {
-          const source = row.original
-          return source.embeddingModel ? (
-            <div className="space-y-0.5">
-              <div className="text-sm">{source.embeddingModel}</div>
-              <div className="font-mono text-xs text-muted-foreground">
-                {source.embeddingDimensions}d · {source.embeddingProvider}
-              </div>
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">Pending</span>
           )
         },
       },

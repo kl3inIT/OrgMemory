@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
-import { Download, FileQuestion, LoaderCircle } from "lucide-react"
+import { Download, FileQuestion, LoaderCircle, RefreshCw } from "lucide-react"
 import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
 
+import { RestrictedMarkdown } from "@/components/patterns/restricted-markdown"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -11,7 +13,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
-import { sourcePreviewKind } from "@/features/sources/source-preview"
+import {
+  sourcePreviewKind,
+  sourceFormatLabel,
+  type SourcePreviewKind,
+} from "@/features/sources/source-preview"
 import { titleCase } from "@/features/sources/source-status"
 import { readSourceContent } from "@/lib/hey-api"
 import type { SourceResponse } from "@/lib/hey-api"
@@ -19,6 +25,7 @@ import { formatBytes, formatDate } from "@/lib/format"
 
 interface PreviewPayload {
   blob: Blob
+  kind: SourcePreviewKind
   mediaType: string
   text?: string
 }
@@ -43,8 +50,9 @@ export function DocumentDetailSheet({
       })
       if (!(data instanceof Blob)) throw new Error("Document is unavailable")
       const mediaType = data.type || "application/octet-stream"
-      const text = sourcePreviewKind(mediaType) === "text" ? await data.text() : undefined
-      return { blob: data, mediaType, text }
+      const kind = sourcePreviewKind(mediaType, source?.mediaType)
+      const text = kind === "text" || kind === "markdown" ? await data.text() : undefined
+      return { blob: data, kind, mediaType, text }
     },
     gcTime: 0,
     staleTime: 0,
@@ -66,8 +74,8 @@ export function DocumentDetailSheet({
 
   return (
     <Sheet open={source !== null} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
-        <SheetHeader className="border-b border-border-subtle px-6 py-5 text-left">
+      <SheetContent className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl xl:max-w-4xl">
+        <SheetHeader className="shrink-0 border-b border-border-subtle px-5 py-4 text-left sm:px-6 sm:py-5">
           <div className="flex flex-wrap items-center gap-2 pr-8">
             <SheetTitle className="min-w-0 truncate">
               {source?.title ?? source?.fileName ?? "Document"}
@@ -75,52 +83,78 @@ export function DocumentDetailSheet({
             {source ? <SourceStatusBadge source={source} /> : null}
           </div>
           <SheetDescription>
-            Permission-verified metadata and original evidence for the current revision.
+            Governed metadata and original evidence from the current revision.
           </SheetDescription>
         </SheetHeader>
 
         {source ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="grid gap-3 rounded-lg border bg-surface-subtle p-4 text-sm sm:grid-cols-2">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="mx-4 my-4 grid shrink-0 grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-surface-subtle p-4 text-sm sm:mx-6 sm:grid-cols-3">
               <Metadata label="File" value={source.fileName ?? "—"} />
               <Metadata label="Size" value={formatBytes(source.contentLength)} />
-              <Metadata label="Access" value={source.classification ? titleCase(source.classification) : "Policy controlled"} />
+              <Metadata
+                label="Classification"
+                value={source.classification ? titleCase(source.classification) : "Policy controlled"}
+              />
               <Metadata label="Updated" value={formatDate(source.updatedAt)} />
-              <Metadata label="Media type" value={source.mediaType ?? "Document"} />
-              <Metadata label="Source" value={source.sourceSystem ? titleCase(source.sourceSystem) : "Unknown"} />
+              <Metadata
+                label="Format"
+                value={sourceFormatLabel(source.mediaType, source.fileName)}
+              />
+              <Metadata
+                label="Source"
+                value={source.sourceSystem ? titleCase(source.sourceSystem) : "Unknown"}
+              />
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-lg border bg-background">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <div>
+            <section
+              className="mx-4 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-background sm:mx-6 sm:mb-6"
+              aria-label="Original evidence"
+            >
+              <div className="flex shrink-0 items-center justify-between gap-4 border-b px-4 py-3">
+                <div className="min-w-0">
                   <h3 className="font-medium">Original evidence</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Office files download instead of rendering inline.
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {previewDescription(preview.data?.kind)}
                   </p>
                 </div>
                 {preview.data && blobUrl ? (
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" className="shrink-0" asChild>
                     <a href={blobUrl} download={source.fileName ?? source.title ?? "document"}>
                       <Download aria-hidden="true" /> Download
                     </a>
                   </Button>
                 ) : null}
               </div>
-              <div className="grid min-h-80 place-items-center bg-surface-sunken p-4">
+              <div className="flex min-h-0 flex-1 bg-surface-sunken">
                 {!source.contentAvailable ? (
                   <EmptyPreview message="Original content becomes available after governed publication completes." />
+                ) : preview.isError ? (
+                  <EmptyPreview
+                    message="The document is no longer available or permission has changed."
+                    action={
+                      <Button variant="outline" size="sm" onClick={() => preview.refetch()}>
+                        <RefreshCw aria-hidden="true" /> Retry
+                      </Button>
+                    }
+                  />
                 ) : preview.isPending || preview.isFetching || !blobUrl ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                  <div
+                    className="flex size-full items-center justify-center gap-2 text-sm text-muted-foreground"
+                    role="status"
+                  >
                     <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
                     Loading document
                   </div>
-                ) : preview.isError ? (
-                  <EmptyPreview message="The document is no longer available or permission has changed." />
                 ) : preview.data ? (
-                  <PreviewContent payload={preview.data} blobUrl={blobUrl} title={source.title ?? source.fileName ?? "Document"} />
+                  <PreviewContent
+                    payload={preview.data}
+                    blobUrl={blobUrl}
+                    title={source.title ?? source.fileName ?? "Document"}
+                  />
                 ) : null}
               </div>
-            </div>
+            </section>
           </div>
         ) : null}
       </SheetContent>
@@ -128,24 +162,80 @@ export function DocumentDetailSheet({
   )
 }
 
-function PreviewContent({ payload, blobUrl, title }: { payload: PreviewPayload; blobUrl: string; title: string }) {
-  switch (sourcePreviewKind(payload.mediaType)) {
+function PreviewContent({
+  payload,
+  blobUrl,
+  title,
+}: {
+  payload: PreviewPayload
+  blobUrl: string
+  title: string
+}) {
+  switch (payload.kind) {
     case "pdf":
-      return <iframe title={title} src={blobUrl} sandbox="" className="h-[34rem] w-full bg-white" />
+      return <iframe title={title} src={blobUrl} sandbox="" className="size-full bg-white" />
     case "image":
-      return <img src={blobUrl} alt={title} className="max-h-[34rem] max-w-full object-contain" />
+      return (
+        <div className="flex size-full items-center justify-center overflow-auto p-4">
+          <img src={blobUrl} alt={title} className="max-h-full max-w-full object-contain" />
+        </div>
+      )
+    case "markdown":
+      return <MarkdownPreview content={payload.text ?? ""} />
     case "text":
-      return <pre className="max-h-[34rem] w-full overflow-auto whitespace-pre-wrap break-words rounded-md bg-background p-4 text-sm">{payload.text}</pre>
+      return (
+        <pre className="size-full overflow-auto whitespace-pre-wrap break-words bg-background p-6 font-mono text-sm leading-relaxed">
+          {payload.text}
+        </pre>
+      )
     default:
-      return <EmptyPreview message="This file type is download-only." />
+      return <EmptyPreview message="Preview is unavailable for this file type. Download the original file." />
   }
 }
 
-function EmptyPreview({ message }: { message: string }) {
+function MarkdownPreview({ content }: { content: string }) {
+  const [view, setView] = useState<"rendered" | "raw">("rendered")
   return (
-    <div className="flex max-w-sm flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-      <FileQuestion className="size-6" aria-hidden="true" />
-      <p>{message}</p>
+    <div className="flex size-full min-h-0 flex-col bg-background">
+      <div className="flex shrink-0 items-center gap-1 border-b border-border-subtle px-4 py-2">
+        {(["rendered", "raw"] as const).map((option) => (
+          <Button
+            key={option}
+            type="button"
+            size="sm"
+            variant={view === option ? "secondary" : "ghost"}
+            aria-pressed={view === option}
+            onClick={() => setView(option)}
+          >
+            {option === "rendered" ? "Rendered" : "Raw"}
+          </Button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {view === "rendered" ? (
+          <RestrictedMarkdown content={content} />
+        ) : (
+          <pre className="min-h-full whitespace-pre-wrap p-6 font-mono text-sm leading-relaxed text-foreground">
+            {content}
+          </pre>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function EmptyPreview({
+  message,
+  action,
+}: {
+  message: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+      <FileQuestion className="size-7" aria-hidden="true" />
+      <p className="max-w-sm">{message}</p>
+      {action}
     </div>
   )
 }
@@ -157,4 +247,21 @@ function Metadata({ label, value }: { label: string; value: string }) {
       <p className="mt-1 truncate">{value}</p>
     </div>
   )
+}
+
+function previewDescription(kind?: SourcePreviewKind) {
+  switch (kind) {
+    case "markdown":
+      return "Safe rendered Markdown with the original source available."
+    case "pdf":
+      return "PDF preview from the permission-verified original."
+    case "image":
+      return "Image preview from the permission-verified original."
+    case "text":
+      return "Plain-text preview from the permission-verified original."
+    case "download":
+      return "This format is download-only."
+    default:
+      return "Permission-verified original for the current revision."
+  }
 }
