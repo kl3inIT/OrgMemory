@@ -119,6 +119,13 @@ A lower latency with lower recall is not a winner. PostgreSQL remains the
 canonical evidence/ACL/publication authority regardless of which rebuildable
 query adapter wins a workload.
 
+After any bulk re-seed that changes projection rows, keep traffic paused until
+`ANALYZE` has refreshed `projection_graph_relations`,
+`projection_graph_entities`, and `graph_retrieval_result_cache`, and confirm
+that no pre-maintenance queries remain active. Stale mid-mutation statistics can
+select a catastrophic graph-degree plan, while a client timeout does not prove
+that the PostgreSQL backend query was cancelled.
+
 ## Security And Failure Drills
 
 Run and retain evidence for:
