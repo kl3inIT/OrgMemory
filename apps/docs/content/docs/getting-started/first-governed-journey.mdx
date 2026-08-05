@@ -10,11 +10,14 @@ sourceRefs:
   - docs/specs/domains/asset-registry.md
   - docs/specs/domains/assistant-and-mcp.md
   - docs/specs/domains/secure-retrieval.md
+  - core/src/main/java/com/orgmemory/core/assetregistry/skill/SkillRuntimeOperations.java
+  - integrations/ai-model-gateways/src/main/java/com/orgmemory/integrations/ai/gateway/SpringAiChatModelAdapter.java
+  - apps/web/src/features/assistant/components/assistant-page.tsx
   - apps/web/src/features/assets/components/asset-catalog-page.tsx
   - apps/web/src/features/assets/components/asset-detail-page.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-07-29
+lastReviewed: 2026-08-05
 ---
 
 This journey begins after an organization administrator has given you access
@@ -91,6 +94,13 @@ The available action depends on its type.
 State-changing actions and external model calls require explicit confirmation.
 The Assistant cannot approve, publish, withdraw, change permissions, or execute
 arbitrary tools on your behalf.
+
+During a grounded answer, the Assistant may discover a Skill you are currently
+allowed to use, load the instructions from its exact release, and read a bounded
+supporting text file when needed. These reads do not install or execute the
+Skill, and package metadata cannot grant the Assistant additional tools or
+permissions. If no authorized Knowledge evidence is available, the Assistant
+does not start this Skill flow.
 
 ## 4. Complete a Capability Pack
 
