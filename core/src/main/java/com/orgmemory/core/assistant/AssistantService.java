@@ -24,8 +24,16 @@ import reactor.core.publisher.Sinks;
 
 public class AssistantService {
 
-    static final String NO_ACCESSIBLE_EVIDENCE =
-            "I could not find enough accessible company knowledge to answer that question.";
+    private static final String NO_ACCESSIBLE_EVIDENCE_ENGLISH =
+            "I could not find this information in the documents you can access. "
+                    + "If you believe this information exists, contact the document owner or an administrator.";
+    private static final String NO_ACCESSIBLE_EVIDENCE_VIETNAMESE =
+            "Tôi không tìm thấy nội dung này trong các tài liệu bạn truy cập được. "
+                    + "Nếu bạn cho rằng thông tin này tồn tại, hãy liên hệ bộ phận sở hữu tài liệu hoặc quản trị viên.";
+
+    private static final String VIETNAMESE_CHARACTERS =
+            "ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ"
+                    + "ĂÂĐÊÔƠƯÁÀẢÃẠẤẦẨẪẬẮẰẲẴẶÉÈẺẼẸẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ";
 
     private static final DefaultAssistantTurnObservationConvention DEFAULT_CONVENTION =
             new DefaultAssistantTurnObservationConvention();
@@ -143,7 +151,10 @@ public class AssistantService {
             if (search.evidence().isEmpty()) {
                 context.foundNoEvidence(System.nanoTime());
                 observation.stop();
-                return new AssistantTurn(search.requestId(), List.of(), Flux.just(NO_ACCESSIBLE_EVIDENCE));
+                return new AssistantTurn(
+                        search.requestId(),
+                        List.of(),
+                        Flux.just(noAccessibleEvidence(question)));
             }
 
             long retrievalCompletedAt = System.nanoTime();
@@ -248,6 +259,26 @@ public class AssistantService {
         } catch (RuntimeException exception) {
             throw failed(observation, context, exception);
         }
+    }
+
+    private static String noAccessibleEvidence(String question) {
+        if (question != null && looksVietnamese(question)) {
+            return NO_ACCESSIBLE_EVIDENCE_VIETNAMESE;
+        }
+        return NO_ACCESSIBLE_EVIDENCE_ENGLISH;
+    }
+
+    private static boolean looksVietnamese(String question) {
+        if (question.chars().anyMatch(character -> VIETNAMESE_CHARACTERS.indexOf(character) >= 0)) {
+            return true;
+        }
+        String normalized = question.strip().toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("cho toi")
+                || normalized.contains("la gi")
+                || normalized.contains("bao nhieu")
+                || normalized.contains("the nao")
+                || normalized.contains("co duoc")
+                || normalized.startsWith("hay ");
     }
 
     private void emitStage(
