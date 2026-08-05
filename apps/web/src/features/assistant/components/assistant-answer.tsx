@@ -27,10 +27,12 @@ export function AssistantAnswer({
   content,
   sources,
   onOpenSource,
+  showEvidenceDisclaimer,
 }: {
   content: string
   sources: AssistantSourceRef[]
   onOpenSource: (sourceId: string) => void
+  showEvidenceDisclaimer: boolean
 }) {
   const sourceByNumber = useMemo(
     () => new Map(sources.map((source) => [source.citationNumber, source])),
@@ -81,15 +83,22 @@ export function AssistantAnswer({
   )
 
   return (
-    <MessageResponse
-      key={citationContractKey}
-      remarkPlugins={remarkPlugins}
-      allowedTags={{ [CITATION_TAG]: ["dataNumber"] }}
-      literalTagContent={[CITATION_TAG]}
-      components={components}
-    >
-      {content}
-    </MessageResponse>
+    <>
+      <MessageResponse
+        key={citationContractKey}
+        remarkPlugins={remarkPlugins}
+        allowedTags={{ [CITATION_TAG]: ["dataNumber"] }}
+        literalTagContent={[CITATION_TAG]}
+        components={components}
+      >
+        {content}
+      </MessageResponse>
+      {showEvidenceDisclaimer ? (
+        <p className="mt-2 text-xs text-content-muted">
+          Câu trả lời chỉ dựa trên tài liệu bạn có quyền truy cập.
+        </p>
+      ) : null}
+    </>
   )
 }
 

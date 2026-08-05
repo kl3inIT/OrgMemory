@@ -843,6 +843,7 @@ export function AssistantPage({
                       <AssistantAnswer
                         content={content}
                         sources={citedSources}
+                        showEvidenceDisclaimer={message.role === "assistant"}
                         onOpenSource={(sourceId) => {
                           const source = sources.find((candidate) => candidate.id === sourceId)
                           if (source) setPreviewSource(source)
