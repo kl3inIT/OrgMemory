@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
+Reconciled: `2026-08-05-knowledge-graph-parallel-edges (333b6ec6)`.
 
 ## Automated
 
@@ -215,7 +215,9 @@ Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
   publication store creates an index while the bean is built.
 - `knowledge-graph-layout.spec.ts` renders a populated authenticated graph
   workspace at the reported production desktop viewport, proves the title stays
-  on one line without intersecting the flexible action region, selects a node
+  on one line without intersecting the flexible action region, loads two
+  distinct directed relations sharing one entity pair without a graph import
+  error, selects a node
   through visible search, and verifies readable identity/actions, directional
   neighbor context, permission-rechecked document/heading evidence labels, no
   numbered `Source 1` fallback, no horizontal page overflow, and no browser

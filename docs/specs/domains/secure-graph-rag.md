@@ -12,7 +12,7 @@ payload-boundary configuration this document states —
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-05-unified-governed-document-viewer (7b6ae726)`.
+Reconciled: `2026-08-05-knowledge-graph-parallel-edges (333b6ec6)`.
 
 ## Current Contract
 
@@ -367,7 +367,9 @@ explorer fills the remaining shared app-shell canvas. Its page identity keeps
 its intrinsic width while the action region takes the flexible width and wraps
 controls before they can compress the title. Selected entities or relations
 open through the responsive split layout without changing graph authorization
-or query state. The inspector presents entity identity and actions first,
+or query state. Distinct semantic relations between the same directed entity
+pair remain separate visible edges; the browser graph accepts parallel edges
+instead of dropping or merging them. The inspector presents entity identity and actions first,
 navigable neighboring entities with incoming/outgoing direction second, and
 evidence last. Evidence labels are hydrated through the permission-rechecked
 citation excerpt endpoint, so the panel shows document title and heading/page
