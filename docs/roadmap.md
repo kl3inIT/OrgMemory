@@ -55,6 +55,7 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Assistant evidence continuity and live activity](increments/completed/2026-08-04-assistant-citation-evidence-continuity/plan.md) | shipped | delivered direct evidence, safe Markdown, bounded replay hydration, and truthful pre-token retrieval/generation activity |
+| [Multi-snapshot query prototype and evaluation harness](increments/active/2026-08-05-multi-snapshot-query-prototype/plan.md) | active | prove or falsify ADR 0020 gates 2-3: compound-query p95 <= 500 ms at 1x/10x/100x with shadow equivalence, and bypass recall@40 parity |
 | [Retrieval admission control and pool right-sizing](increments/active/2026-08-05-retrieval-admission-phase1/plan.md) | active | ADR 0020 Phase 1: fair 4-permit admission, pool 8/8, topK 40, TTFT attribution; production before/after window also closes the LightRAG-latency live proof |
 | [Assistant composer and conversation model picker](increments/completed/2026-08-04-assistant-composer-model-picker/plan.md) | shipped | delivered administrator-bound model authority, conversation selection, and composer polish |
 | [Assistant interaction foundation](increments/completed/2026-08-04-assistant-interaction-foundation/plan.md) | shipped | delivered server-owned starters, scoped drafts, answer feedback, fresh retry, and interaction recovery |
