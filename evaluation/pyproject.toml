@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 orgmemory-ragas = "orgmemory_eval.ragas_runner:main"
+orgmemory-retrieval-recall = "orgmemory_eval.retrieval_recall:main"
 orgmemory-workload-routing = "orgmemory_eval.workload_routing_runner:main"
 
 [dependency-groups]

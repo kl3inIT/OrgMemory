@@ -1,0 +1,164 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+Identifier = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
+]
+NonBlankText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
+class GoldenCase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: Identifier
+    question: NonBlankText
+    golden_chunk_ids: list[Identifier] = Field(min_length=1)
+    deterministic_lexical_terms: list[NonBlankText] = Field(min_length=1)
+    source_path: Identifier
+
+    @model_validator(mode="after")
+    def require_unique_chunks(self) -> GoldenCase:
+        if len(self.golden_chunk_ids) != len(set(self.golden_chunk_ids)):
+            raise ValueError("golden_chunk_ids must be unique")
+        return self
+
+
+class GoldenDataset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Annotated[
+        str,
+        StringConstraints(pattern=r"^orgmemory\.retrieval-recall\.v1$"),
+    ]
+    dataset_id: Identifier
+    corpus_manifest: Identifier
+    cases: list[GoldenCase] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_unique_cases(self) -> GoldenDataset:
+        case_ids = [case.case_id for case in self.cases]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("case_id values must be unique")
+        return self
+
+
+class RetrievalObservation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: Identifier
+    keyword_seeded_chunk_ids: list[Identifier]
+    bypass_chunk_ids: list[Identifier]
+
+
+class ObservationSet(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Annotated[
+        str,
+        StringConstraints(pattern=r"^orgmemory\.retrieval-observations\.v1$"),
+    ]
+    dataset_id: Identifier
+    observations: list[RetrievalObservation] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_unique_cases(self) -> ObservationSet:
+        case_ids = [observation.case_id for observation in self.observations]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("observation case_id values must be unique")
+        return self
+
+
+def recall_at_k(golden_chunk_ids: list[str], retrieved_chunk_ids: list[str], k: int) -> float:
+    if k <= 0:
+        raise ValueError("k must be positive")
+    golden = set(golden_chunk_ids)
+    retrieved = set(retrieved_chunk_ids[:k])
+    return len(golden & retrieved) / len(golden)
+
+
+def score(
+    golden: GoldenDataset,
+    observations: ObservationSet,
+    *,
+    top_k: int = 40,
+    tolerance_points: float = 2.0,
+) -> dict[str, object]:
+    if golden.dataset_id != observations.dataset_id:
+        raise ValueError("golden and observation dataset_id values differ")
+    observation_by_case = {
+        observation.case_id: observation for observation in observations.observations
+    }
+    golden_case_ids = {case.case_id for case in golden.cases}
+    if set(observation_by_case) != golden_case_ids:
+        missing = sorted(golden_case_ids - set(observation_by_case))
+        unexpected = sorted(set(observation_by_case) - golden_case_ids)
+        raise ValueError(f"observation cases differ: missing={missing}, unexpected={unexpected}")
+
+    cases: list[dict[str, object]] = []
+    for case in golden.cases:
+        observation = observation_by_case[case.case_id]
+        cases.append(
+            {
+                "caseId": case.case_id,
+                "keywordSeededRecallAt40": recall_at_k(
+                    case.golden_chunk_ids, observation.keyword_seeded_chunk_ids, top_k
+                ),
+                "bypassRecallAt40": recall_at_k(
+                    case.golden_chunk_ids, observation.bypass_chunk_ids, top_k
+                ),
+                "keywordSeededRecallAt60": recall_at_k(
+                    case.golden_chunk_ids, observation.keyword_seeded_chunk_ids, 60
+                ),
+            }
+        )
+    keyword_recall = sum(float(case["keywordSeededRecallAt40"]) for case in cases) / len(cases)
+    bypass_recall = sum(float(case["bypassRecallAt40"]) for case in cases) / len(cases)
+    keyword_recall_60 = sum(float(case["keywordSeededRecallAt60"]) for case in cases) / len(
+        cases
+    )
+    delta_points = (bypass_recall - keyword_recall) * 100.0
+    return {
+        "schemaVersion": "orgmemory.retrieval-recall-report.v1",
+        "datasetId": golden.dataset_id,
+        "caseCount": len(cases),
+        "topK": top_k,
+        "tolerancePoints": tolerance_points,
+        "keywordSeededRecallAt40": keyword_recall,
+        "bypassRecallAt40": bypass_recall,
+        "bypassDeltaPoints": delta_points,
+        "keywordSeededRecallAt60": keyword_recall_60,
+        "gatePassed": delta_points >= -tolerance_points,
+        "cases": cases,
+    }
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Score ADR 0020 retrieval recall@40")
+    parser.add_argument("--golden", required=True, type=Path)
+    parser.add_argument("--observations", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    golden = GoldenDataset.model_validate_json(args.golden.read_text(encoding="utf-8"))
+    observations = ObservationSet.model_validate_json(
+        args.observations.read_text(encoding="utf-8")
+    )
+    report = score(golden, observations)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+if __name__ == "__main__":
+    main()
