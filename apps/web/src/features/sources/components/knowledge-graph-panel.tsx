@@ -449,6 +449,7 @@ function GraphCanvas({
   return (
     <SigmaContainer
       key={`${resolvedTheme}-${effectiveEdgeEvents}`}
+      graph={MultiDirectedGraph}
       className="h-full w-full bg-background"
       settings={{
         defaultNodeType: "border",

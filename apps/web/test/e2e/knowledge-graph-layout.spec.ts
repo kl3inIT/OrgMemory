@@ -57,8 +57,9 @@ test("graph explorer keeps its title readable beside a wrapping desktop toolbar"
   await expect(page.getByText("Mức phụ cấp ăn uống 300.000 VND cho mỗi ngày.")).toBeVisible()
   await expect(page.getByRole("button", { name: "Expand neighbors" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Hide" })).toBeVisible()
-  await expect(page.getByText("Có mức phụ cấp", { exact: true })).toBeVisible()
+  await expect(page.getByText("Có mức phụ cấp", { exact: true })).toHaveCount(2)
   await expect(page.getByText("Outgoing · Áp dụng khi không có hóa đơn", { exact: true })).toBeVisible()
+  await expect(page.getByText("Outgoing · Thuộc chính sách", { exact: true })).toBeVisible()
   await expect(page.getByText("Domestic travel policy", { exact: true })).toBeVisible()
   await expect(page.getByText("Meal allowance", { exact: true })).toBeVisible()
   await expect(page.getByText("Source 1", { exact: true })).toHaveCount(0)
@@ -137,6 +138,15 @@ async function graphHarness(page: Page) {
             targetEntityId: POLICY_ENTITY_ID,
             type: "ÁP_DỤNG_KHI_KHÔNG_CÓ_HÓA_ĐƠN",
             description: "Áp dụng khi không có hóa đơn tiếp khách.",
+            weight: 1,
+            citationChunkIds: [CITATION_ID],
+          },
+          {
+            id: "88888888-8888-4888-8888-888888888888",
+            sourceEntityId: ALLOWANCE_ENTITY_ID,
+            targetEntityId: POLICY_ENTITY_ID,
+            type: "THUỘC_CHÍNH_SÁCH",
+            description: "Khoản phụ cấp thuộc chính sách công tác trong nước.",
             weight: 1,
             citationChunkIds: [CITATION_ID],
           },
