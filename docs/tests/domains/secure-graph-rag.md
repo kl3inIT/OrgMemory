@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
+Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
 
 ## Automated
 
@@ -213,11 +213,14 @@ Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
   until enabled, and that an enabled Neo4j without a password fails startup.
   The OpenSearch wiring assertion runs against the container because its
   publication store creates an index while the bean is built.
-- `knowledge-graph-layout.spec.ts` renders the authenticated graph workspace at
-  the reported production desktop viewport, proves the title stays on one line
-  without intersecting the flexible action region, and rejects horizontal page
-  overflow or browser errors. `page-layout.test.tsx` pins the shared shrink
-  contract beneath that browser behavior.
+- `knowledge-graph-layout.spec.ts` renders a populated authenticated graph
+  workspace at the reported production desktop viewport, proves the title stays
+  on one line without intersecting the flexible action region, selects a node
+  through visible search, and verifies readable identity/actions, directional
+  neighbor context, permission-rechecked document/heading evidence labels, no
+  numbered `Source 1` fallback, no horizontal page overflow, and no browser
+  errors. `page-layout.test.tsx` pins the shared shrink contract beneath that
+  browser behavior.
 - `document-actions.spec.ts` proves the employee navigation names the enclosing
   workspace Knowledge while Documents and Knowledge graph remain peer tabs.
 
@@ -243,9 +246,10 @@ cross-tenant, stale-generation, and model-mismatched evidence out of the final
 grounding.
 
 The exact graph node/edge response and permission-negative metadata contract is
-covered at the API/service layer, and the graph workspace now has focused
-real-browser responsive-header coverage. Browser interaction with populated
-node/edge rendering remains a gap.
+covered at the API/service layer. The graph workspace has real-browser coverage
+for its responsive header and populated entity inspector; a full browser click
+through relation selection, curation dialogs, and denied-evidence fallback
+remains a gap.
 
 No test asserts the whole telemetry export against the payload allowlist. Span
 attributes, resource attributes, instrumentation-scope attributes and the log

@@ -7,7 +7,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
+Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
 
 ## Current Behavior
 
@@ -34,19 +34,30 @@ revision whose active Knowledge Asset remains inside the caller's canonical
 evidence scope. Delivery verifies evidence hash and length, audits allow/deny,
 uses `no-store` and `nosniff`, and applies a closed filename allowlist: PDF,
 plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
-HTML, SVG, XML, JSON, and unknown types are download-only. The right-side reader
-uses the safe response type as its ceiling and may refine delivered `text/plain`
+HTML, SVG, XML, JSON, and unknown types are download-only. On desktop the
+right-side reader is a persistent master-detail surface: the document list
+remains visible and interactive while the selected evidence is open. Smaller
+viewports use an accessible modal Sheet. Both presentations use the safe
+response type as their ceiling and may refine delivered `text/plain`
 into Markdown only when the canonical source metadata declares `text/markdown`.
 Markdown uses the shared restricted renderer with Rendered and Raw views: active
 HTML, remote images, and unsafe URLs do not execute. Preview errors expose an
 explicit retry, while PDF, raster image, text, and download-only presentations
 fill the remaining responsive reader height.
 
-Classification is displayed as classification, not as an inferred effective
-audience. The list states that access follows Knowledge Space policy because
-classification alone cannot prove who the current OpenFGA model admits. File
-rows use concise format labels and keep embedding/index profile details out of
-the employee-facing table.
+Classification is displayed and selected as classification, not as an inferred
+effective audience. The upload dialog and list explain that effective access
+also follows the selected Knowledge Space and current organization policy,
+because classification alone cannot prove who the current OpenFGA model admits.
+File rows use concise format labels and keep embedding/index profile details
+out of the employee-facing table.
+
+FAILED and QUARANTINED revisions expose their already-bounded failure detail
+inline rather than only through a hover tooltip. QUARANTINED bytes are never
+retried unchanged; the user can open a fresh upload for corrected evidence.
+There is no manual FAILED retry: Source Ingestion does not yet carry an exact
+claim epoch through Asset publication, so a reset could race a stale producer.
+The required fencing and recovery proof remain backlog work.
 
 Delete is an idempotent governed retirement command, not physical erasure. It
 is available only for fully published READY native uploads and rechecks

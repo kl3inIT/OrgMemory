@@ -74,4 +74,3 @@ The proposed design is in
 Return `accept`, `accept with changes`, or `reject`; give the strongest
 contradiction, must-fix list with repository paths, committed recommendation,
 mandatory tests, and forbidden scope. Do not edit any file.
-

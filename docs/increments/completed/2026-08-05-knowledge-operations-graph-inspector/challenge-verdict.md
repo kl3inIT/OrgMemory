@@ -72,4 +72,3 @@ revision and unique job.
 - A second job or revision used to evade the unique lifecycle.
 - Connector retry, arbitrary reindex, physical purge, weaker authorization,
   frontend authority, or raw internal exception text.
-

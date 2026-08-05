@@ -11,7 +11,7 @@ payload-boundary configuration this document states —
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
+Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
 
 ## Current Contract
 
@@ -348,7 +348,12 @@ explorer fills the remaining shared app-shell canvas. Its page identity keeps
 its intrinsic width while the action region takes the flexible width and wraps
 controls before they can compress the title. Selected entities or relations
 open through the responsive split layout without changing graph authorization
-or query state.
+or query state. The inspector presents entity identity and actions first,
+navigable neighboring entities with incoming/outgoing direction second, and
+evidence last. Evidence labels are hydrated through the permission-rechecked
+citation excerpt endpoint, so the panel shows document title and heading/page
+context rather than an authorization-free numbered source label. A denied or
+missing citation remains opaque.
 
 ## Related Decisions
 
