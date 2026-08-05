@@ -2,13 +2,14 @@
 
 Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `core/src/main/java/com/orgmemory/core/ai`,
+`core/src/main/java/com/orgmemory/core/assetregistry/skill`,
 `integrations/ai-model-gateways`,
 `apps/api/src/main/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/main/java/com/orgmemory/mcp`, and
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 ## Current Behavior
 
@@ -21,9 +22,20 @@ GraphRAG supplies one structured, token-bounded
 grounding set containing entity, relation, and chunk contributions. The
 application rechecks its complete evidence closure through OpenFGA and the
 canonical ledger before the pure-Java renderer creates the final model prompt.
-`AssistantService` sends that already-verified prompt through `ChatModelPort`;
-it does not construct a second chunk-only prompt or invoke a Spring AI retrieval
-advisor. The server assigns each citation number while rendering the same
+`AssistantService` sends that already-verified prompt through the selected
+model port; it does not construct a second chunk-only prompt or invoke a Spring
+AI retrieval advisor. An exact administrator-authorized Assistant route enters
+the request-local agent model port. That port adds only three server-owned,
+read-only Skill tools: actor-scoped catalog search, exact-release instruction
+activation, and one bounded exact-release UTF-8 resource read. Spring AI's
+streaming `ToolCallingAdvisor` performs a bounded recursive loop. A per-turn
+tool-call budget supplies a second bound; a model response without tool calls
+retains the ordinary text path. Skill instructions and resources are
+untrusted model context; they cannot grant tools or permissions and package
+scripts are never executed. Empty authorized Knowledge retrieval still stops
+before model generation, so the beta augments grounded turns rather than
+creating an uncited Skill-only answer path. The server assigns each citation
+number while rendering the same
 verified closure and streams that number as provider metadata. The browser makes only those declared
 markers interactive; an undeclared `[n]` remains literal text. Citation content
 is read through an authenticated backend endpoint instead of exposing
@@ -45,8 +57,10 @@ Blocking permission-scoped retrieval runs on an Assistant-owned fixed scheduler
 with configured concurrency, a finite queue, sanitized overload rejection, and
 bounded shutdown. The server begins the UI message stream before scheduling
 retrieval and emits only transient closed activity values for retrieval active,
-retrieval complete with an already-authorized evidence count, and generation
-active. These events contain no question, source identity, arbitrary prose, or
+retrieval complete with an already-authorized evidence count, generation
+active, and Skill discovery, activation, or resource-read active/complete/failed
+states. Skill discovery may include only an authorized result count. These
+events contain no question, Skill or source identity, arbitrary prose, or
 reasoning and are not persisted. Browser-owned copy replaces the activity on
 phase changes and removes it at the first model text token, abort, error, actor
 change, or completion; the waiting UI has no leading product icon.

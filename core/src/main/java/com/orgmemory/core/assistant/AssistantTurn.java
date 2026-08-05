@@ -6,7 +6,15 @@ import reactor.core.publisher.Flux;
 public record AssistantTurn(
         String requestId,
         List<AssistantCitation> citations,
-        Flux<String> content) {
+        Flux<String> content,
+        Flux<AssistantAgentActivity> activities) {
+
+    public AssistantTurn(
+            String requestId,
+            List<AssistantCitation> citations,
+            Flux<String> content) {
+        this(requestId, citations, content, Flux.empty());
+    }
 
     public AssistantTurn {
         if (requestId == null || requestId.isBlank()) {
@@ -21,6 +29,9 @@ public record AssistantTurn(
         }
         if (content == null) {
             throw new IllegalArgumentException("content is required");
+        }
+        if (activities == null) {
+            throw new IllegalArgumentException("activities is required");
         }
     }
 }

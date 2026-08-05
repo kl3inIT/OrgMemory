@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -31,13 +31,15 @@ Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
 | Database mutation guards allow only Draft-reference deletion; payload-reference update and Revision/Release deletion remain rejected | `AssetRegistryIntegrationTests#onlyDraftPayloadReferencesMayBeDeletedWhileAllReferenceUpdatesStayRejected` | covered |
 | Post-commit supersession cleanup deletes only an exact unreferenced object, retains immutable pins, and durably schedules bounded retries after storage failure | `SkillPackageSupersessionCleanupCoordinatorTests` | covered |
 | The four parent-owned Skill capabilities expose exact type sets and exact Core/API/Worker/MinIO consumer sets; storage locators do not enter API or Worker dependencies | `ModulithVerificationTests#assetRegistrySkillCapabilitiesAreExactExplicitNamedInterfaces`, `#assetRegistrySkillCapabilitiesHaveExactCoreConsumers`, `SkillCapabilityBoundaryTests`, `MinioSkillPackageStorageAdapterTests#adapterExposesOnlyTheParentStorageCapability` | covered |
-| Closed Skill owns package semantics, GitHub orchestration, API-facing operations, and manifest construction with an exact seven-type public surface; it imports only parent package/delivery capabilities, never parent implementation/storage/cleanup, and the parent never imports the child | `ModulithVerificationTests#assetRegistrySkillIsAClosedSemanticsModule`, `#assetRegistrySkillExposesOnlyItsExactPublicContracts`, `#assetRegistrySkillDoesNotDependOnParentImplementationOrStorage`, `#assetRegistryParentDoesNotDependOnSkill`, `SkillCapabilityBoundaryTests`, `GitHubConnectorAutoConfigurationTests` | covered |
+| Closed Skill owns package semantics, GitHub orchestration, API-facing operations, manifest construction, and runtime projection with an exact eight-type public surface; it imports only parent package/delivery capabilities, never parent implementation/storage/cleanup, and the parent never imports the child | `ModulithVerificationTests#assetRegistrySkillIsAClosedSemanticsModule`, `#assetRegistrySkillExposesOnlyItsEightTopLevelContracts`, `#assetRegistrySkillDoesNotDependOnParentImplementationOrStorage`, `#assetRegistryParentDoesNotDependOnSkill`, `SkillCapabilityBoundaryTests`, `GitHubConnectorAutoConfigurationTests` | covered |
 | A projection retry retains the already-referenced Skill object rather than deleting it | `SkillRegistryServiceTests#retainsReferencedBytesWhenAuthorizationProjectionNeedsRetry` | covered |
 | Skill storage uses an organization-scoped object key and verifies the stored SHA-256 | `MinioSkillPackageStorageAdapterTests` | covered |
 | Direct Skill publication atomically creates one Revision and Release, pins the exact validated blob through Draft, Revision, and Release, records `DIRECT` provenance, and emits the dedicated audit policy | `AssetRegistryIntegrationTests#skillImportPublishesDirectlyAndPinsTheValidatedBlob` | covered |
 | An active Skill review blocks direct publication rather than becoming an approval bypass | `AssetRegistryIntegrationTests#directSkillPublicationDoesNotBypassAnActiveReview` | covered |
 | The direct command rejects every non-Skill Asset profile | `AssetRegistryIntegrationTests#directSkillPublicationRejectsEveryOtherAssetProfile` | covered |
 | Exact Skill manifests omit storage keys; package streaming rejects missing/non-blob references plus payload, release-reference, and stored-object mismatches and closes opened content on manifest failure | `SkillDistributionServiceTests`, `SkillDistributionControllerTests`, `MinioSkillPackageStorageAdapterTests` | covered |
+| Runtime Skill search delegates to the actor-authorized live catalog, filters to Skill releases, caps results, and returns exact immutable release identities | `SkillReleaseDeliveryServiceTests#searchesOnlyTheCanUseCatalogAndPinsExactSkillReleases`, `SkillRuntimeServiceTests#searchesOnlyThroughTheActorScopedDeliveryBoundary` | covered |
+| Runtime activation and resource reads reopen the exact authorized release, accept only declared safe paths, enforce 128 KiB strict UTF-8 text, and verify selected-entry size and SHA-256 without extraction or execution | `SkillRuntimeServiceTests` | covered |
 | Browser Skill detail reads the exact manifest through an OIDC-session-only endpoint without weakening bearer `assets:read` admission | `AssetConsumptionControllerTests`, `asset-registry-golden-poc.spec.ts` | covered |
 | Method-level authorization denial returns a stable opaque HTTP 403 instead of an internal HTTP 500 | `ApiExceptionHandlerTests#methodAuthorizationDenialUsesTheStableForbiddenContract` | covered |
 | MCP Skill discovery and binary proxy retain bearer admission and exchanged API authorization | `SkillPackageControllerTests`, `AssetDeliveryControllerSecurityTests` | covered |

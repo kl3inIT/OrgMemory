@@ -21,10 +21,57 @@ import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
 import java.io.ByteArrayInputStream;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SkillReleaseDeliveryServiceTests {
+
+    @Test
+    void searchesOnlyTheCanUseCatalogAndPinsExactSkillReleases() {
+        Fixture fixture = fixture();
+        AssetRecommendation recommendation = new AssetRecommendation(
+                ASSET_ID,
+                AssetType.SKILL,
+                "support",
+                "triage",
+                "Support triage",
+                "Triage customer issues",
+                UUID.randomUUID(),
+                AssetPortfolioState.ACTIVE,
+                RELEASE_ID,
+                "1.2.0",
+                "c".repeat(64),
+                AssetAvailability.AVAILABLE,
+                java.time.Instant.parse("2026-07-27T10:00:00Z"));
+        when(fixture.assets.catalog(
+                        ACTOR,
+                        "incident",
+                        AssetType.SKILL,
+                        AssetCatalogSort.RECENTLY_RELEASED,
+                        1,
+                        3))
+                .thenReturn(new AssetRecommendationPage(
+                        List.of(recommendation),
+                        1,
+                        1,
+                        3,
+                        1,
+                        AssetCatalogSort.RECENTLY_RELEASED));
+
+        var result = fixture.service.search(ACTOR, "incident", 3);
+
+        assertEquals(1, result.size());
+        assertEquals(RELEASE_ID, result.getFirst().releaseId());
+        assertEquals("support", result.getFirst().namespace());
+        verify(fixture.assets).catalog(
+                ACTOR,
+                "incident",
+                AssetType.SKILL,
+                AssetCatalogSort.RECENTLY_RELEASED,
+                1,
+                3);
+    }
 
     private static final UUID ORGANIZATION_ID =
             UUID.fromString("87000000-0000-0000-0000-000000000001");

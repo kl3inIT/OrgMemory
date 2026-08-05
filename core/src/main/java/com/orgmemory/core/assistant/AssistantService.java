@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 
 public class AssistantService {
 
@@ -31,6 +32,7 @@ public class AssistantService {
 
     private final PermissionAwareKnowledgeSearch retrieval;
     private final ChatModelPort chat;
+    private final AssistantAgentModelPort agent;
     private final ObservationRegistry observations;
     private final AssistantTurnEvent.RetrievalEngine engine;
     private final AssistantStageEventSink stages;
@@ -49,6 +51,7 @@ public class AssistantService {
         this(
                 retrieval,
                 chat,
+                null,
                 observations,
                 engine,
                 AssistantStageEventSink.NO_OP);
@@ -60,8 +63,19 @@ public class AssistantService {
             ObservationRegistry observations,
             AssistantTurnEvent.RetrievalEngine engine,
             AssistantStageEventSink stages) {
+        this(retrieval, chat, null, observations, engine, stages);
+    }
+
+    public AssistantService(
+            PermissionAwareKnowledgeSearch retrieval,
+            ChatModelPort chat,
+            AssistantAgentModelPort agent,
+            ObservationRegistry observations,
+            AssistantTurnEvent.RetrievalEngine engine,
+            AssistantStageEventSink stages) {
         this.retrieval = retrieval;
         this.chat = chat;
+        this.agent = agent;
         this.observations = observations;
         this.engine = engine;
         this.stages = stages;
@@ -173,18 +187,21 @@ public class AssistantService {
                     new java.util.concurrent.atomic.AtomicBoolean();
             java.util.concurrent.atomic.AtomicBoolean firstTokenStageEmitted =
                     new java.util.concurrent.atomic.AtomicBoolean();
-            Flux<String> generated = routeAuthority == null
+            Sinks.Many<AssistantAgentActivity> activitySink =
+                    Sinks.many().replay().limit(32);
+            Flux<String> generated = routeAuthority == null || agent == null
                     ? chat.stream(
                             actor.organizationId(),
                             AiWorkload.ASSISTANT_CHAT,
                             prepared.request(),
                             conversationId)
-                    : chat.stream(
+                    : agent.stream(
                             routeAuthority,
                             prepared.request(),
                             conversationId,
-                            actor.userId(),
-                            requestId);
+                            actor,
+                            requestId,
+                            activity -> activitySink.tryEmitNext(activity));
             Flux<String> content = generated
                     .filter(token -> token != null && !token.isEmpty())
                     .switchIfEmpty(Flux.error(new AssistantUnavailableException(
@@ -217,6 +234,7 @@ public class AssistantService {
                     .doOnCancel(() ->
                             context.unavailable(System.nanoTime(), "assistant_stream_cancelled"))
                     .doFinally(signal -> {
+                        activitySink.tryEmitComplete();
                         if (stopped.compareAndSet(false, true)) {
                             observation.stop();
                         }
@@ -225,7 +243,8 @@ public class AssistantService {
             return new AssistantTurn(
                     search.requestId(),
                     prepared.citations(),
-                    content);
+                    content,
+                    activitySink.asFlux());
         } catch (RuntimeException exception) {
             throw failed(observation, context, exception);
         }

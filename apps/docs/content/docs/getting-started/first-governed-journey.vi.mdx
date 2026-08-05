@@ -10,11 +10,14 @@ sourceRefs:
   - docs/specs/domains/asset-registry.md
   - docs/specs/domains/assistant-and-mcp.md
   - docs/specs/domains/secure-retrieval.md
+  - core/src/main/java/com/orgmemory/core/assetregistry/skill/SkillRuntimeOperations.java
+  - integrations/ai-model-gateways/src/main/java/com/orgmemory/integrations/ai/gateway/SpringAiChatModelAdapter.java
+  - apps/web/src/features/assistant/components/assistant-page.tsx
   - apps/web/src/features/assets/components/asset-catalog-page.tsx
   - apps/web/src/features/assets/components/asset-detail-page.tsx
   - apps/web/src/features/assets/components/pack-journey-page.tsx
   - apps/web/test/e2e/asset-registry-golden-poc.spec.ts
-lastReviewed: 2026-07-30
+lastReviewed: 2026-08-05
 ---
 
 Hành trình này bắt đầu sau khi administrator của tổ chức cấp quyền cho bạn và có
@@ -95,6 +98,13 @@ Hành động khả dụng phụ thuộc vào loại Asset.
 Hành động thay đổi trạng thái và lần gọi mô hình bên ngoài cần được xác nhận rõ
 ràng. Assistant không thể thay bạn phê duyệt, publish, withdraw, thay đổi quyền
 hoặc thực thi công cụ tùy ý.
+
+Trong lúc chuẩn bị câu trả lời có grounding, Assistant có thể tìm một Skill mà
+bạn hiện được phép sử dụng, tải instruction từ đúng bản phát hành và đọc một file
+text hỗ trợ có giới hạn khi cần. Các thao tác đọc này không cài đặt hay thực thi
+Skill, và metadata trong package không thể cấp thêm công cụ hoặc quyền cho
+Assistant. Nếu không có bằng chứng Knowledge được cấp quyền, Assistant sẽ không
+bắt đầu luồng Skill này.
 
 ## 4. Hoàn thành một Capability Pack
 

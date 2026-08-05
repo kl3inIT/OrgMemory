@@ -9,9 +9,11 @@ import com.orgmemory.core.assetregistry.consumption.AssetConsumptionRelease;
 import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseContent;
 import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDeliveryQuery;
 import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor;
+import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseSummary;
 import com.orgmemory.core.assetregistry.skillpackage.SkillPackageArtifact;
 import com.orgmemory.core.assetregistry.skillstorage.SkillPackageStoragePort;
 import com.orgmemory.core.organization.CurrentActor;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -41,6 +43,32 @@ class SkillReleaseDeliveryService implements SkillReleaseDeliveryQuery {
         this.releases = releases;
         this.references = references;
         this.storage = storage;
+    }
+
+    @Override
+    public List<SkillReleaseSummary> search(
+            CurrentActor actor, String query, int limit) {
+        Objects.requireNonNull(actor, "actor");
+        int boundedLimit = Math.min(Math.max(limit, 1), 10);
+        return assets.catalog(
+                        actor,
+                        normalizeQuery(query),
+                        AssetType.SKILL,
+                        AssetCatalogSort.RECENTLY_RELEASED,
+                        1,
+                        boundedLimit)
+                .items()
+                .stream()
+                .map(item -> new SkillReleaseSummary(
+                        item.assetId(),
+                        item.releaseId(),
+                        item.namespace(),
+                        item.slug(),
+                        item.versionLabel(),
+                        item.title(),
+                        item.summary(),
+                        item.releaseDigest()))
+                .toList();
     }
 
     @Override
@@ -146,6 +174,17 @@ class SkillReleaseDeliveryService implements SkillReleaseDeliveryQuery {
             throw new AssetNotFoundException();
         }
         return normalized;
+    }
+
+    private static String normalizeQuery(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.strip();
+        if (normalized.length() > 500) {
+            throw new IllegalArgumentException("Skill search query exceeds its limit");
+        }
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private record ResolvedRelease(

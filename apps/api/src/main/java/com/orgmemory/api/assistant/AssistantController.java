@@ -3,6 +3,7 @@ package com.orgmemory.api.assistant;
 import com.orgmemory.api.security.CurrentActorProvider;
 import com.orgmemory.core.assistant.AssistantAnswerFeedbackView;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
+import com.orgmemory.core.assistant.AssistantAgentActivity;
 import com.orgmemory.core.assistant.AssistantCitation;
 import com.orgmemory.core.assistant.AssistantConversationMessageView;
 import com.orgmemory.core.assistant.AssistantConversationService;
@@ -400,6 +401,9 @@ class AssistantController {
                         AssistantStreamPart.Activity.Phase.GENERATION,
                         AssistantStreamPart.Activity.State.ACTIVE,
                         null));
+        Flux<AssistantStreamPart> live = Flux.merge(
+                turn.activities().map(AssistantController::activityPart),
+                text);
         return Flux.concat(
                 Flux.just(new AssistantStreamPart.Activity(
                         AssistantStreamPart.Activity.Phase.RETRIEVAL,
@@ -408,7 +412,7 @@ class AssistantController {
                 generation,
                 Flux.fromIterable(turn.citations())
                         .map(AssistantController::sourcePart),
-                text,
+                live,
                 Flux.just(new AssistantStreamPart.FinishStep()));
     }
 
@@ -446,5 +450,13 @@ class AssistantController {
                 "/api/citations/" + evidence.chunkId() + "/content",
                 title,
                 citation.number());
+    }
+
+    private static AssistantStreamPart activityPart(
+            AssistantAgentActivity activity) {
+        return new AssistantStreamPart.Activity(
+                AssistantStreamPart.Activity.Phase.valueOf(activity.phase().name()),
+                AssistantStreamPart.Activity.State.valueOf(activity.state().name()),
+                activity.resultCount());
     }
 }

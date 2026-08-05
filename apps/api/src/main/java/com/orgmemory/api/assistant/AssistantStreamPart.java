@@ -15,12 +15,16 @@ sealed interface AssistantStreamPart {
 
         enum Phase {
             RETRIEVAL,
-            GENERATION
+            GENERATION,
+            SKILL_DISCOVERY,
+            SKILL_ACTIVATION,
+            SKILL_RESOURCE
         }
 
         enum State {
             ACTIVE,
-            COMPLETE
+            COMPLETE,
+            FAILED
         }
     }
 

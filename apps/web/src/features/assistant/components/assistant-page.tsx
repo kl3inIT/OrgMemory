@@ -52,6 +52,10 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
 import { InputGroupButton } from "@/components/ui/input-group"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
+import {
+  activityLabel,
+  type AssistantActivity,
+} from "@/features/assistant/assistant-activity"
 import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
 import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
 import {
@@ -80,12 +84,6 @@ import type {
 } from "@/lib/hey-api"
 
 type AnswerSentiment = "HELPFUL" | "NOT_HELPFUL"
-
-interface AssistantActivity {
-  phase: "RETRIEVAL" | "GENERATION"
-  state: "ACTIVE" | "COMPLETE"
-  evidenceCount?: number | null
-}
 
 function textFor(message: UIMessage) {
   return message.parts
@@ -223,26 +221,20 @@ function isAssistantActivity(value: unknown): value is AssistantActivity {
   if (!value || typeof value !== "object") return false
   const activity = value as Record<string, unknown>
   return (
-    (activity.phase === "RETRIEVAL" || activity.phase === "GENERATION") &&
-    (activity.state === "ACTIVE" || activity.state === "COMPLETE") &&
+    (activity.phase === "RETRIEVAL" ||
+      activity.phase === "GENERATION" ||
+      activity.phase === "SKILL_DISCOVERY" ||
+      activity.phase === "SKILL_ACTIVATION" ||
+      activity.phase === "SKILL_RESOURCE") &&
+    (activity.state === "ACTIVE" ||
+      activity.state === "COMPLETE" ||
+      activity.state === "FAILED") &&
     (activity.evidenceCount === undefined ||
       activity.evidenceCount === null ||
       (typeof activity.evidenceCount === "number" &&
         Number.isSafeInteger(activity.evidenceCount) &&
         activity.evidenceCount >= 0))
   )
-}
-
-function activityLabel(activity: AssistantActivity | null) {
-  if (!activity) return "Connecting to the Assistant…"
-  if (activity.phase === "RETRIEVAL" && activity.state === "ACTIVE") {
-    return "Searching permitted knowledge…"
-  }
-  if (activity.phase === "RETRIEVAL") {
-    const count = activity.evidenceCount ?? 0
-    return count === 1 ? "Found 1 permitted source" : `Found ${count} permitted sources`
-  }
-  return "Preparing the grounded answer…"
 }
 
 function CitationHydration({

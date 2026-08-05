@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 ## Current Behavior
 
@@ -281,10 +281,12 @@ persisted object key.
 
 The closed `assetregistry.skill` nested module owns bounded package inspection
 and validation, GitHub acquisition orchestration, API-facing Skill operations,
-and install-manifest construction. Its exact public top-level surface is
+install-manifest construction, and the read-only runtime projection. Its exact
+public top-level surface is
 `SkillPackageOperations`, `SkillGitHubOperations`,
 `SkillDistributionOperations`, `SkillGitHubSourcePort`,
 `SkillPackageInspection`, `SkillInstallManifest`, and `SkillPackageContent`.
+`SkillRuntimeOperations` is the eighth contract.
 Implementations, the package profile and specification, the inspector, and the
 validation exception remain package-private. The child imports only the
 parent's `skill-package` and `skill-delivery` capabilities; it never imports
@@ -313,6 +315,17 @@ Instruction guidance, Pack start/read/progress, explicit release fork, and
 feedback. Recommendations are computed from live `CAN_USE` authorization and
 contain an exact non-withdrawn release reference. External provider calls and
 every state-changing action require an explicit confirmation flag.
+
+For Agent Skills progressive disclosure, the same Asset Registry also exposes
+an actor-scoped runtime view rather than a second registry. Search returns at
+most ten live-`CAN_USE` Skill summaries with exact release identifiers.
+Activation reopens that exact authorized release, verifies the stored package
+and selected entry against the immutable manifest, and returns bounded
+`SKILL.md` instructions plus declared resource paths. A resource read accepts
+one safe relative path, caps the selected entry at 128 KiB, verifies its size
+and SHA-256, and decodes strict UTF-8 without NUL. The runtime never extracts a
+filesystem tree or executes package content. `allowed-tools` remains package
+metadata and is absent from the runtime authority surface.
 
 Each action appends a trace that pins the actor, action, exact release
 references, authorization context, citation identifiers, model route when
