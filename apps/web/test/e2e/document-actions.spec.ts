@@ -5,6 +5,13 @@ const USER_ID = "22222222-2222-4222-8222-222222222222"
 const READY_SOURCE_ID = "33333333-3333-4333-8333-333333333333"
 const PROCESSING_SOURCE_ID = "44444444-4444-4444-8444-444444444444"
 const ASSET_ID = "55555555-5555-4555-8555-555555555555"
+const MARKDOWN_SOURCE_ID = "66666666-6666-4666-8666-666666666666"
+const PDF_SOURCE_ID = "77777777-7777-4777-8777-777777777777"
+const IMAGE_SOURCE_ID = "88888888-8888-4888-8888-888888888888"
+const OFFICE_SOURCE_ID = "99999999-9999-4999-8999-999999999999"
+const RETRY_SOURCE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+const FAILED_SOURCE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+const QUARANTINED_SOURCE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 
 test("views protected evidence and deletes only an eligible ready upload", async ({ page }) => {
   const requests: string[] = []
@@ -41,11 +48,112 @@ test("views protected evidence and deletes only an eligible ready upload", async
   expect(browserErrors).toEqual([])
 })
 
+test("Knowledge presents safe cross-format evidence in a centered document viewer", async ({
+  page,
+}, testInfo) => {
+  const requests: string[] = []
+  const browserErrors: string[] = []
+  let readyDeleted = false
+  let retryAttempts = 0
+  page.on("pageerror", (error) => browserErrors.push(error.message))
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text())
+  })
+
+  await documentHarness(
+    page,
+    requests,
+    () => readyDeleted,
+    () => {
+      readyDeleted = true
+    },
+    () => ++retryAttempts,
+  )
+  await page.setViewportSize({ width: 1459, height: 816 })
+  await page.emulateMedia({ colorScheme: "dark" })
+  await page.goto("/sources")
+
+  await expect(page.getByRole("link", { name: "Knowledge" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  )
+  await expect(page.getByRole("tab", { name: "Documents", exact: true })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "Knowledge graph", exact: true })).toBeVisible()
+  await expect(page.getByRole("columnheader", { name: "Status" })).toBeVisible()
+  await expect(page.getByRole("columnheader", { name: "Index profile" })).toHaveCount(0)
+  await expect(page.getByText(/Word document/)).toBeVisible()
+  await expect(page.getByText("Knowledge Space policy").first()).toBeVisible()
+  await expect(page.getByText("Executive only")).toHaveCount(0)
+  await expect(page.getByText("The document parser could not read this file.")).toBeVisible()
+  await expect(page.getByText("The uploaded evidence did not pass the content policy.")).toBeVisible()
+
+  await openDocument(page, "Support SLA")
+  await expect(page.getByTestId("restricted-source-markdown")).toBeVisible()
+  await expect(page.getByRole("heading", { name: "L1 Support SLA" })).toBeVisible()
+  const markdownDownload = page.getByRole("link", { name: "Download" })
+  await expect(markdownDownload).toBeVisible()
+  await expect
+    .poll(async () => {
+      const box = await markdownDownload.boundingBox()
+      return box ? Math.ceil(box.x + box.width) : Number.POSITIVE_INFINITY
+    })
+    .toBeLessThanOrEqual(1459)
+  await expect(page.getByRole("img", { name: "Team map" })).toContainText(
+    "Remote image blocked",
+  )
+  if (process.env.DESIGN_QA_CAPTURE) {
+    const screenshot = testInfo.outputPath("knowledge-markdown-reader.png")
+    await page.screenshot({ path: screenshot, fullPage: false })
+    await testInfo.attach("knowledge-markdown-reader", {
+      path: screenshot,
+      contentType: "image/png",
+    })
+  }
+  await page.getByRole("button", { name: "Raw" }).click()
+  await expect(page.getByText("# L1 Support SLA", { exact: false })).toBeVisible()
+  await closeReader(page)
+
+  await openDocument(page, "Finance policy")
+  await expect(page.getByTitle("Finance policy")).toBeVisible()
+  await closeReader(page)
+
+  await openDocument(page, "Office map")
+  await expect(page.getByRole("img", { name: "Office map" })).toBeVisible()
+  await closeReader(page)
+
+  await openDocument(page, "Handover brief")
+  await expect(page.getByText("Preview is unavailable for this file type")).toBeVisible()
+  await expect(page.getByRole("link", { name: "Download" })).toBeVisible()
+  await closeReader(page)
+
+  await openDocument(page, "Recovery notes")
+  await expect(page.getByText("The document is no longer available or permission has changed.")).toBeVisible()
+  await page.getByRole("button", { name: "Retry" }).click()
+  await expect(page.getByText("Recovered after a permission recheck.")).toBeVisible()
+
+  await closeReader(page)
+  await openDocument(page, "Rejected evidence")
+  await page.getByRole("button", { name: "Upload corrected document" }).click()
+  await expect(page.getByRole("heading", { name: "Upload a document" })).toBeVisible()
+  await expect(page.getByText("Classification sets the handling baseline.", { exact: false })).toBeVisible()
+  await page.getByRole("button", { name: "Cancel" }).click()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true)
+  expect(retryAttempts).toBe(2)
+  expect(browserErrors).toEqual([
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+  ])
+})
+
 async function documentHarness(
   page: Page,
   requests: string[],
   isDeleted: () => boolean,
   markDeleted: () => void,
+  nextRetryAttempt: () => number = () => 1,
 ) {
   await page.route("**/api/**", async (route) => {
     const request = route.request()
@@ -104,6 +212,82 @@ async function documentHarness(
           contentAvailable: false,
           deletionAllowed: false,
         }),
+        source({
+          id: MARKDOWN_SOURCE_ID,
+          title: "Support SLA",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: true,
+          deletionAllowed: true,
+          classification: "RESTRICTED",
+          fileName: "support-sla.md",
+          mediaType: "text/markdown",
+          contentLength: 164,
+        }),
+        source({
+          id: PDF_SOURCE_ID,
+          title: "Finance policy",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: true,
+          deletionAllowed: true,
+          fileName: "finance-policy.pdf",
+          mediaType: "application/pdf",
+          contentLength: 64,
+        }),
+        source({
+          id: IMAGE_SOURCE_ID,
+          title: "Office map",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: true,
+          deletionAllowed: true,
+          fileName: "office-map.png",
+          mediaType: "image/png",
+          contentLength: 68,
+        }),
+        source({
+          id: OFFICE_SOURCE_ID,
+          title: "Handover brief",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: true,
+          deletionAllowed: true,
+          fileName: "handover-brief.docx",
+          mediaType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          contentLength: 32,
+        }),
+        source({
+          id: RETRY_SOURCE_ID,
+          title: "Recovery notes",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: true,
+          deletionAllowed: true,
+          fileName: "recovery-notes.txt",
+          mediaType: "text/plain",
+          contentLength: 39,
+        }),
+        source({
+          id: FAILED_SOURCE_ID,
+          title: "Unreadable handbook",
+          status: "FAILED",
+          knowledgeAssetId: null,
+          contentAvailable: false,
+          deletionAllowed: false,
+          failureCode: "PARSER_FAILED",
+          failureMessage: "The document parser could not read this file.",
+        }),
+        source({
+          id: QUARANTINED_SOURCE_ID,
+          title: "Rejected evidence",
+          status: "QUARANTINED",
+          knowledgeAssetId: null,
+          contentAvailable: false,
+          deletionAllowed: false,
+          failureCode: "CONTENT_POLICY_REJECTED",
+          failureMessage: "The uploaded evidence did not pass the content policy.",
+        }),
       ]
       return route.fulfill({
         status: 200,
@@ -121,6 +305,55 @@ async function documentHarness(
           "x-content-type-options": "nosniff",
         },
         body: "Employees receive 12 days of annual leave.",
+      })
+    }
+    if (url.pathname === `/api/sources/${MARKDOWN_SOURCE_ID}/content`) {
+      return route.fulfill({
+        status: 200,
+        contentType: "text/plain",
+        body: [
+          "# L1 Support SLA",
+          "",
+          "**Acknowledge within 15 minutes.**",
+          "",
+          "![Team map](https://example.test/private-map.png)",
+          "",
+          "<script>window.__unsafe = true</script>",
+        ].join("\n"),
+      })
+    }
+    if (url.pathname === `/api/sources/${PDF_SOURCE_ID}/content`) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/pdf",
+        body: "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF",
+      })
+    }
+    if (url.pathname === `/api/sources/${IMAGE_SOURCE_ID}/content`) {
+      return route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      })
+    }
+    if (url.pathname === `/api/sources/${OFFICE_SOURCE_ID}/content`) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        body: "PK governed office fixture",
+      })
+    }
+    if (url.pathname === `/api/sources/${RETRY_SOURCE_ID}/content`) {
+      if (nextRetryAttempt() === 1) {
+        return route.fulfill({ status: 404, contentType: "application/json", body: "{}" })
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "text/plain",
+        body: "Recovered after a permission recheck.",
       })
     }
     if (url.pathname === `/api/sources/${READY_SOURCE_ID}` && request.method() === "DELETE") {
@@ -149,17 +382,23 @@ function source(input: {
   knowledgeAssetId: string | null
   contentAvailable: boolean
   deletionAllowed: boolean
+  classification?: string
+  fileName?: string
+  mediaType?: string
+  contentLength?: number
+  failureCode?: string
+  failureMessage?: string
 }) {
   return {
     ...input,
     sourceSystem: "upload",
     aclAuthority: "ORGMEMORY",
-    classification: "INTERNAL",
-    fileName: `${input.title.toLowerCase().replaceAll(" ", "-")}.txt`,
-    mediaType: "text/plain",
-    contentLength: 48,
-    failureCode: null,
-    failureMessage: null,
+    classification: input.classification ?? "INTERNAL",
+    fileName: input.fileName ?? `${input.title.toLowerCase().replaceAll(" ", "-")}.txt`,
+    mediaType: input.mediaType ?? "text/plain",
+    contentLength: input.contentLength ?? 48,
+    failureCode: input.failureCode ?? null,
+    failureMessage: input.failureMessage ?? null,
     embeddingProfileKey: input.status === "READY" ? "openai:text-embedding-3-large:1536" : null,
     embeddingProvider: input.status === "READY" ? "openai" : null,
     embeddingModel: input.status === "READY" ? "text-embedding-3-large" : null,
@@ -167,4 +406,14 @@ function source(input: {
     createdAt: "2026-08-02T01:00:00Z",
     updatedAt: "2026-08-02T02:00:00Z",
   }
+}
+
+async function openDocument(page: Page, title: string) {
+  await page.getByRole("button", { name: title, exact: true }).click()
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible()
+}
+
+async function closeReader(page: Page) {
+  await page.getByRole("button", { name: "Close" }).click()
+  await expect(page.getByRole("dialog")).toBeHidden()
 }

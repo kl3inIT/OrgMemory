@@ -73,7 +73,7 @@ export function PageHeader({
     >
       {breadcrumb}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
-        <div className="min-w-0 space-y-1.5">
+        <div data-slot="page-header-identity" className="min-w-0 space-y-1.5 sm:shrink-0">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             {icon ? (
               <span className="grid size-8 shrink-0 place-items-center text-content-secondary">
@@ -90,7 +90,7 @@ export function PageHeader({
         {actions ? (
           <div
             data-slot="page-header-actions"
-            className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:shrink-0 sm:justify-end"
+            className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 sm:w-auto sm:flex-1 sm:justify-end"
           >
             {actions}
           </div>

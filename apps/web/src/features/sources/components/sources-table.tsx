@@ -1,4 +1,4 @@
-import { Ellipsis, Eye, FileText, SearchX, Trash2 } from "lucide-react"
+import { Ellipsis, Eye, FileText, SearchX, Trash2, Upload } from "lucide-react"
 import { useMemo } from "react"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
@@ -11,7 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
+import {
+  SourceFailureDetail,
+  SourceStatusBadge,
+} from "@/features/sources/components/source-status-badge"
+import { sourceFormatLabel } from "@/features/sources/source-preview"
 import {
   ACTIVE_SOURCE_STATUSES,
   sourceProgress,
@@ -20,28 +24,16 @@ import {
 import type { SourceResponse } from "@/lib/hey-api"
 import { formatBytes, formatDate } from "@/lib/format"
 
-function accessScope(classification?: string) {
-  switch (classification) {
-    case "PUBLIC":
-    case "INTERNAL":
-      return "All employees"
-    case "CONFIDENTIAL":
-      return "Your department"
-    case "RESTRICTED":
-      return "Executive only"
-    default:
-      return "Policy controlled"
-  }
-}
-
 export function SourcesTable({
   sources,
   onView,
   onDelete,
+  onUploadCorrection,
 }: {
   sources: SourceResponse[]
   onView: (source: SourceResponse) => void
   onDelete: (source: SourceResponse) => void
+  onUploadCorrection: (source: SourceResponse) => void
 }) {
   const columns = useMemo<ColumnDef<SourceResponse>[]>(
     () => [
@@ -66,7 +58,8 @@ export function SourcesTable({
                   {source.title ?? source.fileName}
                 </button>
                 <div className="mt-0.5 max-w-28 truncate text-xs text-muted-foreground sm:max-w-none">
-                  {formatBytes(source.contentLength)} · {source.mediaType ?? "Document"}
+                  {formatBytes(source.contentLength)} ·{" "}
+                  {sourceFormatLabel(source.mediaType, source.fileName)}
                 </div>
               </div>
             </div>
@@ -86,7 +79,7 @@ export function SourcesTable({
                 {source.classification ? titleCase(source.classification) : "Policy controlled"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {accessScope(source.classification)}
+                Knowledge Space policy
               </div>
             </div>
           )
@@ -95,7 +88,7 @@ export function SourcesTable({
       {
         id: "pipeline",
         accessorFn: (source) => source.status ?? "UNKNOWN",
-        header: "Pipeline",
+        header: "Status",
         enableSorting: true,
         meta: {
           headerClassName: "hidden md:table-cell",
@@ -105,7 +98,7 @@ export function SourcesTable({
           const source = row.original
           const status = source.status ?? "UNKNOWN"
           return (
-            <div className="w-36 space-y-2">
+            <div className="w-48 space-y-2">
               <SourceStatusBadge source={source} />
               {ACTIVE_SOURCE_STATUSES.has(status) ? (
                 <Progress
@@ -114,30 +107,8 @@ export function SourcesTable({
                   aria-label={`${status} progress`}
                 />
               ) : null}
+              <SourceFailureDetail source={source} />
             </div>
-          )
-        },
-      },
-      {
-        id: "indexProfile",
-        accessorFn: (source) => source.embeddingModel ?? "",
-        header: "Index profile",
-        enableSorting: true,
-        meta: {
-          headerClassName: "hidden lg:table-cell",
-          cellClassName: "hidden lg:table-cell",
-        },
-        cell: ({ row }) => {
-          const source = row.original
-          return source.embeddingModel ? (
-            <div className="space-y-0.5">
-              <div className="text-sm">{source.embeddingModel}</div>
-              <div className="font-mono text-xs text-muted-foreground">
-                {source.embeddingDimensions}d · {source.embeddingProvider}
-              </div>
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">Pending</span>
           )
         },
       },
@@ -174,6 +145,11 @@ export function SourcesTable({
                 <DropdownMenuItem onSelect={() => onView(source)}>
                   <Eye aria-hidden="true" /> View
                 </DropdownMenuItem>
+                {source.status === "QUARANTINED" ? (
+                  <DropdownMenuItem onSelect={() => onUploadCorrection(source)}>
+                    <Upload aria-hidden="true" /> Upload corrected document
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   variant="destructive"
                   disabled={!source.deletionAllowed}
@@ -188,7 +164,7 @@ export function SourcesTable({
         },
       },
     ],
-    [onDelete, onView],
+    [onDelete, onUploadCorrection, onView],
   )
 
   return (

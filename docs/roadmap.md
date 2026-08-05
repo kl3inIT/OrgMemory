@@ -54,6 +54,10 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Knowledge workspace and document reader](increments/completed/2026-08-05-knowledge-workspace-document-reader/verification.md) | shipped | completed the governed right-side reader, safe Markdown presentation, truthful access copy, and cross-format browser coverage |
+| [Knowledge operations and graph inspector](increments/completed/2026-08-05-knowledge-operations-graph-inspector/verification.md) | shipped | completed desktop document operations, safe terminal-failure remediation, and the graph entity/evidence inspector; retry remains fenced backlog work |
+| [Unified governed document viewer](increments/completed/2026-08-05-unified-governed-document-viewer/verification.md) | shipped | converged Knowledge documents and Assistant citations on one centered, permission-verified reading surface |
+| [Knowledge Graph responsive header](increments/completed/2026-08-05-knowledge-graph-responsive-layout/verification.md) | shipped | verified the shared title/action shrink contract at the reported production viewport with unit and browser regression coverage |
 | [Assistant evidence continuity and live activity](increments/completed/2026-08-04-assistant-citation-evidence-continuity/plan.md) | shipped | delivered direct evidence, safe Markdown, bounded replay hydration, and truthful pre-token retrieval/generation activity |
 | [Multi-snapshot query prototype and evaluation harness](increments/active/2026-08-05-multi-snapshot-query-prototype/plan.md) | active | prove or falsify ADR 0020 gates 2-3: compound-query p95 <= 500 ms at 1x/10x/100x with shadow equivalence, and bypass recall@40 parity |
 | [Retrieval admission control and pool right-sizing](increments/active/2026-08-05-retrieval-admission-phase1/plan.md) | active | ADR 0020 Phase 1: fair 4-permit admission, pool 8/8, topK 40, TTFT attribution; production before/after window also closes the LightRAG-latency live proof |
@@ -104,6 +108,10 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
+- Fence Source Ingestion with a never-reused claim epoch and an exact durable
+  Asset-publication permit, then prove manifest-pinned recovery before exposing
+  a manual FAILED retry. The rejected proposal and required test matrix are in
+  the [Knowledge operations challenge verdict](increments/completed/2026-08-05-knowledge-operations-graph-inspector/challenge-verdict.md).
 - Finish the remaining admin permission surface after the active effective
   access inspector: reachable containers with ACL authority, generation, and
   capture time; a permission audit event per role mutation; and a governed

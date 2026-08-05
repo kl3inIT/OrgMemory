@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
+Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
 
 ## Automated
 
@@ -213,6 +213,24 @@ Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
   until enabled, and that an enabled Neo4j without a password fails startup.
   The OpenSearch wiring assertion runs against the container because its
   publication store creates an index while the bean is built.
+- `knowledge-graph-layout.spec.ts` renders a populated authenticated graph
+  workspace at the reported production desktop viewport, proves the title stays
+  on one line without intersecting the flexible action region, selects a node
+  through visible search, and verifies readable identity/actions, directional
+  neighbor context, permission-rechecked document/heading evidence labels, no
+  numbered `Source 1` fallback, no horizontal page overflow, and no browser
+  errors. `page-layout.test.tsx` pins the shared shrink contract beneath that
+  browser behavior.
+- `document-actions.spec.ts` proves the employee navigation names the enclosing
+  workspace Knowledge while Documents and Knowledge graph remain peer tabs. It
+  also proves the full-width document table opens a centered responsive viewer,
+  safe rendered/raw Markdown, inline PDF and image evidence, download-only
+  fallback, retry after an opaque access change, and corrected-upload handoff.
+- `assistant-pipeline.spec.ts` proves inline citations open that shared viewer
+  directly, the aggregate source control still opens the cited/found sidebar,
+  sidebar rows use the same viewer, citation evidence remains excerpt-first,
+  revoked access stays opaque, and authorized PDF, image, Markdown, text, and
+  download-only representations preserve their security behavior.
 
 ## Verification
 
@@ -236,8 +254,10 @@ cross-tenant, stale-generation, and model-mismatched evidence out of the final
 grounding.
 
 The exact graph node/edge response and permission-negative metadata contract is
-covered at the API/service layer; a focused real-browser graph rendering and
-interaction test remains a gap.
+covered at the API/service layer. The graph workspace has real-browser coverage
+for its responsive header and populated entity inspector; a full browser click
+through relation selection, curation dialogs, and denied-evidence fallback
+remains a gap.
 
 No test asserts the whole telemetry export against the payload allowlist. Span
 attributes, resource attributes, instrumentation-scope attributes and the log

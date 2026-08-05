@@ -1,10 +1,12 @@
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import {
+  ArrowDownLeft,
   ArrowRight,
+  ArrowUpRight,
   ExternalLink,
+  FileText,
   GitBranchPlus,
   GitMerge,
-  Link2,
   Pencil,
   Scissors,
   Trash2,
@@ -53,6 +55,8 @@ import {
   mergeGraphIdentityMutation,
   suppressGraphIdentityMutation,
 } from "@/lib/hey-api/@tanstack/react-query.gen"
+import { readCitationExcerpt } from "@/lib/hey-api"
+import type { CitationEvidenceExcerpt } from "@/lib/hey-api"
 import type {
   Entity,
   EvidenceReference,
@@ -83,21 +87,21 @@ export function GraphPropertiesPanel({
 
   return (
     <SplitLayout.Aside className="absolute right-3 top-3 z-(--z-detail-panel) max-h-[calc(100%-1.5rem)] w-[min(var(--detail-panel-width),calc(100%-1.5rem))] rounded-lg border border-border-default bg-background/95 shadow-lg backdrop-blur lg:relative lg:right-auto lg:top-auto lg:max-h-none lg:rounded-none lg:border-y-0 lg:border-r-0 lg:bg-surface-base lg:shadow-none lg:backdrop-blur-none">
-      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-5 py-4 backdrop-blur">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">
-            {selectedEntity?.name ?? selectedRelation?.type ?? "Graph property"}
-          </p>
-          <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-            {selectedEntity ? (selectedEntity.type ?? "Entity") : "Relation"}
-          </p>
+          <Badge variant="muted" className="mb-2">
+            {selectedEntity ? readableGraphLabel(selectedEntity.type ?? "Entity") : "Relation"}
+          </Badge>
+          <h2 className="truncate text-base font-semibold leading-tight">
+            {selectedEntity?.name ?? readableGraphLabel(selectedRelation?.type ?? "Graph property")}
+          </h2>
         </div>
         <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close properties">
           <X className="size-4" />
         </Button>
       </div>
 
-      <div className="px-4 py-3">
+      <div className="px-5 py-4">
         {selectedEntity ? (
           <EntityProperties
             graph={graph}
@@ -145,29 +149,30 @@ function EntityProperties({
   )
   return (
     <>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
-          size="icon-sm"
+          size="sm"
           onClick={() => void onExpandEntity(entity)}
-          aria-label="Expand entity neighbors"
-          title="Expand entity neighbors"
         >
           <GitBranchPlus className="size-4" />
+          Expand neighbors
         </Button>
         <Button
-          variant="outline"
-          size="icon-sm"
+          variant="ghost"
+          size="sm"
           onClick={() => entity.id && onHideEntity(entity.id)}
-          aria-label="Hide entity from this view"
-          title="Hide entity from this view"
         >
           <Scissors className="size-4" />
+          Hide
         </Button>
       </div>
-      {entity.description ? (
-        <p className="mt-4 text-sm leading-relaxed text-content-secondary">{entity.description}</p>
-      ) : null}
+      <section className="mt-5" aria-labelledby="entity-about-heading">
+        <h3 id="entity-about-heading" className="text-sm font-semibold">About</h3>
+        <p className="mt-2 text-sm leading-6 text-content-secondary">
+          {entity.description || "No description is available for this entity."}
+        </p>
+      </section>
       <PropertyActions
         graph={graph}
         kind="ENTITY"
@@ -175,9 +180,9 @@ function EntityProperties({
         onClose={onClose}
         onChanged={onChanged}
       />
-      <Separator className="my-3" />
-      <PropertyLabel label="Connections" value={String(relations.length)} />
-      <div className="mt-1 divide-y">
+      <Separator className="my-5" />
+      <PropertyHeading label="Connections" value={String(relations.length)} />
+      <div className="mt-2 divide-y divide-border-subtle">
         {relations.length ? (
           relations.map((relation) => {
             const otherId =
@@ -185,20 +190,28 @@ function EntityProperties({
                 ? relation.targetEntityId
                 : relation.sourceEntityId
             const other = graph.entities?.find((candidate) => candidate.id === otherId)
+            const outgoing = relation.sourceEntityId === entity.id
             return (
               <button
                 key={relation.id}
                 type="button"
-                className="flex w-full items-start gap-2 px-1 py-2.5 text-left hover:bg-accent"
+                className="group flex w-full items-start gap-3 rounded-md px-2 py-3 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                 onClick={() => otherId && onSelectEntity(otherId)}
               >
-                <Link2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">{relation.type ?? "Related"}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
+                {outgoing ? (
+                  <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ArrowDownLeft className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
                     {other?.name ?? "Visible entity"}
                   </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {outgoing ? "Outgoing" : "Incoming"} · {readableGraphLabel(relation.type ?? "Related")}
+                  </span>
                 </span>
+                <ArrowRight className="mt-0.5 size-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             )
           })
@@ -228,11 +241,12 @@ function RelationProperties({
   const target = graph.entities?.find((entity) => entity.id === relation.targetEntityId)
   return (
     <>
-      {relation.description ? (
-        <p className="mt-4 text-sm leading-relaxed text-content-secondary">
-          {relation.description}
+      <section aria-labelledby="relation-about-heading">
+        <h3 id="relation-about-heading" className="text-sm font-semibold">About</h3>
+        <p className="mt-2 text-sm leading-6 text-content-secondary">
+          {relation.description || "No description is available for this relation."}
         </p>
-      ) : null}
+      </section>
       <PropertyActions
         graph={graph}
         kind="RELATION"
@@ -637,34 +651,92 @@ function EndpointButton({
 function EvidenceLinks({ citationIds }: { citationIds: string[] }) {
   if (!citationIds.length) return null
   return (
-    <div className="mt-4 border-t pt-3">
-      <PropertyLabel label="Evidence" value={String(citationIds.length)} />
-      <div className="mt-1 divide-y">
-        {citationIds.map((citationId, index) => (
-          <Button
-            key={citationId}
-            variant="ghost"
-            className="h-9 w-full justify-between rounded-none px-1"
-            asChild
-          >
-            <a href={`/api/citations/${citationId}/content`} target="_blank" rel="noreferrer">
-              <span className="truncate">Source {index + 1}</span>
-              <ExternalLink className="size-3.5 shrink-0" />
-            </a>
-          </Button>
+    <div className="mt-5 border-t pt-4">
+      <PropertyHeading label="Evidence" value={String(citationIds.length)} />
+      <div className="mt-2 space-y-1">
+        {citationIds.map((citationId) => (
+          <EvidenceLink key={citationId} citationId={citationId} />
         ))}
       </div>
     </div>
   )
 }
 
+function EvidenceLink({ citationId }: { citationId: string }) {
+  const excerpt = useQuery({
+    queryKey: ["graph-citation-excerpt", citationId],
+    queryFn: async (): Promise<CitationEvidenceExcerpt> => {
+      const { data } = await readCitationExcerpt({
+        path: { chunkId: citationId },
+        throwOnError: true,
+      })
+      return data
+    },
+    retry: false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  })
+
+  if (excerpt.isError) {
+    return (
+      <div className="flex items-center gap-3 rounded-md px-2 py-3 text-sm text-muted-foreground">
+        <FileText className="size-4 shrink-0" aria-hidden="true" />
+        Evidence unavailable
+      </div>
+    )
+  }
+
+  return (
+    <Button variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-3 text-left" asChild>
+      <a href={`/api/citations/${citationId}/content`} target="_blank" rel="noreferrer">
+        <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">
+            {excerpt.isPending ? "Loading evidence…" : excerpt.data?.title || "Evidence"}
+          </span>
+          {excerpt.data ? (
+            <span className="mt-0.5 block truncate text-xs font-normal text-muted-foreground">
+              {citationLocation(excerpt.data)}
+            </span>
+          ) : null}
+        </span>
+        <ExternalLink className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </a>
+    </Button>
+  )
+}
+
+function PropertyHeading({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <h3 className="text-sm font-semibold">{label}</h3>
+      <Badge variant="muted" className="min-w-6 justify-center tabular-nums">{value}</Badge>
+    </div>
+  )
+}
+
 function PropertyLabel({ label, value }: { label: string; value: string }) {
   return (
-    <p className="flex items-center justify-between gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-      <span>{label}</span>
-      <span className="font-mono">{value}</span>
+    <p className="text-xs text-muted-foreground">
+      {label} <span className="ml-1 font-medium text-foreground">{value}</span>
     </p>
   )
+}
+
+function citationLocation(excerpt: CitationEvidenceExcerpt) {
+  if (excerpt.heading) return excerpt.heading
+  if (excerpt.startPage && excerpt.endPage && excerpt.startPage !== excerpt.endPage) {
+    return `Pages ${excerpt.startPage}–${excerpt.endPage}`
+  }
+  if (excerpt.startPage) return `Page ${excerpt.startPage}`
+  return "Permission-verified excerpt"
+}
+
+function readableGraphLabel(value: string) {
+  const spaced = value.trim().replaceAll(/[_-]+/g, " ").replaceAll(/\s+/g, " ")
+  if (!spaced || spaced !== spaced.toLocaleUpperCase()) return spaced || "Entity"
+  const lower = spaced.toLocaleLowerCase()
+  return lower.charAt(0).toLocaleUpperCase() + lower.slice(1)
 }
 
 function Field({

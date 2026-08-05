@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Files, LoaderCircle, RefreshCw, Search } from "lucide-react"
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense, useCallback, useState } from "react"
 import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
-import { DocumentDetailSheet } from "@/features/sources/components/document-detail-sheet"
+import { DocumentDetailDialog } from "@/features/sources/components/document-detail-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,7 +62,8 @@ export function SourcesPage({
   const queryClient = useQueryClient()
   const statusFilter = useDocumentManagerStore((state) => state.statusFilter)
   const setStatusFilter = useDocumentManagerStore((state) => state.setStatusFilter)
-  const [viewing, setViewing] = useState<SourceResponse | null>(null)
+  const [viewingId, setViewingId] = useState<string | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<SourceResponse | null>(null)
   const sources = useQuery({
     ...listSourcesOptions(),
@@ -83,7 +84,7 @@ export function SourcesPage({
     ...deleteSourceMutation(),
     onSuccess: async () => {
       setDeleteCandidate(null)
-      setViewing(null)
+      setViewingId(null)
       await queryClient.invalidateQueries({ queryKey: listSourcesQueryKey() })
       toast.success("Document deleted from active knowledge.")
     },
@@ -92,6 +93,23 @@ export function SourcesPage({
   })
 
   const documents = sources.data ?? []
+  const viewing = documents.find((source) => source.id === viewingId) ?? null
+  const viewDocument = useCallback((source: SourceResponse) => {
+    setViewingId(source.id ?? null)
+  }, [])
+  const closeDocument = useCallback(() => {
+    if (viewingId) {
+      queryClient.removeQueries({
+        queryKey: ["source-content-preview", viewingId],
+        exact: true,
+      })
+    }
+    setViewingId(null)
+  }, [queryClient, viewingId])
+  const uploadCorrection = useCallback(() => {
+    closeDocument()
+    setUploadOpen(true)
+  }, [closeDocument])
   const normalizedSearch = search.trim().toLocaleLowerCase()
   const filteredDocuments = documents.filter((source) => {
     if (!matchesSourceStatus(source, statusFilter)) return false
@@ -128,6 +146,8 @@ export function SourcesPage({
             title="Documents"
             actions={
               <SourceUploadDialog
+                open={uploadOpen}
+                onOpenChange={setUploadOpen}
                 pending={upload.isPending}
                 spaces={uploadTargets.data ?? []}
                 spacesPending={uploadTargets.isPending}
@@ -189,51 +209,52 @@ export function SourcesPage({
             </TabsList>
           </Tabs>
 
-          <section className="overflow-hidden rounded-lg border bg-card" aria-label="Documents">
-            <div className="border-b p-3">
-              <FilterBar
-                search={
-                  <InputGroup className="max-w-md shadow-none">
-                    <InputGroupAddon>
-                      <Search aria-hidden="true" />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      type="search"
-                      value={search}
-                      placeholder="Search documents"
-                      aria-label="Search documents"
-                      onChange={(event) => onSearchChange(event.target.value)}
-                    />
-                  </InputGroup>
-                }
-                result={visibleDocumentLabel}
-                actions={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={sources.isFetching}
-                    onClick={() => sources.refetch()}
-                  >
-                    <RefreshCw
-                      className={sources.isFetching ? "animate-spin" : ""}
-                      aria-hidden="true"
-                    />
-                    Refresh
-                  </Button>
-                }
-              />
-            </div>
+          <section className="min-h-[32rem] overflow-hidden rounded-lg border bg-card" aria-label="Documents">
+                <div className="sticky top-0 z-10 border-b bg-card p-3">
+                  <FilterBar
+                    search={
+                      <InputGroup className="max-w-md shadow-none">
+                        <InputGroupAddon>
+                          <Search aria-hidden="true" />
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          type="search"
+                          value={search}
+                          placeholder="Search documents"
+                          aria-label="Search documents"
+                          onChange={(event) => onSearchChange(event.target.value)}
+                        />
+                      </InputGroup>
+                    }
+                    result={visibleDocumentLabel}
+                    actions={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={sources.isFetching}
+                        onClick={() => sources.refetch()}
+                      >
+                        <RefreshCw
+                          className={sources.isFetching ? "animate-spin" : ""}
+                          aria-hidden="true"
+                        />
+                        Refresh
+                      </Button>
+                    }
+                  />
+                </div>
 
-            {sources.isPending ? <SourcesLoading /> : null}
-            {sources.isError ? <SourcesError onRetry={() => sources.refetch()} /> : null}
-            {sources.data?.length === 0 ? <SourcesEmpty /> : null}
-            {sources.data && sources.data.length > 0 ? (
-              <SourcesTable
-                sources={filteredDocuments}
-                onView={setViewing}
-                onDelete={setDeleteCandidate}
-              />
-            ) : null}
+                {sources.isPending ? <SourcesLoading /> : null}
+                {sources.isError ? <SourcesError onRetry={() => sources.refetch()} /> : null}
+                {sources.data?.length === 0 ? <SourcesEmpty /> : null}
+                {sources.data && sources.data.length > 0 ? (
+                  <SourcesTable
+                    sources={filteredDocuments}
+                    onView={viewDocument}
+                    onDelete={setDeleteCandidate}
+                    onUploadCorrection={uploadCorrection}
+                  />
+                ) : null}
           </section>
         </TabsContent>
         <TabsContent value="graph" className="flex min-h-0 flex-1">
@@ -243,9 +264,10 @@ export function SourcesPage({
         </TabsContent>
       </Tabs>
 
-      <DocumentDetailSheet
+      <DocumentDetailDialog
         source={viewing}
-        onOpenChange={(open) => !open && setViewing(null)}
+        onOpenChange={(open) => !open && closeDocument()}
+        onUploadCorrection={uploadCorrection}
       />
 
       <AlertDialog

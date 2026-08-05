@@ -3,14 +3,16 @@
 Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
 `core/src/main/java/com/orgmemory/core/knowledge`,
-`apps/web/src/features/knowledge`, `integrations/observability`, and — for the
+`apps/web/src/features/knowledge`, `apps/web/src/features/sources`,
+`apps/web/src/features/assistant`,
+`apps/web/src/components/layouts`, `integrations/observability`, and — for the
 payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`, plus
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
+Reconciled: `2026-08-05-unified-governed-document-viewer (7b6ae726)`.
 
 ## Current Contract
 
@@ -339,13 +341,38 @@ Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
   against its own classpath metadata that Spring AI declares no content flag the
   list has missed. It has no disable property.
 
+## Governed Document Viewer
+
+Knowledge documents and Assistant citations use one centered, responsive
+viewer shell for original evidence. The Knowledge document table remains full
+width while the viewer is open. In Assistant, an inline citation opens the
+viewer directly, the aggregate source control opens the cited/found source
+sidebar, and selecting a sidebar row opens the same viewer.
+
+The shared presentation layer renders inline PDF and supported images, safe
+Markdown with rendered/raw views, plain text, and an explicit download-only
+fallback. It owns loading, opaque access-change errors, copy/download actions,
+and object-URL cleanup. Knowledge documents read the current governed original
+through the source-content endpoint. Assistant citations remain excerpt-first:
+the permission-rechecked excerpt and its server-selected presentation kind must
+succeed before the browser requests original citation content. External sources
+open outside the secure evidence preview. The viewer introduces no browser-side
+authorization and never renders arbitrary source HTML.
+
 ## Graph Explorer
 
-The Sources UI reads the same permission-scoped published projection and never
+The Knowledge workspace's graph surface reads the same permission-scoped published projection and never
 creates node-owned ACLs or a permission-independent merged description. The
-explorer fills the remaining shared app-shell canvas, wraps controls on narrow
-screens, and opens selected entities or relations through the responsive split
-layout without changing graph authorization or query state.
+explorer fills the remaining shared app-shell canvas. Its page identity keeps
+its intrinsic width while the action region takes the flexible width and wraps
+controls before they can compress the title. Selected entities or relations
+open through the responsive split layout without changing graph authorization
+or query state. The inspector presents entity identity and actions first,
+navigable neighboring entities with incoming/outgoing direction second, and
+evidence last. Evidence labels are hydrated through the permission-rechecked
+citation excerpt endpoint, so the panel shows document title and heading/page
+context rather than an authorization-free numbered source label. A denied or
+missing citation remains opaque.
 
 ## Related Decisions
 
