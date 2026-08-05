@@ -13,9 +13,9 @@ the agent stops after its CI is green and does not merge it.
   current prompt/service paths, and pinned Onyx/LightRAG sources.
 - [x] Recheck Spring AI 2.0 RAG guidance through current official docs.
 - [x] Confirm the worktree starts clean on `feat/assistant-answer-behavior`.
-- [ ] Keep `AuthorizedEvidenceScope`, retrieval, authorization, ranking,
+- [x] Keep `AuthorizedEvidenceScope`, retrieval, authorization, ranking,
   scorers, and official fixtures unchanged.
-- [ ] Keep evidence/user-context injection safety and personalization-only
+- [x] Keep evidence/user-context injection safety and personalization-only
   semantics intact.
 
 ## 1. Frame The Increment
@@ -25,54 +25,58 @@ the agent stops after its CI is green and does not merge it.
 - [x] Author this executable plan before source implementation.
 - [x] Mark the increment active in `docs/roadmap.md` with the production sweep
   as its remaining gate.
-- [ ] Commit the increment framing before implementation.
+- [x] Commit the increment framing before implementation (`1ed4f58d`).
 
 ## 2. Model-Backed Answer Behavior
 
-- [ ] Expand `AssistantPromptFactory.SYSTEM_INSTRUCTION` to require:
+- [x] Expand `AssistantPromptFactory.SYSTEM_INSTRUCTION` to require:
   same-language user-perspective uncertainty, one escalation line,
   adjacent-information labeling, all-and-only inline `[n]` citations, and no
   restricted-resource speculation or pipeline meta voice.
-- [ ] Apply the shared instruction to both the canonical rendered prompt and
+- [x] Apply the shared instruction to both the canonical rendered prompt and
   the already-verified LightRAG generation request.
-- [ ] Preserve the untrusted-evidence, untrusted-user-context, and
+- [x] Preserve the untrusted-evidence, untrusted-user-context, and
   personalization-only authorization lines.
-- [ ] Add focused tests for the positive R2/R3/R5 invariants and a lower-cased
+- [x] Add focused tests for the positive R2/R3/R5 invariants and a lower-cased
   banned-phrase list, including both prompt construction paths.
 
 ## 3. Empty-Evidence Answer
 
-- [ ] Replace the fixed English fallback with deterministic Vietnamese and
+- [x] Replace the fixed English fallback with deterministic Vietnamese and
   English user-perspective variants selected from the question language.
-- [ ] Keep the path model-free, citation-free, concise, and limited to the
+- [x] Keep the path model-free, citation-free, concise, and limited to the
   not-found statement plus one escalation sentence.
-- [ ] Extend `AssistantServiceTests` to cover Vietnamese and English wording,
+- [x] Extend `AssistantServiceTests` to cover Vietnamese and English wording,
   no banned pipeline voice, no model call, and no citations.
 
 ## 4. Browser Disclosure
 
-- [ ] Render `Câu trả lời chỉ dựa trên tài liệu bạn có quyền truy cập.` below
+- [x] Render `Câu trả lời chỉ dựa trên tài liệu bạn có quyền truy cập.` below
   every Assistant answer, including replay and empty-evidence output.
-- [ ] Do not render the disclosure below user messages.
-- [ ] Follow the existing colocated static-copy convention; do not introduce a
+- [x] Do not render the disclosure below user messages.
+- [x] Follow the existing colocated static-copy convention; do not introduce a
   one-string localization subsystem.
-- [ ] Add focused component coverage for both roles.
-- [ ] Commit the browser change separately inside the same branch/PR.
+- [x] Add focused component coverage for both roles.
+- [x] Commit the browser change separately inside the same branch/PR
+  (`190ab914`).
 
 ## 5. Verification
 
-- [ ] Pin Node 24 before every Node/pnpm command.
-- [ ] Run focused backend tests while iterating.
-- [ ] Run `./gradlew.bat --no-daemon compileJava` and `:core:test`.
-- [ ] Run `./gradlew.bat --no-daemon clean test` and capture its direct exit
+- [x] Pin Node 24 before every successful Node/pnpm gate; the first test
+  attempt exposed a stale Node 23 PATH entry before any test ran, after which
+  `C:/nvm4w/nodejs` pinned Node 24.15.0 explicitly.
+- [x] Run focused backend tests while iterating.
+- [x] Run `./gradlew.bat --no-daemon compileJava` and a clean `:core:test`.
+- [x] Run `./gradlew.bat --no-daemon clean test` and capture its direct exit
   code without piping.
-- [ ] Run web `lint`, `typecheck`, `test:unit`, and production `build` under
+- [x] Run web `lint`, `typecheck`, `test:unit`, and production `build` under
   Node 24.
-- [ ] Run the repository mechanical Java floor when JetBrains inspection is
+- [x] Run the repository mechanical Java floor when JetBrains inspection is
   unavailable.
-- [ ] Review `git diff` and `git status`; prove no retrieval, authorization,
+- [x] Run Node 24 `release:check` for the PR-local Tegami entry.
+- [x] Review `git diff` and `git status`; prove no retrieval, authorization,
   scorer, or official-fixture file changed.
-- [ ] Keep the worktree clean after commits.
+- [x] Keep the worktree clean after the final metadata/plan commit.
 
 ## 6. Pull Request
 
