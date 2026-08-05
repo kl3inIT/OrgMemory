@@ -87,3 +87,8 @@ def test_score_rejects_incomplete_observations() -> None:
 
     with pytest.raises(ValueError, match="observation cases differ"):
         score(golden_dataset(), incomplete)
+
+
+def test_score_rejects_non_default_top_k_for_v1_report() -> None:
+    with pytest.raises(ValueError, match="requires top_k=40"):
+        score(golden_dataset(), observations(), top_k=20)
