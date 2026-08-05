@@ -183,3 +183,54 @@ refreshed report records permission 50/50 with P007 as
 `DENY_FINISHED_NO_EVIDENCE`, while citations remain 39/43. The fix stays in the
 scorer because the disclaimer is official dataset content and stripping it
 would make the fixtures diverge from the authoritative evaluation set.
+
+## Post-reseed production sweep
+
+After PR #302 deployed, the owner-approved production re-seed moved the 16
+misplaced Internal/All-Employees documents into the `company` space through the
+public source-upload API as the `orgadmin` fixture uploader, removed stale
+organization-viewer OpenFGA tuples from six department spaces (engineering had
+none), and deleted the 16 old misplaced sources. PostgreSQL and OpenFGA were
+backed up first. SQL verification found 21 official documents in `company` (2
+Public/All and 19 Internal/All-Employees), only
+Confidential/Own-Department documents in department spaces, and 5
+Restricted/Executive-Only documents in `executive-office`.
+
+The committed
+[post-reseed report](official-eval-report-2026-08-05-postreseed.json) records:
+
+| Metric | Before re-seed | After re-seed | Assessment |
+| --- | ---: | ---: | --- |
+| Permission | 50/50 | 49/50 | The apparent loss is P035's documented fixture inconsistency, not a product regression. |
+| Exact citation set | 39/43 | 41/43 | PASS: the Loop C target of at least 41/43 is met. |
+
+All 50 cases reached the terminal `finish` event. End-to-end latency had a
+4,857 ms median and 15,072 ms observed max-of-50; TTFT had a 3,996 ms median.
+The two residual citation failures have different shapes:
+
+- P031 now cites DOC011 but remains `PARTIAL` because it omits DOC001. The
+  misplaced-document retrieval problem is fixed; multi-document citation
+  completeness remains open.
+- P001 cites the expected DOC001 plus DOC002 and DOC011. Correct company-space
+  visibility exposed an over-citation problem rather than a missing-document
+  problem.
+
+P035 now reports `DENY_EVIDENCE_LEAK` for DOC030 because the official case
+expects Deny while the authoritative metadata marks DOC030 Internal/All
+Employees. It previously passed only because the placement bug hid DOC030 from
+the actor. The standing decision in the
+[demo fixture note](../../../../demo/README.md#known-dataset-inconsistency)
+remains: preserve the official dataset and report the inconsistency instead of
+adding a product authorization exception.
+
+### Bulk re-seed operational note
+
+Immediately after the re-seed, Assistant turns reached the 120-second timeout.
+Mid-mutation statistics made PostgreSQL choose a graph-degree-query plan that
+ran for more than 20 minutes over roughly 19,000 rows, and each client interrupt
+left its server-side query running, stacking CPU-heavy orphans. Operators
+terminated those queries with `pg_terminate_backend` and ran `ANALYZE` on
+`projection_graph_relations`, `projection_graph_entities`, and
+`graph_retrieval_result_cache`; the next P031-style turn completed in 5.5
+seconds. Bulk re-seeds must refresh projection-table statistics before traffic
+resumes.
