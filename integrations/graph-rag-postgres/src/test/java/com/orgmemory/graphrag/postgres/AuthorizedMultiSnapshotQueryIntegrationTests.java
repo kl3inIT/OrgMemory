@@ -13,14 +13,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -34,6 +33,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Testcontainers
 @TestMethodOrder(OrderAnnotation.class)
@@ -43,10 +45,7 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
     private static final int REPETITIONS = 5;
     private static final int STATEMENT_TIMEOUT_MS = 5_000;
     private static final double LATENCY_THRESHOLD_MS = 500.0;
-    private static final Pattern NUMBER_FIELD = Pattern.compile(
-            "\\\"%s\\\"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)");
-    private static final Pattern NODE_TYPE = Pattern.compile(
-            "\\\"Node Type\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"");
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Container
     static PostgreSQLContainer postgres = new PostgreSQLContainer("pgvector/pgvector:pg18");
@@ -98,6 +97,20 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
 
                 query.validateRows(request, compound.rows());
                 query.validateRows(request, perSpace.rows());
+                int authorizedAssetsPerSpace = grant == MultiSnapshotSyntheticDataset.Grant.NARROW
+                        ? 1
+                        : MultiSnapshotSyntheticDataset.ASSETS_PER_SPACE;
+                int expectedCandidates = Math.min(
+                        request.globalLimit(),
+                        spaceCount
+                                * authorizedAssetsPerSpace
+                                * MultiSnapshotSyntheticDataset.BASE_ENTITIES_PER_ASSET);
+                assertThat(compound.rows())
+                        .as("non-empty compound candidates for %s spaces and %s grants", spaceCount, grant)
+                        .hasSize(expectedCandidates);
+                assertThat(perSpace.rows())
+                        .as("non-empty per-space candidates for %s spaces and %s grants", spaceCount, grant)
+                        .hasSize(expectedCandidates);
                 assertThat(compound.rows())
                         .as("compound equivalence for %s spaces and %s grants", spaceCount, grant)
                         .usingRecursiveFieldByFieldElementComparator()
@@ -108,6 +121,95 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
 
     @Test
     @Order(2)
+    void rejectsMismatchedAclGeneration() {
+        MultiSnapshotSyntheticDataset.Dataset dataset =
+                fixture.load(MultiSnapshotSyntheticDataset.Scale.CURRENT);
+        AuthorizedMultiSnapshotQuery.Request request =
+                dataset.request(1, MultiSnapshotSyntheticDataset.Grant.NARROW);
+        AuthorizedMultiSnapshotQuery.SnapshotScope scope = request.scopes().getFirst();
+        AuthorizedMultiSnapshotQuery.SnapshotScope mismatched = new AuthorizedMultiSnapshotQuery.SnapshotScope(
+                scope.spaceId(),
+                scope.batchId(),
+                scope.generation(),
+                scope.manifestFingerprint(),
+                scope.aclGeneration() + 1,
+                scope.authorizedAssetIds());
+
+        assertThat(query.execute(withScope(request, mismatched)).rows()).isEmpty();
+    }
+
+    @Test
+    @Order(3)
+    void rejectsProjectionNameSubstrings() {
+        MultiSnapshotSyntheticDataset.Dataset dataset =
+                fixture.load(MultiSnapshotSyntheticDataset.Scale.CURRENT);
+        AuthorizedMultiSnapshotQuery.Request request =
+                dataset.request(1, MultiSnapshotSyntheticDataset.Grant.NARROW);
+        UUID batchId = request.scopes().getFirst().batchId();
+        new JdbcTemplate(dataSource).update(
+                "UPDATE projection_publications SET projections = ? WHERE batch_id = ?",
+                "GRAPHQL,VECTORIZED",
+                batchId);
+
+        assertThat(query.execute(request).rows()).isEmpty();
+    }
+
+    @Test
+    @Order(4)
+    void serializesManifestFingerprintAsJson() {
+        MultiSnapshotSyntheticDataset.Dataset dataset =
+                fixture.load(MultiSnapshotSyntheticDataset.Scale.CURRENT);
+        AuthorizedMultiSnapshotQuery.Request request =
+                dataset.request(1, MultiSnapshotSyntheticDataset.Grant.NARROW);
+        AuthorizedMultiSnapshotQuery.SnapshotScope scope = request.scopes().getFirst();
+        String escapedFingerprint = "msq-\\\"quoted\\\"-\\\\fingerprint";
+        new JdbcTemplate(dataSource).update(
+                "UPDATE projection_publications SET manifest_fingerprint = ? WHERE batch_id = ?",
+                escapedFingerprint,
+                scope.batchId());
+        AuthorizedMultiSnapshotQuery.SnapshotScope escaped = new AuthorizedMultiSnapshotQuery.SnapshotScope(
+                scope.spaceId(),
+                scope.batchId(),
+                scope.generation(),
+                escapedFingerprint,
+                scope.aclGeneration(),
+                scope.authorizedAssetIds());
+        AuthorizedMultiSnapshotQuery.Request escapedRequest = withScope(request, escaped);
+
+        AuthorizedMultiSnapshotQuery.QueryExecution execution = query.execute(escapedRequest);
+        query.validateRows(escapedRequest, execution.rows());
+        assertThat(execution.rows()).isNotEmpty();
+    }
+
+    @Test
+    @Order(5)
+    void parsesExplainJsonFromItsDocumentStructure() {
+        ExplainHighlight highlight = ExplainHighlight.from(
+                "1x",
+                1,
+                "NARROW",
+                """
+                [{
+                  "Plan": {
+                    "Node Type": "Sort",
+                    "Shared Hit Blocks": 23,
+                    "Shared Read Blocks": 4,
+                    "Plans": [{"Node Type": "Nested Loop", "Shared Hit Blocks": 99}]
+                  },
+                  "Planning Time": 1.25,
+                  "Execution Time": 7.5
+                }]
+                """);
+
+        assertThat(highlight.rootNode()).isEqualTo("Sort");
+        assertThat(highlight.planningMs()).isEqualTo(1.25);
+        assertThat(highlight.executionMs()).isEqualTo(7.5);
+        assertThat(highlight.sharedHits()).isEqualTo(23.0);
+        assertThat(highlight.sharedReads()).isEqualTo(4.0);
+    }
+
+    @Test
+    @Order(100)
     @Tag("benchmark")
     @EnabledIfEnvironmentVariable(named = "ORGMEMORY_RUN_MSQ_BENCHMARK", matches = "true")
     void measuresThePredeclaredLatencyMatrixWithoutChangingRuntimeWiring() throws IOException {
@@ -140,7 +242,6 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
                                 concurrency,
                                 Phase.COLD,
                                 request));
-                        Files.writeString(report, markdown(datasets, results, explains));
                         try {
                             query.execute(request, STATEMENT_TIMEOUT_MS);
                             query.execute(request, STATEMENT_TIMEOUT_MS);
@@ -166,6 +267,19 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
         assertThat(results).hasSize(72);
     }
 
+    private static AuthorizedMultiSnapshotQuery.Request withScope(
+            AuthorizedMultiSnapshotQuery.Request request,
+            AuthorizedMultiSnapshotQuery.SnapshotScope scope) {
+        return new AuthorizedMultiSnapshotQuery.Request(
+                request.organizationId(),
+                request.embeddingProfileId(),
+                request.queryVector(),
+                request.seedLimit(),
+                request.globalLimit(),
+                request.minimumSimilarity(),
+                List.of(scope));
+    }
+
     private static ScenarioResult measure(
             String scale,
             int spaceCount,
@@ -174,11 +288,13 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
             Phase phase,
             AuthorizedMultiSnapshotQuery.Request request) {
         int samples = REPETITIONS;
+        Supplier<AuthorizedMultiSnapshotQuery.QueryExecution> operation = phase == Phase.COLD
+                ? () -> query.executeAfterDiscardingPlans(request, STATEMENT_TIMEOUT_MS)
+                : () -> query.execute(request, STATEMENT_TIMEOUT_MS);
         List<Timing> compound = concurrentMeasurements(
                 concurrency,
                 samples,
-                () -> query.execute(request, STATEMENT_TIMEOUT_MS),
-                phase);
+                operation);
         Statistics compoundStats = Statistics.from(compound);
         return new ScenarioResult(
                 scale,
@@ -188,23 +304,19 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
                 phase.name(),
                 samples,
                 compoundStats,
-                compoundStats.p95Ms() <= LATENCY_THRESHOLD_MS);
+                compoundStats.maxMs() <= LATENCY_THRESHOLD_MS);
     }
 
     private static List<Timing> concurrentMeasurements(
             int concurrency,
             int samples,
-            Supplier<AuthorizedMultiSnapshotQuery.QueryExecution> operation,
-            Phase phase) {
+            Supplier<AuthorizedMultiSnapshotQuery.QueryExecution> operation) {
         CountDownLatch start = new CountDownLatch(1);
         try (ExecutorService executor = Executors.newFixedThreadPool(concurrency)) {
             List<Callable<Timing>> tasks = new ArrayList<>();
             for (int sample = 0; sample < samples; sample++) {
                 tasks.add(() -> {
                     start.await();
-                    if (phase == Phase.COLD) {
-                        discardPlans();
-                    }
                     try {
                         AuthorizedMultiSnapshotQuery.QueryExecution execution = operation.get();
                         return new Timing(
@@ -235,16 +347,10 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
         }
     }
 
-    private static void discardPlans() {
-        new JdbcTemplate(dataSource).execute("DISCARD PLANS");
-    }
-
     private static boolean isStatementTimeout(Throwable failure) {
         Throwable current = failure;
         while (current != null) {
-            if (current instanceof SQLException sql
-                    && "57014".equals(sql.getSQLState())
-                    && sql.getMessage().toLowerCase(Locale.ROOT).contains("statement timeout")) {
+            if (current instanceof SQLException sql && "57014".equals(sql.getSQLState())) {
                 return true;
             }
             current = current.getCause();
@@ -283,12 +389,15 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
                 .append("Environment: disposable Testcontainers PostgreSQL 18 + pgvector, ")
                 .append("fixed four-connection Hikari pool, fixed synthetic seed, 1536 dimensions. ")
                 .append("No Spring runtime query bean was registered and no non-Testcontainers database ")
-                .append("was reachable. `COLD` discards prepared plans before each sample; PostgreSQL shared ")
+                .append("was reachable. `COLD` discards prepared plans on the measured connection before each ")
+                .append("sample; PostgreSQL shared ")
                 .append("buffers are not evicted, so production-shaped cold-buffer evidence remains plan step 4.\n\n")
                 .append("Statements are capped at 5,000 ms, ten times the gate budget. A timeout is ")
                 .append("recorded as 5,000 ms and therefore fails the 500 ms threshold.\n\n")
-                .append("Threshold: compound-query p95 <= 500 ms for every row. Five repetitions per ")
-                .append("row are measured; concurrency 4 launches up to four samples together. Shadow equivalence ")
+                .append("Observed-sample check: compound-query max-of-5 <= 500 ms for every row. Five ")
+                .append("repetitions do not estimate p95 or p99; the median and observed maximum are reported ")
+                .append("without percentile labels. The binding ADR p95 <= 500 ms gate is not weakened. ")
+                .append("Concurrency 4 launches up to four samples together. Shadow equivalence ")
                 .append("passed separately across 1/7/20 spaces and narrow/broad grants.\n\n")
                 .append("## Dataset\n\n")
                 .append("| Scale | Vectors | Entity contributions | Relation contributions |\n")
@@ -296,30 +405,29 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
         for (DatasetSummary dataset : datasets) {
             markdown.append(String.format(
                     Locale.ROOT,
-                    "| %s | %d | %d | %d |%n",
+                    "| %s | %d | %d | %d |\n",
                     dataset.scale(),
                     dataset.vectors(),
                     dataset.entityContributions(),
                     dataset.relationContributions()));
         }
         markdown.append("\n## Scenario measurements\n\n")
-                .append("| Scale | Spaces | Grant | Concurrency | Phase | Samples | Compound p50 | ")
-                .append("Compound p95 | Compound p99 | Pool wait p95 | Gate |\n")
-                .append("|---|---:|---|---:|---|---:|---:|---:|---:|---:|---|\n");
+                .append("| Scale | Spaces | Grant | Concurrency | Phase | Samples | Compound median | ")
+                .append("Compound max | Pool wait max | Max-of-5 check |\n")
+                .append("|---|---:|---|---:|---|---:|---:|---:|---:|---|\n");
         for (ScenarioResult result : results) {
             markdown.append(String.format(
                     Locale.ROOT,
-                    "| %s | %d | %s | %d | %s | %d | %.2f ms | %.2f ms | %.2f ms | %.2f ms | %s |%n",
+                    "| %s | %d | %s | %d | %s | %d | %.2f ms | %.2f ms | %.2f ms | %s |\n",
                     result.scale(),
                     result.spaces(),
                     result.grant(),
                     result.concurrency(),
                     result.phase(),
                     result.samples(),
-                    result.compound().p50Ms(),
-                    result.compound().p95Ms(),
-                    result.compound().p99Ms(),
-                    result.compound().poolWaitP95Ms(),
+                    result.compound().medianMs(),
+                    result.compound().maxMs(),
+                    result.compound().poolWaitMaxMs(),
                     result.passed() ? "PASS" : "FAIL"));
         }
         markdown.append("\n## EXPLAIN (ANALYZE, BUFFERS) highlights\n\n")
@@ -328,7 +436,7 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
         for (ExplainHighlight explain : explains) {
             markdown.append(String.format(
                     Locale.ROOT,
-                    "| %s | %d | %s | %s | %.2f ms | %.2f ms | %.0f | %.0f |%n",
+                    "| %s | %d | %s | %s | %.2f ms | %.2f ms | %.0f | %.0f |\n",
                     explain.scale(),
                     explain.spaces(),
                     explain.grant(),
@@ -339,13 +447,19 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
                     explain.sharedReads()));
         }
         long failures = results.stream().filter(result -> !result.passed()).count();
+        long medianFailures = results.stream()
+                .filter(result -> result.compound().medianMs() > LATENCY_THRESHOLD_MS)
+                .count();
         markdown.append("\n## Local latency verdict\n\n")
                 .append(failures == 0
                         ? "PASS: all " + results.size()
-                                + " completed local synthetic scenarios met the predeclared p95 threshold."
+                                + " completed local synthetic scenarios met the observed max-of-5 check."
                         : "FAIL: " + failures
                                 + " of " + results.size()
-                                + " completed local synthetic scenarios exceeded the predeclared p95 threshold.")
+                                + " completed local synthetic scenarios exceeded the observed max-of-5 check; "
+                                + medianFailures + " rows also exceeded 500 ms at the median. A median above "
+                                + "500 ms falsifies the binding p95 <= 500 ms gate without relying on a p95 "
+                                + "estimate from five samples.")
                 .append(" This is Phase 2 local evidence only; the restored-copy ZM run remains plan step 4.\n");
         return markdown.toString();
     }
@@ -358,19 +472,17 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
     private record Timing(double queryMs, double poolWaitMs) {}
 
     private record Statistics(
-            double p50Ms,
-            double p95Ms,
-            double p99Ms,
-            double poolWaitP95Ms) {
+            double medianMs,
+            double maxMs,
+            double poolWaitMaxMs) {
 
         static Statistics from(List<Timing> timings) {
             List<Double> query = timings.stream().map(Timing::queryMs).sorted().toList();
             List<Double> waits = timings.stream().map(Timing::poolWaitMs).sorted().toList();
             return new Statistics(
                     percentile(query, 0.50),
-                    percentile(query, 0.95),
-                    percentile(query, 0.99),
-                    percentile(waits, 0.95));
+                    query.getLast(),
+                    waits.getLast());
         }
 
         private static double percentile(List<Double> sorted, double percentile) {
@@ -406,16 +518,22 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
             double sharedReads) {
 
         static ExplainHighlight from(String scale, int spaces, String grant, String json) {
-            Matcher node = NODE_TYPE.matcher(json);
-            return new ExplainHighlight(
-                    scale,
-                    spaces,
-                    grant,
-                    node.find() ? node.group(1) : "unknown",
-                    number(json, "Planning Time"),
-                    number(json, "Execution Time"),
-                    number(json, "Shared Hit Blocks"),
-                    number(json, "Shared Read Blocks"));
+            try {
+                JsonNode document = JSON.readTree(json).path(0);
+                JsonNode plan = document.path("Plan");
+                JsonNode nodeType = plan.path("Node Type");
+                return new ExplainHighlight(
+                        scale,
+                        spaces,
+                        grant,
+                        nodeType.isTextual() ? nodeType.asText() : "unknown",
+                        number(document, "Planning Time"),
+                        number(document, "Execution Time"),
+                        number(plan, "Shared Hit Blocks"),
+                        number(plan, "Shared Read Blocks"));
+            } catch (JacksonException failure) {
+                throw new IllegalArgumentException("EXPLAIN returned invalid JSON", failure);
+            }
         }
 
         static ExplainHighlight timedOut(String scale, int spaces, String grant) {
@@ -430,11 +548,9 @@ class AuthorizedMultiSnapshotQueryIntegrationTests {
                     0.0);
         }
 
-        private static double number(String json, String field) {
-            Matcher matcher = Pattern.compile(String.format(
-                            Locale.ROOT, NUMBER_FIELD.pattern(), Pattern.quote(field)))
-                    .matcher(json);
-            return matcher.find() ? Double.parseDouble(matcher.group(1)) : 0.0;
+        private static double number(JsonNode node, String field) {
+            JsonNode value = node.path(field);
+            return value.isNumber() ? value.doubleValue() : 0.0;
         }
     }
 }

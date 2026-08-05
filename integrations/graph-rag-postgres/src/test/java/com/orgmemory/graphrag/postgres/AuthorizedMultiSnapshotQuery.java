@@ -18,6 +18,8 @@ import javax.sql.DataSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.SingleConnectionDataSource;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Test-scope prototype for ADR 0020's authorized multi-snapshot query plane.
@@ -27,6 +29,8 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
  * relations, and returns contribution-level identity for independent fail-closed validation.
  */
 final class AuthorizedMultiSnapshotQuery {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final String COMPOUND_SCOPES = """
             WITH requested_scopes AS (
@@ -64,8 +68,8 @@ final class AuthorizedMultiSnapshotQuery {
                  AND publication.collection_name = requested.space_id::text
                  AND publication.generation = requested.generation
                  AND publication.manifest_fingerprint = requested.manifest_fingerprint
-                 AND publication.projections LIKE '%VECTOR%'
-                 AND publication.projections LIKE '%GRAPH%'
+                 AND 'VECTOR' = ANY(string_to_array(publication.projections, ','))
+                 AND 'GRAPH' = ANY(string_to_array(publication.projections, ','))
             ),
             authorized_assets AS MATERIALIZED (
                 SELECT scope.*, asset_id
@@ -92,6 +96,7 @@ final class AuthorizedMultiSnapshotQuery {
                   ON contribution.batch_id = scope.batch_id
                  AND contribution.organization_id = :organizationId
                  AND contribution.knowledge_asset_id = scope.asset_id
+                 AND contribution.acl_generation = scope.acl_generation
             ),
             visible_entities AS MATERIALIZED (
                 SELECT DISTINCT space_id, batch_id, entity_id
@@ -109,6 +114,7 @@ final class AuthorizedMultiSnapshotQuery {
                   ON contribution.batch_id = scope.batch_id
                  AND contribution.organization_id = :organizationId
                  AND contribution.knowledge_asset_id = scope.asset_id
+                 AND contribution.acl_generation = scope.acl_generation
                 JOIN projection_graph_relations relation
                   ON relation.batch_id = contribution.batch_id
                  AND relation.relation_id = contribution.relation_id
@@ -136,6 +142,7 @@ final class AuthorizedMultiSnapshotQuery {
                  AND vector.embedding_profile_id = :embeddingProfileId
                  AND vector.vector_kind = 'ENTITY'
                  AND vector.dimensions = 1536
+                 AND vector.acl_generation = scope.acl_generation
                 JOIN visible_entities entity
                   ON entity.space_id = scope.space_id
                  AND entity.batch_id = vector.batch_id
@@ -224,9 +231,11 @@ final class AuthorizedMultiSnapshotQuery {
     private static final String PER_SPACE_SQL = SINGLE_SCOPE + QUERY_BODY;
     private static final Comparator<CandidateRow> ROW_ORDER = Comparator
             .comparingInt(CandidateRow::globalRank)
-            .thenComparing(CandidateRow::spaceId)
-            .thenComparing(CandidateRow::candidateId)
-            .thenComparing(CandidateRow::contributionId);
+            // PostgreSQL orders UUIDs by their unsigned bytes. UUID.compareTo uses
+            // signed longs, while canonical hexadecimal text preserves the store order.
+            .thenComparing(row -> row.spaceId().toString())
+            .thenComparing(row -> row.candidateId().toString())
+            .thenComparing(row -> row.contributionId().toString());
     private static final Comparator<CandidateScore> SCORE_ORDER = Comparator
             .comparingDouble(CandidateScore::similarity)
             .reversed()
@@ -243,7 +252,7 @@ final class AuthorizedMultiSnapshotQuery {
 
     QueryExecution execute(Request request) {
         validate(request);
-        return query(COMPOUND_SQL, parameters(request));
+        return queryRows(COMPOUND_SQL, parameters(request), 0, false);
     }
 
     QueryExecution execute(Request request, int statementTimeoutMillis) {
@@ -251,7 +260,15 @@ final class AuthorizedMultiSnapshotQuery {
         if (statementTimeoutMillis <= 0) {
             throw new IllegalArgumentException("statementTimeoutMillis must be positive");
         }
-        return query(COMPOUND_SQL, parameters(request), statementTimeoutMillis);
+        return queryRows(COMPOUND_SQL, parameters(request), statementTimeoutMillis, false);
+    }
+
+    QueryExecution executeAfterDiscardingPlans(Request request, int statementTimeoutMillis) {
+        validate(request);
+        if (statementTimeoutMillis <= 0) {
+            throw new IllegalArgumentException("statementTimeoutMillis must be positive");
+        }
+        return queryRows(COMPOUND_SQL, parameters(request), statementTimeoutMillis, true);
     }
 
     QueryExecution executePerSpace(Request request) {
@@ -260,7 +277,7 @@ final class AuthorizedMultiSnapshotQuery {
         long connectionWaitNanos = 0;
         long queryNanos = 0;
         for (SnapshotScope scope : request.scopes()) {
-            QueryExecution execution = query(PER_SPACE_SQL, parameters(request, scope));
+            QueryExecution execution = queryRows(PER_SPACE_SQL, parameters(request, scope), 0, false);
             candidates.addAll(execution.rows());
             connectionWaitNanos += execution.connectionWaitNanos();
             queryNanos += execution.queryNanos();
@@ -277,74 +294,89 @@ final class AuthorizedMultiSnapshotQuery {
 
     String explain(Request request, int statementTimeoutMillis) {
         validate(request);
-        QueryExecution execution = query(
+        TimedResult<String> execution = queryExplain(
                 "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) " + COMPOUND_SQL,
                 parameters(request),
-                statementTimeoutMillis,
-                (resultSet, rowNumber) -> resultSet.getString(1));
-        if (execution.explainRows().size() != 1) {
+                statementTimeoutMillis);
+        if (execution.rows().size() != 1) {
             throw new IllegalStateException("EXPLAIN did not return exactly one JSON plan");
         }
-        return execution.explainRows().getFirst();
+        return execution.rows().getFirst();
     }
 
-    private QueryExecution query(String sql, MapSqlParameterSource parameters) {
-        return query(sql, parameters, 0);
-    }
-
-    private QueryExecution query(
-            String sql, MapSqlParameterSource parameters, int statementTimeoutMillis) {
-        return query(sql, parameters, statementTimeoutMillis, (resultSet, rowNumber) -> new CandidateRow(
-                resultSet.getObject("space_id", UUID.class),
-                resultSet.getObject("batch_id", UUID.class),
-                resultSet.getLong("generation"),
-                resultSet.getString("manifest_fingerprint"),
-                resultSet.getLong("request_acl_generation"),
-                resultSet.getObject("candidate_id", UUID.class),
-                resultSet.getInt("global_rank"),
-                resultSet.getDouble("similarity"),
-                resultSet.getObject("contribution_id", UUID.class),
-                resultSet.getObject("organization_id", UUID.class),
-                resultSet.getObject("knowledge_asset_id", UUID.class),
-                resultSet.getObject("source_revision_id", UUID.class),
-                resultSet.getObject("chunk_id", UUID.class),
-                resultSet.getObject("acl_snapshot_id", UUID.class),
-                resultSet.getLong("evidence_acl_generation")));
-    }
-
-    private <T> QueryExecution query(
-            String sql,
-            MapSqlParameterSource parameters,
-            org.springframework.jdbc.core.RowMapper<T> mapper) {
-        return query(sql, parameters, 0, mapper);
-    }
-
-    private <T> QueryExecution query(
+    private QueryExecution queryRows(
             String sql,
             MapSqlParameterSource parameters,
             int statementTimeoutMillis,
+            boolean discardPlans) {
+        TimedResult<CandidateRow> execution = queryMapped(
+                sql,
+                parameters,
+                statementTimeoutMillis,
+                discardPlans,
+                (resultSet, rowNumber) -> new CandidateRow(
+                        resultSet.getObject("space_id", UUID.class),
+                        resultSet.getObject("batch_id", UUID.class),
+                        resultSet.getLong("generation"),
+                        resultSet.getString("manifest_fingerprint"),
+                        resultSet.getLong("request_acl_generation"),
+                        resultSet.getObject("candidate_id", UUID.class),
+                        resultSet.getInt("global_rank"),
+                        resultSet.getDouble("similarity"),
+                        resultSet.getObject("contribution_id", UUID.class),
+                        resultSet.getObject("organization_id", UUID.class),
+                        resultSet.getObject("knowledge_asset_id", UUID.class),
+                        resultSet.getObject("source_revision_id", UUID.class),
+                        resultSet.getObject("chunk_id", UUID.class),
+                        resultSet.getObject("acl_snapshot_id", UUID.class),
+                        resultSet.getLong("evidence_acl_generation")));
+        return new QueryExecution(
+                execution.rows(), execution.connectionWaitNanos(), execution.queryNanos());
+    }
+
+    private TimedResult<String> queryExplain(
+            String sql, MapSqlParameterSource parameters, int statementTimeoutMillis) {
+        return queryMapped(
+                sql,
+                parameters,
+                statementTimeoutMillis,
+                false,
+                (resultSet, rowNumber) -> resultSet.getString(1));
+    }
+
+    private <T> TimedResult<T> queryMapped(
+            String sql,
+            MapSqlParameterSource parameters,
+            int statementTimeoutMillis,
+            boolean discardPlans,
             org.springframework.jdbc.core.RowMapper<T> mapper) {
         long connectionStarted = System.nanoTime();
         try (Connection connection = dataSource.getConnection()) {
             long connectionWait = System.nanoTime() - connectionStarted;
+            if (discardPlans) {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("DISCARD PLANS");
+                }
+            }
             if (statementTimeoutMillis > 0) {
                 try (var statement = connection.createStatement()) {
                     statement.execute("SET statement_timeout = " + statementTimeoutMillis);
                 }
             }
-            var jdbc = new NamedParameterJdbcTemplate(
-                    new SingleConnectionDataSource(connection, true));
-            long queryStarted = System.nanoTime();
-            List<T> rows = jdbc.query(sql, parameters, mapper);
-            long queryDuration = System.nanoTime() - queryStarted;
-            if (!rows.isEmpty() && rows.getFirst() instanceof CandidateRow) {
-                @SuppressWarnings("unchecked")
-                List<CandidateRow> candidateRows = (List<CandidateRow>) rows;
-                return new QueryExecution(candidateRows, connectionWait, queryDuration);
+            try {
+                var jdbc = new NamedParameterJdbcTemplate(
+                        new SingleConnectionDataSource(connection, true));
+                long queryStarted = System.nanoTime();
+                List<T> rows = jdbc.query(sql, parameters, mapper);
+                long queryDuration = System.nanoTime() - queryStarted;
+                return new TimedResult<>(rows, connectionWait, queryDuration);
+            } finally {
+                if (statementTimeoutMillis > 0) {
+                    try (var statement = connection.createStatement()) {
+                        statement.execute("SET statement_timeout = DEFAULT");
+                    }
+                }
             }
-            @SuppressWarnings("unchecked")
-            List<String> explainRows = (List<String>) rows;
-            return QueryExecution.explain(explainRows, connectionWait, queryDuration);
         } catch (SQLException exception) {
             throw new IllegalStateException("multi-snapshot query connection failed", exception);
         }
@@ -404,18 +436,21 @@ final class AuthorizedMultiSnapshotQuery {
     }
 
     private static String scopesJson(List<SnapshotScope> scopes) {
-        return scopes.stream()
-                .map(scope -> "{\"space_id\":\"" + scope.spaceId()
-                        + "\",\"batch_id\":\"" + scope.batchId()
-                        + "\",\"generation\":" + scope.generation()
-                        + ",\"manifest_fingerprint\":\"" + scope.manifestFingerprint()
-                        + "\",\"acl_generation\":" + scope.aclGeneration()
-                        + ",\"authorized_asset_ids\":["
-                        + scope.authorizedAssetIds().stream()
-                                .map(id -> "\"" + id + "\"")
-                                .collect(Collectors.joining(","))
-                        + "]}")
-                .collect(Collectors.joining(",", "[", "]"));
+        List<Map<String, Object>> payload = scopes.stream().map(scope -> {
+            Map<String, Object> fields = new LinkedHashMap<>();
+            fields.put("space_id", scope.spaceId());
+            fields.put("batch_id", scope.batchId());
+            fields.put("generation", scope.generation());
+            fields.put("manifest_fingerprint", scope.manifestFingerprint());
+            fields.put("acl_generation", scope.aclGeneration());
+            fields.put("authorized_asset_ids", scope.authorizedAssetIds());
+            return fields;
+        }).toList();
+        try {
+            return JSON.writeValueAsString(payload);
+        } catch (JacksonException failure) {
+            throw new IllegalStateException("could not serialize multi-snapshot scopes", failure);
+        }
     }
 
     private static void validate(Request request) {
@@ -441,6 +476,7 @@ final class AuthorizedMultiSnapshotQuery {
                     || scope.generation() != row.generation()
                     || !scope.manifestFingerprint().equals(row.manifestFingerprint())
                     || scope.aclGeneration() != row.requestAclGeneration()
+                    || scope.aclGeneration() != row.evidenceAclGeneration()
                     || !request.organizationId().equals(row.organizationId())
                     || !scope.authorizedAssetIds().contains(row.knowledgeAssetId())) {
                 throw new IllegalStateException("query returned identity outside its authorized tuple set");
@@ -549,28 +585,20 @@ final class AuthorizedMultiSnapshotQuery {
         }
     }
 
-    record QueryExecution(
-            List<CandidateRow> rows,
-            List<String> explainRows,
-            long connectionWaitNanos,
-            long queryNanos) {
-
-        QueryExecution(List<CandidateRow> rows, long connectionWaitNanos, long queryNanos) {
-            this(rows, List.of(), connectionWaitNanos, queryNanos);
-        }
+    record QueryExecution(List<CandidateRow> rows, long connectionWaitNanos, long queryNanos) {
 
         QueryExecution {
             rows = List.copyOf(Objects.requireNonNull(rows, "rows"));
-            explainRows = List.copyOf(Objects.requireNonNull(explainRows, "explainRows"));
             if (connectionWaitNanos < 0 || queryNanos < 0) {
                 throw new IllegalArgumentException("query timings must not be negative");
             }
         }
+    }
 
-        static QueryExecution explain(
-                List<String> explainRows, long connectionWaitNanos, long queryNanos) {
-            return new QueryExecution(
-                    List.of(), explainRows, connectionWaitNanos, queryNanos);
+    private record TimedResult<T>(List<T> rows, long connectionWaitNanos, long queryNanos) {
+
+        private TimedResult {
+            rows = List.copyOf(Objects.requireNonNull(rows, "rows"));
         }
     }
 
