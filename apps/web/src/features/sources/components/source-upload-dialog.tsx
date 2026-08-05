@@ -26,6 +26,8 @@ export type UploadSourceInput = {
 }
 
 export function SourceUploadDialog({
+  open: controlledOpen,
+  onOpenChange,
   pending,
   spaces,
   spacesPending,
@@ -33,6 +35,8 @@ export function SourceUploadDialog({
   onRetrySpaces,
   onUpload,
 }: {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   pending: boolean
   spaces: KnowledgeSpaceResponse[]
   spacesPending: boolean
@@ -40,7 +44,8 @@ export function SourceUploadDialog({
   onRetrySpaces: () => void
   onUpload: (input: UploadSourceInput) => Promise<void>
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen ?? internalOpen
   const [file, setFile] = useState<File>()
   const [classification, setClassification] = useState<UploadSourceInput["classification"]>("CONFIDENTIAL")
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState("")
@@ -62,7 +67,8 @@ export function SourceUploadDialog({
 
   function changeOpen(nextOpen: boolean) {
     if (!nextOpen && pending) return
-    setOpen(nextOpen)
+    if (controlledOpen === undefined) setInternalOpen(nextOpen)
+    onOpenChange?.(nextOpen)
     if (!nextOpen) reset()
   }
 
@@ -83,7 +89,8 @@ export function SourceUploadDialog({
     setError(undefined)
     try {
       await onUpload({ file, classification, knowledgeSpaceId })
-      setOpen(false)
+      if (controlledOpen === undefined) setInternalOpen(false)
+      onOpenChange?.(false)
       reset()
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The upload could not be completed.")
@@ -136,12 +143,16 @@ export function SourceUploadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PUBLIC">Public · all employees</SelectItem>
-                <SelectItem value="CONFIDENTIAL">Confidential · my department</SelectItem>
-                <SelectItem value="INTERNAL">Internal · all employees</SelectItem>
-                <SelectItem value="RESTRICTED">Restricted · executives only</SelectItem>
+                <SelectItem value="PUBLIC">Public</SelectItem>
+                <SelectItem value="CONFIDENTIAL">Confidential</SelectItem>
+                <SelectItem value="INTERNAL">Internal</SelectItem>
+                <SelectItem value="RESTRICTED">Restricted</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Classification sets the handling baseline. Effective access also follows the
+              selected Knowledge Space and current organization policy.
+            </p>
           </div>
 
           <div className="space-y-2">

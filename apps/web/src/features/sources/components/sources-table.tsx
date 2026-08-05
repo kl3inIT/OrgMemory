@@ -1,4 +1,4 @@
-import { Ellipsis, Eye, FileText, SearchX, Trash2 } from "lucide-react"
+import { Ellipsis, Eye, FileText, SearchX, Trash2, Upload } from "lucide-react"
 import { useMemo } from "react"
 
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
@@ -11,7 +11,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { SourceStatusBadge } from "@/features/sources/components/source-status-badge"
+import {
+  SourceFailureDetail,
+  SourceStatusBadge,
+} from "@/features/sources/components/source-status-badge"
 import { sourceFormatLabel } from "@/features/sources/source-preview"
 import {
   ACTIVE_SOURCE_STATUSES,
@@ -25,10 +28,12 @@ export function SourcesTable({
   sources,
   onView,
   onDelete,
+  onUploadCorrection,
 }: {
   sources: SourceResponse[]
   onView: (source: SourceResponse) => void
   onDelete: (source: SourceResponse) => void
+  onUploadCorrection: (source: SourceResponse) => void
 }) {
   const columns = useMemo<ColumnDef<SourceResponse>[]>(
     () => [
@@ -93,7 +98,7 @@ export function SourcesTable({
           const source = row.original
           const status = source.status ?? "UNKNOWN"
           return (
-            <div className="w-36 space-y-2">
+            <div className="w-48 space-y-2">
               <SourceStatusBadge source={source} />
               {ACTIVE_SOURCE_STATUSES.has(status) ? (
                 <Progress
@@ -102,6 +107,7 @@ export function SourcesTable({
                   aria-label={`${status} progress`}
                 />
               ) : null}
+              <SourceFailureDetail source={source} />
             </div>
           )
         },
@@ -139,6 +145,11 @@ export function SourcesTable({
                 <DropdownMenuItem onSelect={() => onView(source)}>
                   <Eye aria-hidden="true" /> View
                 </DropdownMenuItem>
+                {source.status === "QUARANTINED" ? (
+                  <DropdownMenuItem onSelect={() => onUploadCorrection(source)}>
+                    <Upload aria-hidden="true" /> Upload corrected document
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   variant="destructive"
                   disabled={!source.deletionAllowed}
@@ -153,7 +164,7 @@ export function SourcesTable({
         },
       },
     ],
-    [onDelete, onView],
+    [onDelete, onUploadCorrection, onView],
   )
 
   return (

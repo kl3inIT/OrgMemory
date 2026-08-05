@@ -10,6 +10,8 @@ const PDF_SOURCE_ID = "77777777-7777-4777-8777-777777777777"
 const IMAGE_SOURCE_ID = "88888888-8888-4888-8888-888888888888"
 const OFFICE_SOURCE_ID = "99999999-9999-4999-8999-999999999999"
 const RETRY_SOURCE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+const FAILED_SOURCE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+const QUARANTINED_SOURCE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 
 test("views protected evidence and deletes only an eligible ready upload", async ({ page }) => {
   const requests: string[] = []
@@ -82,6 +84,8 @@ test("Knowledge presents safe cross-format evidence in a responsive right-side r
   await expect(page.getByText(/Word document/)).toBeVisible()
   await expect(page.getByText("Knowledge Space policy").first()).toBeVisible()
   await expect(page.getByText("Executive only")).toHaveCount(0)
+  await expect(page.getByText("The document parser could not read this file.")).toBeVisible()
+  await expect(page.getByText("The uploaded evidence did not pass the content policy.")).toBeVisible()
 
   await openDocument(page, "Support SLA")
   await expect(page.getByTestId("restricted-source-markdown")).toBeVisible()
@@ -126,6 +130,13 @@ test("Knowledge presents safe cross-format evidence in a responsive right-side r
   await expect(page.getByText("The document is no longer available or permission has changed.")).toBeVisible()
   await page.getByRole("button", { name: "Retry" }).click()
   await expect(page.getByText("Recovered after a permission recheck.")).toBeVisible()
+
+  await closeReader(page)
+  await openDocument(page, "Rejected evidence")
+  await page.getByRole("button", { name: "Upload corrected document" }).click()
+  await expect(page.getByRole("heading", { name: "Upload a document" })).toBeVisible()
+  await expect(page.getByText("Classification sets the handling baseline.", { exact: false })).toBeVisible()
+  await page.getByRole("button", { name: "Cancel" }).click()
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(
@@ -257,6 +268,26 @@ async function documentHarness(
           mediaType: "text/plain",
           contentLength: 39,
         }),
+        source({
+          id: FAILED_SOURCE_ID,
+          title: "Unreadable handbook",
+          status: "FAILED",
+          knowledgeAssetId: null,
+          contentAvailable: false,
+          deletionAllowed: false,
+          failureCode: "PARSER_FAILED",
+          failureMessage: "The document parser could not read this file.",
+        }),
+        source({
+          id: QUARANTINED_SOURCE_ID,
+          title: "Rejected evidence",
+          status: "QUARANTINED",
+          knowledgeAssetId: null,
+          contentAvailable: false,
+          deletionAllowed: false,
+          failureCode: "CONTENT_POLICY_REJECTED",
+          failureMessage: "The uploaded evidence did not pass the content policy.",
+        }),
       ]
       return route.fulfill({
         status: 200,
@@ -355,6 +386,8 @@ function source(input: {
   fileName?: string
   mediaType?: string
   contentLength?: number
+  failureCode?: string
+  failureMessage?: string
 }) {
   return {
     ...input,
@@ -364,8 +397,8 @@ function source(input: {
     fileName: input.fileName ?? `${input.title.toLowerCase().replaceAll(" ", "-")}.txt`,
     mediaType: input.mediaType ?? "text/plain",
     contentLength: input.contentLength ?? 48,
-    failureCode: null,
-    failureMessage: null,
+    failureCode: input.failureCode ?? null,
+    failureMessage: input.failureMessage ?? null,
     embeddingProfileKey: input.status === "READY" ? "openai:text-embedding-3-large:1536" : null,
     embeddingProvider: input.status === "READY" ? "openai" : null,
     embeddingModel: input.status === "READY" ? "text-embedding-3-large" : null,

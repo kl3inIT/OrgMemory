@@ -32,3 +32,17 @@ export function SourceStatusBadge({ source }: { source: SourceResponse }) {
   }
   return <Badge variant="muted">{titleCase(status)}</Badge>
 }
+
+export function SourceFailureDetail({ source }: { source: SourceResponse }) {
+  if (source.status !== "FAILED" && source.status !== "QUARANTINED") return null
+  const fallback =
+    source.status === "QUARANTINED"
+      ? "The original evidence did not pass ingestion policy."
+      : "Processing could not be completed."
+
+  return (
+    <p className="text-xs leading-relaxed text-status-danger-content">
+      {source.failureMessage || fallback}
+    </p>
+  )
+}
