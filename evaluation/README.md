@@ -52,13 +52,21 @@ or TTFT later than completion are rejected.
 | `actor_user_id` | `Unnn` string | Must equal the official case's user ID. |
 
 An Allow permission pass is exactly HTTP 200 + terminal `finish` + non-blank
-answer + non-null TTFT. A Deny permission pass is exactly HTTP 403 before an SSE
-terminal event, with blank Assistant answer, no citations, and null TTFT. Any
-Deny answer token, finished stream, or citation is reported as
-`DENY_EVIDENCE_LEAK`; an operational error is not accepted as a permission
-refusal. Citation scoring applies to Allow cases and requires the cited set to
-equal the expected set. Missing, wrong, unexpected, and partial citations are
-distinct; P031 passes only with both DOC001 and DOC011.
+answer + non-null TTFT. A Deny permission pass is either an HTTP 403 transport
+rejection or HTTP 200 + terminal `finish` with no citation of any expected denied
+document and no verbatim denied-document content. The latter permits a polite
+no-information answer after org-level search authorization succeeds and
+fail-closed retrieval returns no evidence.
+
+`DENY_EVIDENCE_LEAK` takes precedence over both passing paths. It means the
+response cites an expected denied document or an answer line shares at least
+eight consecutive Unicode word tokens, compared case-insensitively, with one
+line of that document's `demo/fixtures/documents/DOCnnn.md` body. The report
+records matching document IDs but not answer or document content. A terminal
+`error` or `abort` is not accepted as a permission denial. Citation scoring
+applies to Allow cases and requires the cited set to equal the expected set.
+Missing, wrong, unexpected, and partial citations are distinct; P031 passes
+only with both DOC001 and DOC011.
 
 Latency and TTFT are reported per case and as medians plus explicitly labeled
 observed max-of-N groups by difficulty and answer type. The scorer never labels

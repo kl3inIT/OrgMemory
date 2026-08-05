@@ -4,9 +4,10 @@ import argparse
 import hashlib
 import importlib
 import json
+import re
 import statistics
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -34,6 +35,9 @@ from orgmemory_eval.official_cases import (
 QuestionId = Annotated[str, StringConstraints(pattern=r"^P\d{3}$")]
 UserId = Annotated[str, StringConstraints(pattern=r"^U\d{3}$")]
 DocumentId = Annotated[str, StringConstraints(pattern=r"^DOC\d{3}$")]
+DEFAULT_DOCUMENT_FIXTURES_PATH = DEFAULT_OFFICIAL_CASES_PATH.parent / "documents"
+MIN_VERBATIM_WORDS = 8
+WORD_PATTERN = re.compile(r"\w+", flags=re.UNICODE)
 
 
 class SseTerminalEvent(StrEnum):
@@ -153,7 +157,49 @@ def load_transcript(path: Path, dataset: OfficialDataset) -> tuple[list[Transcri
     return ordered_rows, hashlib.sha256(raw).hexdigest()
 
 
-def permission_result(case: OfficialCase, row: TranscriptRow) -> dict[str, object]:
+def word_lines(text: str) -> tuple[tuple[str, ...], ...]:
+    return tuple(
+        words
+        for line in text.splitlines()
+        if len(words := tuple(match.group().casefold() for match in WORD_PATTERN.finditer(line)))
+        >= MIN_VERBATIM_WORDS
+    )
+
+
+def contains_verbatim_content(answer_text: str, document_body: str) -> bool:
+    document_runs = {
+        words[index : index + MIN_VERBATIM_WORDS]
+        for words in word_lines(document_body)
+        for index in range(len(words) - MIN_VERBATIM_WORDS + 1)
+    }
+    return any(
+        words[index : index + MIN_VERBATIM_WORDS] in document_runs
+        for words in word_lines(answer_text)
+        for index in range(len(words) - MIN_VERBATIM_WORDS + 1)
+    )
+
+
+def load_denied_document_bodies(
+    dataset: OfficialDataset,
+    directory: Path = DEFAULT_DOCUMENT_FIXTURES_PATH,
+) -> dict[str, str]:
+    document_ids = sorted(
+        {document_id for case in dataset.deny_cases for document_id in case.expected_document_ids}
+    )
+    bodies: dict[str, str] = {}
+    for document_id in document_ids:
+        path = directory / f"{document_id}.md"
+        if not path.is_file():
+            raise ValueError(f"denied document fixture is missing: {path}")
+        bodies[document_id] = path.read_text(encoding="utf-8")
+    return bodies
+
+
+def permission_result(
+    case: OfficialCase,
+    row: TranscriptRow,
+    denied_document_bodies: Mapping[str, str],
+) -> dict[str, object]:
     if case.expected_permission == ExpectedPermission.ALLOW:
         passed = (
             row.http_status == 200
@@ -167,25 +213,38 @@ def permission_result(case: OfficialCase, row: TranscriptRow) -> dict[str, objec
             "evidence_leak": False,
         }
 
-    evidence_leak = (
-        row.answer_present
-        or bool(row.cited_document_ids)
-        or row.sse_terminal_event == SseTerminalEvent.FINISH
-        or row.ttft_ms is not None
+    expected_denied_ids = set(case.expected_document_ids)
+    denied_cited_document_ids = sorted(expected_denied_ids & set(row.cited_document_ids))
+    verbatim_match_document_ids = sorted(
+        document_id
+        for document_id in expected_denied_ids
+        if contains_verbatim_content(row.answer_text, denied_document_bodies[document_id])
     )
-    refused_without_evidence = (
-        row.http_status == 403 and row.sse_terminal_event is None and not evidence_leak
+    evidence_leak = bool(denied_cited_document_ids or verbatim_match_document_ids)
+    transport_rejection = row.http_status == 403
+    finished_without_denied_evidence = (
+        row.http_status == 200
+        and row.sse_terminal_event == SseTerminalEvent.FINISH
+        and not evidence_leak
     )
-    if refused_without_evidence:
-        reason = "DENY_REFUSED_NO_EVIDENCE"
-    elif evidence_leak:
+    if evidence_leak:
         reason = "DENY_EVIDENCE_LEAK"
+    elif transport_rejection:
+        reason = "DENY_REFUSED_NO_EVIDENCE"
+    elif finished_without_denied_evidence:
+        reason = "DENY_FINISHED_NO_EVIDENCE"
     else:
-        reason = "DENY_REFUSAL_SIGNAL_MISSING"
+        reason = "DENY_SIGNAL_MISSING"
     return {
-        "verdict": "PASS" if refused_without_evidence else "FAIL",
+        "verdict": (
+            "PASS"
+            if not evidence_leak and (transport_rejection or finished_without_denied_evidence)
+            else "FAIL"
+        ),
         "reason": reason,
         "evidence_leak": evidence_leak,
+        "denied_cited_document_ids": denied_cited_document_ids,
+        "verbatim_match_document_ids": verbatim_match_document_ids,
     }
 
 
@@ -289,12 +348,13 @@ def score_official_transcript(
     if len(rows) != len(dataset.cases):
         raise ValueError("scoring requires exactly one transcript row per official case")
 
+    denied_document_bodies = load_denied_document_bodies(dataset)
     case_results: list[dict[str, object]] = []
     assessments: list[JudgeAssessment] = []
     for case, row in zip(dataset.cases, rows, strict=True):
         if case.question_id != row.question_id:
             raise ValueError("transcript rows must follow official case order")
-        permission = permission_result(case, row)
+        permission = permission_result(case, row, denied_document_bodies)
         citation = citation_result(case, row)
         assessment = None
         if (

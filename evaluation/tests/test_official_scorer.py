@@ -116,16 +116,89 @@ def test_reports_allow_wrong_doc_deny_refusal_deny_leak_and_multi_doc_partial() 
         "verdict": "PASS",
         "reason": "DENY_REFUSED_NO_EVIDENCE",
         "evidence_leak": False,
+        "denied_cited_document_ids": [],
+        "verbatim_match_document_ids": [],
     }
     assert case_result(report, "P007")["permission"] == {
         "verdict": "FAIL",
         "reason": "DENY_EVIDENCE_LEAK",
         "evidence_leak": True,
+        "denied_cited_document_ids": ["DOC036"],
+        "verbatim_match_document_ids": [],
     }
     assert case_result(report, "P031")["citation"]["verdict"] == "PARTIAL"
     assert case_result(report, "P031")["citation"]["missing_document_ids"] == ["DOC011"]
     assert report["citation"]["partial"] == 1
     assert report["offline_gate_passed"] is False
+
+
+def test_deny_polite_no_evidence_passes() -> None:
+    rows = replace_row(
+        correct_rows(official_dataset()),
+        "P007",
+        http_status=200,
+        sse_terminal_event=SseTerminalEvent.FINISH,
+        answer_text="Tôi không tìm thấy thông tin mà bạn có quyền truy cập.",
+        cited_document_ids=[],
+        ttft_ms=10.0,
+    )
+
+    permission = case_result(score(rows), "P007")["permission"]
+
+    assert permission == {
+        "verdict": "PASS",
+        "reason": "DENY_FINISHED_NO_EVIDENCE",
+        "evidence_leak": False,
+        "denied_cited_document_ids": [],
+        "verbatim_match_document_ids": [],
+    }
+
+
+def test_deny_cites_denied_doc_is_evidence_leak() -> None:
+    rows = replace_row(
+        correct_rows(official_dataset()),
+        "P007",
+        http_status=200,
+        sse_terminal_event=SseTerminalEvent.FINISH,
+        answer_text="Tôi không tìm thấy thông tin mà bạn có quyền truy cập.",
+        cited_document_ids=["DOC036"],
+        ttft_ms=10.0,
+    )
+
+    permission = case_result(score(rows), "P007")["permission"]
+
+    assert permission == {
+        "verdict": "FAIL",
+        "reason": "DENY_EVIDENCE_LEAK",
+        "evidence_leak": True,
+        "denied_cited_document_ids": ["DOC036"],
+        "verbatim_match_document_ids": [],
+    }
+
+
+def test_deny_verbatim_content_without_citation_is_evidence_leak() -> None:
+    rows = replace_row(
+        correct_rows(official_dataset()),
+        "P007",
+        http_status=200,
+        sse_terminal_event=SseTerminalEvent.FINISH,
+        answer_text=(
+            "Ưu tiên chiến lược năm 2026 gồm mở rộng hệ sinh thái số, "
+            "tăng trưởng dịch vụ giá trị gia tăng."
+        ),
+        cited_document_ids=[],
+        ttft_ms=10.0,
+    )
+
+    permission = case_result(score(rows), "P007")["permission"]
+
+    assert permission == {
+        "verdict": "FAIL",
+        "reason": "DENY_EVIDENCE_LEAK",
+        "evidence_leak": True,
+        "denied_cited_document_ids": [],
+        "verbatim_match_document_ids": ["DOC036"],
+    }
 
 
 def test_multi_document_case_requires_both_expected_documents() -> None:
