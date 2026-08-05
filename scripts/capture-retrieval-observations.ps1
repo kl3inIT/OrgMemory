@@ -41,14 +41,7 @@ function Start-CaptureProcess {
     $startInfo.FileName = 'cmd.exe'
     $startInfo.WorkingDirectory = $repoRoot
     $startInfo.UseShellExecute = $false
-    $gradleCommand = '""{0}\gradlew.bat" --no-daemon :apps:api:bootRun"' -f $repoRoot
-    foreach ($argument in @(
-        '/d',
-        '/c',
-        $gradleCommand
-    )) {
-        [void]$startInfo.ArgumentList.Add($argument)
-    }
+    $startInfo.Arguments = '/d /s /c ""{0}\gradlew.bat" --no-daemon :apps:api:bootRun"' -f $repoRoot
     foreach ($entry in $Environment.GetEnumerator()) {
         $startInfo.Environment[$entry.Key] = [string]$entry.Value
     }

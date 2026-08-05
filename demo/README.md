@@ -47,6 +47,15 @@ which retains the original evidence, creates immutable revisions, embeds the
 content, and publishes a permission-aware Knowledge Asset. Automated document
 import is the next increment.
 
+`fixtures/documents/manifest.json` carries the authoritative
+`knowledgeSpaceKey` for that upload. `Public`/`All` and
+`Internal`/`All Employees` documents target the `company` space;
+`Confidential`/`Own Department` documents target their department space; and
+`Restricted`/`Executive Only` documents target `executive-office`. The
+`department` and `owner` fields remain document metadata and must not be used
+to infer the upload target. This separation prevents organization-wide
+documents from inheriting a department space's audience boundary.
+
 ## Known dataset inconsistency
 
 Public evaluation case `P035` expects a deny for `DOC030`, while the supplied
