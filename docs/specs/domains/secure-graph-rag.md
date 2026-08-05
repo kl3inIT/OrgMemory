@@ -3,14 +3,15 @@
 Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
 `core/src/main/java/com/orgmemory/core/knowledge`,
-`apps/web/src/features/knowledge`, `integrations/observability`, and — for the
+`apps/web/src/features/knowledge`, `apps/web/src/features/sources`,
+`apps/web/src/components/layouts`, `integrations/observability`, and — for the
 payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
 `apps/worker/src/main/resources/application*.yml`, plus
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
+Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
 
 ## Current Contract
 
@@ -343,9 +344,11 @@ Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
 
 The Sources UI reads the same permission-scoped published projection and never
 creates node-owned ACLs or a permission-independent merged description. The
-explorer fills the remaining shared app-shell canvas, wraps controls on narrow
-screens, and opens selected entities or relations through the responsive split
-layout without changing graph authorization or query state.
+explorer fills the remaining shared app-shell canvas. Its page identity keeps
+its intrinsic width while the action region takes the flexible width and wraps
+controls before they can compress the title. Selected entities or relations
+open through the responsive split layout without changing graph authorization
+or query state.
 
 ## Related Decisions
 

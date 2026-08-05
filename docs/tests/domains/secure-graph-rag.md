@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
+Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
 
 ## Automated
 
@@ -213,6 +213,11 @@ Reconciled: `2026-08-03-apache-age-published-batch-backfill (105cd9b8)`.
   until enabled, and that an enabled Neo4j without a password fails startup.
   The OpenSearch wiring assertion runs against the container because its
   publication store creates an index while the bean is built.
+- `knowledge-graph-layout.spec.ts` renders the authenticated graph workspace at
+  the reported production desktop viewport, proves the title stays on one line
+  without intersecting the flexible action region, and rejects horizontal page
+  overflow or browser errors. `page-layout.test.tsx` pins the shared shrink
+  contract beneath that browser behavior.
 
 ## Verification
 
@@ -236,8 +241,9 @@ cross-tenant, stale-generation, and model-mismatched evidence out of the final
 grounding.
 
 The exact graph node/edge response and permission-negative metadata contract is
-covered at the API/service layer; a focused real-browser graph rendering and
-interaction test remains a gap.
+covered at the API/service layer, and the graph workspace now has focused
+real-browser responsive-header coverage. Browser interaction with populated
+node/edge rendering remains a gap.
 
 No test asserts the whole telemetry export against the payload allowlist. Span
 attributes, resource attributes, instrumentation-scope attributes and the log
