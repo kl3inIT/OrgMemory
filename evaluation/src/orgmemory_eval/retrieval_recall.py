@@ -116,6 +116,8 @@ def score(
     *,
     tolerance_points: float = 2.0,
 ) -> dict[str, object]:
+    if top_k != 40:
+        raise ValueError("retrieval-recall report v1 requires top_k=40")
     if golden.dataset_id != observations.dataset_id:
         raise ValueError("golden and observation dataset_id values differ")
     observation_by_case = {
