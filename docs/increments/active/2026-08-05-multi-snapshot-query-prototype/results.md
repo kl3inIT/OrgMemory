@@ -124,19 +124,30 @@ The captured artifact is
 | Metric | Result |
 | --- | ---: |
 | Cases | 43 |
-| Keyword document recall@40 | 0.9651162791 |
-| Bypass document recall@40 | 0.9651162791 |
+| Keyword document recall@40 | 1.0 |
+| Bypass document recall@40 | 1.0 |
 | Bypass delta | 0.00 points |
-| Keyword document recall@60 | 0.9651162791 |
+| Keyword document recall@60 | 1.0 |
 | Gate | PASS |
 
-P026 misses DOC034 in both paths. P031 returns DOC001 at keyword rank 2 and
-bypass rank 4, while DOC011 is absent from keyword topK 60 and bypass topK 40.
-The model keyword plan includes both travel-expense and probation concepts.
-The P031 miss is therefore not caused by keyword planning; the evidence points
-downstream to corpus projection/candidate availability or ranking shared by
-both paths. No retrieval tuning is justified without inspecting that separate
-boundary.
+The follow-up fixture investigation found that department spaces contained a
+mix of `Confidential`/`Own Department` and `Internal`/`All Employees`
+documents. Once those spaces received explicit `DEPARTMENT` audiences, the
+organization-wide documents inherited the narrower space boundary before
+retrieval. The corrected manifest now places all 19 Internal/All-Employees
+documents in the organization-audience `company` space, keeps 14
+Confidential/Own-Department documents in their department spaces, and keeps
+the five Restricted/Executive-Only documents in `executive-office`.
+
+The refreshed restored-copy capture retained the immutable legacy projection
+batches. To avoid rewriting production or presenting a metadata-only move as a
+re-ingestion, the restored copy replayed their equivalent organization-wide
+visibility while the canonical classification and declared-access predicates
+remained active. No live database or OpenFGA writes were made. P026 now returns
+DOC034 at rank 1 in both paths. P031 returns DOC001 at keyword rank 3 and bypass
+rank 7, and DOC011 at keyword rank 2 and bypass rank 1. Both cases score 1.0,
+overall recall is 1.0, and the unchanged official fixture still contains seven
+Deny cases.
 
 ## Coordinator review amendment (2026-08-05)
 

@@ -5,10 +5,10 @@
   "caseCount": 43,
   "topK": 40,
   "tolerancePoints": 2.0,
-  "keywordSeededDocumentRecallAt40": 0.9651162790697675,
-  "bypassDocumentRecallAt40": 0.9651162790697675,
+  "keywordSeededDocumentRecallAt40": 1.0,
+  "bypassDocumentRecallAt40": 1.0,
   "bypassDeltaPoints": 0.0,
-  "keywordSeededDocumentRecallAt60": 0.9651162790697675,
+  "keywordSeededDocumentRecallAt60": 1.0,
   "gatePassed": true,
   "cases": [
     {
@@ -17,10 +17,10 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC001": 4
+        "DOC001": 8
       },
       "bypassGoldenRanks": {
-        "DOC001": 9
+        "DOC001": 12
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -310,7 +310,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC019": 3
+        "DOC019": 7
       },
       "bypassGoldenRanks": {
         "DOC019": 1
@@ -420,7 +420,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC026": 1
+        "DOC026": 8
       },
       "bypassGoldenRanks": {
         "DOC026": 1
@@ -465,7 +465,7 @@
         "DOC031": 1
       },
       "bypassGoldenRanks": {
-        "DOC031": 1
+        "DOC031": 3
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -485,7 +485,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC032": 6
+        "DOC032": 12
       },
       "bypassGoldenRanks": {
         "DOC032": 2
@@ -528,14 +528,14 @@
     },
     {
       "caseId": "P026",
-      "keywordSeededDocumentRecallAt40": 0.0,
-      "bypassDocumentRecallAt40": 0.0,
-      "keywordSeededDocumentRecallAt60": 0.0,
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC034": null
+        "DOC034": 1
       },
       "bypassGoldenRanks": {
-        "DOC034": null
+        "DOC034": 1
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -577,7 +577,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC039": 3
+        "DOC039": 19
       },
       "bypassGoldenRanks": {
         "DOC039": 1
@@ -598,7 +598,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC040": 1
+        "DOC040": 2
       },
       "bypassGoldenRanks": {
         "DOC040": 1
@@ -614,16 +614,16 @@
     },
     {
       "caseId": "P031",
-      "keywordSeededDocumentRecallAt40": 0.5,
-      "bypassDocumentRecallAt40": 0.5,
-      "keywordSeededDocumentRecallAt60": 0.5,
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC001": 2,
-        "DOC011": null
+        "DOC001": 3,
+        "DOC011": 2
       },
       "bypassGoldenRanks": {
-        "DOC001": 4,
-        "DOC011": null
+        "DOC001": 7,
+        "DOC011": 1
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -683,7 +683,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC010": 7
+        "DOC010": 20
       },
       "bypassGoldenRanks": {
         "DOC010": 1
@@ -773,7 +773,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC038": 6
+        "DOC038": 16
       },
       "bypassGoldenRanks": {
         "DOC038": 1
@@ -793,10 +793,10 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC018": 1
+        "DOC018": 2
       },
       "bypassGoldenRanks": {
-        "DOC018": 5
+        "DOC018": 7
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -840,7 +840,7 @@
         "DOC005": 1
       },
       "bypassGoldenRanks": {
-        "DOC005": 1
+        "DOC005": 4
       },
       "keywordPlan": {
         "high_level_keywords": [
@@ -861,7 +861,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC009": 12
+        "DOC009": 4
       },
       "bypassGoldenRanks": {
         "DOC009": 1
@@ -926,7 +926,7 @@
       "bypassDocumentRecallAt40": 1.0,
       "keywordSeededDocumentRecallAt60": 1.0,
       "keywordSeededGoldenRanks": {
-        "DOC028": 10
+        "DOC028": 14
       },
       "bypassGoldenRanks": {
         "DOC028": 1
