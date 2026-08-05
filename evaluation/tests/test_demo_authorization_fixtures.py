@@ -16,6 +16,21 @@ DEPARTMENT_SPACES = {
     "Operations": "operations",
     "Legal & Compliance": "legal-compliance",
 }
+CLASSIFICATION_ACCESS = {
+    "Public": "All",
+    "Internal": "All Employees",
+    "Confidential": "Own Department",
+    "Restricted": "Executive Only",
+}
+SPACE_DEPARTMENTS = {
+    "human-resources": "d2000000-0000-4000-8000-000000000002",
+    "finance": "d2000000-0000-4000-8000-000000000003",
+    "product": "d2000000-0000-4000-8000-000000000004",
+    "engineering": "d2000000-0000-4000-8000-000000000005",
+    "operations": "d2000000-0000-4000-8000-000000000006",
+    "legal-compliance": "d2000000-0000-4000-8000-000000000007",
+    "executive-office": "d2000000-0000-4000-8000-000000000008",
+}
 
 
 def test_document_placement_matches_declared_access() -> None:
@@ -23,6 +38,11 @@ def test_document_placement_matches_declared_access() -> None:
 
     assert len(documents) == 40
     for document in documents:
+        assert (
+            document["allowedAccess"]
+            == CLASSIFICATION_ACCESS[document["classification"]]
+        ), document["documentId"]
+
         match document["allowedAccess"]:
             case "All" | "All Employees":
                 expected_space = "company"
@@ -47,9 +67,23 @@ def test_directory_fixture_persists_typed_space_audiences() -> None:
     assert len(space_rows) == 8
     assert "'company', 'Company Knowledge', 'ORGANIZATION', 1" in space_rows[0]
     assert "NULL, 'company'" in space_rows[0]
+
+    actual_space_departments = {}
     for row in space_rows[1:]:
         assert "'DEPARTMENT', 1" in row
-        assert re.search(r"'d2000000-0000-4000-8000-00000000000[2-8]'", row)
+        match = re.search(
+            r"VALUES \('[^']+', '[^']+', '([^']+)', '([^']+)'",
+            row,
+        )
+        assert match is not None
+        department_id, space_key = match.groups()
+        assert space_key not in actual_space_departments
+        actual_space_departments[space_key] = department_id
+
+    assert actual_space_departments == SPACE_DEPARTMENTS
+    for row in space_rows:
+        assert "audience_mode = EXCLUDED.audience_mode" in row
+        assert "audience_version = EXCLUDED.audience_version" in row
 
 
 def test_openfga_viewer_tuples_match_typed_space_audiences() -> None:
