@@ -166,9 +166,13 @@ def score(
         )
         bypass_ranks = golden_ranks(case.golden_document_ids, observation.bypass_document_ids)
         if observation.keyword_seeded_golden_ranks not in ({}, keyword_ranks):
-            raise ValueError(f"keyword golden ranks disagree with retrieved order for {case.case_id}")
+            raise ValueError(
+                f"keyword golden ranks disagree with retrieved order for {case.case_id}"
+            )
         if observation.bypass_golden_ranks not in ({}, bypass_ranks):
-            raise ValueError(f"bypass golden ranks disagree with retrieved order for {case.case_id}")
+            raise ValueError(
+                f"bypass golden ranks disagree with retrieved order for {case.case_id}"
+            )
         cases.append(
             {
                 "caseId": case.case_id,
