@@ -313,13 +313,16 @@ test("anchors only server-declared citations and opens the matching source", asy
   await expect(page.getByText("OrgMemory document")).toHaveCount(0)
   await expect(page.getByText("Permission-verified evidence used for this answer.")).toHaveCount(0)
   await inlineCitation.click()
+  await expect(page.getByText("Expense claims require the original receipt.")).toBeVisible()
+  await page.getByRole("button", { name: "Close" }).click()
+  await page.getByText("Used 2 sources").click()
   await expect(page.getByRole("complementary", { name: "Answer sources" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Cited sources" })).toBeVisible()
   await expect(page.getByRole("region", { name: "More" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Preview source 3: Security Policy" })).toBeVisible()
   await page.getByRole("button", { name: "Preview source 2: Expense Policy" }).click()
   await expect(page.getByText("Expense claims require the original receipt.")).toBeVisible()
-  expect(harness.requests.filter((request) => request === `GET ${secondPath}`)).toHaveLength(1)
+  expect(harness.requests.filter((request) => request === `GET ${secondPath}`)).toHaveLength(2)
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })
@@ -340,7 +343,6 @@ test("shows an opaque citation error after access is revoked", async ({ page }) 
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(
     page.getByText("The source changed or you no longer have access."),
   ).toBeVisible()
@@ -365,7 +367,6 @@ test("previews an authorized PDF through the protected citation endpoint", async
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(page.locator('iframe[title="Employee Handbook"]')).toBeVisible()
   expect(harness.requests.filter((request) => request === `GET ${firstPath}`)).toHaveLength(1)
   expect(harness.unexpectedRequests).toEqual([])
@@ -400,7 +401,6 @@ test("previews an authorized image selected by the server presentation kind", as
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(page.getByRole("dialog").getByRole("img", { name: "Employee Handbook" }))
     .toBeVisible()
   expect(harness.requests.filter((request) => request === `GET ${firstPath}`)).toHaveLength(1)
@@ -429,10 +429,9 @@ test("keeps Office evidence excerpt-first and download-only", async ({ page }) =
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByText("The approved form is attached to the handbook.")).toBeVisible()
-  await expect(dialog.getByRole("link", { name: "Download original" })).toHaveAttribute(
+  await expect(dialog.getByRole("link", { name: "Download" })).toHaveAttribute(
     "href",
     firstPath,
   )
@@ -488,7 +487,6 @@ test("renders governed Markdown without active HTML or remote resource loads", a
   await submit(page, "What is the probation policy?")
 
   await page.getByRole("button", { name: "Open source 1: Employee Handbook" }).click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   const dialog = page.getByRole("dialog")
   const restricted = dialog.getByTestId("restricted-source-markdown")
   await expect(page.getByRole("heading", { name: "Leave policy" })).toBeVisible()
@@ -553,7 +551,6 @@ test("rehydrates currently authorized citations after transcript reload", async 
   const citation = page.getByRole("button", { name: "Open source 1: Employee Handbook" })
   await expect(citation).toBeVisible()
   await citation.click()
-  await page.getByRole("button", { name: "Preview source 1: Employee Handbook" }).click()
   await expect(page.getByText("The probation period is 60 days.", { exact: true })).toBeVisible()
   expect(
     harness.requests.filter(

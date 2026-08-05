@@ -48,7 +48,7 @@ test("views protected evidence and deletes only an eligible ready upload", async
   expect(browserErrors).toEqual([])
 })
 
-test("Knowledge presents safe cross-format evidence in a responsive right-side reader", async ({
+test("Knowledge presents safe cross-format evidence in a centered document viewer", async ({
   page,
 }, testInfo) => {
   const requests: string[] = []
@@ -415,5 +415,5 @@ async function openDocument(page: Page, title: string) {
 
 async function closeReader(page: Page) {
   await page.getByRole("button", { name: "Close" }).click()
-  await expect(page.locator('[data-slot="sheet-content"]')).toBeHidden()
+  await expect(page.getByRole("dialog")).toBeHidden()
 }

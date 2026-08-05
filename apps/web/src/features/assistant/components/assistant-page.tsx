@@ -58,6 +58,7 @@ import {
   type AssistantSourceRef,
   AssistantSourcesPanel,
 } from "@/features/assistant/components/assistant-sources-panel"
+import { GovernedDocumentViewer } from "@/features/sources/components/governed-document-viewer"
 import { useAssistantDraft } from "@/features/assistant/hooks/use-assistant-draft"
 import { scopeActorQueryKey } from "@/features/session/actor-cache-key"
 import { copyWithToast } from "@/lib/copy"
@@ -482,6 +483,7 @@ export function AssistantPage({
     citedSourceIds: string[]
     selectedSourceId: string
   } | null>(null)
+  const [previewSource, setPreviewSource] = useState<AssistantSourceRef | null>(null)
   const [activity, setActivity] = useState<AssistantActivity | null>(null)
   const submitLock = useRef(false)
   const {
@@ -586,6 +588,7 @@ export function AssistantPage({
     locallyCreatedConversationRef.current = undefined
     setSelectedModelActivationId(undefined)
     setSourcePanel(null)
+    setPreviewSource(null)
     setFeedbackByMessage({})
     setActivity(null)
     setMessages([])
@@ -840,15 +843,26 @@ export function AssistantPage({
                       <AssistantAnswer
                         content={content}
                         sources={citedSources}
-                        onOpenSource={(sourceId) =>
-                          openSources(message.id, sources, citedSources, sourceId)
-                        }
+                        onOpenSource={(sourceId) => {
+                          const source = sources.find((candidate) => candidate.id === sourceId)
+                          if (source) setPreviewSource(source)
+                        }}
                       />
                     </MessageContent>
                   ) : null}
                   {citedSources.length > 0 ? (
                     <Sources>
-                      <SourcesTrigger count={citedSources.length} />
+                      <SourcesTrigger
+                        count={citedSources.length}
+                        onClick={() =>
+                          openSources(
+                            message.id,
+                            sources,
+                            citedSources,
+                            citedSources[0]?.id ?? sources[0]?.id ?? "",
+                          )
+                        }
+                      />
                       <SourcesContent>
                         {citedSources.map((source) => (
                           <Source
@@ -858,12 +872,7 @@ export function AssistantPage({
                             target="_self"
                             onClick={(event) => {
                               event.preventDefault()
-                              openSources(
-                                message.id,
-                                sources,
-                                citedSources,
-                                source.id,
-                              )
+                              setPreviewSource(source)
                             }}
                           />
                         ))}
@@ -967,6 +976,11 @@ export function AssistantPage({
         onSelect={(selectedSourceId) =>
           setSourcePanel((current) => (current ? { ...current, selectedSourceId } : current))
         }
+        onPreview={setPreviewSource}
+      />
+      <GovernedDocumentViewer
+        target={previewSource ? { kind: "citation", source: previewSource } : null}
+        onOpenChange={(open) => !open && setPreviewSource(null)}
       />
     </div>
   )

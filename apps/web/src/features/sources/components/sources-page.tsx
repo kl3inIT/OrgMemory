@@ -7,18 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PageLayout } from "@/components/layouts/page-layout"
-import { SplitLayout } from "@/components/layouts/split-layout"
 import { EmptyState } from "@/components/patterns/empty-state"
 import { FilterBar } from "@/components/patterns/filter-bar"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SourceUploadDialog } from "@/features/sources/components/source-upload-dialog"
 import { SourcesTable } from "@/features/sources/components/sources-table"
-import {
-  DocumentDetailPanel,
-  DocumentDetailSheet,
-} from "@/features/sources/components/document-detail-sheet"
-import { useMediaQuery } from "@/hooks/use-media-query"
+import { DocumentDetailDialog } from "@/features/sources/components/document-detail-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,7 +94,6 @@ export function SourcesPage({
 
   const documents = sources.data ?? []
   const viewing = documents.find((source) => source.id === viewingId) ?? null
-  const desktopReader = useMediaQuery("(min-width: 1024px)")
   const viewDocument = useCallback((source: SourceResponse) => {
     setViewingId(source.id ?? null)
   }, [])
@@ -215,9 +209,7 @@ export function SourcesPage({
             </TabsList>
           </Tabs>
 
-          <section className="overflow-hidden rounded-lg border bg-card" aria-label="Documents">
-            <SplitLayout.Root className="min-h-[32rem] max-h-[calc(100vh-14rem)]">
-              <SplitLayout.Main>
+          <section className="min-h-[32rem] overflow-hidden rounded-lg border bg-card" aria-label="Documents">
                 <div className="sticky top-0 z-10 border-b bg-card p-3">
                   <FilterBar
                     search={
@@ -263,15 +255,6 @@ export function SourcesPage({
                     onUploadCorrection={uploadCorrection}
                   />
                 ) : null}
-              </SplitLayout.Main>
-              {desktopReader && viewing ? (
-                <DocumentDetailPanel
-                  source={viewing}
-                  onClose={closeDocument}
-                  onUploadCorrection={uploadCorrection}
-                />
-              ) : null}
-            </SplitLayout.Root>
           </section>
         </TabsContent>
         <TabsContent value="graph" className="flex min-h-0 flex-1">
@@ -281,13 +264,11 @@ export function SourcesPage({
         </TabsContent>
       </Tabs>
 
-      {!desktopReader ? (
-        <DocumentDetailSheet
-          source={viewing}
-          onOpenChange={(open) => !open && closeDocument()}
-          onUploadCorrection={uploadCorrection}
-        />
-      ) : null}
+      <DocumentDetailDialog
+        source={viewing}
+        onOpenChange={(open) => !open && closeDocument()}
+        onUploadCorrection={uploadCorrection}
+      />
 
       <AlertDialog
         open={deleteCandidate !== null}
