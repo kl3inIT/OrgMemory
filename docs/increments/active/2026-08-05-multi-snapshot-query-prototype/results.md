@@ -92,3 +92,30 @@ question-to-section references over the repository's 40-document demo corpus.
 recall@40 for keyword-seeded and bypass paths, reports diagnostic keyword
 recall@60, and applies the predeclared two-percentage-point tolerance. Actual
 path observations remain required before the recall gate can be decided.
+
+## Coordinator review amendment (2026-08-05)
+
+Two findings on top of the recorded evidence, from reviewing the SQL and
+mapping scales to production:
+
+1. **Scale labels understate the failure.** The synthetic "1x" dataset holds
+   80 entity vectors; production `projection_vector_records` holds 10,051.
+   Production today therefore sits at approximately the benchmark's **100x**
+   row — where every multi-space scenario times out (>5,000 ms) while the
+   live per-space path serves the same corpus at 166–299 ms per snapshot.
+   The as-built compound statement is not merely "slow at future scale"; it
+   loses to the per-space path at the current production size.
+2. **The cause is plan shape, not the concept.** `vector_candidates` joins
+   authorized scope to vectors first and computes the 1536-dim distance for
+   every authorized row, then window-ranks (`row_number() OVER (PARTITION BY
+   space_id ORDER BY distance)`). No `ORDER BY embedding <=> :query LIMIT k`
+   is adjacent to the vector column, so the HNSW index is structurally
+   unusable — the exact failure mode the ADR 0020 debate's surviving attack
+   predicted. The **store-fanned LATERAL variant** (per space-tuple LATERAL
+   subquery, each an index-eligible ordered LIMIT, merged and re-ranked in
+   one statement) is what B-R2 actually specified and has NOT been measured.
+
+Consequence: gate 2 verdict on the single-scan plan stands as FAIL and
+cutover remains blocked; the next evidence step inside this increment is a
+LATERAL store-fan benchmark run before any Phase 3 decision, alongside plan
+steps 3 (recall scoring) and 4 (production-shaped run).
