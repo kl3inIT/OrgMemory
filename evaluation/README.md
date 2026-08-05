@@ -26,6 +26,28 @@ The committed JSON is the single source consumed by Java conformance tests.
 Regenerate it only from the pinned checkout and review semantic changes rather
 than accepting a changed file mechanically.
 
+## Retrieval recall gate
+
+`orgmemory-retrieval-recall` scores the ADR 0020 cache-miss bypass against the
+current keyword-seeded path. The committed golden fixture contains 15 initial
+questions over the disposable demo corpus and stable document/section chunk
+references. A retrieval export supplies the ordered chunk references for both
+paths; the scorer reports macro recall@40, diagnostic keyword recall@60, and
+fails when bypass recall regresses by more than two percentage points.
+
+```powershell
+Set-Location evaluation
+uv sync --frozen --dev
+uv run orgmemory-retrieval-recall `
+  --golden fixtures\retrieval-recall-golden-v1.json `
+  --observations output\retrieval-observations-v1.json `
+  --output output\retrieval-recall-report-v1.json
+```
+
+The fixture is a harness skeleton, not a gate verdict: observations from the
+two real retrieval paths are still required before ADR 0020 condition 3 can
+pass. The remaining target is approximately 50 reviewed questions.
+
 ## RAGAS
 
 RAGAS evaluates exported, sanitized Assistant cases. It is a stochastic
