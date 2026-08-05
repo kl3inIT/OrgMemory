@@ -13,10 +13,10 @@ bean and cannot address a non-Testcontainers database.
 - Local latency gate: **FAIL**. 20 of 72 scenarios exceeded the predeclared
   compound p95 threshold of 500 ms. All failures are at 100x except the four
   100x/1-space/narrow scenarios, which passed.
-- Recall gate: **NOT YET SCORED**. The deterministic scorer and 15-question
-  golden-data skeleton are complete, but observations from the current
-  keyword-seeded path and raw-query bypass do not exist yet. No recall verdict
-  is claimed.
+- Recall gate: **NOT YET SCORED**. The deterministic scorer now derives
+  document goldens from all 43 Allow cases in the official 50-case source, but
+  observations from the current keyword-seeded path and raw-query bypass do
+  not exist yet. No recall verdict is claimed.
 - Production-shaped restored-copy run: not run; it remains plan step 4 and was
   outside this handoff.
 
@@ -86,12 +86,15 @@ strategy. The threshold was not tuned after observing this result.
 
 ## Recall harness status
 
-`evaluation/fixtures/retrieval-recall-golden-v1.json` contains 15 reviewed
-question-to-section references over the repository's 40-document demo corpus.
-`orgmemory-retrieval-recall` validates complete observations, computes macro
-recall@40 for keyword-seeded and bypass paths, reports diagnostic keyword
-recall@60, and applies the predeclared two-percentage-point tolerance. Actual
-path observations remain required before the recall gate can be decided.
+`demo/fixtures/public-evaluation.json` is the single evaluation source. The
+recall harness derives its 43 Allow-case document goldens from that source;
+P031 requires both DOC001 and DOC011. `orgmemory-retrieval-recall` validates
+complete observations, computes macro document recall@40 for keyword-seeded
+and bypass paths, reports diagnostic keyword document recall@60, and applies
+the predeclared two-percentage-point tolerance. Actual path observations remain
+required before the recall gate can be decided. The official transcript scorer
+separately reports deterministic permission, citation, multi-document, and
+latency verdicts; its optional LightRAG-style judge is disabled by default.
 
 ## Coordinator review amendment (2026-08-05)
 
