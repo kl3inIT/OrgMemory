@@ -1,0 +1,21 @@
+spring:
+  main:
+    web-application-type: servlet
+  flyway:
+    enabled: false
+
+server:
+  address: 127.0.0.1
+  port: 0
+
+orgmemory:
+  graph-rag:
+    postgres:
+      provision-indexes: false
+      reconcile-published-batches: false
+  retrieval-observation:
+    enabled: true
+    official-cases: ${ORGMEMORY_RETRIEVAL_OBSERVATION_CASES:demo/fixtures/public-evaluation.json}
+    document-manifest: ${ORGMEMORY_RETRIEVAL_OBSERVATION_MANIFEST:demo/fixtures/documents/manifest.json}
+    output: ${ORGMEMORY_RETRIEVAL_OBSERVATION_OUTPUT:evaluation/output/retrieval-observations-v2.json}
+    expected-database: ${ORGMEMORY_RETRIEVAL_OBSERVATION_EXPECTED_DATABASE:}

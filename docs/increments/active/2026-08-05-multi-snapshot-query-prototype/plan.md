@@ -27,6 +27,9 @@ Design: [design.md](design.md). Gates: ADR 0020 conditions 2–3.
 
 ## 3. Retrieval evaluation set
 
+Status: **complete (2026-08-05)**. The committed v2 observation and report
+artifacts record a passing 43-case recall gate; see [results.md](results.md).
+
 Use the 50 official cases in `demo/fixtures/public-evaluation.json` as the
 single source, deriving document-level recall goldens from its 43 Allow cases
 and scoring the later production transcript offline for permission, exact

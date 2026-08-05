@@ -111,8 +111,28 @@ uv run orgmemory-retrieval-recall `
 ```
 
 The official questions are goldens, not a gate verdict: observations from the
-two real retrieval paths are still required before ADR 0020 condition 3 can
-pass.
+two real retrieval paths are required before ADR 0020 condition 3 can pass.
+
+Capture those observations only against an explicitly prepared restored copy
+of the projection database. From the repository root:
+
+```powershell
+.\scripts\capture-retrieval-observations.ps1 `
+  -SshTarget <managed-dev-ssh-host> `
+  -RestoredDatabase <restored-copy-name> `
+  -Output evaluation\output\retrieval-observations-v2.json
+```
+
+The script refuses `orgmemory`, opens loopback-only tunnels, keeps exported
+managed-dev configuration in process memory, and runs the one-shot
+`retrieval-observation` profile with Flyway, projection index provisioning, and
+published-batch reconciliation disabled. The runner verifies the connected
+database name, executes 43 keyword-seeded `MIX`/topK60 and raw-query
+`NAIVE`/topK40 retrieval pairs with `CONTEXT` output, and records no questions,
+answers, or document content. Non-benchmark competitors retain their rank as
+opaque `source:<UUID>` values. Atomic database-bound checkpoints are removed
+only after a complete v2 artifact is installed; the scorer still requires the
+exact 43-case set.
 
 ## RAGAS
 

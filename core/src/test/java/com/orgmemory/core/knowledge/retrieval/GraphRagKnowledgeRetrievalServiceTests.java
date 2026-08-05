@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,6 +40,7 @@ import com.orgmemory.graphrag.query.LightRagQueryEngine;
 import com.orgmemory.graphrag.query.LightRagQueryMode;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
+import com.orgmemory.graphrag.query.QueryOutputMode;
 import com.orgmemory.graphrag.storage.ProjectionKind;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -324,6 +326,84 @@ class GraphRagKnowledgeRetrievalServiceTests {
     @Test
     void retrievalAdmissionControlUsesFairQueueing() {
         assertTrue(new RetrievalAdmissionControl(4).fair());
+    }
+
+    @Test
+    void retrievalObservationRunsKeywordAndRawQueryPathsWithoutAnswerGeneration() {
+        CurrentActor actor = actor();
+        PermissionAuditService audit = mock(PermissionAuditService.class);
+        KnowledgeEvidenceScopeResolver scopes = mock(KnowledgeEvidenceScopeResolver.class);
+        ResolvedKnowledgeEvidenceScope allowed = scope(Set.of(ASSET_ID), 1L);
+        when(scopes.resolve(actor, MODEL_ID)).thenReturn(allowed);
+        LightRagGrounding grounding = grounding();
+        LightRagGroundingAssembler.PreparedGrounding preparedGrounding = prepared(grounding);
+        LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
+        LightRagPreparedQuery keywordPrepared = preparedQueryPlan();
+        LightRagPreparedQuery bypassPrepared = mock(LightRagPreparedQuery.class);
+        when(bypassPrepared.keywordPlanningDuration()).thenReturn(Duration.ZERO);
+        when(bypassPrepared.embeddingDuration()).thenReturn(Duration.ofMillis(2));
+        when(bypassPrepared.keywordCacheStatus()).thenReturn(GraphRagEventSink.CacheStatus.BYPASS);
+        when(bypassPrepared.keywords()).thenReturn(KeywordPlan.empty(KeywordPlan.Source.MODEL));
+        when(bypassPrepared.embeddingInputs()).thenReturn(List.of("query"));
+        when(engine.prepare(any())).thenAnswer(invocation -> {
+            LightRagQueryRequest request = invocation.getArgument(0);
+            return request.options().mode() == LightRagQueryMode.MIX
+                    ? keywordPrepared
+                    : bypassPrepared;
+        });
+        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+                allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
+                grounding,
+                false,
+                false));
+        when(engine.consolidateGrounding(any(), any(), any())).thenReturn(preparedGrounding);
+        when(engine.renderGrounding(any(), any(), any())).thenReturn(preparedGrounding);
+        RelationshipAuthorizationSetPort finalAuthorization =
+                mock(RelationshipAuthorizationSetPort.class);
+        ResourceRef asset = ResourceRef.of(ORGANIZATION_ID, "knowledge_asset", ASSET_ID);
+        when(finalAuthorization.batchCheck(any())).thenReturn(
+                BatchAuthorizationResult.resolved(
+                        Map.of(asset, AuthorizationDecision.allow(MODEL_ID)),
+                        MODEL_ID));
+        RecordingRecheckedStore canonical = new RecordingRecheckedStore(List.of(
+                candidate(ENTITY_CHUNK_ID),
+                candidate(RELATION_CHUNK_ID),
+                candidate(CHUNK_ID)));
+        GraphRagKnowledgeRetrievalService service = service(
+                scopes,
+                finalAuthorization,
+                canonical,
+                engine,
+                GraphRagRetrievalPolicy.defaults(),
+                audit,
+                mock(GraphRagEventSink.class));
+
+        GraphRagKnowledgeRetrievalService.RetrievalObservation observation = service.observe(
+                actor,
+                "Am I reimbursed during probation?",
+                "request-observation");
+
+        ArgumentCaptor<LightRagQueryRequest> requests =
+                ArgumentCaptor.forClass(LightRagQueryRequest.class);
+        verify(engine, times(2)).prepare(requests.capture());
+        assertEquals(
+                List.of(LightRagQueryMode.MIX, LightRagQueryMode.NAIVE),
+                requests.getAllValues().stream()
+                        .map(request -> request.options().mode())
+                        .toList());
+        assertEquals(60, requests.getAllValues().get(0).options().chunkTopK());
+        assertEquals(40, requests.getAllValues().get(1).options().chunkTopK());
+        assertTrue(requests.getAllValues().stream().allMatch(request ->
+                request.options().outputMode() == QueryOutputMode.CONTEXT));
+        verify(audit).recordAll(argThat(commands -> commands.stream().allMatch(command ->
+                "request-observation-keyword".equals(command.requestId()))));
+        verify(audit).recordAll(argThat(commands -> commands.stream().allMatch(command ->
+                "request-observation-bypass".equals(command.requestId()))));
+        assertEquals(List.of("leave"), observation.keywordPlan().highLevel());
+        assertEquals(List.of("policy"), observation.keywordPlan().lowLevel());
+        assertEquals("model", observation.keywordPlan().source());
+        assertEquals(3, observation.keywordSeededDocuments().size());
+        assertEquals(3, observation.bypassDocuments().size());
     }
 
     @Test

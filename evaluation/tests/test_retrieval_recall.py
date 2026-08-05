@@ -10,6 +10,7 @@ from orgmemory_eval.retrieval_recall import (
     OFFICIAL_RECALL_DATASET_ID,
     GoldenDataset,
     ObservationSet,
+    RetrievalKeywordPlan,
     RetrievalObservation,
     derive_golden_dataset,
     main,
@@ -35,6 +36,23 @@ def observations(*, bypass_failure_case: str | None = None) -> ObservationSet:
                 keyword_seeded_document_ids=case.golden_document_ids,
                 bypass_document_ids=(
                     ["DOC999"] if case.case_id == bypass_failure_case else case.golden_document_ids
+                ),
+                keyword_seeded_golden_ranks={
+                    document_id: rank
+                    for rank, document_id in enumerate(case.golden_document_ids, start=1)
+                },
+                bypass_golden_ranks={
+                    document_id: (
+                        None
+                        if case.case_id == bypass_failure_case
+                        else rank
+                    )
+                    for rank, document_id in enumerate(case.golden_document_ids, start=1)
+                },
+                keyword_plan=RetrievalKeywordPlan(
+                    high_level_keywords=["policy"],
+                    low_level_keywords=["probation"],
+                    source="model",
                 ),
             )
             for case in golden.cases
@@ -72,6 +90,46 @@ def test_score_passes_equal_keyword_and_bypass_document_recall() -> None:
     assert report["bypassDocumentRecallAt40"] == 1.0
     assert report["bypassDeltaPoints"] == 0.0
     assert report["gatePassed"] is True
+    p031 = next(case for case in report["cases"] if case["caseId"] == "P031")
+    assert p031["keywordSeededGoldenRanks"] == {"DOC001": 1, "DOC011": 2}
+    assert p031["keywordPlan"]["high_level_keywords"] == ["policy"]
+
+
+@pytest.mark.parametrize(("keyword_rank", "bypass_rank"), [(-1, 1), (1, 0)])
+def test_observation_rejects_a_non_positive_rank_in_either_map(
+    keyword_rank: int,
+    bypass_rank: int,
+) -> None:
+    with pytest.raises(ValueError, match="golden ranks must be positive or null"):
+        RetrievalObservation(
+            case_id="P031",
+            keyword_seeded_document_ids=["DOC001"],
+            bypass_document_ids=["DOC001"],
+            keyword_seeded_golden_ranks={"DOC001": keyword_rank},
+            bypass_golden_ranks={"DOC001": bypass_rank},
+        )
+
+
+def test_score_rejects_golden_ranks_that_disagree_with_retrieved_order() -> None:
+    complete = observations()
+    first = complete.observations[0].model_copy(
+        update={"keyword_seeded_golden_ranks": {"DOC001": 2}}
+    )
+    inconsistent = complete.model_copy(update={"observations": [first, *complete.observations[1:]]})
+
+    with pytest.raises(ValueError, match="keyword golden ranks disagree"):
+        score(golden_dataset(), inconsistent)
+
+
+def test_score_rejects_bypass_ranks_that_disagree_with_retrieved_order() -> None:
+    complete = observations()
+    first = complete.observations[0].model_copy(
+        update={"bypass_golden_ranks": {"DOC001": 9}}
+    )
+    inconsistent = complete.model_copy(update={"observations": [first, *complete.observations[1:]]})
+
+    with pytest.raises(ValueError, match="bypass golden ranks disagree"):
+        score(golden_dataset(), inconsistent)
 
 
 def test_score_fails_a_regression_larger_than_two_points() -> None:
@@ -87,7 +145,12 @@ def test_score_passes_a_partial_multi_document_regression_within_tolerance() -> 
         schema_version="orgmemory.retrieval-observations.v2",
         dataset_id=OFFICIAL_RECALL_DATASET_ID,
         observations=[
-            observation.model_copy(update={"bypass_document_ids": ["DOC001"]})
+            observation.model_copy(
+                update={
+                    "bypass_document_ids": ["DOC001"],
+                    "bypass_golden_ranks": {"DOC001": 1, "DOC011": None},
+                }
+            )
             if observation.case_id == "P031"
             else observation
             for observation in complete.observations

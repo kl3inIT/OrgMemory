@@ -1,0 +1,652 @@
+{
+  "schema_version" : "orgmemory.retrieval-observations.v2",
+  "dataset_id" : "orgmemory-public-evaluation-allow-v1",
+  "observations" : [ {
+    "case_id" : "P001",
+    "keyword_seeded_document_ids" : [ "DOC002", "DOC006", "DOC003", "DOC001", "DOC007", "DOC010", "DOC008", "DOC009", "DOC004", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC005", "source:964126e7-d267-4aa2-adaf-db5699d28779" ],
+    "bypass_document_ids" : [ "DOC006", "DOC002", "DOC009", "DOC008", "DOC005", "DOC003", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC010", "DOC001", "DOC007", "DOC004", "source:964126e7-d267-4aa2-adaf-db5699d28779" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC001" : 4
+    },
+    "bypass_golden_ranks" : {
+      "DOC001" : 9
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Chính sách thử việc" ],
+      "low_level_keywords" : [ "thử việc" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P002",
+    "keyword_seeded_document_ids" : [ "DOC001", "DOC002", "DOC005", "DOC004", "DOC011", "DOC012", "DOC014", "DOC003", "DOC015", "DOC013", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC002", "DOC001", "DOC003", "DOC011", "DOC005", "DOC004", "DOC012", "DOC014", "DOC015", "DOC013" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC002" : 2
+    },
+    "bypass_golden_ranks" : {
+      "DOC002" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "nghỉ phép năm", "ngày nghỉ phép" ],
+      "low_level_keywords" : [ "nhân viên", "bao nhiêu ngày" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P003",
+    "keyword_seeded_document_ids" : [ "DOC011", "DOC013", "DOC012", "DOC003", "DOC015", "DOC014", "DOC005", "DOC002", "DOC001", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC011", "DOC013", "DOC014", "DOC012", "DOC003", "DOC015", "DOC002", "DOC005", "DOC001", "DOC004" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC011" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC011" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "yêu cầu hoàn ứng chi phí" ],
+      "low_level_keywords" : [ "nộp yêu cầu", "hoàn ứng chi phí" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P004",
+    "keyword_seeded_document_ids" : [ "DOC018", "DOC020", "DOC019", "DOC017", "DOC016", "DOC001", "DOC002", "DOC003", "DOC005", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC018", "DOC017", "DOC019", "DOC020", "DOC016", "DOC001", "DOC002", "DOC005", "DOC004", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC018" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC018" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Quy trình phát hành sản phẩm", "giai đoạn phát hành sản phẩm" ],
+      "low_level_keywords" : [ "phát hành sản phẩm" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P005",
+    "keyword_seeded_document_ids" : [ "DOC025", "DOC023", "DOC005", "DOC024", "DOC021", "DOC001", "DOC022", "DOC004", "DOC003", "DOC002" ],
+    "bypass_document_ids" : [ "DOC025", "DOC023", "DOC022", "DOC005", "DOC002", "DOC004", "DOC003", "DOC021", "DOC024", "DOC001" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC025" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC025" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "yêu cầu môi trường phát triển mới" ],
+      "low_level_keywords" : [ "môi trường phát triển" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P006",
+    "keyword_seeded_document_ids" : [ "DOC035", "DOC033", "DOC034", "DOC031", "DOC032", "DOC001", "DOC002", "DOC003", "DOC005", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC035", "DOC031", "DOC001", "DOC033", "DOC032", "DOC002", "DOC005", "DOC004", "DOC034", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC035" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC035" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Chính sách lưu trữ hồ sơ", "quy định hợp đồng", "thời hạn lưu trữ" ],
+      "low_level_keywords" : [ "hồ sơ", "hợp đồng", "lưu bao lâu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P008",
+    "keyword_seeded_document_ids" : [ "DOC040", "DOC036", "DOC037", "DOC038", "DOC039", "DOC001", "DOC002", "DOC003", "DOC005", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC036", "DOC038", "DOC037", "DOC039", "DOC004", "DOC040", "DOC001", "DOC005", "DOC002", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC036" : 2
+    },
+    "bypass_golden_ranks" : {
+      "DOC036" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "chiến lược của công ty", "ưu tiên chiến lược" ],
+      "low_level_keywords" : [ "năm 2026" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P010",
+    "keyword_seeded_document_ids" : [ "DOC007", "source:964126e7-d267-4aa2-adaf-db5699d28779", "DOC005", "DOC003", "DOC001", "DOC002", "DOC009", "DOC010", "DOC004", "DOC006", "DOC008", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d" ],
+    "bypass_document_ids" : [ "DOC007", "source:964126e7-d267-4aa2-adaf-db5699d28779", "DOC008", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC001", "DOC006", "DOC002", "DOC003", "DOC009", "DOC010", "DOC004", "DOC005" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC007" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC007" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "khung lương", "Product Manager" ],
+      "low_level_keywords" : [ "mức lương Product Manager" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P011",
+    "keyword_seeded_document_ids" : [ "DOC004", "DOC001", "DOC003", "DOC005", "DOC002", "DOC030", "DOC027", "DOC026", "DOC028", "DOC029", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC004", "DOC001", "DOC005", "DOC027", "DOC002", "DOC029", "DOC026", "DOC003", "DOC028", "DOC030", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC004" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC004" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Mật khẩu tài khoản công ty", "yêu cầu mật khẩu" ],
+      "low_level_keywords" : [ "tài khoản công ty", "mật khẩu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P012",
+    "keyword_seeded_document_ids" : [ "DOC003", "DOC019", "DOC005", "DOC002", "DOC016", "DOC017", "DOC004", "DOC001", "DOC020", "DOC018" ],
+    "bypass_document_ids" : [ "DOC003", "DOC002", "DOC005", "DOC001", "DOC004", "DOC020", "DOC019", "DOC017", "DOC016", "DOC018" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC003" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC003" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "hoàn chi phí", "khách sạn", "công tác trong nước" ],
+      "low_level_keywords" : [ "mức hoàn chi phí khách sạn" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P013",
+    "keyword_seeded_document_ids" : [ "DOC013", "DOC011", "DOC001", "DOC002", "DOC012", "DOC015", "DOC014", "DOC003", "DOC004", "DOC005", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC013", "DOC015", "DOC011", "DOC014", "DOC004", "DOC002", "DOC005", "DOC001", "DOC012", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC013" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC013" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Điều khoản thanh toán", "nhà cung cấp" ],
+      "low_level_keywords" : [ "Điều khoản thanh toán tiêu chuẩn", "bao lâu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P014",
+    "keyword_seeded_document_ids" : [ "DOC012", "DOC011", "DOC015", "DOC013", "DOC014", "DOC002", "DOC003", "DOC005", "DOC001", "DOC004" ],
+    "bypass_document_ids" : [ "DOC012", "DOC014", "DOC011", "DOC013", "DOC015", "DOC002", "DOC001", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC012" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC012" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Chu kỳ lập ngân sách", "thời điểm bắt đầu" ],
+      "low_level_keywords" : [ "năm", "lập ngân sách" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P015",
+    "keyword_seeded_document_ids" : [ "DOC014", "DOC013", "DOC011", "DOC015", "DOC005", "DOC003", "DOC004", "DOC012", "DOC001", "DOC002", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC014", "DOC011", "DOC015", "DOC012", "DOC013", "DOC003", "DOC004", "DOC005", "DOC002", "DOC001" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC014" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC014" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "chi phí", "phê duyệt" ],
+      "low_level_keywords" : [ "trên 200 triệu", "ai" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P016",
+    "keyword_seeded_document_ids" : [ "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC019", "DOC001", "DOC003", "DOC005", "DOC002", "DOC020", "DOC017", "DOC016", "DOC018" ],
+    "bypass_document_ids" : [ "DOC019", "DOC018", "DOC005", "DOC004", "DOC017", "DOC020", "DOC003", "DOC002", "DOC001", "DOC016" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC019" : 3
+    },
+    "bypass_golden_ranks" : {
+      "DOC019" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Activation rate", "định nghĩa" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P017",
+    "keyword_seeded_document_ids" : [ "DOC020", "DOC019", "DOC017", "DOC016", "DOC018", "DOC005", "DOC001", "DOC003", "DOC002", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC020", "DOC018", "DOC017", "DOC016", "DOC005", "DOC019", "DOC002", "DOC001", "DOC004", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC020" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC020" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "PRD", "cấu trúc PRD", "phần của PRD" ],
+      "low_level_keywords" : [ "PRD chuẩn" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P018",
+    "keyword_seeded_document_ids" : [ "DOC021", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC001", "DOC003", "DOC005", "DOC002", "DOC004", "DOC025", "DOC024", "DOC022", "DOC023" ],
+    "bypass_document_ids" : [ "DOC021", "DOC025", "DOC022", "DOC023", "DOC004", "DOC005", "DOC024", "DOC003", "DOC001", "DOC002" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC021" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC021" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "API nội bộ", "yêu cầu" ],
+      "low_level_keywords" : [ "API" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P019",
+    "keyword_seeded_document_ids" : [ "DOC022", "DOC023", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC025", "DOC024", "DOC021", "DOC005", "DOC003", "DOC004", "DOC001", "DOC002" ],
+    "bypass_document_ids" : [ "DOC022", "DOC025", "DOC023", "DOC024", "DOC005", "DOC021", "DOC003", "DOC002", "DOC001", "DOC004" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC022" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC022" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Merge request", "điều kiện trước khi merge" ],
+      "low_level_keywords" : [ "merge" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P020",
+    "keyword_seeded_document_ids" : [ "DOC024", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC023", "DOC001", "DOC002", "DOC025", "DOC022", "DOC005", "DOC003", "DOC004", "DOC021" ],
+    "bypass_document_ids" : [ "DOC024", "DOC025", "DOC002", "DOC005", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC022", "DOC004", "DOC021", "DOC023", "DOC001", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC024" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC024" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Sự cố P1", "thời gian phản hồi" ],
+      "low_level_keywords" : [ "P1", "phản hồi trong bao lâu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P021",
+    "keyword_seeded_document_ids" : [ "DOC026", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC003", "DOC001", "DOC005", "DOC004", "DOC030", "DOC027", "DOC028", "DOC002", "DOC029" ],
+    "bypass_document_ids" : [ "DOC026", "DOC030", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC028", "DOC027", "DOC001", "DOC005", "DOC004", "DOC002", "DOC029", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC026" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC026" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Hỗ trợ khách hàng", "level" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P022",
+    "keyword_seeded_document_ids" : [ "DOC027", "DOC030", "DOC029", "DOC026", "DOC028", "DOC001", "DOC002", "DOC003", "DOC005", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC027", "DOC030", "DOC029", "DOC026", "DOC028", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC004", "DOC005", "DOC002", "DOC003", "DOC001" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC027" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC027" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "SLA", "dịch vụ quan trọng" ],
+      "low_level_keywords" : [ "SLA mục tiêu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P023",
+    "keyword_seeded_document_ids" : [ "DOC031", "DOC003", "DOC005", "DOC034", "DOC035", "DOC002", "DOC004", "DOC001", "DOC032", "DOC033", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC031", "DOC035", "DOC034", "DOC004", "DOC032", "DOC005", "DOC002", "DOC001", "DOC033", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC031" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC031" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "sự cố rò rỉ dữ liệu", "báo cáo" ],
+      "low_level_keywords" : [ "rò rỉ dữ liệu", "trong bao lâu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P024",
+    "keyword_seeded_document_ids" : [ "DOC001", "DOC002", "DOC005", "DOC004", "DOC031", "DOC032", "DOC034", "DOC035", "DOC003", "DOC033", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC001", "DOC032", "DOC005", "DOC002", "DOC031", "DOC035", "DOC004", "DOC003", "DOC034", "DOC033" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC032" : 6
+    },
+    "bypass_golden_ranks" : {
+      "DOC032" : 2
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "đào tạo tuân thủ", "thời hạn hoàn thành đào tạo" ],
+      "low_level_keywords" : [ "nhân viên", "hoàn thành", "khi nào" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P025",
+    "keyword_seeded_document_ids" : [ "DOC033", "DOC005", "DOC003", "DOC001", "DOC002", "DOC004", "DOC031", "DOC032", "DOC034", "DOC035", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC033", "DOC032", "DOC003", "DOC004", "DOC005", "DOC034", "DOC002", "DOC035", "DOC001", "DOC031" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC033" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC033" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "hợp đồng", "phê duyệt" ],
+      "low_level_keywords" : [ "trên 500 triệu", "ai" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P026",
+    "keyword_seeded_document_ids" : [ "DOC005", "DOC016", "DOC020", "DOC001", "DOC003", "DOC002", "DOC004", "DOC019", "DOC017", "DOC018", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC020", "DOC004", "DOC005", "DOC017", "DOC003", "DOC001", "DOC018", "DOC019", "DOC002", "DOC016" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC034" : null
+    },
+    "bypass_golden_ranks" : {
+      "DOC034" : null
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Restricted", "loại thông tin" ],
+      "low_level_keywords" : [ "Restricted nghĩa là gì" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P028",
+    "keyword_seeded_document_ids" : [ "DOC037", "DOC036", "DOC040", "DOC038", "DOC039", "DOC005", "DOC002", "DOC003", "DOC004", "DOC001" ],
+    "bypass_document_ids" : [ "DOC037", "DOC036", "DOC038", "DOC039", "DOC040", "DOC004", "DOC005", "DOC001", "DOC002", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC037" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC037" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "dự báo doanh thu", "tăng trưởng doanh thu" ],
+      "low_level_keywords" : [ "doanh thu năm 2026", "năm 2026" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P029",
+    "keyword_seeded_document_ids" : [ "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC004", "DOC039", "DOC001", "DOC003", "DOC005", "DOC002", "DOC038", "DOC036", "DOC040", "DOC037" ],
+    "bypass_document_ids" : [ "DOC039", "DOC036", "DOC037", "DOC038", "DOC005", "DOC001", "DOC004", "DOC040", "DOC002", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC039" : 3
+    },
+    "bypass_golden_ranks" : {
+      "DOC039" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "tiêu chí đánh giá", "công ty mục tiêu", "M&A" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P030",
+    "keyword_seeded_document_ids" : [ "DOC040", "DOC003", "DOC002", "DOC004", "DOC001", "DOC005", "DOC036", "DOC039", "DOC038", "DOC037" ],
+    "bypass_document_ids" : [ "DOC040", "DOC004", "DOC003", "DOC039", "DOC005", "DOC036", "DOC037", "DOC001", "DOC038", "DOC002" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC040" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC040" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Khoảng cách lớn nhất", "chuyển đổi số nội bộ" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P031",
+    "keyword_seeded_document_ids" : [ "DOC002", "DOC001", "DOC003", "DOC005", "DOC004", "DOC020", "DOC019", "DOC017", "DOC016", "DOC018", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC003", "DOC002", "DOC005", "DOC001", "DOC004", "DOC020", "DOC018", "DOC017", "DOC019", "DOC016" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC001" : 2,
+      "DOC011" : null
+    },
+    "bypass_golden_ranks" : {
+      "DOC001" : 4,
+      "DOC011" : null
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "hoàn ứng chi phí công tác", "thử việc" ],
+      "low_level_keywords" : [ "chi phí công tác", "người thử việc" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P033",
+    "keyword_seeded_document_ids" : [ "DOC017", "DOC001", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC020", "DOC019", "DOC016", "DOC018", "DOC003", "DOC005", "DOC002", "DOC004" ],
+    "bypass_document_ids" : [ "DOC017", "DOC018", "DOC016", "DOC019", "DOC020", "DOC001", "DOC005", "DOC004", "DOC003", "DOC002" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC017" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC017" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Lộ trình sản phẩm", "quý 2" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P034",
+    "keyword_seeded_document_ids" : [ "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC030", "DOC001", "DOC003", "DOC005", "DOC027", "DOC026", "DOC028", "DOC029", "DOC002", "DOC004" ],
+    "bypass_document_ids" : [ "DOC027", "DOC029", "DOC030", "DOC028", "DOC026", "DOC005", "DOC001", "DOC002", "DOC003", "DOC004" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC030" : 2
+    },
+    "bypass_golden_ranks" : {
+      "DOC030" : 3
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "KPI vận hành", "chỉ số vận hành" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P036",
+    "keyword_seeded_document_ids" : [ "DOC001", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC002", "DOC009", "DOC006", "DOC008", "DOC010", "source:964126e7-d267-4aa2-adaf-db5699d28779", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC005", "DOC004", "DOC007", "DOC003" ],
+    "bypass_document_ids" : [ "DOC010", "DOC001", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC006", "DOC002", "DOC008", "DOC007", "DOC005", "DOC009", "DOC004", "source:964126e7-d267-4aa2-adaf-db5699d28779", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC010" : 7
+    },
+    "bypass_golden_ranks" : {
+      "DOC010" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "HR check-in", "nhân viên mới", "mốc" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P038",
+    "keyword_seeded_document_ids" : [ "DOC023", "DOC001", "DOC002", "DOC024", "DOC022", "DOC025", "DOC005", "DOC004", "DOC003", "DOC021", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC023", "DOC024", "DOC025", "DOC001", "DOC002", "DOC022", "DOC004", "DOC003", "DOC021", "DOC005" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC023" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC023" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "triển khai production", "theo dõi sau triển khai", "đội kỹ thuật" ],
+      "low_level_keywords" : [ "production", "đội kỹ thuật", "bao lâu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P039",
+    "keyword_seeded_document_ids" : [ "DOC015", "DOC014", "DOC013", "DOC011", "DOC005", "DOC012", "DOC003", "DOC004", "DOC001", "DOC002", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC015", "DOC014", "DOC011", "DOC013", "DOC012", "DOC003", "DOC004", "DOC005", "DOC001" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC015" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC015" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Mua sắm", "báo giá" ],
+      "low_level_keywords" : [ "trên 100 triệu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P040",
+    "keyword_seeded_document_ids" : [ "DOC031", "DOC002", "DOC001", "DOC033", "DOC035", "DOC003", "DOC005", "DOC004", "DOC032", "DOC034", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC031", "DOC035", "DOC001", "DOC005", "DOC004", "DOC002", "DOC034", "DOC032", "DOC003", "DOC033" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC031" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC031" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Dữ liệu cá nhân", "xử lý dữ liệu" ],
+      "low_level_keywords" : [ "khi nào" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P041",
+    "keyword_seeded_document_ids" : [ "DOC005", "DOC004", "DOC036", "DOC040", "DOC039", "DOC038", "DOC001", "DOC003", "DOC002", "DOC037" ],
+    "bypass_document_ids" : [ "DOC038", "DOC037", "DOC036", "DOC039", "DOC040", "DOC004", "DOC001", "DOC005", "DOC003", "DOC002" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC038" : 6
+    },
+    "bypass_golden_ranks" : {
+      "DOC038" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "trọng tâm kinh doanh", "năm 2026" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P043",
+    "keyword_seeded_document_ids" : [ "DOC018", "DOC020", "DOC016", "DOC001", "DOC003", "DOC005", "DOC002", "DOC004", "DOC019", "DOC017" ],
+    "bypass_document_ids" : [ "DOC020", "DOC019", "DOC016", "DOC017", "DOC018", "DOC004", "DOC005", "DOC002", "DOC001", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC018" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC018" : 5
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "tính năng", "phát triển" ],
+      "low_level_keywords" : [ "cần có trước khi phát triển" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P044",
+    "keyword_seeded_document_ids" : [ "DOC022", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC021", "DOC023", "DOC003", "DOC002", "DOC004", "DOC025", "DOC024", "DOC001", "DOC005" ],
+    "bypass_document_ids" : [ "DOC022", "DOC023", "DOC004", "DOC005", "DOC001", "DOC024", "DOC021", "DOC025", "DOC002", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC022" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC022" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "commit secret", "repository" ],
+      "low_level_keywords" : [ "secret" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P045",
+    "keyword_seeded_document_ids" : [ "DOC005", "DOC001", "DOC004", "DOC003", "DOC002", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC005", "DOC003", "DOC002", "DOC004", "DOC001" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC005" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC005" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "quà tặng từ đối tác", "quy định xử lý quà tặng", "quà tặng trên 1 triệu" ],
+      "low_level_keywords" : [ "đối tác", "1 triệu" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P046",
+    "keyword_seeded_document_ids" : [ "DOC008", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC003", "DOC002", "DOC001", "DOC010", "source:964126e7-d267-4aa2-adaf-db5699d28779", "DOC004", "DOC006", "DOC007", "DOC005", "DOC009" ],
+    "bypass_document_ids" : [ "DOC009", "DOC007", "source:964126e7-d267-4aa2-adaf-db5699d28779", "source:95ff1a20-d012-4422-9cd6-cb1e9de4f47d", "DOC003", "DOC002", "DOC001", "DOC004", "DOC006", "DOC005", "DOC010", "DOC008" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC009" : 12
+    },
+    "bypass_golden_ranks" : {
+      "DOC009" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Ngân sách đào tạo" ],
+      "low_level_keywords" : [ "tối đa mỗi năm" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P047",
+    "keyword_seeded_document_ids" : [ "DOC001", "DOC003", "DOC005", "DOC002", "DOC004", "DOC011", "DOC012", "DOC015", "DOC013", "DOC014", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC013", "DOC015", "DOC001", "DOC011", "DOC014", "DOC004", "DOC005", "DOC002", "DOC003", "DOC012" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC013" : 9
+    },
+    "bypass_golden_ranks" : {
+      "DOC013" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "nhà cung cấp mới", "hồ sơ" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P048",
+    "keyword_seeded_document_ids" : [ "DOC035", "DOC002", "DOC004", "DOC001", "DOC031", "DOC003", "DOC032", "DOC005", "DOC034", "DOC033", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC035", "DOC002", "DOC001", "DOC031", "DOC005", "DOC032", "DOC003", "DOC004", "DOC034", "DOC033" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC035" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC035" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Hồ sơ nhân sự", "thời gian lưu trữ", "nghỉ việc" ],
+      "low_level_keywords" : [ "lưu trong bao lâu", "sau khi nghỉ việc" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P049",
+    "keyword_seeded_document_ids" : [ "DOC029", "DOC030", "DOC001", "DOC002", "DOC005", "DOC027", "DOC026", "DOC004", "DOC003", "DOC028", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1" ],
+    "bypass_document_ids" : [ "DOC028", "DOC029", "DOC027", "DOC004", "DOC026", "DOC030", "DOC005", "DOC002", "DOC001", "DOC003" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC028" : 10
+    },
+    "bypass_golden_ranks" : {
+      "DOC028" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "Sự cố nghiêm trọng", "cập nhật trạng thái" ],
+      "low_level_keywords" : [ "bao lâu một lần" ],
+      "source" : "model"
+    }
+  }, {
+    "case_id" : "P050",
+    "keyword_seeded_document_ids" : [ "DOC016", "DOC004", "source:2edd5fe1-f308-41b8-96e2-1a542fb56bb1", "DOC005", "DOC020", "DOC017", "DOC018", "DOC001", "DOC003", "DOC002", "DOC019" ],
+    "bypass_document_ids" : [ "DOC016", "DOC019", "DOC017", "DOC018", "DOC020", "DOC001", "DOC004", "DOC005", "DOC003", "DOC002" ],
+    "keyword_seeded_golden_ranks" : {
+      "DOC016" : 1
+    },
+    "bypass_golden_ranks" : {
+      "DOC016" : 1
+    },
+    "keyword_plan" : {
+      "high_level_keywords" : [ "các chỉ số trọng tâm", "chiến lược sản phẩm" ],
+      "low_level_keywords" : [ ],
+      "source" : "model"
+    }
+  } ]
+}

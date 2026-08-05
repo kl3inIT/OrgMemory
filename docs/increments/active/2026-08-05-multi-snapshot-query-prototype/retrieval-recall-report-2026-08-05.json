@@ -1,0 +1,966 @@
+{
+  "schemaVersion": "orgmemory.retrieval-recall-report.v2",
+  "datasetId": "orgmemory-public-evaluation-allow-v1",
+  "officialSourceSha256": "6deb67efdda2e354ff247272d62aea7a3dee341e2c01aa2098bee68ae597250c",
+  "caseCount": 43,
+  "topK": 40,
+  "tolerancePoints": 2.0,
+  "keywordSeededDocumentRecallAt40": 0.9651162790697675,
+  "bypassDocumentRecallAt40": 0.9651162790697675,
+  "bypassDeltaPoints": 0.0,
+  "keywordSeededDocumentRecallAt60": 0.9651162790697675,
+  "gatePassed": true,
+  "cases": [
+    {
+      "caseId": "P001",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC001": 4
+      },
+      "bypassGoldenRanks": {
+        "DOC001": 9
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Chính sách thử việc"
+        ],
+        "low_level_keywords": [
+          "thử việc"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P002",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC002": 2
+      },
+      "bypassGoldenRanks": {
+        "DOC002": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "nghỉ phép năm",
+          "ngày nghỉ phép"
+        ],
+        "low_level_keywords": [
+          "nhân viên",
+          "bao nhiêu ngày"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P003",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC011": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC011": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "yêu cầu hoàn ứng chi phí"
+        ],
+        "low_level_keywords": [
+          "nộp yêu cầu",
+          "hoàn ứng chi phí"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P004",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC018": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC018": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Quy trình phát hành sản phẩm",
+          "giai đoạn phát hành sản phẩm"
+        ],
+        "low_level_keywords": [
+          "phát hành sản phẩm"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P005",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC025": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC025": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "yêu cầu môi trường phát triển mới"
+        ],
+        "low_level_keywords": [
+          "môi trường phát triển"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P006",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC035": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC035": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Chính sách lưu trữ hồ sơ",
+          "quy định hợp đồng",
+          "thời hạn lưu trữ"
+        ],
+        "low_level_keywords": [
+          "hồ sơ",
+          "hợp đồng",
+          "lưu bao lâu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P008",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC036": 2
+      },
+      "bypassGoldenRanks": {
+        "DOC036": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "chiến lược của công ty",
+          "ưu tiên chiến lược"
+        ],
+        "low_level_keywords": [
+          "năm 2026"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P010",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC007": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC007": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "khung lương",
+          "Product Manager"
+        ],
+        "low_level_keywords": [
+          "mức lương Product Manager"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P011",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC004": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC004": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Mật khẩu tài khoản công ty",
+          "yêu cầu mật khẩu"
+        ],
+        "low_level_keywords": [
+          "tài khoản công ty",
+          "mật khẩu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P012",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC003": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC003": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "hoàn chi phí",
+          "khách sạn",
+          "công tác trong nước"
+        ],
+        "low_level_keywords": [
+          "mức hoàn chi phí khách sạn"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P013",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC013": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC013": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Điều khoản thanh toán",
+          "nhà cung cấp"
+        ],
+        "low_level_keywords": [
+          "Điều khoản thanh toán tiêu chuẩn",
+          "bao lâu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P014",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC012": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC012": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Chu kỳ lập ngân sách",
+          "thời điểm bắt đầu"
+        ],
+        "low_level_keywords": [
+          "năm",
+          "lập ngân sách"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P015",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC014": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC014": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "chi phí",
+          "phê duyệt"
+        ],
+        "low_level_keywords": [
+          "trên 200 triệu",
+          "ai"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P016",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC019": 3
+      },
+      "bypassGoldenRanks": {
+        "DOC019": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Activation rate",
+          "định nghĩa"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P017",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC020": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC020": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "PRD",
+          "cấu trúc PRD",
+          "phần của PRD"
+        ],
+        "low_level_keywords": [
+          "PRD chuẩn"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P018",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC021": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC021": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "API nội bộ",
+          "yêu cầu"
+        ],
+        "low_level_keywords": [
+          "API"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P019",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC022": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC022": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Merge request",
+          "điều kiện trước khi merge"
+        ],
+        "low_level_keywords": [
+          "merge"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P020",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC024": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC024": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Sự cố P1",
+          "thời gian phản hồi"
+        ],
+        "low_level_keywords": [
+          "P1",
+          "phản hồi trong bao lâu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P021",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC026": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC026": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Hỗ trợ khách hàng",
+          "level"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P022",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC027": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC027": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "SLA",
+          "dịch vụ quan trọng"
+        ],
+        "low_level_keywords": [
+          "SLA mục tiêu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P023",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC031": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC031": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "sự cố rò rỉ dữ liệu",
+          "báo cáo"
+        ],
+        "low_level_keywords": [
+          "rò rỉ dữ liệu",
+          "trong bao lâu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P024",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC032": 6
+      },
+      "bypassGoldenRanks": {
+        "DOC032": 2
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "đào tạo tuân thủ",
+          "thời hạn hoàn thành đào tạo"
+        ],
+        "low_level_keywords": [
+          "nhân viên",
+          "hoàn thành",
+          "khi nào"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P025",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC033": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC033": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "hợp đồng",
+          "phê duyệt"
+        ],
+        "low_level_keywords": [
+          "trên 500 triệu",
+          "ai"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P026",
+      "keywordSeededDocumentRecallAt40": 0.0,
+      "bypassDocumentRecallAt40": 0.0,
+      "keywordSeededDocumentRecallAt60": 0.0,
+      "keywordSeededGoldenRanks": {
+        "DOC034": null
+      },
+      "bypassGoldenRanks": {
+        "DOC034": null
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Restricted",
+          "loại thông tin"
+        ],
+        "low_level_keywords": [
+          "Restricted nghĩa là gì"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P028",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC037": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC037": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "dự báo doanh thu",
+          "tăng trưởng doanh thu"
+        ],
+        "low_level_keywords": [
+          "doanh thu năm 2026",
+          "năm 2026"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P029",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC039": 3
+      },
+      "bypassGoldenRanks": {
+        "DOC039": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "tiêu chí đánh giá",
+          "công ty mục tiêu",
+          "M&A"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P030",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC040": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC040": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Khoảng cách lớn nhất",
+          "chuyển đổi số nội bộ"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P031",
+      "keywordSeededDocumentRecallAt40": 0.5,
+      "bypassDocumentRecallAt40": 0.5,
+      "keywordSeededDocumentRecallAt60": 0.5,
+      "keywordSeededGoldenRanks": {
+        "DOC001": 2,
+        "DOC011": null
+      },
+      "bypassGoldenRanks": {
+        "DOC001": 4,
+        "DOC011": null
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "hoàn ứng chi phí công tác",
+          "thử việc"
+        ],
+        "low_level_keywords": [
+          "chi phí công tác",
+          "người thử việc"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P033",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC017": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC017": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Lộ trình sản phẩm",
+          "quý 2"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P034",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC030": 2
+      },
+      "bypassGoldenRanks": {
+        "DOC030": 3
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "KPI vận hành",
+          "chỉ số vận hành"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P036",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC010": 7
+      },
+      "bypassGoldenRanks": {
+        "DOC010": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "HR check-in",
+          "nhân viên mới",
+          "mốc"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P038",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC023": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC023": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "triển khai production",
+          "theo dõi sau triển khai",
+          "đội kỹ thuật"
+        ],
+        "low_level_keywords": [
+          "production",
+          "đội kỹ thuật",
+          "bao lâu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P039",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC015": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC015": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Mua sắm",
+          "báo giá"
+        ],
+        "low_level_keywords": [
+          "trên 100 triệu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P040",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC031": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC031": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Dữ liệu cá nhân",
+          "xử lý dữ liệu"
+        ],
+        "low_level_keywords": [
+          "khi nào"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P041",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC038": 6
+      },
+      "bypassGoldenRanks": {
+        "DOC038": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "trọng tâm kinh doanh",
+          "năm 2026"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P043",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC018": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC018": 5
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "tính năng",
+          "phát triển"
+        ],
+        "low_level_keywords": [
+          "cần có trước khi phát triển"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P044",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC022": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC022": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "commit secret",
+          "repository"
+        ],
+        "low_level_keywords": [
+          "secret"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P045",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC005": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC005": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "quà tặng từ đối tác",
+          "quy định xử lý quà tặng",
+          "quà tặng trên 1 triệu"
+        ],
+        "low_level_keywords": [
+          "đối tác",
+          "1 triệu"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P046",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC009": 12
+      },
+      "bypassGoldenRanks": {
+        "DOC009": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Ngân sách đào tạo"
+        ],
+        "low_level_keywords": [
+          "tối đa mỗi năm"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P047",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC013": 9
+      },
+      "bypassGoldenRanks": {
+        "DOC013": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "nhà cung cấp mới",
+          "hồ sơ"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P048",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC035": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC035": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Hồ sơ nhân sự",
+          "thời gian lưu trữ",
+          "nghỉ việc"
+        ],
+        "low_level_keywords": [
+          "lưu trong bao lâu",
+          "sau khi nghỉ việc"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P049",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC028": 10
+      },
+      "bypassGoldenRanks": {
+        "DOC028": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "Sự cố nghiêm trọng",
+          "cập nhật trạng thái"
+        ],
+        "low_level_keywords": [
+          "bao lâu một lần"
+        ],
+        "source": "model"
+      }
+    },
+    {
+      "caseId": "P050",
+      "keywordSeededDocumentRecallAt40": 1.0,
+      "bypassDocumentRecallAt40": 1.0,
+      "keywordSeededDocumentRecallAt60": 1.0,
+      "keywordSeededGoldenRanks": {
+        "DOC016": 1
+      },
+      "bypassGoldenRanks": {
+        "DOC016": 1
+      },
+      "keywordPlan": {
+        "high_level_keywords": [
+          "các chỉ số trọng tâm",
+          "chiến lược sản phẩm"
+        ],
+        "low_level_keywords": [],
+        "source": "model"
+      }
+    }
+  ]
+}

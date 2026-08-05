@@ -33,11 +33,15 @@ public class OrgMemoryApiApplication {
 
     private static final String RECONCILIATION_MODE =
             "orgmemory.graph-rag.postgres.reconcile-published-batches";
+    private static final String RETRIEVAL_OBSERVATION_MODE =
+            "orgmemory.retrieval-observation.enabled";
 
     static void main(String[] args) {
         var context = SpringApplication.run(OrgMemoryApiApplication.class, args);
         if (context.getEnvironment().getProperty(
-                RECONCILIATION_MODE, Boolean.class, false)) {
+                        RECONCILIATION_MODE, Boolean.class, false)
+                || context.getEnvironment().getProperty(
+                        RETRIEVAL_OBSERVATION_MODE, Boolean.class, false)) {
             context.close();
         }
     }

@@ -4,7 +4,7 @@ import argparse
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -58,12 +58,33 @@ class GoldenDataset(BaseModel):
         return self
 
 
+class RetrievalKeywordPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    high_level_keywords: list[NonBlankText]
+    low_level_keywords: list[NonBlankText]
+    source: Literal["model", "trusted_caller", "short_query_fallback"]
+
+
 class RetrievalObservation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     case_id: Identifier
     keyword_seeded_document_ids: list[Identifier]
     bypass_document_ids: list[Identifier]
+    keyword_seeded_golden_ranks: dict[Identifier, int | None] = Field(default_factory=dict)
+    bypass_golden_ranks: dict[Identifier, int | None] = Field(default_factory=dict)
+    keyword_plan: RetrievalKeywordPlan | None = None
+
+    @model_validator(mode="after")
+    def require_positive_ranks(self) -> RetrievalObservation:
+        ranks = (
+            *self.keyword_seeded_golden_ranks.values(),
+            *self.bypass_golden_ranks.values(),
+        )
+        if any(rank is not None and rank <= 0 for rank in ranks):
+            raise ValueError("golden ranks must be positive or null")
+        return self
 
 
 class ObservationSet(BaseModel):
@@ -110,6 +131,19 @@ def recall_at_k(golden_document_ids: list[str], retrieved_document_ids: list[str
     return len(golden & retrieved) / len(golden)
 
 
+def golden_ranks(
+    golden_document_ids: list[str], retrieved_document_ids: list[str]
+) -> dict[str, int | None]:
+    return {
+        document_id: (
+            retrieved_document_ids.index(document_id) + 1
+            if document_id in retrieved_document_ids
+            else None
+        )
+        for document_id in golden_document_ids
+    }
+
+
 def score(
     golden: GoldenDataset,
     observations: ObservationSet,
@@ -130,6 +164,18 @@ def score(
     cases: list[dict[str, object]] = []
     for case in golden.cases:
         observation = observation_by_case[case.case_id]
+        keyword_ranks = golden_ranks(
+            case.golden_document_ids, observation.keyword_seeded_document_ids
+        )
+        bypass_ranks = golden_ranks(case.golden_document_ids, observation.bypass_document_ids)
+        if observation.keyword_seeded_golden_ranks not in ({}, keyword_ranks):
+            raise ValueError(
+                f"keyword golden ranks disagree with retrieved order for {case.case_id}"
+            )
+        if observation.bypass_golden_ranks not in ({}, bypass_ranks):
+            raise ValueError(
+                f"bypass golden ranks disagree with retrieved order for {case.case_id}"
+            )
         cases.append(
             {
                 "caseId": case.case_id,
@@ -147,6 +193,13 @@ def score(
                     case.golden_document_ids,
                     observation.keyword_seeded_document_ids,
                     DIAGNOSTIC_TOP_K,
+                ),
+                "keywordSeededGoldenRanks": keyword_ranks,
+                "bypassGoldenRanks": bypass_ranks,
+                "keywordPlan": (
+                    observation.keyword_plan.model_dump(mode="json")
+                    if observation.keyword_plan is not None
+                    else None
                 ),
             }
         )

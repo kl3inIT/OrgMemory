@@ -22,12 +22,15 @@ import com.orgmemory.graphrag.model.EvidenceReference;
 import com.orgmemory.graphrag.observability.GraphRagEventSink;
 import com.orgmemory.graphrag.observability.GraphRagTaskDecorator;
 import com.orgmemory.graphrag.query.ContextTokenUsage;
+import com.orgmemory.graphrag.query.KeywordPlan;
 import com.orgmemory.graphrag.query.LightRagGrounding;
 import com.orgmemory.graphrag.query.LightRagGroundingAssembler;
 import com.orgmemory.graphrag.query.LightRagPreparedQuery;
 import com.orgmemory.graphrag.query.LightRagQueryEngine;
+import com.orgmemory.graphrag.query.LightRagQueryMode;
 import com.orgmemory.graphrag.query.LightRagQueryRequest;
 import com.orgmemory.graphrag.query.LightRagQueryResult;
+import com.orgmemory.graphrag.query.QueryOutputMode;
 import com.orgmemory.graphrag.query.SecureContextBudget;
 import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import com.orgmemory.graphrag.storage.ProjectionPublicationStore;
@@ -74,6 +77,8 @@ class DefaultGraphRagKnowledgeRetrievalService
                     FINAL_RECHECK_DENIED,
                     FINAL_RECHECK_DENIED);
     private static final int MAX_REQUEST_ID_LENGTH = 128;
+    private static final int RECALL_TOP_K = 40;
+    private static final int DIAGNOSTIC_TOP_K = 60;
 
     private final KnowledgeSearchAuthorizationService searchAuthorization;
     private final KnowledgeEvidenceScopeResolver evidenceScopes;
@@ -190,13 +195,52 @@ class DefaultGraphRagKnowledgeRetrievalService
             String query,
             Integer requestedLimit,
             String suppliedRequestId) {
+        String normalizedQuery = normalizeQuery(query);
+        int limit = validateLimit(requestedLimit);
+        return runRetrieval(
+                        actor,
+                        normalizedQuery,
+                        requestId(suppliedRequestId),
+                        policy.contextOptions(limit))
+                .result();
+    }
+
+    @Override
+    public RetrievalObservation observe(
+            CurrentActor actor,
+            String query,
+            String suppliedRequestId) {
+        String normalizedQuery = normalizeQuery(query);
+        String requestId = requestId(suppliedRequestId);
+        RetrievalRun keywordSeeded = runRetrieval(
+                actor,
+                normalizedQuery,
+                observationRequestId(requestId, "-keyword"),
+                observationOptions(LightRagQueryMode.MIX, DIAGNOSTIC_TOP_K));
+        RetrievalRun bypass = runRetrieval(
+                actor,
+                normalizedQuery,
+                observationRequestId(requestId, "-bypass"),
+                observationOptions(LightRagQueryMode.NAIVE, RECALL_TOP_K));
+        KeywordPlan keywordPlan = keywordSeeded.keywords();
+        return new RetrievalObservation(
+                documents(keywordSeeded.result()),
+                documents(bypass.result()),
+                new KeywordPlanSnapshot(
+                        keywordPlan.highLevel(),
+                        keywordPlan.lowLevel(),
+                        keywordPlan.source().cacheValue()));
+    }
+
+    private RetrievalRun runRetrieval(
+            CurrentActor actor,
+            String normalizedQuery,
+            String requestId,
+            LightRagQueryRequest.Options options) {
         Objects.requireNonNull(actor, "actor");
         UUID operationId = UUID.randomUUID();
         long startedAt = System.nanoTime();
         try {
-            String requestId = requestId(suppliedRequestId);
-            String normalizedQuery = normalizeQuery(query);
-            int limit = validateLimit(requestedLimit);
             long authorizationStartedAt = System.nanoTime();
             String authorizationModelId = searchAuthorization.require(
                     actor,
@@ -209,10 +253,10 @@ class DefaultGraphRagKnowledgeRetrievalService
                     authorizationStartedAt,
                     1,
                     1);
-            SecureKnowledgeSearchResult result = search(
+            RetrievalRun result = search(
                     actor,
                     normalizedQuery,
-                    limit,
+                    options,
                     requestId,
                     authorizationModelId,
                     operationId,
@@ -222,7 +266,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                     actor.organizationId(),
                     GraphRagEventSink.Outcome.SUCCEEDED,
                     startedAt,
-                    result.evidence().size(),
+                    result.result().evidence().size(),
                     null);
             return result;
         } catch (RuntimeException failure) {
@@ -235,6 +279,50 @@ class DefaultGraphRagKnowledgeRetrievalService
                     failureCode(failure));
             throw failure;
         }
+    }
+
+    private LightRagQueryRequest.Options observationOptions(
+            LightRagQueryMode mode,
+            int topK) {
+        return new LightRagQueryRequest.Options(
+                mode,
+                QueryOutputMode.CONTEXT,
+                "Multiple Paragraphs",
+                "",
+                topK,
+                topK,
+                policy.relatedChunkNumber(),
+                policy.maximumGraphDepth(),
+                LightRagQueryRequest.RelatedChunkSelection.VECTOR,
+                policy.contextBudget(),
+                policy.rerank().enabled(),
+                policy.rerank().minimumScore(),
+                policy.minimumVectorSimilarity(),
+                policy.includeHeadings(),
+                false);
+    }
+
+    private static String observationRequestId(
+            String requestId,
+            String suffix) {
+        int prefixLength = Math.min(
+                requestId.length(),
+                MAX_REQUEST_ID_LENGTH - suffix.length());
+        return requestId.substring(0, prefixLength) + suffix;
+    }
+
+    private static List<RetrievedDocument> documents(
+            SecureKnowledgeSearchResult result) {
+        Map<UUID, RetrievedDocument> documents = new LinkedHashMap<>();
+        for (RetrievedKnowledgeEvidence evidence : result.evidence()) {
+            documents.putIfAbsent(
+                    evidence.sourceObjectId(),
+                    new RetrievedDocument(
+                            evidence.knowledgeAssetId(),
+                            evidence.sourceObjectId(),
+                            evidence.title()));
+        }
+        return List.copyOf(documents.values());
     }
 
     private void emit(
@@ -270,10 +358,10 @@ class DefaultGraphRagKnowledgeRetrievalService
         return "retrieval_failed";
     }
 
-    private SecureKnowledgeSearchResult search(
+    private RetrievalRun search(
             CurrentActor actor,
             String query,
-            int limit,
+            LightRagQueryRequest.Options queryOptions,
             String requestId,
             String authorizationModelId,
             UUID operationId,
@@ -293,7 +381,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                     PermissionAuditDecision.ALLOW,
                     "NO_AUTHORIZED_KNOWLEDGE_ASSETS",
                     initial.authorizationModelId()));
-            return new SecureKnowledgeSearchResult(requestId, List.of());
+            return RetrievalRun.empty(requestId);
         }
 
         EmbeddingProfileRef profile = embeddingProfiles
@@ -311,15 +399,14 @@ class DefaultGraphRagKnowledgeRetrievalService
                         "EMBEDDING_PROFILE_NOT_INDEXED",
                         initial.authorizationModelId()));
 
-        LightRagQueryRequest.Options queryOptions =
-                policy.contextOptions(limit);
-        List<LightRagGrounding> spaceGroundings =
+        PublishedSpaceQuery published =
                 queryPublishedSpaces(
                         initial,
                         profile,
                         query,
                         queryOptions,
                         operationId);
+        List<LightRagGrounding> spaceGroundings = published.groundings();
         if (spaceGroundings.isEmpty()) {
             audit.record(searchAuthorization.command(
                     actor,
@@ -328,7 +415,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                     PermissionAuditDecision.ALLOW,
                     "NO_ELIGIBLE_EVIDENCE",
                     initial.authorizationModelId()));
-            return new SecureKnowledgeSearchResult(requestId, List.of());
+            return RetrievalRun.empty(requestId, published.keywords());
         }
         long consolidationStartedAt = System.nanoTime();
         LightRagGroundingAssembler.PreparedGrounding consolidated =
@@ -352,7 +439,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                     PermissionAuditDecision.ALLOW,
                     "NO_CITABLE_GROUNDING",
                     initial.authorizationModelId()));
-            return new SecureKnowledgeSearchResult(requestId, List.of());
+            return RetrievalRun.empty(requestId, published.keywords());
         }
 
         ResolvedKnowledgeEvidenceScope current =
@@ -366,7 +453,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             return retryOrFail(
                     actor,
                     query,
-                    limit,
+                    queryOptions,
                     requestId,
                     authorizationModelId,
                     operationId,
@@ -404,7 +491,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             return retryOrFail(
                     actor,
                     query,
-                    limit,
+                    queryOptions,
                     requestId,
                     authorizationModelId,
                     operationId,
@@ -462,19 +549,21 @@ class DefaultGraphRagKnowledgeRetrievalService
                     "VERIFIED_GRAPH_RAG_GROUNDING"));
         }
         audit.recordAll(auditCommands);
-        return new SecureKnowledgeSearchResult(
-                requestId,
-                evidence,
-                Optional.of(new VerifiedKnowledgeGrounding(
-                        new ChatGenerationRequest(
-                                rendered.systemPrompt(),
-                                query),
+        return new RetrievalRun(
+                new SecureKnowledgeSearchResult(
+                        requestId,
                         evidence,
-                        closure.size(),
-                        rendered.inputTokens())));
+                        Optional.of(new VerifiedKnowledgeGrounding(
+                                new ChatGenerationRequest(
+                                        rendered.systemPrompt(),
+                                        query),
+                                evidence,
+                                closure.size(),
+                                rendered.inputTokens()))),
+                published.keywords());
     }
 
-    private List<LightRagGrounding> queryPublishedSpaces(
+    private PublishedSpaceQuery queryPublishedSpaces(
             ResolvedKnowledgeEvidenceScope scope,
             EmbeddingProfileRef profile,
             String query,
@@ -507,7 +596,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                             List.of()));
         }
         if (requests.isEmpty()) {
-            return List.of();
+            return PublishedSpaceQuery.empty();
         }
         if (requests.size() > 1 && policy.rerank().enabled()) {
             throw new KnowledgeRetrievalUnavailableException(
@@ -586,7 +675,7 @@ class DefaultGraphRagKnowledgeRetrievalService
                 }
             }
         }
-        return List.copyOf(groundings);
+        return new PublishedSpaceQuery(groundings, prepared.keywords());
     }
 
     private SnapshotQueryResult queryPublishedSpace(
@@ -795,6 +884,46 @@ class DefaultGraphRagKnowledgeRetrievalService
         }
     }
 
+    private record PublishedSpaceQuery(
+            List<LightRagGrounding> groundings,
+            KeywordPlan keywords) {
+
+        private PublishedSpaceQuery {
+            groundings = List.copyOf(Objects.requireNonNull(groundings, "groundings"));
+            Objects.requireNonNull(keywords, "keywords");
+        }
+
+        private static PublishedSpaceQuery empty() {
+            return new PublishedSpaceQuery(
+                    List.of(),
+                    KeywordPlan.empty(KeywordPlan.Source.MODEL));
+        }
+    }
+
+    private record RetrievalRun(
+            SecureKnowledgeSearchResult result,
+            KeywordPlan keywords) {
+
+        private RetrievalRun {
+            Objects.requireNonNull(result, "result");
+            Objects.requireNonNull(keywords, "keywords");
+        }
+
+        private static RetrievalRun empty(String requestId) {
+            return empty(
+                    requestId,
+                    KeywordPlan.empty(KeywordPlan.Source.MODEL));
+        }
+
+        private static RetrievalRun empty(
+                String requestId,
+                KeywordPlan keywords) {
+            return new RetrievalRun(
+                    new SecureKnowledgeSearchResult(requestId, List.of()),
+                    keywords);
+        }
+    }
+
     private void verifyOpenFga(
             CurrentActor actor,
             String query,
@@ -847,10 +976,10 @@ class DefaultGraphRagKnowledgeRetrievalService
                         .toList());
     }
 
-    private SecureKnowledgeSearchResult retryOrFail(
+    private RetrievalRun retryOrFail(
             CurrentActor actor,
             String query,
-            int limit,
+            LightRagQueryRequest.Options queryOptions,
             String requestId,
             String authorizationModelId,
             UUID operationId,
@@ -860,7 +989,7 @@ class DefaultGraphRagKnowledgeRetrievalService
             return search(
                     actor,
                     query,
-                    limit,
+                    queryOptions,
                     requestId,
                     authorizationModelId,
                     operationId,
