@@ -26,15 +26,15 @@ from orgmemory_eval.official_cases import (
     DEFAULT_OFFICIAL_CASES_PATH,
     AnswerType,
     Difficulty,
+    DocumentId,
     ExpectedPermission,
     OfficialCase,
     OfficialDataset,
+    QuestionId,
+    UserId,
     load_official_cases,
 )
 
-QuestionId = Annotated[str, StringConstraints(pattern=r"^P\d{3}$")]
-UserId = Annotated[str, StringConstraints(pattern=r"^U\d{3}$")]
-DocumentId = Annotated[str, StringConstraints(pattern=r"^DOC\d{3}$")]
 DEFAULT_DOCUMENT_FIXTURES_PATH = DEFAULT_OFFICIAL_CASES_PATH.parent / "documents"
 MIN_VERBATIM_WORDS = 8
 WORD_PATTERN = re.compile(r"\w+", flags=re.UNICODE)
@@ -211,6 +211,8 @@ def permission_result(
             "verdict": "PASS" if passed else "FAIL",
             "reason": "ALLOW_ANSWERED" if passed else "ALLOW_ANSWER_SIGNAL_MISSING",
             "evidence_leak": False,
+            "denied_cited_document_ids": [],
+            "verbatim_match_document_ids": [],
         }
 
     expected_denied_ids = set(case.expected_document_ids)
@@ -318,12 +320,15 @@ def grouped_latency(
 def judge_summary(
     judge: OfficialJudge,
     assessments: Sequence[JudgeAssessment],
+    *,
+    failure_count: int,
 ) -> dict[str, object]:
     summary: dict[str, object] = {
         "enabled": judge.enabled,
         "name": judge.name,
         "criteria": list(JUDGE_CRITERIA),
         "evaluated_case_count": len(assessments),
+        "failure_count": failure_count,
     }
     if assessments:
         summary["mean_scores"] = {
@@ -351,21 +356,31 @@ def score_official_transcript(
     denied_document_bodies = load_denied_document_bodies(dataset)
     case_results: list[dict[str, object]] = []
     assessments: list[JudgeAssessment] = []
+    judge_failure_count = 0
     for case, row in zip(dataset.cases, rows, strict=True):
         if case.question_id != row.question_id:
             raise ValueError("transcript rows must follow official case order")
         permission = permission_result(case, row, denied_document_bodies)
         citation = citation_result(case, row)
         assessment = None
+        judge_error = None
         if (
             judge.enabled
             and case.expected_permission == ExpectedPermission.ALLOW
             and permission["verdict"] == "PASS"
         ):
-            assessment = judge.evaluate(case, row)
-            if assessment is None:
-                raise ValueError("an enabled judge must return an assessment")
-            assessments.append(assessment)
+            try:
+                candidate = judge.evaluate(case, row)
+                if candidate is None:
+                    judge_error = "NO_ASSESSMENT"
+                else:
+                    assessment = JudgeAssessment.model_validate(candidate)
+            except Exception as failure:  # a diagnostic plugin cannot void the gate
+                judge_error = type(failure).__name__
+            if judge_error is not None:
+                judge_failure_count += 1
+            elif assessment is not None:
+                assessments.append(assessment)
         case_results.append(
             {
                 "question_id": case.question_id,
@@ -381,6 +396,7 @@ def score_official_transcript(
                 "latency_ms": row.latency_ms,
                 "ttft_ms": row.ttft_ms,
                 "judge": assessment.model_dump(mode="json") if assessment is not None else None,
+                "judge_error": judge_error,
             }
         )
 
@@ -439,7 +455,7 @@ def score_official_transcript(
                 values=list(AnswerType),
             ),
         },
-        "judge": judge_summary(judge, assessments),
+        "judge": judge_summary(judge, assessments, failure_count=judge_failure_count),
         "offline_gate_passed": (
             permission_passes == permission_total and citation_passes == citation_total
         ),
@@ -493,22 +509,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return args
 
 
-def main(argv: Sequence[str] | None = None) -> None:
+def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     dataset, official_sha256 = load_official_cases(DEFAULT_OFFICIAL_CASES_PATH)
     rows, transcript_sha256 = load_transcript(args.transcript, dataset)
     judge = load_judge_plugin(args.judge_plugin) if args.judge_plugin else DEFAULT_JUDGE
-    write_json_atomically(
-        args.output,
-        score_official_transcript(
-            dataset,
-            rows,
-            official_cases_sha256=official_sha256,
-            transcript_sha256=transcript_sha256,
-            judge=judge,
-        ),
+    report = score_official_transcript(
+        dataset,
+        rows,
+        official_cases_sha256=official_sha256,
+        transcript_sha256=transcript_sha256,
+        judge=judge,
     )
+    write_json_atomically(args.output, report)
+    return 0 if report["offline_gate_passed"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

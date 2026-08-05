@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated
 
@@ -18,7 +19,10 @@ Identifier = Annotated[
     StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
 ]
 NonBlankText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 OFFICIAL_RECALL_DATASET_ID = "orgmemory-public-evaluation-allow-v1"
+RECALL_TOP_K = 40
+DIAGNOSTIC_TOP_K = 60
 
 
 class GoldenCase(BaseModel):
@@ -43,7 +47,7 @@ class GoldenDataset(BaseModel):
         StringConstraints(pattern=r"^orgmemory\.retrieval-recall\.v2$"),
     ]
     dataset_id: Identifier
-    official_source_sha256: Identifier
+    official_source_sha256: Sha256Hex
     cases: list[GoldenCase] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -110,11 +114,8 @@ def score(
     golden: GoldenDataset,
     observations: ObservationSet,
     *,
-    top_k: int = 40,
     tolerance_points: float = 2.0,
 ) -> dict[str, object]:
-    if top_k != 40:
-        raise ValueError("retrieval-recall report v2 requires top_k=40")
     if golden.dataset_id != observations.dataset_id:
         raise ValueError("golden and observation dataset_id values differ")
     observation_by_case = {
@@ -135,17 +136,17 @@ def score(
                 "keywordSeededDocumentRecallAt40": recall_at_k(
                     case.golden_document_ids,
                     observation.keyword_seeded_document_ids,
-                    top_k,
+                    RECALL_TOP_K,
                 ),
                 "bypassDocumentRecallAt40": recall_at_k(
                     case.golden_document_ids,
                     observation.bypass_document_ids,
-                    top_k,
+                    RECALL_TOP_K,
                 ),
                 "keywordSeededDocumentRecallAt60": recall_at_k(
                     case.golden_document_ids,
                     observation.keyword_seeded_document_ids,
-                    60,
+                    DIAGNOSTIC_TOP_K,
                 ),
             }
         )
@@ -162,7 +163,7 @@ def score(
         "datasetId": golden.dataset_id,
         "officialSourceSha256": golden.official_source_sha256,
         "caseCount": len(cases),
-        "topK": top_k,
+        "topK": RECALL_TOP_K,
         "tolerancePoints": tolerance_points,
         "keywordSeededDocumentRecallAt40": keyword_recall,
         "bypassDocumentRecallAt40": bypass_recall,
@@ -173,17 +174,17 @@ def score(
     }
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Score ADR 0020 document recall derived from the official 50 cases"
     )
     parser.add_argument("--observations", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    args = parse_args()
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
     official, official_sha256 = load_official_cases(DEFAULT_OFFICIAL_CASES_PATH)
     golden = derive_golden_dataset(official, official_source_sha256=official_sha256)
     observations = ObservationSet.model_validate_json(args.observations.read_text(encoding="utf-8"))
@@ -192,7 +193,8 @@ def main() -> None:
     args.output.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    return 0 if report["gatePassed"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

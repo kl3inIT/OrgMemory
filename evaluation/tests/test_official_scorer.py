@@ -1,4 +1,5 @@
 import json
+from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,6 +20,7 @@ from orgmemory_eval.official_scorer import (
 )
 
 
+@cache
 def official_dataset() -> OfficialDataset:
     dataset, _ = load_official_cases()
     return dataset
@@ -90,6 +92,7 @@ def test_all_correct_offline_signals_pass_without_running_a_judge() -> None:
     }
     assert report["judge"]["enabled"] is False
     assert report["judge"]["evaluated_case_count"] == 0
+    assert report["judge"]["failure_count"] == 0
     assert report["offline_gate_passed"] is True
     assert all("answer_text" not in case for case in report["cases"])
 
@@ -111,6 +114,13 @@ def test_reports_allow_wrong_doc_deny_refusal_deny_leak_and_multi_doc_partial() 
     report = score(rows)
 
     assert case_result(report, "P001")["permission"]["verdict"] == "PASS"
+    assert case_result(report, "P001")["permission"] == {
+        "verdict": "PASS",
+        "reason": "ALLOW_ANSWERED",
+        "evidence_leak": False,
+        "denied_cited_document_ids": [],
+        "verbatim_match_document_ids": [],
+    }
     assert case_result(report, "P001")["citation"]["verdict"] == "WRONG_DOCUMENTS"
     assert case_result(report, "P009")["permission"] == {
         "verdict": "PASS",
@@ -130,6 +140,44 @@ def test_reports_allow_wrong_doc_deny_refusal_deny_leak_and_multi_doc_partial() 
     assert case_result(report, "P031")["citation"]["missing_document_ids"] == ["DOC011"]
     assert report["citation"]["partial"] == 1
     assert report["offline_gate_passed"] is False
+
+
+def test_allow_without_ttft_fails_the_permission_signal() -> None:
+    rows = replace_row(correct_rows(official_dataset()), "P001", ttft_ms=None)
+
+    permission = case_result(score(rows), "P001")["permission"]
+
+    assert permission["verdict"] == "FAIL"
+    assert permission["reason"] == "ALLOW_ANSWER_SIGNAL_MISSING"
+    assert permission["denied_cited_document_ids"] == []
+    assert permission["verbatim_match_document_ids"] == []
+
+
+def test_deny_server_error_is_not_a_denial() -> None:
+    rows = replace_row(correct_rows(official_dataset()), "P007", http_status=500)
+
+    permission = case_result(score(rows), "P007")["permission"]
+
+    assert permission["verdict"] == "FAIL"
+    assert permission["reason"] == "DENY_SIGNAL_MISSING"
+
+
+def test_allow_without_citations_is_missing() -> None:
+    rows = replace_row(correct_rows(official_dataset()), "P001", cited_document_ids=[])
+
+    assert case_result(score(rows), "P001")["citation"]["verdict"] == "MISSING"
+
+
+def test_allow_with_an_extra_citation_is_unexpected_documents() -> None:
+    rows = replace_row(
+        correct_rows(official_dataset()),
+        "P031",
+        cited_document_ids=["DOC001", "DOC011", "DOC040"],
+    )
+
+    citation = case_result(score(rows), "P031")["citation"]
+    assert citation["verdict"] == "UNEXPECTED_DOCUMENTS"
+    assert citation["unexpected_document_ids"] == ["DOC040"]
 
 
 def test_deny_polite_no_evidence_passes() -> None:
@@ -272,6 +320,31 @@ class FakeJudge:
         )
 
 
+class RaisingJudge(FakeJudge):
+    name = "offline-raising"
+
+    def evaluate(self, case, transcript) -> JudgeAssessment:
+        raise RuntimeError("synthetic judge failure")
+
+
+class EmptyJudge(FakeJudge):
+    name = "offline-empty"
+
+    def evaluate(self, case, transcript) -> None:
+        return None
+
+
+class InvalidJudge(FakeJudge):
+    name = "offline-invalid"
+
+    def evaluate(self, case, transcript) -> dict[str, object]:
+        return {"overall_score": 2.0}
+
+
+class DisabledJudge(FakeJudge):
+    enabled = False
+
+
 def test_enabled_judge_hook_uses_lightrag_style_criteria_for_allow_answers_only() -> None:
     judge = FakeJudge()
 
@@ -288,9 +361,47 @@ def test_enabled_judge_hook_uses_lightrag_style_criteria_for_allow_answers_only(
     assert case_result(report, "P007")["judge"] is None
 
 
+@pytest.mark.parametrize(
+    ("judge", "expected_error"),
+    [
+        (RaisingJudge(), "RuntimeError"),
+        (EmptyJudge(), "NO_ASSESSMENT"),
+        (InvalidJudge(), "ValidationError"),
+    ],
+)
+def test_judge_failure_does_not_void_the_deterministic_gate(judge, expected_error: str) -> None:
+    report = score(correct_rows(official_dataset()), judge=judge)
+
+    assert report["offline_gate_passed"] is True
+    assert report["judge"]["evaluated_case_count"] == 0
+    assert report["judge"]["failure_count"] == 43
+    allow_results = [
+        result for result in report["cases"] if result["expected_permission"] == "Allow"
+    ]
+    assert {result["judge_error"] for result in allow_results} == {expected_error}
+    assert all(result["judge"] is None for result in allow_results)
+
+
 def test_judge_plugin_loader_requires_an_explicit_enabled_protocol(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    with pytest.raises(ValueError, match="module:factory syntax"):
+        load_judge_plugin("fixture_plugin")
+
+    monkeypatch.setattr(
+        "orgmemory_eval.official_scorer.importlib.import_module",
+        lambda _: SimpleNamespace(build=object),
+    )
+    with pytest.raises(TypeError, match="must implement OfficialJudge"):
+        load_judge_plugin("fixture_plugin:build")
+
+    monkeypatch.setattr(
+        "orgmemory_eval.official_scorer.importlib.import_module",
+        lambda _: SimpleNamespace(build=DisabledJudge),
+    )
+    with pytest.raises(ValueError, match="must be enabled"):
+        load_judge_plugin("fixture_plugin:build")
+
     monkeypatch.setattr(
         "orgmemory_eval.official_scorer.importlib.import_module",
         lambda _: SimpleNamespace(build=FakeJudge),
@@ -307,10 +418,36 @@ def test_cli_scores_a_complete_transcript_without_a_judge(tmp_path: Path) -> Non
     output = tmp_path / "report.json"
     write_transcript(transcript, correct_rows(official_dataset()))
 
-    main(["--transcript", str(transcript), "--output", str(output)])
+    exit_status = main(["--transcript", str(transcript), "--output", str(output)])
 
     report = json.loads(output.read_text(encoding="utf-8"))
+    assert exit_status == 0
     assert report["official_source"]["case_count"] == 50
     assert report["transcript"]["case_count"] == 50
     assert report["judge"]["enabled"] is False
     assert report["offline_gate_passed"] is True
+
+
+@pytest.mark.parametrize(
+    ("question_id", "changes"),
+    [
+        pytest.param("P001", {"ttft_ms": None}, id="permission-failure"),
+        pytest.param("P001", {"cited_document_ids": []}, id="citation-failure"),
+        pytest.param("P007", {"cited_document_ids": ["DOC036"]}, id="deny-leak"),
+    ],
+)
+def test_cli_writes_the_report_and_returns_nonzero_when_the_gate_fails(
+    tmp_path: Path,
+    question_id: str,
+    changes: dict[str, object],
+) -> None:
+    transcript = tmp_path / "failing-transcript.jsonl"
+    output = tmp_path / "failing-report.json"
+    rows = replace_row(correct_rows(official_dataset()), question_id, **changes)
+    write_transcript(transcript, rows)
+
+    exit_status = main(["--transcript", str(transcript), "--output", str(output)])
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert exit_status == 1
+    assert report["offline_gate_passed"] is False

@@ -65,6 +65,53 @@ def test_rejects_incomplete_official_case_set(tmp_path: Path) -> None:
         load_official_cases(path)
 
 
+def test_rejects_renamed_official_case_id(tmp_path: Path) -> None:
+    cases = official_payload()
+    cases[-1]["question_id"] = "P051"
+    path = tmp_path / "renamed-case.json"
+    write_cases(path, cases)
+
+    with pytest.raises(ValidationError, match="official question ids differ"):
+        load_official_cases(path)
+
+
+def test_rejects_duplicate_official_case_id(tmp_path: Path) -> None:
+    cases = official_payload()
+    cases[-1]["question_id"] = "P049"
+    path = tmp_path / "duplicate-case.json"
+    write_cases(path, cases)
+
+    with pytest.raises(ValidationError, match="question_id values must be unique"):
+        load_official_cases(path)
+
+
+def test_rejects_changed_official_permission_split(tmp_path: Path) -> None:
+    cases = official_payload()
+    cases[0]["expected_permission"] = "Deny"
+    path = tmp_path / "permission-split.json"
+    write_cases(path, cases)
+
+    with pytest.raises(ValidationError, match="permission split differs: allow=42, deny=8"):
+        load_official_cases(path)
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("DOC1", "semicolon-separated DOCnnn values"),
+        ("DOC001; DOC001", "must be unique"),
+    ],
+)
+def test_rejects_invalid_expected_document_ids(tmp_path: Path, value: str, message: str) -> None:
+    cases = official_payload()
+    cases[0]["expected_document_id"] = value
+    path = tmp_path / "invalid-documents.json"
+    write_cases(path, cases)
+
+    with pytest.raises(ValidationError, match=message):
+        load_official_cases(path)
+
+
 def test_rejects_out_of_range_official_user(tmp_path: Path) -> None:
     cases = official_payload()
     cases[0]["user_id"] = "U033"

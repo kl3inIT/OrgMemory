@@ -74,6 +74,7 @@ small-N maxima as p95. Its JSON report omits raw answers.
 
 ```powershell
 Set-Location evaluation
+uv sync --frozen --dev
 uv run orgmemory-official-eval `
   --transcript output\official-production-transcript-v1.jsonl `
   --output output\official-evaluation-report-v1.json
@@ -86,6 +87,10 @@ protocol. Its assessment structure mirrors the pinned LightRAG v1.5.4
 `9a45b64c2ee25b1d806e90db926a8af37480bb16`: comprehensiveness, diversity,
 and empowerment, plus an overall score. Judge results are diagnostic and do not
 replace deterministic permission or citation verdicts.
+Plugin exceptions, invalid assessments, and missing assessments are recorded as
+per-case `judge_error` values and an aggregate `failure_count`; they never
+prevent the deterministic report from being written. Both deterministic gate
+CLIs write their report and exit with status 1 when their gate fails.
 
 ## Retrieval recall gate
 

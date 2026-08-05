@@ -11,8 +11,11 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, StringConstraints,
 NonBlankText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 QuestionId = Annotated[str, StringConstraints(pattern=r"^P\d{3}$")]
 UserId = Annotated[str, StringConstraints(pattern=r"^U\d{3}$")]
+DocumentId = Annotated[str, StringConstraints(pattern=r"^DOC\d{3}$")]
 
 OFFICIAL_CASE_COUNT = 50
+OFFICIAL_ALLOW_CASE_COUNT = 43
+OFFICIAL_DENY_CASE_COUNT = 7
 OFFICIAL_CASE_IDS = frozenset(f"P{index:03d}" for index in range(1, OFFICIAL_CASE_COUNT + 1))
 DEFAULT_OFFICIAL_CASES_PATH = (
     Path(__file__).resolve().parents[3] / "demo" / "fixtures" / "public-evaluation.json"
@@ -98,6 +101,17 @@ class OfficialDataset(BaseModel):
             unexpected = sorted(set(case_ids) - OFFICIAL_CASE_IDS)
             raise ValueError(
                 f"official question ids differ: missing={missing}, unexpected={unexpected}"
+            )
+        return cases
+
+    @field_validator("cases")
+    @classmethod
+    def require_official_permission_split(cls, cases: list[OfficialCase]) -> list[OfficialCase]:
+        allow_count = sum(case.expected_permission == ExpectedPermission.ALLOW for case in cases)
+        deny_count = sum(case.expected_permission == ExpectedPermission.DENY for case in cases)
+        if (allow_count, deny_count) != (OFFICIAL_ALLOW_CASE_COUNT, OFFICIAL_DENY_CASE_COUNT):
+            raise ValueError(
+                f"official permission split differs: allow={allow_count}, deny={deny_count}"
             )
         return cases
 
