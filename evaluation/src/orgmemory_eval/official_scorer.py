@@ -7,6 +7,7 @@ import json
 import re
 import statistics
 import tempfile
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -38,6 +39,7 @@ from orgmemory_eval.official_cases import (
 DEFAULT_DOCUMENT_FIXTURES_PATH = DEFAULT_OFFICIAL_CASES_PATH.parent / "documents"
 MIN_VERBATIM_WORDS = 8
 WORD_PATTERN = re.compile(r"\w+", flags=re.UNICODE)
+VerbatimRun = tuple[str, ...]
 
 
 class SseTerminalEvent(StrEnum):
@@ -166,32 +168,73 @@ def word_lines(text: str) -> tuple[tuple[str, ...], ...]:
     )
 
 
-def contains_verbatim_content(answer_text: str, document_body: str) -> bool:
-    document_runs = {
+def verbatim_runs(text: str) -> set[VerbatimRun]:
+    return {
         words[index : index + MIN_VERBATIM_WORDS]
-        for words in word_lines(document_body)
+        for words in word_lines(text)
         for index in range(len(words) - MIN_VERBATIM_WORDS + 1)
     }
-    return any(
-        words[index : index + MIN_VERBATIM_WORDS] in document_runs
-        for words in word_lines(answer_text)
-        for index in range(len(words) - MIN_VERBATIM_WORDS + 1)
+
+
+def shared_verbatim_runs(document_bodies: Mapping[str, str]) -> frozenset[VerbatimRun]:
+    document_counts = Counter(
+        run for document_body in document_bodies.values() for run in verbatim_runs(document_body)
     )
+    return frozenset(run for run, count in document_counts.items() if count >= 2)
+
+
+def contains_verbatim_content(
+    answer_text: str,
+    document_body: str,
+    excluded_runs: frozenset[VerbatimRun] = frozenset(),
+) -> bool:
+    return bool((verbatim_runs(answer_text) & verbatim_runs(document_body)) - excluded_runs)
+
+
+def load_document_fixture_bodies(
+    directory: Path = DEFAULT_DOCUMENT_FIXTURES_PATH,
+) -> dict[str, str]:
+    manifest_path = directory / "manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as failure:
+        raise ValueError(
+            f"document fixture manifest cannot be loaded: {manifest_path}"
+        ) from failure
+    if not isinstance(manifest, list):
+        raise ValueError(f"document fixture manifest must contain a list: {manifest_path}")
+
+    bodies: dict[str, str] = {}
+    for index, entry in enumerate(manifest):
+        if not isinstance(entry, dict):
+            raise ValueError(f"document fixture manifest entry {index} must be an object")
+        document_id = entry.get("documentId")
+        filename = entry.get("file")
+        if not isinstance(document_id, str) or not isinstance(filename, str):
+            raise ValueError(
+                f"document fixture manifest entry {index} requires string documentId and file"
+            )
+        if document_id in bodies:
+            raise ValueError(f"document fixture manifest repeats documentId: {document_id}")
+        path = directory / filename
+        if not path.is_file():
+            raise ValueError(f"document fixture is missing: {path}")
+        bodies[document_id] = path.read_text(encoding="utf-8")
+    return bodies
 
 
 def load_denied_document_bodies(
     dataset: OfficialDataset,
-    directory: Path = DEFAULT_DOCUMENT_FIXTURES_PATH,
+    document_fixture_bodies: Mapping[str, str],
 ) -> dict[str, str]:
     document_ids = sorted(
         {document_id for case in dataset.deny_cases for document_id in case.expected_document_ids}
     )
     bodies: dict[str, str] = {}
     for document_id in document_ids:
-        path = directory / f"{document_id}.md"
-        if not path.is_file():
-            raise ValueError(f"denied document fixture is missing: {path}")
-        bodies[document_id] = path.read_text(encoding="utf-8")
+        if document_id not in document_fixture_bodies:
+            raise ValueError(f"denied document fixture is missing from manifest: {document_id}")
+        bodies[document_id] = document_fixture_bodies[document_id]
     return bodies
 
 
@@ -199,6 +242,7 @@ def permission_result(
     case: OfficialCase,
     row: TranscriptRow,
     denied_document_bodies: Mapping[str, str],
+    shared_document_runs: frozenset[VerbatimRun],
 ) -> dict[str, object]:
     if case.expected_permission == ExpectedPermission.ALLOW:
         passed = (
@@ -213,15 +257,26 @@ def permission_result(
             "evidence_leak": False,
             "denied_cited_document_ids": [],
             "verbatim_match_document_ids": [],
+            "excluded_shared_verbatim_run_count": 0,
         }
 
     expected_denied_ids = set(case.expected_document_ids)
     denied_cited_document_ids = sorted(expected_denied_ids & set(row.cited_document_ids))
+    answer_runs = verbatim_runs(row.answer_text)
+    excluded_shared_matches: set[VerbatimRun] = set()
     verbatim_match_document_ids = sorted(
         document_id
         for document_id in expected_denied_ids
-        if contains_verbatim_content(row.answer_text, denied_document_bodies[document_id])
+        if contains_verbatim_content(
+            row.answer_text,
+            denied_document_bodies[document_id],
+            shared_document_runs,
+        )
     )
+    for document_id in expected_denied_ids:
+        excluded_shared_matches.update(
+            answer_runs & verbatim_runs(denied_document_bodies[document_id]) & shared_document_runs
+        )
     evidence_leak = bool(denied_cited_document_ids or verbatim_match_document_ids)
     transport_rejection = row.http_status == 403
     finished_without_denied_evidence = (
@@ -247,6 +302,7 @@ def permission_result(
         "evidence_leak": evidence_leak,
         "denied_cited_document_ids": denied_cited_document_ids,
         "verbatim_match_document_ids": verbatim_match_document_ids,
+        "excluded_shared_verbatim_run_count": len(excluded_shared_matches),
     }
 
 
@@ -353,14 +409,16 @@ def score_official_transcript(
     if len(rows) != len(dataset.cases):
         raise ValueError("scoring requires exactly one transcript row per official case")
 
-    denied_document_bodies = load_denied_document_bodies(dataset)
+    document_fixture_bodies = load_document_fixture_bodies()
+    denied_document_bodies = load_denied_document_bodies(dataset, document_fixture_bodies)
+    shared_document_runs = shared_verbatim_runs(document_fixture_bodies)
     case_results: list[dict[str, object]] = []
     assessments: list[JudgeAssessment] = []
     judge_failure_count = 0
     for case, row in zip(dataset.cases, rows, strict=True):
         if case.question_id != row.question_id:
             raise ValueError("transcript rows must follow official case order")
-        permission = permission_result(case, row, denied_document_bodies)
+        permission = permission_result(case, row, denied_document_bodies, shared_document_runs)
         citation = citation_result(case, row)
         assessment = None
         judge_error = None
