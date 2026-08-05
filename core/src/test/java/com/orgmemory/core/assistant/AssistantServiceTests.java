@@ -206,6 +206,12 @@ class AssistantServiceTests {
                 .startsWith(verifiedRequest.systemInstruction()));
         assertTrue(request.getValue()
                 .systemInstruction()
+                .contains("documents the user can access"));
+        assertTrue(request.getValue()
+                .systemInstruction()
+                .contains("Cite every document whose facts appear in the answer"));
+        assertTrue(request.getValue()
+                .systemInstruction()
                 .contains("<role>MANAGER</role>"));
         assertEquals(
                 verifiedRequest.userPrompt(),
@@ -218,18 +224,48 @@ class AssistantServiceTests {
     }
 
     @Test
-    void doesNotCallTheModelWhenNoAccessibleEvidenceExists() {
-        when(retrieval.search(actor, "Show me the financial forecast", 5, "request-2"))
+    void answersInVietnameseWithoutCallingTheModelWhenNoAccessibleEvidenceExists() {
+        when(retrieval.search(actor, "Cho tôi xem dự báo tài chính", 5, "request-2"))
                 .thenReturn(new SecureKnowledgeSearchResult("request-2", List.of()));
+
+        AssistantTurn turn = service.startTurn(
+                actor,
+                "Cho tôi xem dự báo tài chính",
+                5,
+                "request-2",
+                CONVERSATION_ID);
+
+        assertEquals(
+                List.of(
+                        "Tôi không tìm thấy nội dung này trong các tài liệu bạn truy cập được. "
+                                + "Nếu bạn cho rằng thông tin này tồn tại, hãy liên hệ bộ phận sở hữu tài liệu hoặc quản trị viên."),
+                turn.content().collectList().block());
+        assertTrue(turn.citations().isEmpty());
+        verify(chat, never()).stream(
+                any(UUID.class),
+                any(AiWorkload.class),
+                any(ChatGenerationRequest.class),
+                any(String.class));
+    }
+
+    @Test
+    void answersInEnglishWithoutCallingTheModelWhenNoAccessibleEvidenceExists() {
+        when(retrieval.search(actor, "Show me the financial forecast", 5, "request-english"))
+                .thenReturn(new SecureKnowledgeSearchResult("request-english", List.of()));
 
         AssistantTurn turn = service.startTurn(
                 actor,
                 "Show me the financial forecast",
                 5,
-                "request-2",
+                "request-english",
                 CONVERSATION_ID);
 
-        assertEquals(List.of(AssistantService.NO_ACCESSIBLE_EVIDENCE), turn.content().collectList().block());
+        assertEquals(
+                List.of(
+                        "I could not find this information in the documents you can access. "
+                                + "If you believe this information exists, contact the document owner or an administrator."),
+                turn.content().collectList().block());
+        assertTrue(turn.citations().isEmpty());
         verify(chat, never()).stream(
                 any(UUID.class),
                 any(AiWorkload.class),
