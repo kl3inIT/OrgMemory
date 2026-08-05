@@ -23,6 +23,28 @@ describe("PageLayout", () => {
     expect(screen.getByRole("button", { name: "Create asset" })).toBeEnabled()
   })
 
+  it("keeps the page identity stable while actions take the flexible width", () => {
+    render(
+      <PageLayout.Root variant="canvas">
+        <PageLayout.Header
+          title="Knowledge graph"
+          actions={<button type="button">Explore</button>}
+        />
+      </PageLayout.Root>,
+    )
+
+    const headingGroup = screen
+      .getByRole("heading", { name: "Knowledge graph" })
+      .closest('[data-slot="page-header-identity"]')
+    const actions = screen.getByRole("button", { name: "Explore" }).closest(
+      '[data-slot="page-header-actions"]',
+    )
+
+    expect(headingGroup).toHaveClass("sm:shrink-0")
+    expect(actions).toHaveClass("min-w-0", "sm:flex-1")
+    expect(actions).not.toHaveClass("sm:shrink-0")
+  })
+
   it("gives a canvas workspace an accessible flex region", () => {
     render(
       <PageLayout.Root variant="canvas">
