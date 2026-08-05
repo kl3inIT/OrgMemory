@@ -130,3 +130,13 @@ Consequence: gate 2 verdict on the single-scan plan stands as FAIL and cutover
 remains blocked. The next evidence step inside this increment is a LATERAL
 store-fan benchmark run before any Phase 3 decision, alongside plan steps 3
 (recall scoring) and 4 (production-shaped run).
+
+## Official transcript re-score
+
+P007's earlier `DENY_EVIDENCE_LEAK` was a scorer false-positive caused by the
+answer echoing boilerplate shared by the official fixtures, including DOC036;
+the deny-side scorer now excludes manifest-wide shared 8-word runs and the
+refreshed report records permission 50/50 with P007 as
+`DENY_FINISHED_NO_EVIDENCE`, while citations remain 39/43. The fix stays in the
+scorer because the disclaimer is official dataset content and stripping it
+would make the fixtures diverge from the authoritative evaluation set.
