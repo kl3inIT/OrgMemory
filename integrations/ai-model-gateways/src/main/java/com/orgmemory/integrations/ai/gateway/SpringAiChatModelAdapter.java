@@ -51,6 +51,7 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
     private final AssistantSkillToolCallbacks skillTools;
     private final Map<ModelKey, ChatClient> clients = new ConcurrentHashMap<>();
     private final Map<ModelKey, ChatClient> memoryClients = new ConcurrentHashMap<>();
+    private final Map<ModelKey, ChatClient> assistantMemoryClients = new ConcurrentHashMap<>();
 
     SpringAiChatModelAdapter(
             AiGatewayRegistry gateways,
@@ -289,7 +290,7 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
                 route,
                 gateway);
         evictSuperseded(key);
-        return memoryClients.computeIfAbsent(key, ignored -> {
+        return assistantMemoryClients.computeIfAbsent(key, ignored -> {
             ChatMemory chatMemory = memory.getIfAvailable();
             if (chatMemory == null) {
                 throw new IllegalStateException(
@@ -345,6 +346,8 @@ final class SpringAiChatModelAdapter implements ChatModelPort, AssistantAgentMod
         clients.keySet().removeIf(candidate ->
                 candidate.supersededBy(active));
         memoryClients.keySet().removeIf(candidate ->
+                candidate.supersededBy(active));
+        assistantMemoryClients.keySet().removeIf(candidate ->
                 candidate.supersededBy(active));
     }
 
