@@ -39,4 +39,3 @@ authorization contracts; their execution assumptions are not.
 Reconsider a separate runtime only when OrgMemory has a concrete autonomous job
 use case plus an isolated filesystem, process/network policy, resource quotas,
 approval interrupts, resumable state, and audit/retention design.
-

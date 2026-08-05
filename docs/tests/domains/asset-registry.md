@@ -13,7 +13,7 @@ Source: `core/src/test/java/com/orgmemory/core/assetregistry`,
 `scripts/npm-publish-workflow-policy.test.mjs`, and
 `apps/web/src/features/assets/**/*.test.ts`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

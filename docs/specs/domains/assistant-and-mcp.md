@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 ## Current Behavior
 

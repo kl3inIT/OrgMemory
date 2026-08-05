@@ -13,7 +13,7 @@ Source: `core/src/main/java/com/orgmemory/core/assetregistry`,
 `apps/web/src/features/assets`, and
 `integrations/object-storage-minio/src/main/java`.
 
-Reconciled: `2026-08-03-spring-modulith-package-refactor (cf939c61)`.
+Reconciled: `2026-08-05-agentic-skill-beta (673b4276)`.
 
 ## Current Behavior
 

@@ -26,4 +26,3 @@ details, and could later host more autonomous loops.
 - whether server execution can be made safe without a sandbox;
 - whether Spring AI 2.0 supports a bounded native tool loop;
 - whether external agents already have an exact-package execution handoff.
-
