@@ -533,6 +533,16 @@ projection snapshot. Graph curation and export remain curator/admin operations;
 the explorer does not create a second ACL or expose globally merged
 descriptions.
 
+The API also has a one-shot `retrieval-observation` operations profile for ADR
+0020 recall evidence. It is not an HTTP request surface and has no production
+request wiring. The runner reuses the governed retrieval service for a
+keyword-seeded `MIX` path and a raw-query `NAIVE` bypass, both with context-only
+output and normal authorization, snapshot, canonical, final OpenFGA, and audit
+checks. It refuses the live `orgmemory` database, requires an exact restored
+copy name, and requires Flyway, projection provisioning, and reconciliation to
+be disabled. `scripts/capture-retrieval-observations.ps1` supplies the managed
+dev connections through loopback tunnels without writing exported secrets.
+
 Assistant citations use API-owned opaque URLs. Completed answers atomically
 persist only ordered citation-to-chunk mappings, and replay hydrates currently
 visible citation affordances separately from the actor-owned transcript. The

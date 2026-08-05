@@ -19,12 +19,14 @@ database.
   median. A median above 500 ms falsifies the binding ADR p95 <= 500 ms gate
   without presenting five observations as a p95 estimate. All 1x and 10x rows
   pass; failures occur at 100x.
-- Recall gate: **NOT YET SCORED**. The deterministic scorer and 15-question
-  golden-data skeleton are complete, but observations from the current
-  keyword-seeded path and raw-query bypass do not exist yet. No recall verdict
-  is claimed.
+- Recall gate: **PASS**. The restored-copy diagnostic captured all 43 official
+  Allow cases through the governed retrieval service. Keyword-seeded and
+  raw-query-bypass document recall@40 are both 0.9651162791, a 0.00-point
+  bypass delta against the predeclared -2-point floor. Diagnostic keyword
+  recall@60 is also 0.9651162791.
 - Production-shaped restored-copy run: not run; it remains plan step 4 and was
-  outside this handoff.
+  outside this handoff. The recall capture used a restored projection copy but
+  did not execute the step-4 latency benchmark.
 
 ADR 0020 does not permit cutover on this evidence.
 
@@ -96,15 +98,45 @@ at 1x/20-space/broad to 111,909 at 10x, and reaches 3,522,296 at
 does not satisfy the scale gate without a different physical plan or index
 strategy. The threshold was not tuned after observing this result.
 
-## Recall harness status
+## Recall gate evidence
 
-`evaluation/fixtures/retrieval-recall-golden-v1.json` contains 15 reviewed
-question-to-section references over the repository's 40-document demo corpus.
-`orgmemory-retrieval-recall` fixes report schema v1 at topK 40, validates
-complete observations, computes macro recall@40 for keyword-seeded and bypass
-paths, reports diagnostic keyword recall@60, and applies the predeclared
-two-percentage-point tolerance. Actual path observations remain required before
-the recall gate can be decided.
+Implementation `6c1fcebc` adds a one-shot `retrieval-observation` ops profile
+and `scripts/capture-retrieval-observations.ps1`. The runner refuses the live
+`orgmemory` database, requires the exact restored-copy name, disables Flyway,
+index provisioning, and published-batch reconciliation, and invokes the same
+authorization, snapshot, canonical recheck, audit, and grounding closure as
+normal GraphRAG retrieval. It requests `CONTEXT` output, so neither path
+generates an answer. Database-bound atomic checkpoints make the 43 serial
+model-backed cases resumable without accepting a partial observation set.
+
+The keyword path uses `MIX` at topK 60 and records its high/low keyword plan.
+The bypass uses `NAIVE` at topK 40, which skips keyword planning and embeds the
+raw query for vector chunk retrieval. That choice matches pinned LightRAG
+v1.5.4 (`D:/OrgMemory/tmp/upstream-lightrag-v1.5.4`, commit
+`9a45b64c73a78bef2e665ac856a4ff4fcdaa23d8`): `mix` consumes high- and low-level
+keyword queries plus raw-query vector chunks, while `naive` is the raw-query
+chunk-vector path.
+
+The captured artifact is
+`retrieval-observations-2026-08-05.json`; the unchanged scorer emitted
+`retrieval-recall-report-2026-08-05.json` with:
+
+| Metric | Result |
+| --- | ---: |
+| Cases | 43 |
+| Keyword document recall@40 | 0.9651162791 |
+| Bypass document recall@40 | 0.9651162791 |
+| Bypass delta | 0.00 points |
+| Keyword document recall@60 | 0.9651162791 |
+| Gate | PASS |
+
+P026 misses DOC034 in both paths. P031 returns DOC001 at keyword rank 2 and
+bypass rank 4, while DOC011 is absent from keyword topK 60 and bypass topK 40.
+The model keyword plan includes both travel-expense and probation concepts.
+The P031 miss is therefore not caused by keyword planning; the evidence points
+downstream to corpus projection/candidate availability or ranking shared by
+both paths. No retrieval tuning is justified without inspecting that separate
+boundary.
 
 ## Coordinator review amendment (2026-08-05)
 
@@ -127,9 +159,9 @@ the recall gate can be decided.
    B-R2 specified and has not been measured.
 
 Consequence: gate 2 verdict on the single-scan plan stands as FAIL and cutover
-remains blocked. The next evidence step inside this increment is a LATERAL
-store-fan benchmark run before any Phase 3 decision, alongside plan steps 3
-(recall scoring) and 4 (production-shaped run).
+remains blocked even though gate 3 recall passes. The next evidence step inside
+this increment is a LATERAL store-fan benchmark run before any Phase 3
+decision, followed by plan step 4's production-shaped latency run.
 
 ## Official transcript re-score
 

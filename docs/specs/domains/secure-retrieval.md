@@ -2,10 +2,11 @@
 
 Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `core/src/main/java/com/orgmemory/core/permission`,
-`apps/api/src/main/java/com/orgmemory/api/knowledge`, and
+`apps/api/src/main/java/com/orgmemory/api/knowledge`,
+`apps/api/src/main/java/com/orgmemory/api/evaluation`, and
 `integrations/authorization-openfga`.
 
-Reconciled: `2026-08-04-assistant-citation-evidence-continuity (9ec76d52)`.
+Reconciled: `2026-08-05-retrieval-observation-capture (6c1fcebc)`.
 
 ## Current Behavior
 
@@ -133,6 +134,14 @@ Assistant and read-only MCP tool use the same GraphRAG application service.
 Graph-assisted retrieval, graph exploration, citation streaming, and export all
 reuse the same authorized evidence scope; no graph node or relation owns an
 independent ACL. Multi-source derived-permission intersection remains open.
+
+The restored-copy-only recall diagnostic also reuses that GraphRAG application
+service. It executes keyword-seeded and raw-query-bypass context retrieval with
+the same authorization and evidence closure, records ordered document IDs and
+the keyword plan, and never invokes answer generation. The ops profile has no
+production request adapter and fails closed unless the connected database is
+the explicitly named non-`orgmemory` copy and all migration/projection startup
+mutation is disabled.
 
 ## Source Modules
 
