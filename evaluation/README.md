@@ -26,27 +26,80 @@ The committed JSON is the single source consumed by Java conformance tests.
 Regenerate it only from the pinned checkout and review semantic changes rather
 than accepting a changed file mechanically.
 
+## Official 50-case offline evaluation
+
+`demo/fixtures/public-evaluation.json` is the single source of record for the
+official hackathon evaluation. The loader requires exactly P001-P050, rejects
+unknown permission, answer-type, or difficulty values, splits semicolon-delimited
+multi-document goldens, and verifies that actor IDs stay within U001-U032. The
+source currently contains 43 Allow cases and 7 Deny cases; it is never copied or
+rewritten by the evaluator.
+
+The production sweep writes one UTF-8 JSON object per line using transcript
+schema `orgmemory.official-transcript.v1`. Blank lines, duplicate/missing cases,
+unknown fields, actor/case mismatches, duplicate citations, non-finite timings,
+or TTFT later than completion are rejected.
+
+| Field | Type | Contract |
+|---|---|---|
+| `question_id` | `Pnnn` string | Exactly one row for every official P001-P050 case. |
+| `http_status` | integer 100-599 | Final HTTP status observed for the Assistant request. |
+| `sse_terminal_event` | `"finish"`, `"error"`, `"abort"`, or `null` | Final Assistant SSE event; `null` means the request was rejected before an SSE terminal event. |
+| `answer_text` | string | Assistant answer text only. HTTP problem details are not answer text. |
+| `cited_document_ids` | unique `DOCnnn[]` | Document IDs resolved from the emitted citations, in emitted order. |
+| `latency_ms` | non-negative number | Request start through response/stream termination. |
+| `ttft_ms` | non-negative number or `null` | Request start through first answer token; `null` when no answer token was emitted. |
+| `actor_user_id` | `Unnn` string | Must equal the official case's user ID. |
+
+An Allow permission pass is exactly HTTP 200 + terminal `finish` + non-blank
+answer + non-null TTFT. A Deny permission pass is exactly HTTP 403 before an SSE
+terminal event, with blank Assistant answer, no citations, and null TTFT. Any
+Deny answer token, finished stream, or citation is reported as
+`DENY_EVIDENCE_LEAK`; an operational error is not accepted as a permission
+refusal. Citation scoring applies to Allow cases and requires the cited set to
+equal the expected set. Missing, wrong, unexpected, and partial citations are
+distinct; P031 passes only with both DOC001 and DOC011.
+
+Latency and TTFT are reported per case and as medians plus explicitly labeled
+observed max-of-N groups by difficulty and answer type. The scorer never labels
+small-N maxima as p95. Its JSON report omits raw answers.
+
+```powershell
+Set-Location evaluation
+uv run orgmemory-official-eval `
+  --transcript output\official-production-transcript-v1.jsonl `
+  --output output\official-evaluation-report-v1.json
+```
+
+The optional judge is disabled by default and therefore makes no network call.
+An explicit `--judge-plugin module:factory` may supply the `OfficialJudge`
+protocol. Its assessment structure mirrors the pinned LightRAG v1.5.4
+`reproduce/batch_eval.py` criteria at commit
+`9a45b64c2ee25b1d806e90db926a8af37480bb16`: comprehensiveness, diversity,
+and empowerment, plus an overall score. Judge results are diagnostic and do not
+replace deterministic permission or citation verdicts.
+
 ## Retrieval recall gate
 
 `orgmemory-retrieval-recall` scores the ADR 0020 cache-miss bypass against the
-current keyword-seeded path. The committed golden fixture contains 15 initial
-questions over the disposable demo corpus and stable document/section chunk
-references. A retrieval export supplies the ordered chunk references for both
-paths; the scorer reports macro recall@40, diagnostic keyword recall@60, and
-fails when bypass recall regresses by more than two percentage points.
+current keyword-seeded path. It derives 43 Allow-case document goldens directly
+from `demo/fixtures/public-evaluation.json`; there is no separately maintained
+golden-question file. A retrieval export supplies ordered document IDs for both
+paths. The scorer reports macro document recall@40, diagnostic keyword document
+recall@60, and fails when bypass recall regresses by more than two percentage
+points.
 
 ```powershell
 Set-Location evaluation
 uv sync --frozen --dev
 uv run orgmemory-retrieval-recall `
-  --golden fixtures\retrieval-recall-golden-v1.json `
-  --observations output\retrieval-observations-v1.json `
-  --output output\retrieval-recall-report-v1.json
+  --observations output\retrieval-observations-v2.json `
+  --output output\retrieval-recall-report-v2.json
 ```
 
-The fixture is a harness skeleton, not a gate verdict: observations from the
+The official questions are goldens, not a gate verdict: observations from the
 two real retrieval paths are still required before ADR 0020 condition 3 can
-pass. The remaining target is approximately 50 reviewed questions.
+pass.
 
 ## RAGAS
 

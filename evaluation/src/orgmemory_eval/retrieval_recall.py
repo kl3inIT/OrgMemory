@@ -7,11 +7,18 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from orgmemory_eval.official_cases import (
+    DEFAULT_OFFICIAL_CASES_PATH,
+    OfficialDataset,
+    load_official_cases,
+)
+
 Identifier = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=256),
 ]
 NonBlankText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+OFFICIAL_RECALL_DATASET_ID = "orgmemory-public-evaluation-allow-v1"
 
 
 class GoldenCase(BaseModel):
@@ -19,14 +26,12 @@ class GoldenCase(BaseModel):
 
     case_id: Identifier
     question: NonBlankText
-    golden_chunk_ids: list[Identifier] = Field(min_length=1)
-    deterministic_lexical_terms: list[NonBlankText] = Field(min_length=1)
-    source_path: Identifier
+    golden_document_ids: list[Identifier] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def require_unique_chunks(self) -> GoldenCase:
-        if len(self.golden_chunk_ids) != len(set(self.golden_chunk_ids)):
-            raise ValueError("golden_chunk_ids must be unique")
+    def require_unique_documents(self) -> GoldenCase:
+        if len(self.golden_document_ids) != len(set(self.golden_document_ids)):
+            raise ValueError("golden_document_ids must be unique")
         return self
 
 
@@ -35,10 +40,10 @@ class GoldenDataset(BaseModel):
 
     schema_version: Annotated[
         str,
-        StringConstraints(pattern=r"^orgmemory\.retrieval-recall\.v1$"),
+        StringConstraints(pattern=r"^orgmemory\.retrieval-recall\.v2$"),
     ]
     dataset_id: Identifier
-    corpus_manifest: Identifier
+    official_source_sha256: Identifier
     cases: list[GoldenCase] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -53,8 +58,8 @@ class RetrievalObservation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     case_id: Identifier
-    keyword_seeded_chunk_ids: list[Identifier]
-    bypass_chunk_ids: list[Identifier]
+    keyword_seeded_document_ids: list[Identifier]
+    bypass_document_ids: list[Identifier]
 
 
 class ObservationSet(BaseModel):
@@ -62,7 +67,7 @@ class ObservationSet(BaseModel):
 
     schema_version: Annotated[
         str,
-        StringConstraints(pattern=r"^orgmemory\.retrieval-observations\.v1$"),
+        StringConstraints(pattern=r"^orgmemory\.retrieval-observations\.v2$"),
     ]
     dataset_id: Identifier
     observations: list[RetrievalObservation] = Field(min_length=1)
@@ -75,11 +80,29 @@ class ObservationSet(BaseModel):
         return self
 
 
-def recall_at_k(golden_chunk_ids: list[str], retrieved_chunk_ids: list[str], k: int) -> float:
+def derive_golden_dataset(
+    official: OfficialDataset, *, official_source_sha256: str
+) -> GoldenDataset:
+    return GoldenDataset(
+        schema_version="orgmemory.retrieval-recall.v2",
+        dataset_id=OFFICIAL_RECALL_DATASET_ID,
+        official_source_sha256=official_source_sha256,
+        cases=[
+            GoldenCase(
+                case_id=case.question_id,
+                question=case.question_vi,
+                golden_document_ids=list(case.expected_document_ids),
+            )
+            for case in official.allow_cases
+        ],
+    )
+
+
+def recall_at_k(golden_document_ids: list[str], retrieved_document_ids: list[str], k: int) -> float:
     if k <= 0:
         raise ValueError("k must be positive")
-    golden = set(golden_chunk_ids)
-    retrieved = set(retrieved_chunk_ids[:k])
+    golden = set(golden_document_ids)
+    retrieved = set(retrieved_document_ids[:k])
     return len(golden & retrieved) / len(golden)
 
 
@@ -90,6 +113,8 @@ def score(
     top_k: int = 40,
     tolerance_points: float = 2.0,
 ) -> dict[str, object]:
+    if top_k != 40:
+        raise ValueError("retrieval-recall report v2 requires top_k=40")
     if golden.dataset_id != observations.dataset_id:
         raise ValueError("golden and observation dataset_id values differ")
     observation_by_case = {
@@ -107,41 +132,51 @@ def score(
         cases.append(
             {
                 "caseId": case.case_id,
-                "keywordSeededRecallAt40": recall_at_k(
-                    case.golden_chunk_ids, observation.keyword_seeded_chunk_ids, top_k
+                "keywordSeededDocumentRecallAt40": recall_at_k(
+                    case.golden_document_ids,
+                    observation.keyword_seeded_document_ids,
+                    top_k,
                 ),
-                "bypassRecallAt40": recall_at_k(
-                    case.golden_chunk_ids, observation.bypass_chunk_ids, top_k
+                "bypassDocumentRecallAt40": recall_at_k(
+                    case.golden_document_ids,
+                    observation.bypass_document_ids,
+                    top_k,
                 ),
-                "keywordSeededRecallAt60": recall_at_k(
-                    case.golden_chunk_ids, observation.keyword_seeded_chunk_ids, 60
+                "keywordSeededDocumentRecallAt60": recall_at_k(
+                    case.golden_document_ids,
+                    observation.keyword_seeded_document_ids,
+                    60,
                 ),
             }
         )
-    keyword_recall = sum(float(case["keywordSeededRecallAt40"]) for case in cases) / len(cases)
-    bypass_recall = sum(float(case["bypassRecallAt40"]) for case in cases) / len(cases)
-    keyword_recall_60 = sum(float(case["keywordSeededRecallAt60"]) for case in cases) / len(
+    keyword_recall = sum(float(case["keywordSeededDocumentRecallAt40"]) for case in cases) / len(
+        cases
+    )
+    bypass_recall = sum(float(case["bypassDocumentRecallAt40"]) for case in cases) / len(cases)
+    keyword_recall_60 = sum(float(case["keywordSeededDocumentRecallAt60"]) for case in cases) / len(
         cases
     )
     delta_points = (bypass_recall - keyword_recall) * 100.0
     return {
-        "schemaVersion": "orgmemory.retrieval-recall-report.v1",
+        "schemaVersion": "orgmemory.retrieval-recall-report.v2",
         "datasetId": golden.dataset_id,
+        "officialSourceSha256": golden.official_source_sha256,
         "caseCount": len(cases),
         "topK": top_k,
         "tolerancePoints": tolerance_points,
-        "keywordSeededRecallAt40": keyword_recall,
-        "bypassRecallAt40": bypass_recall,
+        "keywordSeededDocumentRecallAt40": keyword_recall,
+        "bypassDocumentRecallAt40": bypass_recall,
         "bypassDeltaPoints": delta_points,
-        "keywordSeededRecallAt60": keyword_recall_60,
+        "keywordSeededDocumentRecallAt60": keyword_recall_60,
         "gatePassed": delta_points >= -tolerance_points,
         "cases": cases,
     }
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Score ADR 0020 retrieval recall@40")
-    parser.add_argument("--golden", required=True, type=Path)
+    parser = argparse.ArgumentParser(
+        description="Score ADR 0020 document recall derived from the official 50 cases"
+    )
     parser.add_argument("--observations", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     return parser.parse_args()
@@ -149,10 +184,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    golden = GoldenDataset.model_validate_json(args.golden.read_text(encoding="utf-8"))
-    observations = ObservationSet.model_validate_json(
-        args.observations.read_text(encoding="utf-8")
-    )
+    official, official_sha256 = load_official_cases(DEFAULT_OFFICIAL_CASES_PATH)
+    golden = derive_golden_dataset(official, official_source_sha256=official_sha256)
+    observations = ObservationSet.model_validate_json(args.observations.read_text(encoding="utf-8"))
     report = score(golden, observations)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
