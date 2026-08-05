@@ -7,7 +7,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-02-document-view-delete (f95f46a0)`.
+Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -42,8 +42,9 @@ Evidence classes: `SourceQueryServiceTests`, `SourceContentServiceTests`,
 | Integrity mismatch closes the stream, fails unavailable, and records an audit | `integrityFailureClosesTheObjectAndIsAudited` |
 | Markdown is delivered as plain text with `no-store`, `nosniff`, and inline disposition | `streamsMarkdownAsPlainTextWithClosedDeliveryHeaders` |
 | Delete resolves only a READY native upload, rechecks `can_delete`, retires both aggregates, and accepts a consistent retry | `deleteReadyUploadResolvesTheSourceThenRetiresBothAggregates`, `repeatedSourceDeleteReturnsTheExistingRetirementWithoutMutatingAgain`, `resolvesAndArchivesOnlyAReadyNativeUpload`, `rejectsConnectorAndNonReadySources` |
-| Preview allowlist keeps active types exact and every other type download-only | `source-preview.test.ts` |
-| Browser opens protected text, confirms/deletes an eligible row, and disables Delete for processing work | `document-actions.spec.ts` |
+| Preview allowlist keeps active types exact, refines only delivered plain text plus declared Markdown into the restricted renderer, labels common formats concisely, and leaves every unsafe response download-only | `source-preview.test.ts` |
+| Browser opens protected text, confirms/deletes an eligible row, and disables Delete for processing work | `document-actions.spec.ts#views protected evidence and deletes only an eligible ready upload` |
+| Browser proves the Knowledge navigation hierarchy, truthful Knowledge Space access copy, safe rendered/raw Markdown, inline PDF and raster image, plain text, download-only Office, preview retry, and narrow-screen overflow behavior | `document-actions.spec.ts#Knowledge presents safe cross-format evidence in a responsive right-side reader` |
 
 Gaps: physical evidence/projection/tuple erasure is retention-policy work, not
 part of the Documents retirement command. Pre-publication cancellation remains

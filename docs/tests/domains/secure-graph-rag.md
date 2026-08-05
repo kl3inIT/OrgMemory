@@ -9,7 +9,7 @@ Source: `components/graph-rag-core/src/test`,
 `core/src/test/java/com/orgmemory/core/knowledge`, and
 `apps/web/test/e2e`, plus the production deployment contract scripts.
 
-Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
+Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
 
 ## Automated
 
@@ -218,6 +218,8 @@ Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
   without intersecting the flexible action region, and rejects horizontal page
   overflow or browser errors. `page-layout.test.tsx` pins the shared shrink
   contract beneath that browser behavior.
+- `document-actions.spec.ts` proves the employee navigation names the enclosing
+  workspace Knowledge while Documents and Knowledge graph remain peer tabs.
 
 ## Verification
 

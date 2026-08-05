@@ -7,11 +7,13 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-02-document-view-delete (f95f46a0)`.
+Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
 
 ## Current Behavior
 
-An authenticated user can upload PDF, DOCX, PPTX, TXT, or Markdown through the
+An authenticated user enters the visible Knowledge workspace and uses its
+Documents or Knowledge graph surface without changing the established
+`/sources` route. They can upload PDF, DOCX, PPTX, TXT, or Markdown through the
 Documents API and web view. The user must select a Knowledge Space returned by
 OpenFGA `ListObjects(can_create_asset)`, and the mutation rechecks
 `can_create_asset` before writing evidence. MinIO stores immutable evidence bytes
@@ -32,7 +34,19 @@ revision whose active Knowledge Asset remains inside the caller's canonical
 evidence scope. Delivery verifies evidence hash and length, audits allow/deny,
 uses `no-store` and `nosniff`, and applies a closed filename allowlist: PDF,
 plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
-HTML, SVG, XML, JSON, and unknown types are download-only.
+HTML, SVG, XML, JSON, and unknown types are download-only. The right-side reader
+uses the safe response type as its ceiling and may refine delivered `text/plain`
+into Markdown only when the canonical source metadata declares `text/markdown`.
+Markdown uses the shared restricted renderer with Rendered and Raw views: active
+HTML, remote images, and unsafe URLs do not execute. Preview errors expose an
+explicit retry, while PDF, raster image, text, and download-only presentations
+fill the remaining responsive reader height.
+
+Classification is displayed as classification, not as an inferred effective
+audience. The list states that access follows Knowledge Space policy because
+classification alone cannot prove who the current OpenFGA model admits. File
+rows use concise format labels and keep embedding/index profile details out of
+the employee-facing table.
 
 Delete is an idempotent governed retirement command, not physical erasure. It
 is available only for fully published READY native uploads and rechecks

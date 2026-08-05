@@ -11,7 +11,7 @@ payload-boundary configuration this document states —
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
+Reconciled: `2026-08-05-knowledge-workspace-document-reader (0210faf7)`.
 
 ## Current Contract
 
@@ -342,7 +342,7 @@ Reconciled: `2026-08-05-knowledge-graph-responsive-layout (ec96be05)`.
 
 ## Graph Explorer
 
-The Sources UI reads the same permission-scoped published projection and never
+The Knowledge workspace's graph surface reads the same permission-scoped published projection and never
 creates node-owned ACLs or a permission-independent merged description. The
 explorer fills the remaining shared app-shell canvas. Its page identity keeps
 its intrinsic width while the action region takes the flexible width and wraps
