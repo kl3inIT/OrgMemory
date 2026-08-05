@@ -78,8 +78,11 @@ class RetrievalObservation(BaseModel):
 
     @model_validator(mode="after")
     def require_positive_ranks(self) -> RetrievalObservation:
-        ranks = self.keyword_seeded_golden_ranks | self.bypass_golden_ranks
-        if any(rank is not None and rank <= 0 for rank in ranks.values()):
+        ranks = (
+            *self.keyword_seeded_golden_ranks.values(),
+            *self.bypass_golden_ranks.values(),
+        )
+        if any(rank is not None and rank <= 0 for rank in ranks):
             raise ValueError("golden ranks must be positive or null")
         return self
 

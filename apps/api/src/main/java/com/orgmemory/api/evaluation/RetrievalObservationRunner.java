@@ -46,6 +46,10 @@ final class RetrievalObservationRunner implements ApplicationRunner {
             UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final String DATASET_ID = "orgmemory-public-evaluation-allow-v1";
     private static final int EXPECTED_ALLOW_CASES = 43;
+    /** Must match DefaultGraphRagKnowledgeRetrievalService.DIAGNOSTIC_TOP_K and the scorer. */
+    private static final int KEYWORD_DOCUMENT_LIMIT = 60;
+    /** Must match DefaultGraphRagKnowledgeRetrievalService.RECALL_TOP_K and the scorer. */
+    private static final int BYPASS_DOCUMENT_LIMIT = 40;
 
     private final RetrievalObservationProperties properties;
     private final GraphRagKnowledgeRetrievalService retrieval;
@@ -96,9 +100,9 @@ final class RetrievalObservationRunner implements ApplicationRunner {
                     officialCase.questionVi(),
                     "retrieval-observation-" + officialCase.questionId().toLowerCase(Locale.ROOT));
             List<String> keywordDocuments = documentIds(
-                    observed.keywordSeededDocuments(), documentIdByTitle, 60);
+                    observed.keywordSeededDocuments(), documentIdByTitle, KEYWORD_DOCUMENT_LIMIT);
             List<String> bypassDocuments = documentIds(
-                    observed.bypassDocuments(), documentIdByTitle, 40);
+                    observed.bypassDocuments(), documentIdByTitle, BYPASS_DOCUMENT_LIMIT);
             List<String> goldenDocuments = goldenDocuments(officialCase.expectedDocumentId());
             observations.put(officialCase.questionId(), new CaseObservation(
                     officialCase.questionId(),
@@ -110,21 +114,23 @@ final class RetrievalObservationRunner implements ApplicationRunner {
                             observed.keywordPlan().highLevel(),
                             observed.keywordPlan().lowLevel(),
                             observed.keywordPlan().source())));
-            writeCheckpoint(orderedObservations(cases, observations));
+            List<CaseObservation> ordered = orderedObservations(cases, observations);
+            writeCheckpoint(ordered);
             LOGGER.info(
                     "Captured retrieval observation case={} completed={}/{}",
                     officialCase.questionId(),
-                    observations.size(),
+                    ordered.size(),
                     EXPECTED_ALLOW_CASES);
         }
-        if (observations.size() != EXPECTED_ALLOW_CASES) {
+        List<CaseObservation> ordered = orderedObservations(cases, observations);
+        if (ordered.size() != EXPECTED_ALLOW_CASES) {
             throw new IllegalArgumentException(
-                    "expected 43 Allow cases but found " + observations.size());
+                    "expected " + EXPECTED_ALLOW_CASES + " Allow cases but found " + ordered.size());
         }
         write(new ObservationSet(
                 "orgmemory.retrieval-observations.v2",
                 DATASET_ID,
-                orderedObservations(cases, observations)));
+                ordered));
         Files.deleteIfExists(checkpointPath());
     }
 

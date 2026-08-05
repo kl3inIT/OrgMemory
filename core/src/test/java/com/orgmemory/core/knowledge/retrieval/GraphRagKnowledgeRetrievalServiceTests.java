@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -394,6 +395,10 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals(40, requests.getAllValues().get(1).options().chunkTopK());
         assertTrue(requests.getAllValues().stream().allMatch(request ->
                 request.options().outputMode() == QueryOutputMode.CONTEXT));
+        verify(audit).recordAll(argThat(commands -> commands.stream().allMatch(command ->
+                "request-observation-keyword".equals(command.requestId()))));
+        verify(audit).recordAll(argThat(commands -> commands.stream().allMatch(command ->
+                "request-observation-bypass".equals(command.requestId()))));
         assertEquals(List.of("leave"), observation.keywordPlan().highLevel());
         assertEquals(List.of("policy"), observation.keywordPlan().lowLevel());
         assertEquals("model", observation.keywordPlan().source());

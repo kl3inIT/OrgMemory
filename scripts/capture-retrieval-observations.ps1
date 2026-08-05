@@ -1,3 +1,5 @@
+#Requires -PSEdition Core
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
@@ -39,12 +41,11 @@ function Start-CaptureProcess {
     $startInfo.FileName = 'cmd.exe'
     $startInfo.WorkingDirectory = $repoRoot
     $startInfo.UseShellExecute = $false
+    $gradleCommand = '""{0}\gradlew.bat" --no-daemon :apps:api:bootRun"' -f $repoRoot
     foreach ($argument in @(
         '/d',
         '/c',
-        "$repoRoot\gradlew.bat",
-        '--no-daemon',
-        ':apps:api:bootRun'
+        $gradleCommand
     )) {
         [void]$startInfo.ArgumentList.Add($argument)
     }

@@ -95,6 +95,21 @@ def test_score_passes_equal_keyword_and_bypass_document_recall() -> None:
     assert p031["keywordPlan"]["high_level_keywords"] == ["policy"]
 
 
+@pytest.mark.parametrize(("keyword_rank", "bypass_rank"), [(-1, 1), (1, 0)])
+def test_observation_rejects_a_non_positive_rank_in_either_map(
+    keyword_rank: int,
+    bypass_rank: int,
+) -> None:
+    with pytest.raises(ValueError, match="golden ranks must be positive or null"):
+        RetrievalObservation(
+            case_id="P031",
+            keyword_seeded_document_ids=["DOC001"],
+            bypass_document_ids=["DOC001"],
+            keyword_seeded_golden_ranks={"DOC001": keyword_rank},
+            bypass_golden_ranks={"DOC001": bypass_rank},
+        )
+
+
 def test_score_rejects_golden_ranks_that_disagree_with_retrieved_order() -> None:
     complete = observations()
     first = complete.observations[0].model_copy(
@@ -102,7 +117,18 @@ def test_score_rejects_golden_ranks_that_disagree_with_retrieved_order() -> None
     )
     inconsistent = complete.model_copy(update={"observations": [first, *complete.observations[1:]]})
 
-    with pytest.raises(ValueError, match="golden ranks disagree"):
+    with pytest.raises(ValueError, match="keyword golden ranks disagree"):
+        score(golden_dataset(), inconsistent)
+
+
+def test_score_rejects_bypass_ranks_that_disagree_with_retrieved_order() -> None:
+    complete = observations()
+    first = complete.observations[0].model_copy(
+        update={"bypass_golden_ranks": {"DOC001": 9}}
+    )
+    inconsistent = complete.model_copy(update={"observations": [first, *complete.observations[1:]]})
+
+    with pytest.raises(ValueError, match="bypass golden ranks disagree"):
         score(golden_dataset(), inconsistent)
 
 
