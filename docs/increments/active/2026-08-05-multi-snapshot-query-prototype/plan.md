@@ -27,11 +27,13 @@ Design: [design.md](design.md). Gates: ADR 0020 conditions 2–3.
 
 ## 3. Retrieval evaluation set
 
-- Author ~50 golden questions with expected grounding chunks over the real
-  corpus; store as data per docs/tests conventions.
-- Score recall@40: keyword-seeded path vs raw-query-embedding bypass;
-  diagnostic topK 60 vs 40. Predeclared threshold: bypass recall@40 within
-  2 points of keyword-seeded, else the bypass fails the gate.
+Use the 50 official cases in `demo/fixtures/public-evaluation.json` as the
+single source, deriving document-level recall goldens from its 43 Allow cases
+and scoring the later production transcript offline for permission, exact
+citation-set, multi-document, and latency correctness. Compare keyword-seeded
+and raw-query-bypass document recall@40 (diagnostic keyword topK 60); bypass
+must remain within 2 points. The optional LightRAG-style judge is pluggable and
+disabled by default.
 
 ## 4. Production-shaped shadow run (zm)
 
