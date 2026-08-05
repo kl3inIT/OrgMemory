@@ -54,6 +54,25 @@ class UiMessageStreamTests {
     }
 
     @Test
+    void emitsTransientSkillToolActivityWithoutPersistingToolPayloads() {
+        List<String> data = UiMessageStream.encode(
+                        Flux.just(new AssistantStreamPart.Activity(
+                                AssistantStreamPart.Activity.Phase.SKILL_ACTIVATION,
+                                AssistantStreamPart.Activity.State.COMPLETE,
+                                1)),
+                        MESSAGE_ID,
+                        json,
+                        Duration.ofHours(1),
+                        Duration.ofMinutes(1))
+                .map(ServerSentEvent::data)
+                .collectList()
+                .block();
+
+        assertThat(data).contains(
+                "{\"type\":\"data-assistantActivity\",\"data\":{\"phase\":\"SKILL_ACTIVATION\",\"state\":\"COMPLETE\",\"evidenceCount\":1},\"transient\":true}");
+    }
+
+    @Test
     void heartbeatIsAnSseComment() {
         StepVerifier.withVirtualTime(() -> UiMessageStream.encode(
                         Flux.never(),

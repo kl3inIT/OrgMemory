@@ -17,6 +17,7 @@ import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
 import com.orgmemory.core.ai.ChatGenerationRequest;
 import com.orgmemory.core.ai.ChatModelPort;
+import com.orgmemory.core.assistant.AssistantAgentModelPort;
 import com.orgmemory.core.assetregistry.api.AssetConflictException;
 import com.orgmemory.core.assetregistry.api.AssetNotFoundException;
 import com.orgmemory.core.assetregistry.api.AssetRole;
@@ -200,7 +201,7 @@ class AssetRegistryIntegrationTests {
     @MockitoBean
     KnowledgeCatalogQuery knowledgeCatalog;
 
-    @MockitoBean
+    @MockitoBean(extraInterfaces = AssistantAgentModelPort.class)
     ChatModelPort chat;
 
     @MockitoBean

@@ -2,6 +2,7 @@ package com.orgmemory.api.assistant;
 
 import com.orgmemory.core.ai.ChatModelPort;
 import com.orgmemory.core.assistant.AssistantAssetToolService;
+import com.orgmemory.core.assistant.AssistantAgentModelPort;
 import com.orgmemory.core.assistant.AssistantAssetTraceRecorder;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.observability.AssistantStageEventSink;
@@ -80,12 +81,14 @@ class AssistantConfiguration {
     AssistantService assistantService(
             PermissionAwareKnowledgeSearch retrieval,
             ChatModelPort chat,
+            AssistantAgentModelPort agent,
             ObservationRegistry observations,
             AssistantProperties properties,
             AssistantStageEventSink stages) {
         return new AssistantService(
                 retrieval,
                 chat,
+                agent,
                 observations,
                 observedEngine(properties),
                 stages);

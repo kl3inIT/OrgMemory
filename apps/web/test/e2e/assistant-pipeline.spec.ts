@@ -801,6 +801,12 @@ function citedAnswerFrames() {
     activityFrame("RETRIEVAL", "ACTIVE"),
     activityFrame("RETRIEVAL", "COMPLETE", 3),
     activityFrame("GENERATION", "ACTIVE"),
+    activityFrame("SKILL_DISCOVERY", "ACTIVE"),
+    activityFrame("SKILL_DISCOVERY", "COMPLETE", 1),
+    activityFrame("SKILL_ACTIVATION", "ACTIVE"),
+    activityFrame("SKILL_ACTIVATION", "COMPLETE"),
+    activityFrame("SKILL_RESOURCE", "ACTIVE"),
+    activityFrame("SKILL_RESOURCE", "COMPLETE"),
     sourceFrame(1, FIRST_CHUNK_ID, "Employee Handbook"),
     sourceFrame(2, SECOND_CHUNK_ID, "Expense Policy"),
     sourceFrame(3, THIRD_CHUNK_ID, "Security Policy"),
@@ -850,8 +856,13 @@ function textOnlyFrames(text: string) {
 }
 
 function activityFrame(
-  phase: "RETRIEVAL" | "GENERATION",
-  state: "ACTIVE" | "COMPLETE",
+  phase:
+    | "RETRIEVAL"
+    | "GENERATION"
+    | "SKILL_DISCOVERY"
+    | "SKILL_ACTIVATION"
+    | "SKILL_RESOURCE",
+  state: "ACTIVE" | "COMPLETE" | "FAILED",
   evidenceCount?: number,
 ) {
   return frame({

@@ -217,10 +217,12 @@ object key.
 
 The closed `core.assetregistry.skill` nested module owns bounded package
 inspection and validation, GitHub acquisition orchestration, API-facing Skill
-operations, and install-manifest construction. Its exact public top-level
+operations, install-manifest construction, and read-only runtime projection.
+Its exact public top-level
 surface is `SkillPackageOperations`, `SkillGitHubOperations`,
 `SkillDistributionOperations`, `SkillGitHubSourcePort`,
-`SkillPackageInspection`, `SkillInstallManifest`, and `SkillPackageContent`;
+`SkillPackageInspection`, `SkillInstallManifest`, `SkillPackageContent`, and
+`SkillRuntimeOperations`;
 all implementations and package semantics remain package-private. The child
 consumes the parent only through `assetregistry::skill-package` and
 `assetregistry::skill-delivery`, while the parent never depends on the child.
@@ -414,6 +416,16 @@ route identity and version, revalidates it inside the cold generation stream,
 and retains the ordinary bounded conversation-memory advisor. Deployment
 defaults remain synthetic and read-only, and other AI workloads cannot enter
 this Assistant-only exact-route authority path.
+
+On that exact Assistant route, the gateway registers three fixed request-local
+Skill tools for actor-scoped search, exact-release activation, and bounded text
+resource reads. A bounded Spring AI streaming tool advisor performs progressive
+disclosure without a second registry or filesystem mirror. Each operation
+re-enters live Asset authorization and immutable package integrity checks;
+stored object keys and denied identities never enter model context. Skill
+content is untrusted, `allowed-tools` grants no runtime authority, and the API
+does not execute scripts, binaries, shell commands, or package code. Empty
+authorized retrieval still terminates before model or Skill-tool invocation.
 
 The pure-Java GraphRAG core defines canonical entity/relation identity,
 evidence-level contributions and provenance, structured extraction contracts,

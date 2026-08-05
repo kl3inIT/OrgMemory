@@ -1361,7 +1361,8 @@ class ModulithVerificationTests {
                 Set.of(
                         "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseContent",
                         "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDeliveryQuery",
-                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor"),
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDescriptor",
+                        "com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseSummary"),
                 assetRegistry.getNamedInterfaces()
                         .getByName("skill-delivery")
                         .orElseThrow()
@@ -1409,7 +1410,8 @@ class ModulithVerificationTests {
         assertEquals(
                 Set.of(
                         "com.orgmemory.core.assetregistry.SkillReleaseDeliveryService",
-                        "com.orgmemory.core.assetregistry.skill.SkillDistributionService"),
+                        "com.orgmemory.core.assetregistry.skill.SkillDistributionService",
+                        "com.orgmemory.core.assetregistry.skill.SkillRuntimeService"),
                 directConsumersOf(
                         "com.orgmemory.core.assetregistry.skilldelivery"));
         assertEquals(
@@ -1462,7 +1464,7 @@ class ModulithVerificationTests {
     }
 
     @Test
-    void assetRegistrySkillExposesOnlyItsSevenTopLevelContracts() {
+    void assetRegistrySkillExposesOnlyItsEightTopLevelContracts() {
         var publicTopLevelTypes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages("com.orgmemory.core.assetregistry.skill")
@@ -1480,7 +1482,8 @@ class ModulithVerificationTests {
                         "com.orgmemory.core.assetregistry.skill.SkillInstallManifest",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageContent",
                         "com.orgmemory.core.assetregistry.skill.SkillPackageInspection",
-                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations"),
+                        "com.orgmemory.core.assetregistry.skill.SkillPackageOperations",
+                        "com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations"),
                 publicTopLevelTypes);
     }
 
