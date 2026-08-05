@@ -4,6 +4,7 @@ Source: `components/graph-rag-core`, `components/graph-rag-testkit`,
 `integrations/graph-rag-*`, `apps/worker/src/main/java/com/orgmemory/worker/graph`,
 `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/web/src/features/knowledge`, `apps/web/src/features/sources`,
+`apps/web/src/features/assistant`,
 `apps/web/src/components/layouts`, `integrations/observability`, and — for the
 payload-boundary configuration this document states —
 `apps/api/src/main/resources/application*.yml` and
@@ -11,7 +12,7 @@ payload-boundary configuration this document states —
 `infrastructure/deployment/compose.production.yaml` and
 `infrastructure/deployment/scripts/deploy.sh` for AGE cutover reconciliation.
 
-Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
+Reconciled: `2026-08-05-unified-governed-document-viewer (7b6ae726)`.
 
 ## Current Contract
 
@@ -339,6 +340,24 @@ Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
   would otherwise step outside the boundary silently, and each application asserts
   against its own classpath metadata that Spring AI declares no content flag the
   list has missed. It has no disable property.
+
+## Governed Document Viewer
+
+Knowledge documents and Assistant citations use one centered, responsive
+viewer shell for original evidence. The Knowledge document table remains full
+width while the viewer is open. In Assistant, an inline citation opens the
+viewer directly, the aggregate source control opens the cited/found source
+sidebar, and selecting a sidebar row opens the same viewer.
+
+The shared presentation layer renders inline PDF and supported images, safe
+Markdown with rendered/raw views, plain text, and an explicit download-only
+fallback. It owns loading, opaque access-change errors, copy/download actions,
+and object-URL cleanup. Knowledge documents read the current governed original
+through the source-content endpoint. Assistant citations remain excerpt-first:
+the permission-rechecked excerpt and its server-selected presentation kind must
+succeed before the browser requests original citation content. External sources
+open outside the secure evidence preview. The viewer introduces no browser-side
+authorization and never renders arbitrary source HTML.
 
 ## Graph Explorer
 

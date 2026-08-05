@@ -222,7 +222,15 @@ Reconciled: `2026-08-05-knowledge-operations-graph-inspector (47a53da1)`.
   errors. `page-layout.test.tsx` pins the shared shrink contract beneath that
   browser behavior.
 - `document-actions.spec.ts` proves the employee navigation names the enclosing
-  workspace Knowledge while Documents and Knowledge graph remain peer tabs.
+  workspace Knowledge while Documents and Knowledge graph remain peer tabs. It
+  also proves the full-width document table opens a centered responsive viewer,
+  safe rendered/raw Markdown, inline PDF and image evidence, download-only
+  fallback, retry after an opaque access change, and corrected-upload handoff.
+- `assistant-pipeline.spec.ts` proves inline citations open that shared viewer
+  directly, the aggregate source control still opens the cited/found sidebar,
+  sidebar rows use the same viewer, citation evidence remains excerpt-first,
+  revoked access stays opaque, and authorized PDF, image, Markdown, text, and
+  download-only representations preserve their security behavior.
 
 ## Verification
 
