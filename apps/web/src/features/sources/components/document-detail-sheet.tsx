@@ -74,7 +74,7 @@ export function DocumentDetailSheet({
 
   return (
     <Sheet open={source !== null} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl xl:max-w-4xl">
+      <SheetContent className="flex min-w-0 w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl xl:max-w-4xl">
         <SheetHeader className="shrink-0 border-b border-border-subtle px-5 py-4 text-left sm:px-6 sm:py-5">
           <div className="flex flex-wrap items-center gap-2 pr-8">
             <SheetTitle className="min-w-0 truncate">
@@ -88,8 +88,8 @@ export function DocumentDetailSheet({
         </SheetHeader>
 
         {source ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="mx-4 my-4 grid shrink-0 grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-surface-subtle p-4 text-sm sm:mx-6 sm:grid-cols-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="mx-4 my-4 grid min-w-0 shrink-0 grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-surface-subtle p-4 text-sm sm:mx-6">
               <Metadata label="File" value={source.fileName ?? "—"} />
               <Metadata label="Size" value={formatBytes(source.contentLength)} />
               <Metadata
@@ -108,10 +108,10 @@ export function DocumentDetailSheet({
             </div>
 
             <section
-              className="mx-4 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-background sm:mx-6 sm:mb-6"
+              className="mx-4 mb-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-background sm:mx-6 sm:mb-6"
               aria-label="Original evidence"
             >
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b px-4 py-3">
+              <div className="flex min-w-0 shrink-0 items-center justify-between gap-4 border-b px-4 py-3">
                 <div className="min-w-0">
                   <h3 className="font-medium">Original evidence</h3>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -126,7 +126,7 @@ export function DocumentDetailSheet({
                   </Button>
                 ) : null}
               </div>
-              <div className="flex min-h-0 flex-1 bg-surface-sunken">
+              <div className="flex min-h-0 min-w-0 flex-1 bg-surface-sunken">
                 {!source.contentAvailable ? (
                   <EmptyPreview message="Original content becomes available after governed publication completes." />
                 ) : preview.isError ? (
@@ -244,7 +244,7 @@ function Metadata({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate">{value}</p>
+      <p className="mt-1 break-words" title={value}>{value}</p>
     </div>
   )
 }

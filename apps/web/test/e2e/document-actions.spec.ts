@@ -48,7 +48,7 @@ test("views protected evidence and deletes only an eligible ready upload", async
 
 test("Knowledge presents safe cross-format evidence in a responsive right-side reader", async ({
   page,
-}) => {
+}, testInfo) => {
   const requests: string[] = []
   const browserErrors: string[] = []
   let readyDeleted = false
@@ -86,9 +86,25 @@ test("Knowledge presents safe cross-format evidence in a responsive right-side r
   await openDocument(page, "Support SLA")
   await expect(page.getByTestId("restricted-source-markdown")).toBeVisible()
   await expect(page.getByRole("heading", { name: "L1 Support SLA" })).toBeVisible()
+  const markdownDownload = page.getByRole("link", { name: "Download" })
+  await expect(markdownDownload).toBeVisible()
+  await expect
+    .poll(async () => {
+      const box = await markdownDownload.boundingBox()
+      return box ? Math.ceil(box.x + box.width) : Number.POSITIVE_INFINITY
+    })
+    .toBeLessThanOrEqual(1459)
   await expect(page.getByRole("img", { name: "Team map" })).toContainText(
     "Remote image blocked",
   )
+  if (process.env.DESIGN_QA_CAPTURE) {
+    const screenshot = testInfo.outputPath("knowledge-markdown-reader.png")
+    await page.screenshot({ path: screenshot, fullPage: false })
+    await testInfo.attach("knowledge-markdown-reader", {
+      path: screenshot,
+      contentType: "image/png",
+    })
+  }
   await page.getByRole("button", { name: "Raw" }).click()
   await expect(page.getByText("# L1 Support SLA", { exact: false })).toBeVisible()
   await closeReader(page)

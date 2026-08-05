@@ -50,6 +50,7 @@ export function RestrictedMarkdown({ content }: { content: string }) {
       >
         <Streamdown
           className="size-full px-6 py-5 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+          mode="static"
           plugins={plugins}
           skipHtml
           urlTransform={safeUrlTransform}
