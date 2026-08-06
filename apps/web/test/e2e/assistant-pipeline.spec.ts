@@ -613,6 +613,11 @@ test("ends the waiting state when a stream finishes without visible output", asy
       frame({ type: "start", messageId: "assistant-empty" }),
       frame({ type: "start-step" }),
       activityFrame("GENERATION", "ACTIVE"),
+      activityFrame("SKILL_ACTIVATION", "ACTIVE", undefined, { skillOrdinal: 1 }),
+      activityFrame("SKILL_ACTIVATION", "COMPLETE", undefined, {
+        skillOrdinal: 1,
+        skillTitle: "Incident response",
+      }),
       frame({ type: "finish-step" }),
       frame({ type: "finish", finishReason: "stop" }),
       "data: [DONE]",
@@ -625,6 +630,9 @@ test("ends the waiting state when a stream finishes without visible output", asy
     "OrgMemory completed the turn without an answer.",
   )
   await expect(page.getByRole("status")).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "Using Incident response skill" }),
+  ).toHaveCount(0)
   expect(harness.unexpectedRequests).toEqual([])
   expect(harness.browserErrors).toEqual([])
 })

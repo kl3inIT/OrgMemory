@@ -38,7 +38,8 @@ public record AssistantAgentActivity(
 
     private static String sanitizeTitle(String value) {
         String sanitized = value.codePoints()
-                .map(codePoint -> Character.isWhitespace(codePoint) ? ' ' : codePoint)
+                .map(codePoint -> Character.isWhitespace(codePoint)
+                        || Character.isSpaceChar(codePoint) ? ' ' : codePoint)
                 .filter(codePoint -> !Character.isISOControl(codePoint)
                         && Character.getType(codePoint) != Character.FORMAT)
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)

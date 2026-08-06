@@ -512,6 +512,8 @@ export function AssistantPage({
   const [awaitingVisibleAnswer, setAwaitingVisibleAnswer] = useState(false)
   const [finishedWithoutAnswer, setFinishedWithoutAnswer] = useState(false)
   const activityAcceptingRef = useRef(false)
+  const visibleOutputRef = useRef(false)
+  const turnOrdinalRef = useRef(0)
   const submitLock = useRef(false)
   const {
     messages,
@@ -534,15 +536,23 @@ export function AssistantPage({
       setSkillReceipts((current) => reduceSkillReceipts(current, nextActivity))
     },
     onFinish: ({ message, isAbort, isError }) => {
+      const finishedTurn = turnOrdinalRef.current
       activityAcceptingRef.current = false
       if (isAbort || isError) {
         setActivity(null)
         setAwaitingVisibleAnswer(false)
         setSkillReceipts([])
       } else if (!hasVisibleAssistantOutput(message)) {
-        setActivity(null)
-        setAwaitingVisibleAnswer(false)
-        setFinishedWithoutAnswer(true)
+        window.setTimeout(() => {
+          if (
+            turnOrdinalRef.current !== finishedTurn ||
+            visibleOutputRef.current
+          ) return
+          setActivity(null)
+          setAwaitingVisibleAnswer(false)
+          setSkillReceipts([])
+          setFinishedWithoutAnswer(true)
+        }, 0)
       }
       const invalidations = [
         queryClient.invalidateQueries({
@@ -574,7 +584,9 @@ export function AssistantPage({
     },
   })
   const stop = useCallback(() => {
+    turnOrdinalRef.current += 1
     activityAcceptingRef.current = false
+    visibleOutputRef.current = false
     setActivity(null)
     setAwaitingVisibleAnswer(false)
     setFinishedWithoutAnswer(false)
@@ -688,6 +700,7 @@ export function AssistantPage({
   const currentAssistantVisible = currentAssistant
     ? hasVisibleAssistantOutput(currentAssistant)
     : false
+  visibleOutputRef.current = currentAssistantVisible
 
   useEffect(() => {
     if (!awaitingVisibleAnswer || !currentAssistantVisible) return
@@ -732,7 +745,9 @@ export function AssistantPage({
     nextTitleRef.current =
       message.length <= 80 ? message : `${message.slice(0, 77)}...`
     clearError()
+    turnOrdinalRef.current += 1
     activityAcceptingRef.current = true
+    visibleOutputRef.current = false
     setActivity(null)
     setSkillReceipts([])
     setFinishedWithoutAnswer(false)

@@ -38,5 +38,11 @@ class AssistantAgentActivityTests {
                 1,
                 1,
                 null));
+        assertThrows(IllegalArgumentException.class, () -> new AssistantAgentActivity(
+                AssistantAgentActivity.Phase.SKILL_ACTIVATION,
+                AssistantAgentActivity.State.COMPLETE,
+                null,
+                1,
+                "\u00a0\u00a0"));
     }
 }
