@@ -100,10 +100,7 @@ final class UiMessageStream {
                 case AssistantStreamPart.FinishStep ignored -> fields("type", "finish-step");
                 case AssistantStreamPart.Activity activity -> fields(
                         "type", "data-assistantActivity",
-                        "data", fields(
-                                "phase", activity.phase().name(),
-                                "state", activity.state().name(),
-                                "evidenceCount", activity.evidenceCount()),
+                        "data", activityFields(activity),
                         "transient", true);
                 case AssistantStreamPart.TextStart text -> fields("type", "text-start", "id", text.id());
                 case AssistantStreamPart.TextDelta text -> fields(
@@ -119,6 +116,20 @@ final class UiMessageStream {
                                         "citationNumber",
                                         source.citationNumber())));
             };
+        }
+
+        private static Map<String, Object> activityFields(AssistantStreamPart.Activity activity) {
+            Map<String, Object> values = fields(
+                    "phase", activity.phase().name(),
+                    "state", activity.state().name(),
+                    "evidenceCount", activity.evidenceCount());
+            if (activity.skillOrdinal() != null) {
+                values.put("skillOrdinal", activity.skillOrdinal());
+            }
+            if (activity.skillTitle() != null) {
+                values.put("skillTitle", activity.skillTitle());
+            }
+            return values;
         }
 
         private static ServerSentEvent<String> event(String data) {

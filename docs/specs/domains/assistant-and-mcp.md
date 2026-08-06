@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
+Reconciled: `2026-08-06-assistant-skill-activity-receipt (implementation pending)`.
 
 ## Current Behavior
 
@@ -68,10 +68,23 @@ retrieval and emits only transient closed activity values for retrieval active,
 retrieval complete with an already-authorized evidence count, generation
 active, and Skill discovery, activation, or resource-read active/complete/failed
 states. Skill discovery may include only an authorized result count. These
-events contain no question, Skill or source identity, arbitrary prose, or
-reasoning and are not persisted. Browser-owned copy replaces the activity on
-phase changes and removes it at the first model text token, abort, error, actor
-change, or completion; the waiting UI has no leading product icon.
+events contain no question, source identity, reasoning, tool payload, or raw
+error and are not persisted. Only a successful actor-authorized exact-release
+activation may add a server-sanitized plain-text Skill title, capped at 80
+characters, plus a positive turn-local ordinal. Discovery and failure remain
+unnamed. Resource activity carries an ordinal only for an exact release already
+activated successfully in the same turn. The browser never infers completion
+from missing activity phases.
+
+Browser-owned copy replaces the activity on phase changes. A turn-local latch
+keeps the waiting row mounted until Assistant text is actually visible; a
+source frame alone is not visible citation output. This remains true even when
+the transport has already finished; abort, error, stop,
+actor/conversation change, and finish-without-output are terminal. Successful
+activation creates a plain-text current-turn receipt before the answer with
+fixed UI-owned step labels. It auto-collapses at visible output and is cleared
+on the next submit or terminal context change; transcript replay does not
+reconstruct it. The waiting UI has no leading product icon.
 
 Time to first token is recorded as its own distribution,
 `orgmemory.assistant.time_to_first_token`, tagged only by engine and measured
