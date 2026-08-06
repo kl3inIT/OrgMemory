@@ -30,6 +30,7 @@ import com.orgmemory.graphrag.storage.VectorIndex;
 import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -163,6 +164,54 @@ class PostgresSharedProjectionIntegrationTests {
                 """,
                 Integer.class);
         assertEquals(0, sleepingBackends);
+    }
+
+    @Test
+    void loadRelationsCancelsThePostgresBackendBeforeTheRetrievalDeadline()
+            throws Exception {
+        ProjectionNamespace namespace = new ProjectionNamespace(
+                ORGANIZATION_ID, "load-relations-timeout", "knowledge");
+        ProjectionBatch batch =
+                allProjectionBatch(namespace, "load-relations-timeout");
+        graph.stageReplaceRevision(batch, graphRevision(batch.generation()));
+        markPrepared(batch);
+        ProjectionSnapshot snapshot =
+                publications.publish(batch, commitPermit(batch, NOW), NOW);
+
+        try (Connection blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            try (var statement = blocker.prepareStatement(
+                    "LOCK TABLE projection_graph_relation_contributions IN ACCESS EXCLUSIVE MODE")) {
+                statement.execute();
+            }
+
+            long startedAt = System.nanoTime();
+            DataAccessException failure = assertThrows(
+                    DataAccessException.class,
+                    () -> graph.loadRelations(
+                            scope(Set.of(ASSET_ID)), snapshot, List.of(RELATION_ID)));
+            long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+
+            assertTrue(
+                    failure.getMostSpecificCause().getMessage().contains("statement timeout"),
+                    () -> "expected PostgreSQL cancellation, got: " + failure);
+            assertTrue(
+                    elapsedMillis < 25_000,
+                    () -> "loadRelations exceeded its PostgreSQL budget: "
+                            + elapsedMillis + "ms");
+            blocker.rollback();
+        }
+
+        Integer activeBackends = plainJdbc.queryForObject(
+                """
+                SELECT count(*)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND state = 'active'
+                  AND query LIKE 'SELECT relation.*%projection_graph_relations%'
+                """,
+                Integer.class);
+        assertEquals(0, activeBackends);
     }
 
     @Test
