@@ -28,7 +28,7 @@ import reactor.core.publisher.Flux;
 class AssistantSkillToolLoopTests {
 
     @Test
-    void springAiRecursivelyExecutesARequestLocalSkillToolBeforeAnswering() {
+    void springAiActivatesAnExactSkillFromTheDisclosedCatalogBeforeAnswering() {
         UUID assetId = UUID.fromString("93000000-0000-0000-0000-000000000001");
         UUID releaseId = UUID.fromString("93000000-0000-0000-0000-000000000002");
         CurrentActor actor = new CurrentActor(
@@ -39,7 +39,7 @@ class AssistantSkillToolLoopTests {
                 "incident.lead@example.test",
                 Clearance.STANDARD);
         SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
-        when(skills.search(actor, "incident", 3)).thenReturn(List.of(
+        SkillRuntimeOperations.SkillSummary summary =
                 new SkillRuntimeOperations.SkillSummary(
                         assetId,
                         releaseId,
@@ -47,7 +47,13 @@ class AssistantSkillToolLoopTests {
                         "1.0.0",
                         "Incident response",
                         "Coordinate incidents safely",
-                        "a".repeat(64))));
+                        "a".repeat(64));
+        when(skills.search(actor, null, 10)).thenReturn(List.of(summary));
+        when(skills.activate(actor, assetId, releaseId)).thenReturn(
+                new SkillRuntimeOperations.ActivatedSkill(
+                        summary,
+                        "Follow the approved incident workflow.",
+                        List.of()));
         AtomicInteger modelCalls = new AtomicInteger();
         ChatModel model = new ChatModel() {
             @Override
@@ -68,8 +74,9 @@ class AssistantSkillToolLoopTests {
                             .toolCalls(List.of(new AssistantMessage.ToolCall(
                                     "call-1",
                                     "function",
-                                    "search_skills",
-                                    "{\"query\":\"incident\",\"limit\":3}")))
+                                    "activate_skill",
+                                    "{\"assetId\":\"" + assetId
+                                            + "\",\"releaseId\":\"" + releaseId + "\"}")))
                             .build();
                     return Flux.just(new ChatResponse(List.of(new Generation(toolCall))));
                 }
@@ -94,7 +101,8 @@ class AssistantSkillToolLoopTests {
 
         assertEquals(List.of("Use the governed incident workflow."), answer);
         assertEquals(2, modelCalls.get());
-        verify(skills).search(actor, "incident", 3);
+        verify(skills).search(actor, null, 10);
+        verify(skills).activate(actor, assetId, releaseId);
     }
 
     @Test
@@ -107,6 +115,15 @@ class AssistantSkillToolLoopTests {
                 "loop.tester@example.test",
                 Clearance.STANDARD);
         SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
+        when(skills.search(actor, null, 10)).thenReturn(List.of(
+                new SkillRuntimeOperations.SkillSummary(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "support/loop-test",
+                        "1.0.0",
+                        "Loop test",
+                        "Exercise bounded tool execution",
+                        "a".repeat(64))));
         when(skills.search(actor, "loop", 1)).thenReturn(List.of());
         AtomicInteger modelCalls = new AtomicInteger();
         ChatModel loopingModel = new ChatModel() {
