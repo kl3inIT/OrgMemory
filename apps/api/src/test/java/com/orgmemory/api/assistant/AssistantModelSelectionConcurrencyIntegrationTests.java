@@ -181,7 +181,8 @@ class AssistantModelSelectionConcurrencyIntegrationTests {
                 "Model actor",
                 actorId + "@example.test",
                 Clearance.STANDARD);
-        UUID conversationId = conversations.beginTurn(actor, null, "Initial turn");
+        UUID conversationId =
+                conversations.beginTurn(actor, null, "Initial turn").conversationId();
         return new Scenario(actor, profile.id(), activation.id(), conversationId);
     }
 

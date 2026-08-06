@@ -10,6 +10,7 @@ import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.assistant.AssistantConversationSummary;
 import com.orgmemory.core.assistant.AssistantService;
 import com.orgmemory.core.assistant.AssistantTurn;
+import com.orgmemory.core.assistant.AssistantTurnRef;
 import com.orgmemory.core.ai.AssistantModelAuthorityService;
 import com.orgmemory.core.ai.AssistantModelChoice;
 import com.orgmemory.core.ai.AssistantModelRouteAuthority;
@@ -111,11 +112,12 @@ class AssistantController {
                 request.modelActivationId());
         AssistantModelSelectionRef modelSelection = modelAuthority.selectionRef(
                 routeAuthority);
-        UUID conversationId = conversations.beginTurn(
+        AssistantTurnRef turnRef = conversations.beginTurn(
                 actor,
                 request.conversationId(),
                 request.message(),
                 modelSelection);
+        UUID conversationId = turnRef.conversationId();
         UUID assistantMessageId = UUID.randomUUID();
         Flux<AssistantStreamPart> parts = Flux.defer(() -> {
             long turnStartedAtNanos = System.nanoTime();
@@ -136,7 +138,7 @@ class AssistantController {
                                     turnStartedAtNanos))
                             .flatMapMany(turn -> completedTurnParts(
                                     actor,
-                                    conversationId,
+                                    turnRef,
                                     assistantMessageId,
                                     turn)));
         });
@@ -418,7 +420,7 @@ class AssistantController {
 
     private Flux<AssistantStreamPart> completedTurnParts(
             CurrentActor actor,
-            UUID conversationId,
+            AssistantTurnRef turnRef,
             UUID assistantMessageId,
             AssistantTurn turn) {
         StringBuilder completedAnswer = new StringBuilder();
@@ -430,7 +432,7 @@ class AssistantController {
                 })
                 .doOnComplete(() -> conversations.completeTurn(
                         actor,
-                        conversationId,
+                        turnRef,
                         assistantMessageId,
                         completedAnswer.toString(),
                         turn.citations()));
