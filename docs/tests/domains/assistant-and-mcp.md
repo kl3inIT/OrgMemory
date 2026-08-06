@@ -5,10 +5,11 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `integrations/ai-model-gateways/src/test`,
 `apps/api/src/test/java/com/orgmemory/api/assistant`,
 `apps/mcp/src/test/java/com/orgmemory/mcp`, and
-`apps/web/src/features/assistant`, plus
+`apps/web/src/features/assistant`,
+`apps/web/src/components/ai-elements/prompt-input.test.tsx`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-turn-activity-continuity (a4a9684c)`.
+Reconciled: `2026-08-06-assistant-prompt-input-alignment (b83d45d9)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -67,6 +68,7 @@ Reconciled: `2026-08-06-assistant-turn-activity-continuity (a4a9684c)`.
 | Concurrent feedback set/set and set/delete mutations serialize on the owned assistant message | `AssistantAnswerFeedbackConcurrencyIntegrationTests` against PostgreSQL | covered |
 | Starter prompts come from the server rather than a browser constant | `AssistantControllerStreamingTests#publishesClosedServerOwnedStarters`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
 | Drafts are actor/conversation scoped, capped, restored in-session, and cleared through their lifecycle | `assistant-draft-storage.test.ts`, `assistant-pipeline.spec.ts#loads server-owned starters and restores a session-scoped draft with focus` | covered |
+| Prompt Input preserves text submission, Shift+Enter and IME composition, stop semantics, header composition, tooltip metadata, and side-effect-free action-menu composition | `prompt-input.test.tsx`; `assistant-pipeline.spec.ts` governed-model and stop scenarios | covered |
 | Completed-answer retry starts exactly one fresh turn without consuming the current composer draft | `assistant-pipeline.spec.ts#retries a completed answer as one fresh turn and preserves the composer draft` | covered |
 | Composer focus and leave-bottom scroll recovery remain keyboard/browser reachable | `assistant-pipeline.spec.ts` focus and scroll-recovery scenarios | covered |
 | Empty-state hierarchy removes decorative permission copy and the searchable model dialog sends only an opaque activation UUID | `assistant-pipeline.spec.ts#chooses a governed model in the composer and sends only its opaque activation` | covered |

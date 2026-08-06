@@ -41,6 +41,7 @@ import {
 import {
   PromptInput,
   PromptInputBody,
+  PromptInputButton,
   PromptInputFooter,
   type PromptInputMessage,
   PromptInputSubmit,
@@ -50,7 +51,6 @@ import {
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources"
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion"
 import { Button } from "@/components/ui/button"
-import { InputGroupButton } from "@/components/ui/input-group"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import {
   activityLabel,
@@ -367,7 +367,7 @@ function AssistantModelPicker({
   return (
     <ModelSelector open={open} onOpenChange={setOpen}>
       <ModelSelectorTrigger asChild>
-        <InputGroupButton
+        <PromptInputButton
           type="button"
           size="sm"
           disabled={disabled || loading || options.length === 0}
@@ -383,7 +383,7 @@ function AssistantModelPicker({
             {loading ? "Loading models…" : selected?.displayName ?? "Organization default"}
           </span>
           <ChevronsUpDown className="size-3.5 opacity-60" aria-hidden="true" />
-        </InputGroupButton>
+        </PromptInputButton>
       </ModelSelectorTrigger>
       <ModelSelectorContent title="Choose an Assistant model">
         <ModelSelectorInput placeholder="Search models…" />
