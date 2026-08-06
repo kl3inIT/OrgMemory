@@ -146,7 +146,14 @@ public class AssistantConversationService implements AssistantTranscriptContext 
         }
         List<AssistantCitation> persistedCitations = validateCitations(answerCitations);
         UUID conversationId = turn.conversationId();
-        AssistantConversation conversation = requireOwned(actor, conversationId);
+        // Locked for the same reason beginTurn locks: completing a turn touches
+        // the conversation's last activity, which bumps its version. Two turns
+        // of one conversation finishing together would otherwise both write the
+        // version they read, and the loser's whole transaction would roll back —
+        // taking the answer row with it, after the user had already watched it
+        // stream. Turns of one conversation are short and few; serializing their
+        // completion costs less than losing one.
+        AssistantConversation conversation = requireOwnedForUpdate(actor, conversationId);
         Instant now = clock.instant();
         messages.save(new AssistantConversationMessage(
                 assistantMessageId,
