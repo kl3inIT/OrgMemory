@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-skill-activity-receipt (implementation pending)`.
+Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |

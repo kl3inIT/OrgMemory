@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-06-assistant-skill-activity-receipt (implementation pending)`.
+Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 
 ## Current Behavior
 

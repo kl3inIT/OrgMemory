@@ -1,7 +1,7 @@
 # Assistant Skill Activity Receipt Challenge Verdict
 
-Date: 2026-08-06  
-Commit reviewed: `438cf197`  
+Date: 2026-08-06
+Commit reviewed: `438cf197`
 Reviewer: Claude Fable 5, independent read-only session
 
 ## Verdict
@@ -46,4 +46,3 @@ protocol has no correlation and cannot truthfully attribute resource activity.
 A generic title-free `Used a governed Skill` receipt avoids the disclosure
 change but fails the product need and retains almost all state-machine
 complexity. Durable receipt persistence is also rejected for this increment.
-

@@ -1,6 +1,6 @@
 # 0033 — Bound successful Skill identity in transient Assistant receipts
 
-Status: accepted  
+Status: accepted
 Date: 2026-08-06
 
 ## Context
