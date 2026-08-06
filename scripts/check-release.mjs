@@ -169,6 +169,17 @@ for (const buildWorkflow of ["build-images.yml", "build-docs.yml"]) {
     }
   }
 }
+const productImageWorkflow = await readFile(
+  join(root, ".github", "workflows", "build-images.yml"),
+  "utf8",
+);
+const aiGatewayImageDependencies =
+  productImageWorkflow.match(/- "integrations\/ai-model-gateways\/\*\*"/g) ?? [];
+if (aiGatewayImageDependencies.length !== 2) {
+  failures.push(
+    "build-images.yml must rebuild both API and worker images when ai-model-gateways changes",
+  );
+}
 const productionDeploy = await readFile(join(root, ".github", "workflows", "deploy-production.yml"), "utf8");
 if (!productionDeploy.includes("Verify immutable image set")) {
   failures.push("deploy-production.yml must require a verified image-set job");
