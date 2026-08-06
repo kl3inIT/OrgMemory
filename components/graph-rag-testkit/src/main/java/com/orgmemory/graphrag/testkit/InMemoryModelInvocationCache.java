@@ -38,14 +38,33 @@ public final class InMemoryModelInvocationCache implements ModelInvocationCache 
             Map<Key, Entry> boundedEntries,
             Instant now,
             int maximumEntries) {
-        entries.putAll(boundedEntries);
+        Objects.requireNonNull(namespace, "namespace");
+        String boundedOperation = Objects.requireNonNull(operation, "operation").strip();
+        Map<Key, Entry> validatedEntries =
+                Map.copyOf(Objects.requireNonNull(boundedEntries, "boundedEntries"));
+        Objects.requireNonNull(now, "now");
+        if (boundedOperation.isEmpty()) {
+            throw new IllegalArgumentException("operation must not be blank");
+        }
+        if (maximumEntries <= 0) {
+            throw new IllegalArgumentException("maximumEntries must be positive");
+        }
+        validatedEntries.forEach((key, entry) -> {
+            if (!key.namespace().equals(namespace)
+                    || !key.operation().equals(boundedOperation)) {
+                throw new IllegalArgumentException(
+                        "bounded entries must match namespace and operation");
+            }
+            Objects.requireNonNull(entry, "entry");
+        });
+        entries.putAll(validatedEntries);
         entries.entrySet().removeIf(entry ->
                 entry.getKey().namespace().equals(namespace)
-                        && entry.getKey().operation().equals(operation)
+                        && entry.getKey().operation().equals(boundedOperation)
                         && entry.getValue().expiredAt(now));
         entries.entrySet().stream()
                 .filter(entry -> entry.getKey().namespace().equals(namespace))
-                .filter(entry -> entry.getKey().operation().equals(operation))
+                .filter(entry -> entry.getKey().operation().equals(boundedOperation))
                 .sorted((left, right) -> right.getValue()
                         .createdAt()
                         .compareTo(left.getValue().createdAt()))

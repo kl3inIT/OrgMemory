@@ -172,6 +172,22 @@ class PostgresSharedProjectionIntegrationTests {
                 namespace.workspace(),
                 namespace.collection());
         assertEquals(2, remaining);
+        List<String> retainedHashes = plainJdbc.queryForList(
+                """
+                SELECT input_hash
+                FROM graph_model_invocation_cache
+                WHERE organization_id = ?
+                  AND workspace = ?
+                  AND collection_name = ?
+                  AND operation = 'QUERY_EMBEDDING'
+                """,
+                String.class,
+                namespace.organizationId(),
+                namespace.workspace(),
+                namespace.collection());
+        assertEquals(
+                Set.of(String.format("%064x", 2), String.format("%064x", 3)),
+                Set.copyOf(retainedHashes));
 
         ProjectionNamespace inactiveNamespace = new ProjectionNamespace(
                 ORGANIZATION_ID,

@@ -166,6 +166,40 @@ class CachingQueryEmbeddingServiceTests {
     }
 
     @Test
+    void providerErrorCompletesFollowersExceptionally() throws Exception {
+        BlockingErrorEmbeddingPort provider = new BlockingErrorEmbeddingPort();
+        LatchingEventSink events = new LatchingEventSink();
+        CachingQueryEmbeddingService service = new CachingQueryEmbeddingService(
+                provider,
+                new MapModelInvocationCache(),
+                Duration.ofDays(7),
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                events);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<List<FloatVector>> leader = executor.submit(() -> service.embedAll(
+                    NAMESPACE, PROFILE_ID, 2, List.of("Leave policy")));
+            assertTrue(provider.awaitStarted());
+            Future<List<FloatVector>> follower = executor.submit(() -> service.embedAll(
+                    NAMESPACE, PROFILE_ID, 2, List.of("Leave policy")));
+            assertTrue(events.awaitCoalesced());
+            provider.release();
+
+            ExecutionException leaderFailure = assertThrows(
+                    ExecutionException.class,
+                    () -> leader.get(2, TimeUnit.SECONDS));
+            ExecutionException followerFailure = assertThrows(
+                    ExecutionException.class,
+                    () -> follower.get(2, TimeUnit.SECONDS));
+            assertTrue(leaderFailure.getCause() instanceof AssertionError);
+            assertTrue(followerFailure.getCause() instanceof AssertionError);
+        } finally {
+            provider.release();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
     void boundedPersistenceFailureDoesNotLeaveCacheRowsBehind() {
         PruneFailingModelInvocationCache cache = new PruneFailingModelInvocationCache();
         RecordingEmbeddingPort provider = new RecordingEmbeddingPort("1", 2);
@@ -432,6 +466,38 @@ class CachingQueryEmbeddingServiceTests {
         }
     }
 
+    private static final class BlockingErrorEmbeddingPort implements TextEmbeddingPort {
+        private final CountDownLatch started = new CountDownLatch(1);
+        private final CountDownLatch release = new CountDownLatch(1);
+
+        @Override
+        public ProcessingComponentRef component() {
+            return new ProcessingComponentRef("error-embedding-model", "1");
+        }
+
+        @Override
+        public List<FloatVector> embedAll(List<String> texts) {
+            started.countDown();
+            try {
+                if (!release.await(2, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("test provider was not released");
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("test provider interrupted", interrupted);
+            }
+            throw new AssertionError("provider error");
+        }
+
+        boolean awaitStarted() throws InterruptedException {
+            return started.await(2, TimeUnit.SECONDS);
+        }
+
+        void release() {
+            release.countDown();
+        }
+    }
+
     private static final class PruneFailingModelInvocationCache implements ModelInvocationCache {
         private final Map<Key, Entry> entries = new HashMap<>();
 
@@ -451,6 +517,24 @@ class CachingQueryEmbeddingServiceTests {
         @Override
         public synchronized void invalidate(ProjectionNamespace namespace) {
             entries.keySet().removeIf(key -> key.namespace().equals(namespace));
+        }
+
+        @Override
+        public synchronized void putBounded(
+                ProjectionNamespace namespace,
+                String operation,
+                Map<Key, Entry> boundedEntries,
+                Instant now,
+                int maximumEntries) {
+            Map<Key, Entry> snapshot = new HashMap<>(entries);
+            entries.putAll(boundedEntries);
+            try {
+                prune(namespace, operation, now, maximumEntries);
+            } catch (RuntimeException failure) {
+                entries.clear();
+                entries.putAll(snapshot);
+                throw failure;
+            }
         }
 
         @Override

@@ -12,4 +12,8 @@ public final class KnowledgeProjectionNamespaces {
     public static ProjectionNamespace forSpace(UUID organizationId, UUID knowledgeSpaceId) {
         return new ProjectionNamespace(organizationId, "default", knowledgeSpaceId.toString());
     }
+
+    public static ProjectionNamespace forCanonicalQuery(UUID organizationId) {
+        return new ProjectionNamespace(organizationId, "default", "canonical-query");
+    }
 }

@@ -3,6 +3,7 @@ package com.orgmemory.api.knowledge;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
@@ -10,7 +11,6 @@ import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
 import com.orgmemory.graphrag.query.CachingQueryEmbeddingService;
-import com.orgmemory.graphrag.storage.ProjectionNamespace;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,10 +66,7 @@ final class SpringAiQueryEmbeddingAdapter implements QueryEmbeddingPort {
         }
         try {
             var vector = embeddings.embedAll(
-                            new ProjectionNamespace(
-                                    organizationId,
-                                    "default",
-                                    "canonical-query"),
+                            KnowledgeProjectionNamespaces.forCanonicalQuery(organizationId),
                             profile.get().id(),
                             profile.get().dimensions(),
                             List.of(query))

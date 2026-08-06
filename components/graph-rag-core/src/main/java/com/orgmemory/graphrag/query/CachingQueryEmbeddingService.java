@@ -192,7 +192,7 @@ public final class CachingQueryEmbeddingService {
             for (int index = 0; index < ownedMisses.size(); index++) {
                 waiting.get(ownedMisses.get(index)).complete(loaded.get(index));
             }
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | Error failure) {
             ownedMisses.forEach(input -> waiting.get(input).completeExceptionally(failure));
             throw failure;
         } finally {
@@ -282,6 +282,9 @@ public final class CachingQueryEmbeddingService {
             Throwable cause = failure.getCause();
             if (cause instanceof RuntimeException runtime) {
                 throw runtime;
+            }
+            if (cause instanceof Error error) {
+                throw error;
             }
             throw new IllegalStateException("shared embedding failed", cause);
         }
