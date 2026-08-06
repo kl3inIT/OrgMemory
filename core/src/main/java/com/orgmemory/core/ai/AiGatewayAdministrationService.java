@@ -460,10 +460,11 @@ public class AiGatewayAdministrationService {
                     "ai.assistant-model-gateway-inactive",
                     "Additional Assistant models must belong to the active Assistant gateway");
         }
-        if (route.openAiReasoningEffort() != null) {
+        if (route.openAiReasoningEffort() != null
+                && route.openAiReasoningEffort() != OpenAiReasoningEffort.NONE) {
             throw new BusinessConflictException(
                     "ai.assistant-model-options-incompatible",
-                    "Additional Assistant models require provider-default reasoning options");
+                    "Additional Assistant models require provider-default or none reasoning options");
         }
 
         List<AiAssistantModelDefinition> normalized = normalizeAssistantModels(

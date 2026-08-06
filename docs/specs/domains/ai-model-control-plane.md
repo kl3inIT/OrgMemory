@@ -5,7 +5,7 @@ Source: `core/src/main/java/com/orgmemory/core/ai`,
 API/worker `application*.yml`, and
 `apps/web/src/features/admin/components/admin-language-models-page.tsx`.
 
-Reconciled: `2026-08-06-assistant-chat-reasoning-effort (c3da6b25)`.
+Reconciled: `2026-08-06-assistant-catalog-none-reasoning`.
 
 ## Current Behavior
 
@@ -58,8 +58,13 @@ creates a new immutable activation UUID when a model is later re-enabled. Each
 row repeats organization ownership in its profile and actor foreign keys; only
 one active row may exist for an organization/profile/model tuple. Catalog
 mutation is unavailable on deployment defaults, inactive gateways, or Answer
-routes with explicit reasoning effort. Catalog changes are audited without
-model prompts, output, endpoints, or credentials.
+routes with explicit reasoning effort other than `none`. Provider-default and
+explicit `none` may publish additional choices. Every selected activation
+inherits that server-owned route policy; the composer sends only the opaque
+activation UUID and cannot submit a raw model ID or reasoning value. Higher
+reasoning policies suppress alternate choices because catalog models have not
+been capability-validated for them. Catalog changes are audited without model
+prompts, output, endpoints, or credentials.
 
 Deployment gateways use binder-safe nested objects. A production profile may
 contribute only a managed credential while retaining the endpoint,
