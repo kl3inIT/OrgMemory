@@ -30,6 +30,7 @@ import com.orgmemory.graphrag.storage.VectorIndex;
 import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +119,50 @@ class PostgresSharedProjectionIntegrationTests {
                 graph,
                 publications,
                 new PostgresGraphCurationStore(jdbc, transactions));
+    }
+
+    @Test
+    void graphEntityVisibilityIndexStartsWithEntityForDegreeLookups() {
+        String definition = plainJdbc.queryForObject(
+                """
+                SELECT indexdef
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                  AND indexname = 'idx_projection_graph_entity_visible_by_entity'
+                """,
+                String.class);
+
+        assertTrue(
+                definition.contains("(batch_id, organization_id, entity_id, knowledge_asset_id)"),
+                () -> "degree visibility lookups require entity_id before knowledge_asset_id: "
+                        + definition);
+    }
+
+    @Test
+    void graphReadStatementTimeoutCancelsThePostgresBackend() {
+        PostgresProjectionSupport support = new PostgresProjectionSupport(
+                new NamedParameterJdbcTemplate(dataSource),
+                new DataSourceTransactionManager(dataSource),
+                publications);
+
+        DataAccessException failure = assertThrows(
+                DataAccessException.class,
+                () -> support.read(Duration.ofMillis(20), () -> {
+                    plainJdbc.execute("SELECT pg_sleep(0.2)");
+                    return null;
+                }));
+
+        assertTrue(failure.getMostSpecificCause().getMessage().contains("statement timeout"));
+        Integer sleepingBackends = plainJdbc.queryForObject(
+                """
+                SELECT count(*)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND state = 'active'
+                  AND query LIKE 'SELECT pg_sleep(0.2)%'
+                """,
+                Integer.class);
+        assertEquals(0, sleepingBackends);
     }
 
     @Test

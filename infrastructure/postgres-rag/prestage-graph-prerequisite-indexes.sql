@@ -23,3 +23,14 @@ CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS
         knowledge_asset_id,
         projection_generation
     );
+
+-- Degree ranking resolves endpoint visibility by entity. Build this before
+-- deploying V24 so Flyway never blocks writes on a populated projection table.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS
+    idx_projection_graph_entity_visible_by_entity
+    ON projection_graph_entity_contributions (
+        batch_id,
+        organization_id,
+        entity_id,
+        knowledge_asset_id
+    );
