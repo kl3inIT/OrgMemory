@@ -6,20 +6,29 @@ import { RenderWhenSized } from "@/features/sources/components/graph/render-when
 class ResizeObserverHarness implements ResizeObserver {
   static instance: ResizeObserverHarness | null = null
 
-  readonly observe = vi.fn()
+  readonly observe = vi.fn((target: Element) => {
+    this.target = target
+  })
   readonly unobserve = vi.fn()
   readonly disconnect = vi.fn()
+  private target: Element | null = null
 
   constructor(private readonly callback: ResizeObserverCallback) {
     ResizeObserverHarness.instance = this
   }
 
   emit(width: number, height: number) {
+    if (!(this.target instanceof HTMLElement)) return
+    Object.defineProperties(this.target, {
+      offsetWidth: { configurable: true, value: Math.trunc(width) },
+      offsetHeight: { configurable: true, value: Math.trunc(height) },
+    })
     this.callback(
       [
         {
+          target: this.target,
           contentRect: { width, height },
-        } as ResizeObserverEntry,
+        } as unknown as ResizeObserverEntry,
       ],
       this,
     )
@@ -48,6 +57,9 @@ describe("RenderWhenSized", () => {
       </RenderWhenSized>,
     )
 
+    expect(screen.queryByText("sigma renderer")).not.toBeInTheDocument()
+
+    act(() => ResizeObserverHarness.instance?.emit(0.5, 0.5))
     expect(screen.queryByText("sigma renderer")).not.toBeInTheDocument()
 
     act(() => ResizeObserverHarness.instance?.emit(640, 480))

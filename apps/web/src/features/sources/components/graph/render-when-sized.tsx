@@ -14,14 +14,14 @@ export function RenderWhenSized({
     const container = containerRef.current
     if (!container) return
 
-    const update = ({ width, height }: Pick<DOMRectReadOnly, "width" | "height">) => {
-      setSized(width > 0 && height > 0)
+    const update = (target: HTMLElement) => {
+      setSized(target.offsetWidth > 0 && target.offsetHeight > 0)
     }
-    update(container.getBoundingClientRect())
+    update(container)
 
     const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry) update(entry.contentRect)
+      const target = entries[0]?.target
+      if (target instanceof HTMLElement) update(target)
     })
     observer.observe(container)
     return () => observer.disconnect()
