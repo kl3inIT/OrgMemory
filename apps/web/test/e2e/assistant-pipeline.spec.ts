@@ -966,6 +966,61 @@ function unexpectedBrowserErrors(errors: string[], allowedHttpStatuses: number[]
   )
 }
 
+test("keeps high-frequency structured Assistant streams responsive", async ({ page }) => {
+  const chunks = 1200
+  const sentence = "Evidence ok."
+  const frames = [
+    frame({ type: "start", messageId: ANSWER_MESSAGE_ID }),
+    frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 0),
+    frame({ type: "text-start", id: "answer" }),
+    ...Array.from({ length: chunks }, (_, index) =>
+      frame({
+        type: "text-delta",
+        id: "answer",
+        delta: `${sentence}${(index + 1) % 20 === 0 ? "\n\n" : " "}`,
+      }),
+    ),
+    frame({ type: "text-end", id: "answer" }),
+    frame({ type: "finish-step" }),
+    frame({ type: "finish", finishReason: "stop" }),
+    "data: [DONE]",
+  ]
+
+  await page.addInitScript(() => {
+    const stats = { rafMaxGap: 0, longTasks: [] as number[] }
+    ;(window as unknown as { __streamStats: typeof stats }).__streamStats = stats
+    let last = performance.now()
+    const tick = (now: number) => {
+      stats.rafMaxGap = Math.max(stats.rafMaxGap, now - last)
+      last = now
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) stats.longTasks.push(entry.duration)
+      }).observe({ entryTypes: ["longtask"] })
+    } catch {}
+  })
+
+  await assistantHarness(page, { chatFrames: frames })
+  await page.goto("/")
+  await submit(page, "Run streaming performance test")
+  await page.getByRole("button", { name: "Submit" }).waitFor({ state: "visible", timeout: 120_000 })
+
+  const stats = await page.evaluate(() => {
+    const value = (window as unknown as { __streamStats: { rafMaxGap: number; longTasks: number[] } }).__streamStats
+    return {
+      rafMaxGap: value.rafMaxGap,
+      longTaskMax: Math.max(0, ...value.longTasks),
+    }
+  })
+  expect(stats.rafMaxGap).toBeLessThan(500)
+  expect(stats.longTaskMax).toBeLessThan(500)
+})
+
 function minimalPdf() {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
