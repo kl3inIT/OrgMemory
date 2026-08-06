@@ -38,7 +38,8 @@ class SourceUploadServiceTests {
                 mock(SourceUploadRegistrationService.class);
         SourceKnowledgeSpacePort spaces = mock(SourceKnowledgeSpacePort.class);
         when(spaces.requireUploadTarget(actor, spaceId)).thenReturn(
-                new SourceKnowledgeSpaceRef(spaceId, departmentId));
+                new SourceKnowledgeSpaceRef(
+                        spaceId, "people", "People", departmentId));
         when(objects.put(any(), any())).thenReturn(new StoredObject(
                 new ObjectKey("organizations/test/sources/workflow.txt"),
                 4,
