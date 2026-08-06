@@ -89,4 +89,3 @@ components, raw command bodies, or animated comet treatment.
   first renderable answer.
 - No-Skill, abort, error, finish-without-output, actor switch, and conversation
   switch behavior remain covered.
-
