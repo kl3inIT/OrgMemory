@@ -11,7 +11,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react"
-import type { ReactNode, RefObject } from "react"
+import { Fragment, type ReactNode, type RefObject } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -54,9 +54,13 @@ import { InputGroupButton } from "@/components/ui/input-group"
 import { createAssistantTransport } from "@/features/assistant/api/chat-transport"
 import {
   activityLabel,
+  hasVisibleAssistantOutput,
+  reduceSkillReceipts,
   type AssistantActivity,
+  type AssistantSkillReceipt,
 } from "@/features/assistant/assistant-activity"
 import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
+import { AssistantSkillActivity } from "@/features/assistant/components/assistant-skill-activity"
 import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
 import {
   type AssistantSourceRef,
@@ -137,8 +141,13 @@ function citedSourcesFor(content: string, sources: AssistantSourceRef[]) {
   return cited
 }
 
-function hasVisibleOutput(message: UIMessage) {
-  return textFor(message).trim().length > 0 || sourcesFor(message).length > 0
+function containsControlCharacter(value: string) {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0
+    return codePoint <= 0x1f ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      /\p{Cf}/u.test(character)
+  })
 }
 
 function citationNumberFor(source: SourceUrlUIPart) {
@@ -220,6 +229,25 @@ function hydratedSources(citations: AssistantCitationResponse[] | undefined) {
 function isAssistantActivity(value: unknown): value is AssistantActivity {
   if (!value || typeof value !== "object") return false
   const activity = value as Record<string, unknown>
+  const validOrdinal =
+    activity.skillOrdinal === undefined ||
+    activity.skillOrdinal === null ||
+    (typeof activity.skillOrdinal === "number" &&
+      Number.isSafeInteger(activity.skillOrdinal) &&
+      activity.skillOrdinal > 0)
+  const validTitle =
+    activity.skillTitle === undefined ||
+    activity.skillTitle === null ||
+    (typeof activity.skillTitle === "string" &&
+      activity.skillTitle.length > 0 &&
+      Array.from(activity.skillTitle).length <= 80 &&
+      !containsControlCharacter(activity.skillTitle))
+  const validIdentity =
+    activity.skillTitle === undefined ||
+    activity.skillTitle === null ||
+    (activity.phase === "SKILL_ACTIVATION" &&
+      activity.state === "COMPLETE" &&
+      typeof activity.skillOrdinal === "number")
   return (
     (activity.phase === "RETRIEVAL" ||
       activity.phase === "GENERATION" ||
@@ -233,7 +261,10 @@ function isAssistantActivity(value: unknown): value is AssistantActivity {
       activity.evidenceCount === null ||
       (typeof activity.evidenceCount === "number" &&
         Number.isSafeInteger(activity.evidenceCount) &&
-        activity.evidenceCount >= 0))
+        activity.evidenceCount >= 0)) &&
+    validOrdinal &&
+    validTitle &&
+    validIdentity
   )
 }
 
@@ -477,6 +508,12 @@ export function AssistantPage({
   } | null>(null)
   const [previewSource, setPreviewSource] = useState<AssistantSourceRef | null>(null)
   const [activity, setActivity] = useState<AssistantActivity | null>(null)
+  const [skillReceipts, setSkillReceipts] = useState<AssistantSkillReceipt[]>([])
+  const [awaitingVisibleAnswer, setAwaitingVisibleAnswer] = useState(false)
+  const [finishedWithoutAnswer, setFinishedWithoutAnswer] = useState(false)
+  const activityAcceptingRef = useRef(false)
+  const visibleOutputRef = useRef(false)
+  const turnOrdinalRef = useRef(0)
   const submitLock = useRef(false)
   const {
     messages,
@@ -489,11 +526,34 @@ export function AssistantPage({
   } = useChat({
     transport,
     onData: (part) => {
-      if (part.type !== "data-assistantActivity" || !isAssistantActivity(part.data)) return
-      setActivity(part.data)
+      if (
+        !activityAcceptingRef.current ||
+        part.type !== "data-assistantActivity" ||
+        !isAssistantActivity(part.data)
+      ) return
+      const nextActivity = part.data
+      setActivity(nextActivity)
+      setSkillReceipts((current) => reduceSkillReceipts(current, nextActivity))
     },
-    onFinish: () => {
-      setActivity(null)
+    onFinish: ({ message, isAbort, isError }) => {
+      const finishedTurn = turnOrdinalRef.current
+      activityAcceptingRef.current = false
+      if (isAbort || isError) {
+        setActivity(null)
+        setAwaitingVisibleAnswer(false)
+        setSkillReceipts([])
+      } else if (!hasVisibleAssistantOutput(message)) {
+        window.setTimeout(() => {
+          if (
+            turnOrdinalRef.current !== finishedTurn ||
+            visibleOutputRef.current
+          ) return
+          setActivity(null)
+          setAwaitingVisibleAnswer(false)
+          setSkillReceipts([])
+          setFinishedWithoutAnswer(true)
+        }, 0)
+      }
       const invalidations = [
         queryClient.invalidateQueries({
           queryKey: conversationListQueryKey,
@@ -516,9 +576,21 @@ export function AssistantPage({
       }
       void Promise.all(invalidations)
     },
+    onError: () => {
+      activityAcceptingRef.current = false
+      setActivity(null)
+      setAwaitingVisibleAnswer(false)
+      setSkillReceipts([])
+    },
   })
   const stop = useCallback(() => {
+    turnOrdinalRef.current += 1
+    activityAcceptingRef.current = false
+    visibleOutputRef.current = false
     setActivity(null)
+    setAwaitingVisibleAnswer(false)
+    setFinishedWithoutAnswer(false)
+    setSkillReceipts([])
     stopChat()
   }, [stopChat])
   const historyOptions = getAssistantConversationHistoryOptions({
@@ -583,6 +655,9 @@ export function AssistantPage({
     setPreviewSource(null)
     setFeedbackByMessage({})
     setActivity(null)
+    setSkillReceipts([])
+    setAwaitingVisibleAnswer(false)
+    setFinishedWithoutAnswer(false)
     setMessages([])
   }, [actorKey, conversationId, setMessages, stop])
 
@@ -621,15 +696,23 @@ export function AssistantPage({
   }, [conversationId, history.data, setMessages])
   const busy = status === "submitted" || status === "streaming"
   const latestMessage = messages.at(-1)
+  const currentAssistant = latestMessage?.role === "assistant" ? latestMessage : undefined
+  const currentAssistantVisible = currentAssistant
+    ? hasVisibleAssistantOutput(currentAssistant)
+    : false
+  visibleOutputRef.current = currentAssistantVisible
+
+  useEffect(() => {
+    if (!awaitingVisibleAnswer || !currentAssistantVisible) return
+    setAwaitingVisibleAnswer(false)
+    setActivity(null)
+  }, [awaitingVisibleAnswer, currentAssistantVisible])
+
   const retryText = [...messages]
     .reverse()
     .find((message) => message.role === "user")
   const retryMessage = retryText ? textFor(retryText) : ""
-  const showWaiting =
-    busy &&
-    (latestMessage === undefined ||
-      latestMessage.role === "user" ||
-      !hasVisibleOutput(latestMessage))
+  const showWaiting = awaitingVisibleAnswer && !currentAssistantVisible
   const showThinking = showWaiting
   const openSources = useCallback(
     (
@@ -662,7 +745,13 @@ export function AssistantPage({
     nextTitleRef.current =
       message.length <= 80 ? message : `${message.slice(0, 77)}...`
     clearError()
+    turnOrdinalRef.current += 1
+    activityAcceptingRef.current = true
+    visibleOutputRef.current = false
     setActivity(null)
+    setSkillReceipts([])
+    setFinishedWithoutAnswer(false)
+    setAwaitingVisibleAnswer(true)
     const turn = sendMessage({ text: message })
     if (clearComposer) clearDraft()
     const release = () => {
@@ -813,7 +902,14 @@ export function AssistantPage({
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
             {messages.map((message, index) => (
-              <CitationHydration key={message.id} message={message} actorKey={actorKey}>
+              <Fragment key={message.id}>
+                {currentAssistant?.id === message.id ? (
+                  <AssistantSkillActivity
+                    receipts={skillReceipts}
+                    settled={currentAssistantVisible}
+                  />
+                ) : null}
+                <CitationHydration message={message} actorKey={actorKey}>
                 {({ sources, unavailable, anchorRef }) => {
               const content = textFor(message)
               const citedSources = citedSourcesFor(content, sources)
@@ -925,8 +1021,12 @@ export function AssistantPage({
                 </Message>
               )
                 }}
-              </CitationHydration>
+                </CitationHydration>
+              </Fragment>
             ))}
+            {!currentAssistant ? (
+              <AssistantSkillActivity receipts={skillReceipts} settled={false} />
+            ) : null}
             {showThinking ? (
               <Message from="assistant">
                 <MessageContent>
@@ -934,13 +1034,15 @@ export function AssistantPage({
                 </MessageContent>
               </Message>
             ) : null}
-            {error ? (
+            {error || finishedWithoutAnswer ? (
               <div
                 role="alert"
                 className="flex items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3"
               >
                 <p className="text-sm text-destructive">
-                  OrgMemory could not complete this turn.
+                  {finishedWithoutAnswer
+                    ? "OrgMemory completed the turn without an answer."
+                    : "OrgMemory could not complete this turn."}
                 </p>
                 <Button
                   variant="outline"

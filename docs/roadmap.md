@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Assistant Skill activity receipt](increments/completed/2026-08-06-assistant-skill-activity-receipt/verification.md) | shipped | keeps waiting through the first rendered token and exposes only bounded successful Skill activity in a current-turn receipt |
 | [Agentic Skill beta](increments/completed/2026-08-05-agentic-skill-beta/verification.md) | shipped | delivered actor-scoped progressive Skill disclosure, a bounded read-only Assistant tool loop, and truthful Skill activity without server-side package execution |
 | [Knowledge workspace and document reader](increments/completed/2026-08-05-knowledge-workspace-document-reader/verification.md) | shipped | completed the governed right-side reader, safe Markdown presentation, truthful access copy, and cross-format browser coverage |
 | [Knowledge operations and graph inspector](increments/completed/2026-08-05-knowledge-operations-graph-inspector/verification.md) | shipped | completed desktop document operations, safe terminal-failure remediation, and the graph entity/evidence inspector; retry remains fenced backlog work |

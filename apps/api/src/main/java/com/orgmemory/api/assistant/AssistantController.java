@@ -457,6 +457,8 @@ class AssistantController {
         return new AssistantStreamPart.Activity(
                 AssistantStreamPart.Activity.Phase.valueOf(activity.phase().name()),
                 AssistantStreamPart.Activity.State.valueOf(activity.state().name()),
-                activity.resultCount());
+                activity.resultCount(),
+                activity.skillOrdinal(),
+                activity.skillTitle());
     }
 }

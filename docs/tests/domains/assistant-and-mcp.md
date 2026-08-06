@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
+Reconciled: `2026-08-06-assistant-skill-activity-receipt (64221f86)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -29,8 +29,9 @@ Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
 | An explicit organization route never silently falls back to the deployment provider | `AiGatewayPropertiesTests#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | Citation numbers are assigned with the exact prompt evidence order | `AssistantServiceTests#exposesCitationsOnlyForEvidenceIncludedInThePromptBudget`, `AssistantControllerStreamingTests`, `UiMessageStreamTests` | covered |
 | Assistant uses the already-verified LightRAG prompt instead of rebuilding chunk context | `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
-| An exact governed Assistant route invokes the request-local agent model with the authenticated actor and relays only closed Skill activity values with browser-owned waiting copy | `AssistantAgentServiceTests`, `UiMessageStreamTests#emitsTransientSkillToolActivityWithoutPersistingToolPayloads`, `assistant-page.test.ts`, `assistant-pipeline.spec.ts` | covered |
-| The Spring AI loop exposes only search, activate, and resource-read Skill tools; binds every call to the current actor; keeps failures opaque; omits `allowed-tools`; and enforces per-turn call and recursive-loop bounds | `AssistantSkillToolCallbacksTests`, `AssistantSkillToolLoopTests` | covered |
+| An exact governed Assistant route invokes the request-local agent model with the authenticated actor and relays only closed Skill activity values; only successful activation carries a bounded title and turn-local ordinal | `AssistantAgentServiceTests`, `AssistantAgentActivityTests`, `UiMessageStreamTests#emitsTransientSkillToolActivityWithoutPersistingToolPayloads`, `AssistantSkillToolCallbacksTests` | covered |
+| The browser keeps waiting through the transport-to-visible-output handoff and renders one plain-text, current-turn, auto-collapsing receipt per named successful Skill activation without reconstructing it from history | `assistant-page.test.ts`, `assistant-skill-activity.test.tsx`, `assistant-pipeline.spec.ts` | covered |
+| The Spring AI loop exposes only search, activate, and resource-read Skill tools; binds every call to the current actor; attributes resource activity only to an exact release activated in that turn; keeps failures opaque; omits `allowed-tools`; and enforces per-turn call and recursive-loop bounds | `AssistantSkillToolCallbacksTests`, `AssistantSkillToolLoopTests` | covered |
 | Empty authorized retrieval stops before both model generation and Skill-tool discovery | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Bounded model memory receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |
 | Only server-declared citation markers become interactive | `assistant-pipeline.spec.ts#anchors only server-declared citations and opens the matching source` | covered |

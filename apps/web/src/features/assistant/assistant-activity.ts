@@ -1,3 +1,5 @@
+import type { UIMessage } from "ai"
+
 export interface AssistantActivity {
   phase:
     | "RETRIEVAL"
@@ -7,6 +9,8 @@ export interface AssistantActivity {
     | "SKILL_RESOURCE"
   state: "ACTIVE" | "COMPLETE" | "FAILED"
   evidenceCount?: number | null
+  skillOrdinal?: number | null
+  skillTitle?: string | null
 }
 
 export function activityLabel(activity: AssistantActivity | null) {
@@ -27,12 +31,63 @@ export function activityLabel(activity: AssistantActivity | null) {
   if (activity.phase === "SKILL_ACTIVATION") {
     if (activity.state === "ACTIVE") return "Loading skill instructions…"
     if (activity.state === "FAILED") return "Skill unavailable — continuing…"
-    return "Skill instructions ready"
+    return "Preparing the grounded answer…"
   }
   if (activity.phase === "SKILL_RESOURCE") {
     if (activity.state === "ACTIVE") return "Reading a skill reference…"
     if (activity.state === "FAILED") return "Skill reference unavailable — continuing…"
-    return "Skill reference ready"
+    return "Preparing the grounded answer…"
   }
   return "Preparing the grounded answer…"
+}
+
+export interface AssistantSkillReceipt {
+  ordinal: number
+  title: string | null
+  activation: "ACTIVE" | "COMPLETE"
+  resource: "ACTIVE" | "COMPLETE" | "FAILED" | null
+}
+
+export function hasVisibleAssistantOutput(message: Pick<UIMessage, "parts">) {
+  return message.parts.some(
+    (part) => part.type === "text" && part.text.trim().length > 0,
+  )
+}
+
+export function reduceSkillReceipts(
+  current: AssistantSkillReceipt[],
+  activity: AssistantActivity,
+): AssistantSkillReceipt[] {
+  const ordinal = activity.skillOrdinal
+  if (
+    (activity.phase !== "SKILL_ACTIVATION" && activity.phase !== "SKILL_RESOURCE") ||
+    ordinal == null
+  ) {
+    return current
+  }
+
+  if (activity.phase === "SKILL_ACTIVATION") {
+    if (activity.state === "FAILED") {
+      return current.filter((receipt) => receipt.ordinal !== ordinal)
+    }
+    const existing = current.find((receipt) => receipt.ordinal === ordinal)
+    const title = activity.state === "COMPLETE" ? activity.skillTitle ?? null : null
+    const next: AssistantSkillReceipt = {
+      ordinal,
+      title: title ?? existing?.title ?? null,
+      activation: activity.state,
+      resource: existing?.resource ?? null,
+    }
+    return [...current.filter((receipt) => receipt.ordinal !== ordinal), next].sort(
+      (left, right) => left.ordinal - right.ordinal,
+    )
+  }
+
+  const existing = current.find((receipt) => receipt.ordinal === ordinal)
+  if (!existing?.title || existing.activation !== "COMPLETE") return current
+  return current.map((receipt) =>
+    receipt.ordinal === ordinal
+      ? { ...receipt, resource: activity.state }
+      : receipt,
+  )
 }
