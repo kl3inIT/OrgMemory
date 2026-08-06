@@ -20,9 +20,6 @@ import io.micrometer.observation.ObservationRegistry;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Clock;
 import java.util.List;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.ChatMemoryRepository;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -47,19 +44,16 @@ class AssistantConfiguration {
                 properties.retrievalShutdownTimeout());
     }
 
+    /**
+     * Published as a bean because the gateway adapter's transcript-context
+     * advisor tags its stage event with the engine, and this method is the one
+     * place that derives the engine from the property that selects it. Passing
+     * the value keeps the adapter from inventing a second answer.
+     */
     @Bean
-    ChatMemory assistantChatMemory(
-            ChatMemoryRepository repository,
-            AssistantStageEventSink stages,
+    AssistantTurnEvent.RetrievalEngine assistantObservedRetrievalEngine(
             AssistantProperties properties) {
-        ChatMemory memory = MessageWindowChatMemory.builder()
-                .chatMemoryRepository(repository)
-                .maxMessages(20)
-                .build();
-        return new ObservedChatMemory(
-                memory,
-                stages,
-                observedEngine(properties));
+        return observedEngine(properties);
     }
 
     @Bean

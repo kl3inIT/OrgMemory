@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.orgmemory.api.security.CurrentActorProvider;
@@ -38,7 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import reactor.core.publisher.Sinks;
@@ -87,7 +87,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 mock(AssistantService.class),
                 conversations,
-                mock(ChatMemory.class),
                 actors,
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
@@ -147,7 +146,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 mock(AssistantService.class),
                 conversations,
-                mock(ChatMemory.class),
                 actors,
                 mock(AssistantProperties.class),
                 authority,
@@ -193,7 +191,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 mock(AssistantService.class),
                 conversations,
-                mock(ChatMemory.class),
                 actors,
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
@@ -246,7 +243,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 assistant,
                 conversations,
-                mock(ChatMemory.class),
                 actors,
                 properties,
                 mock(AssistantModelAuthorityService.class),
@@ -319,7 +315,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 assistant,
                 conversations,
-                mock(ChatMemory.class),
                 actors,
                 properties,
                 mock(AssistantModelAuthorityService.class),
@@ -411,10 +406,9 @@ class AssistantControllerStreamingTests {
     }
 
     @Test
-    void deletesTheOwnedTranscriptBeforeClearingBoundedMemory() {
+    void deletesAConversationThroughTheOwnedTranscriptAlone() {
         AssistantConversationService conversations =
                 mock(AssistantConversationService.class);
-        ChatMemory memory = mock(ChatMemory.class);
         CurrentActorProvider actors = mock(CurrentActorProvider.class);
         Authentication authentication = mock(Authentication.class);
         CurrentActor actor = new CurrentActor(
@@ -428,7 +422,6 @@ class AssistantControllerStreamingTests {
         AssistantController controller = new AssistantController(
                 mock(AssistantService.class),
                 conversations,
-                memory,
                 actors,
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),
@@ -438,16 +431,16 @@ class AssistantControllerStreamingTests {
 
         controller.delete(conversationId, authentication);
 
-        InOrder deletion = inOrder(conversations, memory);
-        deletion.verify(conversations).delete(actor, conversationId);
-        deletion.verify(memory).clear(conversationId.toString());
+        // One store, one owned call. The second delete this replaced ran outside
+        // the transaction against a table with no tenant column.
+        verify(conversations).delete(actor, conversationId);
+        verifyNoMoreInteractions(conversations);
     }
 
     private static AssistantController controller() {
         return new AssistantController(
                 mock(AssistantService.class),
                 mock(AssistantConversationService.class),
-                mock(ChatMemory.class),
                 mock(CurrentActorProvider.class),
                 mock(AssistantProperties.class),
                 mock(AssistantModelAuthorityService.class),

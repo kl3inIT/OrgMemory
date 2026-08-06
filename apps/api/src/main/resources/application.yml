@@ -3,11 +3,6 @@ spring:
     name: orgmemory-api
   ai:
     chat:
-      memory:
-        repository:
-          jdbc:
-            # Flyway owns the Spring AI 2.0 schema in V5.
-            initialize-schema: never
       # Spring AI has two content-flag families with the same names one layer apart:
       # `chat.client.observations` governs the ChatClient, `chat.observations` the
       # ChatModel underneath it, and SpringAiChatModelAdapter builds every call

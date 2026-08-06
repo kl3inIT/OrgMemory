@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -71,7 +70,6 @@ class AssistantController {
 
     private final AssistantService assistant;
     private final AssistantConversationService conversations;
-    private final ChatMemory memory;
     private final CurrentActorProvider actors;
     private final AssistantProperties properties;
     private final AssistantModelAuthorityService modelAuthority;
@@ -82,7 +80,6 @@ class AssistantController {
     AssistantController(
             AssistantService assistant,
             AssistantConversationService conversations,
-            ChatMemory memory,
             CurrentActorProvider actors,
             AssistantProperties properties,
             AssistantModelAuthorityService modelAuthority,
@@ -91,7 +88,6 @@ class AssistantController {
             ObjectMapper json) {
         this.assistant = assistant;
         this.conversations = conversations;
-        this.memory = memory;
         this.actors = actors;
         this.properties = properties;
         this.modelAuthority = modelAuthority;
@@ -373,13 +369,12 @@ class AssistantController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             operationId = "deleteAssistantConversation",
-            summary = "Delete the current actor's transcript and bounded model memory")
+            summary = "Delete the current actor's conversation transcript")
     void delete(
             @PathVariable UUID conversationId,
             Authentication authentication) {
         CurrentActor actor = actors.current(authentication);
         conversations.delete(actor, conversationId);
-        memory.clear(conversationId.toString());
     }
 
     Flux<AssistantStreamPart> parts(AssistantTurn turn) {

@@ -7,15 +7,18 @@ import com.orgmemory.core.shared.error.BusinessNotFoundException;
 import com.orgmemory.core.shared.error.BusinessValidationException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AssistantConversationService {
+public class AssistantConversationService implements AssistantTranscriptContext {
 
     private final AssistantConversationRepository conversations;
     private final AssistantConversationMessageRepository messages;
@@ -74,6 +77,37 @@ public class AssistantConversationService {
                 validUserMessage,
                 now));
         return new AssistantTurnRef(conversation.getId(), turnId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AssistantContextMessage> recentCompletedTurns(
+            UUID organizationId, UUID conversationId, int maxTurns) {
+        if (organizationId == null || conversationId == null || maxTurns <= 0) {
+            return List.of();
+        }
+        List<UUID> turnIds = messages.findRecentCompletedTurnIds(
+                organizationId, conversationId, PageRequest.of(0, maxTurns));
+        if (turnIds.isEmpty()) {
+            return List.of();
+        }
+        // Sequence order alone would interleave overlapping turns. Grouping by
+        // turn first restores question-then-answer within each turn, and the
+        // question's sequence orders the turns, because beginTurn always
+        // commits before the answer of the same turn exists.
+        Map<UUID, List<AssistantConversationMessage>> byTurn = new LinkedHashMap<>();
+        for (AssistantConversationMessage message
+                : messages.findAllByTurnIdInOrderBySequenceId(turnIds)) {
+            byTurn.computeIfAbsent(message.turnId(), turn -> new ArrayList<>()).add(message);
+        }
+        List<AssistantContextMessage> context = new ArrayList<>();
+        for (List<AssistantConversationMessage> turn : byTurn.values()) {
+            // Within a turn, sequence order is already question then answer.
+            for (AssistantConversationMessage message : turn) {
+                context.add(new AssistantContextMessage(message.role(), message.content()));
+            }
+        }
+        return List.copyOf(context);
     }
 
     @Transactional(readOnly = true)

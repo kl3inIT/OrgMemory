@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-06-assistant-turn-identity (e13685eb)`.
+Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
 
 ## Current Behavior
 
@@ -174,13 +174,21 @@ content during a recheck, and discards the cached blob when the panel releases
 the source. Text, image, and PDF previews use browser-local object URLs; the
 external object-store address never reaches the browser.
 
-Assistant conversations have two deliberately separate stores. The
-tenant-and-actor-owned transcript keeps the complete user/assistant history for
-list, replay, rename, and delete. Spring AI `MessageWindowChatMemory` keeps only
-the recent context sent back to the model. Current permission-verified grounding
-and bounded server user context are placed in the current system message; the
-memory advisor persists the raw user question and assistant answer, not copied
-evidence. Every new turn performs a fresh authorized retrieval. Historical
+One tenant-and-actor-owned transcript is the sole persisted home of an Assistant
+conversation. It serves list, replay, rename, and delete, and it is also the only
+source of the context sent back to the model. A project-owned read-only advisor
+reads that transcript before each model call; nothing on the model path writes to
+it, because the turn writer already persists the question and the answer.
+
+The advisor reads the last ten completed turns, scoped by organization as well as
+conversation so a model call cannot cross a tenant boundary. Its unit is a whole
+turn rather than a message count, which excludes the question of the turn in
+flight without recognizing it, excludes turns that failed before answering, and
+cannot leave the window opening on an answer. Rows predating turn identity carry
+none and are transcript-visible but never model context. The current
+permission-verified grounding and bounded server user context stay in the current
+system message, which remains first once prior turns are placed ahead of the
+question. Every new turn performs a fresh authorized retrieval. Historical
 answers remain a snapshot of what the user received at that time, while opening
 a citation still rechecks current access. A future purge-on-revocation rule is a
 separate retention policy, not a prerequisite for ordinary multi-turn chat.

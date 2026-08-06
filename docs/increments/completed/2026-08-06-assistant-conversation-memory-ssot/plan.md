@@ -11,22 +11,22 @@
   transcript-visible and context-ineligible.
 - [x] Carry the turn id through `beginTurn` and `completeTurn` so the pair is
   written against one identity rather than inferred from sequence order.
-- [ ] Add a project-owned read-only transcript context advisor that selects the
+- [x] Add a project-owned read-only transcript context advisor that selects the
   last completed turns, excludes the in-flight USER by construction, and snaps
   the window forward to a USER boundary.
-- [ ] Replace `MessageChatMemoryAdvisor` with that advisor in both memory client
+- [x] Replace `MessageChatMemoryAdvisor` with that advisor in both memory client
   paths; remove the `ChatMemory` bean, `ObservedChatMemory`, the JDBC memory
   starter and its schema-initialization setting.
-- [ ] Remove the second `memory.clear` call from conversation deletion and let
+- [x] Remove the second `memory.clear` call from conversation deletion and let
   the existing cascade do the work.
-- [ ] Drop `spring_ai_chat_memory` in a migration separate from the one that
+- [x] Drop `spring_ai_chat_memory` in a migration separate from the one that
   adds `turn_id`, so a rolling deployment never runs the new reader against a
   dropped table or the old writer against a missing one.
-- [ ] Cover: turn pairing under `U1,U2,A2,A1` concurrency, exclusion of the
+- [x] Cover: turn pairing under `U1,U2,A2,A1` concurrency, exclusion of the
   in-flight USER, failed and cancelled turns, model-free no-evidence turns,
   legacy null-`turn_id` rows, window bound of 20, deletion cascade, and one
   status-mapped sentence per failure class.
-- [ ] Reconcile the Assistant spec and test matrix, record the persistence
+- [x] Reconcile the Assistant spec and test matrix, record the persistence
   decision with its rejected alternative, and refresh `Source:`/`Reconciled:`.
 - [ ] Run `:core:test`, `:apps:api:test`, lint, typecheck, production build, and
   browser verification of a failed turn's message.

@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-turn-identity (e13685eb)`.
+Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -33,7 +33,10 @@ Reconciled: `2026-08-06-assistant-turn-identity (e13685eb)`.
 | The browser keeps waiting through the transport-to-visible-output handoff and renders one plain-text, current-turn, auto-collapsing receipt per named successful Skill activation without reconstructing it from history | `assistant-page.test.ts`, `assistant-skill-activity.test.tsx`, `assistant-pipeline.spec.ts` | covered |
 | The Spring AI loop exposes only search, activate, and resource-read Skill tools; binds every call to the current actor; attributes resource activity only to an exact release activated in that turn; keeps failures opaque; omits `allowed-tools`; and enforces per-turn call and recursive-loop bounds | `AssistantSkillToolCallbacksTests`, `AssistantSkillToolLoopTests` | covered |
 | Empty authorized retrieval stops before both model generation and Skill-tool discovery | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
-| Bounded model memory receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |
+| Model context receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |
+| Prior model context comes from the one transcript: completed turns only, oldest first, question before answer, in-flight and failed turns excluded, legacy rows ignored, window bounded to ten turns, and no read across organizations | `AssistantTranscriptContextIntegrationTests` | covered |
+| The context advisor keeps grounding first, never writes back, stays inert without a usable conversation id, publishes the history-load stage, and holds the replaced advisor's order | `AssistantTranscriptContextAdvisorTests` | covered |
+| Conversation deletion needs one owned call rather than a second unscoped store clear | `AssistantControllerStreamingTests#deletesAConversationThroughTheOwnedTranscriptAlone` | covered |
 | Only server-declared citation markers become interactive | `assistant-pipeline.spec.ts#anchors only server-declared citations and opens the matching source` | covered |
 | Text, PDF, image, and Office download-only presentation follows the server kind and uses protected endpoints | `assistant-pipeline.spec.ts` text, PDF, image, and Office scenarios; `CitationEvidenceServiceTests` | covered |
 | Markdown strips active HTML, blocks remote/data resources and dangerous URLs, renders Mermaid as inert code, and retains raw view | `assistant-pipeline.spec.ts#renders governed Markdown without active HTML or remote resource loads` | covered |
