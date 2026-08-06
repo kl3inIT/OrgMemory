@@ -2,6 +2,7 @@ package com.orgmemory.core.knowledge.sourceledger;
 
 import com.orgmemory.core.knowledge.storage.StoredObject;
 import com.orgmemory.core.organization.CurrentActor;
+import com.orgmemory.core.organization.OrganizationProvenanceQuery;
 import com.orgmemory.core.permission.DeclaredAccessScope;
 import com.orgmemory.core.permission.KnowledgeClassification;
 import java.time.Instant;
@@ -17,18 +18,21 @@ public class SourceUploadRegistrationService {
     private final SourceRevisionRepository revisions;
     private final SourceIngestionJobRepository jobs;
     private final SourceIngestionProperties properties;
+    private final OrganizationProvenanceQuery provenance;
 
     SourceUploadRegistrationService(
             SourceObjectRepository sources,
             EvidenceBlobRepository blobs,
             SourceRevisionRepository revisions,
             SourceIngestionJobRepository jobs,
-            SourceIngestionProperties properties) {
+            SourceIngestionProperties properties,
+            OrganizationProvenanceQuery provenance) {
         this.sources = sources;
         this.blobs = blobs;
         this.revisions = revisions;
         this.jobs = jobs;
         this.properties = properties;
+        this.provenance = provenance;
     }
 
     @Transactional
@@ -58,6 +62,17 @@ public class SourceUploadRegistrationService {
         sources.save(source);
         jobs.save(new SourceIngestionJob(
                 actor.organizationId(), revision.getId(), properties.maximumAttempts(), Instant.now()));
-        return SourceQueryService.summary(source, revision, null);
+        String owningDepartmentName = targetSpace.departmentId() == null
+                ? null
+                : provenance.departmentNames(
+                                actor.organizationId(), java.util.List.of(targetSpace.departmentId()))
+                        .get(targetSpace.departmentId());
+        return SourceQueryService.summary(
+                source,
+                revision,
+                null,
+                targetSpace,
+                owningDepartmentName,
+                actor.name());
     }
 }

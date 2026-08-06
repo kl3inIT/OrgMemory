@@ -18,6 +18,7 @@ import com.orgmemory.graphrag.storage.ProjectionSnapshot;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,6 +31,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 public final class PostgresGraphStore implements GraphStore {
+
+    private static final Duration DEGREE_QUERY_STATEMENT_TIMEOUT = Duration.ofSeconds(20);
 
     private static final List<String> COPY_PREDECESSOR = List.of(
             """
@@ -544,31 +547,61 @@ public final class PostgresGraphStore implements GraphStore {
         if (ids.isEmpty() || PostgresProjectionSupport.noAuthorizedAssets(scope)) {
             return Map.copyOf(degrees);
         }
-        jdbc.query(
-                """
-                SELECT endpoint.entity_id, count(DISTINCT relation.relation_id) AS degree
-                FROM projection_graph_relations relation
-                CROSS JOIN LATERAL (
-                    VALUES (relation.source_entity_id), (relation.target_entity_id)
-                ) endpoint(entity_id)
-                WHERE relation.batch_id = :batchId
-                  AND endpoint.entity_id IN (:ids)
-                  AND EXISTS (
-                      SELECT 1
-                      FROM (
-                """
-                        + VISIBLE_RELATION_CONTRIBUTIONS
-                        + """
-                      ) visible
-                      WHERE visible.relation_id = relation.relation_id
-                  )
-                GROUP BY endpoint.entity_id
-                """,
-                visibility(scope, snapshot).addValue("ids", ids),
-                (RowCallbackHandler) resultSet -> degrees.put(
-                        resultSet.getObject("entity_id", UUID.class),
-                        resultSet.getLong("degree")));
-        return Map.copyOf(degrees);
+        return support.read(DEGREE_QUERY_STATEMENT_TIMEOUT, () -> {
+            jdbc.query(
+                    """
+                    WITH visible_relations AS MATERIALIZED (
+                        SELECT DISTINCT contribution.relation_id
+                        FROM projection_graph_relation_contributions contribution
+                        JOIN projection_graph_relations relation
+                          ON relation.batch_id = contribution.batch_id
+                         AND relation.relation_id = contribution.relation_id
+                        WHERE contribution.batch_id = :batchId
+                          AND contribution.organization_id = :organizationId
+                          AND contribution.knowledge_asset_id IN (:authorizedAssetIds)
+                          AND EXISTS (
+                              SELECT 1
+                              FROM projection_graph_entity_contributions source_contribution
+                              WHERE source_contribution.batch_id = relation.batch_id
+                                AND source_contribution.entity_id = relation.source_entity_id
+                                AND source_contribution.organization_id = :organizationId
+                                AND source_contribution.knowledge_asset_id
+                                    IN (:authorizedAssetIds)
+                          )
+                          AND EXISTS (
+                              SELECT 1
+                              FROM projection_graph_entity_contributions target_contribution
+                              WHERE target_contribution.batch_id = relation.batch_id
+                                AND target_contribution.entity_id = relation.target_entity_id
+                                AND target_contribution.organization_id = :organizationId
+                                AND target_contribution.knowledge_asset_id
+                                    IN (:authorizedAssetIds)
+                          )
+                    ), endpoints AS (
+                        SELECT relation.source_entity_id AS entity_id, relation.relation_id
+                        FROM projection_graph_relations relation
+                        JOIN visible_relations visible
+                          ON visible.relation_id = relation.relation_id
+                        WHERE relation.batch_id = :batchId
+                          AND relation.source_entity_id IN (:ids)
+                        UNION ALL
+                        SELECT relation.target_entity_id AS entity_id, relation.relation_id
+                        FROM projection_graph_relations relation
+                        JOIN visible_relations visible
+                          ON visible.relation_id = relation.relation_id
+                        WHERE relation.batch_id = :batchId
+                          AND relation.target_entity_id IN (:ids)
+                    )
+                    SELECT entity_id, count(DISTINCT relation_id) AS degree
+                    FROM endpoints
+                    GROUP BY entity_id
+                    """,
+                    visibility(scope, snapshot).addValue("ids", ids),
+                    (RowCallbackHandler) resultSet -> degrees.put(
+                            resultSet.getObject("entity_id", UUID.class),
+                            resultSet.getLong("degree")));
+            return Map.copyOf(degrees);
+        });
     }
 
     @Override
