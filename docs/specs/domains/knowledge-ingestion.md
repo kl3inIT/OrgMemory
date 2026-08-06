@@ -38,8 +38,12 @@ revision update time descending with Source Object id as an ascending keyset
 tie-breaker and returns an opaque cursor envelope:
 `{ items, nextCursor, pageSize, total, statusCounts }`. Page size is clamped to
 1–60. `total` and the processing, ready, and attention counts describe the
-whole authorized-and-filtered result rather than only the loaded page; a
-selected status restricts rows without hiding the other status counts.
+whole authorized-and-filtered result rather than only the loaded page. A
+selected status restricts the returned rows but is deliberately excluded from
+all four counts, so `total` remains the unfiltered-by-status size and always
+equals the three bucket counts summed; a caller reporting one status shows that
+bucket rather than `total`. This keeps every status badge answerable from a
+single page response.
 
 A visible row identifies its Knowledge Space, owning department when present,
 and uploader when the source resolves to an application user. It exposes
