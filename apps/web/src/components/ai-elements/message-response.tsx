@@ -21,10 +21,10 @@ const pluginSets = {
   mermaidMath: { cjk, code, math, mermaid },
 } as const;
 
-function pluginsFor(content: unknown) {
+export function pluginsFor(content: unknown) {
   const markdown = typeof content === "string" ? content : "";
-  const hasMermaid = /```mermaid(?:\s|$)/i.test(markdown);
-  const hasCode = hasMermaid || /```/.test(markdown);
+  const hasMermaid = /^(?: {0,3})(?:`{3,}|~{3,})[ \t]*mermaid(?:[ \t]|$)/im.test(markdown);
+  const hasCode = hasMermaid || /^(?: {0,3})(?:`{3,}|~{3,})(?:[ \t]|$)/m.test(markdown);
   const hasMath = /\$|\\\(|\\\[/.test(markdown);
   if (hasMermaid) return hasMath ? pluginSets.mermaidMath : pluginSets.mermaid;
   if (hasCode) return hasMath ? pluginSets.codeMath : pluginSets.code;
