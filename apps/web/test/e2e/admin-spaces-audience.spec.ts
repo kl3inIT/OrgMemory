@@ -95,7 +95,8 @@ async function spacesHarness(page: Page, createBodies: unknown[]) {
         userId: USER_ID,
         organizationId: ORGANIZATION_ID,
         departmentId: DEPARTMENT_ID,
-        role: "ADMIN",
+        clearance: "STANDARD",
+        canManageMembers: true,
       })
     }
     if (url.pathname === "/api/session/csrf") {

@@ -2,14 +2,14 @@ import type { SessionResponse } from "@/lib/hey-api"
 
 /**
  * Actor-scoped server responses must never be reused after the browser identity
- * or its effective role changes.
+ * or its effective clearance changes.
  */
 export function sessionActorKey(session: SessionResponse) {
   return [
     session.organizationId ?? "no-organization",
     session.userId ?? "no-user",
     session.departmentId ?? "no-department",
-    session.role ?? "no-role",
+    session.clearance ?? "no-clearance",
   ].join(":")
 }
 

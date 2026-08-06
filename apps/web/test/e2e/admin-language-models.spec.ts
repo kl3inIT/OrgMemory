@@ -90,7 +90,8 @@ async function modelSettingsHarness(
           userId: USER_ID,
           organizationId: ORGANIZATION_ID,
           departmentId: null,
-          role: "ADMIN",
+          clearance: "STANDARD",
+          canManageMembers: true,
         }),
       })
     }

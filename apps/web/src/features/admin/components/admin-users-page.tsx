@@ -7,6 +7,16 @@ import { toast } from "sonner"
 import { DataTable, type ColumnDef } from "@/components/patterns/data-table"
 import { CollectionPagination } from "@/components/patterns/collection-pagination"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -17,9 +27,17 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ErrorState } from "@/components/states/application-error"
 import { LoadingState } from "@/components/states/page-loading"
-import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
+import {
+  clearanceLabel,
+  CLEARANCES,
+  type ClearanceValue,
+} from "@/features/admin/admin-labels"
 import { ADMIN_PAGE_SIZE, pageItems } from "@/features/admin/admin-collection"
-import { adminQuery, invalidateAdminData } from "@/features/admin/admin-queries"
+import {
+  adminQuery,
+  invalidateAdminData,
+  organizationContextQueryOptions,
+} from "@/features/admin/admin-queries"
 import { AdminSearch } from "@/features/admin/components/admin-collection-controls"
 import { AdminInvitationsCard } from "@/features/admin/components/admin-invitations-card"
 import { AdminEmpty, AdminPage } from "@/features/admin/components/admin-page"
@@ -30,51 +48,72 @@ import {
 } from "@/lib/hey-api/@tanstack/react-query.gen"
 import type { AdminUserResponse } from "@/lib/hey-api"
 
+const NO_DEPARTMENT = "__none__"
+
 export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
-  const [role, setRole] = useState("all")
+  const [clearance, setClearance] = useState("all")
   const [signIn, setSignIn] = useState("all")
   const [accountStatus, setAccountStatus] = useState("all")
   const [page, setPage] = useState(1)
+  const [executiveCandidate, setExecutiveCandidate] = useState<AdminUserResponse>()
   const users = useQuery(adminQuery(listAdminUsersOptions()))
+  const organization = useQuery(organizationContextQueryOptions())
   const update = useMutation({
     ...updateAdminUserMutation(),
     onSuccess: async (_data, variables) => {
       await invalidateAdminData(queryClient)
-      toast.success(variables.body.active === undefined ? "Role updated." : "Account status updated.")
+      const message =
+        variables.body.active !== undefined
+          ? "Account status updated."
+          : variables.body.departmentId !== undefined
+            ? "Department updated."
+            : "Clearance updated."
+      toast.success(message)
     },
     onError: () => toast.error("The change was rejected. Reload and try again."),
   })
 
-  if (users.isPending) {
+  if (users.isPending || organization.isPending) {
     return <LoadingState label="Loading users" className="min-h-full flex-1" />
   }
 
-  if (users.isError) {
+  if (users.isError || organization.isError) {
     return (
       <div className="grid min-h-full flex-1 place-items-center p-6">
         <ErrorState
           title="Users could not be loaded"
           description="Administration requires organization administrator permission."
-          error={users.error}
-          onRetry={() => users.refetch()}
+          error={users.error ?? organization.error}
+          onRetry={() => void Promise.all([users.refetch(), organization.refetch()])}
         />
       </div>
     )
   }
 
   const rows = users.data ?? []
+  const departments = organization.data?.departments ?? []
+  const departmentNames = new Map(
+    departments.flatMap((department) =>
+      department.id ? [[department.id, department.name ?? "Unnamed department"] as const] : [],
+    ),
+  )
   const linked = rows.filter((user) => user.signInLinked).length
   const inactive = rows.filter((user) => !user.active).length
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredRows = rows.filter((user) => {
     const matchesQuery =
       !normalizedQuery ||
-      [user.name, user.email, roleLabel(user.role)]
+      [
+        user.name,
+        user.email,
+        clearanceLabel(user.clearance),
+        user.departmentId ? departmentNames.get(user.departmentId) : "No department",
+      ]
         .filter(Boolean)
         .some((value) => value!.toLocaleLowerCase().includes(normalizedQuery))
-    const matchesRole = role === "all" || user.role === role
+    const matchesClearance = clearance === "all" || user.clearance === clearance
     const matchesSignIn =
       signIn === "all" ||
       (signIn === "linked" && user.signInLinked) ||
@@ -83,7 +122,7 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
       accountStatus === "all" ||
       (accountStatus === "active" && user.active) ||
       (accountStatus === "deactivated" && !user.active)
-    return matchesQuery && matchesRole && matchesSignIn && matchesAccountStatus
+    return matchesQuery && matchesClearance && matchesSignIn && matchesAccountStatus
   })
   const visibleRows = pageItems(filteredRows, page)
   const columns: ColumnDef<AdminUserResponse>[] = [
@@ -115,34 +154,76 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
       },
     },
     {
-      id: "role",
-      accessorFn: (user) => roleLabel(user.role),
-      header: "Role",
+      id: "clearance",
+      accessorFn: (user) => clearanceLabel(user.clearance),
+      header: "Clearance",
       cell: ({ row }) => {
         const user = row.original
         const isSelf = user.id === currentUserId
         const pending = update.isPending && update.variables?.path.userId === user.id
         return (
           <Select
-            value={user.role}
+            value={user.clearance}
             disabled={isSelf || pending}
-            onValueChange={(nextRole: string) =>
+            onValueChange={(nextClearance: string) => {
+              if (nextClearance === "EXECUTIVE" && user.clearance !== "EXECUTIVE") {
+                setExecutiveCandidate(user)
+                return
+              }
               update.mutate({
                 path: { userId: user.id! },
-                body: { role: nextRole as UserRoleValue },
+                body: { clearance: nextClearance as ClearanceValue },
               })
-            }
+            }}
           >
             <SelectTrigger
               className="w-40"
-              aria-label={`Role for ${user.name ?? user.email ?? "user"}`}
+              aria-label={`Clearance for ${user.name ?? user.email ?? "user"}`}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {USER_ROLES.map((value) => (
+              {CLEARANCES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {roleLabel(value)}
+                  {clearanceLabel(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
+      },
+    },
+    {
+      id: "department",
+      accessorFn: (user) =>
+        user.departmentId ? (departmentNames.get(user.departmentId) ?? "Unknown department") : "No department",
+      header: "Department",
+      cell: ({ row }) => {
+        const user = row.original
+        const isSelf = user.id === currentUserId
+        const pending = update.isPending && update.variables?.path.userId === user.id
+        return (
+          <Select
+            value={user.departmentId ?? NO_DEPARTMENT}
+            disabled={isSelf || pending}
+            onValueChange={(departmentId: string) =>
+              update.mutate({
+                path: { userId: user.id! },
+                body: { departmentId: departmentId === NO_DEPARTMENT ? null : departmentId },
+              })
+            }
+          >
+            <SelectTrigger
+              className="w-44"
+              aria-label={`Department for ${user.name ?? user.email ?? "user"}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_DEPARTMENT}>No department</SelectItem>
+              {departments.map((department) => (
+                <SelectItem key={department.id} value={department.id!}>
+                  {department.name ?? "Unnamed department"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -238,14 +319,14 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
   }
 
   function showAllUsers() {
-    setRole("all")
+    setClearance("all")
     setSignIn("all")
     setAccountStatus("all")
     setPage(1)
   }
 
-  function updateRole(value: string) {
-    setRole(value)
+  function updateClearance(value: string) {
+    setClearance(value)
     setPage(1)
   }
 
@@ -266,7 +347,7 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
           <button
             type="button"
             className="flex flex-col justify-center gap-1 px-5 text-left outline-none transition-colors hover:bg-surface-subtle focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
-            aria-pressed={role === "all" && signIn === "all" && accountStatus === "all"}
+            aria-pressed={clearance === "all" && signIn === "all" && accountStatus === "all"}
             onClick={showAllUsers}
           >
             <span className="text-2xl font-semibold tabular-nums">{rows.length}</span>
@@ -303,15 +384,15 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
         <AdminSearch value={query} onChange={updateQuery} placeholder="Search users by name or email" />
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={role} onValueChange={updateRole}>
-            <SelectTrigger className="w-full sm:w-44" aria-label="Filter by role">
+          <Select value={clearance} onValueChange={updateClearance}>
+            <SelectTrigger className="w-full sm:w-44" aria-label="Filter by clearance">
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="start">
-              <SelectItem value="all">All roles</SelectItem>
-              {USER_ROLES.map((value) => (
+              <SelectItem value="all">All clearances</SelectItem>
+              {CLEARANCES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {roleLabel(value)}
+                  {clearanceLabel(value)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -357,7 +438,7 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
               description={
                 rows.length === 0
                   ? "Users appear once their identity provider account is linked to this organization."
-                  : "Try another name, email, role, or status."
+                  : "Try another name, email, department, clearance, or status."
               }
             />
           </div>
@@ -378,6 +459,40 @@ export function AdminUsersPage({ currentUserId }: { currentUserId?: string }) {
           onPageChange={setPage}
         />
       </section>
+
+      <AlertDialog
+        open={executiveCandidate !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setExecutiveCandidate(undefined)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Raise clearance to Executive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This grants {executiveCandidate?.name ?? executiveCandidate?.email ?? "this user"}
+              org-wide access to CONFIDENTIAL and RESTRICTED evidence. It does not grant
+              administrative permissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep current clearance</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (executiveCandidate?.id) {
+                  update.mutate({
+                    path: { userId: executiveCandidate.id },
+                    body: { clearance: "EXECUTIVE" },
+                  })
+                }
+                setExecutiveCandidate(undefined)
+              }}
+            >
+              Raise to Executive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminPage>
   )
 }

@@ -9,8 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { roleLabel, USER_ROLES, type UserRoleValue } from "@/features/admin/admin-labels"
-import { adminQuery, invalidateAdminData } from "@/features/admin/admin-queries"
+import {
+  clearanceLabel,
+  CLEARANCES,
+  type ClearanceValue,
+} from "@/features/admin/admin-labels"
+import {
+  adminQuery,
+  invalidateAdminData,
+  organizationContextQueryOptions,
+} from "@/features/admin/admin-queries"
 import {
   createAdminInvitationMutation,
   listAdminInvitationsOptions,
@@ -23,6 +31,8 @@ const STATUS_VARIANTS = {
   REVOKED: { label: "Withdrawn", variant: "outline" as const },
 }
 
+const NO_DEPARTMENT = "__none__"
+
 /**
  * Invited addresses, kept apart from users on purpose.
  *
@@ -33,18 +43,26 @@ const STATUS_VARIANTS = {
 export function AdminInvitationsCard() {
   const queryClient = useQueryClient()
   const invitations = useQuery(adminQuery(listAdminInvitationsOptions()))
+  const organization = useQuery(organizationContextQueryOptions())
   const create = useMutation(createAdminInvitationMutation())
   const revoke = useMutation(revokeAdminInvitationMutation())
 
   const [email, setEmail] = useState("")
-  const [role, setRole] = useState<UserRoleValue>("EMPLOYEE")
+  const [clearance, setClearance] = useState<ClearanceValue>("STANDARD")
+  const [departmentId, setDepartmentId] = useState(NO_DEPARTMENT)
 
   const open = (invitations.data ?? []).filter((invitation) => invitation.status === "OPEN")
   const settled = (invitations.data ?? []).filter((invitation) => invitation.status !== "OPEN")
 
   async function invite() {
     try {
-      await create.mutateAsync({ body: { email, role } })
+      await create.mutateAsync({
+        body: {
+          email,
+          clearance,
+          departmentId: departmentId === NO_DEPARTMENT ? undefined : departmentId,
+        },
+      })
       setEmail("")
       await invalidateAdminData(queryClient)
       toast.success(`${email} can now sign in`)
@@ -84,14 +102,30 @@ export function AdminInvitationsCard() {
             aria-label="Email to invite"
             className="min-w-[260px] flex-1"
           />
-          <Select value={role} onValueChange={(next: string) => setRole(next as UserRoleValue)}>
-            <SelectTrigger className="w-44" aria-label="Role on arrival">
+          <Select
+            value={clearance}
+            onValueChange={(next: string) => setClearance(next as ClearanceValue)}
+          >
+            <SelectTrigger className="w-44" aria-label="Clearance on arrival">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {USER_ROLES.map((value) => (
+              {CLEARANCES.map((value) => (
                 <SelectItem key={value} value={value}>
-                  {roleLabel(value)}
+                  {clearanceLabel(value)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger className="w-48" aria-label="Department on arrival">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_DEPARTMENT}>No department</SelectItem>
+              {(organization.data?.departments ?? []).map((department) => (
+                <SelectItem key={department.id} value={department.id!}>
+                  {department.name ?? "Unnamed department"}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -117,7 +151,12 @@ export function AdminInvitationsCard() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{invitation.email}</p>
                     <p className="text-xs text-muted-foreground">
-                      {roleLabel(invitation.role as UserRoleValue)} on arrival
+                      {clearanceLabel(invitation.clearance)}
+                      {invitation.departmentId
+                        ? ` · ${organization.data?.departments?.find(
+                            (department) => department.id === invitation.departmentId,
+                          )?.name ?? "Unknown department"}`
+                        : " · No department"}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
