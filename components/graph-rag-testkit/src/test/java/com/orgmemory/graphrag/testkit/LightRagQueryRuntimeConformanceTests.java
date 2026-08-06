@@ -157,6 +157,38 @@ class LightRagQueryRuntimeConformanceTests {
     }
 
     @Test
+    void preparedExecutionReportsBoundedProjectionOperationsWithoutPayload() {
+        LightRagQueryRequest request = request(
+                LightRagQueryMode.MIX,
+                QueryOutputMode.CONTEXT,
+                false,
+                true,
+                false,
+                trustedKeywords());
+        var prepared = engine.prepare(request);
+        List<LightRagQueryEngine.QueryOperationMeasurement> measurements =
+                new ArrayList<>();
+
+        LightRagQueryResult result =
+                engine.executePrepared(request, prepared, measurements::add);
+
+        assertEquals(LightRagQueryResult.Status.SUCCESS, result.status());
+        assertTrue(measurements.stream().anyMatch(measurement ->
+                measurement.operation()
+                        == LightRagQueryEngine.QueryOperation.SEARCH_ENTITIES));
+        assertTrue(measurements.stream().anyMatch(measurement ->
+                measurement.operation()
+                        == LightRagQueryEngine.QueryOperation.EXPAND_ENTITY_IDS));
+        assertTrue(measurements.stream().anyMatch(measurement ->
+                measurement.operation()
+                        == LightRagQueryEngine.QueryOperation.LOAD_INCIDENT_RELATIONS));
+        assertTrue(measurements.stream().allMatch(measurement ->
+                !measurement.duration().isNegative()
+                        && measurement.inputCount() >= 0
+                        && measurement.outputCount() >= 0));
+    }
+
+    @Test
     void onePreparedQueryReusesKeywordAndEmbeddingEffectsAcrossSnapshotExecutions() {
         LightRagQueryRequest request = request(
                 LightRagQueryMode.MIX,

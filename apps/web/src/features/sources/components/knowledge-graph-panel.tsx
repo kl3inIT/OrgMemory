@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select"
 import { GraphPropertiesPanel } from "@/features/sources/components/graph/graph-properties-panel"
 import { GraphViewerControls } from "@/features/sources/components/graph/graph-viewer-controls"
+import { RenderWhenSized } from "@/features/sources/components/graph/render-when-sized"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import {
   type GraphEntityLimit,
@@ -443,49 +444,51 @@ function GraphCanvas({
     [graph.entities],
   )
   return (
-    <SigmaContainer
-      key={`${resolvedTheme}-${effectiveEdgeEvents}`}
-      graph={MultiDirectedGraph}
-      className="h-full w-full bg-background"
-      settings={{
-        defaultNodeType: "border",
-        defaultEdgeType: useCurvedEdges ? "curvedArrow" : "rect",
-        defaultEdgeColor: resolvedTheme === "dark" ? "#475569" : "#cbd5e1",
-        hideEdgesOnMove: true,
-        labelGridCellSize: 60,
-        labelRenderedSizeThreshold: 12,
-        renderEdgeLabels: false,
-        enableEdgeEvents: effectiveEdgeEvents,
-        nodeProgramClasses: {
-          point: NodePointProgram,
-          default: NodePointProgram,
-          circle: NodeCircleProgram,
-          border: NodeBorderProgram,
-        },
-        edgeProgramClasses: {
-          rect: EdgeRectangleProgram,
-          curvedArrow: EdgeCurvedArrowProgram,
-        },
-      }}
-    >
-      <LoadGraph graph={graph} />
-      <GraphInteractions
-        selectedEntityId={selectedEntityId}
-        selectedRelationId={selectedRelationId}
-        selectedTypes={selectedTypes}
-        onSelectEntity={onSelectEntity}
-        onSelectRelation={onSelectRelation}
-      />
-      <GraphViewerControls
-        entityTypes={entityTypes}
-        searchDocuments={searchDocuments}
-        selectedTypes={selectedTypes}
-        onSelectedTypesChange={onSelectedTypesChange}
-        onSelectEntity={onSelectEntity}
-        onRefresh={onRefresh}
-        edgeCount={graph.relations?.length ?? 0}
-      />
-    </SigmaContainer>
+    <RenderWhenSized className="h-full w-full bg-background">
+      <SigmaContainer
+        key={`${resolvedTheme}-${effectiveEdgeEvents}`}
+        graph={MultiDirectedGraph}
+        className="h-full w-full"
+        settings={{
+          defaultNodeType: "border",
+          defaultEdgeType: useCurvedEdges ? "curvedArrow" : "rect",
+          defaultEdgeColor: resolvedTheme === "dark" ? "#475569" : "#cbd5e1",
+          hideEdgesOnMove: true,
+          labelGridCellSize: 60,
+          labelRenderedSizeThreshold: 12,
+          renderEdgeLabels: false,
+          enableEdgeEvents: effectiveEdgeEvents,
+          nodeProgramClasses: {
+            point: NodePointProgram,
+            default: NodePointProgram,
+            circle: NodeCircleProgram,
+            border: NodeBorderProgram,
+          },
+          edgeProgramClasses: {
+            rect: EdgeRectangleProgram,
+            curvedArrow: EdgeCurvedArrowProgram,
+          },
+        }}
+      >
+        <LoadGraph graph={graph} />
+        <GraphInteractions
+          selectedEntityId={selectedEntityId}
+          selectedRelationId={selectedRelationId}
+          selectedTypes={selectedTypes}
+          onSelectEntity={onSelectEntity}
+          onSelectRelation={onSelectRelation}
+        />
+        <GraphViewerControls
+          entityTypes={entityTypes}
+          searchDocuments={searchDocuments}
+          selectedTypes={selectedTypes}
+          onSelectedTypesChange={onSelectedTypesChange}
+          onSelectEntity={onSelectEntity}
+          onRefresh={onRefresh}
+          edgeCount={graph.relations?.length ?? 0}
+        />
+      </SigmaContainer>
+    </RenderWhenSized>
   )
 }
 

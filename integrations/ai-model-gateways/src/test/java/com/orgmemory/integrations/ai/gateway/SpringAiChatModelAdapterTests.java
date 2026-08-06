@@ -1,6 +1,8 @@
 package com.orgmemory.integrations.ai.gateway;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,14 +19,43 @@ import com.orgmemory.core.permission.PermissionAuditService;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.model.chat.client.autoconfigure.ChatClientBuilderConfigurer;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.ObjectProvider;
 
 class SpringAiChatModelAdapterTests {
+
+    @Test
+    void skillPolicyPrefersSemanticCatalogMatchingBeforeSearch() {
+        String policy = SpringAiChatModelAdapter.skillSystemPolicy();
+
+        assertTrue(policy.contains(
+                "activate_skill tool discloses the actor-authorized Skill catalog"));
+        assertTrue(policy.contains(
+                "Match the user's task semantically against that catalog"));
+        assertTrue(policy.contains(
+                "activate a matching exact release before applying its instructions"));
+        assertTrue(policy.contains(
+                "Use search_skills only when no disclosed Skill matches"));
+    }
+
+    @Test
+    void omitsSkillPolicyWhenNoAuthorizedCatalogWasDisclosed() {
+        assertEquals(
+                "Base policy",
+                SpringAiChatModelAdapter.assistantSystemInstruction(
+                        "Base policy", List.of()));
+
+        String withCatalog = SpringAiChatModelAdapter.assistantSystemInstruction(
+                "Base policy", List.of(mock(ToolCallback.class)));
+        assertTrue(withCatalog.startsWith("Base policy"));
+        assertTrue(withCatalog.contains("<agent_skills_policy>"));
+    }
 
     @Test
     void generalMemoryClientDoesNotPopulateAssistantMemoryCache() throws Exception {

@@ -125,7 +125,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 preparedQueryPlan();
         when(engine.prepare(any())).thenReturn(prepared);
         CountDownLatch bothSpacesStarted = new CountDownLatch(2);
-        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+        when(engine.executePrepared(any(), any(), any())).thenAnswer(invocation -> {
             bothSpacesStarted.countDown();
             assertTrue(
                     bothSpacesStarted.await(2, TimeUnit.SECONDS),
@@ -152,7 +152,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals(List.of(), result.evidence());
         verify(engine).prepare(any());
         verify(engine, times(2))
-                .executePrepared(any(), any());
+                .executePrepared(any(), any(), any());
         ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
                 ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
         verify(events, atLeastOnce()).emit(captured.capture());
@@ -190,7 +190,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
         LightRagPreparedQuery prepared = preparedQueryPlan();
         when(engine.prepare(any())).thenReturn(prepared);
-        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+        when(engine.executePrepared(any(), any(), any())).thenAnswer(invocation -> {
             assertEquals(
                     0,
                     admission.availablePermits(),
@@ -213,7 +213,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         10,
                         "request-admission-before-checkout");
 
-        verify(engine).executePrepared(any(), any());
+        verify(engine).executePrepared(any(), any(), any());
         assertEquals(1, admission.availablePermits());
     }
 
@@ -232,7 +232,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         CountDownLatch firstStarted = new CountDownLatch(1);
         CountDownLatch releaseFirst = new CountDownLatch(1);
         CountDownLatch thirdStarted = new CountDownLatch(1);
-        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+        when(engine.executePrepared(any(), any(), any())).thenAnswer(invocation -> {
             LightRagQueryRequest request = invocation.getArgument(0);
             Set<UUID> assets = request.scope().authorizedAssetIds();
             if (assets.contains(ASSET_ID)) {
@@ -285,7 +285,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         CountDownLatch blockersStarted = new CountDownLatch(2);
         CountDownLatch neverReleased = new CountDownLatch(1);
         CountDownLatch interrupted = new CountDownLatch(2);
-        when(engine.executePrepared(any(), any())).thenAnswer(invocation -> {
+        when(engine.executePrepared(any(), any(), any())).thenAnswer(invocation -> {
             LightRagQueryRequest request = invocation.getArgument(0);
             if (request.scope().authorizedAssetIds().contains(SECOND_ASSET_ID)) {
                 assertTrue(blockersStarted.await(2, TimeUnit.SECONDS));
@@ -351,11 +351,20 @@ class GraphRagKnowledgeRetrievalServiceTests {
                     ? keywordPrepared
                     : bypassPrepared;
         });
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
-                allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
-                grounding,
-                false,
-                false));
+        when(engine.executePrepared(any(), any(), any())).thenAnswer(invocation -> {
+            LightRagQueryEngine.QueryOperationObserver observer = invocation.getArgument(2);
+            observer.observe(new LightRagQueryEngine.QueryOperationMeasurement(
+                    LightRagQueryEngine.QueryOperation.LOAD_INCIDENT_RELATIONS,
+                    LightRagQueryEngine.QueryOperationOutcome.SUCCEEDED,
+                    Duration.ofMillis(17),
+                    12,
+                    9));
+            return queryResult(
+                    allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
+                    grounding,
+                    false,
+                    false);
+        });
         when(engine.consolidateGrounding(any(), any(), any())).thenReturn(preparedGrounding);
         when(engine.renderGrounding(any(), any(), any())).thenReturn(preparedGrounding);
         RelationshipAuthorizationSetPort finalAuthorization =
@@ -369,6 +378,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 candidate(ENTITY_CHUNK_ID),
                 candidate(RELATION_CHUNK_ID),
                 candidate(CHUNK_ID)));
+        GraphRagEventSink events = mock(GraphRagEventSink.class);
         GraphRagKnowledgeRetrievalService service = service(
                 scopes,
                 finalAuthorization,
@@ -376,7 +386,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                 engine,
                 GraphRagRetrievalPolicy.defaults(),
                 audit,
-                mock(GraphRagEventSink.class));
+                events);
 
         GraphRagKnowledgeRetrievalService.RetrievalObservation observation = service.observe(
                 actor,
@@ -404,6 +414,25 @@ class GraphRagKnowledgeRetrievalServiceTests {
         assertEquals("model", observation.keywordPlan().source());
         assertEquals(3, observation.keywordSeededDocuments().size());
         assertEquals(3, observation.bypassDocuments().size());
+        ArgumentCaptor<GraphRagEventSink.GraphRagEvent> emitted =
+                ArgumentCaptor.forClass(GraphRagEventSink.GraphRagEvent.class);
+        verify(events, atLeastOnce()).emit(emitted.capture());
+        GraphRagEventSink.GraphRagEvent operation = emitted.getAllValues().stream()
+                .filter(event -> event.stage()
+                        == GraphRagEventSink.Stage.QUERY_LOAD_INCIDENT_RELATIONS)
+                .findFirst()
+                .orElseThrow();
+        GraphRagEventSink.GraphRagEvent retrieval = emitted.getAllValues().stream()
+                .filter(event -> event.stage() == GraphRagEventSink.Stage.RETRIEVE)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(Duration.ofMillis(17), operation.duration());
+        assertEquals(12, operation.inputCount());
+        assertEquals(9, operation.outputCount());
+        assertEquals(
+                allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
+                operation.scopeFingerprint());
+        assertEquals(retrieval.operationId(), operation.operationId());
     }
 
     @Test
@@ -483,7 +512,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
                         "request-multi-space-rerank"));
 
         verify(engine, never()).prepare(any());
-        verify(engine, never()).executePrepared(any(), any());
+        verify(engine, never()).executePrepared(any(), any(), any());
     }
 
     @Test
@@ -531,7 +560,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagGrounding grounding = grounding();
         LightRagGroundingAssembler.PreparedGrounding prepared =
                 prepared(grounding);
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -585,7 +614,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
 
         assertEquals(List.of(), result.evidence());
         verify(engine).prepare(any());
-        verify(engine).executePrepared(any(), any());
+        verify(engine).executePrepared(any(), any(), any());
         verify(finalAuthorization, never()).batchCheck(any());
         assertEquals(0, canonical.recheckCount);
         ArgumentCaptor<GraphRagEventSink.GraphRagEvent> captured =
@@ -624,7 +653,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagPreparedQuery queryPlan = preparedQueryPlan();
         when(engine.prepare(any()))
                 .thenReturn(queryPlan);
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -730,7 +759,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
         LightRagPreparedQuery queryPlan = preparedQueryPlan();
         when(engine.prepare(any())).thenReturn(queryPlan);
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID).authorizationFingerprint(),
                 grounding,
                 true,
@@ -809,7 +838,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagPreparedQuery queryPlan = preparedQueryPlan();
         when(engine.prepare(any()))
                 .thenReturn(queryPlan);
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
@@ -1002,7 +1031,7 @@ class GraphRagKnowledgeRetrievalServiceTests {
         LightRagQueryEngine engine = mock(LightRagQueryEngine.class);
         LightRagPreparedQuery queryPlan = preparedQueryPlan();
         when(engine.prepare(any())).thenReturn(queryPlan);
-        when(engine.executePrepared(any(), any())).thenReturn(queryResult(
+        when(engine.executePrepared(any(), any(), any())).thenReturn(queryResult(
                 allowed.forKnowledgeSpace(SPACE_ID)
                         .authorizationFingerprint(),
                 grounding,
