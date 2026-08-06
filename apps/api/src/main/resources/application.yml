@@ -103,6 +103,7 @@ orgmemory:
       assistant-chat:
         gateway-id: ${ORGMEMORY_ASSISTANT_GATEWAY:openai}
         model-id: ${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}
+        open-ai-reasoning-effort: ${ORGMEMORY_ASSISTANT_OPENAI_REASONING_EFFORT:}
       keyword-planning:
         gateway-id: ${ORGMEMORY_KEYWORD_GATEWAY:${ORGMEMORY_ASSISTANT_GATEWAY:openai}}
         model-id: ${ORGMEMORY_KEYWORD_MODEL:${ORGMEMORY_OPENAI_MODEL:gpt-5.6-sol}}

@@ -48,6 +48,33 @@ class ProductionAiGatewayConfigurationBindingTests {
     }
 
     @Test
+    void prodAssistantRouteUsesExplicitNoneReasoningEffort() {
+        new ApplicationContextRunner()
+                .withInitializer(new ConfigDataApplicationContextInitializer())
+                .withUserConfiguration(AiModelGatewayConfiguration.class)
+                .withSystemProperties(
+                        "OPENAI_API_KEY=redacted-base-key",
+                        "ORGMEMORY_OPENAI_API_KEY=redacted-prod-key",
+                        "ORGMEMORY_OPENAI_REASONING_EFFORT_SUPPORTED=true",
+                        "ORGMEMORY_ASSISTANT_OPENAI_REASONING_EFFORT=none")
+                .withPropertyValues("spring.profiles.active=prod")
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    assertEquals(
+                            "none",
+                            context.getEnvironment().getProperty(
+                                    "orgmemory.ai.routes.assistant-chat.open-ai-reasoning-effort"));
+
+                    AiGatewayProperties properties =
+                            context.getBean(AiGatewayProperties.class);
+                    assertEquals(
+                            OpenAiReasoningEffort.NONE,
+                            properties.route(AiWorkload.ASSISTANT_CHAT)
+                                    .openAiReasoningEffort());
+                });
+    }
+
+    @Test
     void prodKeywordRouteRetainsItsIndependentDeploymentModel() {
         new ApplicationContextRunner()
                 .withInitializer(new ConfigDataApplicationContextInitializer())
