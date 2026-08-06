@@ -3,18 +3,19 @@ package com.orgmemory.api.knowledge;
 import com.orgmemory.core.ai.AiGatewayUnavailableException;
 import com.orgmemory.core.ai.AiRouteResolver;
 import com.orgmemory.core.ai.AiWorkload;
+import com.orgmemory.core.knowledge.asset.KnowledgeProjectionNamespaces;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingDistanceMetric;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileRegistry;
 import com.orgmemory.core.knowledge.retrieval.EmbeddingProfileSpec;
 import com.orgmemory.core.knowledge.retrieval.KnowledgeEmbeddingProperties;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbedding;
 import com.orgmemory.core.knowledge.retrieval.QueryEmbeddingPort;
+import com.orgmemory.graphrag.query.CachingQueryEmbeddingService;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,17 +23,17 @@ final class SpringAiQueryEmbeddingAdapter implements QueryEmbeddingPort {
 
     private static final Logger log = LoggerFactory.getLogger(SpringAiQueryEmbeddingAdapter.class);
 
-    private final ObjectProvider<EmbeddingModel> models;
+    private final CachingQueryEmbeddingService embeddings;
     private final EmbeddingProfileRegistry profiles;
     private final KnowledgeEmbeddingProperties properties;
     private final AiRouteResolver routes;
 
     SpringAiQueryEmbeddingAdapter(
-            ObjectProvider<EmbeddingModel> models,
+            CachingQueryEmbeddingService embeddings,
             EmbeddingProfileRegistry profiles,
             KnowledgeEmbeddingProperties properties,
             AiRouteResolver routes) {
-        this.models = models;
+        this.embeddings = embeddings;
         this.profiles = profiles;
         this.properties = properties;
         this.routes = routes;
@@ -53,10 +54,6 @@ final class SpringAiQueryEmbeddingAdapter implements QueryEmbeddingPort {
             log.warn("Semantic retrieval gateway is unavailable; continuing with lexical retrieval");
             return Optional.empty();
         }
-        EmbeddingModel model = models.getIfAvailable();
-        if (model == null) {
-            return Optional.empty();
-        }
         var spec = new EmbeddingProfileSpec(
                 properties.provider(),
                 properties.model(),
@@ -68,15 +65,16 @@ final class SpringAiQueryEmbeddingAdapter implements QueryEmbeddingPort {
             return Optional.empty();
         }
         try {
-            float[] vector = model.embed(query);
-            if (vector.length != profile.get().dimensions()) {
-                log.error(
-                        "Skipping semantic retrieval because query embedding dimensions {} differ from profile {}",
-                        vector.length,
-                        profile.get().dimensions());
-                return Optional.empty();
-            }
-            return Optional.of(new QueryEmbedding(profile.get().id(), vector.length, vector));
+            var vector = embeddings.embedAll(
+                            KnowledgeProjectionNamespaces.forCanonicalQuery(organizationId),
+                            profile.get().id(),
+                            profile.get().dimensions(),
+                            List.of(query))
+                    .getFirst();
+            return Optional.of(new QueryEmbedding(
+                    profile.get().id(),
+                    vector.dimensions(),
+                    vector.copyValues()));
         } catch (RuntimeException exception) {
             log.warn("Semantic retrieval is unavailable; continuing with lexical retrieval", exception);
             return Optional.empty();
