@@ -8,13 +8,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
+import com.orgmemory.core.authorization.AuthorizationDecision;
+import com.orgmemory.core.authorization.EffectiveAuthorizationService;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -34,7 +34,10 @@ class BrowserSessionControllerTests {
                 List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
 
         var response = new BrowserSessionController(
-                actors, mock(BrowserLoginFlow.class), mock(AppUserRepository.class)).session(anonymous);
+                actors,
+                mock(BrowserLoginFlow.class),
+                mock(EffectiveAuthorizationService.class))
+                .session(anonymous);
 
         assertFalse(response.authenticated());
         assertNull(response.userId());
@@ -54,22 +57,22 @@ class BrowserSessionControllerTests {
                 organizationId,
                 departmentId,
                 "Laura Nguyen",
-                "laura@example.test"));
-
-        AppUserRepository users = mock(AppUserRepository.class);
-        AppUser user = new AppUser(organizationId, departmentId, "Laura Nguyen", "laura@example.test",
-                UserRole.ADMIN);
-        when(users.findById(userId)).thenReturn(Optional.of(user));
+                "laura@example.test",
+                Clearance.STANDARD));
+        EffectiveAuthorizationService authorization = mock(EffectiveAuthorizationService.class);
+        when(authorization.authorize(any(), any(), any(), any()))
+                .thenReturn(AuthorizationDecision.allow("model"));
 
         var response = new BrowserSessionController(
-                actors, mock(BrowserLoginFlow.class), users).session(authentication);
+                actors, mock(BrowserLoginFlow.class), authorization).session(authentication);
 
         assertTrue(response.authenticated());
         assertEquals(userId, response.userId());
         assertEquals(organizationId, response.organizationId());
         assertEquals(departmentId, response.departmentId());
         assertEquals("Laura Nguyen", response.name());
-        assertEquals(UserRole.ADMIN, response.role());
+        assertEquals(Clearance.STANDARD, response.clearance());
+        assertTrue(response.canManageMembers());
     }
 
     @Test
@@ -77,7 +80,9 @@ class BrowserSessionControllerTests {
         var token = new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "test-token");
 
         var response = new BrowserSessionController(
-                mock(CurrentActorProvider.class), mock(BrowserLoginFlow.class), mock(AppUserRepository.class))
+                mock(CurrentActorProvider.class),
+                mock(BrowserLoginFlow.class),
+                mock(EffectiveAuthorizationService.class))
                 .csrf(token);
 
         assertEquals("X-XSRF-TOKEN", response.headerName());
@@ -91,7 +96,9 @@ class BrowserSessionControllerTests {
         var request = new MockHttpServletRequest();
 
         var view = new BrowserSessionController(
-                mock(CurrentActorProvider.class), loginFlow, mock(AppUserRepository.class))
+                mock(CurrentActorProvider.class),
+                loginFlow,
+                mock(EffectiveAuthorizationService.class))
                 .login("/ask?q=leave", request);
 
         assertEquals("/oauth2/authorization/keycloak", view.getUrl());

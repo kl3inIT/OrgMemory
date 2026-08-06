@@ -17,7 +17,7 @@ import com.orgmemory.core.ai.AssistantModelRouteAuthority;
 import com.orgmemory.core.ai.AssistantModelSelectionRef;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import com.orgmemory.core.shared.error.BusinessConflictException;
 import com.orgmemory.core.shared.secret.SecretValue;
 import java.util.ArrayList;
@@ -143,9 +143,9 @@ class AssistantModelSelectionConcurrencyIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role, active,
+                    id, organization_id, name, email, clearance, active,
                     created_at, updated_at, version)
-                VALUES (?, ?, 'Model actor', ?, 'ADMIN', true, now(), now(), 0)
+                VALUES (?, ?, 'Model actor', ?, 'STANDARD', true, now(), now(), 0)
                 """,
                 actorId,
                 organizationId,
@@ -180,7 +180,7 @@ class AssistantModelSelectionConcurrencyIntegrationTests {
                 null,
                 "Model actor",
                 actorId + "@example.test",
-                UserRole.ADMIN);
+                Clearance.STANDARD);
         UUID conversationId = conversations.beginTurn(actor, null, "Initial turn");
         return new Scenario(actor, profile.id(), activation.id(), conversationId);
     }

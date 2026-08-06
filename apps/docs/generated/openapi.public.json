@@ -3215,7 +3215,7 @@
         "tags": [
           "Administration"
         ],
-        "summary": "Change a user's role or activation",
+        "summary": "Change a user's clearance, department, or activation",
         "operationId": "updateAdminUser",
         "parameters": [
           {
@@ -3381,6 +3381,27 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/OrganizationContextResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Read the current user's governed profile",
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
                 }
               }
             }
@@ -8005,15 +8026,11 @@
           "email": {
             "type": "string"
           },
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
             ]
           },
           "departmentId": {
@@ -8032,15 +8049,11 @@
           "email": {
             "type": "string"
           },
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
             ]
           },
           "departmentId": {
@@ -8372,19 +8385,23 @@
       "UpdateAdminUserRequest": {
         "type": "object",
         "properties": {
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
             ]
           },
           "active": {
             "type": "boolean"
+          },
+          "departmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Omit to keep the current department; send null to clear it"
           }
         }
       },
@@ -8401,15 +8418,11 @@
           "email": {
             "type": "string"
           },
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
             ]
           },
           "departmentId": {
@@ -8482,16 +8495,15 @@
             "type": "string",
             "format": "uuid"
           },
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
             ]
+          },
+          "canManageMembers": {
+            "type": "boolean"
           }
         }
       },
@@ -8567,15 +8579,44 @@
           "email": {
             "type": "string"
           },
-          "role": {
+          "clearance": {
             "type": "string",
             "enum": [
-              "EMPLOYEE",
-              "TEAM_LEAD",
-              "MANAGER",
-              "DIRECTOR",
-              "EXECUTIVE",
-              "ADMIN"
+              "STANDARD",
+              "EXECUTIVE"
+            ]
+          }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "departmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "departmentName": {
+            "type": "string"
+          },
+          "clearance": {
+            "type": "string",
+            "enum": [
+              "STANDARD",
+              "EXECUTIVE"
             ]
           }
         }

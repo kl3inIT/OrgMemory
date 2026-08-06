@@ -37,7 +37,7 @@ public class UserInvitation extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)
-    private UserRole role;
+    private Clearance clearance;
 
     @Column(name = "invited_by_user_id", nullable = false, updatable = false)
     private UUID invitedByUserId;
@@ -55,12 +55,16 @@ public class UserInvitation extends BaseEntity {
     }
 
     public UserInvitation(
-            UUID organizationId, String email, UUID departmentId, UserRole role, UUID invitedByUserId) {
+            UUID organizationId,
+            String email,
+            UUID departmentId,
+            Clearance clearance,
+            UUID invitedByUserId) {
         super(UUID.randomUUID());
         this.organizationId = Objects.requireNonNull(organizationId, "organizationId");
         this.email = normalizeEmail(email);
         this.departmentId = departmentId;
-        this.role = Objects.requireNonNull(role, "role");
+        this.clearance = Objects.requireNonNull(clearance, "clearance");
         this.invitedByUserId = Objects.requireNonNull(invitedByUserId, "invitedByUserId");
     }
 
@@ -104,8 +108,8 @@ public class UserInvitation extends BaseEntity {
         return departmentId;
     }
 
-    public UserRole getRole() {
-        return role;
+    public Clearance getClearance() {
+        return clearance;
     }
 
     public UUID getInvitedByUserId() {

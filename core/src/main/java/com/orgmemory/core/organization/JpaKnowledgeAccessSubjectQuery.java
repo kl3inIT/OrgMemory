@@ -29,6 +29,6 @@ class JpaKnowledgeAccessSubjectQuery implements KnowledgeAccessSubjectQuery {
                         subjectId,
                         tenantId,
                         candidate.getDepartmentId(),
-                        candidate.getRole() == UserRole.EXECUTIVE));
+                        candidate.getClearance() == Clearance.EXECUTIVE));
     }
 }

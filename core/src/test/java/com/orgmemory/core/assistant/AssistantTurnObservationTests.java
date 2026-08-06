@@ -23,7 +23,7 @@ import com.orgmemory.core.knowledge.retrieval.CanonicalHybridKnowledgeSearch;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
@@ -65,7 +65,7 @@ class AssistantTurnObservationTests {
             UUID.randomUUID(),
             "Laura",
             "laura@example.test",
-            UserRole.MANAGER);
+            Clearance.STANDARD);
 
     /**
      * Retrieval runs before the model is asked anything, and the user is already waiting

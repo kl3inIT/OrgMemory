@@ -20,7 +20,7 @@ INSERT INTO departments (
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO app_users (
-    id, organization_id, department_id, name, email, role, active,
+    id, organization_id, department_id, name, email, clearance, active,
     created_at, updated_at, version
 ) VALUES (
     '44444444-4444-4444-4444-444444444444',
@@ -28,7 +28,7 @@ INSERT INTO app_users (
     '22222222-2222-2222-2222-222222222222',
     'Linh Nguyen',
     'linh@example.test',
-    'EMPLOYEE',
+    'STANDARD',
     true,
     now(),
     now(),

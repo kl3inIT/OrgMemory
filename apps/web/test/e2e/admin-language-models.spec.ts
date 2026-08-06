@@ -90,7 +90,8 @@ async function modelSettingsHarness(
           userId: USER_ID,
           organizationId: ORGANIZATION_ID,
           departmentId: null,
-          role: "ADMIN",
+          clearance: "STANDARD",
+          canManageMembers: true,
         }),
       })
     }
@@ -103,6 +104,21 @@ async function modelSettingsHarness(
           headerName: "X-XSRF-TOKEN",
           parameterName: "_csrf",
           token: "model-settings-csrf",
+        }),
+      })
+    }
+    if (url.pathname === "/api/me") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          userId: USER_ID,
+          organizationId: ORGANIZATION_ID,
+          name: "Organization Admin",
+          email: "admin@example.test",
+          departmentId: null,
+          departmentName: null,
+          clearance: "STANDARD",
         }),
       })
     }

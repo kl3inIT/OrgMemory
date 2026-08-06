@@ -51,7 +51,7 @@ class OidcCurrentActorProvider implements CurrentActorProvider {
                 user.getDepartmentId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole());
+                user.getClearance());
     }
 
     private static ExternalSubject externalSubject(Authentication authentication) {

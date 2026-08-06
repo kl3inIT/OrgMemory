@@ -137,10 +137,10 @@ class ProvisioningLedgerMigrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role,
+                    id, organization_id, name, email, clearance,
                     created_at, updated_at, version, active)
                 VALUES (?, ?, 'Old binary inactive', 'old-inactive@example.test',
-                    'EMPLOYEE', now(), now(), 0, false)
+                    'STANDARD', now(), now(), 0, false)
                 """,
                 oldBinaryUser,
                 ORGANIZATION_A);
@@ -154,11 +154,11 @@ class ProvisioningLedgerMigrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role, active,
+                    id, organization_id, name, email, clearance, active,
                     local_access_enabled, directory_access_enabled,
                     provisioning_access_ready, created_at, updated_at, version)
                 VALUES (?, ?, 'Directory inactive', 'directory-inactive@example.test',
-                    'EMPLOYEE', false, true, false, true, now(), now(), 0)
+                    'STANDARD', false, true, false, true, now(), now(), 0)
                 """,
                 directoryDisabledUser,
                 ORGANIZATION_A);
@@ -349,9 +349,9 @@ class ProvisioningLedgerMigrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role,
+                    id, organization_id, name, email, clearance,
                     created_at, updated_at, version, active)
-                VALUES (?, ?, 'Provisioning owner', ?, 'ADMIN', now(), now(), 0, true)
+                VALUES (?, ?, 'Provisioning owner', ?, 'STANDARD', now(), now(), 0, true)
                 """,
                 id,
                 organizationId,

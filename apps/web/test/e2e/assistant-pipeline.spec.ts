@@ -70,7 +70,8 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
         userId: `41000000-0000-0000-0000-${actorIndex.toString().padStart(12, "0")}`,
         organizationId: "41000000-0000-0000-0000-000000000002",
         departmentId: "41000000-0000-0000-0000-000000000003",
-        role: "EMPLOYEE",
+        clearance: "STANDARD",
+        canManageMembers: false,
       })
       return
     }
@@ -85,6 +86,19 @@ async function assistantHarness(page: Page, options: AssistantHarnessOptions = {
           parameterName: "_csrf",
           token: "playwright-token",
         }),
+      })
+      return
+    }
+
+    if (url.pathname === "/api/me") {
+      await json(route, {
+        userId: `41000000-0000-0000-0000-${actorIndex.toString().padStart(12, "0")}`,
+        organizationId: "41000000-0000-0000-0000-000000000002",
+        name: `Playwright User ${actorIndex}`,
+        email: `playwright-${actorIndex}@example.test`,
+        departmentId: "41000000-0000-0000-0000-000000000003",
+        departmentName: "Research",
+        clearance: "STANDARD",
       })
       return
     }

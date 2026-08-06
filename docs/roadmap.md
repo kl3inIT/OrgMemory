@@ -55,6 +55,7 @@ The table is a delivery index, not a second description of current behavior.
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
 | [Assistant conversation memory SSOT](increments/active/2026-08-06-assistant-conversation-memory-ssot/plan.md) | active | one persisted conversation store with explicit turn identity, a read-only transcript context advisor, and a failed turn that names its cause |
+| [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
 | [Assistant Skill activity receipt](increments/completed/2026-08-06-assistant-skill-activity-receipt/verification.md) | shipped | keeps waiting through the first rendered token and exposes only bounded successful Skill activity in a current-turn receipt |
 | [Agentic Skill beta](increments/completed/2026-08-05-agentic-skill-beta/verification.md) | shipped | delivered actor-scoped progressive Skill disclosure, a bounded read-only Assistant tool loop, and truthful Skill activity without server-side package execution |
 | [Knowledge workspace and document reader](increments/completed/2026-08-05-knowledge-workspace-document-reader/verification.md) | shipped | completed the governed right-side reader, safe Markdown presentation, truthful access copy, and cross-format browser coverage |
@@ -130,6 +131,11 @@ implementation-active until their predecessor exit gates pass.
   `SpringAiMultimodalAnalyzer` adapter, but `MultimodalProcessor` has no caller
   outside its own package and the analyzer is never constructed. It cannot run
   while image upload is disallowed, so the two decisions are coupled.
+- Before any authorization-model evolution, add an explicit publication
+  compatibility and convergence rollout gate. Retrieval currently pins an
+  applied publication to the raw authorization-model identity, so even a
+  semantically compatible model rotation can temporarily make evidence
+  unavailable until publications are restamped.
 - Fence Source Ingestion with a never-reused claim epoch and an exact durable
   Asset-publication permit, then prove manifest-pinned recovery before exposing
   a manual FAILED retry. The rejected proposal and required test matrix are in

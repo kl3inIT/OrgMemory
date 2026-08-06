@@ -59,21 +59,21 @@ class IdentityOrganizationEmailCutoverMigrationTests {
 
     @Test
     void cutoverAllowsTheSameNormalizedEmailAcrossOrganizationsOnly() {
-        insertUser(ORGANIZATION_A, DEPARTMENT_A, "shared@example.test");
+        insertLegacyUser(ORGANIZATION_A, DEPARTMENT_A, "shared@example.test");
         migrateLatest();
 
         assertDoesNotThrow(
-                () -> insertUser(ORGANIZATION_B, DEPARTMENT_B, "SHARED@EXAMPLE.TEST"));
+                () -> insertCurrentUser(ORGANIZATION_B, DEPARTMENT_B, "SHARED@EXAMPLE.TEST"));
         assertThrows(
                 DataIntegrityViolationException.class,
-                () -> insertUser(ORGANIZATION_A, DEPARTMENT_A, "SHARED@EXAMPLE.TEST"));
+                () -> insertCurrentUser(ORGANIZATION_A, DEPARTMENT_A, "SHARED@EXAMPLE.TEST"));
     }
 
     @Test
     void cutoverPreflightRejectsDuplicatesWithinOneOrganization() {
         jdbc.execute("DROP INDEX public.uq_app_users_email_lower");
-        insertUser(ORGANIZATION_A, DEPARTMENT_A, "duplicate@example.test");
-        insertUser(ORGANIZATION_A, DEPARTMENT_A, "DUPLICATE@EXAMPLE.TEST");
+        insertLegacyUser(ORGANIZATION_A, DEPARTMENT_A, "duplicate@example.test");
+        insertLegacyUser(ORGANIZATION_A, DEPARTMENT_A, "DUPLICATE@EXAMPLE.TEST");
 
         FlywayException failure = assertThrows(FlywayException.class, this::migrateLatest);
 
@@ -114,13 +114,28 @@ class IdentityOrganizationEmailCutoverMigrationTests {
                 name);
     }
 
-    private void insertUser(UUID organizationId, UUID departmentId, String email) {
+    private void insertLegacyUser(UUID organizationId, UUID departmentId, String email) {
         jdbc.update(
                 """
                 INSERT INTO app_users (
                     id, organization_id, department_id, name, email, role,
                     created_at, updated_at, version, active)
                 VALUES (?, ?, ?, 'Email cutover user', ?, 'EMPLOYEE',
+                        now(), now(), 0, true)
+                """,
+                UUID.randomUUID(),
+                organizationId,
+                departmentId,
+                email);
+    }
+
+    private void insertCurrentUser(UUID organizationId, UUID departmentId, String email) {
+        jdbc.update(
+                """
+                INSERT INTO app_users (
+                    id, organization_id, department_id, name, email, clearance,
+                    created_at, updated_at, version, active)
+                VALUES (?, ?, ?, 'Email cutover user', ?, 'STANDARD',
                         now(), now(), 0, true)
                 """,
                 UUID.randomUUID(),

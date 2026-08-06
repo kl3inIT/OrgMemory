@@ -796,8 +796,8 @@ class ExternalPrincipalRetrievalIntegrationTests {
     private static void insertUser(UUID id, String email, boolean active) {
         jdbc.update("""
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, 'CONTRIBUTOR', ?, now(), now(), 0)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, 'STANDARD', ?, now(), now(), 0)
                 """, id, ORG, DEPT, email, email, active);
     }
 

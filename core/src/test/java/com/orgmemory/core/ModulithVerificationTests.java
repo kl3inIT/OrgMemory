@@ -959,7 +959,7 @@ class ModulithVerificationTests {
                 "com.orgmemory.core.organization.AppUserRepository",
                 "com.orgmemory.core.organization.DepartmentRepository",
                 "com.orgmemory.core.organization.OrganizationRepository",
-                "com.orgmemory.core.organization.UserRole");
+                "com.orgmemory.core.organization.Clearance");
         var consumers = modules.stream()
                 .flatMap(module -> module.getDirectDependencies(modules).stream())
                 .filter(dependency -> dependency.getSourceType()

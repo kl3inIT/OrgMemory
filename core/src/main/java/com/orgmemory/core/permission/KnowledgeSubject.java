@@ -4,6 +4,6 @@ public record KnowledgeSubject(
         String organizationId,
         String subjectId,
         String departmentId,
-        KnowledgeRole role,
+        KnowledgeRole clearance,
         boolean active) {
 }

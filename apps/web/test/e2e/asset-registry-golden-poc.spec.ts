@@ -1036,6 +1036,10 @@ function baseHarness(
         })
         return undefined
       }
+      if (url.pathname === "/api/me") {
+        await json(route, profile(actor))
+        return undefined
+      }
 
       return { request, url, signature }
     },
@@ -1050,7 +1054,20 @@ function session(actor: "owner" | "support") {
     userId: actor === "owner" ? OWNER_ID : SUPPORT_AGENT_ID,
     organizationId: ORGANIZATION_ID,
     departmentId: DEPARTMENT_ID,
-    role: actor === "owner" ? "MANAGER" : "EMPLOYEE",
+    clearance: "STANDARD",
+    canManageMembers: false,
+  }
+}
+
+function profile(actor: "owner" | "support") {
+  return {
+    userId: actor === "owner" ? OWNER_ID : SUPPORT_AGENT_ID,
+    organizationId: ORGANIZATION_ID,
+    name: actor === "owner" ? "Operations Lead" : "Support Agent",
+    email: actor === "owner" ? "lead@example.test" : "agent@example.test",
+    departmentId: DEPARTMENT_ID,
+    departmentName: "Customer Support",
+    clearance: "STANDARD",
   }
 }
 

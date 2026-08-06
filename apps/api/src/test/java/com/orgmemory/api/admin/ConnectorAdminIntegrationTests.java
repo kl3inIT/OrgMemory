@@ -388,8 +388,8 @@ class ConnectorAdminIntegrationTests {
                 + "VALUES (?, 'Connector Test Org', now(), now(), 0)", ORG);
         jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
                 + "VALUES (?, ?, 'Platform', now(), now(), 0)", DEPT, ORG);
-        insertUser(ADMIN_USER, "admin@connectortest.example", "ADMIN");
-        insertUser(AN_USER, "an@connectortest.example", "EMPLOYEE");
+        insertUser(ADMIN_USER, "admin@connectortest.example", "STANDARD");
+        insertUser(AN_USER, "an@connectortest.example", "STANDARD");
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
                     id, organization_id, department_id, audience_mode, audience_version,
@@ -399,12 +399,12 @@ class ConnectorAdminIntegrationTests {
                 """, SPACE, ORG, DEPT);
     }
 
-    private void insertUser(UUID id, String email, String role) {
+    private void insertUser(UUID id, String email, String clearance) {
         jdbc.update("""
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, ?, true, now(), now(), 0)
-                """, id, ORG, DEPT, email, email, role);
+                """, id, ORG, DEPT, email, email, clearance);
         jdbc.update("""
                 INSERT INTO external_identities (id, app_user_id, issuer, subject, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, now(), now(), 0)

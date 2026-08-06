@@ -4,7 +4,7 @@ import com.orgmemory.api.ApiRequestException;
 import com.orgmemory.core.organization.CurrentActor;
 import com.orgmemory.core.organization.UserInvitation;
 import com.orgmemory.core.organization.UserProvisioningService;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.Instant;
 import java.util.List;
@@ -44,7 +44,7 @@ class AdminInvitationController {
     record AdminInvitationResponse(
             UUID id,
             String email,
-            UserRole role,
+            Clearance clearance,
             UUID departmentId,
             String status,
             Instant invitedAt,
@@ -52,7 +52,7 @@ class AdminInvitationController {
             UUID acceptedAppUserId) {
     }
 
-    record CreateInvitationRequest(String email, UserRole role, UUID departmentId) {
+    record CreateInvitationRequest(String email, Clearance clearance, UUID departmentId) {
     }
 
     @GetMapping
@@ -75,14 +75,14 @@ class AdminInvitationController {
         if (request.email() == null || request.email().isBlank()) {
             throw new ApiRequestException("An email is required");
         }
-        if (request.role() == null) {
-            throw new ApiRequestException("A role is required");
+        if (request.clearance() == null) {
+            throw new ApiRequestException("A clearance is required");
         }
         return response(provisioning.invite(
                 actor.organizationId(),
                 request.email(),
                 request.departmentId(),
-                request.role(),
+                request.clearance(),
                 actor.userId()));
     }
 
@@ -99,7 +99,7 @@ class AdminInvitationController {
         return new AdminInvitationResponse(
                 invitation.getId(),
                 invitation.getEmail(),
-                invitation.getRole(),
+                invitation.getClearance(),
                 invitation.getDepartmentId(),
                 invitation.getRevokedAt() != null
                         ? "REVOKED"

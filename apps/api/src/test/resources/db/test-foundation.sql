@@ -30,7 +30,7 @@ INSERT INTO departments (
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO app_users (
-    id, organization_id, department_id, name, email, role, active,
+    id, organization_id, department_id, name, email, clearance, active,
     created_at, updated_at, version
 ) VALUES
     (
@@ -39,7 +39,7 @@ INSERT INTO app_users (
         '22222222-2222-2222-2222-222222222222',
         'Linh Nguyen',
         'linh@example.test',
-        'EMPLOYEE',
+        'STANDARD',
         true,
         now(),
         now(),
@@ -51,7 +51,7 @@ INSERT INTO app_users (
         '22222222-2222-2222-2222-222222222222',
         'Minh Tran',
         'minh@example.test',
-        'MANAGER',
+        'STANDARD',
         true,
         now(),
         now(),
@@ -63,7 +63,7 @@ INSERT INTO app_users (
         '33333333-3333-3333-3333-333333333333',
         'An Pham',
         'an@example.test',
-        'EMPLOYEE',
+        'STANDARD',
         true,
         now(),
         now(),
@@ -75,7 +75,7 @@ INSERT INTO app_users (
         '33333333-3333-3333-3333-333333333333',
         'Bao Le',
         'bao@example.test',
-        'TEAM_LEAD',
+        'STANDARD',
         true,
         now(),
         now(),

@@ -1,5 +1,6 @@
 import { ChevronsUpDown, LogOut, Moon, Sun, UserRoundCog } from "lucide-react"
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
@@ -17,7 +18,9 @@ import {
 import { SidebarMenuButton } from "@/components/ui/sidebar"
 import { submitBrowserLogout } from "@/features/session/logout"
 import { isAdministrator } from "@/features/session/require-session"
+import { clearanceLabel } from "@/features/admin/admin-labels"
 import type { SessionResponse } from "@/lib/hey-api"
+import { getMeOptions } from "@/lib/hey-api/@tanstack/react-query.gen"
 import { avatarInitials } from "@/lib/avatar"
 
 export function AccountMenu({
@@ -33,6 +36,9 @@ export function AccountMenu({
   const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
   const displayName = identity.name || "Company account"
+  const profile = useQuery({ ...getMeOptions(), staleTime: 5 * 60_000 })
+  const departmentName = profile.data?.departmentName ?? "No department"
+  const clearance = clearanceLabel(profile.data?.clearance ?? identity.clearance)
 
   async function signOut() {
     if (isSigningOut) return
@@ -88,6 +94,9 @@ export function AccountMenu({
           {identity.email ? (
             <p className="truncate text-xs font-normal text-muted-foreground">{identity.email}</p>
           ) : null}
+          <p className="truncate text-xs font-normal text-muted-foreground">
+            {departmentName} · {clearance} clearance
+          </p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {showAdministration && isAdministrator(identity) ? (
