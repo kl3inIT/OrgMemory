@@ -89,7 +89,49 @@ class AssistantModelAuthorityServiceTests {
     }
 
     @Test
-    void explicitReasoningKeepsOnlyTheDefaultAndRejectsAlternateActivations() {
+    void explicitNoneOffersCatalogAndPropagatesTheGovernedReasoningPolicy() {
+        UUID organizationId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+        UUID routeId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        AiRouteOverrideView current = routeOverride(
+                routeId,
+                profileId,
+                3,
+                OpenAiReasoningEffort.NONE);
+        AiAssistantModelActivation activation = new AiAssistantModelActivation(
+                organizationId,
+                profileId,
+                "gpt-5.6-luna",
+                "GPT-5.6 Luna",
+                actorId);
+        when(routes.reference(organizationId, AiWorkload.ASSISTANT_CHAT))
+                .thenReturn(current.route());
+        when(administration.route(organizationId, AiWorkload.ASSISTANT_CHAT))
+                .thenReturn(Optional.of(current));
+        when(administration.require(organizationId, profileId))
+                .thenReturn(profile(profileId));
+        when(administration.assistantModels(organizationId, profileId))
+                .thenReturn(List.of(activation.view()));
+        when(activations.findByIdAndOrganizationIdAndEnabledTrue(
+                        activation.getId(), organizationId))
+                .thenReturn(Optional.of(activation));
+
+        List<AssistantModelChoice> choices = service.choices(organizationId);
+        AssistantModelRouteAuthority authority = service.authorize(
+                organizationId,
+                activation.getId());
+
+        assertEquals(List.of("gpt-default", "gpt-5.6-luna"), choices.stream()
+                .map(AssistantModelChoice::modelId)
+                .toList());
+        assertEquals(
+                new AiRoute("openai-main", "gpt-5.6-luna", OpenAiReasoningEffort.NONE),
+                service.revalidate(authority));
+    }
+
+    @Test
+    void unsupportedExplicitReasoningKeepsOnlyTheDefaultAndRejectsAlternateActivations() {
         UUID organizationId = UUID.randomUUID();
         UUID profileId = UUID.randomUUID();
         AiRouteOverrideView current = routeOverride(

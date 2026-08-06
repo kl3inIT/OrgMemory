@@ -52,7 +52,7 @@ public class AssistantModelAuthorityService {
                 route.modelId(),
                 route.modelId(),
                 true));
-        if (override.isEmpty() || route.openAiReasoningEffort() != null) {
+        if (override.isEmpty() || !supportsCatalog(route.openAiReasoningEffort())) {
             return List.copyOf(result);
         }
         administration.assistantModels(
@@ -88,7 +88,7 @@ public class AssistantModelAuthorityService {
         }
         AiRouteOverrideView selectedRoute = override.orElseThrow(
                 AssistantModelAuthorityService::unavailable);
-        if (selectedRoute.openAiReasoningEffort() != null) {
+        if (!supportsCatalog(selectedRoute.openAiReasoningEffort())) {
             throw unavailable();
         }
         AiAssistantModelActivation activation = activations
@@ -182,7 +182,7 @@ public class AssistantModelAuthorityService {
         if (!active.id().equals(selected.routeOverrideId())
                 || active.version() != selected.routeOverrideVersion()
                 || !active.gatewayProfileId().equals(selected.gatewayProfileId())
-                || active.openAiReasoningEffort() != null) {
+                || !supportsCatalog(active.openAiReasoningEffort())) {
             throw unavailable();
         }
         AiAssistantModelActivation activation = activations
@@ -196,7 +196,14 @@ public class AssistantModelAuthorityService {
         AiGatewayProfileView profile = administration.require(
                 selected.organizationId(),
                 selected.gatewayProfileId());
-        return new AiRoute(profile.gatewayKey(), activation.modelId());
+        return new AiRoute(
+                profile.gatewayKey(),
+                activation.modelId(),
+                active.openAiReasoningEffort());
+    }
+
+    private static boolean supportsCatalog(OpenAiReasoningEffort reasoning) {
+        return reasoning == null || reasoning == OpenAiReasoningEffort.NONE;
     }
 
     private static BusinessConflictException unavailable() {

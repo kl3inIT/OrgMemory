@@ -60,6 +60,10 @@ test("admin connects providers and can restore the deployment model route", asyn
   })
   await page.getByRole("button", { name: "Close" }).click()
 
+  await page.getByRole("button", { name: /9Router primary/ }).first().click()
+  await expect(page.getByLabel("Assistant model choices")).toBeEnabled()
+  await page.getByRole("button", { name: "Close" }).click()
+
   await page.getByRole("button", { name: "Use deployment default" }).first().click()
   await expect(page.getByText("Deployment default restored.")).toBeVisible()
   await expect(page.getByText("Deployment default", { exact: true })).toHaveCount(3)
@@ -239,6 +243,7 @@ async function modelSettingsHarness(
                 gatewayKey: "nine-router-primary",
                 gatewayProfileId: GATEWAY_ID,
                 modelId: "openai/gpt-5",
+                openAiReasoningEffort: "NONE",
                 source: "ORGANIZATION_OVERRIDE",
                 editable: true,
                 version: 1,

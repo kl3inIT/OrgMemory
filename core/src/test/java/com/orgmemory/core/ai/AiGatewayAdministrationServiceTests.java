@@ -387,6 +387,45 @@ class AiGatewayAdministrationServiceTests {
     }
 
     @Test
+    void assistantCatalogRejectsReasoningPoliciesOtherThanNone() {
+        UUID organizationId = UUID.randomUUID();
+        UUID adminUserId = UUID.randomUUID();
+        AiGatewayProfile profile = new AiGatewayProfile(
+                organizationId,
+                "openai-main",
+                "OpenAI",
+                AiGatewayPreset.OPENAI,
+                AiGatewayCategory.DIRECT_PROVIDER,
+                AiGatewayProtocol.OPENAI_COMPATIBLE,
+                "https://api.openai.com/v1",
+                60,
+                true,
+                adminUserId);
+        AiRouteOverride route = new AiRouteOverride(
+                organizationId,
+                AiWorkload.ASSISTANT_CHAT,
+                profile.getId(),
+                "gpt-default",
+                OpenAiReasoningEffort.HIGH,
+                adminUserId,
+                java.time.Instant.now());
+        when(profiles.findByIdAndOrganizationIdAndEnabledTrue(
+                        profile.getId(), organizationId))
+                .thenReturn(Optional.of(profile));
+        when(routes.findByOrganizationIdAndWorkload(
+                        organizationId, AiWorkload.ASSISTANT_CHAT))
+                .thenReturn(Optional.of(route));
+
+        assertThrows(
+                BusinessConflictException.class,
+                () -> service.replaceAssistantModels(
+                        organizationId,
+                        profile.getId(),
+                        List.of(new AiAssistantModelDefinition("gpt-fast", "Fast")),
+                        adminUserId));
+    }
+
+    @Test
     void assistantCatalogSoftDisablesAndReenableCreatesANewOpaqueActivation() {
         UUID organizationId = UUID.randomUUID();
         UUID adminUserId = UUID.randomUUID();
@@ -406,6 +445,7 @@ class AiGatewayAdministrationServiceTests {
                 AiWorkload.ASSISTANT_CHAT,
                 profile.getId(),
                 "gpt-default",
+                OpenAiReasoningEffort.NONE,
                 adminUserId,
                 java.time.Instant.now());
         List<AiAssistantModelActivation> stored = new ArrayList<>();

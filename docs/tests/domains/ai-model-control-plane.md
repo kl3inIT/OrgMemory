@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/ai`,
 `apps/web/src/features/admin/components/provider-logo.test.tsx`,
 `apps/web/test/e2e/admin-language-models.spec.ts`, and the admin web build.
 
-Reconciled: `2026-08-06-assistant-chat-reasoning-effort (c3da6b25)`.
+Reconciled: `2026-08-06-assistant-catalog-none-reasoning`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -19,6 +19,7 @@ Reconciled: `2026-08-06-assistant-chat-reasoning-effort (c3da6b25)`.
 | Profile, credential, and route actor FKs cannot cross tenant boundaries | `PermissionsAdminIntegrationTests#aiControlPlaneActorReferencesCannotCrossTenantBoundaries` | covered |
 | Credential rotation invalidates runtime model caches | `AiGatewayAdministrationServiceTests#credentialRotationAlwaysAdvancesTheRuntimeCacheRevision` | covered |
 | Assistant catalog replacement soft-disables old authority and re-enable receives a new UUID | `AiGatewayAdministrationServiceTests#assistantCatalogSoftDisablesAndReenableCreatesANewOpaqueActivation`, `AssistantModelSelectionMigrationTests#activeModelIdentityIsUniqueButARevokedIdentityCanBeReplaced` | covered |
+| Assistant catalogs can be managed under explicit `none`, selected activations inherit `none`, and higher efforts remain fail-closed | `AiGatewayAdministrationServiceTests#assistantCatalogSoftDisablesAndReenableCreatesANewOpaqueActivation`, `#assistantCatalogRejectsReasoningPoliciesOtherThanNone`, `AssistantModelAuthorityServiceTests#explicitNoneOffersCatalogAndPropagatesTheGovernedReasoningPolicy`, `#unsupportedExplicitReasoningKeepsOnlyTheDefaultAndRejectsAlternateActivations`, `admin-language-models.spec.ts` | covered |
 | Route identity can be authorized without requiring provider availability, while generation resolution still fails closed | `AiGatewayPropertiesTests#routeReferenceCanBeAuthorizedBeforeProviderAvailabilityIsNeeded`, `#anExplicitOrganizationRouteFailsClosedWhenItsGatewayIsUnavailable` | covered |
 | Chat model dispatch selects the factory matching the route protocol and fails closed for missing or duplicate factories | `SpringAiChatModelFactoriesTests` | covered |
 | Updating metadata and rotating a credential is one service transaction | `AiGatewayAdministrationServiceTests#metadataAndCredentialUpdateShareOneServiceTransaction` | covered |

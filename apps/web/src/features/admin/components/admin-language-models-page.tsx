@@ -768,8 +768,10 @@ function GatewaySettingsDialog({
 
   const isAssistantGateway =
     Boolean(gateway?.id) && assistantRoute?.gatewayProfileId === gateway?.id
+  const supportsCatalogReasoning =
+    !assistantRoute?.openAiReasoningEffort || assistantRoute.openAiReasoningEffort === "NONE"
   const supportsAssistantChoices =
-    isAssistantGateway && !assistantRoute?.openAiReasoningEffort
+    isAssistantGateway && supportsCatalogReasoning
 
   function parsedAssistantModels() {
     return assistantModels
@@ -892,9 +894,9 @@ function GatewaySettingsDialog({
                 <p className="text-xs text-muted-foreground">
                   Set this gateway as the Answer generation route before publishing choices to users.
                 </p>
-              ) : assistantRoute?.openAiReasoningEffort ? (
+              ) : !supportsCatalogReasoning ? (
                 <p className="text-xs text-muted-foreground">
-                  Alternate choices are unavailable while the answer route pins a reasoning effort.
+                  Alternate choices require provider-default or None reasoning on the answer route.
                 </p>
               ) : discoveredModels.length > 0 ? (
                 <Button
