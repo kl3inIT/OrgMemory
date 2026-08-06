@@ -61,6 +61,18 @@ than the mutable context, so it cannot publish a prompt or a completion. There i
 no request or conversation identifier on it; correlation to retrieval and to the
 model call is by trace context.
 
+An unavailable turn is tagged with `failure_code`, a bounded machine code naming
+why it was unavailable — `assistant_retrieval_rejected` for scheduler
+saturation, `assistant_turn_failed` before the stream begins,
+`assistant_stream_failed` and `assistant_stream_cancelled` after it does — and
+`none` when the turn answered. The exception class alone does not distinguish
+them, because saturation and downstream failure are both
+`AssistantUnavailableException`. The code travels on that exception and is
+validated against the same bounded pattern the turn event enforces, so it stays
+safe as a meter tag. An unavailable turn is also logged at `WARN` with its
+failure code and cause: it is a `BusinessException`, which the API layer answers
+without logging, so nothing else records it.
+
 Blocking permission-scoped retrieval runs on an Assistant-owned fixed scheduler
 with configured concurrency, a finite queue, sanitized overload rejection, and
 bounded shutdown. The server begins the UI message stream before scheduling

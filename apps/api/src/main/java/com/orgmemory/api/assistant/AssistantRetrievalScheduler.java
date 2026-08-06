@@ -19,6 +19,13 @@ import reactor.core.scheduler.Schedulers;
 /** Bounded, cancellable scheduler for blocking permission-scoped retrieval. */
 final class AssistantRetrievalScheduler implements AutoCloseable {
 
+    /**
+     * Saturation, not downstream failure. Kept distinct from every other unavailable turn
+     * because the two need opposite responses: this one says raise concurrency or shed load,
+     * while a downstream failure says the retrieval itself is broken.
+     */
+    static final String REJECTED = "assistant_retrieval_rejected";
+
     private final ThreadPoolExecutor executor;
     private final Scheduler scheduler;
     private final ContextSnapshotFactory snapshots;
@@ -70,7 +77,7 @@ final class AssistantRetrievalScheduler implements AutoCloseable {
                         error -> error instanceof RejectedExecutionException
                                 || error.getCause() instanceof RejectedExecutionException,
                         error -> new AssistantUnavailableException(
-                                "The assistant is temporarily busy", error));
+                                "The assistant is temporarily busy", error, REJECTED));
     }
 
     @Override

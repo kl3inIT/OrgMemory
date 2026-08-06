@@ -69,6 +69,10 @@ Reconciled: `2026-08-05-assistant-answer-behavior (333b6ec6)`.
 | Retrieval has its own latency distribution, while retrieval, generation, and Skill activity remain transient and do not become TTFT | `AssistantTurnObservationTests#recordsPermissionScopedRetrievalSeparatelyFromModelLatency`, `UiMessageStreamTests` | covered |
 | Stream start and retrieval-active reach the client while blocking retrieval is still running | `AssistantControllerStreamingTests#emitsStreamStartAndRetrievalActivityWhileRetrievalIsStillBlocked` | covered |
 | Blocking retrieval uses a bounded scheduler whose overload is sanitized and whose cancellation interrupts active work | `AssistantRetrievalSchedulerTests` | covered |
+| Scheduler saturation is attributable as `assistant_retrieval_rejected` rather than as a bare exception class | `AssistantRetrievalSchedulerTests#rejectsWorkWithASanitizedFailureWhenTheBoundedQueueIsFull` | covered |
+| An unavailable turn publishes why, and an answered turn publishes `none`, as a low-cardinality tag | `DefaultAssistantTurnObservationConventionTests` | covered |
+| The failure code cannot smuggle free text onto a meter tag | `DefaultAssistantTurnObservationConventionTests#carriesNoFreeTextOnTheLowCardinalitySurface`, `AssistantTurnEventTests` | covered |
+| An unavailable turn is logged at `WARN` with its failure code and cause | none | gap — asserted only by reading `AssistantService`; no test pins the log |
 | Time to first token stops at the first token, not the last | `AssistantTurnObservationTests#stopsAtTheFirstTokenRatherThanTheLast` | covered |
 | A turn that emitted nothing records no latency sample | `AssistantTurnObservationTests#recordsNothingWhenNoTokenEverReachedTheCaller`, `#recordsNothingWhenThereWasNoAccessibleEvidenceToAnswerFrom` | covered |
 | Assistant meters carry no tenant, request or conversation identifier | `AssistantTurnObservationTests#carriesNoIdentifierThatWouldGrowASeriesPerTenantOrRequest` | covered |
