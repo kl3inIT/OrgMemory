@@ -15,6 +15,5 @@ paths = ['''^release/artifacts\.json$''']
 description = "Assistant redaction test uses a synthetic API-key-shaped prompt fragment"
 targetRules = ["generic-api-key"]
 condition = "AND"
-regexTarget = "line"
-regexes = ['''String secret = "sk-live-1234567890abcdef1234567890abcdef6789 prompt fragment";''']
+commits = ["ad5811174d054aa76ea590bdab1a201713c16cf4"]
 paths = ['''^apps/api/src/test/java/com/orgmemory/api/assistant/AssistantStreamFailuresTests\.java$''']

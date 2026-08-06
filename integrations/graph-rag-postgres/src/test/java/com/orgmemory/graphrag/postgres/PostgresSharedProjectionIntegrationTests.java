@@ -31,6 +31,7 @@ import com.orgmemory.graphrag.testkit.GraphStoreConformance;
 import com.orgmemory.graphrag.testkit.ProjectionPublicationConformance;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -192,26 +193,26 @@ class PostgresSharedProjectionIntegrationTests {
                             scope(Set.of(ASSET_ID)), snapshot, List.of(RELATION_ID)));
             long elapsedMillis = Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
 
-            assertTrue(
-                    failure.getMostSpecificCause().getMessage().contains("statement timeout"),
-                    () -> "expected PostgreSQL cancellation, got: " + failure);
+            Throwable cause = failure.getMostSpecificCause();
+            assertTrue(cause instanceof SQLException, () -> "expected PostgreSQL failure, got: " + failure);
+            assertEquals("57014", ((SQLException) cause).getSQLState());
             assertTrue(
                     elapsedMillis < 25_000,
                     () -> "loadRelations exceeded its PostgreSQL budget: "
                             + elapsedMillis + "ms");
+
+            Integer activeBackends = plainJdbc.queryForObject(
+                    """
+                    SELECT count(*)
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND state = 'active'
+                      AND query LIKE 'WITH candidate_relations AS MATERIALIZED%'
+                    """,
+                    Integer.class);
+            assertEquals(0, activeBackends);
             blocker.rollback();
         }
-
-        Integer activeBackends = plainJdbc.queryForObject(
-                """
-                SELECT count(*)
-                FROM pg_stat_activity
-                WHERE datname = current_database()
-                  AND state = 'active'
-                  AND query LIKE 'SELECT relation.*%projection_graph_relations%'
-                """,
-                Integer.class);
-        assertEquals(0, activeBackends);
     }
 
     @Test
