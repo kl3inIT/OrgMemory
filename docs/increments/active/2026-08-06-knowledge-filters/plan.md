@@ -49,29 +49,29 @@ One PR.
 
 ## 3. Web
 
-- [ ] Regenerate the hey-api client.
-- [ ] Documents: `FilterBar` per the `/admin/users` convention — Space select
+- [x] Regenerate the hey-api client.
+- [x] Documents: `FilterBar` per the `/admin/users` convention — Space select
   (source: `listVisibleKnowledgeSpaces`, **not** upload targets, with an
   "All spaces" option), Classification select, existing status tabs, debounced
   search. All drive server query parameters.
-- [ ] Status tab badges read `statusCounts` from the envelope, not the loaded
+- [x] Status tab badges read `statusCounts` from the envelope, not the loaded
   array (constraint 5).
-- [ ] `refetchInterval` keys off `statusCounts.processing > 0`, not the current
+- [x] `refetchInterval` keys off `statusCounts.processing > 0`, not the current
   page.
-- [ ] Pagination control; an out-of-range cursor shows a pagination correction
+- [x] Pagination control; an out-of-range cursor shows a pagination correction
   rather than the "No documents yet" empty state.
-- [ ] Graph tab: drop the `Explore` submit, debounce the query the same way.
-- [ ] Update the Playwright stubs that return bare arrays
+- [x] Graph tab: drop the `Explore` submit, debounce the query the same way.
+- [x] Update the Playwright stubs that return bare arrays
   (`document-actions.spec.ts:227-340`, `knowledge-graph-layout.spec.ts:120`);
   add coverage for filtering by space and for truthful tab counts across pages.
-- [ ] Gate: lint, typecheck, unit tests, production build, browser check.
+- [x] Gate: lint, typecheck, unit tests, production build, browser check.
 
 ## 4. Docs and consolidation
 
-- [ ] `docs/roadmap.md`: mark this increment active.
-- [ ] Reconcile `docs/specs/domains/knowledge-ingestion.md:29-39` (row contract,
+- [x] `docs/roadmap.md`: mark this increment active.
+- [x] Reconcile `docs/specs/domains/knowledge-ingestion.md:29-39` (row contract,
   new list contract) and its test mirror; refresh `Source:`/`Reconciled:` lines.
-- [ ] Decision entry for the cursor-over-offset choice and the envelope
+- [x] Decision entry for the cursor-over-offset choice and the envelope
   divergence from `AssetSummaryPage`, carrying the rejected alternative
   (filters pushed into the retrieval predicate) and why it cannot work.
-- [ ] Regenerate `apps/docs/generated/openapi.public.json`.
+- [x] Regenerate `apps/docs/generated/openapi.public.json`.

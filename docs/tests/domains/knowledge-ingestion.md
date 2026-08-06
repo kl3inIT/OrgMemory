@@ -7,7 +7,7 @@ Source: `core/src/test/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/test/java/com/orgmemory/worker/connector`, and
 `integrations/connectors/src/test`.
 
-Reconciled: `2026-08-06-source-provenance-ux (061b075d)`.
+Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
 
 Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIngestionIntegrationTests.java`.
 
@@ -27,16 +27,21 @@ Evidence class: `apps/api/src/test/java/com/orgmemory/api/knowledge/KnowledgeIng
 
 ## Documents View And Retirement Coverage
 
-Evidence classes: `SourceQueryServiceTests`, `SourceContentServiceTests`,
+Evidence classes: `SourceQueryServiceTests`, `SourceListingIntegrationTests`,
+`SecureSourceVisibilityAdapterTests`, `SourceContentServiceTests`,
 `SourceDocumentEvidenceQueryTests`,
 `SecureSourceActionAuthorizationAdapterTests`,
 `KnowledgeAssetLifecycleServiceTests`, `SourceLifecycleServiceTests`,
 `SourceContentWebMvcTests`, `governed-document-viewer.test.tsx`,
-`source-preview.test.ts`, and
+`source-preview.test.ts`, `source-status.test.ts`, and
 `document-actions.spec.ts`.
 
 | Behavior | Automated evidence |
 | --- | --- |
+| Listing clamps page size, short-circuits an empty authorized set, bounds the owner leg and the union, and preserves the visibility adapter's fail-unavailable posture | `SourceQueryServiceTests`, `SecureSourceVisibilityAdapterTests` |
+| Latest-revision listing keeps staged unpublished work visible, filters an invisible Space to empty, reports whole-result status counts, and keyset paging neither duplicates nor skips a stable row after intervening mutation | `SourceListingIntegrationTests` |
+| The web sends Space, classification, status, debounced text, cursor, and page-size parameters; tab badges and polling use the page envelope rather than the loaded rows | `source-status.test.ts`, `document-actions.spec.ts` |
+| Documents and graph search share debounce behavior without a graph submit action | `document-actions.spec.ts`, `knowledge-graph-layout.spec.ts` |
 | Visible rows batch-resolve Space, department, and uploader provenance, and distinguish pending, published-out-of-scope, available, and deletable READY native uploads | `SourceQueryServiceTests`, `governed-document-viewer.test.tsx`, `document-actions.spec.ts` |
 | Content rechecks the canonical evidence scope and missing/denied sources share one opaque response | `streamsOnlyTheCurrentPermissionVisibleReadyRevision`, `deniedAndMissingSourcesShareTheOpaqueNotFoundContract`, `missingAndDeniedSourcesAreWireEquivalent` |
 | Source Ledger exposes current READY document/blob metadata without exporting persistence types | `SourceDocumentEvidenceQueryTests` |

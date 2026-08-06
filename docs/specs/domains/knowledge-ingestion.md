@@ -7,7 +7,7 @@ Source: `core/src/main/java/com/orgmemory/core/knowledge`,
 `apps/worker/src/main/java/com/orgmemory/worker/connector`,
 `integrations/connectors/src/main`, and `contracts/connector`.
 
-Reconciled: `2026-08-06-source-provenance-ux (061b075d)`.
+Reconciled: `2026-08-06-knowledge-filters (b9e2fbe1)`.
 
 ## Current Behavior
 
@@ -26,18 +26,33 @@ tenant-scoped ready revision and validated evidence blob into immutable citation
 metadata, while revision/blob entities, repositories, and lifecycle enums remain
 internal to the closed module.
 
-The Documents list uses Source Object ids as its stable browser identity. A
-visible row identifies its Knowledge Space, owning department when present, and
-uploader when the source resolves to an application user. It exposes separate
-`publicationComplete`, `contentAvailable`, and `deletionAllowed` hints; each
-action rechecks authorization server-side. Publication is complete only for a
-READY revision linked to a Knowledge Asset, while original bytes additionally
-require that active Asset to remain inside the caller's canonical evidence
-scope. The governed viewer therefore keeps the publication-pending explanation
-for unfinished work and gives an already-visible published row neutral
-out-of-scope guidance, including the owning department as the access-request
-target when available. Delivery verifies evidence hash and length, audits allow/deny,
-uses `no-store` and `nosniff`, and applies a closed filename allowlist: PDF,
+The Documents list uses Source Object ids as its stable browser identity and
+reads row state from each object's latest revision, including staged revisions
+that have not been published. The permission-visible and owner-visible Source
+Object id sets are each bounded and their union must remain within the secure
+retrieval authorization ceiling; an indeterminate or oversized visibility set
+fails unavailable rather than becoming an empty or organization-wide result.
+The list applies optional Knowledge Space, classification, status, and text
+filters only as additional restrictions on that authorized set. It walks latest
+revision update time descending with Source Object id as an ascending keyset
+tie-breaker and returns an opaque cursor envelope:
+`{ items, nextCursor, pageSize, total, statusCounts }`. Page size is clamped to
+1–60. `total` and the processing, ready, and attention counts describe the
+whole authorized-and-filtered result rather than only the loaded page; a
+selected status restricts rows without hiding the other status counts.
+
+A visible row identifies its Knowledge Space, owning department when present,
+and uploader when the source resolves to an application user. It exposes
+separate `publicationComplete`, `contentAvailable`, and `deletionAllowed` hints;
+each action rechecks authorization server-side. Publication is complete only
+for a READY revision linked to a Knowledge Asset, while original bytes
+additionally require that active Asset to remain inside the caller's canonical
+evidence scope. The governed viewer therefore keeps the publication-pending
+explanation for unfinished work and gives an already-visible published row
+neutral out-of-scope guidance, including the owning department as the
+access-request target when available. Delivery verifies evidence hash and
+length, audits allow/deny, uses `no-store` and `nosniff`, and applies a closed
+filename allowlist: PDF,
 plain text/Markdown-as-text, PNG, JPEG, GIF, and WebP may render inline; Office,
 HTML, SVG, XML, JSON, and unknown types are download-only. On desktop the
 right-side reader is a persistent master-detail surface: the document list

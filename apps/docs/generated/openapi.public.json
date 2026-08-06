@@ -780,16 +780,77 @@
         ],
         "summary": "List sources visible to the current user",
         "operationId": "listSources",
+        "parameters": [
+          {
+            "name": "knowledgeSpaceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "classification",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PUBLIC",
+                "INTERNAL",
+                "CONFIDENTIAL",
+                "RESTRICTED"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PROCESSING",
+                "READY",
+                "ATTENTION"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 25
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SourceResponse"
-                  }
+                  "$ref": "#/components/schemas/SourcePageResponse"
                 }
               }
             }
@@ -8467,6 +8528,48 @@
               "READ_ONLY",
               "SUSPENDED"
             ]
+          }
+        }
+      },
+      "SourcePageResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceResponse"
+            }
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "statusCounts": {
+            "$ref": "#/components/schemas/SourceStatusCountsResponse"
+          }
+        }
+      },
+      "SourceStatusCountsResponse": {
+        "type": "object",
+        "properties": {
+          "processing": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ready": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "attention": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
