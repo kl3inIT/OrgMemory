@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -50,7 +50,7 @@ class AssistantPromptFactoryTests {
                 UUID.randomUUID(),
                 "Laura",
                 "laura@example.test",
-                UserRole.MANAGER);
+                Clearance.STANDARD);
     }
 
     private static RetrievedKnowledgeEvidence evidence() {

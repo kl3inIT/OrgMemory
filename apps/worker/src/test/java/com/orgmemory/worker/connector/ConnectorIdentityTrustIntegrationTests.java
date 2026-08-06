@@ -285,9 +285,9 @@ class ConnectorIdentityTrustIntegrationTests {
                 + "VALUES (?, 'Trust Fixture Org', now(), now(), 0)", ORG);
         jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
                 + "VALUES (?, ?, 'Trust Fixture Dept', now(), now(), 0)", DEPT, ORG);
-        insertUser(CONNECTOR_USER, "connector@trustfix.example", "EMPLOYEE");
-        insertUser(ADMIN_USER, "admin@trustfix.example", "ADMIN");
-        insertUser(DUNG_USER, DUNG_EMAIL, "EMPLOYEE");
+        insertUser(CONNECTOR_USER, "connector@trustfix.example", "STANDARD");
+        insertUser(ADMIN_USER, "admin@trustfix.example", "STANDARD");
+        insertUser(DUNG_USER, DUNG_EMAIL, "STANDARD");
         jdbc.update("""
                 INSERT INTO knowledge_spaces (
                     id, organization_id, department_id, audience_mode, audience_version,
@@ -301,7 +301,7 @@ class ConnectorIdentityTrustIntegrationTests {
     private void insertUser(UUID id, String email, String role) {
         jdbc.update("""
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, ?, true, now(), now(), 0)
                 """, id, ORG, DEPT, email, email, role);
     }

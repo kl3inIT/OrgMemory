@@ -194,7 +194,7 @@ final class RetrievalObservationRunner implements ApplicationRunner {
                 user.getDepartmentId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole());
+                user.getClearance());
     }
 
     private Map<String, String> indexDocuments(List<DocumentManifestEntry> manifest) {

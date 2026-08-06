@@ -67,7 +67,7 @@ class RoleAdministrationServiceTests {
         assertTrue(refusal.getMessage().contains("knowledge_asset"));
         assertFalse(AdministrativeTupleScope.writable("knowledge_asset"));
         assertTrue(AdministrativeTupleScope.writable("knowledge_space"));
-        assertTrue(AdministrativeTupleScope.writable("role"));
+        assertFalse(AdministrativeTupleScope.writable("role"));
         assertTrue(AdministrativeTupleScope.writable("organization"));
     }
 

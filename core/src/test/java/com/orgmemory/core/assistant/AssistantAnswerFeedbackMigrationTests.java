@@ -107,9 +107,9 @@ class AssistantAnswerFeedbackMigrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role, active,
+                    id, organization_id, name, email, clearance, active,
                     created_at, updated_at, version)
-                VALUES (?, ?, 'Assistant Actor', ?, 'EMPLOYEE', true, now(), now(), 0)
+                VALUES (?, ?, 'Assistant Actor', ?, 'STANDARD', true, now(), now(), 0)
                 """,
                 actorId,
                 ORGANIZATION,

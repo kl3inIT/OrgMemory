@@ -104,10 +104,10 @@ class ScimMachineSecurityIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role,
+                    id, organization_id, name, email, clearance,
                     created_at, updated_at, version, active)
                 VALUES (?, ?, 'SCIM administrator', 'scim-admin@example.test',
-                    'ADMIN', now(), now(), 0, true)
+                    'STANDARD', now(), now(), 0, true)
                 """,
                 ADMIN_USER_ID,
                 ORGANIZATION_ID);
@@ -212,10 +212,10 @@ class ScimMachineSecurityIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role,
+                    id, organization_id, name, email, clearance,
                     created_at, updated_at, version, active)
                 VALUES (?, ?, 'Other SCIM administrator', 'other-scim-admin@example.test',
-                    'ADMIN', now(), now(), 0, true)
+                    'STANDARD', now(), now(), 0, true)
                 """,
                 OTHER_ADMIN_USER_ID,
                 OTHER_ORGANIZATION_ID);

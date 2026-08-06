@@ -1,9 +1,10 @@
 package com.orgmemory.api.security;
 
-import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.AppUserRepository;
+import com.orgmemory.core.authorization.EffectiveAuthorizationService;
+import com.orgmemory.core.authorization.PermissionKey;
+import com.orgmemory.core.authorization.ResourceRef;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,20 +21,26 @@ import org.springframework.web.servlet.view.RedirectView;
 @RestController
 class BrowserSessionController {
 
+    private static final PermissionKey CAN_MANAGE_MEMBERS =
+            PermissionKey.of("can_manage_members");
+
     private final CurrentActorProvider actors;
     private final BrowserLoginFlow loginFlow;
-    private final AppUserRepository users;
+    private final EffectiveAuthorizationService authorization;
 
-    BrowserSessionController(CurrentActorProvider actors, BrowserLoginFlow loginFlow, AppUserRepository users) {
+    BrowserSessionController(
+            CurrentActorProvider actors,
+            BrowserLoginFlow loginFlow,
+            EffectiveAuthorizationService authorization) {
         this.actors = actors;
         this.loginFlow = loginFlow;
-        this.users = users;
+        this.authorization = authorization;
     }
 
     /**
-     * The role travels with the session so the browser can avoid rendering an admin
-     * entry point nobody can use. It is a rendering hint, not a boundary: every
-     * administration endpoint re-decides through OpenFGA.
+     * Clearance travels with the session for read-only account context. It is not
+     * an administration boundary: every administration endpoint re-decides through
+     * OpenFGA.
      */
     record SessionResponse(
             boolean authenticated,
@@ -42,10 +49,11 @@ class BrowserSessionController {
             UUID userId,
             UUID organizationId,
             UUID departmentId,
-            UserRole role) {
+            Clearance clearance,
+            boolean canManageMembers) {
 
         static SessionResponse anonymous() {
-            return new SessionResponse(false, null, null, null, null, null, null);
+            return new SessionResponse(false, null, null, null, null, null, null, false);
         }
     }
 
@@ -68,7 +76,16 @@ class BrowserSessionController {
                 actor.userId(),
                 actor.organizationId(),
                 actor.departmentId(),
-                users.findById(actor.userId()).map(AppUser::getRole).orElse(null));
+                actor.clearance(),
+                authorization.authorize(
+                                actor.organizationId(),
+                                actor.principal(),
+                                CAN_MANAGE_MEMBERS,
+                                ResourceRef.of(
+                                        actor.organizationId(),
+                                        "organization",
+                                        actor.organizationId()))
+                        .allowed());
     }
 
     @GetMapping("/api/session/login")

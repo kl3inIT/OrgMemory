@@ -8,7 +8,7 @@ import com.orgmemory.core.identityprovisioning.ProvisioningConflictException;
 import com.orgmemory.core.identityprovisioning.ProvisioningLedgerService;
 import com.orgmemory.core.identityprovisioning.ProvisioningProviderProfile;
 import com.orgmemory.core.organization.UserProvisioningService;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import com.orgmemory.core.shared.error.BusinessConflictException;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,17 +86,17 @@ class ProvisioningUserAdoptionIntegrationTests {
                 ADMIN_USER_ID,
                 "SCIM Admin",
                 "scim-admin@example.test",
-                UserRole.ADMIN);
+                Clearance.STANDARD);
         insertUser(
                 EXISTING_USER_ID,
                 "Existing Employee",
                 EMAIL,
-                UserRole.MANAGER);
+                Clearance.STANDARD);
         userProvisioning.invite(
                 ORGANIZATION_ID,
                 EMAIL,
                 null,
-                UserRole.EMPLOYEE,
+                Clearance.STANDARD,
                 ADMIN_USER_ID);
         connectionId = ledger.createDisabledConnection(
                         ORGANIZATION_ID,
@@ -167,7 +167,7 @@ class ProvisioningUserAdoptionIntegrationTests {
                         ORGANIZATION_ID,
                         EMAIL,
                         null,
-                        UserRole.EMPLOYEE,
+                        Clearance.STANDARD,
                         ADMIN_USER_ID));
 
         assertEquals("invitation.user-scim-managed", failure.code());
@@ -216,11 +216,11 @@ class ProvisioningUserAdoptionIntegrationTests {
     }
 
     private void insertUser(
-            UUID id, String name, String email, UserRole role) {
+            UUID id, String name, String email, Clearance clearance) {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role,
+                    id, organization_id, name, email, clearance,
                     created_at, updated_at, version, active)
                 VALUES (?, ?, ?, ?, ?, now(), now(), 0, true)
                 """,
@@ -228,6 +228,6 @@ class ProvisioningUserAdoptionIntegrationTests {
                 ORGANIZATION_ID,
                 name,
                 email,
-                role.name());
+                clearance.name());
     }
 }

@@ -26,7 +26,7 @@ public class AppUser extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role;
+    private Clearance clearance;
 
     @Column(nullable = false)
     private boolean active;
@@ -43,8 +43,8 @@ public class AppUser extends BaseEntity {
     protected AppUser() {
     }
 
-    public AppUser(UUID organizationId, UUID departmentId, String name, String email, UserRole role) {
-        this(organizationId, departmentId, name, email, role, true);
+    public AppUser(UUID organizationId, UUID departmentId, String name, String email, Clearance clearance) {
+        this(organizationId, departmentId, name, email, clearance, true);
     }
 
     public AppUser(
@@ -52,25 +52,30 @@ public class AppUser extends BaseEntity {
             UUID departmentId,
             String name,
             String email,
-            UserRole role,
+            Clearance clearance,
             boolean active) {
         super(UUID.randomUUID());
         this.organizationId = organizationId;
         this.departmentId = departmentId;
         this.name = name;
         this.email = email;
-        this.role = role;
+        this.clearance = clearance;
         this.localAccessEnabled = active;
         this.directoryAccessEnabled = null;
         this.provisioningAccessReady = true;
         recomputeActive();
     }
 
-    public void changeRole(UserRole role) {
-        if (role == null) {
-            throw new IllegalArgumentException("A user role is required");
+    public void changeClearance(Clearance clearance) {
+        if (clearance == null) {
+            throw new IllegalArgumentException("A user clearance is required");
         }
-        this.role = role;
+        this.clearance = clearance;
+    }
+
+    /** Assigns or explicitly clears the department governing confidential access. */
+    public void changeDepartment(UUID departmentId) {
+        this.departmentId = departmentId;
     }
 
     /**
@@ -99,7 +104,7 @@ public class AppUser extends BaseEntity {
 
     /**
      * Directory profile fields are descriptive only. Provisioning never changes
-     * the OrgMemory role or department through these values.
+     * the OrgMemory clearance or department through these values.
      */
     public void applyDirectoryProfile(String displayName) {
         if (displayName != null && !displayName.isBlank()) {
@@ -132,8 +137,8 @@ public class AppUser extends BaseEntity {
         return email;
     }
 
-    public UserRole getRole() {
-        return role;
+    public Clearance getClearance() {
+        return clearance;
     }
 
     public boolean isActive() {

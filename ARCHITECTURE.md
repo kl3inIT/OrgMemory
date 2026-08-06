@@ -354,7 +354,7 @@ Knowledge Asset view decisions. Organization membership and role assignments
 are persistent OpenFGA tuples. The versioned model has executable allow/deny
 and list-object tests.
 An administrator creates a Knowledge Space and authors its grants at runtime.
-`AdministrativeTupleScope` admits `organization`, `role` and `knowledge_space`
+`AdministrativeTupleScope` admits `organization` and `knowledge_space`
 and still refuses `knowledge_asset`: `acl_authority` is a column on
 `source_objects`, so a space has no external counterpart to diverge from while an
 asset descends from one that may be `SOURCE`-authoritative. Creation derives the
@@ -610,7 +610,7 @@ retrieval eligibility SQL and reports the OpenFGA relationship, canonical conten
 policy, and final intersection separately. The endpoint requires `can_view_audit`
 before resolving the tenant-owned asset title or Space name; other resource and
 permission combinations are explicitly relationship-only. Administrative tuple
-writes are confined to `organization` and `role` objects: Slack, Drive, and
+writes are confined to `organization` and `knowledge_space` objects: Slack, Drive, and
 GitHub own the ACL for connected content, and a second writer would let the two
 diverge.
 

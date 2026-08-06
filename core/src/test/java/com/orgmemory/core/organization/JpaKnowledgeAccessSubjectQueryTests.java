@@ -24,7 +24,7 @@ class JpaKnowledgeAccessSubjectQueryTests {
     void activeExecutiveUsesCanonicalPersistedDepartmentAndRole() {
         when(users.findById(USER_ID)).thenReturn(Optional.of(user(
                 ORGANIZATION_ID,
-                UserRole.EXECUTIVE)));
+                Clearance.EXECUTIVE)));
 
         assertEquals(
                 Optional.of(new KnowledgeAccessSubject(
@@ -39,7 +39,7 @@ class JpaKnowledgeAccessSubjectQueryTests {
     void platformAdminDoesNotBecomeKnowledgeExecutive() {
         when(users.findById(USER_ID)).thenReturn(Optional.of(user(
                 ORGANIZATION_ID,
-                UserRole.ADMIN)));
+                Clearance.STANDARD)));
 
         KnowledgeAccessSubject subject = query.findActive(
                         ORGANIZATION_ID,
@@ -51,7 +51,7 @@ class JpaKnowledgeAccessSubjectQueryTests {
 
     @Test
     void inactiveOrForeignTenantSubjectsFailClosed() {
-        AppUser inactive = user(ORGANIZATION_ID, UserRole.EMPLOYEE);
+        AppUser inactive = user(ORGANIZATION_ID, Clearance.STANDARD);
         inactive.deactivate();
         when(users.findById(USER_ID)).thenReturn(Optional.of(inactive));
 
@@ -59,17 +59,17 @@ class JpaKnowledgeAccessSubjectQueryTests {
 
         when(users.findById(USER_ID)).thenReturn(Optional.of(user(
                 UUID.randomUUID(),
-                UserRole.EMPLOYEE)));
+                Clearance.STANDARD)));
 
         assertTrue(query.findActive(ORGANIZATION_ID, USER_ID).isEmpty());
     }
 
-    private static AppUser user(UUID organizationId, UserRole role) {
+    private static AppUser user(UUID organizationId, Clearance clearance) {
         return new AppUser(
                 organizationId,
                 DEPARTMENT_ID,
                 "Nguyen Van An",
                 "an@example.test",
-                role);
+                clearance);
     }
 }

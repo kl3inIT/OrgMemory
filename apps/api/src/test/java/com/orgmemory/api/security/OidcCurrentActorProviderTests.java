@@ -13,7 +13,7 @@ import com.orgmemory.core.organization.ExternalIdentity;
 import com.orgmemory.core.organization.ExternalIdentityRepository;
 import com.orgmemory.core.organization.OrgMemoryAccessDeniedException;
 import com.orgmemory.core.organization.UserProvisioningService;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -105,7 +105,7 @@ class OidcCurrentActorProviderTests {
                 active ? UUID.randomUUID() : null,
                 "Laura",
                 "laura@acme.test",
-                active ? UserRole.MANAGER : UserRole.EMPLOYEE,
+                Clearance.STANDARD,
                 active);
         ExternalIdentity identity = new ExternalIdentity(user.getId(), ISSUER, subject);
         when(identities.findByIssuerAndSubject(ISSUER, subject)).thenReturn(Optional.of(identity));
@@ -120,7 +120,7 @@ class OidcCurrentActorProviderTests {
         UserProvisioningService provisioning = mock(UserProvisioningService.class);
         when(identities.findByIssuerAndSubject(ISSUER, "fresh-subject")).thenReturn(Optional.empty());
         AppUser invited = new AppUser(
-                UUID.randomUUID(), null, "newcomer", "newcomer@example.test", UserRole.EMPLOYEE);
+                UUID.randomUUID(), null, "newcomer", "newcomer@example.test", Clearance.STANDARD);
         when(provisioning.provisionForVerifiedSignIn(
                         ISSUER, "fresh-subject", "newcomer@example.test"))
                 .thenReturn(Optional.of(invited));

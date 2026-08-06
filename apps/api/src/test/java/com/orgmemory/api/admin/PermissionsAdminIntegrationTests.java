@@ -67,6 +67,7 @@ class PermissionsAdminIntegrationTests {
 
     private static final UUID ORG = UUID.fromString("c1000000-0000-4000-8000-000000000001");
     private static final UUID DEPT = UUID.fromString("c1000000-0000-4000-8000-000000000002");
+    private static final UUID SECOND_DEPT = UUID.fromString("c1000000-0000-4000-8000-000000000006");
     private static final UUID ADMIN_USER = UUID.fromString("c1000000-0000-4000-8000-000000000003");
     private static final UUID AN_USER = UUID.fromString("c1000000-0000-4000-8000-000000000004");
     private static final UUID MEMBER_ADMIN = UUID.fromString("c1000000-0000-4000-8000-000000000005");
@@ -122,6 +123,10 @@ class PermissionsAdminIntegrationTests {
         if (alreadySeeded == null || alreadySeeded == 0) {
             seedLedger();
         }
+        jdbc.update(
+                "UPDATE app_users SET department_id = ?, clearance = 'STANDARD' WHERE organization_id = ?",
+                DEPT,
+                ORG);
         jdbc.update("DELETE FROM source_principal_mappings");
         jdbc.update("DELETE FROM source_connections");
         jdbc.update("DELETE FROM ai_route_overrides");
@@ -320,7 +325,75 @@ class PermissionsAdminIntegrationTests {
         mvc.perform(get("/api/admin/users").with(jwtFor(ADMIN_USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')].signInLinked").value(true))
-                .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')].role").value("EMPLOYEE"));
+                .andExpect(jsonPath("$[?(@.id == '" + AN_USER + "')].clearance").value("STANDARD"));
+    }
+
+    @Test
+    void anAdministratorCanRaiseClearanceWithoutChangingDepartment() throws Exception {
+        mvc.perform(patch("/api/admin/users/{id}", AN_USER)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"clearance\":\"EXECUTIVE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clearance").value("EXECUTIVE"))
+                .andExpect(jsonPath("$.departmentId").value(DEPT.toString()));
+
+        assertEquals(
+                "EXECUTIVE",
+                jdbc.queryForObject(
+                        "SELECT clearance FROM app_users WHERE id = ?",
+                        String.class,
+                        AN_USER));
+    }
+
+    @Test
+    void anAdministratorCanAssignAndExplicitlyClearADepartment() throws Exception {
+        mvc.perform(patch("/api/admin/users/{id}", AN_USER)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"departmentId\":\"" + SECOND_DEPT + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departmentId").value(SECOND_DEPT.toString()));
+
+        mvc.perform(patch("/api/admin/users/{id}", AN_USER)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"departmentId\":null}"))
+                .andExpect(status().isOk());
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "SELECT count(*) FROM app_users WHERE id = ? AND department_id IS NULL",
+                        Integer.class,
+                        AN_USER));
+    }
+
+    @Test
+    void aCrossOrganizationDepartmentIsRejected() throws Exception {
+        mvc.perform(patch("/api/admin/users/{id}", AN_USER)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"departmentId\":\"" + OTHER_DEPT + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertEquals(
+                DEPT,
+                jdbc.queryForObject(
+                        "SELECT department_id FROM app_users WHERE id = ?",
+                        UUID.class,
+                        AN_USER));
+    }
+
+    @Test
+    void meExposesTheCurrentDepartmentAndClearance() throws Exception {
+        mvc.perform(get("/api/me").with(jwtFor(AN_USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(AN_USER.toString()))
+                .andExpect(jsonPath("$.departmentId").value(DEPT.toString()))
+                .andExpect(jsonPath("$.departmentName").value("Operations"))
+                .andExpect(jsonPath("$.clearance").value("STANDARD"))
+                .andExpect(jsonPath("$.role").doesNotExist());
     }
 
     @Test
@@ -369,6 +442,12 @@ class PermissionsAdminIntegrationTests {
                         .with(jwtFor(ADMIN_USER))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"active\":false}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(patch("/api/admin/users/{id}", ADMIN_USER)
+                        .with(jwtFor(ADMIN_USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"departmentId\":\"" + SECOND_DEPT + "\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -456,9 +535,11 @@ class PermissionsAdminIntegrationTests {
                 + "VALUES (?, 'Admin Test Org', now(), now(), 0)", ORG);
         jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
                 + "VALUES (?, ?, 'Operations', now(), now(), 0)", DEPT, ORG);
-        insertUser(ADMIN_USER, ORG, DEPT, "admin@admintest.example", "ADMIN");
-        insertUser(AN_USER, ORG, DEPT, "an@admintest.example", "EMPLOYEE");
-        insertUser(MEMBER_ADMIN, ORG, DEPT, "member-admin@admintest.example", "ADMIN");
+        jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
+                + "VALUES (?, ?, 'Finance', now(), now(), 0)", SECOND_DEPT, ORG);
+        insertUser(ADMIN_USER, ORG, DEPT, "admin@admintest.example", "STANDARD");
+        insertUser(AN_USER, ORG, DEPT, "an@admintest.example", "STANDARD");
+        insertUser(MEMBER_ADMIN, ORG, DEPT, "member-admin@admintest.example", "STANDARD");
         linkIdentity(ADMIN_USER);
         linkIdentity(AN_USER);
         linkIdentity(MEMBER_ADMIN);
@@ -467,7 +548,7 @@ class PermissionsAdminIntegrationTests {
                 + "VALUES (?, 'Other Tenant', now(), now(), 0)", OTHER_ORG);
         jdbc.update("INSERT INTO departments (id, organization_id, name, created_at, updated_at, version) "
                 + "VALUES (?, ?, 'Other Operations', now(), now(), 0)", OTHER_DEPT, OTHER_ORG);
-        insertUser(OTHER_ADMIN, OTHER_ORG, OTHER_DEPT, "admin@othertenant.example", "ADMIN");
+        insertUser(OTHER_ADMIN, OTHER_ORG, OTHER_DEPT, "admin@othertenant.example", "STANDARD");
         linkIdentity(OTHER_ADMIN);
 
         jdbc.update("""
@@ -631,12 +712,12 @@ class PermissionsAdminIntegrationTests {
             "The quarterly onboarding runbook lives in the general channel and covers laptop setup, "
                     + "VPN access, and the first-week checklist.";
 
-    private void insertUser(UUID id, UUID organizationId, UUID departmentId, String email, String role) {
+    private void insertUser(UUID id, UUID organizationId, UUID departmentId, String email, String clearance) {
         jdbc.update("""
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, ?, true, now(), now(), 0)
-                """, id, organizationId, departmentId, email, email, role);
+                """, id, organizationId, departmentId, email, email, clearance);
     }
 
     private void linkIdentity(UUID userId) {

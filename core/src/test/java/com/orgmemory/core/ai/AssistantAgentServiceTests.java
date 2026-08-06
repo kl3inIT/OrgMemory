@@ -18,7 +18,7 @@ import com.orgmemory.core.knowledge.search.PermissionAwareKnowledgeSearch;
 import com.orgmemory.core.knowledge.search.RetrievedKnowledgeEvidence;
 import com.orgmemory.core.knowledge.search.SecureKnowledgeSearchResult;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -38,7 +38,7 @@ class AssistantAgentServiceTests {
                 null,
                 "Laura",
                 "laura@example.test",
-                UserRole.MANAGER);
+                Clearance.STANDARD);
         String conversationId = UUID.randomUUID().toString();
         RetrievedKnowledgeEvidence evidence = evidence();
         AssistantModelRouteAuthority authority = new DefaultAssistantModelRouteAuthority(

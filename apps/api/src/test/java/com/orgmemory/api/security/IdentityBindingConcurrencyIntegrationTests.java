@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.UserProvisioningService;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -111,9 +111,9 @@ class IdentityBindingConcurrencyIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role,
+                    id, organization_id, department_id, name, email, clearance,
                     created_at, updated_at, version, active)
-                VALUES (?, ?, ?, 'Identity admin', 'identity-admin@example.test', 'ADMIN',
+                VALUES (?, ?, ?, 'Identity admin', 'identity-admin@example.test', 'STANDARD',
                         now(), now(), 0, true)
                 """,
                 INVITER_ID,
@@ -123,7 +123,7 @@ class IdentityBindingConcurrencyIntegrationTests {
                 ORGANIZATION_ID,
                 EMAIL,
                 DEPARTMENT_ID,
-                UserRole.EMPLOYEE,
+                Clearance.STANDARD,
                 INVITER_ID);
     }
 }
