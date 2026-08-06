@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   activityLabel,
+  hasRenderableAssistantText,
   hasVisibleAssistantOutput,
   reduceSkillReceipts,
 } from "@/features/assistant/assistant-activity"
@@ -24,6 +25,14 @@ describe("assistant activity labels", () => {
         parts: [{ type: "text", text: "Answer" }],
       }),
     ).toBe(true)
+  })
+
+  it("keeps waiting through markdown framing and invisible opening chunks", () => {
+    expect(hasRenderableAssistantText("**")).toBe(false)
+    expect(hasRenderableAssistantText("```\n")).toBe(false)
+    expect(hasRenderableAssistantText("\u200b\ufeff")).toBe(false)
+    expect(hasRenderableAssistantText("**Observed")).toBe(true)
+    expect(hasRenderableAssistantText("...")).toBe(true)
   })
 
   it("describes progressive Skill disclosure without exposing tool payloads", () => {

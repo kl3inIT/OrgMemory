@@ -9,7 +9,7 @@ Source: `core/src/main/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, and
 `apps/web/src/components/ai-elements/model-selector.tsx`.
 
-Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
+Reconciled: `2026-08-06-assistant-turn-activity-continuity (working tree)`.
 
 ## Current Behavior
 
@@ -104,15 +104,21 @@ unnamed. Resource activity carries an ordinal only for an exact release already
 activated successfully in the same turn. The browser never infers completion
 from missing activity phases.
 
-Browser-owned copy replaces the activity on phase changes. A turn-local latch
-keeps the waiting row mounted until Assistant text is actually visible; a
-source frame alone is not visible citation output. This remains true even when
-the transport has already finished; abort, error, stop,
+Browser-owned copy replaces the activity on phase changes. One current-turn
+activity surface is anchored after the initiating user message and remains in
+that transcript position when the AI SDK appends an Assistant placeholder and
+answer. Its turn-local latch keeps the waiting row mounted until Assistant text
+contains a renderable glyph; whitespace, zero-width characters, Markdown
+framing alone, and a source frame are not visible output. This remains true
+even when the transport has already finished; abort, error, stop,
 actor/conversation change, and finish-without-output are terminal. Successful
-activation creates a plain-text current-turn receipt before the answer with
-fixed UI-owned step labels. It auto-collapses at visible output and is cleared
-on the next submit or terminal context change; transcript replay does not
-reconstruct it. The waiting UI has no leading product icon.
+activation creates a plain-text current-turn receipt in the same surface before
+the answer. A receipt without resource activity has no empty disclosure; a
+resource read exposes only its fixed UI-owned state and auto-collapses at
+visible output, while failure remains expanded unless the reader intervenes.
+The surface is cleared on the next submit or terminal context change;
+transcript replay does not reconstruct it. The waiting UI has no leading
+product icon.
 
 Time to first token is recorded as its own distribution,
 `orgmemory.assistant.time_to_first_token`, tagged only by engine and measured

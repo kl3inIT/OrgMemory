@@ -8,7 +8,7 @@ Source: `core/src/test/java/com/orgmemory/core/assistant`,
 `apps/web/src/features/assistant`, plus
 `apps/web/test/e2e/assistant-pipeline.spec.ts`.
 
-Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
+Reconciled: `2026-08-06-assistant-turn-activity-continuity (working tree)`.
 
 | Behavior | Evidence | Status |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ Reconciled: `2026-08-06-assistant-conversation-memory-ssot (2cf7249f)`.
 | Citation numbers are assigned with the exact prompt evidence order | `AssistantServiceTests#exposesCitationsOnlyForEvidenceIncludedInThePromptBudget`, `AssistantControllerStreamingTests`, `UiMessageStreamTests` | covered |
 | Assistant uses the already-verified LightRAG prompt instead of rebuilding chunk context | `AssistantServiceTests#usesTheAlreadyVerifiedLightRagPromptWithoutRebuildingIt` | covered |
 | An exact governed Assistant route invokes the request-local agent model with the authenticated actor and relays only closed Skill activity values; only successful activation carries a bounded title and turn-local ordinal | `AssistantAgentServiceTests`, `AssistantAgentActivityTests`, `UiMessageStreamTests#emitsTransientSkillToolActivityWithoutPersistingToolPayloads`, `AssistantSkillToolCallbacksTests` | covered |
-| The browser keeps waiting through the transport-to-visible-output handoff and renders one plain-text, current-turn, auto-collapsing receipt per named successful Skill activation without reconstructing it from history | `assistant-page.test.ts`, `assistant-skill-activity.test.tsx`, `assistant-pipeline.spec.ts` | covered |
+| The browser keeps one activity surface anchored between the initiating user message and Assistant answer; Markdown framing and invisible chunks do not end waiting; activation-only receipts have no empty disclosure; resource detail auto-collapses; and transcript replay does not reconstruct current-turn receipts | `assistant-page.test.ts`, `assistant-turn-activity.test.tsx`, `assistant-skill-activity.test.tsx`, `assistant-pipeline.spec.ts` | covered |
 | Before the first Spring AI model call, the gateway discloses at most ten actor-authorized Skill names, descriptions, and exact release identifiers in the activation tool; the model can activate directly from that tier-one catalog and searches only for overflow; empty catalogs omit Skill policy and tools; catalog metadata is escaped; every call remains actor-bound; resource activity belongs only to an exact release activated in that turn; failures stay opaque; `allowed-tools` is omitted; and per-turn call and recursive-loop bounds remain enforced | `SpringAiChatModelAdapterTests#skillPolicyPrefersSemanticCatalogMatchingBeforeSearch`, `AssistantSkillToolCallbacksTests`, `AssistantSkillToolLoopTests#springAiActivatesAnExactSkillFromTheDisclosedCatalogBeforeAnswering` | covered |
 | Empty authorized retrieval stops before both model generation and Skill-tool discovery | `AssistantServiceTests#doesNotCallTheModelWhenNoAccessibleEvidenceExists` | covered |
 | Model context receives the raw question while current authorized evidence and safe user context stay in the current system message | `AssistantServiceTests#streamsOnlyPermissionVerifiedEvidenceToTheModel`, `#escapesEvidenceAndProfileValuesWhileKeepingTheQuestionAsTheUserMessage` | covered |

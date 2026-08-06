@@ -60,8 +60,7 @@ import {
   type AssistantSkillReceipt,
 } from "@/features/assistant/assistant-activity"
 import { AssistantAnswer } from "@/features/assistant/components/assistant-answer"
-import { AssistantSkillActivity } from "@/features/assistant/components/assistant-skill-activity"
-import { AssistantThinkingIndicator } from "@/features/assistant/components/assistant-thinking-indicator"
+import { AssistantTurnActivity } from "@/features/assistant/components/assistant-turn-activity"
 import {
   type AssistantSourceRef,
   AssistantSourcesPanel,
@@ -718,6 +717,11 @@ export function AssistantPage({
   const retryMessage = retryText ? textFor(retryText) : ""
   const showWaiting = awaitingVisibleAnswer && !currentAssistantVisible
   const showThinking = showWaiting
+  const hasCurrentTurnActivity =
+    showThinking || skillReceipts.some((receipt) => receipt.title)
+  const currentTurnAnchorMessageId = hasCurrentTurnActivity
+    ? [...messages].reverse().find((message) => message.role === "user")?.id
+    : undefined
   const openSources = useCallback(
     (
       messageId: string,
@@ -907,12 +911,6 @@ export function AssistantPage({
           <ConversationContent className="mx-auto w-full max-w-3xl gap-7 px-4 py-6">
             {messages.map((message, index) => (
               <Fragment key={message.id}>
-                {currentAssistant?.id === message.id ? (
-                  <AssistantSkillActivity
-                    receipts={skillReceipts}
-                    settled={currentAssistantVisible}
-                  />
-                ) : null}
                 <CitationHydration message={message} actorKey={actorKey}>
                 {({ sources, unavailable, anchorRef }) => {
               const content = textFor(message)
@@ -1026,17 +1024,21 @@ export function AssistantPage({
               )
                 }}
                 </CitationHydration>
+                {currentTurnAnchorMessageId === message.id ? (
+                  <AssistantTurnActivity
+                    receipts={skillReceipts}
+                    settled={currentAssistantVisible}
+                    waitingLabel={showThinking ? activityLabel(activity) : null}
+                  />
+                ) : null}
               </Fragment>
             ))}
-            {!currentAssistant ? (
-              <AssistantSkillActivity receipts={skillReceipts} settled={false} />
-            ) : null}
-            {showThinking ? (
-              <Message from="assistant">
-                <MessageContent>
-                  <AssistantThinkingIndicator label={activityLabel(activity)} />
-                </MessageContent>
-              </Message>
+            {hasCurrentTurnActivity && !currentTurnAnchorMessageId ? (
+              <AssistantTurnActivity
+                receipts={skillReceipts}
+                settled={currentAssistantVisible}
+                waitingLabel={showThinking ? activityLabel(activity) : null}
+              />
             ) : null}
             {error || finishedWithoutAnswer ? (
               <div

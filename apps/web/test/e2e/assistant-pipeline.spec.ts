@@ -320,6 +320,16 @@ test("anchors only server-declared citations and opens the matching source", asy
   })
   await expect(skillReceipt).toBeVisible()
   await expect(skillReceipt).toHaveAttribute("aria-expanded", "false")
+  const questionBox = await page
+    .getByText("How do I submit an expense claim?", { exact: true })
+    .boundingBox()
+  const activityBox = await page.getByLabel("Current turn activity").boundingBox()
+  const answerBox = await page.getByText("Use the approved form", { exact: false }).boundingBox()
+  expect(questionBox).not.toBeNull()
+  expect(activityBox).not.toBeNull()
+  expect(answerBox).not.toBeNull()
+  expect(activityBox!.y).toBeGreaterThanOrEqual(questionBox!.y + questionBox!.height)
+  expect(answerBox!.y).toBeGreaterThanOrEqual(activityBox!.y + activityBox!.height)
   await expect(page.getByRole("button", { name: "Open source 1: Employee Handbook" })).toHaveCount(1)
   await expect(page.getByRole("button", { name: "Open source 2: Expense Policy" })).toHaveCount(2)
   await expect(page.getByRole("button", { name: /Open source 9/ })).toHaveCount(0)
@@ -598,6 +608,24 @@ test("renders a safe answer without source UI when no evidence is available", as
   expect(harness.browserErrors).toEqual([])
 })
 
+test("renders an activation-only Skill receipt without an empty disclosure", async ({ page }) => {
+  const harness = await assistantHarness(page, {
+    chatFrames: activationOnlySkillFrames(),
+  })
+  await page.goto("/")
+  await submit(page, "Use the incident Skill")
+
+  await expect(page.getByText("The incident owner should check the SLA deadline first.")).toBeVisible()
+  const activity = page.getByLabel("Current turn activity")
+  await expect(activity).toContainText("Using Incident response skill")
+  await expect(
+    activity.getByRole("button", { name: "Using Incident response skill" }),
+  ).toHaveCount(0)
+  await expect(activity.getByText("Skill instructions loaded")).toHaveCount(0)
+  expect(harness.unexpectedRequests).toEqual([])
+  expect(harness.browserErrors).toEqual([])
+})
+
 test("reports provider failure and retries with exactly one new request", async ({ page }) => {
   const harness = await assistantHarness(page, {
     chatFrames: [
@@ -867,6 +895,31 @@ function citedAnswerFrames() {
       type: "text-delta",
       id: "answer",
       delta: "Use the approved form [1], attach receipts [2][2], and verify exceptions [9].",
+    }),
+    frame({ type: "text-end", id: "answer" }),
+    frame({ type: "finish-step" }),
+    frame({ type: "finish", finishReason: "stop" }),
+    "data: [DONE]",
+  ]
+}
+
+function activationOnlySkillFrames() {
+  return [
+    frame({ type: "start", messageId: "assistant-activation-only" }),
+    frame({ type: "start-step" }),
+    activityFrame("RETRIEVAL", "ACTIVE"),
+    activityFrame("RETRIEVAL", "COMPLETE", 2),
+    activityFrame("GENERATION", "ACTIVE"),
+    activityFrame("SKILL_ACTIVATION", "ACTIVE", undefined, { skillOrdinal: 1 }),
+    activityFrame("SKILL_ACTIVATION", "COMPLETE", undefined, {
+      skillOrdinal: 1,
+      skillTitle: "Incident response",
+    }),
+    frame({ type: "text-start", id: "answer" }),
+    frame({
+      type: "text-delta",
+      id: "answer",
+      delta: "The incident owner should check the SLA deadline first.",
     }),
     frame({ type: "text-end", id: "answer" }),
     frame({ type: "finish-step" }),

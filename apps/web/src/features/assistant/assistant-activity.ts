@@ -48,9 +48,37 @@ export interface AssistantSkillReceipt {
   resource: "ACTIVE" | "COMPLETE" | "FAILED" | null
 }
 
+const INVISIBLE_TEXT = new Set(["\u200b", "\u200c", "\u200d", "\u2060", "\ufeff"])
+const MARKDOWN_FRAMING = new Set([
+  "*",
+  "_",
+  "~",
+  "`",
+  "#",
+  ">",
+  "|",
+  "\\",
+  "[",
+  "]",
+  "(",
+  ")",
+  "{",
+  "}",
+  "-",
+])
+
+export function hasRenderableAssistantText(text: string) {
+  return Array.from(text).some(
+    (character) =>
+      !/\s/u.test(character) &&
+      !INVISIBLE_TEXT.has(character) &&
+      !MARKDOWN_FRAMING.has(character),
+  )
+}
+
 export function hasVisibleAssistantOutput(message: Pick<UIMessage, "parts">) {
   return message.parts.some(
-    (part) => part.type === "text" && part.text.trim().length > 0,
+    (part) => part.type === "text" && hasRenderableAssistantText(part.text),
   )
 }
 
