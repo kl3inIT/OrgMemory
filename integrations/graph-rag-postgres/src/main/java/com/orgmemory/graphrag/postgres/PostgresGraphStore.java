@@ -445,23 +445,49 @@ public final class PostgresGraphStore implements GraphStore {
         if (!readable(scope, snapshot, ids)) {
             return List.of();
         }
-        return jdbc.query(
+        return support.read(GRAPH_QUERY_STATEMENT_TIMEOUT, () -> jdbc.query(
                 """
+                WITH candidate_relations AS MATERIALIZED (
+                    SELECT relation.*
+                    FROM projection_graph_relations relation
+                    WHERE relation.batch_id = :batchId
+                      AND relation.relation_id IN (:ids)
+                ),
+                visible_entities AS MATERIALIZED (
+                    SELECT DISTINCT contribution.entity_id
+                    FROM projection_graph_entity_contributions contribution
+                    JOIN candidate_relations relation
+                      ON contribution.entity_id IN (
+                          relation.source_entity_id,
+                          relation.target_entity_id)
+                    WHERE contribution.batch_id = :batchId
+                      AND contribution.organization_id = :organizationId
+                      AND contribution.knowledge_asset_id
+                          IN (:authorizedAssetIds)
+                ),
+                visible_relation_contributions AS MATERIALIZED (
+                    SELECT contribution.*
+                    FROM projection_graph_relation_contributions contribution
+                    JOIN candidate_relations relation
+                      ON relation.relation_id = contribution.relation_id
+                    JOIN visible_entities source_evidence
+                      ON source_evidence.entity_id = relation.source_entity_id
+                    JOIN visible_entities target_evidence
+                      ON target_evidence.entity_id = relation.target_entity_id
+                    WHERE contribution.batch_id = :batchId
+                      AND contribution.organization_id = :organizationId
+                      AND contribution.knowledge_asset_id
+                          IN (:authorizedAssetIds)
+                )
                 SELECT contribution.*, relation.source_entity_id,
                        relation.target_entity_id, relation.orientation
-                FROM (
-                """
-                        + VISIBLE_RELATION_CONTRIBUTIONS
-                        + """
-                ) contribution
-                JOIN projection_graph_relations relation
-                  ON relation.batch_id = contribution.batch_id
-                 AND relation.relation_id = contribution.relation_id
-                WHERE contribution.relation_id IN (:ids)
+                FROM visible_relation_contributions contribution
+                JOIN candidate_relations relation
+                  ON relation.relation_id = contribution.relation_id
                 ORDER BY contribution.contribution_id
                 """,
                 visibility(scope, snapshot).addValue("ids", ids),
-                (resultSet, rowNumber) -> relationContribution(resultSet));
+                (resultSet, rowNumber) -> relationContribution(resultSet)));
     }
 
     @Override
@@ -636,24 +662,53 @@ public final class PostgresGraphStore implements GraphStore {
         if (!readable(scope, snapshot, ids)) {
             return Map.of();
         }
-        Map<UUID, Double> weights = new LinkedHashMap<>();
-        jdbc.query(
-                """
-                SELECT relation_id, sum(weight) AS weight
-                FROM (
-                """
-                        + VISIBLE_RELATION_CONTRIBUTIONS
-                        + """
-                ) visible
-                WHERE relation_id IN (:ids)
-                GROUP BY relation_id
-                ORDER BY relation_id
-                """,
-                visibility(scope, snapshot).addValue("ids", ids),
-                (RowCallbackHandler) resultSet -> weights.put(
-                        resultSet.getObject("relation_id", UUID.class),
-                        resultSet.getDouble("weight")));
-        return Map.copyOf(weights);
+        return support.read(GRAPH_QUERY_STATEMENT_TIMEOUT, () -> {
+            Map<UUID, Double> weights = new LinkedHashMap<>();
+            jdbc.query(
+                    """
+                    WITH candidate_relations AS MATERIALIZED (
+                        SELECT relation.*
+                        FROM projection_graph_relations relation
+                        WHERE relation.batch_id = :batchId
+                          AND relation.relation_id IN (:ids)
+                    ),
+                    visible_entities AS MATERIALIZED (
+                        SELECT DISTINCT contribution.entity_id
+                        FROM projection_graph_entity_contributions contribution
+                        JOIN candidate_relations relation
+                          ON contribution.entity_id IN (
+                              relation.source_entity_id,
+                              relation.target_entity_id)
+                        WHERE contribution.batch_id = :batchId
+                          AND contribution.organization_id = :organizationId
+                          AND contribution.knowledge_asset_id
+                              IN (:authorizedAssetIds)
+                    ),
+                    visible_relation_contributions AS MATERIALIZED (
+                        SELECT contribution.*
+                        FROM projection_graph_relation_contributions contribution
+                        JOIN candidate_relations relation
+                          ON relation.relation_id = contribution.relation_id
+                        JOIN visible_entities source_evidence
+                          ON source_evidence.entity_id = relation.source_entity_id
+                        JOIN visible_entities target_evidence
+                          ON target_evidence.entity_id = relation.target_entity_id
+                        WHERE contribution.batch_id = :batchId
+                          AND contribution.organization_id = :organizationId
+                          AND contribution.knowledge_asset_id
+                              IN (:authorizedAssetIds)
+                    )
+                    SELECT relation_id, sum(weight) AS weight
+                    FROM visible_relation_contributions
+                    GROUP BY relation_id
+                    ORDER BY relation_id
+                    """,
+                    visibility(scope, snapshot).addValue("ids", ids),
+                    (RowCallbackHandler) resultSet -> weights.put(
+                            resultSet.getObject("relation_id", UUID.class),
+                            resultSet.getDouble("weight")));
+            return Map.copyOf(weights);
+        });
     }
 
     @Override

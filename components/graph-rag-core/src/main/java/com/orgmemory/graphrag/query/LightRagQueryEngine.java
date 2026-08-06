@@ -24,6 +24,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 /**
@@ -117,8 +119,16 @@ public final class LightRagQueryEngine {
     public LightRagQueryResult executePrepared(
             LightRagQueryRequest request,
             LightRagPreparedQuery prepared) {
+        return executePrepared(request, prepared, QueryOperationObserver.NO_OP);
+    }
+
+    public LightRagQueryResult executePrepared(
+            LightRagQueryRequest request,
+            LightRagPreparedQuery prepared,
+            QueryOperationObserver observer) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(prepared, "prepared").requireMatches(request);
+        Objects.requireNonNull(observer, "observer");
         if (request.options().mode() == LightRagQueryMode.BYPASS) {
             return bypass(request);
         }
@@ -131,10 +141,10 @@ public final class LightRagQueryEngine {
         }
 
         Branch local = request.options().mode().usesEntitySeeds()
-                ? localBranch(request, prepared.lowLevelEmbedding())
+                ? localBranch(request, prepared.lowLevelEmbedding(), observer)
                 : Branch.empty();
         Branch global = request.options().mode().usesRelationSeeds()
-                ? globalBranch(request, prepared.highLevelEmbedding())
+                ? globalBranch(request, prepared.highLevelEmbedding(), observer)
                 : Branch.empty();
 
         List<RankedItem<PermissionScopedGraphView.EntityView>> entities =
@@ -147,7 +157,8 @@ public final class LightRagQueryEngine {
                 entities.stream().map(RankedItem::value).toList(),
                 LightRagQueryResult.Origin.ENTITY,
                 Set.of(),
-                prepared.queryEmbedding());
+                prepared.queryEmbedding(),
+                observer);
         Set<UUID> entityChunkIds =
                 entityChunks.stream().map(state -> state.chunk().id()).collect(Collectors.toSet());
         List<ChunkState> relationChunks = supportChunks(
@@ -155,9 +166,10 @@ public final class LightRagQueryEngine {
                 relations.stream().map(RankedItem::value).toList(),
                 LightRagQueryResult.Origin.RELATION,
                 entityChunkIds,
-                prepared.queryEmbedding());
+                prepared.queryEmbedding(),
+                observer);
         List<ChunkState> vectorChunks = request.options().mode().usesChunkSeeds()
-                ? vectorChunks(request, prepared.queryEmbedding())
+                ? vectorChunks(request, prepared.queryEmbedding(), observer)
                 : List.of();
         List<ChunkState> chunks =
                 interleaveChunks(vectorChunks, entityChunks, relationChunks);
@@ -276,13 +288,20 @@ public final class LightRagQueryEngine {
                 vector(offsets, vectors, Purpose.HIGH_LEVEL));
     }
 
-    private Branch localBranch(LightRagQueryRequest request, FloatVector lowLevelVector) {
+    private Branch localBranch(
+            LightRagQueryRequest request,
+            FloatVector lowLevelVector,
+            QueryOperationObserver observer) {
         if (lowLevelVector == null) {
             return Branch.empty();
         }
         var search = vectorSearch(request, lowLevelVector, request.options().topK());
-        List<RankedItem<CanonicalEntity>> seeds =
-                projection.searchEntities(request.scope(), request.snapshot(), search);
+        List<RankedItem<CanonicalEntity>> seeds = measure(
+                observer,
+                QueryOperation.SEARCH_ENTITIES,
+                search.limit(),
+                () -> projection.searchEntities(request.scope(), request.snapshot(), search),
+                Collection::size);
         if (seeds.isEmpty()) {
             return Branch.empty();
         }
@@ -290,18 +309,28 @@ public final class LightRagQueryEngine {
                 .map(item -> item.value().id())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (request.options().maximumGraphDepth() > 0) {
-            entityIds.addAll(projection.expandEntityIds(
-                    request.scope(),
-                    request.snapshot(),
-                    entityIds,
-                    request.options().maximumGraphDepth(),
-                    request.options().topK() * 4));
+            entityIds.addAll(measure(
+                    observer,
+                    QueryOperation.EXPAND_ENTITY_IDS,
+                    entityIds.size(),
+                    () -> projection.expandEntityIds(
+                            request.scope(),
+                            request.snapshot(),
+                            entityIds,
+                            request.options().maximumGraphDepth(),
+                            request.options().topK() * 4),
+                    Collection::size));
         }
-        List<CanonicalRelation> incident = projection.loadIncidentRelations(
-                request.scope(),
-                request.snapshot(),
-                entityIds,
-                request.options().topK() * 4);
+        List<CanonicalRelation> incident = measure(
+                observer,
+                QueryOperation.LOAD_INCIDENT_RELATIONS,
+                entityIds.size(),
+                () -> projection.loadIncidentRelations(
+                        request.scope(),
+                        request.snapshot(),
+                        entityIds,
+                        request.options().topK() * 4),
+                Collection::size);
         incident.forEach(relation -> {
             entityIds.add(relation.sourceEntityId());
             entityIds.add(relation.targetEntityId());
@@ -309,7 +338,8 @@ public final class LightRagQueryEngine {
         PermissionScopedGraphView view = scopedView(
                 request,
                 entityIds,
-                incident.stream().map(CanonicalRelation::id).toList());
+                incident.stream().map(CanonicalRelation::id).toList(),
+                observer);
         Map<UUID, PermissionScopedGraphView.EntityView> entityViews =
                 index(view.entities(), item -> item.entity().id());
         Map<UUID, PermissionScopedGraphView.RelationView> relationViews =
@@ -319,8 +349,13 @@ public final class LightRagQueryEngine {
                 RankedItem::score,
                 Math::max,
                 LinkedHashMap::new));
-        Map<UUID, Long> degrees = projection.loadVisibleEntityDegrees(
-                request.scope(), request.snapshot(), entityIds);
+        Map<UUID, Long> degrees = measure(
+                observer,
+                QueryOperation.LOAD_VISIBLE_ENTITY_DEGREES,
+                entityIds.size(),
+                () -> projection.loadVisibleEntityDegrees(
+                        request.scope(), request.snapshot(), entityIds),
+                Map::size);
         List<RankedItem<PermissionScopedGraphView.EntityView>> orderedEntities =
                 entityViews.values().stream()
                         .sorted(Comparator
@@ -337,17 +372,24 @@ public final class LightRagQueryEngine {
                                 seedScores.getOrDefault(item.entity().id(), 0.0)))
                         .toList();
         List<RankedItem<PermissionScopedGraphView.RelationView>> orderedRelations =
-                rankIncidentRelations(request, relationViews.values(), degrees);
+                rankIncidentRelations(request, relationViews.values(), degrees, observer);
         return new Branch(orderedEntities, orderedRelations, seeds.size());
     }
 
-    private Branch globalBranch(LightRagQueryRequest request, FloatVector highLevelVector) {
+    private Branch globalBranch(
+            LightRagQueryRequest request,
+            FloatVector highLevelVector,
+            QueryOperationObserver observer) {
         if (highLevelVector == null) {
             return Branch.empty();
         }
         var search = vectorSearch(request, highLevelVector, request.options().topK());
-        List<RankedItem<CanonicalRelation>> seeds =
-                projection.searchRelations(request.scope(), request.snapshot(), search);
+        List<RankedItem<CanonicalRelation>> seeds = measure(
+                observer,
+                QueryOperation.SEARCH_RELATIONS,
+                search.limit(),
+                () -> projection.searchRelations(request.scope(), request.snapshot(), search),
+                Collection::size);
         if (seeds.isEmpty()) {
             return Branch.empty();
         }
@@ -359,7 +401,8 @@ public final class LightRagQueryEngine {
             entityIds.add(seed.value().sourceEntityId());
             entityIds.add(seed.value().targetEntityId());
         });
-        PermissionScopedGraphView view = scopedView(request, entityIds, relationIds);
+        PermissionScopedGraphView view =
+                scopedView(request, entityIds, relationIds, observer);
         Map<UUID, PermissionScopedGraphView.EntityView> entityViews =
                 index(view.entities(), item -> item.entity().id());
         Map<UUID, PermissionScopedGraphView.RelationView> relationViews =
@@ -400,23 +443,40 @@ public final class LightRagQueryEngine {
     private PermissionScopedGraphView scopedView(
             LightRagQueryRequest request,
             Collection<UUID> entityIds,
-            Collection<UUID> relationIds) {
-        List<EntityContribution> entities = projection.loadEntityContributions(
-                request.scope(), request.snapshot(), entityIds);
-        List<RelationContribution> relations = projection.loadRelationContributions(
-                request.scope(), request.snapshot(), relationIds);
+            Collection<UUID> relationIds,
+            QueryOperationObserver observer) {
+        List<EntityContribution> entities = measure(
+                observer,
+                QueryOperation.LOAD_ENTITY_CONTRIBUTIONS,
+                entityIds.size(),
+                () -> projection.loadEntityContributions(
+                        request.scope(), request.snapshot(), entityIds),
+                Collection::size);
+        List<RelationContribution> relations = measure(
+                observer,
+                QueryOperation.LOAD_RELATION_CONTRIBUTIONS,
+                relationIds.size(),
+                () -> projection.loadRelationContributions(
+                        request.scope(), request.snapshot(), relationIds),
+                Collection::size);
         return PermissionScopedGraphMerger.merge(request.scope(), entities, relations);
     }
 
     private List<RankedItem<PermissionScopedGraphView.RelationView>> rankIncidentRelations(
             LightRagQueryRequest request,
             Collection<PermissionScopedGraphView.RelationView> relations,
-            Map<UUID, Long> entityDegrees) {
+            Map<UUID, Long> entityDegrees,
+            QueryOperationObserver observer) {
         List<UUID> relationIds = relations.stream()
                 .map(item -> item.relation().id())
                 .toList();
-        Map<UUID, Double> weights = projection.loadVisibleRelationWeights(
-                request.scope(), request.snapshot(), relationIds);
+        Map<UUID, Double> weights = measure(
+                observer,
+                QueryOperation.LOAD_VISIBLE_RELATION_WEIGHTS,
+                relationIds.size(),
+                () -> projection.loadVisibleRelationWeights(
+                        request.scope(), request.snapshot(), relationIds),
+                Map::size);
         return relations.stream()
                 .sorted(Comparator
                         .comparingLong((PermissionScopedGraphView.RelationView item) ->
@@ -441,7 +501,8 @@ public final class LightRagQueryEngine {
             List<?> views,
             LightRagQueryResult.Origin origin,
             Set<UUID> excluded,
-            FloatVector queryVector) {
+            FloatVector queryVector,
+            QueryOperationObserver observer) {
         List<List<UUID>> groups = new ArrayList<>();
         for (Object view : views) {
             List<UUID> ids = evidenceChunkIds(view).stream()
@@ -475,11 +536,18 @@ public final class LightRagQueryEngine {
             int limit = Math.max(1,
                     request.options().relatedChunkNumber() * deduplicated.size() / 2);
             try {
-                ranked = projection.rankChunks(
-                        request.scope(),
-                        request.snapshot(),
-                        vectorSearch(request, queryVector, limit),
-                        deduplicated.stream().flatMap(Collection::stream).toList());
+                List<UUID> candidates =
+                        deduplicated.stream().flatMap(Collection::stream).toList();
+                ranked = measure(
+                        observer,
+                        QueryOperation.RANK_CHUNKS,
+                        candidates.size(),
+                        () -> projection.rankChunks(
+                                request.scope(),
+                                request.snapshot(),
+                                vectorSearch(request, queryVector, limit),
+                                candidates),
+                        Collection::size);
             } catch (RuntimeException providerFailure) {
                 // Provider diagnostics belong to the imperative shell. Core preserves
                 // authorized ordering by falling back to weighted polling.
@@ -496,7 +564,13 @@ public final class LightRagQueryEngine {
                     deduplicated, request.options().relatedChunkNumber(), 1);
         }
         Map<UUID, AuthorizedQueryProjection.Chunk> chunks = index(
-                projection.loadChunks(request.scope(), request.snapshot(), selectedIds),
+                measure(
+                        observer,
+                        QueryOperation.LOAD_CHUNKS,
+                        selectedIds.size(),
+                        () -> projection.loadChunks(
+                                request.scope(), request.snapshot(), selectedIds),
+                        Collection::size),
                 AuthorizedQueryProjection.Chunk::id);
         List<ChunkState> result = new ArrayList<>();
         int order = 1;
@@ -516,15 +590,21 @@ public final class LightRagQueryEngine {
     }
 
     private List<ChunkState> vectorChunks(
-            LightRagQueryRequest request, FloatVector queryVector) {
+            LightRagQueryRequest request,
+            FloatVector queryVector,
+            QueryOperationObserver observer) {
         if (queryVector == null) {
             return List.of();
         }
-        List<RankedItem<AuthorizedQueryProjection.Chunk>> hits =
-                projection.searchChunks(
+        List<RankedItem<AuthorizedQueryProjection.Chunk>> hits = measure(
+                observer,
+                QueryOperation.SEARCH_CHUNKS,
+                request.options().chunkTopK(),
+                () -> projection.searchChunks(
                         request.scope(),
                         request.snapshot(),
-                        vectorSearch(request, queryVector, request.options().chunkTopK()));
+                        vectorSearch(request, queryVector, request.options().chunkTopK())),
+                Collection::size);
         List<ChunkState> result = new ArrayList<>();
         int order = 1;
         for (RankedItem<AuthorizedQueryProjection.Chunk> hit : hits) {
@@ -997,5 +1077,79 @@ public final class LightRagQueryEngine {
         return Duration.ofNanos(Math.max(
                 0,
                 System.nanoTime() - startedAt));
+    }
+
+    private static <T> T measure(
+            QueryOperationObserver observer,
+            QueryOperation operation,
+            int inputCount,
+            Supplier<T> supplier,
+            ToIntFunction<T> outputCount) {
+        long startedAt = System.nanoTime();
+        try {
+            T result = supplier.get();
+            observer.observe(new QueryOperationMeasurement(
+                    operation,
+                    QueryOperationOutcome.SUCCEEDED,
+                    elapsed(startedAt),
+                    inputCount,
+                    outputCount.applyAsInt(result)));
+            return result;
+        } catch (RuntimeException failure) {
+            observer.observe(new QueryOperationMeasurement(
+                    operation,
+                    QueryOperationOutcome.FAILED,
+                    elapsed(startedAt),
+                    inputCount,
+                    0));
+            throw failure;
+        }
+    }
+
+    /** Bounded storage-operation names; values are safe metric/span dimensions. */
+    public enum QueryOperation {
+        SEARCH_ENTITIES,
+        SEARCH_RELATIONS,
+        SEARCH_CHUNKS,
+        EXPAND_ENTITY_IDS,
+        LOAD_INCIDENT_RELATIONS,
+        LOAD_ENTITY_CONTRIBUTIONS,
+        LOAD_RELATION_CONTRIBUTIONS,
+        LOAD_VISIBLE_ENTITY_DEGREES,
+        LOAD_VISIBLE_RELATION_WEIGHTS,
+        RANK_CHUNKS,
+        LOAD_CHUNKS
+    }
+
+    public enum QueryOperationOutcome {
+        SUCCEEDED,
+        FAILED
+    }
+
+    public record QueryOperationMeasurement(
+            QueryOperation operation,
+            QueryOperationOutcome outcome,
+            Duration duration,
+            int inputCount,
+            int outputCount) {
+
+        public QueryOperationMeasurement {
+            Objects.requireNonNull(operation, "operation");
+            Objects.requireNonNull(outcome, "outcome");
+            Objects.requireNonNull(duration, "duration");
+            if (duration.isNegative()) {
+                throw new IllegalArgumentException("duration must not be negative");
+            }
+            if (inputCount < 0 || outputCount < 0) {
+                throw new IllegalArgumentException("counts must be non-negative");
+            }
+        }
+    }
+
+    @FunctionalInterface
+    public interface QueryOperationObserver {
+        QueryOperationObserver NO_OP = measurement -> { };
+
+        void observe(QueryOperationMeasurement measurement);
     }
 }
