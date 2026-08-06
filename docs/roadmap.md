@@ -54,6 +54,7 @@ The table is a delivery index, not a second description of current behavior.
 
 | Increment | Status | Remaining gate |
 | --- | --- | --- |
+| [Clearance separation](increments/active/2026-08-06-clearance-separation/plan.md) | active | complete the implementation gates, then review the migration, two Executive call sites, and generated contract diff in the merge loop |
 | [Agentic Skill beta](increments/completed/2026-08-05-agentic-skill-beta/verification.md) | shipped | delivered actor-scoped progressive Skill disclosure, a bounded read-only Assistant tool loop, and truthful Skill activity without server-side package execution |
 | [Knowledge workspace and document reader](increments/completed/2026-08-05-knowledge-workspace-document-reader/verification.md) | shipped | completed the governed right-side reader, safe Markdown presentation, truthful access copy, and cross-format browser coverage |
 | [Knowledge operations and graph inspector](increments/completed/2026-08-05-knowledge-operations-graph-inspector/verification.md) | shipped | completed desktop document operations, safe terminal-failure remediation, and the graph entity/evidence inspector; retry remains fenced backlog work |
@@ -110,6 +111,11 @@ implementation-active until their predecessor exit gates pass.
 
 ## Engineering Backlog
 
+- Before any authorization-model evolution, add an explicit publication
+  compatibility and convergence rollout gate. Retrieval currently pins an
+  applied publication to the raw authorization-model identity, so even a
+  semantically compatible model rotation can temporarily make evidence
+  unavailable until publications are restamped.
 - Fence Source Ingestion with a never-reused claim epoch and an exact durable
   Asset-publication permit, then prove manifest-pinned recovery before exposing
   a manual FAILED retry. The rejected proposal and required test matrix are in
