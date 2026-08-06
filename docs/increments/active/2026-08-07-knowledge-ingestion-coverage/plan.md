@@ -9,25 +9,30 @@
 
 ## 1. Typed block IR
 
-- [ ] Parse through Tika with an XHTML content handler and build
+- [x] Parse through Tika with an XHTML content handler and build
   `HEADING` / `TABLE` / `PARAGRAPH` blocks with correct char spans, so
   `CanonicalDocument.hasStructuredBlocks()` is true for single-document sources.
-- [ ] Bump the parser component version, because `parser.actual` is part of the
+- [x] Bump the parser component version, because `parser.actual` is part of the
   canonical profile that `profileSha256` is computed over. Changing what the
   parser emits while keeping its identity would let two different outputs share
-  one hash.
-- [ ] Make normalization block-kind aware: prose keeps the current collapse, a
+  one hash. Now `spring-ai-document-reader` `2.1.0`.
+- [x] Make normalization block-kind aware: prose keeps the current collapse, a
   `TABLE` block keeps its cell and row boundaries.
-- [ ] Take the header row from `<th>` when present, otherwise the table's first
-  row, since XLSX and HTML disagree.
-- [ ] Keep `PagePdfDocumentReader` page provenance intact; a PDF must not lose
+- [x] Take the header row from `<th>` when present, otherwise the table's first
+  row, since XLSX and HTML disagree. Recorded as the block's `header` attribute.
+- [x] Keep `PagePdfDocumentReader` page provenance intact; a PDF must not lose
   `startPage`/`endPage` when it gains block kinds.
 - [ ] Confirm against a genuine Word export whether heading styles surface as
-  `<h1>`; the synthetic probe fixture could not answer this.
-- [ ] Cover: a spreadsheet becomes `TABLE` blocks with the header row intact, an
+  `<h1>`; the synthetic probe fixture could not answer this. Deferred to item 3
+  browser verification, where a real file is available. Low risk: if Tika does
+  not map them, a Word heading stays a paragraph, which is today's behaviour.
+- [x] Cover: a spreadsheet becomes `TABLE` blocks with the header row intact, an
   HTML export becomes headings plus tables, a DOCX table stops being flattened,
   a plain text file stays one `PARAGRAPH`, and a multi-page PDF keeps its page
   range.
+- [x] Prove end to end that a parsed table now reaches `ParagraphSemanticChunker`
+  and comes back as fragments that each repeat the header row, never split a
+  row, and lose no row.
 
 ## 2. Strategy resolution by content type
 
