@@ -12,6 +12,7 @@ const OFFICE_SOURCE_ID = "99999999-9999-4999-8999-999999999999"
 const RETRY_SOURCE_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 const FAILED_SOURCE_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 const QUARANTINED_SOURCE_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+const OUT_OF_SCOPE_SOURCE_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
 
 test("views protected evidence and deletes only an eligible ready upload", async ({ page }) => {
   const requests: string[] = []
@@ -82,10 +83,27 @@ test("Knowledge presents safe cross-format evidence in a centered document viewe
   await expect(page.getByRole("columnheader", { name: "Status" })).toBeVisible()
   await expect(page.getByRole("columnheader", { name: "Index profile" })).toHaveCount(0)
   await expect(page.getByText(/Word document/)).toBeVisible()
-  await expect(page.getByText("Knowledge Space policy").first()).toBeVisible()
+  await expect(page.getByText("Space: People").first()).toBeVisible()
+  await expect(page.getByText("Owned by People Operations").first()).toBeVisible()
   await expect(page.getByText("Executive only")).toHaveCount(0)
   await expect(page.getByText("The document parser could not read this file.")).toBeVisible()
   await expect(page.getByText("The uploaded evidence did not pass the content policy.")).toBeVisible()
+
+  await openDocument(page, "Quarterly plan")
+  await expect(
+    page.getByText("Original content becomes available after governed publication completes."),
+  ).toBeVisible()
+  await expect(page.getByText("People", { exact: true })).toBeVisible()
+  await expect(page.getByText("Nguyen Van An", { exact: true })).toBeVisible()
+  await closeReader(page)
+
+  await openDocument(page, "Executive forecast")
+  await expect(
+    page.getByText(
+      "This document's content is outside your access scope. Contact Finance to request access.",
+    ),
+  ).toBeVisible()
+  await closeReader(page)
 
   await openDocument(page, "Support SLA")
   await expect(page.getByTestId("restricted-source-markdown")).toBeVisible()
@@ -211,6 +229,16 @@ async function documentHarness(
           knowledgeAssetId: null,
           contentAvailable: false,
           deletionAllowed: false,
+        }),
+        source({
+          id: OUT_OF_SCOPE_SOURCE_ID,
+          title: "Executive forecast",
+          status: "READY",
+          knowledgeAssetId: ASSET_ID,
+          contentAvailable: false,
+          deletionAllowed: false,
+          classification: "RESTRICTED",
+          owningDepartmentName: "Finance",
         }),
         source({
           id: MARKDOWN_SOURCE_ID,
@@ -388,6 +416,7 @@ function source(input: {
   contentLength?: number
   failureCode?: string
   failureMessage?: string
+  owningDepartmentName?: string
 }) {
   return {
     ...input,
@@ -399,6 +428,11 @@ function source(input: {
     contentLength: input.contentLength ?? 48,
     failureCode: input.failureCode ?? null,
     failureMessage: input.failureMessage ?? null,
+    knowledgeSpaceKey: "people",
+    knowledgeSpaceName: "People",
+    owningDepartmentName: input.owningDepartmentName ?? "People Operations",
+    uploadedByName: "Nguyen Van An",
+    publicationComplete: input.status === "READY" && input.knowledgeAssetId !== null,
     embeddingProfileKey: input.status === "READY" ? "openai:text-embedding-3-large:1536" : null,
     embeddingProvider: input.status === "READY" ? "openai" : null,
     embeddingModel: input.status === "READY" ? "text-embedding-3-large" : null,

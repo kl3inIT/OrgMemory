@@ -79,8 +79,13 @@ export function SourcesTable({
                 {source.classification ? titleCase(source.classification) : "Policy controlled"}
               </div>
               <div className="text-xs text-muted-foreground">
-                Knowledge Space policy
+                Space: {source.knowledgeSpaceName ?? source.knowledgeSpaceKey ?? "—"}
               </div>
+              {source.owningDepartmentName ? (
+                <div className="text-xs text-muted-foreground">
+                  Owned by {source.owningDepartmentName}
+                </div>
+              ) : null}
             </div>
           )
         },
