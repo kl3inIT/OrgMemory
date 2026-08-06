@@ -155,8 +155,10 @@ services:
       openfga-migrate:
         condition: service_completed_successfully
     networks:
-      - orgmemory-internal
-      - shared-infra
+      orgmemory-internal:
+      shared-infra:
+        aliases:
+          - orgmemory-openfga
     read_only: true
     deploy:
       resources:
@@ -182,6 +184,7 @@ services:
         condition: service_started
     networks:
       - orgmemory-internal
+      - shared-infra
     restart: "no"
     read_only: true
     security_opt:
@@ -207,6 +210,7 @@ services:
         condition: service_completed_successfully
     networks:
       - orgmemory-internal
+      - shared-infra
     volumes:
       - ../../integrations/authorization-openfga/src/main/openfga/model.fga:/model/model.fga:ro
     restart: "no"
@@ -236,6 +240,7 @@ services:
         condition: service_completed_successfully
     networks:
       - orgmemory-internal
+      - shared-infra
     volumes:
       - ../../integrations/authorization-openfga/src/main/openfga/model.fga:/model/model.fga:ro
     restart: "no"
@@ -280,7 +285,10 @@ services:
       MINIO_ROOT_USER: ${ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY:?Set ORGMEMORY_OBJECT_STORAGE_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${ORGMEMORY_OBJECT_STORAGE_SECRET_KEY:?Set ORGMEMORY_OBJECT_STORAGE_SECRET_KEY}
     networks:
-      - orgmemory-internal
+      orgmemory-internal:
+      shared-infra:
+        aliases:
+          - orgmemory-minio
     volumes:
       - orgmemory_minio:/data
     healthcheck:
@@ -328,6 +336,8 @@ services:
     networks:
       orgmemory-internal:
       shared-infra:
+        aliases:
+          - orgmemory-keycloak
       proxy:
         aliases:
           - orgmemory-keycloak
@@ -408,8 +418,10 @@ services:
       openfga-ready:
         condition: service_completed_successfully
     networks:
-      - orgmemory-internal
-      - shared-infra
+      orgmemory-internal:
+      shared-infra:
+        aliases:
+          - orgmemory-api
     healthcheck:
       test:
         - CMD-SHELL
@@ -452,8 +464,10 @@ services:
       api:
         condition: service_healthy
     networks:
-      - orgmemory-internal
-      - shared-infra
+      orgmemory-internal:
+      shared-infra:
+        aliases:
+          - orgmemory-worker
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -502,6 +516,8 @@ services:
       # the only deployable that did not, so its spans had nowhere to go while
       # the other two were merely unconfigured.
       shared-infra:
+        aliases:
+          - orgmemory-mcp
       proxy:
         aliases:
           - orgmemory-mcp
@@ -533,6 +549,9 @@ services:
         condition: service_healthy
     networks:
       orgmemory-internal:
+      shared-infra:
+        aliases:
+          - orgmemory-web
       proxy:
         aliases:
           - orgmemory-web

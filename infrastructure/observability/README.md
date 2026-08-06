@@ -12,14 +12,14 @@ cp observability.env.example observability.env   # fill in, chmod 600
 docker compose -f compose.observability.yaml --env-file observability.env up -d
 ```
 
-Applications reach it at `observability-alloy:4318` over the existing
-`shared-infra` network. **This stack is only half of the wiring.** The exporter
-endpoints and the `mcp` service's membership of `shared-infra` are in
-`compose.production.yaml`, so a host running this file against a product release
-from before that change comes up entirely healthy and exports nothing. Deploy
-the product side too, then confirm with the trace check at the bottom of this
-file. Never `localhost` — Alloy binds `127.0.0.1` on the host, and inside a
-container that address is the container itself.
+Every service in this stack joins `shared-infra`, and applications reach the
+collector at `observability-alloy:4318` on that network. The product deployment
+and this independently operated stack are the two halves of the wiring. A
+product deploy does not recreate observability containers: after changing this
+Compose topology, explicitly apply this file from the same merged release, then
+confirm the shared-network DNS checks and trace check below. Never `localhost` —
+Alloy binds `127.0.0.1` on the host, and inside a container that address is the
+container itself.
 
 ## Reach Grafana
 

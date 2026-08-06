@@ -677,6 +677,13 @@ Spring properties, never `OTEL_*`: production sets
 defaults to `http://localhost:4318`, which inside a container is the container
 itself, and an application exported there for weeks while looking healthy.
 
+Every production, documentation, and observability service joins that external
+`shared-infra` network as an additive Docker DNS fabric. Compose-private networks
+remain in place for product- and observability-internal routes, and only services
+that already join the proxy network are browser-accessible. Shared DNS membership
+does not publish a container port to the host; it lets operators and cross-stack
+integrations use stable service names instead of container IP addresses.
+
 The collector stack lives in `infrastructure/observability/`, is started and
 stopped independently of the product, and runs Grafana, Prometheus, Loki, Tempo,
 Alloy, and host, container and database exporters. Alloy fans OTLP traces to

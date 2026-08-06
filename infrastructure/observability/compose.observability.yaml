@@ -7,11 +7,14 @@
 #
 #   docker compose -f compose.observability.yaml --env-file observability.env up -d
 #
-# Applications reach it at `observability-alloy:4318` over the pre-existing
-# `shared-infra` network. This stack is only half of the wiring: the exporter
-# endpoints and the `mcp` service's membership of `shared-infra` live in
-# compose.production.yaml, and a deployment that starts this file against an
-# older product release comes up healthy while exporting nothing. Deploy both.
+# Every service also joins the pre-existing `shared-infra` network, making the
+# prefixed container names (`observability-tempo`, `observability-prometheus`,
+# and so on) a stable cross-stack Docker DNS contract. The private network is
+# retained for observability-internal traffic and the proxy network is retained
+# only where a browser-facing endpoint needs it.
+# Applications still export only to `observability-alloy:4318`; sharing DNS does
+# not couple them to a storage backend. The exporter endpoints and product
+# memberships live in compose.production.yaml, so deploy both halves together.
 # Never `localhost`: Alloy binds 127.0.0.1 on the host, and inside a container
 # that address is the container itself. That mistake is the original production
 # symptom this whole increment exists to fix.
@@ -108,6 +111,7 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     networks:
       - observability-internal
+      - shared-infra
     logging: *default-logging
 
   loki:
@@ -120,6 +124,7 @@ services:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
     networks:
       - observability-internal
+      - shared-infra
     logging: *default-logging
 
   tempo:
@@ -138,6 +143,7 @@ services:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
     networks:
       - observability-internal
+      - shared-infra
     logging: *default-logging
 
   alloy:
@@ -178,6 +184,7 @@ services:
       - /:/host:ro,rslave
     networks:
       - observability-internal
+      - shared-infra
     logging: *default-logging
 
   cadvisor:
@@ -197,6 +204,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
     networks:
       - observability-internal
+      - shared-infra
     logging: *default-logging
 
   postgres-exporter:
