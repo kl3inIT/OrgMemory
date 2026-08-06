@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,7 +37,7 @@ class AssistantSkillToolLoopTests {
                 null,
                 "Incident lead",
                 "incident.lead@example.test",
-                UserRole.MANAGER);
+                Clearance.STANDARD);
         SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
         when(skills.search(actor, "incident", 3)).thenReturn(List.of(
                 new SkillRuntimeOperations.SkillSummary(
@@ -105,7 +105,7 @@ class AssistantSkillToolLoopTests {
                 null,
                 "Loop tester",
                 "loop.tester@example.test",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
         SkillRuntimeOperations skills = mock(SkillRuntimeOperations.class);
         when(skills.search(actor, "loop", 1)).thenReturn(List.of());
         AtomicInteger modelCalls = new AtomicInteger();

@@ -122,7 +122,7 @@ public class UserProvisioningService {
                 invitation.getDepartmentId(),
                 displayName(normalized),
                 normalized,
-                invitation.getRole())));
+                invitation.getClearance())));
 
         identityBindings.bind(user.getId(), issuer, subject);
         invitation.accept(user.getId(), Instant.now());
@@ -132,7 +132,11 @@ public class UserProvisioningService {
 
     @Transactional
     public UserInvitation invite(
-            UUID organizationId, String email, UUID departmentId, UserRole role, UUID invitedByUserId) {
+            UUID organizationId,
+            String email,
+            UUID departmentId,
+            Clearance clearance,
+            UUID invitedByUserId) {
         if (organizationId == null || !organizations.existsById(organizationId)) {
             throw new BusinessValidationException(
                     "invitation.organization-invalid",
@@ -160,7 +164,7 @@ public class UserProvisioningService {
         }
         return invitations.save(
                 new UserInvitation(
-                        organizationId, normalized, departmentId, role, invitedByUserId));
+                        organizationId, normalized, departmentId, clearance, invitedByUserId));
     }
 
     /**
@@ -194,15 +198,15 @@ public class UserProvisioningService {
             UUID departmentId = openInvitation
                     .map(UserInvitation::getDepartmentId)
                     .orElse(null);
-            UserRole role = openInvitation
-                    .map(UserInvitation::getRole)
-                    .orElse(UserRole.EMPLOYEE);
+            Clearance clearance = openInvitation
+                    .map(UserInvitation::getClearance)
+                    .orElse(Clearance.STANDARD);
             return new AppUser(
                     command.organizationId(),
                     departmentId,
                     preferredDisplayName(command.displayName(), normalized),
                     normalized,
-                    role);
+                    clearance);
         });
         user.applyDirectoryProfile(command.displayName());
         user.applyDirectoryAccess(command.directoryActive());

@@ -44,6 +44,6 @@ class AppUserLifecycleTests {
                 null,
                 "Provisioned User",
                 "provisioned@example.test",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
     }
 }

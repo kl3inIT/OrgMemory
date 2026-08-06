@@ -55,7 +55,7 @@ class UserProvisioningServiceTests {
     }
 
     private UserInvitation invitation(UUID organizationId, String email) {
-        return new UserInvitation(organizationId, email, DEPARTMENT_ID, UserRole.EMPLOYEE, INVITER_ID);
+        return new UserInvitation(organizationId, email, DEPARTMENT_ID, Clearance.STANDARD, INVITER_ID);
     }
 
     @Test
@@ -71,7 +71,7 @@ class UserProvisioningServiceTests {
         assertTrue(provisioned.isPresent());
         assertEquals("newcomer@example.com", provisioned.get().getEmail());
         assertEquals(ORGANIZATION_ID, provisioned.get().getOrganizationId());
-        assertEquals(UserRole.EMPLOYEE, provisioned.get().getRole());
+        assertEquals(Clearance.STANDARD, provisioned.get().getClearance());
         verify(users).findByOrganizationIdAndEmailIgnoreCase(
                 ORGANIZATION_ID, "newcomer@example.com");
         verify(identityBindings).bind(eq(provisioned.get().getId()), eq(ISSUER), eq(SUBJECT));
@@ -93,7 +93,7 @@ class UserProvisioningServiceTests {
                 null,
                 "Directory User",
                 "directory@example.com",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
         directoryUser.applyDirectoryAccess(true);
         when(users.findByEmailIgnoreCase("directory@example.com"))
                 .thenReturn(List.of(directoryUser));
@@ -113,7 +113,7 @@ class UserProvisioningServiceTests {
                 null,
                 "Directory User",
                 "directory@example.com",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
         directoryUser.applyDirectoryAccess(true);
         when(invitations.findOpenByEmailForUpdate("directory@example.com"))
                 .thenReturn(List.of(invitation(
@@ -141,7 +141,7 @@ class UserProvisioningServiceTests {
 
     @Test
     void anExistingAccountIsLinkedRatherThanDuplicated() {
-        var existing = new AppUser(ORGANIZATION_ID, DEPARTMENT_ID, "Linh", "linh@example.com", UserRole.EMPLOYEE);
+        var existing = new AppUser(ORGANIZATION_ID, DEPARTMENT_ID, "Linh", "linh@example.com", Clearance.STANDARD);
         when(invitations.findOpenByEmailForUpdate("linh@example.com"))
                 .thenReturn(List.of(invitation(ORGANIZATION_ID, "linh@example.com")));
         when(users.findByOrganizationIdAndEmailIgnoreCase(
@@ -184,7 +184,7 @@ class UserProvisioningServiceTests {
                         OTHER_ORGANIZATION_ID,
                         "newcomer@example.com",
                         null,
-                        UserRole.EMPLOYEE,
+                        Clearance.STANDARD,
                         INVITER_ID));
 
         assertEquals("invitation.organization-invalid", failure.code());
@@ -203,7 +203,7 @@ class UserProvisioningServiceTests {
                         ORGANIZATION_ID,
                         "newcomer@example.com",
                         otherDepartmentId,
-                        UserRole.EMPLOYEE,
+                        Clearance.STANDARD,
                         INVITER_ID));
 
         assertEquals("invitation.department-invalid", failure.code());
@@ -222,7 +222,7 @@ class UserProvisioningServiceTests {
                         ORGANIZATION_ID,
                         "newcomer@example.com",
                         DEPARTMENT_ID,
-                        UserRole.EMPLOYEE,
+                        Clearance.STANDARD,
                         otherInviterId));
 
         assertEquals("invitation.inviter-invalid", failure.code());
@@ -235,7 +235,7 @@ class UserProvisioningServiceTests {
                 ORGANIZATION_ID,
                 "Newcomer@Example.com",
                 DEPARTMENT_ID,
-                UserRole.EMPLOYEE,
+                Clearance.STANDARD,
                 INVITER_ID);
 
         assertEquals(ORGANIZATION_ID, invitation.getOrganizationId());
@@ -251,7 +251,7 @@ class UserProvisioningServiceTests {
                 null,
                 "Directory User",
                 "directory@example.com",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
         directoryUser.applyDirectoryAccess(true);
         when(users.findByOrganizationIdAndEmailIgnoreCase(
                         ORGANIZATION_ID, "directory@example.com"))
@@ -263,7 +263,7 @@ class UserProvisioningServiceTests {
                         ORGANIZATION_ID,
                         "Directory@Example.com",
                         null,
-                        UserRole.EMPLOYEE,
+                        Clearance.STANDARD,
                         INVITER_ID));
 
         assertEquals("invitation.user-scim-managed", failure.code());
@@ -277,7 +277,7 @@ class UserProvisioningServiceTests {
                 DEPARTMENT_ID,
                 "Existing Name",
                 "employee@example.com",
-                UserRole.MANAGER);
+                Clearance.STANDARD);
         var pending = invitation(ORGANIZATION_ID, "employee@example.com");
         when(invitations.findOpenByOrganizationIdAndEmailForUpdate(
                         ORGANIZATION_ID, "employee@example.com"))
@@ -298,7 +298,7 @@ class UserProvisioningServiceTests {
         assertEquals(pending.getId(), result.consumedInvitationId());
         assertFalse(pending.open());
         assertTrue(existing.isDirectoryManaged());
-        assertEquals(UserRole.MANAGER, existing.getRole());
+        assertEquals(Clearance.STANDARD, existing.getClearance());
         assertEquals("Directory Name", existing.getName());
     }
 
@@ -321,7 +321,7 @@ class UserProvisioningServiceTests {
         assertFalse(result.adoptedExistingUser());
         assertEquals("employee@example.com", result.user().getEmail());
         assertEquals("employee", result.user().getName());
-        assertEquals(UserRole.EMPLOYEE, result.user().getRole());
+        assertEquals(Clearance.STANDARD, result.user().getClearance());
         assertTrue(result.user().isDirectoryManaged());
         assertFalse(result.user().isActive());
     }

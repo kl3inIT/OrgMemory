@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.orgmemory.core.assistant.AssistantAnswerSentiment;
 import com.orgmemory.core.assistant.AssistantConversationService;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -101,9 +101,9 @@ class AssistantAnswerFeedbackConcurrencyIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role, active,
+                    id, organization_id, name, email, clearance, active,
                     created_at, updated_at, version)
-                VALUES (?, ?, 'Feedback actor', ?, 'EMPLOYEE', true, now(), now(), 0)
+                VALUES (?, ?, 'Feedback actor', ?, 'STANDARD', true, now(), now(), 0)
                 """,
                 actorId,
                 organizationId,
@@ -115,7 +115,7 @@ class AssistantAnswerFeedbackConcurrencyIntegrationTests {
                 null,
                 "Feedback actor",
                 actorId + "@example.test",
-                UserRole.EMPLOYEE);
+                Clearance.STANDARD);
         UUID conversationId = conversations.beginTurn(actor, null, "What is the policy?");
         UUID answerId = UUID.randomUUID();
         conversations.completeTurn(actor, conversationId, answerId, "The policy is available.");

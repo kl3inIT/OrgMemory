@@ -99,13 +99,13 @@ class AdminProvisioningIntegrationTests {
 
         insertOrganization(ORGANIZATION_ID, "Provisioning tenant");
         insertOrganization(OTHER_ORGANIZATION_ID, "Other provisioning tenant");
-        insertUser(ADMIN_USER_ID, ORGANIZATION_ID, "admin@provisioning.example", "ADMIN");
-        insertUser(EMPLOYEE_USER_ID, ORGANIZATION_ID, "employee@provisioning.example", "EMPLOYEE");
+        insertUser(ADMIN_USER_ID, ORGANIZATION_ID, "admin@provisioning.example", "STANDARD");
+        insertUser(EMPLOYEE_USER_ID, ORGANIZATION_ID, "employee@provisioning.example", "STANDARD");
         insertUser(
                 OTHER_ADMIN_USER_ID,
                 OTHER_ORGANIZATION_ID,
                 "admin@other-provisioning.example",
-                "ADMIN");
+                "STANDARD");
 
         when(authorization.check(any())).thenAnswer(invocation -> {
             RelationshipAuthorizationQuery query = invocation.getArgument(0);
@@ -279,7 +279,7 @@ class AdminProvisioningIntegrationTests {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, name, email, role, active,
+                    id, organization_id, name, email, clearance, active,
                     created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, true, now(), now(), 0)
                 """,

@@ -387,8 +387,8 @@ class ConnectorContentEditIntegrationTests {
     private void insertUser(UUID id, String email) {
         jdbc.update("""
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
-                VALUES (?, ?, ?, ?, ?, 'EMPLOYEE', true, now(), now(), 0)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
+                VALUES (?, ?, ?, ?, ?, 'STANDARD', true, now(), now(), 0)
                 """, id, ORG, DEPT, email, email);
     }
 

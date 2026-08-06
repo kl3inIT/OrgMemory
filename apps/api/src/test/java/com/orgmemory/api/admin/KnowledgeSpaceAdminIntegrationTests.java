@@ -462,10 +462,10 @@ class KnowledgeSpaceAdminIntegrationTests {
 
     private void seed() {
         insertOrganization(ORG, "Space Test Org", DEPT, "Sales");
-        insertUser(ADMIN_USER, ORG, DEPT, "admin@spacetest.example", "ADMIN");
-        insertUser(AN_USER, ORG, DEPT, "an@spacetest.example", "EMPLOYEE");
+        insertUser(ADMIN_USER, ORG, DEPT, "admin@spacetest.example", "STANDARD");
+        insertUser(AN_USER, ORG, DEPT, "an@spacetest.example", "STANDARD");
         insertOrganization(OTHER_ORG, "Other Tenant", OTHER_DEPT, "Other Sales");
-        insertUser(OTHER_ADMIN, OTHER_ORG, OTHER_DEPT, "admin@othertenant.example", "ADMIN");
+        insertUser(OTHER_ADMIN, OTHER_ORG, OTHER_DEPT, "admin@othertenant.example", "STANDARD");
         List.of(ADMIN_USER, AN_USER, OTHER_ADMIN).forEach(this::linkIdentity);
     }
 
@@ -483,11 +483,11 @@ class KnowledgeSpaceAdminIntegrationTests {
                 departmentName);
     }
 
-    private void insertUser(UUID id, UUID organizationId, UUID departmentId, String email, String role) {
+    private void insertUser(UUID id, UUID organizationId, UUID departmentId, String email, String clearance) {
         jdbc.update(
                 """
                 INSERT INTO app_users (
-                    id, organization_id, department_id, name, email, role, active, created_at, updated_at, version)
+                    id, organization_id, department_id, name, email, clearance, active, created_at, updated_at, version)
                 VALUES (?, ?, ?, ?, ?, ?, true, now(), now(), 0)
                 """,
                 id,
@@ -495,7 +495,7 @@ class KnowledgeSpaceAdminIntegrationTests {
                 departmentId,
                 email,
                 email,
-                role);
+                clearance);
     }
 
     private void linkIdentity(UUID userId) {

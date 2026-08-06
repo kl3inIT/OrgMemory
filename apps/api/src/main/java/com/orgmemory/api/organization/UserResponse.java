@@ -1,7 +1,7 @@
 package com.orgmemory.api.organization;
 
 import com.orgmemory.core.organization.AppUser;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.UUID;
 
 record UserResponse(
@@ -10,7 +10,7 @@ record UserResponse(
         UUID departmentId,
         String name,
         String email,
-        UserRole role
+        Clearance clearance
 ) {
 
     static UserResponse from(AppUser user) {
@@ -20,7 +20,7 @@ record UserResponse(
                 user.getDepartmentId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole()
+                user.getClearance()
         );
     }
 }

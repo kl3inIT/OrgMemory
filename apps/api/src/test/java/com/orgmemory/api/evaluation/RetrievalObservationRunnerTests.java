@@ -16,7 +16,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.knowledge.retrieval.GraphRagKnowledgeRetrievalService;
 import com.orgmemory.core.organization.AppUser;
 import com.orgmemory.core.organization.AppUserRepository;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -72,7 +72,7 @@ class RetrievalObservationRunnerTests {
                 null,
                 "Fixture User",
                 "fixture@example.test",
-                UserRole.EMPLOYEE)));
+                Clearance.STANDARD)));
         RetrievalObservationRunner runner = new RetrievalObservationRunner(
                 new RetrievalObservationProperties(
                         true,
@@ -204,7 +204,7 @@ class RetrievalObservationRunnerTests {
                 null,
                 "Fixture User",
                 "fixture@example.test",
-                UserRole.EMPLOYEE)));
+                Clearance.STANDARD)));
         Files.writeString(
                 output.resolveSibling(output.getFileName() + ".checkpoint"),
                 """

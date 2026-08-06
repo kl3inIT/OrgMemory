@@ -106,13 +106,15 @@ final class AssistantPromptFactory {
         String displayName = actor.name() == null || actor.name().isBlank()
                 ? "OrgMemory user"
                 : truncate(actor.name().strip(), 120);
-        String role = actor.role() == null ? "UNSPECIFIED" : actor.role().name();
+        String clearance = actor.clearance() == null
+                ? "UNSPECIFIED"
+                : actor.clearance().name();
         return """
                 <user_context purpose="response_personalization_only">
                   <display_name>%s</display_name>
-                  <role>%s</role>
+                  <clearance>%s</clearance>
                 </user_context>"""
-                .formatted(escapeXml(displayName), role);
+                .formatted(escapeXml(displayName), clearance);
     }
 
     private static String escapeXml(String value) {

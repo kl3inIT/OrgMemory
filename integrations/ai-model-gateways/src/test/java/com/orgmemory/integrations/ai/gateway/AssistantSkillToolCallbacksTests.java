@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.orgmemory.core.assetregistry.skill.SkillRuntimeOperations;
 import com.orgmemory.core.assistant.AssistantAgentActivity;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,7 +30,7 @@ class AssistantSkillToolCallbacksTests {
             null,
             "Skill user",
             "skill.user@example.test",
-            UserRole.EMPLOYEE);
+            Clearance.STANDARD);
 
     @Test
     void exposesOnlyTheFixedReadOnlyProgressiveDisclosureTools() {

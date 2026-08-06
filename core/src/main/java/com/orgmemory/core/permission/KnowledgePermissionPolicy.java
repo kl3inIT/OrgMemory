@@ -45,7 +45,7 @@ public class KnowledgePermissionPolicy {
         if (resource.declaredAccess() != requiredScope(resource.classification())) {
             return PermissionDecision.deny(PermissionReason.DECLARED_ACCESS_MISMATCH);
         }
-        if (subject.role() == null) {
+        if (subject.clearance() == null) {
             return PermissionDecision.deny(PermissionReason.SUBJECT_ROLE_MISSING);
         }
 
@@ -53,7 +53,7 @@ public class KnowledgePermissionPolicy {
             case PUBLIC -> PermissionDecision.allow(PermissionReason.PUBLIC_ACCESS);
             case INTERNAL -> PermissionDecision.allow(PermissionReason.INTERNAL_ACCESS);
             case CONFIDENTIAL -> evaluateConfidential(subject, resource);
-            case RESTRICTED -> subject.role() == KnowledgeRole.EXECUTIVE
+            case RESTRICTED -> subject.clearance() == KnowledgeRole.EXECUTIVE
                     ? PermissionDecision.allow(PermissionReason.RESTRICTED_EXECUTIVE)
                     : PermissionDecision.deny(PermissionReason.RESTRICTED_NON_EXECUTIVE);
         };
@@ -75,7 +75,7 @@ public class KnowledgePermissionPolicy {
         if (isBlank(resource.departmentId())) {
             return PermissionDecision.deny(PermissionReason.RESOURCE_DEPARTMENT_MISSING);
         }
-        if (subject.role() == KnowledgeRole.EXECUTIVE) {
+        if (subject.clearance() == KnowledgeRole.EXECUTIVE) {
             return PermissionDecision.allow(PermissionReason.CONFIDENTIAL_EXECUTIVE);
         }
         return subject.departmentId().equals(resource.departmentId())

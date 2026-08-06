@@ -9,7 +9,7 @@ public record CurrentActor(
         UUID departmentId,
         String name,
         String email,
-        UserRole role) {
+        Clearance clearance) {
 
     public CurrentActor(
             UUID userId,

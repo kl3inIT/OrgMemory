@@ -187,7 +187,7 @@ class AdminPermissionController {
                     user.getDepartmentId(),
                     user.getName(),
                     user.getEmail(),
-                    user.getRole());
+                    user.getClearance());
             return canonicalContentResponse(
                     explanation,
                     subject,

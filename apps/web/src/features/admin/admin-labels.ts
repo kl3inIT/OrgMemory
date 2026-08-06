@@ -1,28 +1,19 @@
 import type { AdminSourcePrincipalResponse } from "@/lib/hey-api"
 
-// Keep aligned with the UserRole union in the generated OpenAPI types.
-export const USER_ROLES = [
-  "EMPLOYEE",
-  "TEAM_LEAD",
-  "MANAGER",
-  "DIRECTOR",
-  "EXECUTIVE",
-  "ADMIN",
-] as const
+// Keep aligned with the closed Clearance union in the generated OpenAPI types.
+export const CLEARANCES = ["STANDARD", "EXECUTIVE"] as const
 
-export type UserRoleValue = (typeof USER_ROLES)[number]
+export type ClearanceValue = (typeof CLEARANCES)[number]
 
-const ROLE_LABELS: Record<UserRoleValue, string> = {
-  EMPLOYEE: "Employee",
-  TEAM_LEAD: "Team lead",
-  MANAGER: "Manager",
-  DIRECTOR: "Director",
+const CLEARANCE_LABELS: Record<ClearanceValue, string> = {
+  STANDARD: "Standard",
   EXECUTIVE: "Executive",
-  ADMIN: "Administrator",
 }
 
-export function roleLabel(role: string | undefined) {
-  return role ? (ROLE_LABELS[role as UserRoleValue] ?? role) : "Unknown"
+export function clearanceLabel(clearance: string | undefined) {
+  return clearance
+    ? (CLEARANCE_LABELS[clearance as ClearanceValue] ?? clearance)
+    : "Unknown"
 }
 
 /**

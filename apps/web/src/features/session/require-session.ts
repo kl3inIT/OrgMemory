@@ -23,5 +23,5 @@ export async function requireBrowserSession(
 }
 
 export function isAdministrator(session: SessionResponse) {
-  return session.role === "ADMIN"
+  return session.canManageMembers === true
 }

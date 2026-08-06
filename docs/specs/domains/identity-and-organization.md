@@ -5,10 +5,12 @@ Source: `core/src/main/java/com/orgmemory/core/organization`,
 `apps/api/src/main/java/com/orgmemory/api/organization`,
 `apps/api/src/main/java/com/orgmemory/api/security`,
 `apps/api/src/main/java/com/orgmemory/api/scim`,
-`apps/api/src/main/java/com/orgmemory/api/admin`, and
+`apps/api/src/main/java/com/orgmemory/api/admin`,
+`apps/web/src/features/admin`,
+`apps/web/src/components/app-shell/account-menu.tsx`, and
 `core/src/main/resources/db/migration`.
 
-Reconciled: `2026-08-01-spring-modulith-package-refactor (00aabe15)`.
+Reconciled: `2026-08-06-clearance-separation (219902eb)`.
 
 ## Current Behavior
 
@@ -27,7 +29,11 @@ model; duplicating the same external subject is not supported.
 
 The browser uses Spring as a confidential OIDC BFF. Keycloak authenticates the
 user, Spring Session JDBC stores the server-side session, and React reads only
-the canonical actor through `/api/session`. The browser never stores OAuth access
+the canonical actor through `/api/session`. That response serves the actor's
+clearance plus the OpenFGA-derived `canManageMembers` affordance; the browser
+does not infer administration from clearance. `/api/me` serves the user's own
+department ID, department name, and clearance for read-only account context.
+The browser never stores OAuth access
 or refresh tokens. Browser writes require Spring Security SPA CSRF; logout is a
 CSRF-protected POST followed by OIDC provider logout. The provider receives the
 exact registered application redirect ending in `/login`.
@@ -44,27 +50,30 @@ Knowledge reads then reload the active persisted subject through the
 Organization-owned `KnowledgeAccessSubjectQuery`; its department and Executive
 flag come from current Organization state rather than actor claims. Canonical
 organization and department existence checks cross `OrganizationResourceQuery`.
-Knowledge Retrieval imports no Organization entity, role, or repository.
+Knowledge Retrieval imports no Organization entity, clearance type, or repository.
 External source-system users and groups are resolved into knowledge ACL
 principals through the verified mapping ledger described in the
 [knowledge ingestion spec](knowledge-ingestion.md).
 
 An administration surface under `/api/admin/**` governs that identity layer.
 Every endpoint is gated on OpenFGA `can_manage_members` against the actor's
-organization. `app_users.role` is a local business/classification profile used
-by application policy and presentation; it is neither a Keycloak role nor an
-OpenFGA relationship and cannot grant organization or Knowledge Space access.
-Administration lists internal users with
-their role, activation, whether an `external_identities` row exists at all, and
-how many source principals resolve to them; it changes role and activation but
-never creates users, refusing self-edits so an organization cannot be locked out
-of its own administration. It lists observed source principals with the tier that
+organization. `app_users.clearance` is a closed `STANDARD | EXECUTIVE`
+classification attribute; it is neither a Keycloak role nor an OpenFGA
+relationship and cannot grant an administrative action. Executive clearance
+does widen the existing data policy to org-wide CONFIDENTIAL and RESTRICTED
+reads. Administration lists internal users with their clearance, department,
+activation, whether an `external_identities` row exists at all, and how many
+source principals resolve to them. It changes clearance, department, and
+activation but never creates users, validates department ownership, and refuses
+self-edits so an organization cannot be locked out of its own administration.
+It lists observed source principals with the tier that
 mapped them, records administrator-confirmed mappings and revocations through the
 existing mapping service, records the per-connection identity trust decision,
 and exposes each source group's native ID plus its canonical active membership
-snapshot ID and generation read-only. Administrators can create,
-list, and revoke invitation expectations; first verified sign-in atomically
-creates or links the application user and accepts the invitation. There is no
+snapshot ID and generation read-only. Administrators can create, list, and
+revoke invitation expectations with an initial clearance and optional
+department; first verified sign-in atomically creates or links the application
+user and accepts the invitation. There is no
 open registration or application-managed directory group.
 
 The native SCIM foundation stores organization-bound provisioning connections,
@@ -102,12 +111,13 @@ abort API startup before traffic is accepted.
 - Application-user email uniqueness is scoped to its organization.
 - Email and Keycloak roles are display/authentication claims, not authorization
   grants.
-- `app_users.role` is local business/classification state, not an OpenFGA grant.
+- Clearance is exactly `STANDARD | EXECUTIVE`; unknown values cannot be
+  persisted, and clearance is not an OpenFGA administrative grant.
 - Knowledge access reloads current active department and Executive state from
   Organization persistence; `CurrentActor` claims cannot widen it.
 - Browser and bearer paths must resolve the same `CurrentActor`.
 - Unknown, inactive, stale, or ambiguous identity state denies access.
-- Administration is authorized by OpenFGA, never by the app role a browser reads.
+- Administration is authorized by OpenFGA, never by the clearance a browser reads.
 - Administration resolves existing sealed grants; it never creates a grant, an
   account, or a group.
 - Source email and display name are mutable observations; authorization identity
@@ -121,4 +131,5 @@ abort API startup before traffic is accepted.
 
 - [0003](../../decisions/0003-postgresql-ledger-openfga-authorization.md)
 - [0016](../../decisions/0016-native-scim-behind-keycloak-broker.md)
+- [0033](../../decisions/0033-separate-data-clearance-from-action-authority.md)
 - [Identity tenant migration operations](../../guidelines/identity-tenant-migration-operations.md)

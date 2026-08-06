@@ -11,7 +11,7 @@ import com.orgmemory.core.assetregistry.consumption.AssetPublicationMode;
 import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseDeliveryQuery;
 import com.orgmemory.core.assetregistry.skilldelivery.SkillReleaseSummary;
 import com.orgmemory.core.organization.CurrentActor;
-import com.orgmemory.core.organization.UserRole;
+import com.orgmemory.core.organization.Clearance;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +37,7 @@ class SkillRuntimeServiceTests {
             null,
             "Agent user",
             "agent@example.test",
-            UserRole.EMPLOYEE);
+            Clearance.STANDARD);
 
     @Test
     void searchesOnlyThroughTheActorScopedDeliveryBoundary() {
